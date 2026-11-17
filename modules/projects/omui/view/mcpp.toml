@@ -26,26 +26,26 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-xrender.text = { path = "../../xrender/text", version = "0.1.0" }
-mlibs.math = { path = "../../../base/math", version = "0.1.0" }
-mlibs.utils = { path = "../../../base/utils", version = "0.1.0" }
-omui.core     = { path = "../core", version = "0.1.0" }
-mlibs.geom     = { path = "../../../base/geom", version = "0.1.0" }
-mlibs.memory   = { path = "../../../base/memory", version = "0.1.0" }
-"hanim.core"          = { path = "../../hanim/core", version = "0.1.0" }
-"hanim"               = { path = "../../hanim", default-features = false, features = ["engine"], version = "0.1.0" }
-mlibs.layout   = { path = "../../../content/layout", version = "0.1.0" }
-xrender.raster   = { path = "../../xrender/raster", version = "0.1.0" }
-xrender.vector   = { path = "../../xrender/vector", version = "0.1.0" }
-"hanim.visual" = { path = "../../hanim/visual", version = "0.1.0" }
-mlibs.image    = { path = "../../../base/image", version = "0.1.0" }
-mlibs.text     = { path = "../../../content/text", version = "0.1.0" }
-mlibs.pipeline = { path = "../../../base/pipeline", version = "0.1.0" }
+xrender.text = { path = "../../xrender/text" }
+mlibs.math = { path = "../../../base/math" }
+mlibs.utils = { path = "../../../base/utils" }
+omui.core     = { path = "../core" }
+mlibs.geom     = { path = "../../../base/geom" }
+mlibs.memory   = { path = "../../../base/memory" }
+"hanim.core"          = { path = "../../hanim/core" }
+"hanim"               = { path = "../../hanim", default-features = false, features = ["engine"] }
+mlibs.layout   = { path = "../../../content/layout" }
+xrender.raster   = { path = "../../xrender/raster" }
+xrender.vector   = { path = "../../xrender/vector" }
+"hanim.visual" = { path = "../../hanim/visual" }
+mlibs.image    = { path = "../../../base/image" }
+mlibs.text     = { path = "../../../content/text" }
+mlibs.pipeline = { path = "../../../base/pipeline" }
 # A world drawn on the host's device and shown as it is (Services::device, add_device_picture).
-mlibs.rhi      = { path = "../../../gfx/rhi", version = "0.1.0" }
+mlibs.rhi      = { path = "../../../gfx/rhi" }
 # What else a process holds for agents beside the interface (Services::add_subject): the kernel's Subject (D-173).
-mlibs.agent    = { path = "../../../base/agent", version = "0.1.0" }
-mlibs.i18n     = { path = "../../../content/i18n", version = "0.1.0" }
+mlibs.agent    = { path = "../../../base/agent" }
+mlibs.i18n     = { path = "../../../content/i18n" }
 mcpplibs.os      = "0.4.4"
 
 # The files of tests/view/ are one program, run a file at a time: one link of the closure for all of them.
@@ -55,7 +55,7 @@ programs = "directory"
 [dev-dependencies]
 # Tests are mtest's (D-147).
 mcpplibs.mtest = "0.8.4"
-mlibs.cts = { path = "../../../base/cts", version = "0.1.0" }
+mlibs.cts = { path = "../../../base/cts" }
 
 # Optional native adapter. Ordinary views do not force the full Hanim player.
 [features]
@@ -63,4 +63,4 @@ default = []
 hanim = { sources = ["src/hanim/*.cppm", "src/hanim/*.cpp"] }
 
 [feature-deps.hanim]
-hanim = { path = "../../hanim", default-features = false, features = ["engine", "render-vector"], version = "0.1.0" }
+hanim = { path = "../../hanim", default-features = false, features = ["engine", "render-vector"] }

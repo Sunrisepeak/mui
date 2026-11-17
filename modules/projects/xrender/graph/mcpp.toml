@@ -26,9 +26,9 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-mlibs.rhi   = { path = "../../../gfx/rhi", version = "0.1.0" }
-mlibs.utils = { path = "../../../base/utils", version = "0.1.0" }
+mlibs.rhi   = { path = "../../../gfx/rhi" }
+mlibs.utils = { path = "../../../base/utils" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.memory  = { path = "../../../base/memory", version = "0.1.0" }
+mlibs.memory  = { path = "../../../base/memory" }

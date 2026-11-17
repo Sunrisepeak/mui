@@ -35,4 +35,4 @@ sources = ["src/*.cppm", "src/*/*.cppm", "src/*/*.cpp"]
 # that uses these plugins (a generating plugin compiles no device language, so
 # it is a plain library of build programs: mcpp's 08-build-rules shape).
 [dependencies]
-omui.gen = { path = "../../modules/projects/omui/tools/gen", tools = ["omui-gen"], reexport = true, version = "0.1.0" }
+omui.gen = { path = "../../modules/projects/omui/tools/gen", tools = ["omui-gen"], reexport = true }

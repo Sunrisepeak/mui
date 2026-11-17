@@ -39,14 +39,14 @@ libraries = ["android", "log"]
 link_library_dirs = ["link"]
 
 [dependencies]
-omui.core      = { path = "../../core", version = "0.1.0" }
-omui.view      = { path = "../../view", version = "0.1.0" }
-omui.semantic  = { path = "../../semantic", version = "0.1.0" }
-omui.agent     = { path = "../../agent", version = "0.1.0" }
-xrender.raster = { path = "../../../xrender/raster", version = "0.1.0" }
-xrender.vector = { path = "../../../xrender/vector", version = "0.1.0" }
+omui.core      = { path = "../../core" }
+omui.view      = { path = "../../view" }
+omui.semantic  = { path = "../../semantic" }
+omui.agent     = { path = "../../agent" }
+xrender.raster = { path = "../../../xrender/raster" }
+xrender.vector = { path = "../../../xrender/vector" }
 # The frame's entry: the host hands its layers to the renderer, which composes (D-162).
-xrender.frame = { path = "../../../xrender/frame", version = "0.1.0" }
-xrender.text   = { path = "../../../xrender/text", version = "0.1.0" }
-mlibs.text     = { path = "../../../../content/text", version = "0.1.0" }
+xrender.frame = { path = "../../../xrender/frame" }
+xrender.text   = { path = "../../../xrender/text" }
+mlibs.text     = { path = "../../../../content/text" }
 mcpplibs.os    = "0.4.4"

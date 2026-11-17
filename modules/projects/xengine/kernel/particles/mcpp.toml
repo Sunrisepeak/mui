@@ -36,14 +36,14 @@ cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
 agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
 
 [feature-deps.agent]
-mlibs.agent = { path = "../../../../base/agent", version = "0.1.0" }
+mlibs.agent = { path = "../../../../base/agent" }
 
 [dependencies]
-xengine.matter = { path = "../matter", default-features = false, version = "0.1.0" }
-mlibs.math     = { path = "../../../../base/math", version = "0.1.0" }
-mlibs.geom     = { path = "../../../../base/geom", version = "0.1.0" }
-mlibs.utils    = { path = "../../../../base/utils", version = "0.1.0" }
+xengine.matter = { path = "../matter", default-features = false }
+mlibs.math     = { path = "../../../../base/math" }
+mlibs.geom     = { path = "../../../../base/geom" }
+mlibs.utils    = { path = "../../../../base/utils" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-xengine.matter = { path = "../matter", version = "0.1.0" }  # with its default features: the standard definition (json)
+xengine.matter = { path = "../matter" }  # with its default features: the standard definition (json)

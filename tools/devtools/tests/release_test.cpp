@@ -1,6 +1,5 @@
 // omui-devtools release (RC3.1): the templates' closure is omui's SDK and what it reaches, never
-// the tools or the works; a descriptor names the member's archive by its identity in all three
-// platform blocks; a template's published versions point at a checkout only where they name a
+// the tools or the works; a descriptor's place in the index (mcpp publish writes it); a template's published versions point at a checkout only where they name a
 // member.
 import std;
 import mcpplibs.mtest;
@@ -46,30 +45,10 @@ static UTest cases{
                     << "the native template's own";
             };
 
-        "a descriptor: the identity split at its last dot, the archive by its full name, three platforms"_test =
-            [] {
-                const release::Package package{.name = "omui.core",
-                                               .path = "modules/projects/omui/core",
-                                               .version = "0.1.0",
-                                               .description = "the core",
-                                               .license = "Apache-2.0",
-                                               .repo = "https://github.com/acme/mui.git"};
-                const auto text = release::descriptor(package, {.sums = {{"omui.core-0.1.0.tar.gz",
-                                                                          std::string(64, 'a')}}});
-                expect(text.contains("namespace   = \"omui\"") &&
-                       text.contains("name        = \"core\""))
-                    << text;
-                expect(text.contains(
-                    "https://github.com/acme/mui/releases/download/v0.1.0/omui.core-0.1.0.tar.gz"))
-                    << text;
-                expect(text.contains("https://gitcode.com/mcpp-res/mui/releases/download/v0.1.0/"
-                                     "omui.core-0.1.0.tar.gz"))
-                    << text;
-                expect(text.contains("linux = {") && text.contains("macosx = {") &&
-                       text.contains("windows = {"));
-                expect(text.contains(std::format("sha256 = \"{}\"", std::string(64, 'a'))));
-                expect(release::descriptor_path(package) == "pkgs/o/omui.core.lua");
-            };
+        "a descriptor's place in mcpp-index: by the full name's initial (the descriptor is mcpp publish's)"_test = [] {
+            const release::Package package{.name = "omui.core", .path = "modules/projects/omui/core", .version = "0.1.0"};
+            expect(release::descriptor_path(package) == "pkgs/o/omui.core.lua");
+        };
 
         "a template's versions point at the checkout where they name a member, and nowhere else"_test =
             [] {
@@ -105,20 +84,4 @@ static UTest cases{
             expect(missing == std::vector<std::string>{"nlohmann.json@9.9.9", "mcpplibs.os@0.4.4"});
         };
 
-        "a sibling path edge gets its member's version beside it; stated ones, others and comments kept"_test = [] {
-            const std::map<std::string, std::string> versions{{"omui.core", "0.1.0"}, {"mlibs.math", "0.2.0"}};
-            const std::string manifest = "[dependencies]\n"
-                                         "omui.core = { path = \"../core\" }  # the runtime\n"
-                                         "\"mlibs.math\" = { path = \"../math\", features = [\"det\"] }\n"
-                                         "mlibs.geom = { path = \"../geom\" }\n"
-                                         "omui.view = { path = \"../view\", version = \"0.1.0\" }\n"
-                                         "nlohmann.json = \"3.12.0\"\n";
-            const std::string want = "[dependencies]\n"
-                                     "omui.core = { path = \"../core\", version = \"0.1.0\" }  # the runtime\n"
-                                     "\"mlibs.math\" = { path = \"../math\", features = [\"det\"], version = \"0.2.0\" }\n"
-                                     "mlibs.geom = { path = \"../geom\" }\n"
-                                     "omui.view = { path = \"../view\", version = \"0.1.0\" }\n"
-                                     "nlohmann.json = \"3.12.0\"\n";
-            expect(release::versioned(manifest, versions) == want) << release::versioned(manifest, versions);
-        };
     }};

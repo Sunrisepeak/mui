@@ -646,37 +646,6 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         }
     }
 
-    // versions (RC3.1, mcpp#947): a sibling path edge that states a version states its member's own, so what is
-    // published (the path dropped, the version kept) is what was built.
-    {
-        std::map<std::string, std::string> version_of;
-        for (const auto& member : workspace.members)
-            if (member.data)
-                if (const auto* package = table_at(&*member.data, "package"); package && package->get("version"))
-                    version_of[member.path] = package->get("version")->value_or(std::string{});
-        for (const auto& member : workspace.members) {
-            if (!member.data) continue;
-            std::vector<const toml::table*> tables{table_at(&*member.data, "dependencies"), table_at(&*member.data, "build-dependencies")};
-            if (const auto* targets = table_at(&*member.data, "target"))
-                for (const auto& [_, target] : *targets) tables.push_back(table_at(target.as_table(), "dependencies"));
-            if (const auto* features = table_at(&*member.data, "feature-deps"))
-                for (const auto& [_, feature] : *features) tables.push_back(feature.as_table());
-            for (const auto* table : tables) {
-                if (!table) continue;
-                for (const auto& [name, node] : flatten(*table)) {
-                    const auto* spec = node->as_table();
-                    if (!spec || !spec->get("path") || !spec->get("version")) continue;
-                    const std::string target = resolved(member.path, spec->get("path")->value_or(std::string{}));
-                    const auto own = version_of.find(target);
-                    const std::string said = spec->get("version")->value_or(std::string{});
-                    if (own != version_of.end() && own->second != said)
-                        add("versions", member.path + "/mcpp.toml",
-                            std::format("{} states version {} beside its path; the member is {} (release versions --write)", name, said, own->second));
-                }
-            }
-        }
-    }
-
     // platform-table (D-201): each cell real, software, unverified or unsupported, with what it rests on or lacks.
     if (const auto table_text = read_text(root / "docs/release.platforms.xdef.json")) {
         constexpr std::string_view where = "docs/release.platforms.xdef.json";

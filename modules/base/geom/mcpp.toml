@@ -36,9 +36,9 @@ mcpplibs.mwrap.manifold = "3.5.5.1"
 features = ["boolean"]
 
 [dependencies]
-mlibs.utils = { path = "../utils", version = "0.1.0" }
-mlibs.math  = { path = "../math", version = "0.1.0" }
+mlibs.utils = { path = "../utils" }
+mlibs.math  = { path = "../math" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.cts = { path = "../cts", version = "0.1.0" }
+mlibs.cts = { path = "../cts" }

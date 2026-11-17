@@ -26,12 +26,12 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openlifa.openmui = { path = "../../../../spec", version = "0.3.0" }
-mlibs.unicode  = { path = "../../../base/unicode", version = "0.1.0" }
-hanim.core            = { path = "../../hanim/core", version = "0.1.0" }
-mlibs.i18n     = { path = "../../../content/i18n", version = "0.1.0" }
+openlifa.openmui = { path = "../../../../spec" }
+mlibs.unicode  = { path = "../../../base/unicode" }
+hanim.core            = { path = "../../hanim/core" }
+mlibs.i18n     = { path = "../../../content/i18n" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.math = { path = "../../../base/math", version = "0.1.0" }
-mlibs.utils = { path = "../../../base/utils", version = "0.1.0" }
+mlibs.math = { path = "../../../base/math" }
+mlibs.utils = { path = "../../../base/utils" }

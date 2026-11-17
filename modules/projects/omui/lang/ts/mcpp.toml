@@ -28,13 +28,13 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mlibs.ts    = { path = "../../../../base/ts", version = "0.1.0" }  # the tool kernel's TypeScript: blanking, evaluation
-mlibs.utils = { path = "../../../../base/utils", version = "0.1.0" }  # mlibs.error: why a call cannot be edited
+mlibs.ts    = { path = "../../../../base/ts" }  # the tool kernel's TypeScript: blanking, evaluation
+mlibs.utils = { path = "../../../../base/utils" }  # mlibs.error: why a call cannot be edited
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
 mcpplibs.mtest = "0.8.4"
-mlibs.cts = { path = "../../../../base/cts", version = "0.1.0" }
+mlibs.cts = { path = "../../../../base/cts" }
 mlibs.xdef.tool = { path = "../../../../base/xdef/tool" }  # registry_test: the manifest registers what the define modules define
 
 

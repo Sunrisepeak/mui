@@ -1,8 +1,8 @@
 // omui-devtools release — the release channel (RC3.1): the packages a new project needs, read from
 // the templates' manifests and followed through every member they reach by `path` (all their
 // dependency tables but the development ones, every feature and platform: what `mcpp publish` must
-// find published), and the mcpp-index descriptor of each, written into a directory for review.
-// Nothing is published.
+// find published); `release index` has `mcpp publish --dry-run` make each one's archive and mcpp-index
+// descriptor into a directory for review. Nothing is published.
 export module omui.devtools.release;
 
 import std;
@@ -22,8 +22,6 @@ struct Package {
     std::string description, license, repo;
     bool built = false;  // reached with the features a template's project builds with (else: only
                          // by another feature or the publish rule)
-    std::vector<std::string> unversioned;  // its path edges to members with no `version` beside the
-                                           // path: `mcpp publish` refuses each
     std::vector<std::string>
         outside;  // other strings in its manifest or build.mcpp that leave its directory ("../…")
     std::vector<std::string> external;  // its version dependencies, `name@version`
@@ -40,21 +38,10 @@ struct Closure {
 // The closure of the templates under `root` (a checkout of the repository).
 [[nodiscard]] std::expected<Closure, std::string> closure(const std::filesystem::path& root);
 
-struct Options {
-    std::string tag;     // the release's tag; default v<version>
-    std::string repo;    // where the archives are released; default each package's repo
-    std::string mirror;  // the CN mirror's release prefix; default
-                         // https://gitcode.com/mcpp-res/<repository's name>
-    std::map<std::string, std::string> sums;  // archive file name → sha256 (a SHA256SUMS file read)
-};
-
-// The archive `mcpp publish` makes for a package, named by its identity so two packages' never meet
-// (`omui.core-0.1.0.tar.gz`).
-[[nodiscard]] std::string archive_of(const Package& package);
-// The descriptor's place in mcpp-index: pkgs/<initial of the full name>/<full name>.lua.
+// The descriptor's place in mcpp-index: pkgs/<initial of the full name>/<full name>.lua. The descriptor itself, the
+// archive and its sum are `mcpp publish`'s (2026.11.17.2: a member's archive by its identity, siblings at their own
+// versions, mcpp#947).
 [[nodiscard]] std::string descriptor_path(const Package& package);
-// The mcpp-index descriptor (Form A: the archive carries its own mcpp.toml).
-[[nodiscard]] std::string descriptor(const Package& package, const Options& options);
 
 // `name@version` of the external dependencies that the index under `index` (pkgs/<x>/*.lua) does
 // not carry.
@@ -72,13 +59,5 @@ struct Options {
 [[nodiscard]] std::string pointed_at(std::string_view manifest,
                                      const std::map<std::string, std::string>& members,
                                      std::string_view checkout);
-
-// A manifest with `version = "<its version>"` beside each one-line path dependency on a member (`versions`:
-// a member's package name → its version) that states none — what `mcpp publish` asks of a sibling edge
-// (mcpp#947 asks it to take the member's own instead); everything else, comments too, kept.
-[[nodiscard]] std::string versioned(std::string_view manifest, const std::map<std::string, std::string>& versions);
-
-// Read a SHA256SUMS file ("<sha256>  <file>" lines).
-[[nodiscard]] std::map<std::string, std::string> read_sums(const std::filesystem::path& file);
 
 }  // namespace omui::devtools::release

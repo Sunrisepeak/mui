@@ -26,11 +26,11 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-omui.core    = { path = "../core", version = "0.1.0" }
-omui.view    = { path = "../view", version = "0.1.0" }
-mlibs.agent   = { path = "../../../base/agent", features = ["session"], version = "0.1.0" }  # mlibs.session
-mlibs.utils    = { path = "../../../base/utils", version = "0.1.0" }
+omui.core    = { path = "../core" }
+omui.view    = { path = "../view" }
+mlibs.agent   = { path = "../../../base/agent", features = ["session"] }  # mlibs.session
+mlibs.utils    = { path = "../../../base/utils" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.cts = { path = "../../../base/cts", version = "0.1.0" }
+mlibs.cts = { path = "../../../base/cts" }

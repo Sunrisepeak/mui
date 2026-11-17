@@ -32,10 +32,10 @@ sources = ["src/native/x86/*.cpp"]
 sources = ["src/native/portable/*.cpp"]
 
 [dependencies]
-mlibs.utils = { path = "../../../base/utils", version = "0.1.0" }
-mlibs.geom = { path = "../../../base/geom", version = "0.1.0" }
-mlibs.math = { path = "../../../base/math", version = "0.1.0" }
-mlibs.memory = { path = "../../../base/memory", version = "0.1.0" }
+mlibs.utils = { path = "../../../base/utils" }
+mlibs.geom = { path = "../../../base/geom" }
+mlibs.math = { path = "../../../base/math" }
+mlibs.memory = { path = "../../../base/memory" }
 
 [dev-dependencies]
 # Tests are mtest's (D-147).

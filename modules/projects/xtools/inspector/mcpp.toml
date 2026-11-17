@@ -12,6 +12,7 @@ name        = "inspector"
 version     = "0.1.0"
 description = "The openmui Inspector: semantic tree, node details, frame times, pipeline and time control of a running openmui application"
 license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)

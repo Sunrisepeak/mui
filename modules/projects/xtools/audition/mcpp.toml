@@ -9,6 +9,7 @@ name        = "audition"
 version     = "0.1.0"
 description = "A timeline's gain automation heard on a real audio bus and seen in a headless omui view, offline"
 license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
 platforms   = ["linux", "macos", "windows"]
 
 [package.metadata.openmui]

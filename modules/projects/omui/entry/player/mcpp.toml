@@ -35,12 +35,12 @@ main = "src/entry/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
-omui.sdk           = { path = "../../sdk", version = "0.1.0" }
-omui.player        = { path = "../../player", version = "0.1.0" }
-omui.lang.js       = { path = "../../lang/js", version = "0.1.0" }
-omui.ui.markdown   = { path = "../../components/markdown", version = "0.1.0" }
-omui.native = { path = "../../native", version = "0.1.0" }  # with its modules (fuzzy, store)
-omui.theme = { path = "../../theme", version = "0.1.0" }  # with its packs
+omui.sdk           = { path = "../../sdk" }
+omui.player        = { path = "../../player" }
+omui.lang.js       = { path = "../../lang/js" }
+omui.ui.markdown   = { path = "../../components/markdown" }
+omui.native = { path = "../../native" }  # with its modules (fuzzy, store)
+omui.theme = { path = "../../theme" }  # with its packs
 marzer.tomlplusplus = "3.4.0"
 mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
@@ -53,4 +53,4 @@ default = []
 design  = { sources = [] }
 
 [feature-deps.design]
-omui.designer = { path = "../../designer", version = "0.1.0" }
+omui.designer = { path = "../../designer" }

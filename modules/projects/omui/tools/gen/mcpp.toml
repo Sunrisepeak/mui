@@ -10,6 +10,7 @@ name        = "gen"
 version     = "0.1.0"
 description = "The openmui generator: registry and contracts to C ABI, C++ partitions, script stubs, schemas and docs"
 license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
@@ -25,17 +26,17 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mlibs.utils = { path = "../../../../base/utils", version = "0.1.0" }
-omui.lang.ts = { path = "../../lang/ts", version = "0.1.0" }
-mlibs.json = { path = "../../../../base/json", version = "0.1.0" }
-mlibs.xdef = { path = "../../../../base/xdef", version = "0.1.0" }  # a snapshot's format checked first (D-209)
+mlibs.utils = { path = "../../../../base/utils" }
+omui.lang.ts = { path = "../../lang/ts" }
+mlibs.json = { path = "../../../../base/json" }
+mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked first (D-209)
 nlohmann.json       = "3.12.0"
 mcpplibs.cmdline    = "0.0.3"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-xrender.text = { path = "../../../xrender/text", version = "0.1.0" }
-mlibs.text    = { path = "../../../../content/text", version = "0.1.0" }
+xrender.text = { path = "../../../xrender/text" }
+mlibs.text    = { path = "../../../../content/text" }
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from (none: only tools write it).

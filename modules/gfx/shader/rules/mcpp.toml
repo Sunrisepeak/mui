@@ -24,4 +24,4 @@ separate = "build-stage: the build rules that compile a package's shaders"
 kind = "rules"
 
 [dependencies]
-mlibs.shader = { path = "..", tools = ["omui-shader"], reexport = true, version = "0.1.0" }
+mlibs.shader = { path = "..", tools = ["omui-shader"], reexport = true }

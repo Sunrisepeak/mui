@@ -22,7 +22,7 @@ sources = ["src/*.cppm"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim.core = { path = "core", version = "0.1.0" }
+hanim.core = { path = "core" }
 
 [test]
 # hanim.render.vector's own checks (its error codes) run in hanim's tests (mcpp 2026.11.16.1, #941).
@@ -43,33 +43,33 @@ agent = { implies = ["control"], sources = ["src/agent/*.cppm", "src/agent/*.cpp
 
 # The engine steps simulated bodies with xengine.dynamics' xpbd solver on mlibs.simulation's timeline (D-131, D-133).
 [feature-deps.engine]
-xengine.dynamics = { path = "../xengine/kernel/dynamics", version = "0.1.0" }
-mlibs.simulation = { path = "../../base/simulation", version = "0.1.0" }
+xengine.dynamics = { path = "../xengine/kernel/dynamics" }
+mlibs.simulation = { path = "../../base/simulation" }
 
 [feature-deps.object]
-mlibs.geom = { path = "../../base/geom", version = "0.1.0" }
-mlibs.memory = { path = "../../base/memory", version = "0.1.0" }
-mlibs.utils = { path = "../../base/utils", version = "0.1.0" }
+mlibs.geom = { path = "../../base/geom" }
+mlibs.memory = { path = "../../base/memory" }
+mlibs.utils = { path = "../../base/utils" }
 
 [feature-deps.effect]
-mlibs.utils = { path = "../../base/utils", version = "0.1.0" }
+mlibs.utils = { path = "../../base/utils" }
 
 [feature-deps.render-vector]
-xrender.vector = { path = "../xrender/vector", version = "0.1.0" }
-mlibs.geom = { path = "../../base/geom", version = "0.1.0" }
+xrender.vector = { path = "../xrender/vector" }
+mlibs.geom = { path = "../../base/geom" }
 
 [feature-deps.control]
-mlibs.control = { path = "../../base/control", version = "0.1.0" }
+mlibs.control = { path = "../../base/control" }
 
 # The stage among a process's subjects (src/agent/, module hanim.agent): the kernel's requests read, its records written.
 [feature-deps.agent]
-mlibs.agent     = { path = "../../base/agent", version = "0.1.0" }
-mlibs.json      = { path = "../../base/json", version = "0.1.0" }
-mlibs.utils     = { path = "../../base/utils", version = "0.1.0" }
+mlibs.agent     = { path = "../../base/agent" }
+mlibs.json      = { path = "../../base/json" }
+mlibs.utils     = { path = "../../base/utils" }
 openlifa.openas = "0.2.0"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.utils = { path = "../../base/utils", version = "0.1.0" }
-mlibs.cts   = { path = "../../base/cts", version = "0.1.0" }
+mlibs.utils = { path = "../../base/utils" }
+mlibs.cts   = { path = "../../base/cts" }
 mcpplibs.os = "0.4.4"

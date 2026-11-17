@@ -41,14 +41,14 @@ deploy = [
 ]
 
 [dependencies]
-mlibs.geom    = { path = "../../base/geom", version = "0.1.0" }
-mlibs.unicode = { path = "../../base/unicode", version = "0.1.0" }
+mlibs.geom    = { path = "../../base/geom" }
+mlibs.unicode = { path = "../../base/unicode" }
 mcpplibs.os     = "0.4.4"
 mcpplibs.mwrap.harfbuzz = "14.3.0"
 mcpplibs.mwrap.sheenbidi = "3.0.0"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-mlibs.utils = { path = "../../base/utils", version = "0.1.0" }
-mlibs.image   = { path = "../../base/image", version = "0.1.0" }
+mlibs.utils = { path = "../../base/utils" }
+mlibs.image   = { path = "../../base/image" }
 

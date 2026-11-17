@@ -28,18 +28,18 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "packs/*/src/*.cppm", "packs/*/src/*.cpp", "packs/*/src/generated/*.cppm"]
 
 [dependencies]
-omui.core   = { path = "../core", version = "0.1.0" }
-omui.view   = { path = "../view", version = "0.1.0" }
-hanim.core          = { path = "../../hanim/core", version = "0.1.0" }
-xrender.vector = { path = "../../xrender/vector", version = "0.1.0" }
-mlibs.json     = { path = "../../../base/json", version = "0.1.0" }
-mlibs.xdef     = { path = "../../../base/xdef", version = "0.1.0" }  # a snapshot's format checked first (D-209)
-mlibs.utils    = { path = "../../../base/utils", version = "0.1.0" }  # mlibs.error: why a theme cannot be composed
+omui.core   = { path = "../core" }
+omui.view   = { path = "../view" }
+hanim.core          = { path = "../../hanim/core" }
+xrender.vector = { path = "../../xrender/vector" }
+mlibs.json     = { path = "../../../base/json" }
+mlibs.xdef     = { path = "../../../base/xdef" }  # a snapshot's format checked first (D-209)
+mlibs.utils    = { path = "../../../base/utils" }  # mlibs.error: why a theme cannot be composed
 
 [build-dependencies]
-omui.build = { path = "../../../../mcpp/build", host-module = true, version = "0.1.0" }  # the style packs
+omui.build = { path = "../../../../mcpp/build", host-module = true }  # the style packs
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-omui.lang.ts = { path = "../lang/ts", version = "0.1.0" }  # the theme packages' modules, evaluated as the build does
-mlibs.cts = { path = "../../../base/cts", version = "0.1.0" }
+omui.lang.ts = { path = "../lang/ts" }  # the theme packages' modules, evaluated as the build does
+mlibs.cts = { path = "../../../base/cts" }

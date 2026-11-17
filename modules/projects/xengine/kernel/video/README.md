@@ -18,7 +18,7 @@ auto done = video::encode(format, card, track, encoders, out);   // each file's 
 
 - **Timing** (`Timing`): a frame rate is a fraction (`mlibs::time::Rate`: 24, 30, 60, 30000/1001), a sample rate a whole number, and frame *i* starts on sample ⌊*i* · rate · den / num⌋ — integers, never a float adding up. At 48 kHz a frame at 24, 30 or 60 fps is 2000, 1600 or 800 samples; at 30000/1001 it is 1601 or 1602, five frames exactly 8008. `frame_of_sample`, `time_of` (any time base: nanoseconds for WebM) and `frames_in` answer the other ways round.
 - **Pictures** (`Yuv420`): Y′CbCr 4:2:0, BT.709, limited range — what HD video and browsers expect. The conversion is 16-bit fixed point; each 2 × 2 block's chroma comes from the sum of its four pixels (the centred siting of 4:2:0). Black is 16, white 235, every grey has Cb = Cr = 128 exactly; a pixel that is not opaque counts as over black. `to_rgba` goes back (within 2 of the original), `psnr` measures how alike two pictures are, `read_y4m` reads a Y4M file back.
-- **Sources** (`FrameSource`): frame 0, 1, 2 … in order, borrowed until the next. Built in: the sync card (`Card`) and PNG files by pattern. A view is a host's: `omui video` renders one on the headless host's clock, a step a frame.
+- **Sources** (`FrameSource`): frame 0, 1, 2 … in order, borrowed until the next. Built in: the sync card (`Card`) and PNG files by pattern. A view is a host's: omui gives its frames (a view drawn on the headless host's clock, a step a frame), which the video toolkit takes from a composition (`xtools video render`).
 - **Encoders** (`Encoder`): a plugin — `begin`, `frame(index, pixels, samples)` for every frame, `finish`. Built in, with no third-party code but `openmui.image`'s PNG:
   - `y4m_encoder`: Y4M (YUV4MPEG2), raw 4:2:0 frames that every encoder reads (ffmpeg, vpxenc, SVT-AV1, x264), tagged `C420jpeg XCOLORRANGE=LIMITED`;
   - `png_encoder`: a PNG a frame, named by a pattern (`"frame-{:05}.png"`);
@@ -57,7 +57,7 @@ export default defineVideo({
 });
 ```
 
-The music and sounds it names are read as their JSON: a `.xdef.ts` module through the caller's `DataReader` (`omui video` evaluates it), anything else as it is.
+The music and sounds it names are read as their JSON: a `.xdef.ts` module through the caller's `DataReader` (the video toolkit evaluates it with its workspace's kinds), anything else as it is.
 
 `soundtrack` renders it offline through `xengine.audio`'s mixer and limiter — the music with its intensity cued, each cue's sound from its exact sample (a cue on a frame from that frame's first sample) — then adds the card's beeps. `frame_source` gives the card or the PNG files.
 
@@ -65,11 +65,12 @@ The music and sounds it names are read as their JSON: a `.xdef.ts` module throug
 
 | Package | |
 |---|---|
+| [tool](tool) | The `video` command: films rendered, stills, descriptions checked, files probed, the timing; a view's frames through a composition |
 | [webm](webm) | WebM: VP9 video (libvpx) and Opus sound (libopus) muxed by libwebm, through mwrap; an encoder plugin, and a decoder for round trips. One thread: the video's bytes are the same everywhere |
 
-## omui video
+## The video command
 
-The command line is `omui video` (the `omui` command), which renders descriptions and view documents alike (a view needs the headless host, which this package does not know): `render` to WebM (VP9 and Opus), Y4M (with a WAV beside it), a PNG sequence or a WAV; `still`; `check`; `probe`; `timing`. One JSON object out and an exit code (D-61).
+The command line is [`video`](tool) (xengine.video.tool, the subject `video` behind the tool kernel's entries): `render` to WebM (VP9 and Opus), Y4M (with a WAV beside it), a PNG sequence or a WAV; `still`; `check`; `probe`; `timing`; `video mcp`. Records out and an exit code (D-61). A view's frames need the headless host, which this project does not know: xtools composes omui's view source in (`xtools video render x.view.xdef.json …`).
 
 ## Tests
 

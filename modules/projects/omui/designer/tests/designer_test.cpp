@@ -583,7 +583,7 @@ UTest cases{"designer", [] {
         expect(!h.tree().node("design-timeline/panel/bar/back").has_value());
     };
 
-    "the design as a film: each step run in a twin as it was presented, under its caption, frame by frame; a description for omui video"_test = [] {
+    "the design as a film: each step run in a twin as it was presented, under its caption, frame by frame; a description for the video command"_test = [] {
         const auto dir = scratch_dir("designer-film");
         std::error_code error;
         std::filesystem::remove_all(dir / ".omui", error);

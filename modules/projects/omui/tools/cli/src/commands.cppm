@@ -14,12 +14,17 @@ export import :omui_profile;  // omui's profiles as data (omui.profile.xdef.ts)
 export import mlibs.agent;
 import omui.core;
 import omui.viewdoc;
+export import xengine.video.tool;  // view_frames gives its ViewSource
 
 export namespace omui::cli {
 
 
 // Runs a command line (argv[0] included); writes to `out` and `err`.
 int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err);
+
+// A view's frames for a film (video.cpp): a view document drawn on a headless host's clock. Films are the `video`
+// toolkit's (xengine.video.tool); xtools gives its subject this source, and omui's design film renders through it.
+[[nodiscard]] xengine::video::tool::ViewSource view_frames();
 
 // A running application reached — omui agent: its endpoint; omui page: the bridge to the paired page — a request
 // sent and its records taken, waiting at most `limit`.
@@ -93,9 +98,6 @@ struct Sweeping {
 [[nodiscard]] Sweeping sweeping(std::span<const std::string> words);  // --root ID, --actor ACTOR
 int sweep(const std::function<std::vector<Value>(const Value&)>& call, const Sweeping& how, std::ostream& out, std::ostream& err);
 
-// omui video (video.cpp).
-// omui.video.render, .still, .check, .probe, .timing (`name`: the last part).
-int video(std::string_view name, const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err);
 
 // omui audio (audio.cpp): offline automation audition and visual inspection.
 int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);

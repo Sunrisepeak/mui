@@ -485,7 +485,7 @@ private:
     // application as a design edit runs (its presentation: written in,
     // unwritten, springing) under a caption saying what the step was, drawn
     // frame by frame; the frames (PNG) and a video description beside them,
-    // which `omui video render` makes a WebM of (`omui design film`).
+    // which the video toolkit renders to a WebM (`omui design film`, or `video render`).
     std::expected<Value, std::string> film(const Value& args) {
         const std::string branch(args.get("branch") ? args.get("branch")->as_string() : history.head_branch());
         auto commits = history.log(branch, 1000);
@@ -619,7 +619,7 @@ private:
             }
             camera = target;
         }
-        // The description `omui video render` reads (xengine.video): the frames, at their rate.
+        // The description the video toolkit reads (xengine.video): the frames, at their rate.
         const auto description = out / "design.video.xdef.json";
         const Value video = Value(Value::Map{})
                                 .set("doc", std::format("The design of {} on {}: {} steps.", player.manifest().id, branch, steps_filmed))

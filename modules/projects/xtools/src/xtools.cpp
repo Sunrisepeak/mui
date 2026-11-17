@@ -18,13 +18,14 @@ import hanim.studio;
 import hanim.timeline.tool;
 import xrender.tool;
 import gongfu.studio;
+import xengine.video.tool;
 
 namespace {
 
 constexpr std::string_view usage =
     "xtools — the toolchain whole: every project's toolkit behind one tool kernel\n\n"
-    "  xtools <toolkit> <words…>    a toolkit's own command line: omui, hanim, hanim-timeline, xrender, gongfu-studio\n"
-    "  xtools <operation> <words…>  an operation by its whole name (document.check, effect.preview, fighter.bake …)\n"
+    "  xtools <toolkit> <words…>    a toolkit's own command line: omui, hanim, hanim-timeline, xrender, gongfu-studio, video\n"
+    "  xtools <operation> <words…>  an operation by its whole name (document.check, effect.preview, video.render …)\n"
     "  xtools subjects | find WORDS | describe NAME   what is here, across the toolkits\n"
     "  xtools mcp                   every toolkit's operations to an MCP client, on stdio\n";
 
@@ -40,8 +41,10 @@ int run(std::span<const std::string> argv, std::istream& in, std::ostream& out, 
     hanim::timeline::tool::Timelines timelines;
     xrender::tool::Renderer renderer(argv.empty() ? std::filesystem::path{} : mcpplibs::os::fs::from_utf8(argv.front()));
     gongfu::studio::Studio fighters;
+    // Films are xengine.video's toolkit; a view's frames omui's: composed here (convergence plan RC3.3).
+    xengine::video::tool::Video films({.view = omui::cli::view_frames()});
     const std::vector<std::pair<std::string_view, mlibs::agent::Subject*>> toolkits{
-        {"hanim", &documents}, {"hanim-timeline", &timelines}, {"xrender", &renderer}, {"gongfu-studio", &fighters}};
+        {"hanim", &documents}, {"hanim-timeline", &timelines}, {"xrender", &renderer}, {"gongfu-studio", &fighters}, {"video", &films}};
     if (!given.empty()) {
         // omui's command line is a function of its words (agent, page, the project's catalog): called as `omui` calls it.
         if (given.front() == "omui") {
@@ -55,14 +58,15 @@ int run(std::span<const std::string> argv, std::istream& in, std::ostream& out, 
             const std::vector<std::string_view> words(given.begin() + 1, given.end());
             if (!words.empty() && words.front() == "mcp")
                 return mlibs::agent::serve_mcp(session, in, out, {.name = std::string(toolkit->first), .version = "0.1.0"});
-            return mlibs::agent::command_line(session, words, out, errors);
+            // `xtools video render …` as `video render …`: its words name video.render.
+            return mlibs::agent::command_line(session, words, out, errors, {.product = toolkit->first == "video" ? "video" : ""});
         }
     }
     if (given.empty() || given.front() == "--help" || given.front() == "-h" || given.front() == "help") {
         out << usage;
         return 0;
     }
-    mlibs::agent::SubjectSession session({&project, &documents, &timelines, &renderer, &fighters}, {.command_line = true});
+    mlibs::agent::SubjectSession session({&project, &documents, &timelines, &renderer, &fighters, &films}, {.command_line = true});
     const std::vector<std::string_view> words(given.begin(), given.end());
     if (words.front() == "mcp") return mlibs::agent::serve_mcp(session, in, out, {.name = "xtools", .version = "0.1.0"});
     return mlibs::agent::command_line(session, words, out, errors);

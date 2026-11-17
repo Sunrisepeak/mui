@@ -28,7 +28,7 @@ static UTest cases{"xtools", [] {
     "every toolkit's subject is here: what answers is the toolkit's own"_test = [] {
         const Ran here = run({"subjects"});
         expect(eq(here.code, 0)) << here.err;
-        for (const std::string_view subject : {R"("omui")", R"("document")", R"("timeline")", R"("xrender")", R"("gongfu")"})
+        for (const std::string_view subject : {R"("omui")", R"("document")", R"("timeline")", R"("xrender")", R"("gongfu")", R"("video")"})
             expect(here.out.contains(subject)) << subject << " in " << here.out;
         // What answers an intent, across them: fighters' hurtboxes are gongfu's.
         const Ran found = run({"find", "baked hurtboxes current"});
@@ -57,9 +57,28 @@ static UTest cases{"xtools", [] {
     "one MCP server over every toolkit: what holds a terminal is not a tool"_test = [] {
         const Ran served = run({"mcp"}, R"({"jsonrpc":"2.0","id":1,"method":"initialize","params":{}})" "\n" R"({"jsonrpc":"2.0","id":2,"method":"tools/list"})" "\n");
         expect(eq(served.code, 0)) << served.err;
-        for (const std::string_view tool : {"omui_build", "document_check", "timeline_check", "effect_check", "fighter_check"})
+        for (const std::string_view tool : {"omui_build", "document_check", "timeline_check", "effect_check", "fighter_check", "video_render"})
             expect(served.out.contains(std::format(R"("name":"{}")", tool))) << tool;
         for (const std::string_view held : {"omui_dev", "omui_run", "omui_connect", "omui_mcp"})
             expect(!served.out.contains(std::format(R"("name":"{}")", held))) << held << " holds a terminal";
+    };
+
+    "a film of an omui view: the video toolkit's operation with omui's view source composed in, the same pixels twice (RC3.3)"_test = [] {
+        const auto dir = std::filesystem::temp_directory_path() / "xtools-video";
+        std::filesystem::remove_all(dir);
+        std::filesystem::create_directories(dir);
+        std::ofstream(dir / "hello.view.xdef.json", std::ios::binary) << R"({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "openmui"}}}})";
+        std::array<std::string, 2> last;
+        for (std::size_t round = 0; round < 2; ++round) {
+            const auto out = dir / std::format("view{}", round);
+            const Ran ran = run({"video", "render", (dir / "hello.view.xdef.json").generic_string(), "--size", "160x90", "--frames", "3", "--out", out.generic_string() + "/"});
+            expect(eq(ran.code, 0) && ran.out.contains("frame-00002.png")) << ran.out << ran.err;
+            const auto found = ran.out.find(R"("hash":")", ran.out.find("frame-00002.png") == std::string::npos ? 0 : ran.out.rfind(R"({"bytes")"));
+            if (found != std::string::npos) last[round] = ran.out.substr(found, 26);
+        }
+        expect(!last[0].empty() && last[0] == last[1]) << "the view's frames, the same both times";
+        // By its whole name too, across the toolkits.
+        const Ran named = run({"video.timing", "--fps", "30", "--frames", "2"});
+        expect(eq(named.code, 0) && named.out.contains(R"("samples":3200)")) << named.out;
     };
 }};

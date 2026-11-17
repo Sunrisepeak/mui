@@ -122,7 +122,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui design sync | film   Live Design's history carried into git, or made a film\n"
                "Its documents\n"
                "  omui check [FILE…]; omui describe [--llms FILE]; omui fmt FILE… [--check]; omui schema\n"
-               "  omui video render | still | check | probe | timing; omui audio automation FILE …\n"
+               "  omui audio automation FILE …   (films: the `video` command; a view's, `xtools video.render`)\n"
                "Running applications\n"
                "  omui agent <operation> <app> …   the protocol's operations and verbs (omui agent --help lists them)\n"
                "  omui mcp             an MCP server: agents operate running applications and the project's commands\n"

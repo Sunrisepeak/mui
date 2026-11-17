@@ -363,7 +363,7 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
     if (name == "design.sync") return design_sync(mcpplibs::os::fs::from_utf8(a.value("dir").value_or(".")), true, out, err);
     if (name == "design.film") {
         // The film: the application, with its designer, makes the frames and the description (design.film);
-        // omui video renders them.
+        // the video toolkit renders them (xengine.video.tool).
         const std::string branch = a.value("branch").value_or("");
         const std::string frames = std::format(".omui/design/film/{}", branch.empty() ? "head" : branch);
         std::vector<std::string> args{"run", "-q", "--features", "omui.entry.player/design", "--", "--design-film", frames};
@@ -374,8 +374,8 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
         record(out, true, "frames", made);
         if (made.code != 0) return made.code;
         const std::string film = a.value("out").value_or("design.webm");
-        const auto rendering = mlibs::agent::parse_request(Value{}.set("op", "omui.video.render").set("file", frames + "/design.video.xdef.json").set("out", film).json());
-        return rendering ? video("render", mlibs::agent::Arguments(*rendering, "file"), out, err) : 1;
+        const auto rendering = mlibs::agent::parse_request(Value{}.set("op", "video.render").set("file", frames + "/design.video.xdef.json").set("out", film).json());
+        return rendering ? xengine::video::tool::run("render", mlibs::agent::Arguments(*rendering, "file"), out, err, {.view = view_frames()}) : 1;
     }
     if (name == "check") {
         const auto files = a.values("files");
@@ -386,7 +386,6 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
     }
     if (name == "describe") return describe(a.value("llms"), out, err);
     if (name == "fmt") return fmt(a, out, err);
-    if (name.starts_with("video.")) return video(name.substr(6), a, out, err);
     if (name == "audio.automation") return audio(a, out, err);
     if (name == "schema") return schema(a, out, err);
     if (name == "replay") {
@@ -442,7 +441,7 @@ void Project::operate(std::string_view op, const mlibs::agent::Request& request,
     std::ostringstream out, err;
     // The tools it starts write to what it writes, not to this process's terminal (the protocol may be it).
     tools_caught() = true;
-    const int code = operation(op, mlibs::agent::Arguments(request, op == "omui.check" || op == "omui.fmt" ? "files" : op.starts_with("omui.video.") || op == "omui.audio.automation" ? "file" : ""), out, err);
+    const int code = operation(op, mlibs::agent::Arguments(request, op == "omui.check" || op == "omui.fmt" ? "files" : op == "omui.audio.automation" ? "file" : ""), out, err);
     tools_caught() = false;
     // Each record it wrote is a data record of the answer; anything else, its text.
     std::istringstream lines(out.str());

@@ -63,25 +63,12 @@ out of the tree), `arguments` (made-up arguments refused: it needs real ones),
 action actually refused to the agent with the node unchanged, S-10), `failed` (refused with
 none to make up, or not as it was after its undo). A failure exits 1.
 
-## omui video
+## Films
 
-Videos from descriptions (`*.video.xdef.ts`, evaluated, or their JSON) and view documents
-(`*.view.xdef.json`, rendered on the headless host's clock, a step a frame),
-through [xengine.video](../../../xengine/kernel/video) and its WebM plugin: one
-JSON object out and an exit code (0 done, 1 failed, 2 a wrong command line).
-
-```text
-omui video render FILE --out OUT [--format webm|y4m|png|wav] [--size WxH] [--fps R] [--seconds S | --frames N]
-                       [--quality Q | --bitrate KBPS] [--speed N] [--realtime] [--lossless] [--threads N]
-                       OUT: x.webm (VP9 and Opus), x.y4m (and x.wav beside it when there is sound), x.wav,
-                       shots/{:05}.png or shots/
-omui video still  FILE (--frame N | --at SECONDS) --out x.png
-omui video check  FILE                          its problems, or its size, rate, frames and samples a frame
-omui video probe  FILE.webm | FILE.y4m | FILE.wav   what it holds (a WebM decoded: frames and samples counted)
-omui video timing --fps R [--rate HZ] [--frames N]   each frame's first sample, length and start
-```
-
-`render` answers each file's name, size and hash and how many times faster
-than real time it ran.
+Films are xengine.video's toolkit: the [`video`](../../../xengine/kernel/video/tool) command renders descriptions,
+takes stills, checks, probes and shows the timing. A view's frames are omui's: this package gives them
+(`omui::cli::view_frames`, a view document drawn on the headless host's clock, a step a frame), and
+[xtools](../../../xtools) composes the two — `xtools video render hello.view.xdef.json --out shots/`. `omui design film`
+renders its frames through the same toolkit.
 
 `add` and `bench` join as their members land.

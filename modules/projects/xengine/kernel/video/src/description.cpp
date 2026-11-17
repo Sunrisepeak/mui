@@ -75,7 +75,7 @@ std::expected<std::unique_ptr<FrameSource>, std::vector<Problem>> frame_source(c
             return std::make_unique<PngFrames>(base, d.source, d.width, d.height);
         case FramesFrom::view: break;
     }
-    return std::unexpected(std::vector{problem(d.source, "a view's frames are rendered by a host", "omui video render")});
+    return std::unexpected(std::vector{problem(d.source, "a view's frames are rendered by a host", "xtools video render (omui's view source composed in)")});
 }
 
 std::expected<std::vector<float>, std::vector<Problem>> soundtrack(const Description& d, const std::filesystem::path& base, const DataReader& read) {
@@ -84,7 +84,7 @@ std::expected<std::vector<float>, std::vector<Problem>> soundtrack(const Descrip
         const auto file = base / path_of(name);
         if (read) return read(file);
         if (name.ends_with(".xdef.ts"))
-            return std::unexpected(std::string("a TypeScript data module: `omui video` evaluates it, or name its JSON (xdef snapshot)"));
+            return std::unexpected(std::string("a TypeScript data module: the video command evaluates it, or name its JSON (xdef snapshot)"));
         auto text = read_text(file);
         if (!text) return std::unexpected(std::string("cannot be read"));
         return std::move(*text);

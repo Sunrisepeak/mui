@@ -11,10 +11,10 @@ license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
-reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
+reexports = ["mlibs.agent", "xengine.video.tool"]  # what its interface re-exports (lint module-closure): view_frames gives the video toolkit's ViewSource
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the omui command"
-lower = ["mlibs.project", "xengine.audio", "xengine.audio.timeline", "xengine.video", "xengine.video.webm"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mlibs.project", "xengine.audio", "xengine.audio.timeline", "xengine.video", "xengine.video.tool"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 agent = { part = "omui.agent" }  # the `omui` command: the agent operations of omui.agent's catalog, at the application's endpoint (D-174)
 
@@ -40,7 +40,7 @@ mlibs.ts         = { path = "../../../../base/ts" }  # strip_types: a data modul
 omui.ui.base     = { path = "../../components/base" }
 omui.ui.markdown = { path = "../../components/markdown" }
 xengine.video      = { path = "../../../xengine/kernel/video" }
-"xengine.video.webm" = { path = "../../../xengine/kernel/video/webm" }
+"xengine.video.tool" = { path = "../../../xengine/kernel/video/tool" }
 xengine.audio       = { path = "../../../xengine/kernel/audio" }
 hanim.timeline = { path = "../../../hanim/timeline" }
 "xengine.audio.timeline" = { path = "../../../xengine/kernel/audio/timeline" }

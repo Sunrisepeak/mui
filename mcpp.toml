@@ -76,6 +76,7 @@ members = [
     "modules/projects/xengine/kernel/audio/device",
     "modules/projects/xengine/kernel/video",
     "modules/projects/xengine/kernel/video/webm",
+    "modules/projects/xengine/kernel/video/tool",
     "modules/projects/hanim/timeline",
     "modules/projects/hanim/timeline/tool",
     "modules/projects/xengine/kernel/audio/timeline",

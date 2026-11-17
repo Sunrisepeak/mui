@@ -2,8 +2,10 @@
 export import :catalog;
 export import :omui_profile;
 export import mlibs.agent;
+export import xengine.video.tool;
 namespace omui::cli {
   int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err);
+  [[nodiscard]] xengine::video::tool::ViewSource view_frames();
   using Transport = std::function<std::vector<Value>(const Value& request, std::chrono::milliseconds limit)>;
   int operate_running(std::vector<std::string> words, const Transport& send, std::ostream& out, std::ostream& err);
   [[nodiscard]] std::expected<Value, std::string> raw_request(std::span<const std::string> words);
@@ -32,18 +34,13 @@ namespace omui::cli::ops {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_describe{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_fmt{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_schema{…};
-  inline constexpr std::array<mlibs::control::Parameter, 14> parameters_omui_video_render{…};
-  inline constexpr std::array<mlibs::control::Parameter, 8> parameters_omui_video_still{…};
-  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_omui_video_check{…};
-  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_video_probe{…};
-  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_omui_video_timing{…};
   inline constexpr std::array<mlibs::control::Parameter, 7> parameters_omui_audio_automation{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_add{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_remove{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_package{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_design_sync{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design_film{…};
-  inline constexpr std::array<mlibs::control::CatalogEntry, 29> catalog{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 24> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
   inline constexpr std::string_view listing = R"…";
 }

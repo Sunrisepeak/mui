@@ -22,6 +22,7 @@ This project only wires those toolkits into one session of the tool kernel (mlib
 | [hanim.timeline.tool](../hanim/timeline/tool) | `hanim-timeline` | `timeline` | hanim |
 | [xrender.tool](../xrender/tool) | `xrender` | `xrender` | xrender |
 | [gongfu.studio](../gongfu/studio) | `gongfu-studio` | `gongfu` | gongfu |
+| [xengine.video.tool](../xengine/kernel/video/tool) | `video` | `video` (here with omui's view source composed in: a view's film) | xengine |
 
 The compositions that are more than one project's toolkit live here too (D-204):
 
@@ -34,6 +35,7 @@ xtools hanim document.check rise.json        # the same as: hanim document.check
 xtools omui build --release                  # the same as: omui build --release
 xtools fighter.check showcase/fighting/fighters   # an operation by its whole name, whichever toolkit has it
 xtools subjects                              # every toolkit's subject
+xtools video render hello.view.xdef.json --out shots/   # the video toolkit with omui's view source
 xtools find "check the hurtboxes"            # what answers an intent, across the toolkits
 xtools mcp                                   # every toolkit's operations to an MCP client
 ```

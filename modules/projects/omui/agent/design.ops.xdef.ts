@@ -174,7 +174,7 @@ export default defineOps({
     {
       name: "design.film",
       effect: "reversible",
-      summary: "The design's history as a film: a branch's commits from its first, each run in an unseen twin of the application as a design edit runs (its presentation) under a caption saying what the step was, drawn frame by frame — the frames (PNG) and a video description beside them, which `omui video render` (or `omui design film`) makes a WebM of. It follows the film's script (<branch>.film.xdef.json, written beside the film when it is first made): each step's caption, time on screen, whether it is kept, and a camera on a node or a region, eased from the last",
+      summary: "The design's history as a film: a branch's commits from its first, each run in an unseen twin of the application as a design edit runs (its presentation) under a caption saying what the step was, drawn frame by frame — the frames (PNG) and a video description beside them, which `video render` (or `omui design film`) makes a WebM of. It follows the film's script (<branch>.film.xdef.json, written beside the film when it is first made): each step's caption, time on screen, whether it is kept, and a camera on a node or a region, eased from the last",
       params: [
         { name: "branch", type: "string", doc: "whose commits (the one designed on when absent)", optional: true },
         { name: "out", type: "path", doc: "where the frames and the description go (.omui/design/film/<branch>)", optional: true },

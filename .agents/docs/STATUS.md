@@ -135,6 +135,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 - GCC 16.1 (not filed): a function-local using-declaration of an enum from another module inside a `constexpr` function of an interface is an ICE in `import_entity_module`; an alias declaration works.
 - mcpp#896: two packages with the same short name drop one from links (worked around: `xrender.graph`). mcpp#926: esbuild not found by tests on Windows (65). mcpp#936: a member's build rebuilds a mapped module (82). mcpp#874: target size and rebuild cascades. mcpp-index#750: `-pthread` on Android (50).
 - mcpp#941 (closed 2026-11-16, in use): `[test] features` — a package's own tests built with named features. Without it a part behind a non-default feature is tested only as a default or as its own package: what holds many of RC1.5's rule-1 and rule-3 merges (e.g. `mlibs.image.ktx2` as `mlibs.image`'s feature).
+| 130 | site: the README media are not what its tests draw (39 pictures) after the borders and dividers aligned to device pixels | site; run 44198856187 (f77df51f) | T | fixed: written again by `omui-devtools media site` (borders and rules crisp, checked by eye); `media --check site` passes here |
 
 ## For 0.2 (found during 0.1; one line each, with the task that found it)
 

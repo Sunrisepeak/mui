@@ -109,7 +109,7 @@ UTest cases{"showcase.promo_video", [] {
             for (const auto& f : a.findings) expect(false) << std::format("{}: {} (frame {})", f.check, f.what, f.frame);
             // The sound pinned: the same samples everywhere.
             std::println("    {:<6} sound {} ({} cues)", name, hex(xengine::audio::hash(track->samples)), track->cues.size());
-            expect(eq(hex(xengine::audio::hash(track->samples)), std::string(name == "promo" ? "ee3b2de561dcdcea" : "4cd8e041d7edf38a")));
+            expect(eq(hex(xengine::audio::hash(track->samples)), std::string(name == "promo" ? "f9212248a92864fb" : "2a0ac1746305206f")));
         }
     };
 
@@ -160,7 +160,7 @@ UTest cases{"showcase.promo_video", [] {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        expect(eq(all.hex(), std::string("101ac57c30790b3e")));  // the end card names promo.timeline.xdef.ts
+        expect(eq(all.hex(), std::string("403ec7d4f07af949")));  // the end card types `omui new hello`; names promo.timeline.xdef.ts
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         expect(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080) << "1080p";

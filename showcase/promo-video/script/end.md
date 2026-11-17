@@ -3,7 +3,7 @@
 Back to the pixel. One command starts a project:
 
 ```sh
-mcpp new hello --template openmui
+omui new hello
 ```
 
 This film was made by an agent with openmui. Its timeline, its scenes and

@@ -44,6 +44,7 @@ hanim.core          = { path = "../../../hanim/core" }
 mlibs.utils  = { path = "../../../../base/utils" }
 omui.expr    = { path = "../../expr" }              # the kit's declarative behaviours
 mlibs.json   = { path = "../../../../base/json" }   # … read as their JSON
+mlibs.xdef   = { path = "../../../../base/xdef" }   # … their snapshot's format checked first (D-209)
 
 [build-dependencies]
 omui.build = { path = "../../../../../mcpp/build", host-module = true }

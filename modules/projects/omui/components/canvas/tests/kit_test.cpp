@@ -91,7 +91,7 @@ struct Fixture {
 
 
 // group-drag.behavior.xdef.ts, as it evaluates to.
-constexpr std::string_view group_drag = R"json({"behavior": {"group-drag": {
+constexpr std::string_view group_drag = R"json({"$format": "behavior@1", "behavior": {"group-drag": {
   "on": "canvas",
   "initial": "idle",
   "priority": 45,
@@ -118,7 +118,7 @@ constexpr std::string_view group_drag = R"json({"behavior": {"group-drag": {
 }}})json";
 
 // Every mistake on its line, and a hint.
-constexpr std::string_view misspelt = R"json({"behavior": {"bad": {
+constexpr std::string_view misspelt = R"json({"$format": "behavior@1", "behavior": {"bad": {
   "on": "canvas",
   "initial": "idel",
   "prority": 3,

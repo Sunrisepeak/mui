@@ -11,7 +11,7 @@ openmui's film, sixty seconds at 60 frames a second, made with openmui.
 | 0:28 | Styles | five style packs, one tree |
 | 0:36 | Agent | every action knows its consequences |
 | 0:46 | Time | the film rewinds itself |
-| 0:55 | End | `mcpp new hello --template openmui` |
+| 0:55 | End | `omui new hello` |
 
 Every shot is a live openmui scene, drawn on the headless host. The film is
 `promo.timeline.xdef.ts` and the scenes' C++: any frame renders on its own,

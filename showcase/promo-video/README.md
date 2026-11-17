@@ -42,7 +42,7 @@ The WebM is put together from 2-second chunks (`--chunk N` frames), each begun w
 | 0:28 | Styles | `styles`: the style workshop (S2) | Glass, neon, retro, ink, liquid and back to the blueprint, on the beat; the preview's semantic tree hashed each frame: unchanged |
 | 0:36 | Agent | `agent`: a notes panel | An agent stars a note (reversible), undoes it, asks to delete every note — stopped with `needs-answer` until a person answers; a headline says what each step means; the tree as it reads it, the protocol's records, the journal |
 | 0:46 | Time | `time`: the haunted settings breakout (S4), played by a bot through the field's actions | Mid-rally; then **the film rewinds itself** (a `film` clip of its own frames at −5×, the tape's colours drifting apart), into the chapter before, and the game plays again: the same frames, and a MATCH stamp setting its checksum beside the first play's — computed by a second run of the game on a host of its own |
-| 0:55 | End | `end` | Back into the pixel, which becomes a cursor: `mcpp new hello --template openmui`; this cut's own timeline in `omui.ui.timeline`'s editor, its playhead on the frame; then a clean card: the wordmark and the closing line |
+| 0:55 | End | `end` | Back into the pixel, which becomes a cursor: `omui new hello`; this cut's own timeline in `omui.ui.timeline`'s editor, its playhead on the frame; then a clean card: the wordmark and the closing line |
 
 The data, every file carried in the program (`omui.build.embed`) and read from `--dir` when edited:
 

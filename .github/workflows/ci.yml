@@ -115,7 +115,9 @@ jobs:
   web:
     name: test web wasm32-emscripten
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    # Red 117: the members' Web build takes about an hour on a runner and their tests about forty minutes;
+    # 90 cut the run short while it was still passing. A limit on the job's time, not on what it checks.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
         with:

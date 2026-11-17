@@ -8,6 +8,7 @@ import omui.core;
 import omui.view;
 import xrender.vector;
 import omui.expr;
+import mlibs.xdef;
 import omui.ui.canvas;
 import :parts;
 import :chart;
@@ -768,7 +769,14 @@ std::expected<std::vector<std::string>, BehaviorProblems> load_behaviors(std::st
         return std::unexpected(std::move(problems));
     }
     kit::Compiler c{std::string(file), problems};
-    constexpr std::array<std::string_view, 1> top{"behavior"};
+    // A reader's first check (D-209): the snapshot names its format.
+    const kit::Tree* format = root->get(mlibs::xdef::format_key);
+    const std::optional<std::string_view> named = format && format->type == kit::Tree::Type::text ? std::optional<std::string_view>(format->text) : std::nullopt;
+    if (const auto wrong = mlibs::xdef::format_problem(named, "behavior", 1)) {
+        c.error(format ? format : &*root, *wrong, R"({"$format": "behavior@1", "behavior": { <name>: { on: "canvas", … } } }, as defineBehavior({ … }) evaluates)");
+        return std::unexpected(std::move(problems));
+    }
+    constexpr std::array<std::string_view, 2> top{mlibs::xdef::format_key, "behavior"};
     c.only(*root, top, "a behaviour file");
     const kit::Tree* behaviors = c.table(root->get("behavior"), "`behavior`");
     if (!behaviors && !root->get("behavior")) c.error(&*root, "the file declares no behaviour", "defineBehavior({ <name>: { on: \"canvas\", … } })");

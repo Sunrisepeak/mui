@@ -15,7 +15,7 @@ namespace omui::promo {
 
 namespace {
 
-constexpr std::string_view command = "$ mcpp new hello --template openmui";
+constexpr std::string_view command = "$ omui new hello";
 
 struct State {
     double t = 0, zoom = 1, typed = 0, close = 0, caret = 0;  // caret: 0 the pixel, 1 the cursor

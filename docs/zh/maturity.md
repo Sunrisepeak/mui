@@ -17,9 +17,9 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | omui | 28 | 2 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
-| xengine | 0 | 20 | 2 |
+| xengine | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
-| xtools | 1 | 0 | 1 |
+| xtools | 1 | 0 | 2 |
 | mlibs | 25 | 3 | 0 |
 | 例子 | 12 | 0 | 0 |
 | 构建插件（mcpp） | 1 | 0 | 0 |
@@ -119,6 +119,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `xengine.audio.device` | [modules/projects/xengine/kernel/audio/device](../../modules/projects/xengine/kernel/audio/device) | 预览 |
 | `xengine.video` | [modules/projects/xengine/kernel/video](../../modules/projects/xengine/kernel/video) | 预览 |
 | `xengine.video.webm` | [modules/projects/xengine/kernel/video/webm](../../modules/projects/xengine/kernel/video/webm) | 预览 |
+| `xengine.video.tool` | [modules/projects/xengine/kernel/video/tool](../../modules/projects/xengine/kernel/video/tool) | 预览 |
 | `xengine.audio.timeline` | [modules/projects/xengine/kernel/audio/timeline](../../modules/projects/xengine/kernel/audio/timeline) | 预览 |
 | `xengine.world` | [modules/projects/xengine/game/world](../../modules/projects/xengine/game/world) | 预览 |
 | `xengine.runtime` | [modules/projects/xengine/game/runtime](../../modules/projects/xengine/game/runtime) | 预览 |
@@ -144,6 +145,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 |---|---|---|
 | `xtools` | [modules/projects/xtools](../../modules/projects/xtools) | 实验 |
 | `xtools.inspector` | [modules/projects/xtools/inspector](../../modules/projects/xtools/inspector) | 稳定 |
+| `xtools.audition` | [modules/projects/xtools/audition](../../modules/projects/xtools/audition) | 实验 |
 
 ### mlibs
 

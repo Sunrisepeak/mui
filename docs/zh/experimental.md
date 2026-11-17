@@ -49,6 +49,16 @@
 - **局限**：nothing of its own beyond the wiring: a toolkit not linked into it is not reachable through it.
 - **毕业条件**：the workbench and both compositions here, with a headless case that designs a UI and an animation in one workspace (RC3.10's bar).
 
+## xtools.audition
+
+包：`xtools.audition` · [README](../../modules/projects/xtools/audition/README.md)
+
+- **目标**：audition any automated property of any track (gain, pan, a filter's cut-off) against the track's own sounds, beside the timeline it came from.
+- **现状**：one clip's keyed gain on a real bus under a reference tone; the view's frames, sheet, animation and report; the sound the same at any observation rate.
+- **差距**：one property (gain), a reference tone rather than the track's sounds, whole seconds 1–10.
+- **局限**：a bounded tool, not a resampler or a scene player; sample rates 8–192 kHz.
+- **毕业条件**：the track's own sounds and any automated property, reached from the timeline editor.
+
 ## 格斗游戏 — the fighting game
 
 包：`omui.showcase.fighting`, `omui.showcase.fighting.headless` · [README](../../showcase/fighting/README.md)

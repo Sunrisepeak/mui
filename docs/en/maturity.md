@@ -17,9 +17,9 @@ A capability below its package's label is marked in its project's feature table 
 | omui | 28 | 2 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
-| xengine | 0 | 20 | 2 |
+| xengine | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
-| xtools | 1 | 0 | 1 |
+| xtools | 1 | 0 | 2 |
 | mlibs | 25 | 3 | 0 |
 | examples | 12 | 0 | 0 |
 | build plugins (mcpp) | 1 | 0 | 0 |
@@ -119,6 +119,7 @@ A capability below its package's label is marked in its project's feature table 
 | `xengine.audio.device` | [modules/projects/xengine/kernel/audio/device](../../modules/projects/xengine/kernel/audio/device) | preview |
 | `xengine.video` | [modules/projects/xengine/kernel/video](../../modules/projects/xengine/kernel/video) | preview |
 | `xengine.video.webm` | [modules/projects/xengine/kernel/video/webm](../../modules/projects/xengine/kernel/video/webm) | preview |
+| `xengine.video.tool` | [modules/projects/xengine/kernel/video/tool](../../modules/projects/xengine/kernel/video/tool) | preview |
 | `xengine.audio.timeline` | [modules/projects/xengine/kernel/audio/timeline](../../modules/projects/xengine/kernel/audio/timeline) | preview |
 | `xengine.world` | [modules/projects/xengine/game/world](../../modules/projects/xengine/game/world) | preview |
 | `xengine.runtime` | [modules/projects/xengine/game/runtime](../../modules/projects/xengine/game/runtime) | preview |
@@ -144,6 +145,7 @@ A capability below its package's label is marked in its project's feature table 
 |---|---|---|
 | `xtools` | [modules/projects/xtools](../../modules/projects/xtools) | experimental |
 | `xtools.inspector` | [modules/projects/xtools/inspector](../../modules/projects/xtools/inspector) | stable |
+| `xtools.audition` | [modules/projects/xtools/audition](../../modules/projects/xtools/audition) | experimental |
 
 ### mlibs
 

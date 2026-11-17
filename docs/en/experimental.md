@@ -49,6 +49,16 @@ Packages: `xtools` · [README](../../modules/projects/xtools/README.md)
 - **Limits**: nothing of its own beyond the wiring: a toolkit not linked into it is not reachable through it.
 - **Graduation to preview**: the workbench and both compositions here, with a headless case that designs a UI and an animation in one workspace (RC3.10's bar).
 
+## xtools.audition
+
+Packages: `xtools.audition` · [README](../../modules/projects/xtools/audition/README.md)
+
+- **Target**: audition any automated property of any track (gain, pan, a filter's cut-off) against the track's own sounds, beside the timeline it came from.
+- **Now**: one clip's keyed gain on a real bus under a reference tone; the view's frames, sheet, animation and report; the sound the same at any observation rate.
+- **Gap**: one property (gain), a reference tone rather than the track's sounds, whole seconds 1–10.
+- **Limits**: a bounded tool, not a resampler or a scene player; sample rates 8–192 kHz.
+- **Graduation to preview**: the track's own sounds and any automated property, reached from the timeline editor.
+
 ## 格斗游戏 — the fighting game
 
 Packages: `omui.showcase.fighting`, `omui.showcase.fighting.headless` · [README](../../showcase/fighting/README.md)

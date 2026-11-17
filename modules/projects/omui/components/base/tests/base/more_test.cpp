@@ -668,7 +668,7 @@ static UTest cases{"ui.base.more", [] {
         expect(act(h, "main/lang", "set_value", Value{}.set("value", "rust")) == 1) << "not an option (it is not free)";
         // A person types: the options holding what is typed, the arrows, Enter.
         expect(h.click("main/lang/field"));
-        h.key(Key::a, Modifiers(Modifier::ctrl));
+        h.key(Key::a, Modifiers(primary_modifier()));
         h.type("t");
         h.step();
         expect(sem(h, "main/lang")->states.has(State::expanded)) << "open as one types";
@@ -749,6 +749,41 @@ static UTest cases{"ui.base.more", [] {
         h.key(Key::tab);
         h.step();
         expect(eq(h.runtime().path(h.runtime().focused()), std::string("main/after")));
+    };
+
+    "code editor: the caret's line shaded while focused and nothing is chosen; a selection's runs with soft corners (B6)"_test = [] {
+        Headless h(options({480, 360}));
+        h.mount("main", column({.padding = 8}, {code_editor({.id = "code", .text = std::string("int main() {\n    return 0;\n}")})}));
+        h.step();
+        const Color shade = h.runtime().theme().color("surface_variant"), chosen = h.runtime().theme().color("selection");
+        auto same = [](Color one, Color other) { return one.r == other.r && one.g == other.g && one.b == other.b && one.a == other.a; };
+        // The band: a fill in the shade, a line tall, across the field.
+        auto band = [&]() -> std::optional<Rect> {
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && same(fill->paint.color, shade) && fill->rect.height > 10 && fill->rect.height < 30 && fill->rect.width > 300)
+                    return fill->rect;
+            return std::nullopt;
+        };
+        auto rounded_runs = [&] {
+            return std::ranges::count_if(h.runtime().display_list().commands(), [&](const auto& command) {
+                const auto* fill = std::get_if<xrender::FillRoundRect>(&command);
+                return fill && same(fill->paint.color, chosen) && fill->radii.top_left > 0;
+            });
+        };
+        expect(!band().has_value()) << "not focused: no band";
+        expect(h.click("main/code/text"));
+        h.key(Key::home, Modifiers(Modifier::ctrl));
+        h.step();
+        const auto first = band();
+        expect(first.has_value()) << "focused: the caret's line shaded";
+        h.key(Key::down);
+        h.step();
+        const auto second = band();
+        if (first && second) expect(second->y > first->y + 5) << "it follows the caret down a line";
+        h.key(Key::a, Modifiers(primary_modifier()));
+        h.step();
+        expect(!band().has_value()) << "something chosen: no band";
+        expect(rounded_runs() >= 3) << std::format("each line's run of the selection rounded: {}", rounded_runs());
     };
 
     "a code editor, the same pixels on every platform"_test = [] {

@@ -307,10 +307,17 @@ void TextBox::paint(PaintContext& ctx) const {
 
     ctx.list.push_clip(ctx.content.outset({2, 2, 2, 2}));
     const mlibs::text::Selection sel = editor_.selection();
+    const bool code = !language_.empty();
+    // In code, the caret's line is shaded while the field has focus and nothing is chosen (component quality B6).
+    if (code && focus && sel.empty() && !editor_.composing())
+        ctx.list.fill_rect({ctx.content.x - 2, origin.y + caret.top, ctx.content.width + 4, caret.height}, th.color("surface_variant"));
     if (!sel.empty() && !editor_.composing()) {
         const Color sc = th.color("selection");
-        for (const Rect& r : p.selection(to_shown(sel.begin()), to_shown(sel.end())))
-            ctx.list.fill_rect(r.offset(origin), sc);
+        // In code, each line's run of the selection has softened corners.
+        for (const Rect& r : p.selection(to_shown(sel.begin()), to_shown(sel.end()))) {
+            if (code) ctx.list.fill_round_rect(r.offset(origin), CornerRadii::all(std::min(3.0f, r.height / 2)), xrender::Paint::solid(sc));
+            else ctx.list.fill_rect(r.offset(origin), sc);
+        }
     }
     if (editor_.text().empty() && !editor_.composing() && !props.placeholder.empty()) {
         const TextToken& tok = th.text_style("body");

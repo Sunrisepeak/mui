@@ -418,10 +418,21 @@ std::expected<Report, std::string> check(const fs::path& root) {
             std::vector<std::string> by_path, by_version;
             static const std::regex dependency(R"re(^\s*"?([A-Za-z0-9_.\-]+)"?\s*=\s*(.*)$)re");
             for (const auto& [fixture, manifest] : probes) {
-                bool in_dependencies = false, mine = false, pathed = false;
+                // A dependency is a line of [dependencies] or a table of its own, [dependencies.<key>] (a template's
+                // placeholders keep it from being TOML, so it is read by lines).
+                static const std::regex table(R"re(^\[dependencies\."?([A-Za-z0-9_.\-]+?)"?\]\s*$)re");
+                bool in_dependencies = false, in_mine = false, mine = false, pathed = false;
                 for (const auto line : lines_of(manifest)) {
-                    if (line.starts_with('[')) in_dependencies = line.starts_with("[dependencies]");
                     std::string text(line);
+                    if (line.starts_with('[')) {
+                        in_dependencies = line.starts_with("[dependencies]");
+                        std::smatch match;
+                        const std::string key = std::regex_search(text, match, table) ? match[1].str() : std::string();
+                        in_mine = !key.empty() && key.substr(0, key.find('.')) == place.name;
+                        mine = mine || in_mine;
+                        continue;
+                    }
+                    if (in_mine && trimmed(line).starts_with("path")) pathed = true;
                     if (std::smatch match; in_dependencies && std::regex_search(text, match, dependency)) {
                         const std::string key = match[1].str();
                         if (key.substr(0, key.find('.')) == place.name) {

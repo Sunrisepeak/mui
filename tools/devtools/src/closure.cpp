@@ -149,6 +149,22 @@ bool library(const fs::path& root, std::string_view path) {
     return false;
 }
 
+// The modules a package's interface units export (`export module x.y;`, partitions aside).
+std::vector<std::string> modules_of(const fs::path& root, std::string_view path) {
+    std::vector<std::string> out;
+    const fs::path sources = root / path / "src";
+    if (!fs::exists(sources)) return out;
+    std::error_code error;
+    for (auto it = fs::recursive_directory_iterator(sources, error); it != fs::recursive_directory_iterator(); it.increment(error)) {
+        if (error) break;
+        if (!it->is_regular_file() || it->path().extension() != ".cppm") continue;
+        std::ifstream in(it->path());
+        for (std::string line; std::getline(in, line);)
+            if (line.starts_with("export module ") && !line.contains(':')) out.push_back(line.substr(14, line.find(';') - 14));
+    }
+    return out;
+}
+
 int rank(std::string_view label) { return label == "stable" ? 3 : label == "preview" ? 2 : label == "experimental" ? 1 : 0; }
 
 Cell pass(std::string note) { return {Mark::pass, std::move(note)}; }
@@ -243,6 +259,17 @@ std::expected<Report, std::string> check(const fs::path& root) {
     }
     const std::array<std::string, 1> surface_rule{"agent-surface"};
     const auto surface = lint::run(root, surface_rule);
+    // Every module a test imports, anywhere in the tree (a package tested from elsewhere counts as tested).
+    std::set<std::string> imported;
+    {
+        static const std::regex import_line(R"re(^\s*(?:export\s+)?import\s+([A-Za-z0-9_.]+)\s*;)re");
+        const Place everywhere{"", "", {"modules", "examples", "showcase"}};
+        for (const auto& file : files_of(root, everywhere, [](const fs::path& path) { return mcpplibs::os::fs::utf8(path.filename()).ends_with("_test.cpp"); })) {
+            std::ifstream in(file);
+            for (std::string line; std::getline(in, line);)
+                if (std::smatch match; std::regex_search(line, match, import_line)) imported.insert(match[1].str());
+        }
+    }
     // The consumer probes' fixtures: each manifest's dependencies (by path, or by a published version).
     std::vector<std::pair<std::string, std::string>> probes;  // fixture directory → its manifest
     if (fs::exists(root / "tools/ci"))
@@ -328,7 +355,11 @@ std::expected<Report, std::string> check(const fs::path& root) {
             std::size_t tested = 0, counted = 0;
             for (const auto* package : packages) {
                 if (package->name.ends_with(".cts")) continue;  // a conformance suite: it is the tests, run by its subjects
-                const bool has = fs::exists(root / package->path / "tests");
+                // Its own tests, or its suite beside it; or a test anywhere imports one of its modules; or it is a build
+                // rule (`kind = "rules"`), run by every build that names it.
+                const bool has = fs::exists(root / package->path / "tests") || fs::exists(root / package->path / "cts" / "tests") ||
+                                 std::ranges::any_of(modules_of(root, package->path), [&](const std::string& module) { return imported.contains(module); }) ||
+                                 read_file(root / package->path / "mcpp.toml").contains("kind = \"rules\"");
                 tested += has ? 1 : 0;
                 if (package->label != "experimental") {
                     ++counted;

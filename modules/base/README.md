@@ -54,3 +54,7 @@ Each names the level it is solved at (D-179: foundation, part, specialised, appl
 
 - **Test helpers outside mtest** (foundation): `mlibs.testing` keeps three helpers (kept output directories among them) until mtest has their equivalents, then goes.
 - **Workspaces as projects** (foundation): `mlibs.project` is preview; its model may change in 0.1.x.
+
+## Closure exceptions
+
+- **5**: mlibs is libraries without operations of their own: the agent kernel (`mlibs.agent`) hosts the other projects' catalogs, and its one program, `xdef`, is a small command declared with `mcpplibs.cmdline` (AGENTS §4: no catalog, no generated command line).

@@ -72,3 +72,7 @@ Each names the level it is solved at (D-179: foundation, part, specialised, appl
 - **A tree's chevron morphs instead of turning** (foundation): a matched morph interpolates the path's points in a line; a turn needs an arc path in hanim.
 - **A lost GPU device** (foundation): the desktop host lets it go and makes it again, else the CPU draws; no CI row can provoke a loss, so the path is unverified.
 - **The first frame is not timed** (foundation): the runtime's part is benchmarked (`ui/mount`), the process start to the window's first pixels is not.
+
+## Closure exceptions
+
+- **6**: `omui.host.android` is tested by CI's Android job (example 01 packed as an APK and run on the emulator), not by a test of its own: a host test needs the emulator.

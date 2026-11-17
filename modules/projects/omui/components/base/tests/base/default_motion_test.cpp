@@ -329,6 +329,28 @@ static UTest cases{"ui.base.default-motion", [] {
         }
     };
 
+    "a focus ring comes in on the state slot's course: part-way at its middle, whole at rest, its control's shape (B4)"_test = [] {
+        Headless h(options());
+        h.mount("main", column({.padding = 24}, {button({.id = "go", .text = "Go"})}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/go"));
+        // A pixel on the ring's left edge, half way down: 2 px outside the control, the ring 2 px wide.
+        const int x = static_cast<int>(std::floor(bounds.x - 3)), y = static_cast<int>(bounds.center().y);
+        const auto at = [&] { const auto p = h.pixels().at(x, y); return std::array<int, 3>{p.r, p.g, p.b}; };
+        const auto before = at();
+        h.key(Key::tab);  // focused from the keyboard: the ring shows
+        h.advance(seconds(0.05));  // the middle of default.focus's 0.10 s
+        const auto middle = at();
+        h.settle();
+        const auto after = at();
+        const auto apart = [](const std::array<int, 3>& one, const std::array<int, 3>& other) {
+            return std::abs(one[0] - other[0]) + std::abs(one[1] - other[1]) + std::abs(one[2] - other[2]);
+        };
+        expect(fatal(apart(before, after) > 30)) << std::format("the ring drawn there at rest: {} then {}", before, after);
+        expect(apart(before, middle) > 5 && apart(middle, after) > 5)
+            << std::format("part-way at the middle: {} → {} → {}", before, middle, after);
+    };
+
     "a button by default: hovered quickly; pressed, in about the finger on a course of its own; released, a little spring out (B4)"_test = [] {
         Headless h(options());
         h.mount("main", column({.padding = 24}, {button({.id = "go", .text = "Go"})}));

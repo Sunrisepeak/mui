@@ -46,10 +46,10 @@ struct ShadowToken {
 
 // Reusable operations compiled into one seekable motion. They share a
 // clock; unlike a slot's candidate list, every operation here is applied.
-enum class MotionPrimitive : std::uint16_t {
+enum class MotionPrimitive : std::uint32_t {
     match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16,
     grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512, readable_text = 1024,
-    write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768
+    write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768, arrivals = 65536
 };
 
 // A motion a node's slot holds (universal motion §5, D-93): none, or a morph
@@ -84,7 +84,7 @@ struct MotionSpec {
     float      stretch = 0;      // a moving fill drawn out along its way (a tab's lens)
     PlacementPolicy placement = PlacementPolicy::automatic;
     bool       local_presence = false;  // appear about each part, rather than the whole control
-    std::uint16_t primitives = 0;  // the built-in operations this recipe composes
+    std::uint32_t primitives = 0;  // the built-in operations this recipe composes
     // While it moves, all it draws goes through an effect (universal motion
     // §6.2; component × effect × motion): the effect, its numbers, and the
     // one that rises to `peak` half-way and back — at rest it is not there.

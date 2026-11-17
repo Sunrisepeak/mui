@@ -144,7 +144,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     // Bindings that ran since the last frame count toward this one.
     FrameStats stats = std::exchange(d.stats, {});
     d.history.push(stats);
-    return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer(), d.demand, std::move(failure)};
+    return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer(), next_work(), d.demand, std::move(failure)};
 }
 
 mlibs::pipeline::Pipeline& Runtime::frame_pipeline() noexcept { return *impl_->frames; }
@@ -297,6 +297,13 @@ std::optional<seconds> Runtime::next_timer() const noexcept {
     return next;
 }
 
+std::optional<seconds> Runtime::next_work() const noexcept {
+    std::optional<seconds> next;
+    for (const Impl::Timer& t : impl_->timers)
+        if (!t.ambient) next = next ? std::min(*next, t.due) : t.due;
+    return next;
+}
+
 void Runtime::Impl::run_timers() {
     // Due timers in order of due time, then of creation; one a timer adds
     // runs at a later frame at the earliest.
@@ -319,6 +326,12 @@ std::uint64_t Runtime::after(seconds delay, std::function<void()> fn) {
     const std::uint64_t token = d.next_token++;
     d.timers.push_back({d.now() + std::max(delay, seconds(0)), token, std::move(fn)});
     d.frame_requested = true;
+    return token;
+}
+
+std::uint64_t Runtime::ambient_after(seconds delay, std::function<void()> fn) {
+    const std::uint64_t token = after(delay, std::move(fn));
+    impl_->timers.back().ambient = true;
     return token;
 }
 

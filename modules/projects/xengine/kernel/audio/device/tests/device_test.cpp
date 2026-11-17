@@ -68,13 +68,23 @@ UTest cases{"audio.device", [] {
         auto device = audio::Device::open(feed, {.null = true});
         expect(device.has_value()) << (device ? "" : device.error());
         if (!device) return;
+        constexpr std::int32_t lead = 4096;
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        // The owner wakes every 5 ms to keep `lead` frames ahead. The device is short only when a wake comes later than
+        // the lead lasts (a loaded machine's scheduler): what it can then miss is the overrun, plus a pull's worth.
+        std::int64_t missable = 0;
+        auto woke = std::chrono::steady_clock::now();
         while (device->frames() < 9600 && std::chrono::steady_clock::now() < deadline) {
-            feed.fill(mixer, 4096);
+            feed.fill(mixer, lead);
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            const auto now = std::chrono::steady_clock::now();
+            const double late = std::chrono::duration<double>(now - woke).count() * mixer.rate() - lead;
+            if (late > 0) missable += static_cast<std::int64_t>(std::ceil(late)) + 1024;
+            woke = now;
         }
-        std::println("the null device drained {} frames; {} starved", device->frames(), feed.starved());
+        std::println("the null device drained {} frames; {} starved; the owner's late wakes allow {}", device->frames(), feed.starved(),
+                     missable);
         expect(ge(device->frames(), std::int64_t{9600}));
-        expect(lt(feed.starved(), device->frames() / 10)) << "kept ahead, the device is seldom short";
+        expect(le(feed.starved(), missable)) << "kept ahead, the device is short only where the owner woke later than its lead";
     };
 }};

@@ -189,7 +189,7 @@ constexpr std::pair<std::string_view, MotionPrimitive> primitive_names[]{
     {"grow", MotionPrimitive::grow}, {"check-grow", MotionPrimitive::check_grow},
     {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger}, {"distance", MotionPrimitive::distance},
     {"write", MotionPrimitive::write}, {"drop", MotionPrimitive::drop}, {"noise", MotionPrimitive::noise},
-    {"reshape", MotionPrimitive::reshape}, {"press", MotionPrimitive::press}
+    {"reshape", MotionPrimitive::reshape}, {"press", MotionPrimitive::press}, {"arrivals", MotionPrimitive::arrivals}
 };
 
 // A presence's name says what it became: "rise_in", "rise_in+settle_in".
@@ -210,7 +210,7 @@ void settle(MotionSpec& m, float scale) {
 }
 
 void add_primitive(MotionSpec& m, MotionPrimitive part) {
-    m.primitives |= static_cast<std::uint16_t>(part);
+    m.primitives |= static_cast<std::uint32_t>(part);
     switch (part) {
         case MotionPrimitive::match_drawing: m.kind = MotionSpec::Kind::morph; break;
         case MotionPrimitive::match_glyphs: m.glyphs = true; m.text = MotionSpec::TextTransition::glyphs; break;
@@ -228,6 +228,8 @@ void add_primitive(MotionSpec& m, MotionPrimitive part) {
         case MotionPrimitive::noise: m.translation_path = hanim::PointPath::jitter(3, 40, 7); break;
         case MotionPrimitive::reshape: m.reshape = true; break;
         case MotionPrimitive::press: m.press = 0.06f; break;
+        // Staggered in the document's order over what arrives only, a part's pieces as one (a tree's rows opened).
+        case MotionPrimitive::arrivals: m.order = MotionSpec::Order::document; m.stagger = 0.03; m.arrivals = true; break;
     }
 }
 
@@ -367,13 +369,7 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     add("default.structure", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, gentle));
     // Rows opened under a row arrive one after another, in the document's order, while those below move down at once
     // (a tree's children; component quality B6).
-    add("default.rows", [&] {
-        MotionSpec rows = compose_motion({P::match_drawing, P::match_glyphs, P::fade}, gentle);
-        rows.order = MotionSpec::Order::document;
-        rows.stagger = 0.03;
-        rows.arrivals = true;
-        return rows;
-    }());
+    add("default.rows", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::arrivals}, gentle));
     add("default.reveal", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::grow}, quick));
     add("default.panel", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::panel_lift, P::grow}, gentle));
     add("default.notice", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::lift, P::grow}, quick));

@@ -221,6 +221,13 @@ std::expected<void, std::string> start(std::string_view video_driver) {
     return {};
 }
 
+void stop() {
+    if (!sdl_ready || windows_open != 0) return;
+    sdl_ready = false;
+    pads.close_all();
+    SDL_Quit();
+}
+
 std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     if (auto started = start(o.video_driver); !started) return std::unexpected(started.error());
     ++windows_open;

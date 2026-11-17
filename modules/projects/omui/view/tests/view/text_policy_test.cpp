@@ -133,9 +133,9 @@ static UTest cases{"view.text-policy", [] {
         expect(policy.has_value());
         if (policy) {
             expect(policy->kind == MotionSpec::Kind::morph && policy->text == MotionSpec::TextTransition::automatic);
-            expect((policy->primitives & static_cast<std::uint16_t>(MotionPrimitive::match_drawing)) != 0);
-            expect((policy->primitives & static_cast<std::uint16_t>(MotionPrimitive::readable_text)) != 0);
-            expect((policy->primitives & static_cast<std::uint16_t>(MotionPrimitive::fade)) != 0);
+            expect((policy->primitives & static_cast<std::uint32_t>(MotionPrimitive::match_drawing)) != 0);
+            expect((policy->primitives & static_cast<std::uint32_t>(MotionPrimitive::readable_text)) != 0);
+            expect((policy->primitives & static_cast<std::uint32_t>(MotionPrimitive::fade)) != 0);
         }
         const auto explicit_glyphs = parse_motion(Value{}.set("compose", Value(Value::List{"match", "readable-text"})).set("text", "glyphs"), theme);
         expect(explicit_glyphs && explicit_glyphs->text == MotionSpec::TextTransition::glyphs);

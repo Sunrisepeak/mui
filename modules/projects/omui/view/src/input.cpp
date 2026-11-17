@@ -420,6 +420,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             if (alive(pressed)) at(pressed).state.pressed = false;
             pressed = capture = {};
             held = false;
+            selection.dragging = false;
             touch(dirty_paint);
             break;
         case PointerKind::leave:

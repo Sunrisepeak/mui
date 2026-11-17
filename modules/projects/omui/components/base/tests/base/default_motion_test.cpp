@@ -157,7 +157,7 @@ static UTest cases{"ui.base.default-motion", [] {
                 expect(found != library.end()) << std::format("{} exists", name);
                 if (found == library.end()) continue;
                 expect(std::popcount(found->second.primitives) >= 2) << std::format("{} composes reusable primitives", name);
-                expect((found->second.primitives & static_cast<std::uint16_t>(MotionPrimitive::match_drawing)) != 0) << "shared drawing matching underlies the recipe";
+                expect((found->second.primitives & static_cast<std::uint32_t>(MotionPrimitive::match_drawing)) != 0) << "shared drawing matching underlies the recipe";
                 if (rule != rules.end()) {
                     expect(rule->spec.name == name && rule->spec.primitives == found->second.primitives &&
                           rule->spec.kind == found->second.kind &&
@@ -550,8 +550,14 @@ static UTest cases{"ui.base.default-motion", [] {
         }
         expect(std::ranges::any_of(seen, [](float angle) { return std::abs(angle) > 20 && std::abs(angle) < 160; }))
             << std::format("the arrow part-way round: {}", seen);
-        expect(std::ranges::any_of(moved, [](float by) { return by > 0; }) && std::ranges::any_of(moved, [](float by) { return by < 0; }))
-            << std::format("the rows part-way to their new places, one down, one up: {}", moved);
+        // Fixed offsets (a cell's padding, the arrow's place) are one value each; a row on its way takes several.
+        const auto ways = [&](bool down) {
+            std::set<int> distinct;
+            for (float by : moved)
+                if ((by > 0) == down) distinct.insert(static_cast<int>(std::lround(by * 10)));
+            return distinct.size();
+        };
+        expect(ways(true) >= 3 && ways(false) >= 3) << std::format("the rows part-way to their new places, one down, one up: {}", moved);
         h.settle();
         const bool down = std::ranges::any_of(h.runtime().display_list().commands(), [](const auto& command) {
             const auto* push = std::get_if<xrender::PushTransform>(&command);

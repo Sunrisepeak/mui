@@ -443,6 +443,7 @@ Desktop::~Desktop() {
     impl_->gpu.reset();
     impl_->device.reset();
     impl_->window.reset();
+    platform::stop();  // SDL brought up for a device and never given a window: let go here
 }
 
 std::expected<void, ViewFailure> Desktop::open() {

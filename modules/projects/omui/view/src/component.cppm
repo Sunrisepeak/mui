@@ -456,6 +456,9 @@ public:
     // Runs `fn` at the first frame at or after now + delay, on the clock of
     // the runtime (virtual and render clocks make timers deterministic).
     virtual std::uint64_t after(seconds delay, std::function<void()> fn) = 0;
+    // The same, for something that goes on by itself while nothing happens (a caret's blink): hosts wake for it, but
+    // it is no work a run waits for (a headless settle stops while only these are due).
+    virtual std::uint64_t ambient_after(seconds delay, std::function<void()> fn) { return after(delay, std::move(fn)); }
     virtual void cancel(std::uint64_t timer) = 0;
 };
 

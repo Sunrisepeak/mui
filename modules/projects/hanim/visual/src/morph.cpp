@@ -1191,14 +1191,20 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
         if (!options_.stagger_arrivals) {
             for (std::size_t r = 0; r < rank.size(); ++r) pairs_[rank[r]].delay = static_cast<double>(r) * options_.stagger;
         } else {
-            // Only arrivals take a rank; consecutive pieces of one declared part share theirs.
+            // Only arrivals take a rank; consecutive pieces of one declared part share theirs, and so do consecutive
+            // parts of one id (a row and its chevron, both by the row's key).
+            const auto parts = to_.parts();
             std::size_t ranks = 0;
             int last_part = -1;
             for (const std::size_t k : rank) {
                 Pair& pair = pairs_[k];
                 if (pair.a >= 0 || pair.b < 0) continue;
                 const int part = B[static_cast<std::size_t>(pair.b)].part;
-                if (part < 0 || part != last_part) ++ranks;
+                const auto in_part = [&](int index) { return index >= 0 && static_cast<std::size_t>(index) < parts.size(); };
+                const bool same = in_part(part) && in_part(last_part) &&
+                                  (part == last_part || (parts[static_cast<std::size_t>(part)].node == parts[static_cast<std::size_t>(last_part)].node &&
+                                                         parts[static_cast<std::size_t>(part)].id == parts[static_cast<std::size_t>(last_part)].id));
+                if (!same) ++ranks;
                 last_part = part;
                 pair.delay = static_cast<double>(ranks - 1) * options_.stagger;
             }

@@ -481,6 +481,7 @@ struct Runtime::Impl {
         seconds               due;
         std::uint64_t         token;
         std::function<void()> fn;
+        bool                  ambient = false;  // goes on by itself: no work a run waits for
     };
     std::vector<Timer>          timers;
     std::vector<ActionEntry>    journal;

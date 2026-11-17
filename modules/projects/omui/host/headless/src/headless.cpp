@@ -210,7 +210,7 @@ std::size_t Headless::settle(seconds limit) {
     while (true) {
         FrameOutput out = step();
         ++frames;
-        const bool timer_soon = out.next_timer && *out.next_timer <= end;
+        const bool timer_soon = out.next_work && *out.next_work <= end;  // a caret's blink is no work to wait for
         if ((!out.animating && !timer_soon) || now() >= end) break;
     }
     return frames;

@@ -224,9 +224,17 @@ std::uint32_t align_up(std::uint32_t v, std::uint32_t a) { return (v + a - 1) / 
 
 // ── the device ───────────────────────────────────────────────────────────
 
+// The devices this module made and that live: `claim` takes only one of them (no RTTI to ask a Device's kind).
+std::mutex made_mutex;
+std::vector<const Device*> made_devices;
+
 class SdlDevice final : public Device {
 public:
     SdlDevice(SDL_GPUDevice* device, Caps caps) : device_(device), caps_(std::move(caps)) {
+        {
+            std::scoped_lock lock(made_mutex);
+            made_devices.push_back(this);
+        }
         // The order formats are preferred in for this backend.
         switch (caps_.backend) {
             case Backend::vulkan: preference_ = {ShaderFormat::spirv}; break;
@@ -250,6 +258,8 @@ public:
         if (download_) SDL_ReleaseGPUTransferBuffer(device_, download_);
         SDL_DestroyGPUDevice(device_);
         video_release();
+        std::scoped_lock lock(made_mutex);
+        std::erase(made_devices, static_cast<const Device*>(this));
     }
 
     const Caps& caps() const noexcept override { return caps_; }
@@ -948,6 +958,9 @@ Making create_async(const Options& options) {
         return making;
     }
     making.video_held_ = true;
+    // SDL's GPU device made off the main thread: the window opened meanwhile on the calling thread must not load a
+    // graphics library of its own (the host's windows say their graphics are external), and the device claims no
+    // window there — `claim` comes later, on the calling thread. Verified on Vulkan (lavapipe, an RTX 4080).
     making.made_ = std::async(std::launch::async, [options]() -> Result<std::unique_ptr<Device>> {
         auto made = make(options, false);
         if (!made) return std::unexpected(made.error());
@@ -959,7 +972,11 @@ Making create_async(const Options& options) {
 Result<void> claim(Device& device, std::uint32_t window, bool vsync) {
     SDL_Window* sdl_window = SDL_GetWindowFromID(static_cast<SDL_WindowID>(window));
     if (!sdl_window) return fail(Errc::invalid, std::format("no window has the id {} (SDL_GetWindowID)", window));
-    // Only this module makes devices whose backend is SDL's (the caller's promise, as the comment says).
+    {
+        std::scoped_lock lock(made_mutex);
+        if (!std::ranges::contains(made_devices, static_cast<const Device*>(&device)))
+            return fail(Errc::invalid, "the device was not made by xrender.rhi.sdl (create or create_async): it cannot claim an SDL window");
+    }
     return static_cast<SdlDevice&>(device).claim(sdl_window, vsync);
 }
 

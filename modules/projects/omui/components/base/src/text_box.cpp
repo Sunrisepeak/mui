@@ -388,7 +388,7 @@ void TextBox::blink(bool restart) {
         // Moved or typed: shown at once, whole.
         caret_on_ = true;
         caret_level_ = 1;
-        blink_timer_ = services().after(blink_period, [this] {
+        blink_timer_ = services().ambient_after(blink_period, [this] {
             blink_timer_ = 0;
             blink(false);
         });
@@ -397,13 +397,13 @@ void TextBox::blink(bool restart) {
     caret_on_ = !caret_on_;
     if (services().motion_reduced()) {
         caret_level_ = caret_on_ ? 1.0f : 0.0f;
-        blink_timer_ = services().after(blink_period, [this] {
+        blink_timer_ = services().ambient_after(blink_period, [this] {
             blink_timer_ = 0;
             blink(false);
         });
         return;
     }
-    fade(1);
+    fade(0);  // as it is now; the steps follow, the last at blink_fade
 }
 
 void TextBox::fade(int step) {
@@ -414,7 +414,7 @@ void TextBox::fade(int step) {
     services().invalidate_paint(node());
     const bool last = step >= blink_fade_steps;
     const seconds wait = last ? seconds(blink_period.count() - blink_fade.count()) : seconds(blink_fade.count() / blink_fade_steps);
-    blink_timer_ = services().after(wait, [this, step, last] {
+    blink_timer_ = services().ambient_after(wait, [this, step, last] {
         blink_timer_ = 0;
         if (last) blink(false);
         else fade(step + 1);

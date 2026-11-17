@@ -408,9 +408,9 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             r.named(x, e);
             reg.motion_slots.push_back(std::move(x));
         });
-        constexpr std::array<std::string_view, 16> primitives{"match_drawing", "match_glyphs", "fade", "lift", "panel_lift", "grow",
+        constexpr std::array<std::string_view, 17> primitives{"match_drawing", "match_glyphs", "fade", "lift", "panel_lift", "grow",
                                                              "check_grow", "stretch", "stagger", "distance", "readable_text",
-                                                             "write", "drop", "noise", "reshape", "press"};
+                                                             "write", "drop", "noise", "reshape", "press", "arrivals"};
         r.each(root, "recipe", [&](const Node& e) {
             MotionRecipe x;
             r.named(x, e);
@@ -421,7 +421,7 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
                 if (std::ranges::find(primitives, p) == primitives.end())
                     diags.error(x.loc, std::format("motion recipe `{}` names unknown primitive `{}`", x.name, p),
                                 "match_drawing, match_glyphs, fade, lift, panel_lift, grow, check_grow, stretch, stagger, distance, readable_text, "
-                                "write, drop, noise, reshape, press");
+                                "write, drop, noise, reshape, press, arrivals");
             const bool none = x.name == "none";
             if (none != x.timing.empty())
                 diags.error(x.loc, std::format("motion recipe `{}`: {}", x.name, none ? "`none` has no timing" : "a recipe has a timing"));

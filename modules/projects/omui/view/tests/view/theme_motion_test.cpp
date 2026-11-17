@@ -133,7 +133,7 @@ static UTest cases{"view.theme_motion", [] {
             if (!recipe) continue;
             for (std::string_view primitive : recipe->primitives | std::views::split(' ') | std::views::transform([](auto r) { return std::string_view(r); }))
                 if (const auto p = motion_primitive(primitive); p && motion.primitives)
-                    expect((motion.primitives & static_cast<std::uint16_t>(*p)) != 0) << std::format("`{}` composes {}", name, primitive);
+                    expect((motion.primitives & static_cast<std::uint32_t>(*p)) != 0) << std::format("`{}` composes {}", name, primitive);
             if (!recipe->effect.empty()) expect(motion.travel && motion.travel->effect == recipe->effect) << std::format("`{}` travels through {}", name, recipe->effect);
         }
     };

@@ -200,6 +200,7 @@ struct FrameOutput {
     std::uint64_t              revision = 0;       // semantic revision after the frame
     FrameStats                 stats;
     std::optional<seconds>     next_timer;         // when the earliest timer is due (hosts sleep until then)
+    std::optional<seconds>     next_work;          // the same, ambient timers (a caret's blink) left out: what a run waits for
     FrameDemand                demand;             // how often frames are wanted from now on, and why (D-70)
     // Why a stage failed (the pipeline stopped there; logged too); empty
     // when every stage ran. A host may say so, retry, or give up.
@@ -435,6 +436,7 @@ public:
     [[nodiscard]] Value inspect(NodeId node) const;
     // When the earliest timer is due (hosts sleep until then); none when no timer waits.
     [[nodiscard]] std::optional<seconds> next_timer() const noexcept;
+    [[nodiscard]] std::optional<seconds> next_work() const noexcept;  // ambient timers left out
     [[nodiscard]] NodeId hit_test(Point window) const;
     [[nodiscard]] NodeId control_at(Point window) const override;
 
@@ -774,6 +776,7 @@ public:
     void set_clipboard_text(std::string_view text) override;
     hanim::Engine& engine() override;
     std::uint64_t after(seconds delay, std::function<void()> fn) override;
+    std::uint64_t ambient_after(seconds delay, std::function<void()> fn) override;
     void cancel(std::uint64_t timer) override;
 
     // The text-input request of the last frame (hosts show the IME there).

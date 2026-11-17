@@ -160,7 +160,7 @@ UTest cases{"showcase.promo_video", [] {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        expect(eq(all.hex(), std::string("403ec7d4f07af949")));  // the end card types `omui new hello`; names promo.timeline.xdef.ts
+        expect(eq(all.hex(), std::string("b83e09c5a4632c9a")));  // the end card types `omui new hello`; names promo.timeline.xdef.ts
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         expect(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080) << "1080p";

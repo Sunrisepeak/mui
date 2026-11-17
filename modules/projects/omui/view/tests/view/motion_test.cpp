@@ -396,7 +396,7 @@ static UTest cases{"view.motion", [] {
         expect(composed.has_value());
         if (!composed) return;
         using P = MotionPrimitive;
-        const auto contains = [&](P part) { return (composed->primitives & static_cast<std::uint16_t>(part)) != 0; };
+        const auto contains = [&](P part) { return (composed->primitives & static_cast<std::uint32_t>(part)) != 0; };
         expect(contains(P::match_drawing) && contains(P::match_glyphs) && contains(P::fade) && contains(P::check_grow) && contains(P::stretch) && contains(P::stagger));
         expect(composed->glyphs && composed->local_presence && composed->appear.away.scale.x < 1 && composed->stretch > 0 && composed->stagger > 0);
         const auto candidates = parse_motions(Value(Value::List{"liquid", "simple"}), theme);

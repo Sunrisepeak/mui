@@ -133,9 +133,11 @@ UTest cases{"host.sdl3", [] {
             std::println("  first frame shown by the {} {:.1f} ms after the host was made", on_gpu ? "GPU" : "CPU", ms);
             expect(d.frames_shown() > 0) << "shown at all";
             // Held where CI runs it (shared runners, an unoptimised build, a software device): a regression of the start,
-            // not the figure the platform table gives (measured on the machine, RC3.6). Measured here (2026-11-17, a dev
-            // build, the fonts loaded already): the CPU 4.5 ms, lavapipe 236 ms.
-            expect(lt(ms, on_gpu ? 3000.0 : 1000.0)) << std::format("the first frame took {:.0f} ms", ms);
+            // not the figure the platform table gives (measured on the machine, RC3.6). The bounds from CI's own figures
+            // (run 44061517307): the CPU 8.0 ms Linux x64, 11.4 arm, 14.1 Windows, 206 macOS; the GPU 378, 489, 2265 (WARP),
+            // 1548 ms. About 7× the CPU's worst (macOS' window server apart, 5×), the GPU's 1.3× Windows' WARP.
+            const double bound = on_gpu ? 3000.0 : (mcpplibs::os::is_macos ? 1000.0 : 100.0);
+            expect(lt(ms, bound)) << std::format("the first frame took {:.0f} ms (at most {:.0f})", ms, bound);
         }
     };
 

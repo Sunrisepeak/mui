@@ -70,21 +70,26 @@ UTest cases{"audio.device", [] {
         if (!device) return;
         constexpr std::int32_t lead = 4096;
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-        // The owner wakes every 5 ms to keep `lead` frames ahead. The device is short only when a wake comes later than
-        // the lead lasts (a loaded machine's scheduler): what it can then miss is the overrun, plus a pull's worth.
-        std::int64_t missable = 0;
-        auto woke = std::chrono::steady_clock::now();
+        // The owner tops the feed up to `lead` every 5 ms; after a fill it holds more than `lead - block_frames`. Between two
+        // fills the device is short only by what it asked beyond that — the owner woke late, or the device's own thread did
+        // and caught up its periods back to back (red 129: macOS, 512 frames with the owner on time). Counted each window,
+        // with a period for the request in flight across a fill.
+        constexpr std::int64_t period = 256;  // the device's (DeviceOptions::period)
+        std::int64_t missable = 0, before = device->frames();
+        const auto window = [&] {
+            const std::int64_t now = device->frames(), asked = now - before;
+            if (asked > lead - audio::block_frames) missable += asked - (lead - audio::block_frames) + period;
+            before = now;
+        };
         while (device->frames() < 9600 && std::chrono::steady_clock::now() < deadline) {
+            window();
             feed.fill(mixer, lead);
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
-            const auto now = std::chrono::steady_clock::now();
-            const double late = std::chrono::duration<double>(now - woke).count() * mixer.rate() - lead;
-            if (late > 0) missable += static_cast<std::int64_t>(std::ceil(late)) + 1024;
-            woke = now;
         }
-        std::println("the null device drained {} frames; {} starved; the owner's late wakes allow {}", device->frames(), feed.starved(),
+        window();
+        std::println("the null device drained {} frames; {} starved; the windows that asked past the lead allow {}", device->frames(), feed.starved(),
                      missable);
         expect(ge(device->frames(), std::int64_t{9600}));
-        expect(le(feed.starved(), missable)) << "kept ahead, the device is short only where the owner woke later than its lead";
+        expect(le(feed.starved(), missable)) << "kept ahead, the device is short only where a window asked more than the lead held";
     };
 }};

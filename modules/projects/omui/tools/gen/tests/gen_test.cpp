@@ -129,8 +129,9 @@ UTest cases{"gen", [] {
     "a property of any type is data as it is: a Value, read and handed back whole"_test = [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        auto lens = gen::read_contracts(spec_dir().parent_path() / "site" / "contract" / "lens.contract.xdef.ts", reg, diags);
+        auto lens = gen::read_contracts(here() / "data" / "lens.contract.xdef.json", reg, diags);  // its own: omui does not read a work above it
         expect(!diags.has_errors()) << diags.text();
+        if (!(expect(!lens.empty()) << "the fixture read")) return;
         const std::string cpp = gen::emit_cpp_contract(lens.at(0), reg, {"x.site", "x::site", false});
         for (auto wanted : {"::omui::Value nodes;", "::omui::Prop<::omui::Value> nodes;", "props.nodes = v.is_null() ? LensProps{}.nodes : v;"})
             expect(cpp.find(wanted) != std::string::npos) << wanted;

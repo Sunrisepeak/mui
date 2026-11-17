@@ -293,6 +293,30 @@ static UTest cases{"xrender.mesh", [] {
             if (id.draw != mesh::none) triangles.insert(id.triangle);
         expect(eq(triangles.size(), std::size_t{512})) << "and every triangle of it has pixels of its own";
     };
+    "corners kept as finely as a device keeps them: 8 bits is the picture as ever, 4 moves only silhouette pixels and still writes each once"_test = [] {
+        scene::Scene world;
+        put(world, 1, sheet, 0, math::Transform{{0.13f, 0, -0.07f}, math::Quat::about(math::normalized(math::Vec3{0.3f, 1, 0.2f}), 0.7f), {1, 1, 1}}.matrix());
+        const Camera camera{.eye = {0, 9, 0.5f}, .target = {0, 0, 0}};
+        const Frame usual = drawn(world, camera, 160, 160), eight = drawn(world, camera, 160, 160, {.subpixel_bits = 8});
+        const Frame four = drawn(world, camera, 160, 160, {.subpixel_bits = 4});
+        expect(usual.targets.colour == eight.targets.colour) << "8 bits is the default";
+        std::size_t moved = 0, inside = 0;
+        for (std::size_t pixel = 0; pixel < four.targets.ids.size(); ++pixel) {
+            const bool by_four = four.targets.ids[pixel].draw != mesh::none, by_eight = eight.targets.ids[pixel].draw != mesh::none;
+            if (by_four == by_eight) continue;
+            ++moved;
+            // A pixel that changed sides has a neighbour outside the sheet in one picture or the other: on its silhouette.
+            const std::size_t x = pixel % 160, y = pixel / 160;
+            bool edge = x == 0 || y == 0 || x == 159 || y == 159;
+            for (const std::ptrdiff_t step : {std::ptrdiff_t{-1}, std::ptrdiff_t{1}, std::ptrdiff_t{-160}, std::ptrdiff_t{160}})
+                edge = edge || four.targets.ids[pixel + step].draw == mesh::none || eight.targets.ids[pixel + step].draw == mesh::none;
+            inside += !edge;
+        }
+        std::println("a turned sheet at 4 subpixel bits: {} pixels changed sides against 8, {} away from its silhouette; {} written, {} hidden", moved, inside, four.stats.written,
+                     four.stats.hidden);
+        expect(gt(moved, std::size_t{0}) && eq(inside, std::size_t{0}));
+        expect(eq(four.stats.hidden, std::uint64_t{0})) << "each pixel once at 4 bits too";
+    };
     "a floor that runs under and behind the camera is cut at the view and drawn: below the horizon floor, above it nothing"_test = [] {
         scene::Scene world;
         put(world, 7, floor_mesh, 1, math::translation({0, -1, 0}));

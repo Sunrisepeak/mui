@@ -422,6 +422,10 @@ struct Options {
     // pixel). A different one each frame, and the frames gathered over time (`Temporal`), is anti-aliasing. The
     // velocity does not include it.
     Vec2 jitter{0, 0};
+    // How finely a corner's place on the screen is kept: 1/2^bits of a pixel (1–8), as a device's
+    // `subPixelPrecisionBits` says it rasterizes (rhi::Caps::subpixel_bits). 8: most devices; 4: Vulkan's least,
+    // SwiftShader in Chrome (red 107). Which pixels a silhouette covers depends on it.
+    std::uint32_t subpixel_bits = 8;
     Fog  fog;
     // How much of the light from everywhere reaches a surface: with `occlusion_rays` above 0 (and the assets'
     // trees) that many rays leave each sample about its normal, and `ambient` is given only the share of them

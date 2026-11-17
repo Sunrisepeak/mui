@@ -29,6 +29,12 @@ constexpr std::uint8_t mip_file[] = {
 #embed "data/r8g8b8a8_srgb_mip_blze.ktx2"
 };
 thread_local const std::filesystem::path* scratch = nullptr;
+// How finely the device keeps a corner (rhi::Caps::subpixel_bits): the reference rasterizes as it does (red 107).
+thread_local std::uint32_t device_subpixel_bits = 8;
+mesh::Options as_device(mesh::Options options) {
+    options.subpixel_bits = device_subpixel_bits;
+    return options;
+}
 
 // A check and what is said of it: `expect(found) << "why"`. Reported when the statement ends; as a condition it
 // is whether the check held (`if (!(expect(made) << why)) return;`).
@@ -200,7 +206,7 @@ std::optional<Drawn> both(rhi::Device& device, const Yard& yard, mesh::Options o
     options.shadows = false;
     out.reference.resize(static_cast<int>(width), static_cast<int>(height));
     mesh::Pass reference;
-    reference.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, out.reference, options);
+    reference.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, out.reference, as_device(options));
 
     auto pass = mesh::gpu::Pass::make(device);
     if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return std::nullopt;
@@ -328,7 +334,7 @@ Cases suite_of() {
                 std::vector<const geom::ClusteredMesh*> drawn_meshes = moving.meshes, before(moving.meshes.size(), nullptr);
                 drawn_meshes[3] = now;
                 if (now == &second) before[3] = &first;
-                on_cpu.draw(moving.world, seen, moving.view(), {.meshes = drawn_meshes, .materials = moving.materials, .before = before}, reference, options);
+                on_cpu.draw(moving.world, seen, moving.view(), {.meshes = drawn_meshes, .materials = moving.materials, .before = before}, reference, as_device(options));
                 rhi::CommandList list;
                 expect(on_device->bend(list, 3, *now).has_value());
                 on_device->record_velocity(list, moving.world, seen, moving.view(), *velocity, *depth, width, height, options);
@@ -404,7 +410,7 @@ Cases suite_of() {
         mesh::Targets reference;
         reference.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, {.shadows = false});
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, as_device({.shadows = false}));
 
         auto pass = mesh::gpu::Pass::make(*device);
         if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
@@ -448,8 +454,8 @@ Cases suite_of() {
         mesh::Targets traced, lit;
         traced.resize(static_cast<int>(width), static_cast<int>(height)), lit.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, traced, {.shadows = true});
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, lit, {.shadows = false});
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, traced, as_device({.shadows = true}));
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, lit, as_device({.shadows = false}));
 
         auto pass = mesh::gpu::Pass::make(*device);
         if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
@@ -657,7 +663,7 @@ Cases suite_of() {
         mesh::Targets reference;
         reference.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, {.shadows = false});
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, as_device({.shadows = false}));
         const std::vector<std::uint8_t> plain = reference.colour;
         mesh::Glow glow_on_cpu;
         const auto told = glow_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), bloom, reference.colour);
@@ -737,8 +743,8 @@ Cases suite_of() {
         mesh::Targets traced, lit;
         traced.resize(static_cast<int>(width), static_cast<int>(height)), lit.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, traced, {.shadows = true});
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, lit, {.shadows = false});
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, traced, as_device({.shadows = true}));
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, lit, as_device({.shadows = false}));
 
         auto pass = mesh::gpu::Pass::make(*device);
         if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
@@ -815,7 +821,7 @@ Cases suite_of() {
         mesh::Targets reference;
         reference.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(harbour.world, seen, harbour.view(), {harbour.meshes, harbour.materials, harbour.trees}, reference, night);
+        on_cpu.draw(harbour.world, seen, harbour.view(), {harbour.meshes, harbour.materials, harbour.trees}, reference, as_device(night));
         mesh::Glow glow_on_cpu;
         static_cast<void>(glow_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), bloom, reference.colour));
 
@@ -883,7 +889,7 @@ Cases suite_of() {
                 const mesh::Options options{.shadows = false, .jitter = mesh::jitter_of(number)};
                 scene::Extracted seen;
                 scene::extract(yard.world, yard.view(), seen);
-                on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, options);
+                on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, reference, as_device(options));
                 const mesh::Temporal::Told told = gathered_on_cpu.resolve(reference, resolved);
 
                 pool.begin_frame();
@@ -1023,8 +1029,8 @@ Cases suite_of() {
         mesh::Targets plain, traced;
         plain.resize(static_cast<int>(width), static_cast<int>(height)), traced.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, plain, plainly);
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, traced, by_rays);
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}}, plain, as_device(plainly));
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, traced, as_device(by_rays));
         expect(gt(on_cpu.last().occluded, std::uint64_t{10000}));
 
         auto pass = mesh::gpu::Pass::make(*device);
@@ -1142,7 +1148,7 @@ Cases suite_of() {
             mesh::Targets reference;
             reference.resize(static_cast<int>(width), static_cast<int>(height));
             mesh::Pass on_cpu;
-            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, {.shadows = false});
+            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, as_device({.shadows = false}));
 
             auto pass = mesh::gpu::Pass::make(*device);
             if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
@@ -1238,7 +1244,7 @@ Cases suite_of() {
         mesh::Targets reference;
         reference.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, as_pixels}, reference, {.shadows = false});
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, as_pixels}, reference, as_device({.shadows = false}));
         const auto drawn_with = [&](const mesh::Texture& picture) -> std::vector<std::byte> {
             auto pass = mesh::gpu::Pass::make(*device);
             if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message)) || !expect(pass->load(yard.meshes).has_value())) return {};
@@ -1380,7 +1386,7 @@ Cases suite_of() {
             mesh::Targets reference;
             reference.resize(static_cast<int>(width), static_cast<int>(height));
             mesh::Pass on_cpu;
-            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, lit_by);
+            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, as_device(lit_by));
             auto pass = mesh::gpu::Pass::make(*device);
             if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
             if (!(expect(pass->load(yard.meshes).has_value()))) return;
@@ -1482,7 +1488,7 @@ Cases suite_of() {
         mesh::Targets reference;
         reference.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, options);
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, {}, textures}, reference, as_device(options));
 
         auto pass = mesh::gpu::Pass::make(*device);
         if (!(expect(pass.has_value()) << (pass ? "" : pass.error().message))) return;
@@ -1564,7 +1570,7 @@ Cases suite_of() {
         mesh::Targets reference;
         reference.resize(static_cast<int>(width), static_cast<int>(height));
         mesh::Pass on_cpu;
-        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees, textures}, reference, {.shadows = true});
+        on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees, textures}, reference, as_device({.shadows = true}));
         const std::uint64_t cut_by_reference = on_cpu.last().cut;
         std::size_t front = 0, back = 0;
         for (const mesh::Pixel& pixel : reference.ids)
@@ -1676,7 +1682,7 @@ Cases suite_of() {
             mesh::Pass on_cpu;
             // The reference with the meshes' trees: the ball's way through it is the exact one (the device estimates it
             // from the far sides it draws).
-            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, made.reference, {.shadows = false});
+            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees}, made.reference, as_device({.shadows = false}));
             mesh::Glow shown_on_cpu;
             shown_on_cpu.show(made.reference.light, static_cast<int>(width), static_cast<int>(height), {}, made.reference.colour);
             rhi::CommandList list;
@@ -1867,7 +1873,7 @@ Cases suite_of() {
             mesh::Targets reference;
             reference.resize(static_cast<int>(width), static_cast<int>(height));
             mesh::Pass on_cpu;
-            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees, textures}, reference, {.shadows = shadowed});
+            on_cpu.draw(yard.world, seen, yard.view(), {yard.meshes, yard.materials, yard.trees, textures}, reference, as_device({.shadows = shadowed}));
             mesh::Glow shown_on_cpu;
             shown_on_cpu.show(reference.light, static_cast<int>(width), static_cast<int>(height), {}, reference.colour);
             // How many of them are over one another, a pixel: the reference's own count.
@@ -1986,9 +1992,9 @@ void declare(rhi::Device& device, mlibs::cts::Against who, Options options, std:
             for (Listed& one : all)
                 mlibs::cts::declare({.id = std::move(one.id), .contract = "xrender.mesh.gpu@1", .level = mlibs::cts::Level::tolerance, .needs = std::move(one.needs),
                                      .body = [&rig, &options, body = std::move(one.body)](mlibs::cts::Check& check) {
-                                         current = &check, scratch = &options.scratch;
+                                         current = &check, scratch = &options.scratch, device_subpixel_bits = rig.device.caps().subpixel_bits;
                                          body(rig);
-                                         current = nullptr, scratch = nullptr;
+                                         current = nullptr, scratch = nullptr, device_subpixel_bits = 8;
                                      }},
                                     at);
         },

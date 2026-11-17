@@ -471,13 +471,15 @@ struct Raster {
         }
         std::array<double, 3> x{}, y{};
         std::array<float, 3> z{}, inverse{};
+        // A corner kept to the device's precision (`subpixel_bits`), counted in 1/256 of a pixel all the same.
+        const double kept = std::ldexp(1.0, static_cast<int>(std::clamp(options.subpixel_bits, 1u, 8u))), step = 256.0 / kept;
         for (int index = 0; index < 3; ++index) {
             const Vec4 clip = aside * corners[index]->clip;
             inverse[index] = 1.0f / clip.w;
             z[index] = clip.z * inverse[index];
             // The screen, y down, in 1/256 of a pixel: whole numbers, so the edges below are exact.
-            x[index] = std::floor((static_cast<double>(clip.x * inverse[index]) * 0.5 + 0.5) * out.width * 256.0 + 0.5);
-            y[index] = std::floor((0.5 - static_cast<double>(clip.y * inverse[index]) * 0.5) * out.height * 256.0 + 0.5);
+            x[index] = std::floor((static_cast<double>(clip.x * inverse[index]) * 0.5 + 0.5) * out.width * kept + 0.5) * step;
+            y[index] = std::floor((0.5 - static_cast<double>(clip.y * inverse[index]) * 0.5) * out.height * kept + 0.5) * step;
         }
         double area = (x[1] - x[0]) * (y[2] - y[0]) - (y[1] - y[0]) * (x[2] - x[0]);
         if (area < 0 && own.two_sided) {

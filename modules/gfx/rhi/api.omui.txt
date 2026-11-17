@@ -213,6 +213,7 @@ namespace mlibs::rhi {
     bool compute = true;
     std::uint32_t max_texture_size = 8192;
     std::uint32_t max_samples = 1;
+    std::uint32_t subpixel_bits = 8;
     bool depth = false;
     std::uint32_t max_color_targets = 1;
     bool independent_blend = true;

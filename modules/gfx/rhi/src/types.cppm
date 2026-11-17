@@ -97,6 +97,10 @@ struct Caps {
     // The most samples per texel an rgba8_unorm colour target (and a d32
     // depth target) can have: 1 when the device cannot multisample.
     std::uint32_t max_samples = 1;
+    // How finely it keeps a corner's place on the screen before it rasterizes: 1/2^bits of a pixel (Vulkan's
+    // `subPixelPrecisionBits`; 4 its least). Which pixels an edge covers follows it, so a reference held to
+    // the device rasterizes the same way. 8: desktop devices and lavapipe; 4: SwiftShader in Chrome (red 107).
+    std::uint32_t subpixel_bits = 8;
     bool          depth = false;  // d32_float and d32_float_s8 depth targets
     // How many colour targets one render pass may write (1…max_color_targets): a fragment's outputs
     // 0, 1, … each to its own texture. 1: a pass has one.

@@ -478,6 +478,47 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(rest.has_value() && std::abs(*rest - 90) < 0.5f) << "at rest, pointing down";
     };
 
+    "a focused field's caret blinks by fading, not a hard cut; shown whole again at once when moved (B6)"_test = [] {
+        Headless h(options());
+        h.mount("main", column({.padding = 24}, {text_box({.id = "field", .text = std::string("abc")})}));
+        h.settle();
+        h.runtime().focus(h.runtime().find("main/field"));
+        h.step();
+        const Color accent = h.runtime().theme().color("accent");
+        // The caret: the accent rectangle 1.5 px wide; how much of it shows (none when it is not drawn).
+        const auto shown = [&] {
+            float level = 0;
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && std::abs(fill->rect.width - 1.5f) < 1e-3f &&
+                                                                                 fill->paint.color.r == accent.r && fill->paint.color.g == accent.g)
+                    level = std::max(level, fill->paint.color.a / accent.a);
+            return level;
+        };
+        // Focused from the keyboard, and its focus motion over (that one fades the caret in with the ring).
+        h.key(Key::left);
+        for (int frame = 0; frame < 200 && !h.runtime().motions().empty(); ++frame) h.advance(seconds(0.01));
+        expect(fatal(h.runtime().motions().empty())) << "the focus motion over";
+        h.key(Key::right);
+        h.step();
+        expect(shown() > 0.99f) << std::format("moved: whole at once ({})", shown());
+        // Then its blink, on the timers alone (no motion running): part-shown on an edge, then gone a while.
+        std::vector<float> seen;
+        bool moving = false;
+        for (int sample = 0; sample < 80; ++sample) {
+            h.advance(seconds(0.01));
+            moving = moving || !h.runtime().motions().empty();
+            seen.push_back(shown());
+        }
+        expect(!moving) << "no motion: the timers fade it";
+        expect(std::ranges::any_of(seen, [](float level) { return level > 0.05f && level < 0.95f; }))
+            << std::format("part-shown on the way out or in: {}", seen);
+        expect(std::ranges::any_of(seen, [](float level) { return level == 0; })) << "and then gone for a while";
+        while (shown() > 0) h.advance(seconds(0.01));
+        h.key(Key::left);
+        h.step();
+        expect(shown() > 0.99f) << std::format("moved again: whole at once ({})", shown());
+    };
+
     "a pressed tab answers the finger: deeper than hovered, before the indicator moves (B5)"_test = [] {
         Headless h(options());
         auto selected = signal(std::string("general"));

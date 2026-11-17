@@ -62,6 +62,7 @@ private:
     void edited();
     void caret_moved();
     void blink(bool restart);
+    void fade(int step);
     bool key(const KeyEvent& e);
 
     // The text as shown: with the composition in place, masked for passwords.
@@ -85,6 +86,7 @@ private:
     bool                  escaped_ = false;  // Escape was pressed: the next Tab leaves
     mutable std::vector<parts::Label> numbers_;  // a code field's line numbers
     bool                  caret_on_ = true;
+    float                 caret_level_ = 1;  // how much of the caret shows (its blink fades)
     bool                  selecting_ = false;
     std::uint64_t         blink_timer_ = 0;
 };

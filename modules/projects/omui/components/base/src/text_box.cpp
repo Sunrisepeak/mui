@@ -16,6 +16,10 @@ namespace {
 constexpr float default_w = 240;
 constexpr float pad_y = 8, pad_x = 10;
 constexpr seconds blink_period{0.53};
+// The caret's blink fades over this, in a few steps of the runtime's timers (frames only at the edges; component
+// quality B6); with motion reduced it is a hard cut.
+constexpr seconds blink_fade{0.12};
+constexpr int blink_fade_steps = 4;
 constexpr std::string_view bullet = "•";
 
 // The modifier that moves by words: Alt where the primary is Command (macOS), else Ctrl.
@@ -341,9 +345,11 @@ void TextBox::paint(PaintContext& ctx) const {
         for (const Rect& r : p.selection(sa, std::max(sa, sb)))
             ctx.list.fill_rect({r.x + origin.x, r.bottom() + origin.y - 2, r.width, 1.5f}, th.color("accent"));
     }
-    if (focus && caret_on_ && (sel.empty() || editor_.composing())) {
+    if (focus && caret_level_ > 0 && (sel.empty() || editor_.composing())) {
         const Rect cr{origin.x + caret.x - 0.75f, origin.y + caret.top, 1.5f, caret.height};
-        ctx.list.fill_rect(cr, th.color("accent"));
+        Color color = th.color("accent");
+        color.a *= caret_level_;
+        ctx.list.fill_rect(cr, color);
     }
     ctx.list.pop_clip();
 
@@ -377,12 +383,41 @@ void TextBox::blink(bool restart) {
         blink_timer_ = 0;
     }
     if (!focused_) return;
-    if (restart) caret_on_ = true;
-    else caret_on_ = !caret_on_;
     services().invalidate_paint(node());
-    blink_timer_ = services().after(blink_period, [this] {
+    if (restart) {
+        // Moved or typed: shown at once, whole.
+        caret_on_ = true;
+        caret_level_ = 1;
+        blink_timer_ = services().after(blink_period, [this] {
+            blink_timer_ = 0;
+            blink(false);
+        });
+        return;
+    }
+    caret_on_ = !caret_on_;
+    if (services().motion_reduced()) {
+        caret_level_ = caret_on_ ? 1.0f : 0.0f;
+        blink_timer_ = services().after(blink_period, [this] {
+            blink_timer_ = 0;
+            blink(false);
+        });
+        return;
+    }
+    fade(1);
+}
+
+void TextBox::fade(int step) {
+    // Eased (smoothstep) toward on or off; the last step holds for the rest of the period.
+    const float along = static_cast<float>(step) / blink_fade_steps;
+    const float eased = along * along * (3 - 2 * along);
+    caret_level_ = caret_on_ ? eased : 1 - eased;
+    services().invalidate_paint(node());
+    const bool last = step >= blink_fade_steps;
+    const seconds wait = last ? seconds(blink_period.count() - blink_fade.count()) : seconds(blink_fade.count() / blink_fade_steps);
+    blink_timer_ = services().after(wait, [this, step, last] {
         blink_timer_ = 0;
-        blink(false);
+        if (last) blink(false);
+        else fade(step + 1);
     });
 }
 

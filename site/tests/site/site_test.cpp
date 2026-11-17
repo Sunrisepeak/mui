@@ -979,7 +979,7 @@ static UTest cases{"site", [] {
         // Re-pinned with the lead page (Part 2 §2.3): the docs' directory lists "Lead" after the practical guide.
         // Re-pinned with D-138: the docs say C++, TypeScript and view documents (features §4, the practical
         // guide's table), the interface page compares C++ and TypeScript, the combobox sample picks how a view is written.
-        expect(eq(all.hex(), std::string("b91df5b07125b4fa")));
+        expect(eq(all.hex(), std::string("65e43a4856d7436f")));
     };
 
     "the components: curated search, live detail, reset, languages and scoped appearance"_test = [] {
@@ -1181,7 +1181,7 @@ static UTest cases{"site", [] {
         expect(a.h.tree().node(read + "results/hello/open").has_value());
         expect(a.h.tree().node(read + "results/features/open").has_value());
         expect(a.h.tree().node("main/bar/nav/to_docs")->states.has(State::selected));
-        Invocation input; input.args = Value{}.set("value", "mcpp new");
+        Invocation input; input.args = Value{}.set("value", "omui new");
         expect(a.h.tree().act(read + "search", "set_value", input).exit_code() == std::optional<int>(0)); a.h.settle();
         expect(a.h.tree().node(read + "results/hello/open").has_value()) << "search includes guide content";
         input.args = Value{}.set("value", "no-such-guide-12345");

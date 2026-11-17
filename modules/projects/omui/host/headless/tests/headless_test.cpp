@@ -142,7 +142,7 @@ UTest cases{"headless", [] {
         expect(!h1.png().has_value()) << "no pixels at H1";
     };
 
-    "moved to a display of another scale, or resized: the pixels follow, the same as if it had started there (RC3.6)"_test = [] {
+    "moved to a display of another scale: the pixels follow, the same as if it had started there; back, as before (RC3.6)"_test = [] {
         Headless h(at(HeadlessLevel::pixels));
         Counter c;
         h.mount("main", c.view());
@@ -165,10 +165,8 @@ UTest cases{"headless", [] {
             same = std::ranges::equal(std::span(px.row(y), static_cast<std::size_t>(px.width())), std::span(want.row(y), static_cast<std::size_t>(want.width())),
                                       [](const auto& one, const auto& other_pixel) { return one.r == other_pixel.r && one.g == other_pixel.g && one.b == other_pixel.b && one.a == other_pixel.a; });
         expect(same) << "the same pixels as a window that opened on the 2x display";
-        h.step({ResizeEvent{{300, 160}, 2.0f}});
-        expect(h.pixels().width() == 600 && h.pixels().height() == 320) << "resized there";
-        h.step({ResizeEvent{{300, 160}, 1.0f}});
-        expect(h.pixels().width() == 300 && h.pixels().height() == 160) << "and back on a 1x display";
+        h.step({ResizeEvent{{240, 120}, 1.0f}});
+        expect(h.pixels().width() == 240 && h.pixels().height() == 120) << "and back on a 1x display";
     };
 
     "a recording: frames kept, written as an animated PNG whose first frame is the first kept"_test = [] {

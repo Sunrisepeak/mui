@@ -17,7 +17,8 @@ struct DocsState {
     Signal<std::string> query = signal(std::string());
 };
 
-inline constexpr std::string_view quickstart_commands = "xlings install mcpp\nmcpp new hello --template openmui\ncd hello\nmcpp run";
+inline constexpr std::string_view quickstart_commands =
+    "xlings install mcpp\ngit clone --recursive https://github.com/Sunrisepeak/mui && cd mui\nmcpp build -p omui.cli\nomui new hello && cd hello\nomui dev";
 
 [[nodiscard]] Element docs_directory(const SiteLinks& links, std::string current, bool vertical);
 [[nodiscard]] Element docs_landing(DocsState& docs, const SiteLinks& links, float width);

@@ -179,10 +179,10 @@ FrameOutput Headless::step(std::vector<InputEvent> events, std::optional<seconds
         in.attribution = attribution;
     }
     FrameOutput out = d.runtime->frame(in);
-    // The window resized or moved to a display of another scale (a ResizeEvent, as a window's host gives it):
-    // its pixels follow, drawn again at the new size and scale.
-    if (d.runtime->size() != d.options.size || d.runtime->scale() != d.options.scale) {
-        d.options.size = d.runtime->size();
+    // Moved to a display of another scale (a ResizeEvent's scale, as a window's host gives it): its pixels follow,
+    // drawn again at the new scale. The window's size stays the host's (a test resizing the layout within it, a
+    // recording over the change, keep one canvas).
+    if (d.runtime->scale() != d.options.scale) {
         d.options.scale = d.runtime->scale();
         d.have_pixels = false;
     }

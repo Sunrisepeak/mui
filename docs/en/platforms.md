@@ -14,7 +14,7 @@ What has been run where (release plan §2.5). **Real**: on real hardware or a re
 | Input methods (composition, candidates) | stable | software | software | software | software | | |
 | Gamepads (Quay, widget breakout) | preview | software | unverified | software | software | | |
 | D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms | preview | unverified | unverified | | | | unverified |
-| An application's first frame: process start to the window's first pixels (RC3.6) | stable | unverified | unverified | unverified | unverified | | |
+| An application's first frame: process start to the window's first pixels (RC3.6) | stable | real | unverified | unverified | unverified | | |
 | Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6) | stable | real | unverified | unverified | unverified | | |
 | High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6) | stable | software | unverified | software | software | | |
 | Closed, slept and resumed: no crash, nothing left blank (RC3.6) | stable | unverified | unverified | unverified | unverified | | |
@@ -67,7 +67,7 @@ What has been run where (release plan §2.5). **Real**: on real hardware or a re
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Linux x64: missing: an integrated-GPU machine; only the RTX 4080 is measured
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Web (wasm32): missing: Quay's frame in a real browser on a real GPU (web_frame_test, omui-devtools browser --headed under gpu --real, where a display is): RC2.1
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Android: missing: a mobile device
-- **An application's first frame: process start to the window's first pixels (RC3.6)**, Linux x64: missing: process start to the window's first frame, timed; the runtime's part is measured: ui/mount, a 1012-node dashboard built and laid out in 4.4 ms (docs/benchmarks/2026-10-28-desktop)
+- **An application's first frame: process start to the window's first pixels (RC3.6)**, Linux x64: example 01, release, `--frames 1` (the window asked for to its first frame shown), RTX 4080 under SDL's offscreen driver, 2026-11-17: the CPU renderer 41–53 ms warm (185 ms cold; the whole process 150–270 ms); the GPU renderer 207–334 ms warm (784 ms cold), its device and pipelines made before the first frame — the start to beat. Not yet held by a CI row
 - **An application's first frame: process start to the window's first pixels (RC3.6)**, Web (wasm32): missing: the page's first frame timed in a real browser (RC2.9 splits what loads before it)
 - **An application's first frame: process start to the window's first pixels (RC3.6)**, macOS arm64: missing: the same timing on a Mac
 - **An application's first frame: process start to the window's first pixels (RC3.6)**, Windows x64: missing: the same timing on Windows

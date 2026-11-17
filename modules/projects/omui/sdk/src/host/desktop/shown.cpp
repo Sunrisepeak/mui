@@ -33,6 +33,7 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     else if (app.renderer == "gpu") d.renderer = DesktopOptions::Renderer::gpu;
     const std::string_view mode = o.window.empty() ? std::string_view(app.window) : std::string_view(o.window);
     d.frame = mode == "framework" ? DesktopOptions::Frame::framework : DesktopOptions::Frame::native;
+    const auto asked = std::chrono::steady_clock::now();
     Desktop desktop(d);
     if (auto r = desktop.open(); !r) {
         error("no window ({}); `--headless` runs without a display", r.error());
@@ -40,6 +41,17 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     }
     desktop.runtime().set_debug(o.debug);
     const auto kept = prepare(desktop.runtime());
+    if (o.frames) {
+        // --frames N: N frames shown, then it ends, saying when the first was shown (RC3.6: the first frame's time).
+        std::optional<double> first;
+        while (desktop.frames_shown() < static_cast<std::size_t>(*o.frames)) {
+            if (!desktop.step(false)) break;
+            if (!first && desktop.frames_shown() > 0)
+                first = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - asked).count();
+        }
+        if (first) std::println(std::cerr, "first frame shown {:.1f} ms after the window was asked for", *first);
+        return desktop.frames_shown() >= static_cast<std::size_t>(*o.frames) ? 0 : 1;
+    }
     return desktop.run();
 }
 

@@ -294,6 +294,7 @@ struct Node {
     std::uint32_t                         changes = 0;  // its properties written (a count): an update, not a state
     // What it was drawn with last: its subtree's changes and interaction states, its children (which slot a change is).
     std::uint64_t                         drawn_changes = 0, drawn_states = 0;
+    bool                                  drawn_held = false;  // at the last drawing, the pointer held a press in it (`default.press`)
     std::vector<NodeId>                   drawn_children;
     // Its morph's own time (a handle's: paused, sought, reversed, slowed): local = at_local + (now − at) × rate.
     struct MotionClock {

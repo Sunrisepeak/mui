@@ -118,6 +118,19 @@ struct Caps {
     [[nodiscard]] constexpr bool samples_blocks(Format format) const noexcept;
 };
 
+// How finely a device keeps a corner, where its API does not say (WebGPU, WebGL2): by the adapter's name, whatever
+// its case. SwiftShader as Chrome builds it: 4, its legacy precision (red 107, measured); any other: 8.
+[[nodiscard]] constexpr std::uint32_t subpixel_bits_of(std::string_view adapter) noexcept {
+    constexpr std::string_view swiftshader = "swiftshader";
+    const auto lower = [](char letter) { return letter >= 'A' && letter <= 'Z' ? static_cast<char>(letter - 'A' + 'a') : letter; };
+    for (std::size_t at = 0; at + swiftshader.size() <= adapter.size(); ++at) {
+        std::size_t same = 0;
+        while (same < swiftshader.size() && lower(adapter[at + same]) == swiftshader[same]) ++same;
+        if (same == swiftshader.size()) return 4;
+    }
+    return 8;
+}
+
 // The most colour targets of a pass on any device: the first, and this many more.
 inline constexpr std::uint32_t max_color_targets = 4;
 inline constexpr std::uint32_t max_more_targets = max_color_targets - 1;

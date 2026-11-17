@@ -64,9 +64,7 @@ static UTest cases{"xtools", [] {
     };
 
     "a film of an omui view: the video toolkit's operation with omui's view source composed in, the same pixels twice (RC3.3)"_test = [] {
-        const auto dir = std::filesystem::temp_directory_path() / "xtools-video";
-        std::filesystem::remove_all(dir);
-        std::filesystem::create_directories(dir);
+        const auto dir = temp_dir();  // the case's own: two runs at once do not share it
         std::ofstream(dir / "hello.view.xdef.json", std::ios::binary) << R"({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "openmui"}}}})";
         std::array<std::string, 2> last;
         for (std::size_t round = 0; round < 2; ++round) {
@@ -74,11 +72,31 @@ static UTest cases{"xtools", [] {
             const Ran ran = run({"video", "render", (dir / "hello.view.xdef.json").generic_string(), "--size", "160x90", "--frames", "3", "--out", out.generic_string() + "/"});
             expect(eq(ran.code, 0) && ran.out.contains("frame-00002.png")) << ran.out << ran.err;
             const auto found = ran.out.find(R"("hash":")", ran.out.find("frame-00002.png") == std::string::npos ? 0 : ran.out.rfind(R"({"bytes")"));
-            if (found != std::string::npos) last[round] = ran.out.substr(found, 26);
+            // The hash's value, whatever its length: up to its closing quote.
+            if (found != std::string::npos) {
+                const auto from = found + std::string_view(R"("hash":")").size(), to = ran.out.find('"', from);
+                if (to != std::string::npos) last[round] = ran.out.substr(from, to - from);
+            }
         }
         expect(!last[0].empty() && last[0] == last[1]) << "the view's frames, the same both times";
         // By its whole name too, across the toolkits.
         const Ran named = run({"video.timing", "--fps", "30", "--frames", "2"});
         expect(eq(named.code, 0) && named.out.contains(R"("samples":3200)")) << named.out;
+    };
+
+    "a film's description module rendered where no workspace is: omui's kinds evaluate it there (a project of its own)"_test = [] {
+        // Under the system's temporary directory, not this repository's (whose root is a workspace).
+        const auto dir = std::filesystem::temp_directory_path() / std::format("xtools-outside-{}", std::random_device{}());
+        std::filesystem::create_directories(dir);
+        std::ofstream(dir / "card.video.xdef.ts", std::ios::binary)
+            << "import { defineVideo } from \"omui/define\";\n\nexport default defineVideo({ width: 32, height: 18, fps: 10, seconds: 0.5, from: { card: \"sync\" } });\n";
+        // Run from there, as in a project of its own: nothing above it or here is a workspace.
+        const auto here = std::filesystem::current_path();
+        std::filesystem::current_path(dir);
+        const Ran ran = run({"video", "render", (dir / "card.video.xdef.ts").generic_string(), "--out", (dir / "card.y4m").generic_string()});
+        std::filesystem::current_path(here);
+        expect(eq(ran.code, 0) && ran.out.contains(R"("frames":5)")) << ran.out << ran.err;
+        std::error_code ignored;
+        std::filesystem::remove_all(dir, ignored);
     };
 }};

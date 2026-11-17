@@ -123,13 +123,14 @@ std::optional<std::vector<math::Vec3>> on_device(rhi::Device& device, const Room
     device.destroy(*light), device.destroy(*surface), device.destroy(*depth);
     return out;
 }
-std::vector<math::Vec3> on_cpu(const Room& room, std::span<const particle::Batch> batches) {
+// The room as the device rasterizes it (its corners kept to `subpixel_bits`, rhi::Caps; red 107), the particles over it.
+std::vector<math::Vec3> on_cpu(const Room& room, std::span<const particle::Batch> batches, std::uint32_t subpixel_bits) {
     mesh::Targets frame;
     frame.resize(static_cast<int>(width), static_cast<int>(height));
     scene::Extracted seen;
     scene::extract(room.world, room.view, seen);
     mesh::Pass pass;
-    pass.draw(room.world, seen, room.view, {room.meshes, room.materials}, frame, {.shadows = false});
+    pass.draw(room.world, seen, room.view, {room.meshes, room.materials}, frame, {.shadows = false, .subpixel_bits = subpixel_bits});
     particle::draw(batches, room.view, frame);
     return frame.light;
 }
@@ -146,7 +147,8 @@ struct Compared {
 std::optional<Compared> compared(Rig& rig, const Room& room, std::span<const particle::Batch> batches, std::string_view what) {
     const auto bare = on_device(rig.device, room, {}), drawn = on_device(rig.device, room, batches);
     if (!bare || !drawn) return std::nullopt;
-    const std::vector<math::Vec3> reference_bare = on_cpu(room, {}), reference = on_cpu(room, batches);
+    const std::uint32_t bits = rig.device.caps().subpixel_bits;
+    const std::vector<math::Vec3> reference_bare = on_cpu(room, {}, bits), reference = on_cpu(room, batches, bits);
     Compared out;
     double sum = 0;
     for (std::size_t pixel = 0; pixel < reference.size(); ++pixel) {

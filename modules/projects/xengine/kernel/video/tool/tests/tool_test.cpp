@@ -61,6 +61,8 @@ static UTest cases{"video.tool", [] {
         auto answered = ask(session, std::format(R"({{"op":"video.render","file":{},"out":{}}})", card, quoted(dir / "out" / "card.y4m")));
         expect(fatal(eq(answered.code, 0))) << answered.error;
         expect(answered["frames"].integer() == 30 && answered["samples"].integer() == 48000 && answered["files"].size() == 2u) << "Y4M and the WAV beside it";
+        answered = ask(session, std::format(R"({{"op":"video.probe","file":{}}})", quoted(dir / "out" / "card.y4m")));
+        expect(eq(answered.code, 0) && answered["frames"].integer() == 30 && answered["fps"].text() == "30") << "the Y4M read back: " << answered.error;
         answered = ask(session, std::format(R"({{"op":"video.probe","file":{}}})", quoted(dir / "out" / "card.wav")));
         expect(eq(answered.code, 0) && answered["samples"].integer() == 48000) << answered.error;
 
@@ -68,11 +70,16 @@ static UTest cases{"video.tool", [] {
         expect(fatal(eq(answered.code, 0))) << answered.error;
         answered = ask(session, std::format(R"({{"op":"video.probe","file":{}}})", quoted(dir / "out" / "card.webm")));
         expect(eq(answered.code, 0) && answered["frames"].integer() == 30 && answered["samples"].integer() == 48000 && answered["video"].text() == "V_VP9" &&
-               answered["audio"].text() == "A_OPUS")
-            << "VP9 and Opus, read back";
+               answered["audio"].text() == "A_OPUS" && answered["bt709"].boolean() == true)
+            << "VP9 and Opus, read back, its colours said to be BT.709";
 
         answered = ask(session, std::format(R"({{"op":"video.still","file":{},"at":0.5,"out":{}}})", card, quoted(dir / "f15.png")));
         expect(eq(answered.code, 0) && answered["frame"].integer() == 15 && std::filesystem::exists(dir / "f15.png")) << answered.error;
+        // A number is the whole word: `5x` and `abc` are refused, not read as 5 and the default.
+        const Answered five_x = ask(session, std::format(R"({{"op":"video.still","file":{},"frame":"5x","out":{}}})", card, quoted(dir / "f5.png")));
+        expect(eq(five_x.code, 1) && five_x.error.contains("--frame") && !std::filesystem::exists(dir / "f5.png")) << five_x.error;
+        const Answered abc = ask(session, R"({"op":"video.timing","fps":"30","rate":"abc"})");
+        expect(eq(abc.code, 1) && abc.error.contains("--rate")) << abc.error;
 
         answered = ask(session, R"({"op":"video.timing","fps":"30000/1001","frames":5})");
         expect(eq(answered.code, 0) && answered["samples"].integer() == 8008) << "five frames of 29.97 at 48 kHz";

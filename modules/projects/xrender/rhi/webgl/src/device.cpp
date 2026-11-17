@@ -177,13 +177,6 @@ private:
     std::uint64_t                                      next_ = 1;
 };
 
-// Whether the adapter is SwiftShader, whatever the case its name is given in.
-bool swiftshader(std::string_view name) {
-    std::string lower(name);
-    std::ranges::transform(lower, lower.begin(), [](unsigned char letter) { return static_cast<char>(std::tolower(letter)); });
-    return lower.contains("swiftshader");
-}
-
 }  // namespace
 
 Result<std::unique_ptr<Device>> create(const Options& options) {
@@ -195,7 +188,7 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     caps.device = context->name;
     caps.formats = formats({ShaderFormat::essl});
     caps.software = context->software;
-    caps.subpixel_bits = swiftshader(caps.device) ? 4 : 8;  // as the WebGPU backend's (red 107)
+    caps.subpixel_bits = subpixel_bits_of(caps.device);  // WebGL2 does not say it (rhi::subpixel_bits_of; red 107)
     caps.compute = false;
     caps.max_texture_size = context->max_texture;
     const std::uint32_t n = context->max_samples;  // rhi's counts: 1, 2, 4, 8

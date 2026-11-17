@@ -126,6 +126,15 @@ std::string invalid(Scene& s, const CommandList& l) {
 
 UTest cases{"rhi", [] {
 
+    "a device's precision where its API does not say: SwiftShader's by its name in any case, every other 8 bits"_test = [] {
+        static_assert(subpixel_bits_of("Google SwiftShader Device (Subzero)") == 4);
+        expect(eq(subpixel_bits_of("google swiftshader swiftshader-device"), 4u));
+        expect(eq(subpixel_bits_of("ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"), 4u));
+        expect(eq(subpixel_bits_of("NVIDIA GeForce RTX 4080"), 8u) && eq(subpixel_bits_of("llvmpipe (LLVM 22.1.8, 256 bits)"), 8u));
+        expect(eq(subpixel_bits_of(""), 8u) && eq(subpixel_bits_of("swiftshade"), 8u));
+        expect(eq(Caps{}.subpixel_bits, 8u)) << "a device that says nothing rasterizes as most do";
+    };
+
     "descriptions are checked before a backend sees them"_test = [] {
         Recorder d;
         auto bad = [&](auto desc) {

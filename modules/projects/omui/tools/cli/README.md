@@ -66,9 +66,10 @@ none to make up, or not as it was after its undo). A failure exits 1.
 ## Films
 
 Films are xengine.video's toolkit: the [`video`](../../../xengine/kernel/video/tool) command renders descriptions,
-takes stills, checks, probes and shows the timing. A view's frames are omui's: this package gives them
-(`omui::cli::view_frames`, a view document drawn on the headless host's clock, a step a frame), and
-[xtools](../../../xtools) composes the two — `xtools video render hello.view.xdef.json --out shots/`. `omui design film`
-renders its frames through the same toolkit.
+takes stills, checks, probes and shows the timing. A view's frames and the kinds of its data modules are omui's:
+this package gives the toolkit them (`omui::cli::films()`, a subject: a view document drawn on the headless host's
+clock, a step a frame; `*.xdef.ts` evaluated by omui.lang.ts, a workspace or not), and [xtools](../../../xtools)
+serves it — `xtools video render hello.view.xdef.json --out shots/`. `omui design film` renders with the same
+sources. The toolkit's types stay inside this package's interface (a preview part: `lower`, not re-exported).
 
 `add` and `bench` join as their members land.

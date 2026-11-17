@@ -209,13 +209,6 @@ private:
     std::uint64_t                                          next_ = 1;
 };
 
-// Whether the adapter is SwiftShader, whatever the case its name is given in.
-bool swiftshader(std::string_view name) {
-    std::string lower(name);
-    std::ranges::transform(lower, lower.begin(), [](unsigned char letter) { return static_cast<char>(std::tolower(letter)); });
-    return lower.contains("swiftshader");
-}
-
 }  // namespace
 
 Result<std::unique_ptr<Device>> create(const Options& options) {
@@ -229,9 +222,9 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     caps.device = adapter->name;
     caps.formats = formats({ShaderFormat::wgsl});
     caps.software = adapter->software;
-    // WebGPU does not say it; Chrome builds SwiftShader at its legacy precision (red 107: measured, the reference
-    // at 4 bits draws lavapipe's mesh.glass apart at SwiftShader's very pixels).
-    caps.subpixel_bits = swiftshader(caps.device) ? 4 : 8;
+    // WebGPU does not say it: by the adapter's name (rhi::subpixel_bits_of; red 107). An adapter that names nothing
+    // (the page's "WebGPU") and is a fallback is SwiftShader: Chrome's only fallback adapter.
+    caps.subpixel_bits = adapter->software && adapter->name == "WebGPU" ? 4 : subpixel_bits_of(caps.device);
     caps.compute = true;
     caps.max_texture_size = adapter->max_texture;
     caps.max_samples = 4;  // WebGPU's one count beside 1

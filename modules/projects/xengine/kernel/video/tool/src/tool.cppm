@@ -20,8 +20,13 @@ export namespace xengine::video::tool {
 using ViewSource = std::function<std::expected<std::unique_ptr<FrameSource>, std::string>(const Description& description,
                                                                                        const std::filesystem::path& file)>;
 
+// A data file's JSON (a `*.xdef.ts` module evaluated, any other file as it is), or why not. Its kinds are owned
+// above this package (`video`, `timeline`: omui.lang.ts), so a composition gives the evaluator that knows them.
+using DataSource = std::function<std::expected<std::string, std::string>(const std::filesystem::path& file)>;
+
 struct Sources {
     ViewSource view;  // none: a view's frames are refused
+    DataSource data;  // none: a data module is evaluated with its workspace's kinds (mlibs.xdef), refused outside one
 };
 
 // One operation by its last name (render, still, check, probe, timing): records out (one JSON object a line), what

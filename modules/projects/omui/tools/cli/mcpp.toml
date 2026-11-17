@@ -1,7 +1,8 @@
 # omui — the openmui command line (plan §2.2): agent operations against any
 # running application; check, fmt and schema for view documents; a view's
-# frames for films (view_frames: the video toolkit, xengine.video.tool, renders
-# them; xtools composes the two); add and bench as their members land.
+# films with omui's sources (films(): the video toolkit, xengine.video.tool,
+# with a view's frames and omui's data kinds; xtools serves it); add and bench
+# as their members land.
 [package]
 namespace   = "omui"
 name        = "cli"
@@ -11,7 +12,7 @@ license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
-reexports = ["mlibs.agent", "xengine.video.tool"]  # what its interface re-exports (lint module-closure): view_frames gives the video toolkit's ViewSource
+reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure): films() is an mlibs.agent Subject
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the omui command"
 lower = ["mlibs.project", "xengine.video", "xengine.video.tool"]  # lower-labelled parts it uses, each marked in its README

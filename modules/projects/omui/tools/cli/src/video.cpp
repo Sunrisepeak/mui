@@ -1,6 +1,6 @@
-// A view's frames for a film (convergence plan RC3.3): films are xengine.video's toolkit (the `video` command); the
-// frames of an omui view are omui's — a view document drawn on a headless host's clock, a step a frame. xtools gives
-// the `video` subject this source, and omui's design film renders through it.
+// Films with omui's sources (convergence plan RC3.3): films are xengine.video's toolkit (the `video` command); the
+// frames of an omui view are omui's — a view document drawn on a headless host's clock, a step a frame — and so are
+// the kinds its data modules declare (omui.lang.ts). xtools serves the subject; omui's design film renders with them.
 module omui.cli;
 
 import std;
@@ -10,6 +10,7 @@ import omui.viewdoc;
 import omui.host.headless;
 import xengine.video;
 import xengine.video.tool;
+import omui.lang.ts;
 
 namespace omui::cli {
 
@@ -58,12 +59,15 @@ private:
 
 }  // namespace
 
-xengine::video::tool::ViewSource view_frames() {
-    return [](const vid::Description& description, const std::filesystem::path& file) -> std::expected<std::unique_ptr<vid::FrameSource>, std::string> {
-        auto frames = std::make_unique<ViewFrames>(description);
-        if (auto loaded = frames->load(file); !loaded) return std::unexpected(loaded.error());
-        return frames;
-    };
+xengine::video::tool::Sources video_sources() {
+    return {.view = [](const vid::Description& description, const std::filesystem::path& file) -> std::expected<std::unique_ptr<vid::FrameSource>, std::string> {
+                auto frames = std::make_unique<ViewFrames>(description);
+                if (auto loaded = frames->load(file); !loaded) return std::unexpected(loaded.error());
+                return frames;
+            },
+            .data = [](const std::filesystem::path& file) { return omui::lang::ts::data_text(file); }};
 }
+
+std::unique_ptr<mlibs::agent::Subject> films() { return std::make_unique<xengine::video::tool::Video>(video_sources()); }
 
 }  // namespace omui::cli

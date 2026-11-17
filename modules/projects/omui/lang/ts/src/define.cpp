@@ -27,6 +27,17 @@ std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate_source(std::string
     return mlibs::ts::evaluate_source(source, name, data_options(std::move(options)));
 }
 
+std::expected<std::string, std::string> data_text(const std::filesystem::path& file) {
+    if (file.filename().generic_u8string().ends_with(u8".xdef.ts")) {
+        auto data = evaluate(file);
+        if (!data) return std::unexpected(data.error().text());
+        return data->snapshot();
+    }
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return std::unexpected(std::format("{}: cannot be read", reinterpret_cast<const char*>(file.generic_u8string().c_str())));
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
 std::string_view omui_define_types() {
     return R"ts(// omui/define — omui's own data formats written as TypeScript data modules
 // (D-139, D-157): an application's configuration, an operation catalog.

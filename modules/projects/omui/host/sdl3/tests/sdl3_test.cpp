@@ -139,6 +139,33 @@ UTest cases{"host.sdl3", [] {
         }
     };
 
+    "two hosts: one's device still being made while another opens a window and ends — SDL stays up for the first, which draws"_test = [] {
+        DesktopOptions o = offscreen("sdl3-held-gpu");
+        o.renderer = DesktopOptions::Renderer::gpu;
+        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+        Desktop first(o);  // its device begun on a thread of its own, SDL held for it
+        {
+            Desktop second(offscreen("sdl3-held-cpu"));
+            expect(fatal(second.open().has_value()));
+            second.mount("main", text({.text = "the other"}));
+            (void)second.step(false);
+        }  // its window, the only one open, closed: SDL is still held by the first
+        auto opened = first.open();
+        if (!opened) {
+            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") != "1") {
+                std::println("  no GPU for the window here ({})", opened.error());
+                return;
+            }
+            expect(false) << opened.error().text();
+            return;
+        }
+        first.mount("main", column({.padding = 20}, {text({.id = "hello", .text = "Hello"})}));
+        const auto asked = std::chrono::steady_clock::now();
+        while (first.frames_shown() == 0 && std::chrono::steady_clock::now() - asked < std::chrono::seconds(20)) (void)first.step(false);
+        expect(first.gpu() && first.frames_shown() > 0) << "the first host's frame shown on its device (not a fallback)";
+    };
+
     "on the GPU: the swapchain shows the frame, and an effect file edited while it runs shows on the next frame"_test = [] {
         const auto dir = std::filesystem::temp_directory_path() / "openmui-host-effects";
         std::error_code ec;

@@ -28,13 +28,13 @@ sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 mlibs.agent             = { path = "../../../base/agent" }
 mlibs.image             = { path = "../../../base/image" }
 openlifa.openas         = "0.2.0"
-"hanim.timeline"        = { path = "../../hanim/timeline" }
+hanim.timeline          = { path = "../../hanim/timeline" }
 xengine.audio           = { path = "../../xengine/kernel/audio" }
 "xengine.audio.timeline" = { path = "../../xengine/kernel/audio/timeline" }
-"omui.core"             = { path = "../../omui/core" }
-"omui.lang.ts"          = { path = "../../omui/lang/ts" }
-"omui.host.headless"    = { path = "../../omui/host/headless" }
-"omui.ui.base"          = { path = "../../omui/components/base" }
+omui.core               = { path = "../../omui/core" }
+omui.lang.ts            = { path = "../../omui/lang/ts" }
+omui.host.headless      = { path = "../../omui/host/headless" }
+omui.ui.base            = { path = "../../omui/components/base" }
 xrender.vector          = { path = "../../xrender/vector" }
 mcpplibs.os             = "0.4.4"
 

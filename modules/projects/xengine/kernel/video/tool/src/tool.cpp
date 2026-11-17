@@ -40,8 +40,9 @@ std::string utf8(const std::filesystem::path& path) {
 
 // A data file's JSON: a `.xdef.ts` module evaluated through a workspace's registry of kinds (mlibs.xdef) — its own,
 // else the one the command runs in — else the file as it is.
-std::expected<std::string, std::string> data_text(const std::filesystem::path& file) {
+std::expected<std::string, std::string> data_text(const std::filesystem::path& file, const Sources& sources) {
     if (utf8(file.filename()).ends_with(".xdef.ts")) {
+        if (sources.data) return sources.data(file);  // the composition's, which knows the kinds
         auto workspace = mlibs::xdef::workspace_of(std::filesystem::absolute(file));
         if (!workspace) workspace = mlibs::xdef::workspace_of(std::filesystem::current_path());
         if (!workspace)
@@ -56,6 +57,13 @@ std::expected<std::string, std::string> data_text(const std::filesystem::path& f
     auto text = mcpplibs::os::fs::read(file);
     if (!text) return std::unexpected(std::format("{}: {}", utf8(file), text.error().message()));
     return std::move(*text);
+}
+
+// A number that is the whole word (`5x` and `abc` are none).
+template <class Number>
+bool whole(std::string_view word, Number& value) {
+    const auto [end, error] = std::from_chars(word.data(), word.data() + word.size(), value);
+    return error == std::errc{} && end == word.data() + word.size();
 }
 
 std::string hex(std::uint64_t h) { return std::format("{:016x}", h); }
@@ -101,7 +109,7 @@ struct Loaded {
 
 // A description, or a view document taken as one; the size, rate and length
 // given on the command line over what the file says.
-std::expected<Loaded, int> load(const mlibs::agent::Arguments& p, Record& report, std::ostream& out, std::ostream& err) {
+std::expected<Loaded, int> load(const mlibs::agent::Arguments& p, Record& report, std::ostream& out, std::ostream& err, const Sources& sources) {
     Loaded l;
     l.file = path_of(p.positional(0));
     l.base = l.file.parent_path();
@@ -113,7 +121,7 @@ std::expected<Loaded, int> load(const mlibs::agent::Arguments& p, Record& report
         l.d.seconds = 3;
     } else {
         // A description module (`*.video.xdef.ts`) evaluated, or its JSON (D-139).
-        auto text = data_text(l.file);
+        auto text = data_text(l.file, sources);
         if (!text) return std::unexpected(failed(out, report, std::format("cannot read the file: {}", text.error())));
         auto d = vid::read_description(*text, name);
         if (!d) {
@@ -195,7 +203,7 @@ Record describe(const vid::Description& d) {
 int render(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err, const Sources& sources) {
     Record report;
     report.set("command", "render");
-    auto l = load(p, report, out, err);
+    auto l = load(p, report, out, err, sources);
     if (!l) return l.error();
     const auto out_value = p.value("out");
     if (!out_value) {
@@ -246,7 +254,7 @@ int render(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& er
         if (l->d.audio) encoders.push_back(vid::wav_encoder("audio.wav"));
     }
     const auto t0 = std::chrono::steady_clock::now();
-    auto track = vid::soundtrack(l->d, l->base, [](const std::filesystem::path& file) { return data_text(file); });
+    auto track = vid::soundtrack(l->d, l->base, [&sources](const std::filesystem::path& file) { return data_text(file, sources); });
     if (!track) {
         report.set("ok", false).set("problems", problems_value(track.error()));
         return print(out, report, 1);
@@ -277,14 +285,16 @@ int render(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& er
 int still(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err, const Sources& sources) {
     Record report;
     report.set("command", "still");
-    auto l = load(p, report, out, err);
+    auto l = load(p, report, out, err, sources);
     if (!l) return l.error();
     const auto target = p.value("out");
     std::int64_t index = -1;
-    if (auto n = p.value("frame")) std::from_chars(n->data(), n->data() + n->size(), index);
+    if (auto n = p.value("frame")) {
+        if (!whole(*n, index)) index = -1;
+    }
     else if (auto a = p.value("at")) {
         double t = -1;
-        std::from_chars(a->data(), a->data() + a->size(), t);
+        if (!whole(*a, t)) t = -1;
         if (t >= 0) index = vid::Timing{l->d.fps, l->d.rate}.frame_at(t);
     }
     if (!target || index < 0) {
@@ -308,10 +318,10 @@ int still(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err
     return print(out, report, 0);
 }
 
-int check_video(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err) {
+int check_video(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err, const Sources& sources) {
     Record report;
     report.set("command", "check");
-    auto l = load(p, report, out, err);
+    auto l = load(p, report, out, err, sources);
     if (!l) return l.error();
     report.set("ok", true);
     report.json.update(describe(l->d).json);
@@ -358,14 +368,17 @@ int probe(const mlibs::agent::Arguments& p, std::ostream& out) {
 int timing(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& err) {
     const auto rate = vid::parse_rate(p.value("fps").value_or("30"));
     std::int32_t hz = 48000;
-    if (auto r = p.value("rate")) std::from_chars(r->data(), r->data() + r->size(), hz);
+    if (auto r = p.value("rate"); r && !whole(*r, hz)) hz = 0;
     if (!rate || hz <= 0) {
         err << "video timing: --fps RATE (30, 30000/1001) [--rate HZ]\n";
         return 2;
     }
     const vid::Timing t{*rate, hz};
     std::int64_t n = (rate->num + rate->den - 1) / rate->den;
-    if (auto f = p.value("frames")) std::from_chars(f->data(), f->data() + f->size(), n);
+    if (auto f = p.value("frames"); f && !whole(*f, n)) {
+        err << "video timing: --frames is a count\n";
+        return 2;
+    }
     n = std::clamp<std::int64_t>(n, 1, 100000);
     Json frames = Json::array();
     for (std::int64_t i = 0; i < n; ++i) {
@@ -384,7 +397,7 @@ int timing(const mlibs::agent::Arguments& p, std::ostream& out, std::ostream& er
 int run(std::string_view operation, const mlibs::agent::Arguments& arguments, std::ostream& out, std::ostream& err, const Sources& sources) {
     if (operation == "render") return render(arguments, out, err, sources);
     if (operation == "still") return still(arguments, out, err, sources);
-    if (operation == "check") return check_video(arguments, out, err);
+    if (operation == "check") return check_video(arguments, out, err, sources);
     if (operation == "probe") return probe(arguments, out);
     if (operation == "timing") return timing(arguments, out, err);
     err << "video: no operation `" << operation << "` (render, still, check, probe, timing)\n";

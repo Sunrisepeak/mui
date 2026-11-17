@@ -2,10 +2,9 @@
 export import :catalog;
 export import :omui_profile;
 export import mlibs.agent;
-export import xengine.video.tool;
 namespace omui::cli {
   int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err);
-  [[nodiscard]] xengine::video::tool::ViewSource view_frames();
+  [[nodiscard]] std::unique_ptr<mlibs::agent::Subject> films();
   using Transport = std::function<std::vector<Value>(const Value& request, std::chrono::milliseconds limit)>;
   int operate_running(std::vector<std::string> words, const Transport& send, std::ostream& out, std::ostream& err);
   [[nodiscard]] std::expected<Value, std::string> raw_request(std::span<const std::string> words);

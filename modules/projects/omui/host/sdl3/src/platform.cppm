@@ -35,7 +35,11 @@ using WindowPtr = std::unique_ptr<Window, WindowDeleter>;
 // SDL brought up (video, events, gamepads) as a window's opening does, before any window: a GPU device can then be
 // made on a thread of its own while the window and the first frame are prepared. Idempotent; `open` calls it.
 std::expected<void, std::string> start(std::string_view video_driver);
-// SDL let go when `start` brought it up and no window is open (a host that never opened one); else nothing.
+// A host that brought SDL up for a device being made off this thread holds it until it lets go: while one holds it,
+// neither another host's `stop` nor the last window closing quits SDL under that device's making.
+void hold();
+void release();  // its hold given back, then `stop`
+// SDL let go when `start` brought it up, no window is open and no host holds it; else nothing.
 void stop();
 
 std::expected<WindowPtr, std::string> open(const WindowOptions& options);

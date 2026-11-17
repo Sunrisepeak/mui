@@ -58,6 +58,7 @@ namespace omui::lang::ts {
   [[nodiscard]] mlibs::ts::DataOptions data_options(mlibs::ts::DataOptions options = {…});
   [[nodiscard]] std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate(const std::filesystem::path& file, mlibs::ts::DataOptions options = {…});
   [[nodiscard]] std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate_source(std::string_view source, std::string_view name, mlibs::ts::DataOptions options = {…});
+  [[nodiscard]] std::expected<std::string, std::string> data_text(const std::filesystem::path& file);
   [[nodiscard]] std::string_view omui_define_types();
 }
 == omui.lang.ts:edit

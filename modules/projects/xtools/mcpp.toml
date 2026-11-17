@@ -33,7 +33,6 @@ mlibs.agent           = { path = "../../base/agent" }
 "hanim.timeline.tool" = { path = "../hanim/timeline/tool" }
 "xrender.tool"        = { path = "../xrender/tool" }
 "gongfu.studio"       = { path = "../gongfu/studio" }
-"xengine.video.tool"  = { path = "../xengine/kernel/video/tool" }
 "xtools.audition"     = { path = "audition" }
 mcpplibs.os           = "0.4.4"
 

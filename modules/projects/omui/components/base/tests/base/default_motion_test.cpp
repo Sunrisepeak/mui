@@ -131,6 +131,11 @@ void expect_duration(Headless& h, std::string_view path, double expected) {
     if (motion) expect(std::abs((motion->end - motion->start) - expected) < 0.001) << std::format("{}: expected {} s, actual {} s", path, expected, motion->end - motion->start);
 }
 
+// An interactive card (its own pressed look) over a text node of its own: a pressable whose drawing holds another node.
+Element card_of(int& presses) {
+    return card({.id = "card", .interactive = true, .title = "Go", .on_activated = [&presses] { ++presses; }}, {text({.id = "go", .text = "Revenue up 12%"})});
+}
+
 }  // namespace
 
 static UTest cases{"ui.base.default-motion", [] {
@@ -386,6 +391,39 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(scaled().second > 1.004f) << std::format("released: sprung out a little, {}", scaled().second);
         h.advance(seconds(1));
         expect(h.runtime().motions().empty()) << "and at rest";
+    };
+
+    "default.press on a pressable that draws other nodes: let go, it springs out; the pointer gone without a press, it does not"_test = [] {
+        // Its states fold its children's in (a hash), so the release is kept apart from them, as the press is.
+        Headless h(options());
+        int presses = 0;
+        Element card = card_of(presses);
+        // default.press as its own (the component recipes are rules, not names a prop uses): pressed in, rung out, sprung.
+        const Value press(Value::Map{{"compose", Value(Value::List{Value("match"), Value("glyphs"), Value("fade"), Value("press")})}, {"curve", Value("motion.fast")}, {"press_length", Value(0.45)}});
+        card.prop("motion", Source(Value(Value::Map{{"state", press}})));
+        h.mount("main", column({.padding = 24}, {card}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/card/go"));
+        PointerEvent over;
+        over.kind = PointerKind::move;
+        over.position = bounds.center();
+        PointerEvent down = over;
+        down.kind = PointerKind::down, down.button = MouseButton::left, down.buttons = 1;
+        PointerEvent up = down;
+        up.kind = PointerKind::up, up.buttons = 0;
+        PointerEvent away = over;
+        away.position = {bounds.x - 400, bounds.y - 400};
+        h.step({over});
+        h.settle();
+        h.step({down});
+        h.settle();
+        h.step({up});
+        expect_duration(h, "main/card", 0.45);  // the release's own course (press_length), not the state's 0.10
+        h.settle();
+        h.step({away});
+        const auto motion = moving(h, "main/card");
+        expect(!motion || std::abs((motion->end - motion->start) - 0.45) > 0.001) << "the pointer gone: no spring";
+        expect(eq(presses, 1));
     };
 
     "press.squash: a pressed button is pressed in about the finger and rings out"_test = [] {

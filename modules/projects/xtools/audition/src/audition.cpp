@@ -25,18 +25,6 @@ using namespace omui;
 namespace tl = hanim::timeline;
 namespace au = xengine::audio;
 
-// A data file's JSON: a `.xdef.ts` module evaluated (omui's define modules), else the file as it is.
-std::expected<std::string, std::string> data_text(const std::filesystem::path& file) {
-    if (mcpplibs::os::fs::utf8(file.filename()).ends_with(".xdef.ts")) {
-        auto data = omui::lang::ts::evaluate(file);
-        if (!data) return std::unexpected(data.error().text());
-        return data->snapshot();
-    }
-    auto text = mcpplibs::os::fs::read(file);
-    if (!text) return std::unexpected(std::format("{}: {}", mcpplibs::os::fs::utf8(file), text.error().message()));
-    return std::move(*text);
-}
-
 }  // namespace
 
 int automation(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
@@ -52,7 +40,7 @@ int automation(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream
     if(!integer("seconds",duration) || duration<1 || duration>10 || !integer("fps",fps) || fps<1 || fps>120 || !mlibs::time::Rate{fps,1}.exact())
         return fail("seconds must be an integer in 1..10; fps must be an exact timeline rate in 1..120",2);
     const auto file=mcpplibs::os::fs::from_utf8(a.positional(0));
-    const auto source=data_text(file);if(!source)return fail(source.error());
+    const auto source=omui::lang::ts::data_text(file);if(!source)return fail(source.error());
     const auto timeline=tl::read_timeline(*source,std::string(a.positional(0)));
     if(!timeline) {Value::List issues;for(const auto& issue:timeline.error())issues.emplace_back(issue.text());report.set("problems",Value(std::move(issues)));return fail("invalid timeline");}
     // A bounded audition tool, not a resampler or an arbitrary scene player.

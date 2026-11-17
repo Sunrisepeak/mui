@@ -157,6 +157,7 @@ struct Desktop::Impl final : WindowHost {
     // The window as a window (D-75): who draws its frame, and its close.
     bool                                     framework = false;
     bool                                     close_requested = false;
+    bool                                     holds_sdl = false;  // it brought SDL up for its device: held until it ends
     std::optional<std::chrono::steady_clock::time_point> closed_at;  // closed, dissolving until then
 
     bool framework_drawn() const noexcept override { return framework; }
@@ -383,6 +384,8 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
         xrender::rhi::sdl::Options early;
         early.formats = xrender::gpu_shader_formats();
         early.vulkan_library = d.options.vulkan_library;
+        platform::hold();  // no other host's end, and no last window closing, quits SDL under this making
+        d.holds_sdl = true;
         early.video_driver = d.options.video_driver;
         d.making.emplace(xrender::rhi::sdl::create_async(early));
     }
@@ -443,7 +446,9 @@ Desktop::~Desktop() {
     impl_->gpu.reset();
     impl_->device.reset();
     impl_->window.reset();
-    platform::stop();  // SDL brought up for a device and never given a window: let go here
+    // SDL brought up for a device: its hold given back (and SDL let go when no window and no other host keeps it).
+    if (impl_->holds_sdl) platform::release();
+    else platform::stop();
 }
 
 std::expected<void, ViewFailure> Desktop::open() {

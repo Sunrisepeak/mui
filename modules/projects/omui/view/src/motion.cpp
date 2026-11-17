@@ -295,6 +295,9 @@ void Runtime::Impl::run_motion() {
             return (x.state.hovered ? 1u : 0u) | (x.state.pressed ? 2u : 0u) | (x.state.focused ? 4u : 0u) | (x.state.focus_visible ? 8u : 0u);
         };
         std::uint64_t changes = n.changes, states = state_bits(n);
+        // `states` folds the children in (a hash), so whether a press is held here is kept apart: the press's
+        // own test, a node or what it contains under the pointer's press.
+        const bool held_now = held && alive(pressed) && (pressed == id || contains(id, pressed));
         for (std::size_t i = b; i < e; ++i) {
             // Reference-driven allocation is live, while contents and state
             // retain their own animation. Position changes do not rebuild a
@@ -440,7 +443,7 @@ void Runtime::Impl::run_motion() {
             // was there, hidden, drawn again (a dialog opening): its update slot's, from nothing.
             const bool fresh = !n.shown;
             n.drawn = true;
-            n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
+            n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_held = held_now, n.drawn_children = n.children;
             const MotionSpec* spec = fresh ? slot_motion(id, 1) : update_motion(id);
             const NodeId parent = n.parent;
             const bool into_drawn = n.type->overlay || (alive(parent) && at(parent).index < drawn_by.size() && drawn_by[at(parent).index] == parent);
@@ -473,20 +476,19 @@ void Runtime::Impl::run_motion() {
                 n.morph.reset();
                 touch(dirty_semantics);
             }
-            n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
+            n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_held = held_now, n.drawn_children = n.children;
             continue;
         }
-        const auto was_states = n.drawn_states;
-        n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
+        const bool was_held = n.drawn_held;
+        n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_held = held_now, n.drawn_children = n.children;
         press.reset();
         if (spec->press > 0 && n.screen.width > 0 && n.screen.height > 0) {
             // Pressed in about the finger while it is held (whatever the press changed); let go (pressed before,
             // not now), it springs out a little. A hover or a focus alone presses nothing.
-            const bool held_here = held && alive(pressed) && (pressed == id || contains(id, pressed));
             const Point at{std::clamp((pressed_at.x - n.screen.x) / n.screen.width, 0.0f, 1.0f),
                            std::clamp((pressed_at.y - n.screen.y) / n.screen.height, 0.0f, 1.0f)};
-            if (held_here) press = std::pair{at, 1.0f};
-            else if (slot == 3 && (was_states & 2u) != 0 && (states & 2u) == 0) press = std::pair{at, -0.5f};
+            if (held_now) press = std::pair{at, 1.0f};
+            else if (was_held) press = std::pair{at, -0.5f};
         }
         // Changing on and on (a meter, a playhead, a scroll gliding, a camera flying): it moves by itself, shown as it
         // is; a morph is for a change, not for a motion.

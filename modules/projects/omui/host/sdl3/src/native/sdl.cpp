@@ -18,6 +18,7 @@ namespace {
 
 // SDL is initialised while any window is open.
 int            windows_open = 0;
+int            holders = 0;  // hosts holding SDL for a device being made (platform::hold)
 std::uint32_t  wake_event = 0;
 std::atomic<bool> sdl_ready{false};
 
@@ -195,7 +196,7 @@ void WindowDeleter::operator()(Window* w) const noexcept {
     if (w->renderer) SDL_DestroyRenderer(w->renderer);
     if (w->window) SDL_DestroyWindow(w->window);
     delete w;
-    if (--windows_open == 0) {
+    if (--windows_open == 0 && holders == 0) {
         sdl_ready = false;
         pads.close_all();
         SDL_Quit();
@@ -221,8 +222,15 @@ std::expected<void, std::string> start(std::string_view video_driver) {
     return {};
 }
 
+void hold() { ++holders; }
+
+void release() {
+    if (holders > 0) --holders;
+    stop();
+}
+
 void stop() {
-    if (!sdl_ready || windows_open != 0) return;
+    if (!sdl_ready || windows_open != 0 || holders != 0) return;
     sdl_ready = false;
     pads.close_all();
     SDL_Quit();

@@ -36,6 +36,11 @@ inline constexpr std::array<std::string_view, 20> data_kinds{"contract", "native
 [[nodiscard]] std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate_source(std::string_view source, std::string_view name,
                                                                                    mlibs::ts::DataOptions options = {});
 
+// A data file as the JSON its reader takes (D-139): a data module (`*.xdef.ts`) evaluated to its snapshot with
+// both define modules — anywhere, a workspace or not — and any other file read as it is; else why not, as a person
+// reads it. omui's tools and the compositions over them take a data file's text here, one way.
+[[nodiscard]] std::expected<std::string, std::string> data_text(const std::filesystem::path& file);
+
 // The TypeScript declarations of "omui/define", for type-checking an application's configuration and catalogs
 // ("openmui/define"'s are the spec's own, spec/stubs/define.d.ts).
 [[nodiscard]] std::string_view omui_define_types();

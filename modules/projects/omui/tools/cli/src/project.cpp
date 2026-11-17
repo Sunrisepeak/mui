@@ -256,17 +256,6 @@ int config(bool json, std::ostream& out, std::ostream& err) {
 
 }  // namespace
 
-std::expected<std::string, std::string> data_text(const std::filesystem::path& file) {
-    if (mcpplibs::os::fs::utf8(file.filename()).ends_with(".xdef.ts")) {
-        auto data = lang::ts::evaluate(file);
-        if (!data) return std::unexpected(data.error().text());
-        return data->snapshot();
-    }
-    auto text = mcpplibs::os::fs::read(file);
-    if (!text) return std::unexpected(std::format("{}: {}", mcpplibs::os::fs::utf8(file), text.error().message()));
-    return std::move(*text);
-}
-
 bool& tools_caught() {
     static bool caught = false;
     return caught;
@@ -375,7 +364,7 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
         if (made.code != 0) return made.code;
         const std::string film = a.value("out").value_or("design.webm");
         const auto rendering = mlibs::agent::parse_request(Value{}.set("op", "video.render").set("file", frames + "/design.video.xdef.json").set("out", film).json());
-        return rendering ? xengine::video::tool::run("render", mlibs::agent::Arguments(*rendering, "file"), out, err, {.view = view_frames()}) : 1;
+        return rendering ? xengine::video::tool::run("render", mlibs::agent::Arguments(*rendering, "file"), out, err, video_sources()) : 1;
     }
     if (name == "check") {
         const auto files = a.values("files");

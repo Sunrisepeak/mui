@@ -222,6 +222,7 @@ namespace mlibs::rhi {
     bool astc = false;
     [[nodiscard]] constexpr bool samples_blocks(Format format) const noexcept;
   };
+  [[nodiscard]] constexpr std::uint32_t subpixel_bits_of(std::string_view adapter) noexcept;
   inline constexpr std::uint32_t max_color_targets = 4;
   inline constexpr std::uint32_t max_more_targets = max_color_targets - 1;
   struct BufferTag;

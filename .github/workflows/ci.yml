@@ -104,9 +104,9 @@ jobs:
       - name: omui and what it declares, alone
         run: mcpp run omui-devtools -p tools/devtools --profile ci -- split modules/projects/omui --out "$RUNNER_TEMP/omui"
       - name: Test every member of the split tree
-        # By blocks of members while mcpp#945 stops a whole workspace run (RC0.10).
+        working-directory: ${{ runner.temp }}/omui
         run: |
-          mcpp run omui-devtools -p tools/devtools --profile ci -- --root "$RUNNER_TEMP/omui" ci test --blocks 8 --profile ci --exclude omui.reflect --exclude omui.entry.devhost 2>&1 | tee tests.log
+          mcpp test --workspace --profile ci --exclude omui.reflect --exclude omui.entry.devhost 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::the split tree's tests failed"; exit 1; }
 
   # The Web row (D-84): the members that say they run on the Web, built for
@@ -315,11 +315,7 @@ jobs:
           fi
           # The site is a validation line with hundreds of rendered frames: it
           # has a job of its own (`site`), so this row stays within its time.
-          # RC0.10 (D-210): while mcpp#945 stops the whole workspace run with a bare `build failed`
-          # (red 111), the same members and cases run as blocks of members, one `mcpp test` each;
-          # the tool checks the blocks are the workspace's members each once. Back to
-          # `mcpp test --workspace` with these excludes when a release fixes mcpp#945.
-          mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- ci test --blocks 12 --profile '${{ matrix.profile }}' --exclude omui.reflect --exclude omui.site --exclude omui.entry.devhost 2>&1 | tee tests.log
+          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect --exclude omui.site --exclude omui.entry.devhost 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
 
       # The showcases' README pictures are what their tests draw (deterministic:

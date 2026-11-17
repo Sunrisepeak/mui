@@ -290,7 +290,9 @@ jobs:
         run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect
 
       - name: An unchanged build leaves compilation outputs untouched
-        timeout-minutes: 10
+        # A limit on the step's time, not on what it checks (0 outputs changed): Windows' warm build and repeat took
+        # 368 + 113 s and 362 + 126 s (runs 44061517307, 44103060931), the second past 10 minutes (red 127).
+        timeout-minutes: 15
         run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- incremental --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect
 
       - name: Keep the incremental build check

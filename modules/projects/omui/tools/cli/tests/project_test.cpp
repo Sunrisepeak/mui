@@ -46,9 +46,12 @@ std::vector<Value> records(const std::string& text) {
 UTest cases{"cli.project", [] {
     "omui doctor holds every example and showcase to its profile (D-207): the general rules, an app's, none found"_test = [] {
         const auto repository = (std::filesystem::path(std::source_location::current().file_name()).parent_path() / ".." / ".." / ".." / ".." / ".." / "..").lexically_normal();
+        // The repository's examples and showcases, where they are (a tree with omui split out alone has none: said).
+        const bool corpus = std::filesystem::exists(repository / "examples");
+        if (!corpus) std::println("  no examples/ here (a split tree): the corpus part is not run");
         std::size_t checked = 0;
         std::error_code error;
-        for (const auto* place : {"examples", "showcase"})
+        for (const std::string_view place : corpus ? std::vector<std::string_view>{"examples", "showcase"} : std::vector<std::string_view>{})
             for (const auto& entry : std::filesystem::directory_iterator(repository / place, error)) {
                 if (!std::filesystem::exists(entry.path() / "mcpp.toml")) continue;
                 ++checked;
@@ -58,7 +61,7 @@ UTest cases{"cli.project", [] {
                         expect(false) << std::format("{}: {} {}: {}", mcpplibs::os::fs::utf8(entry.path().filename()), record.get("rule")->as_string(),
                                                      record.get("where")->as_string(), record.get("problem")->as_string());
             }
-        expect(checked >= 18);
+        expect(!corpus || checked >= 18);
         // The profile omui carries is its declaration's snapshot as it is now (omui-gen embed makes it again).
         std::ifstream declared(repository / "modules" / "projects" / "omui" / "tools" / "cli" / "omui.profile.xdef.json", std::ios::binary);
         expect(std::string{std::istreambuf_iterator<char>(declared), {}} == std::string(omui::cli::omui_profile))

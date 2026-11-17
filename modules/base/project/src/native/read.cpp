@@ -29,6 +29,27 @@ std::optional<toml::table> parsed(const std::filesystem::path& file, std::string
 
 std::string generic(const std::filesystem::path& path) { return mcpplibs::os::fs::generic_utf8(path); }
 
+// Whether `dir` is another repository's: its own `.git`, or a path the root's `.gitmodules` lists — a submodule checked
+// out, or exported without its `.git` (a split tree, an archive), is kept by its own rules all the same.
+bool another_repository(const std::filesystem::path& dir, const std::filesystem::path& root) {
+    std::error_code error;
+    if (dir == root) return false;
+    if (std::filesystem::exists(dir / ".git", error)) return true;
+    std::ifstream modules(root / ".gitmodules", std::ios::binary);
+    const std::string relative = generic(dir.lexically_relative(root));
+    for (std::string line; std::getline(modules, line);) {
+        const auto equals = line.find('=');
+        if (equals == std::string::npos) continue;
+        const auto trim = [](std::string_view text) {
+            while (!text.empty() && (text.front() == ' ' || text.front() == '\t')) text.remove_prefix(1);
+            while (!text.empty() && (text.back() == ' ' || text.back() == '\t' || text.back() == '\r')) text.remove_suffix(1);
+            return text;
+        };
+        if (trim(std::string_view(line).substr(0, equals)) == "path" && trim(std::string_view(line).substr(equals + 1)) == relative) return true;
+    }
+    return false;
+}
+
 // Every key of a dependency table, dotted names flattened (`mcpplibs.os = "…"` is one key, `"omui.lang" = {…}` too).
 void keys_of(const toml::table& table, std::string prefix, const std::filesystem::path& from, const std::filesystem::path& root, Package& package) {
     for (const auto& [key, value] : table) {
@@ -49,9 +70,8 @@ void keys_of(const toml::table& table, std::string prefix, const std::filesystem
 }
 
 Package package_of(const toml::table& manifest, const std::filesystem::path& dir, const std::filesystem::path& root) {
-    std::error_code error;
     Package package{.dir = dir, .relative = dir == root ? std::string() : generic(dir.lexically_relative(root)),
-                    .other_repository = dir != root && std::filesystem::exists(dir / ".git", error)};
+                    .other_repository = another_repository(dir, root)};
     const auto space = manifest["package"]["namespace"].value<std::string>();
     const auto name = manifest["package"]["name"].value<std::string>().value_or("");
     package.name = space ? std::format("{}.{}", *space, name) : name;

@@ -133,6 +133,10 @@ UTest cases{"markdown", [] {
 
     "to_html from the source in one call: the same bytes as from the parsed document, for every page of the repository's docs and site"_test = [] {
         const auto root = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path().parent_path();
+        if (!std::filesystem::exists(root / "docs")) {
+            skip("no docs/ here: a tree without the repository's pages (a split)");
+            return;
+        }
         std::size_t pages = 0, bytes = 0;
         bool same = true;
         std::string first_different;

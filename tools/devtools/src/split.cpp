@@ -73,9 +73,18 @@ std::expected<Plan, std::string> plan(const std::filesystem::path& root, std::st
         if (!spec) return std::unexpected(spec.error());
         files->insert(files->end(), spec->begin(), spec->end());
     }
-    for (const auto& file : *files)
-        if (std::ranges::contains(root_files, file) || std::ranges::any_of(out.members, [&](const std::string& member) { return under(file, member); }))
+    // A file is its innermost member's (a package nested in another's directory owns its own files): taken when that
+    // member is, so the tree holds no manifest its workspace does not list (red 126).
+    for (const auto& file : *files) {
+        if (std::ranges::contains(root_files, file)) {
             out.files.push_back(file);
+            continue;
+        }
+        const std::string* owner = nullptr;
+        for (const auto& member : all)
+            if (under(file, member) && (!owner || member.size() > owner->size())) owner = &member;
+        if (owner && chosen.contains(*owner)) out.files.push_back(file);
+    }
     return out;
 }
 

@@ -74,6 +74,11 @@ UTest cases{"mlibs.project", [] {
     };
 
     "the repository's examples and showcases keep the general rules and their profiles (every owner's, as data)"_test = [] {
+        // A tree without them (omui split out alone) has no corpus to hold: said, not passed.
+        if (!std::filesystem::exists(repository() / "examples")) {
+            skip("no examples/ here: a tree without the repository's examples and showcases (a split)");
+            return;
+        }
         auto declared = project::profiles_in(repository());
         expect(declared.has_value()) << (declared ? "" : declared.error());
         if (!declared) return;

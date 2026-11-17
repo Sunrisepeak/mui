@@ -80,9 +80,9 @@ int tools_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     // The products' commands as an Agent uses them (convergence plan §10.3): each operation of a catalogue through its
     // real command line — hanim's animation tool, xrender's command (the GPU ones on the row's device: lavapipe or
     // Metal, as omui-devtools gpu sets) and the timeline's (timelines edited and taken back to the very bytes).
-    std::vector<std::string> args{"-p", "hanim.studio", "-p", "xrender.tool", "-p", "hanim.timeline.tool", "-p", "omui.gen"};
+    std::vector<std::string> args{"-p", "hanim.studio", "-p", "xrender.tool", "-p", "hanim.timeline.tool", "-p", "mlibs.xdef.tool"};
     args.insert(args.end(), profile_args.begin(), profile_args.end());
-    const auto built = programs(root, std::move(args), {"hanim", "xrender", "hanim-timeline", "omui-gen"});
+    const auto built = programs(root, std::move(args), {"hanim", "xrender", "hanim-timeline", "xdef"});
     if (!built) return failed(built.error());
     const auto& bin = *built;
     const fs::path dir = scratch("omui-tools-e2e");
@@ -119,7 +119,9 @@ int tools_e2e(const fs::path& root, const std::vector<std::string>& profile_args
 
     const fs::path timeline = dir / "short.timeline.xdef.json";
     const std::string tl = bin.at("hanim-timeline"), file = mcpplibs::os::fs::utf8(timeline);
-    expect.status(0, bin.at("omui-gen"), {"snapshot", "showcase/promo-video/short.timeline.xdef.ts", "--out", file});  // the JSON the tool works on
+    // The JSON the tool works on: the module's snapshot, by the data's own evaluator (mlibs.xdef.tool, RC3.15).
+    expect.status(0, bin.at("xdef"), {"snapshot", "showcase/promo-video/short.timeline.xdef.ts"}) &&
+        expect.holds(static_cast<bool>(std::ofstream(timeline, std::ios::binary) << expect.last()), "the snapshot written to the scratch file");
     const std::string before = bytes_of(timeline);
     expect.status(0, tl, {"timeline.check", "--file", file}) && expect.has(R"("length":"900f")");
     expect.status(0, tl, {"timeline.at", "--file", file, "--time", "1s"}) && expect.has(R"("clip":"hook")");
@@ -197,7 +199,7 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     agent(0, {"clock", id, "release"}) && expect.has(R"("controlled":false)");
 
     // The frame's pipeline, read and changed in the running process (D-66).
-    agent(0, {"pipeline", id}) && expect.has(R"("openmui\.view\.layout")") && expect.has(R"("stages"|"stage")");
+    agent(0, {"pipeline", id}) && expect.has(R"("omui\.view\.layout")") && expect.has(R"("stages"|"stage")");
     agent(0, {"pipeline", id, "remove", "--stage", "debug"});
     agent(0, {"pipeline", id, "insert", "--stage", "debug", "--plugin", "omui.view.debug", "--after", R"(["paint"])"});
     agent(1, {"pipeline", id, "replace", "--stage", "paint", "--plugin", "nonesuch"});

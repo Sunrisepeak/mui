@@ -154,6 +154,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 | 119 | All four platform rows: the promo video's pinned frames — `b83e09c5…` against the `403ec7d4…` 3bcc3302 pinned | Linux x64, arm, Windows, macOS; run 44008694517 (fed5666e) | T | fixed: the same value on every row and here; the pin had been taken from a stale local build. Re-pinned to what all four agree on |
 | 120 | macOS: `audio.device` — the null device starved 1,280 of 11,776 frames (bound: a tenth) | macOS; run 44008694517 | T | fixed: the bound was a guess; the check is now exact — starved at most what the owner's late wakes (past its 4,096-frame lead) allow, measured each wake |
 | 121 | Here: `site/site_test` timed out at the runner's 300 s per program under load (alone 247–299 s; no case hangs — the slowest 14 s) | here, 2026-11-17 | T | fixed: split into `site_test` and `site_places_test` (22 + 15 cases: 199 s and 142 s here, side by side); a caret's blink is now an ambient timer, which a headless settle does not wait for |
+| 122 | Linux x64, arm, Windows: devtools' api_test — omui.view's committed api.omui.txt without `ambient_after`/`next_work` (16c3106e added them); every other member green | Linux x64, arm, Windows; run 44033775547 (16c3106e) | T | fixed before the run ended: 3dc02288 rewrote the surface (`omui-devtools api -p modules/projects/omui/view --write`; at c20a3ec3 it writes nothing). Rule kept: an interface change rewrites its surface in the same commit |
 
 ### Upstream issues
 
@@ -191,7 +192,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 ## Next
 
-1. N0: run 44033775547 (16c3106e) reconciled when its platform rows end; the Web row waits on red 107 (SwiftShader's `mesh.glass` pane, deterministic, 18 silhouette pixels behind it) — reproducing it needs the browser build here, which the disk (≈4 GB free, shared) does not hold now.
+1. N0: run 44033775547 (16c3106e) reconciled — rows, split, site, lint, Android green; x64, arm, Windows red only on red 122 (fixed at 3dc02288). Run 44043913856 (c20a3ec3) is the one N0 reads; the Web row waits on red 107 (SwiftShader's `mesh.glass` pane, deterministic, 18 silhouette pixels behind it) — reproducing it needs the browser build here, which the disk (≈4 GB free, shared) does not hold now.
 2. In flight: RC2.17 (B4–B6 done but hairlines by DPR, after N0; IME and bridge cells on machines; the switch's proportions with a blind comparison), RC3.1 (mcpp#947, mcpp#945 open), RC2.3 (rigid3, nav, audio.space rows in the platform table from the N0 run).
 3. RC3.5 (install-first start after RC3.1); RC3.6's sleep and resume on machines.
 4. Then N1, N2a, N2b checked on one run; RC4; RC5.

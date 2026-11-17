@@ -110,6 +110,7 @@ members = [
     "modules/projects/gongfu/studio",
     "modules/projects/xtools",
     "modules/projects/xtools/inspector",
+    "modules/projects/xtools/audition",
     "modules/projects/xengine/game/world",
     "modules/projects/xengine/game/runtime",
     "modules/projects/xengine/game/playtest",

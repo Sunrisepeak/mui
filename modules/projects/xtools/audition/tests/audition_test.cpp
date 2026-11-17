@@ -1,5 +1,5 @@
 import std;
-import omui.cli;
+import xtools.audition;
 import omui.core;
 import mlibs.image;
 import xengine.audio;
@@ -30,8 +30,12 @@ export default defineTimeline({
 )";
 struct Result {int code;std::string out,err;};
 // The operation's answer: its exit code, its data record's text as `out` (the report), what went wrong as `err`.
+// As the command line gives it: `xtools audition automation FILE …`, the subject alone.
 Result invoke(std::vector<std::string> args) {
-    std::ostringstream out,err;const auto code=cli::run(args,out,err);
+    xtools::audition::Audition audition;
+    mlibs::agent::SubjectSession session({&audition}, {.command_line = true});
+    const std::vector<std::string_view> words(args.begin(), args.end());
+    std::ostringstream out,err;const auto code=mlibs::agent::command_line(session,words,out,err,{.product="audition"});
     std::string data,said;
     std::istringstream lines(out.str());
     for(std::string line;std::getline(lines,line);)
@@ -43,7 +47,7 @@ Result invoke(std::vector<std::string> args) {
 }
 }
 
-UTest cases{"cli.audio", [] {
+UTest cases{"xtools.audition", [] {
     "headless gain audition exports actual WAV and an omui visual process at three observation rates"_test = [] {
         const auto directory=scratch_dir("audio-automation");
         const auto file=directory/"audition.timeline.xdef.ts";
@@ -51,7 +55,7 @@ UTest cases{"cli.audio", [] {
         std::string previous_pcm,previous_wav;
         for(const int fps : {30,60,120}) {
             const auto prefix=utf8(directory/std::format("process-{}",fps));
-            const auto result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--fps",std::to_string(fps)});
+            const auto result=invoke({"automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--fps",std::to_string(fps)});
             expect(result.code==0) << result.out+result.err;if(result.code!=0)return;
             const auto report=parse_json(result.out);expect(report.has_value());if(!report)return;
             expect(report->get("ok")->as_bool());
@@ -79,14 +83,14 @@ UTest cases{"cli.audio", [] {
         expect(fs::write_atomic(file,curve).has_value());
         const auto prefix=utf8(directory/"preserve");
         expect(fs::write_atomic(fs::from_utf8(prefix+".wav"),"keep").has_value());
-        auto result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","missing","--out",prefix});
+        auto result=invoke({"automation",utf8(file),"--track","music","--clip","missing","--out",prefix});
         expect(result.code==1 && result.out.contains("clip not found"));
         // An argument out of range: refused before anything is written (exit 1, its error invalid-argument).
-        result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--fps","0"});
+        result=invoke({"automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--fps","0"});
         expect(result.code==1 && result.out.contains("fps"));
-        result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--seconds","nan"});
+        result=invoke({"automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--seconds","nan"});
         expect(result.code==1);
-        result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--fps","11"});
+        result=invoke({"automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--fps","11"});
         expect(result.code==1 && result.out.contains("exact timeline rate"));
         const auto kept=fs::read(fs::from_utf8(prefix+".wav"));expect(kept && *kept=="keep");
     };
@@ -96,7 +100,7 @@ UTest cases{"cli.audio", [] {
         expect(fs::write_atomic(file,curve).has_value());
         const auto prefix=utf8(directory/"blocked");
         (void)scratch_dir("audio-automation-export-error/blocked.report.xdef.json");
-        const auto result=invoke({"omui","audio","automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--seconds","1","--fps","1"});
+        const auto result=invoke({"automation",utf8(file),"--track","music","--clip","fade","--out",prefix,"--seconds","1","--fps","1"});
         expect(result.code==1);
         const auto report=parse_json(result.out);expect(report.has_value());if(!report)return;
         expect(!report->get("ok")->as_bool() && report->get("error"));

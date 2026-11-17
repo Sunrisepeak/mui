@@ -1,10 +1,14 @@
-// Headless automation audition: one frozen timeline signal drives an actual
-// audio bus and a read-only visualization. No window or audio device is opened.
-module omui.cli;
+// xtools.audition — a timeline's gain automation heard and seen, offline (moved from omui's command line, convergence
+// plan RC3.3): one frozen timeline signal drives an actual audio bus and a read-only omui view. No window or audio
+// device is opened.
+module xtools.audition;
+
 import std;
 import mlibs.agent;
 import mcpplibs.os;
+import openas;
 import omui.core;
+import omui.lang.ts;
 import hanim.timeline;
 import xengine.audio.timeline;
 import xengine.audio;
@@ -13,11 +17,29 @@ import mlibs.image;
 import omui.host.headless;
 import omui.ui.base;
 
-namespace omui::cli {
-namespace tl=hanim::timeline;
-namespace au=xengine::audio;
+namespace xtools::audition {
 
-int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
+namespace {
+
+using namespace omui;
+namespace tl = hanim::timeline;
+namespace au = xengine::audio;
+
+// A data file's JSON: a `.xdef.ts` module evaluated (omui's define modules), else the file as it is.
+std::expected<std::string, std::string> data_text(const std::filesystem::path& file) {
+    if (mcpplibs::os::fs::utf8(file.filename()).ends_with(".xdef.ts")) {
+        auto data = omui::lang::ts::evaluate(file);
+        if (!data) return std::unexpected(data.error().text());
+        return data->snapshot();
+    }
+    auto text = mcpplibs::os::fs::read(file);
+    if (!text) return std::unexpected(std::format("{}: {}", mcpplibs::os::fs::utf8(file), text.error().message()));
+    return std::move(*text);
+}
+
+}  // namespace
+
+int automation(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
     Value report=Value{}.set("kind","audio.automation").set("ok",false);
     const auto fail=[&](std::string message,int code=1) {err<<message<<'\n';report.set("ok",false).set("error",std::move(message));out<<report.json()<<'\n';return code;};
     const auto track=a.value("track"), clip=a.value("clip"), prefix=a.value("out");
@@ -122,4 +144,19 @@ int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err
     if(!written)return fail(written.error().message());
     out<<report.json()<<'\n';return 0;
 }
+
+
+void Audition::operate(std::string_view, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) {
+    std::ostringstream out, err;
+    const int code = automation(mlibs::agent::Arguments(request, "file"), out, err);
+    std::istringstream lines(out.str());
+    for (std::string line; std::getline(lines, line);)
+        if (line.starts_with('{')) answer.data(line);
+    if (code != 0) {
+        std::string said = err.str();
+        while (!said.empty() && said.back() == '\n') said.pop_back();
+        answer.fail(code == 2 ? openas::error_code::invalid_argument : std::string_view("failed"), said.empty() ? std::string("the audition failed") : said);
+    }
 }
+
+}  // namespace xtools::audition

@@ -1,7 +1,7 @@
 # omui — the openmui command line (plan §2.2): agent operations against any
-# running application; check, fmt and schema for view documents; video
-# (xengine.video: descriptions and views rendered to files); add and bench
-# as their members land.
+# running application; check, fmt and schema for view documents; a view's
+# frames for films (view_frames: the video toolkit, xengine.video.tool, renders
+# them; xtools composes the two); add and bench as their members land.
 [package]
 namespace   = "omui"
 name        = "cli"
@@ -14,7 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 reexports = ["mlibs.agent", "xengine.video.tool"]  # what its interface re-exports (lint module-closure): view_frames gives the video toolkit's ViewSource
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the omui command"
-lower = ["mlibs.project", "xengine.audio", "xengine.audio.timeline", "xengine.video", "xengine.video.tool"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mlibs.project", "xengine.video", "xengine.video.tool"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 agent = { part = "omui.agent" }  # the `omui` command: the agent operations of omui.agent's catalog, at the application's endpoint (D-174)
 
@@ -41,11 +41,6 @@ omui.ui.base     = { path = "../../components/base" }
 omui.ui.markdown = { path = "../../components/markdown" }
 xengine.video      = { path = "../../../xengine/kernel/video" }
 "xengine.video.tool" = { path = "../../../xengine/kernel/video/tool" }
-xengine.audio       = { path = "../../../xengine/kernel/audio" }
-hanim.timeline = { path = "../../../hanim/timeline" }
-"xengine.audio.timeline" = { path = "../../../xengine/kernel/audio/timeline" }
-xrender.vector = { path = "../../../xrender/vector" }
-mlibs.image = { path = "../../../../base/image" }
 omui.host.headless = { path = "../../host/headless" }
 mcpplibs.os      = "0.4.4"
 mlibs.project = { path = "../../../../base/project" }  # omui doctor: the project's health (general rules, omui's profiles)

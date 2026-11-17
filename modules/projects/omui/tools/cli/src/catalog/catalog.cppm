@@ -60,15 +60,6 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_fmt{{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_schema{{
     {"out", "path", "write it to this file", true},
 }};
-inline constexpr std::array<mlibs::control::Parameter, 7> parameters_omui_audio_automation{{
-    {"file", "path", "a timeline: a .timeline.xdef.ts module, or its .timeline.xdef.json", false},
-    {"track", "string", "the exact track name", false},
-    {"clip", "string", "the exact clip name", false},
-    {"out", "path", "the outputs' prefix; its parent directory must exist", false},
-    {"property", "string", "the keyed gain property (gain)", true},
-    {"seconds", "integer", "whole seconds to audition, 1 … 10 (2)", true},
-    {"fps", "integer", "an exact timeline rate, 1 … 120 (60); the sound is the same", true},
-}};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_add{{
     {"package", "string", "a package of mcpp-index, as name or name@version", false},
 }};
@@ -89,7 +80,7 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design
 }};
 
 // The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.
-inline constexpr std::array<mlibs::control::CatalogEntry, 24> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 23> catalog{{
     {{"omui.doctor", openas::Effect::read, false}, "Which tools are there and which are missing, and the project's health: the general rules, the workspace's and omui's profiles (an app, an extension), each finding with its fix", parameters_omui_doctor, "json", mlibs::control::Cost::bounded, "", false, false, false, {}, "health rules profile conventions"},
     {{"omui.templates", openas::Effect::read, false}, "The templates a project is made from, and what each makes", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.new", openas::Effect::irreversible, false}, "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", parameters_omui_new, "json", mlibs::control::Cost::heavy, "none: delete the directory it made", false, false, false, {}},
@@ -104,7 +95,6 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 24> catalog{{
     {{"omui.describe", openas::Effect::read, false}, "What writing for the project takes: every builder, native module, theme token and verb, as JSON", parameters_omui_describe, "json", mlibs::control::Cost::heavy, "", false, false, false, {}},
     {{"omui.fmt", openas::Effect::reversible, false}, "View documents written in the canonical format; with check, only which are not", parameters_omui_fmt, "json", mlibs::control::Cost::bounded, "the files as they were (version control)", false, false, false, {}},
     {{"omui.schema", openas::Effect::reversible, false}, "The JSON Schema of view documents over the official components (written to out when given)", parameters_omui_schema, "json", mlibs::control::Cost::bounded, "delete the file written", false, false, false, {}},
-    {{"omui.audio.automation", openas::Effect::reversible, false}, "One timeline gain curve auditioned on a 220 Hz reference tone, offline (no window or device): a WAV, a PNG sheet, a WebP and a report", parameters_omui_audio_automation, "json", mlibs::control::Cost::heavy, "delete the files written", false, false, false, {}},
     {{"omui.deps", openas::Effect::read, false}, "The project's dependencies as its mcpp.toml declares them", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"omui.tools", openas::Effect::read, false}, "The tools the project names for xlings, and whether each is installed", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
     {{"omui.tools.install", openas::Effect::irreversible, false}, "Installs the tools the project names (xlings install)", {}, "json", mlibs::control::Cost::heavy, "none: xlings remove what it installed", false, false, false, {}},
@@ -154,8 +144,6 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"files": {"description": "the *.view.xdef.json files"}, "check": {"type": "boolean", "description": "change nothing: each file not in the canonical format said, exit 1"}}, "required": ["files"]}},
     {"name": "omui.schema", "description": "The JSON Schema of view documents over the official components (written to out when given)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "delete the file written", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"out": {"type": "string", "description": "a file or directory path: write it to this file"}}, "required": []}},
-    {"name": "omui.audio.automation", "description": "One timeline gain curve auditioned on a 220 Hz reference tone, offline (no window or device): a WAV, a PNG sheet, a WebP and a report", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "delete the files written", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path: a timeline: a .timeline.xdef.ts module, or its .timeline.xdef.json"}, "track": {"type": "string", "description": "the exact track name"}, "clip": {"type": "string", "description": "the exact clip name"}, "out": {"type": "string", "description": "a file or directory path: the outputs' prefix; its parent directory must exist"}, "property": {"type": "string", "description": "the keyed gain property (gain)"}, "seconds": {"type": "integer", "description": "whole seconds to audition, 1 … 10 (2)"}, "fps": {"type": "integer", "description": "an exact timeline rate, 1 … 120 (60); the sound is the same"}}, "required": ["file", "track", "clip", "out"]}},
     {"name": "omui.deps", "description": "The project's dependencies as its mcpp.toml declares them", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "omui.tools", "description": "The tools the project names for xlings, and whether each is installed", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",

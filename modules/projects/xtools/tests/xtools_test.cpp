@@ -28,7 +28,7 @@ static UTest cases{"xtools", [] {
     "every toolkit's subject is here: what answers is the toolkit's own"_test = [] {
         const Ran here = run({"subjects"});
         expect(eq(here.code, 0)) << here.err;
-        for (const std::string_view subject : {R"("omui")", R"("document")", R"("timeline")", R"("xrender")", R"("gongfu")", R"("video")"})
+        for (const std::string_view subject : {R"("omui")", R"("document")", R"("timeline")", R"("xrender")", R"("gongfu")", R"("video")", R"("audition")"})
             expect(here.out.contains(subject)) << subject << " in " << here.out;
         // What answers an intent, across them: fighters' hurtboxes are gongfu's.
         const Ran found = run({"find", "baked hurtboxes current"});

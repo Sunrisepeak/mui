@@ -34,6 +34,7 @@ mlibs.agent           = { path = "../../base/agent" }
 "xrender.tool"        = { path = "../xrender/tool" }
 "gongfu.studio"       = { path = "../gongfu/studio" }
 "xengine.video.tool"  = { path = "../xengine/kernel/video/tool" }
+"xtools.audition"     = { path = "audition" }
 mcpplibs.os           = "0.4.4"
 
 [dev-dependencies]

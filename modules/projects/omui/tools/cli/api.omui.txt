@@ -34,13 +34,12 @@ namespace omui::cli::ops {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_describe{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_fmt{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_schema{…};
-  inline constexpr std::array<mlibs::control::Parameter, 7> parameters_omui_audio_automation{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_add{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_remove{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_package{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_design_sync{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design_film{…};
-  inline constexpr std::array<mlibs::control::CatalogEntry, 24> catalog{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 23> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
   inline constexpr std::string_view listing = R"…";
 }

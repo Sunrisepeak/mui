@@ -99,8 +99,6 @@ struct Sweeping {
 int sweep(const std::function<std::vector<Value>(const Value&)>& call, const Sweeping& how, std::ostream& out, std::ostream& err);
 
 
-// omui audio (audio.cpp): offline automation audition and visual inspection.
-int audio(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err);
 
 // The project's commands (project.cpp, D-150, RC3.9): a project over mcpp. Its catalog's operations (cli.ops.xdef.ts)
 // are the subject `omui` — `omui build --release` is omui.build through the tool kernel's command line, and `omui mcp`

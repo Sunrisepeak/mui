@@ -81,7 +81,7 @@ void NumberInput::paint(PaintContext& ctx) const {
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
     const bool editing = ctx.state.focused;
     ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, editing ? 1.5f : 1,
-                               xrender::Paint::solid(editing ? th.color("accent") : th.color("border")), xrender::StrokeAlign::device);
+                               xrender::Paint::solid(editing ? th.color("accent") : th.color("border")), xrender::PixelAlign::device);
     const double lo = std::min(props.min, props.max), hi = std::max(props.min, props.max);
     for (const bool plus : {false, true}) {
         const Rect b = plus ? plus_box(ctx.size) : minus_box(ctx.size);

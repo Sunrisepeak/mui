@@ -845,8 +845,8 @@ void Runtime::Impl::paint_node(NodeId id) {
             const float h = bw / 2;
             CornerRadii inner = radii;
             for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - h);
-            // On the device's pixels: a 1 px border is one row of full pixels at any scale and origin (xrender::StrokeAlign).
-            list.stroke_round_rect({h, h, size.width - bw, size.height - bw}, inner, bw, xrender::Paint::solid(bc), xrender::StrokeAlign::device);
+            // On the device's pixels: a 1 px border is one row of full pixels at any scale and origin (xrender::PixelAlign).
+            list.stroke_round_rect({h, h, size.width - bw, size.height - bw}, inner, bw, xrender::Paint::solid(bc), xrender::PixelAlign::device);
         }
 
     const Insets in = content_insets_of(layout.style(n.layout));

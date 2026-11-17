@@ -30,7 +30,7 @@ void field(PaintContext& ctx, bool open, bool off) {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), !off && ctx.state.hovered ? 1.0f : 0.0f)));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(open ? th.color("accent") : th.color("border")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(open ? th.color("accent") : th.color("border")), xrender::PixelAlign::device);
 }
 
 void popup_surface(PaintContext& ctx) {
@@ -39,7 +39,7 @@ void popup_surface(PaintContext& ctx) {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     parts::shadow(ctx, "lg", box, r);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
 }
 
 // An arrow pointing left or right, centred at c (a calendar's months).
@@ -879,7 +879,7 @@ void ColorPicker::paint(PaintContext& ctx) const {
     field(ctx, expanded(), off);
     const Rect sw{th.scaled(field_pad), (ctx.size.height - 20) / 2, 20, 20};
     ctx.list.fill_round_rect(sw, CornerRadii::all(5), xrender::Paint::solid(picking::parse_hex(props.value).value_or(Color{})));
-    ctx.list.stroke_round_rect({sw.x + 0.5f, sw.y + 0.5f, sw.width - 1, sw.height - 1}, CornerRadii::all(5), 1, xrender::Paint::solid(th.color("border_strong")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({sw.x + 0.5f, sw.y + 0.5f, sw.width - 1, sw.height - 1}, CornerRadii::all(5), 1, xrender::Paint::solid(th.color("border_strong")), xrender::PixelAlign::device);
     const Size t = label_.measure(ctx.services, th.color("text"));
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, th.color("text"));
     parts::chevron(ctx, {ctx.size.width - th.scaled(field_pad) - 6, ctx.size.height / 2}, 10, th.color("text_muted"));
@@ -1082,7 +1082,7 @@ void ColorPanel::paint(PaintContext& ctx) const {
             if (!c) continue;
             const Rect r = swatch_rect(i);
             ctx.list.fill_round_rect(r, CornerRadii::all(5), xrender::Paint::solid(*c));
-            ctx.list.stroke_round_rect({r.x + 0.5f, r.y + 0.5f, r.width - 1, r.height - 1}, CornerRadii::all(5), 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
+            ctx.list.stroke_round_rect({r.x + 0.5f, r.y + 0.5f, r.width - 1, r.height - 1}, CornerRadii::all(5), 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
             if (picking::hex(*c) == chosen)
                 ctx.list.stroke_round_rect({r.x - 3, r.y - 3, r.width + 6, r.height + 6}, CornerRadii::all(7), 2, xrender::Paint::solid(th.color("accent")));
         }

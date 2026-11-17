@@ -304,7 +304,7 @@ void TimelineEditor::paint(PaintContext& ctx) const {
     for (std::size_t k = 0; k < model_.tracks.size(); ++k) {
         const tl::Track& track = model_.tracks[k];
         const float y = ruler + static_cast<float>(k) * track_height;
-        out.fill_rect({header, y + track_height - 1, w - header, 1}, line);
+        out.fill_rect({header, y + track_height - 1, w - header, 1}, line, xrender::PixelAlign::device);
         const Color colour = kind_colour(theme, track.kind);
         for (std::size_t i = 0; i < track.clips.size(); ++i) {
             const tl::Clip& c = track.clips[i];

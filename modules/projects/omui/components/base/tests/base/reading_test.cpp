@@ -177,6 +177,6 @@ static UTest cases{"ui.base.reading", [] {
         const std::uint64_t pinned = hash_of(h.pixels());
         std::println("ui.base reading {:016x}", pinned);
         expect(h.save_png(scratch_dir("ui-base-reading") / "reading@2x.png").has_value());
-        expect(pinned == 0x037531aff5e6b3caULL) << std::format("reading {:016x}", pinned);
+        expect(pinned == 0xa3e8d1fecb8ce82aULL) << std::format("reading {:016x}", pinned);
     };
 }};

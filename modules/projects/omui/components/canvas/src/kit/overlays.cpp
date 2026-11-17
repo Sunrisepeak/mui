@@ -64,7 +64,7 @@ public:
                 const double w = static_cast<double>(i) * step;
                 const Point at = vertical ? cam.to_screen(w, 0, vp) : cam.to_screen(0, w, vp);
                 if (vertical) list.fill_rect({std::floor(at.x), 0, 1, vp.height}, c.with_alpha(c.a * alpha));
-                else list.fill_rect({0, std::floor(at.y), vp.width, 1}, c.with_alpha(c.a * alpha));
+                else list.fill_rect({0, std::floor(at.y), vp.width, 1}, c.with_alpha(c.a * alpha), xrender::PixelAlign::device);
             }
         };
         lines(true);

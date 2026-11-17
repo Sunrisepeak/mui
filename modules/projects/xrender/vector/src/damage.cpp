@@ -44,7 +44,9 @@ std::optional<Rect> device_bounds(const Command& command, const Affine& m, Glyph
     return std::visit(
         [&](const auto& c) -> std::optional<Rect> {
             using T = std::decay_t<decltype(c)>;
-            if constexpr (std::same_as<T, FillRect> || std::same_as<T, FillRoundRect>) {
+            if constexpr (std::same_as<T, FillRect>) {
+                return grow(mapped(m, placed(c, m).rect), aa);
+            } else if constexpr (std::same_as<T, FillRoundRect>) {
                 return grow(mapped(m, c.rect), aa);
             } else if constexpr (std::same_as<T, StrokeRoundRect>) {
                 const StrokeRoundRect stroke = placed(c, m);

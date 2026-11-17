@@ -366,7 +366,9 @@ private:
             [&](const auto& c) {
                 using T = std::decay_t<decltype(c)>;
                 if constexpr (std::same_as<T, FillRect>) {
-                    if (const auto painted = paint(c.paint, "fill")) shape(c.rect, {}, *painted);
+                    const Affine device = Affine::scale(options_.island_scale, options_.island_scale) *
+                                          Affine::translate(-options_.view.x, -options_.view.y) * transforms_.back();
+                    if (const auto painted = paint(c.paint, "fill")) shape(placed(c, device).rect, {}, *painted);
                     else island(commands, index, index, Why::paint);
                 } else if constexpr (std::same_as<T, FillRoundRect>) {
                     if (const auto painted = paint(c.paint, "fill")) shape(c.rect, c.radii, *painted);

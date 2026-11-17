@@ -8,7 +8,7 @@ namespace xrender {
 namespace {
 
 constexpr std::string_view magic = "xrdl";
-constexpr std::uint32_t version = 2;  // 2: a rounded stroke's alignment
+constexpr std::uint32_t version = 3;  // 2: a rounded stroke's alignment; 3: a rectangle's
 
 // Little-endian, floats as their bits.
 struct Writer {
@@ -236,7 +236,7 @@ void put_command(Writer& out, const Command& command) {
     std::visit(
         [&](const auto& c) {
             using T = std::decay_t<decltype(c)>;
-            if constexpr (std::same_as<T, FillRect>) { out.put(c.rect); out.put(c.paint); }
+            if constexpr (std::same_as<T, FillRect>) { out.put(c.rect); out.put(c.paint); out.put(c.align); }
             else if constexpr (std::same_as<T, FillRoundRect>) { out.put(c.rect); out.put(c.radii); out.put(c.paint); }
             else if constexpr (std::same_as<T, StrokeRoundRect>) { out.put(c.rect); out.put(c.radii); out.put(c.width); out.put(c.paint); out.put(c.align); }
             else if constexpr (std::same_as<T, BoxShadow>) {
@@ -293,9 +293,9 @@ std::optional<Command> get_command(Reader& in, std::size_t index) {
         if (index != Index) return get_command<Index + 1>(in, index);
         using T = std::variant_alternative_t<Index, Command>;
         T c{};
-        if constexpr (std::same_as<T, FillRect>) { c.rect = in.rect(); c.paint = in.paint(); }
+        if constexpr (std::same_as<T, FillRect>) { c.rect = in.rect(); c.paint = in.paint(); c.align = in.get<PixelAlign>(); }
         else if constexpr (std::same_as<T, FillRoundRect>) { c.rect = in.rect(); c.radii = in.radii(); c.paint = in.paint(); }
-        else if constexpr (std::same_as<T, StrokeRoundRect>) { c.rect = in.rect(); c.radii = in.radii(); c.width = in.get<float>(); c.paint = in.paint(); c.align = in.get<StrokeAlign>(); }
+        else if constexpr (std::same_as<T, StrokeRoundRect>) { c.rect = in.rect(); c.radii = in.radii(); c.width = in.get<float>(); c.paint = in.paint(); c.align = in.get<PixelAlign>(); }
         else if constexpr (std::same_as<T, BoxShadow>) {
             c.rect = in.rect(); c.radii = in.radii(); c.offset = in.point(); c.blur = in.get<float>(); c.spread = in.get<float>();
             c.color = in.color(); c.inset = in.get<bool>();

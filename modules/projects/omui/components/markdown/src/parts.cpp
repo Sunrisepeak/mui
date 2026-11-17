@@ -338,7 +338,7 @@ void Text::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     if (b.kind == mlibs::markdown::Kind::table_cell) {
         if (b.header) ctx.list.fill_rect({0, 0, ctx.size.width, ctx.size.height}, th.color("surface_variant"));
-        ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"));
+        ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"), xrender::PixelAlign::device);
     }
     mlibs::text::Paragraph& p = shaped(ctx.services);
     lay(ctx.content.width + 1.0f / 1024);
@@ -537,7 +537,7 @@ void Group::paint(PaintContext& ctx) const {
         return;
     }
     if (b.kind == mlibs::markdown::Kind::table) {
-        ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, {}, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
+        ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, {}, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
         return;
     }
     if (b.kind != mlibs::markdown::Kind::item || b.task != mlibs::markdown::Task::none) return;
@@ -822,7 +822,7 @@ void Copy::paint(PaintContext& ctx) const {
     const Color bg = ctx.state.pressed ? th.color("surface_pressed") : ctx.state.hovered ? th.color("surface") : th.color("surface_variant");
     const CornerRadii r = CornerRadii::all(th.corner("small", 4));
     ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, r, xrender::Paint::solid(bg));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
     mlibs::text::Paragraph& p = label(ctx.services);
     const Size s = p.size();
     xrender::text::paint(p, ctx.list, {(ctx.size.width - s.width) / 2, (ctx.size.height - s.height) / 2});
@@ -846,6 +846,6 @@ void Rule::style(const Theme&, mlibs::layout::Style& s) const {
 
 void Rule::semantics(SemanticsContext&, spec::SemanticNode& n) const { n.origin = origin_of(*data->hub); }
 
-void Rule::paint(PaintContext& ctx) const { ctx.list.fill_rect({0, 0, ctx.size.width, 1}, ctx.theme.color("border")); }
+void Rule::paint(PaintContext& ctx) const { ctx.list.fill_rect({0, 0, ctx.size.width, 1}, ctx.theme.color("border"), xrender::PixelAlign::device); }
 
 }  // namespace omui::mdview

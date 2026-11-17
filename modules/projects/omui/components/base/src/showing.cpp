@@ -127,7 +127,7 @@ void Chart::paint(PaintContext& ctx) const {
     // The scale: round numbers, a line each.
     for (double value = s.low; value <= s.high + s.step * 1e-6; value += s.step) {
         const float y = p.bottom() - static_cast<float>((value - s.low) / (s.high - s.low)) * p.height;
-        ctx.list.fill_rect({p.x, std::round(y), p.width, 1}, value == 0 ? grid : grid.with_alpha(0.5f));
+        ctx.list.fill_rect({p.x, std::round(y), p.width, 1}, value == 0 ? grid : grid.with_alpha(0.5f), xrender::PixelAlign::device);
         text_at(ctx, number(value), "caption", muted, {p.x - axis_gap, y - 8}, 1);
     }
     // The steps, as many as fit.

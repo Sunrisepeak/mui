@@ -97,7 +97,7 @@ void Tabs::paint(PaintContext& ctx) const {
 void Tabs::paint_over(PaintContext& ctx) const {
     if (props.variant == TabsVariant::bar) return;
     const Theme& th = ctx.theme;
-    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"));
+    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"), xrender::PixelAlign::device);
     if (!current()) return;
     const Rect u = under();
     ctx.list.fill_round_rect({u.x, ctx.size.height - indicator_h, u.width, indicator_h},

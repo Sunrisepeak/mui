@@ -309,7 +309,7 @@ void DescriptionList::paint(PaintContext& ctx) const {
     const Color muted = ctx.theme.color("text_muted"), ink = ctx.theme.color("text"), divider = ctx.theme.color("border");
     for (std::size_t index = 0; index < terms_.size() && index < rows_.size(); ++index) {
         const Rect& row = rows_[index];
-        if (index) ctx.list.fill_rect({0, row.y - row_gap / 2, ctx.size.width, 1}, divider.with_alpha(0.6f));
+        if (index) ctx.list.fill_rect({0, row.y - row_gap / 2, ctx.size.width, 1}, divider.with_alpha(0.6f), xrender::PixelAlign::device);
         if (props.aligned) {
             const float lift = details_[index].baseline(ctx.services, ink) - terms_[index].baseline(ctx.services, muted);
             terms_[index].paint(ctx, {0, row.y + std::max(0.0f, lift)}, muted);

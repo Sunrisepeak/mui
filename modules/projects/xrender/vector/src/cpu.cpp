@@ -664,7 +664,7 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, xrender::raster::Su
             [&](const auto& c) {
                 using T = std::decay_t<decltype(c)>;
                 if constexpr (std::same_as<T, FillRect>) {
-                    canvas.fill_rect(c.rect, device_paint(c.paint), m());
+                    canvas.fill_rect(placed(c, m()).rect, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, FillRoundRect>) {
                     canvas.fill_round_rect(c.rect, c.radii, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, StrokeRoundRect>) {

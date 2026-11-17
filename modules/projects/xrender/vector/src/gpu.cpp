@@ -2236,7 +2236,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                 [&](const auto& c) {
                     using T = std::decay_t<decltype(c)>;
                     if constexpr (std::same_as<T, FillRect>) {
-                        shape(c.rect, {}, c.paint);
+                        shape(placed(c, m()).rect, {}, c.paint);
                     } else if constexpr (std::same_as<T, FillRoundRect>) {
                         if (c.radii.smoothing > 0 && !c.radii.zero()) {
                             // Smoothed corners have no closed-form area: the shared outline's mask, as a path is drawn.

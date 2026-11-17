@@ -34,7 +34,7 @@ void raised(PaintContext& ctx, std::string_view corner, float fallback) {
     const CornerRadii corners = CornerRadii::all(theme.corner(corner, fallback)).fitted(ctx.size);
     parts::shadow(ctx, "lg", box, corners);
     ctx.list.fill_round_rect(box, corners, xrender::Paint::solid(theme.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")), xrender::PixelAlign::device);
 }
 
 std::string lower(std::string_view text) {
@@ -342,7 +342,7 @@ void CommandPalette::paint(PaintContext& ctx) const {
     raised(ctx, "large", 12);
     const Theme& theme = ctx.theme;
     const float top = ctx.size.height - 8 - std::min(palette_rows, static_cast<float>(shown_.size())) * command_h - (outcome_.empty() ? 0.0f : 22.0f);
-    ctx.list.fill_rect({8, top - 4, ctx.size.width - 16, 1}, theme.color("border"));
+    ctx.list.fill_rect({8, top - 4, ctx.size.width - 16, 1}, theme.color("border"), xrender::PixelAlign::device);
     for (std::size_t index = 0; index < shown_.size() && index < static_cast<std::size_t>(palette_rows); ++index) {
         const Rect row{8, top + static_cast<float>(index) * command_h, ctx.size.width - 16, command_h};
         if (index == chosen_)
@@ -637,7 +637,7 @@ void Toolbar::paint(PaintContext& ctx) const {
     const Theme& theme = ctx.theme;
     const CornerRadii corners = CornerRadii::all(theme.corner("medium", 8)).fitted(ctx.size);
     ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, corners, xrender::Paint::solid(theme.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")), xrender::PixelAlign::device);
 }
 
 void Toolbar::semantics(SemanticsContext&, spec::SemanticNode& node) const {

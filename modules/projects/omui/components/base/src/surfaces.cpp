@@ -84,7 +84,7 @@ void Card::paint(PaintContext& ctx) const {
         case CardVariant::outlined:
             ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
             ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1,
-                                       xrender::Paint::solid(lifted ? th.color("border_strong") : th.color("border")), xrender::StrokeAlign::device);
+                                       xrender::Paint::solid(lifted ? th.color("border_strong") : th.color("border")), xrender::PixelAlign::device);
             break;
         case CardVariant::filled:
             ctx.list.fill_round_rect(box, r, xrender::Paint::solid(lifted ? th.color("surface_pressed") : th.color("surface_variant")));
@@ -175,7 +175,7 @@ void Accordion::paint(PaintContext& ctx) const {
     title_.paint(ctx, {accordion_pad, (hh - t.height) / 2}, th.color("text"));
     draw_chevron(ctx, {ctx.size.width - accordion_pad - chevron / 2, hh / 2}, chevron, props.expanded, th.color("text_muted"));
     // The line under it: between it and the next.
-    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"));
+    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"), xrender::PixelAlign::device);
     if (off) ctx.list.pop_layer();
 }
 
@@ -285,7 +285,7 @@ void Toast::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     shadow(ctx, "lg", box, r);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
     const Color tone = props.tone == ToastTone::success ? th.color("success")
                        : props.tone == ToastTone::warning ? th.color("warning")
                        : props.tone == ToastTone::danger  ? th.color("danger")
@@ -375,7 +375,7 @@ void Popover::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     shadow(ctx, "lg", box, r);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
     if (!props.arrow) return;
     // The point toward what opened it: on the edge facing it, across from its middle.
     const Rect me = ctx.services.bounds(ctx.node);

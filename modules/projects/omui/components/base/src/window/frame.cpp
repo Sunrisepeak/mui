@@ -143,7 +143,7 @@ void WindowFrame::paint(PaintContext& ctx) const {
         CornerRadii top = radii;
         top.bottom_left = top.bottom_right = 0;
         ctx.list.fill_round_rect(bar, top, solid(mix(t.color("surface_variant"), t.color("surface"), 1 - active)));
-        ctx.list.fill_rect({bar.x, bar.y + bar.height - 1, bar.width, 1}, t.color("border"));
+        ctx.list.fill_rect({bar.x, bar.y + bar.height - 1, bar.width, 1}, t.color("border"), xrender::PixelAlign::device);
         const Color text = mix(t.color("text_muted"), t.color("text"), active);
         const Size s = title_.measure(ctx.services, text);
         // Centred on the window, as macOS and GNOME do; never under the buttons.
@@ -154,7 +154,7 @@ void WindowFrame::paint(PaintContext& ctx) const {
         if (!props.title.empty()) title_.paint(ctx, {std::max(bar.x + 8, x), bar.y + (bar.height - s.height) / 2}, text);
     }
     ctx.list.stroke_round_rect({edge.x + 0.5f, edge.y + 0.5f, edge.width - 1, edge.height - 1}, radii, 1,
-                               solid(mix(t.color("border"), t.color("border_strong"), active * 0.5f)), xrender::StrokeAlign::device);
+                               solid(mix(t.color("border"), t.color("border_strong"), active * 0.5f)), xrender::PixelAlign::device);
 }
 
 void WindowFrame::semantics(SemanticsContext&, spec::SemanticNode& node) const {

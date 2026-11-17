@@ -503,13 +503,13 @@ void DataGrid::paint(PaintContext& ctx) const {
             x += widths[c];
         }
         });
-        ctx.list.fill_rect({0, rr.bottom() - 1, ctx.size.width, 1}, th.color("border"));
+        ctx.list.fill_rect({0, rr.bottom() - 1, ctx.size.width, 1}, th.color("border"), xrender::PixelAlign::device);
     }
     // The header over them, each column's name and its sort; once rows have gone under it, it casts the theme's
     // small shadow on them (B6) — at the top, none.
     if (offset_ > 0) parts::shadow(ctx, "sm", {0, 0, ctx.size.width, grid_head}, {});
     ctx.list.fill_rect({0, 0, ctx.size.width, grid_head}, th.color("surface_variant"));
-    ctx.list.fill_rect({0, grid_head - 1, ctx.size.width, 1}, th.color("border_strong"));
+    ctx.list.fill_rect({0, grid_head - 1, ctx.size.width, 1}, th.color("border_strong"), xrender::PixelAlign::device);
     headers_.resize(props.fields.size());
     float x = 0;
     for (std::size_t c = 0; c < props.fields.size(); ++c) {
@@ -528,7 +528,7 @@ void DataGrid::paint(PaintContext& ctx) const {
         if (edge_ == c) ctx.list.fill_rect({x - 1, 0, 2, resizing_ ? ctx.size.height : grid_head}, th.color("accent"));
     }
     ctx.list.pop_clip();
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
 }
 
 void DataGrid::paint_over(PaintContext& ctx) const {

@@ -411,7 +411,7 @@ static UTest cases{"site.places", [] {
         // Re-pinned with the lead page (Part 2 §2.3): the docs' directory lists "Lead" after the practical guide.
         // Re-pinned with D-138: the docs say C++, TypeScript and view documents (features §4, the practical
         // guide's table), the interface page compares C++ and TypeScript, the combobox sample picks how a view is written.
-        expect(eq(all.hex(), std::string("723756eefb1015ed")));
+        expect(eq(all.hex(), std::string("9143e6ab95b69eb7")));
     };
 
     "the reference run: each sampled frame's pixels hashed as a browser hashes them, pinned (reference/ci.frames.xdef.json)"_test = [] {

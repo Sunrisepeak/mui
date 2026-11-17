@@ -89,7 +89,7 @@ void Breadcrumb::paint(PaintContext& ctx) const {
         at_[i] = r;
         crumbs_[i].paint(ctx, {x + crumb_pad, r.y + crumb_pad}, c);
         // A link looks like one where the pointer is over it: underlined.
-        if (!current && hover_ == static_cast<int>(i)) ctx.list.fill_rect({r.x + crumb_pad, r.bottom() - crumb_pad + 1, std::ceil(t.width), 1}, c);
+        if (!current && hover_ == static_cast<int>(i)) ctx.list.fill_rect({r.x + crumb_pad, r.bottom() - crumb_pad + 1, std::ceil(t.width), 1}, c, xrender::PixelAlign::device);
         x = r.right();
     }
 }

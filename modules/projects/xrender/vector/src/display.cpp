@@ -264,24 +264,52 @@ StrokeStyle DisplayList::own(const StrokeStyle& s) {
     return out;
 }
 
-void DisplayList::fill_rect(const Rect& r, const Paint& p) { commands_.emplace_back(FillRect{r, own(p)}); }
+void DisplayList::fill_rect(const Rect& r, const Paint& p, PixelAlign align) { commands_.emplace_back(FillRect{r, own(p), align}); }
 void DisplayList::fill_round_rect(const Rect& r, const CornerRadii& radii, const Paint& p) {
     if (radii.zero()) return fill_rect(r, p);
     commands_.emplace_back(FillRoundRect{r, radii, own(p)});
 }
-void DisplayList::stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p, StrokeAlign align) {
+void DisplayList::stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p, PixelAlign align) {
     commands_.emplace_back(StrokeRoundRect{r, radii, width, own(p), align});
 }
 
-StrokeRoundRect placed(const StrokeRoundRect& stroke, const Affine& m) noexcept {
-    if (stroke.align == StrokeAlign::none) return stroke;
-    StrokeRoundRect out = stroke;
+namespace {
+// The transform's one scale when it keeps the axes and scales them alike, else none: alignment needs it.
+std::optional<float> axis_scale(const Affine& m) noexcept {
     const float scale = std::abs(m.a);
-    if (m.b != 0 || m.c != 0 || !(scale > 0) || std::abs(m.d) != scale || !std::isfinite(scale)) {
+    if (m.b != 0 || m.c != 0 || !(scale > 0) || std::abs(m.d) != scale || !std::isfinite(scale)) return std::nullopt;
+    return scale;
+}
+}  // namespace
+
+FillRect placed(const FillRect& fill, const Affine& m) noexcept {
+    if (fill.align == PixelAlign::none || !axis_scale(m)) return fill;
+    FillRect out = fill;
+    // One axis: each edge to the nearest pixel's edge, the side at least a pixel, back in the list's units.
+    auto axis = [](float from, float to, float factor, float offset) {
+        float low = factor * from + offset, high = factor * to + offset;
+        if (low > high) std::swap(low, high);
+        low = std::round(low);
+        high = std::max(low + 1, std::round(high));
+        const float first = (low - offset) / factor, second = (high - offset) / factor;
+        return std::pair{std::min(first, second), std::abs(second - first)};
+    };
+    const auto [x, width] = axis(fill.rect.x, fill.rect.right(), m.a, m.e);
+    const auto [y, height] = axis(fill.rect.y, fill.rect.bottom(), m.d, m.f);
+    out.rect = {x, y, width, height};
+    return out;
+}
+
+StrokeRoundRect placed(const StrokeRoundRect& stroke, const Affine& m) noexcept {
+    if (stroke.align == PixelAlign::none) return stroke;
+    StrokeRoundRect out = stroke;
+    const auto axes = axis_scale(m);
+    if (!axes) {
         const float any = m.max_scale();
         if (!(out.width > 0) && any > 0) out.width = 1 / any;
         return out;
     }
+    const float scale = *axes;
     const float device_width = std::max(1.0f, std::round(stroke.width * scale));
     const float half = device_width / 2;
     // One axis: the two centre lines in device pixels, each outer edge moved out to a pixel's edge (so a fill under
@@ -600,9 +628,9 @@ std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
     std::visit(
         [&](const auto& cmd) {
             using T = std::decay_t<decltype(cmd)>;
-            if constexpr (std::same_as<T, FillRect>) { h.put(cmd.rect); h.put(cmd.paint); }
+            if constexpr (std::same_as<T, FillRect>) { h.put(cmd.rect); h.put(cmd.paint); if (cmd.align != PixelAlign::none) h.put(cmd.align); }
             else if constexpr (std::same_as<T, FillRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.paint); }
-            else if constexpr (std::same_as<T, StrokeRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.width); h.put(cmd.paint); if (cmd.align != StrokeAlign::none) h.put(cmd.align); }  // unaligned: as before alignment existed
+            else if constexpr (std::same_as<T, StrokeRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.width); h.put(cmd.paint); if (cmd.align != PixelAlign::none) h.put(cmd.align); }  // unaligned: as before alignment existed
             else if constexpr (std::same_as<T, BoxShadow>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.offset); h.put(cmd.blur); h.put(cmd.spread); h.put(cmd.color); h.put(cmd.inset); }
             else if constexpr (std::same_as<T, FillPath>) { h.put(cmd.path); h.put(cmd.rule); h.put(cmd.paint); }
             else if constexpr (std::same_as<T, StrokePath>) { h.put(cmd.path); h.put(cmd.style); h.put(cmd.paint); }

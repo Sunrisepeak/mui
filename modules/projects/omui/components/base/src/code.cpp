@@ -77,12 +77,12 @@ void CodeEditor::paint(PaintContext& ctx) const {
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
     // Its head: the language it is in.
     ctx.list.fill_round_rect({0, 0, box.width, code_head}, {r.top_left, r.top_right, 0, 0}, xrender::Paint::solid(th.color("surface_variant")));
-    ctx.list.fill_rect({0, code_head - 1, box.width, 1}, th.color("border"));
+    ctx.list.fill_rect({0, code_head - 1, box.width, 1}, th.color("border"), xrender::PixelAlign::device);
     const Size t = tag_.measure(ctx.services, th.color("text_muted"));
     tag_.paint(ctx, {12, (code_head - t.height) / 2}, th.color("text_muted"));
     const NodeId f = field();
     const bool focus = f && ctx.services.state(f).focused;  // its field's focus is its own
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, focus ? 1.5f : 1, xrender::Paint::solid(focus ? th.color("accent") : th.color("border")), xrender::StrokeAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, focus ? 1.5f : 1, xrender::Paint::solid(focus ? th.color("accent") : th.color("border")), xrender::PixelAlign::device);
 }
 
 void CodeEditor::semantics(SemanticsContext&, spec::SemanticNode& node) const {

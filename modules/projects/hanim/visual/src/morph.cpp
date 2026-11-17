@@ -347,7 +347,7 @@ struct Emitter {
                         Path shape;
                         shape.add_rect(cmd.rect);
                         outlined(shape, cmd.paint, opacity);
-                    } else if (auto p = faded(cmd.paint, opacity)) out.fill_rect(cmd.rect, *p);
+                    } else if (auto p = faded(cmd.paint, opacity)) out.fill_rect(cmd.rect, *p, cmd.align);
                     else layered([&] { out.append_command(c); });
                 } else if constexpr (std::same_as<T, FillRoundRect>) {
                     if (outline && trim) {
@@ -363,7 +363,7 @@ struct Emitter {
                         const StrokeStyle style{.width = cmd.width, .trim_start = (*trim)[0], .trim_end = (*trim)[1]};
                         if (auto p = faded(cmd.paint, opacity)) out.stroke_path(outline, style, *p);
                         else layered([&] { out.stroke_path(outline, style, cmd.paint); });
-                    } else if (auto p = faded(cmd.paint, opacity)) out.stroke_round_rect(cmd.rect, cmd.radii, cmd.width, *p);
+                    } else if (auto p = faded(cmd.paint, opacity)) out.stroke_round_rect(cmd.rect, cmd.radii, cmd.width, *p, cmd.align);
                     else layered([&] { out.append_command(c); });
                 } else if constexpr (std::same_as<T, BoxShadow>) {
                     out.box_shadow(cmd.rect, cmd.radii, cmd.offset, cmd.blur, cmd.spread, cmd.color.with_alpha(cmd.color.a * opacity), cmd.inset);

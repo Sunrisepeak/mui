@@ -14,17 +14,22 @@ constexpr float grid_narrowest = 48;  // a column dragged narrower stops here
 constexpr float grid_grab = 4;        // how near a header's edge the pointer takes it
 constexpr float grid_rubber = 16;     // dragged past the narrowest, drawn at most this much narrower (rubber band)
 
-// A chevron pointing right, or down when open, centred at c.
-void tree_chevron(PaintContext& ctx, Point c, bool down, Color color) {
+// A chevron pointing right, or down when open, centred at c. It is one part per row (`chevron`, the row's key)
+// drawn pointing right under a quarter turn when open, so a change of state turns it about its centre rather than
+// sliding its corners (component quality B6).
+void tree_chevron(PaintContext& ctx, std::string_view key, Point c, bool down, Color color) {
     const float s = 8;
-    auto at = [&](float x, float y) { return down ? Point{c.x - y, c.y + x} : Point{c.x + x, c.y + y}; };
-    xrender::Path p;
-    p.move_to(at(-s / 4, -s / 2)).line_to(at(s / 4, 0)).line_to(at(-s / 4, s / 2));
-    xrender::StrokeStyle st;
-    st.width = 1.6f;
-    st.cap = xrender::LineCap::round;
-    st.join = xrender::LineJoin::round;
-    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
+    ctx.part({.role = "chevron", .id = key, .allocation = {c.x - s / 2, c.y - s / 2, s, s}}, [&] {
+        ctx.list.push_transform(Affine::translate(c.x, c.y) * xrender::rotate(down ? std::numbers::pi_v<float> / 2 : 0.0f));
+        xrender::Path p;
+        p.move_to({-s / 4, -s / 2}).line_to({s / 4, 0}).line_to({-s / 4, s / 2});
+        xrender::StrokeStyle st;
+        st.width = 1.6f;
+        st.cap = xrender::LineCap::round;
+        st.join = xrender::LineJoin::round;
+        ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
+        ctx.list.pop_transform();
+    });
 }
 
 // A small triangle, up or down, centred at c (a column's sort).
@@ -191,7 +196,7 @@ void TreeView::paint(PaintContext& ctx) const {
             ctx.list.fill_rect({gx, r.y, 1, tree_row}, th.color(lit ? "border_strong" : "border"));
         }
         const float x = r.x + 6 + static_cast<float>(l.depth) * tree_indent;
-        if (l.parent) tree_chevron(ctx, {x + 6, r.center().y}, is_open(l.key), th.color("text_muted"));
+        if (l.parent) tree_chevron(ctx, l.key, {x + 6, r.center().y}, is_open(l.key), th.color("text_muted"));
         parts::Label& label = labels_[i - from];
         label.set_style("body");
         label.set_max_lines(1);

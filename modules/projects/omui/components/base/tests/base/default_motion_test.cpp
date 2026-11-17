@@ -443,6 +443,41 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(whole) << "at rest, whole";
     };
 
+    "a tree row opened turns its chevron about its centre, a quarter turn, not its corners slid (B6)"_test = [] {
+        Headless h(options());
+        Model& files = h.runtime().model("files");
+        for (const auto& [key, label, parent] : std::vector<std::tuple<std::string, std::string, std::string>>{
+                 {"src", "src", ""}, {"app", "app.cpp", "src"}, {"readme", "README.md", ""}}) {
+            Value fields = Value{}.set("label", label);
+            if (!parent.empty()) fields.set("parent", parent);
+            expect(files.push({Row{key, fields}}).has_value());
+        }
+        h.mount("main", column({.padding = 24}, {tree_view({.id = "files", .model = "files", .width = Dim(240.0f), .height = Dim(120.0f)})}));
+        h.settle();
+        act(h, "main/files/src", "expand");
+        // The chevron's own quarter turn: the transforms it is drawn under, a rotation part-way (neither 0 nor 90°).
+        const auto turned = [&] {
+            std::optional<float> most;
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) > 1e-3f) {
+                    const float angle = std::atan2(push->transform.b, push->transform.a) * 180 / std::numbers::pi_v<float>;
+                    if (!most || angle > *most) most = angle;
+                }
+            return most;
+        };
+        std::vector<float> seen;
+        for (int sample = 0; sample < 12; ++sample) {
+            h.advance(seconds(0.02));
+            if (const auto angle = turned()) seen.push_back(*angle);
+            if (sample == 3) save(h, "tree-chevron-turning");
+        }
+        expect(std::ranges::any_of(seen, [](float angle) { return angle > 10 && angle < 80; }))
+            << std::format("the chevron part-way round: {}", seen);
+        h.settle();
+        const auto rest = turned();
+        expect(rest.has_value() && std::abs(*rest - 90) < 0.5f) << "at rest, pointing down";
+    };
+
     "a pressed tab answers the finger: deeper than hovered, before the indicator moves (B5)"_test = [] {
         Headless h(options());
         auto selected = signal(std::string("general"));

@@ -131,9 +131,27 @@ static UTest cases{"view.theme_motion", [] {
             const auto* recipe = spec::find_motion_recipe(name);
             expect(recipe != nullptr) << std::format("the built-in recipe `{}` is in the specification", name);
             if (!recipe) continue;
-            for (std::string_view primitive : recipe->primitives | std::views::split(' ') | std::views::transform([](auto r) { return std::string_view(r); }))
-                if (const auto p = motion_primitive(primitive); p && motion.primitives)
-                    expect((motion.primitives & static_cast<std::uint32_t>(*p)) != 0) << std::format("`{}` composes {}", name, primitive);
+            // Both ways, by the specification's names: each primitive it lists is composed, and each composed one is listed
+            // (a recipe that gained `write` or `arrivals` in code and not in the registry is caught).
+            constexpr std::array<std::pair<std::string_view, MotionPrimitive>, 17> named{{
+                {"match_drawing", MotionPrimitive::match_drawing}, {"match_glyphs", MotionPrimitive::match_glyphs}, {"fade", MotionPrimitive::fade},
+                {"lift", MotionPrimitive::lift}, {"panel_lift", MotionPrimitive::panel_lift}, {"grow", MotionPrimitive::grow},
+                {"check_grow", MotionPrimitive::check_grow}, {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger},
+                {"distance", MotionPrimitive::distance}, {"readable_text", MotionPrimitive::readable_text}, {"write", MotionPrimitive::write},
+                {"drop", MotionPrimitive::drop}, {"noise", MotionPrimitive::noise}, {"reshape", MotionPrimitive::reshape},
+                {"press", MotionPrimitive::press}, {"arrivals", MotionPrimitive::arrivals}}};
+            std::uint32_t listed = 0;
+            for (std::string_view primitive : recipe->primitives | std::views::split(' ') | std::views::transform([](auto r) { return std::string_view(r); })) {
+                const auto found = std::ranges::find(named, primitive, &std::pair<std::string_view, MotionPrimitive>::first);
+                expect(found != named.end()) << std::format("`{}` lists {}, a primitive the implementation knows", name, primitive);
+                if (found == named.end()) continue;
+                listed |= static_cast<std::uint32_t>(found->second);
+                if (motion.primitives) expect((motion.primitives & static_cast<std::uint32_t>(found->second)) != 0) << std::format("`{}` composes {}", name, primitive);
+            }
+            if (motion.primitives)
+                for (const auto& [spelled, primitive] : named)
+                    expect((motion.primitives & static_cast<std::uint32_t>(primitive)) == 0 || (listed & static_cast<std::uint32_t>(primitive)) != 0)
+                        << std::format("`{}` composes {}, which the specification does not list", name, spelled);
             if (!recipe->effect.empty()) expect(motion.travel && motion.travel->effect == recipe->effect) << std::format("`{}` travels through {}", name, recipe->effect);
         }
     };

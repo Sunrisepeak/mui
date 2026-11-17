@@ -187,6 +187,8 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 - Review of 3a17877b..911480d8 (2026-11-17, independent; 9 findings, 7 taken): the grid row-move check counted fixed offsets → distinct values each way; default.rows wasn't expressible in the spec → primitive `arrivals` (spec 674f59b); the caret's edge was 0.09 s → 0.12 s; row and chevron, two ranks → one per part id; `claim` downcast blindly → only devices this module made; SDL left up by a host never opened → `platform::stop`; a cancel left a selection drag → cleared. Kept: `std::async` off the main thread (Vulkan verified; Metal and D3D12 at CI); a scroll reveal staggering rows (watch).
 
+- Self-review at 28 checkpoints since 3a17877b (2026-11-17): architecture — films and auditions now sit with their owners (xengine.video.tool; xtools.audition, D-204), one press/arrivals mechanism in hanim used by recipes; consistency — the spec's recipes drifted twice from code (steps' write, rows' arrivals) → theme_motion_test now checks both ways by the spec's names; stability — two bounds were guesses (audio.device starvation, a 300 s program) → exact or split; cross-platform — the GPU device off the main thread is Vulkan-verified, Metal and D3D12 at this CI run; resources — disk 3.9 GB free (shared), release builds deferred; owed — hairlines by DPR after N0, red 107 needs a browser build here.
+
 ## Next
 
 1. N0 on the next push (red 114 and 115 fixed, RC1.5's merges, B5): its tier-1 rows by blocks (RC0.10); reconcile with `omui-devtools ci run`. Before the push: RC0.7's LLVM check on the members that moved modules into features.

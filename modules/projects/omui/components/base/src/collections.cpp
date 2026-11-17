@@ -548,9 +548,22 @@ bool DataGrid::on_event(EventContext& ctx, const InputEvent& e) {
     if (!p) return false;
     // A header's edge: dragged, its column's width (with the split view's cursor, lit divider and rubber band).
     if (resizing_) {
+        const std::size_t c = edge_.value_or(props.fields.size());
+        const auto end_drag = [&] {
+            resizing_ = false;
+            past_ = 0;
+            services().release_pointer();
+            edge_ = c < props.fields.size() ? edge_at(ctx.local) : std::nullopt;
+            services().set(node(), "cursor", edge_ ? Value("col-resize") : Value{});
+            ctx.repaint();
+        };
+        // Its column gone from under the drag (the fields changed): the drag ends, what it set kept as it is.
+        if (c >= props.fields.size()) {
+            end_drag();
+            return true;
+        }
         if (p->kind == PointerKind::move) {
             const float asked = from_width_ + ctx.local.x - from_x_;
-            const std::size_t c = *edge_;
             std::vector<std::string> next = props.widths;
             next.resize(std::max(next.size(), props.fields.size()));
             next[c] = std::format("{}", std::round(std::max(grid_narrowest, asked)));
@@ -559,19 +572,19 @@ bool DataGrid::on_event(EventContext& ctx, const InputEvent& e) {
             ctx.repaint();
             return true;
         }
-        if (p->kind == PointerKind::up || p->kind == PointerKind::cancel) {
-            resizing_ = false;
-            past_ = 0;
-            services().release_pointer();
-            const std::size_t c = *edge_;
+        if (p->kind == PointerKind::cancel) {
+            // Taken away (a system gesture, the capture lost): the widths go back to what they were.
+            if (props.widths != from_widths_) write_widths(from_widths_);
+            end_drag();
+            return true;
+        }
+        if (p->kind == PointerKind::up) {
             const std::string was = c < from_widths_.size() ? from_widths_[c] : std::string();
             // The drag as one action of the person's (S-12).
-            if (props.widths != from_widths_)
+            if (props.widths != from_widths_ && c < props.widths.size())
                 services().performed(node(), "set_width", Value{}.set("field", props.fields[c]).set("width", props.widths[c]),
                                      {{"set_width", Value{}.set("field", props.fields[c]).set("width", was)}});
-            edge_ = edge_at(ctx.local);
-            services().set(node(), "cursor", edge_ ? Value("col-resize") : Value{});
-            ctx.repaint();
+            end_drag();
             return true;
         }
         return true;

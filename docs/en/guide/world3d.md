@@ -95,5 +95,5 @@ mcpp test -p omui.showcase.quay.play      # on this machine's device, held to th
 ## When something goes wrong
 
 - **No device**: `OMUI_REQUIRE_GPU=1` makes a missing device a failure; on Linux without a GPU, `omui-devtools gpu` installs lavapipe, the software Vulkan CI uses. A device's results are marked `software` in the [platform table](../platforms.md), not `real`.
-- **A replay differs**: a recording names its level and replays bit for bit; a different checksum means the state's step changed — `quay::State::checksum` names the first step where two runs part.
+- **A replay differs**: a recording names its level and replays bit for bit; a different checksum means the state's step changed — `quay::checksum(state)` is one hash of a step's state, so comparing it step by step finds the first step where two runs part.
 - **The Web frame**: the page's WebGPU frame time is held to 16.7 ms only on a real GPU; on a software adapter it is printed, not held ([platforms](../platforms.md), `frame-budget-weak`).

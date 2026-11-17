@@ -79,7 +79,7 @@
 - **High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6)**, Web (wasm32): 缺: a devicePixelRatio change in a real browser
 - **High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6)**, macOS arm64: the same test on CI row macos-15; 缺: a Retina and a non-Retina display
 - **High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6)**, Windows x64: the same test on CI row windows-2022; 缺: two displays of different scales
-- **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, Linux x64: 缺: a machine slept and resumed under test; a device lost on resume is let go and made again, else the CPU draws (omui.host.sdl3's desktop host), which no CI row can provoke
+- **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, Linux x64: 缺: a machine slept and resumed under test; a device lost on resume ends the application with a message (exit code 3) rather than draw with it — no CI row can provoke a loss — and making it again waits for the runtime to hand components the new device
 - **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, Web (wasm32): 缺: a page hidden and shown, its WebGPU device lost, in a real browser
 - **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, macOS arm64: 缺: a Mac slept and resumed under test
 - **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, Windows x64: 缺: a Windows machine slept and resumed under test

@@ -55,9 +55,12 @@ UTest cases{"xrender.tool", [] {
 
         const auto refused = ask(session, std::format(R"({{"op":"effect.check","files":[{},{}]}})", quoted(data("greedy.effect.xdef.json")), quoted(data("blur.effect.xdef.json"))));
         expect(!refused.error.empty()) << "refused: neither registers";
-        if (refused.data) {
-            expect(!refused["effects"][0]["ok"].boolean().value_or(true) && refused["effects"][0]["problems"].size() > 0u) << "greedy binds resources of its own";
-            expect(!refused["effects"][1]["ok"].boolean().value_or(true)) << "blur is a name taken already";
-        }
+        expect(fatal(refused.data.has_value())) << "the refusal lists each file's problems";
+        const auto problem = [&](std::size_t file) {
+            const auto problems = refused["effects"][file]["problems"];
+            return problems.size() > 0u ? problems[0]["message"].text().value_or("") : std::string();
+        };
+        expect(!refused["effects"][0]["ok"].boolean().value_or(true) && problem(0).contains("binds resources of its own")) << problem(0);
+        expect(!refused["effects"][1]["ok"].boolean().value_or(true) && problem(1).contains("registered already")) << problem(1);
     };
 }};

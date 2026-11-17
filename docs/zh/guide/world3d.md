@@ -95,5 +95,5 @@ mcpp test -p omui.showcase.quay.play      # on this machine's device, held to th
 ## 出了问题怎么办
 
 - **没有设备**：`OMUI_REQUIRE_GPU=1` 让缺少设备成为失败；在没有 GPU 的 Linux 上，`omui-devtools gpu` 装上 CI 所用的软件 Vulkan（lavapipe）。设备上的结果在[平台表](../platforms.md)里标为 `software`，不是 `real`。
-- **回放不一致**：录像记下它的关卡并逐位回放；校验和不同说明状态的一步变了——`quay::State::checksum` 指出两次运行分开的第一步。
+- **回放不一致**：录像记下它的关卡并逐位回放；校验和不同说明状态的一步变了——`quay::checksum(state)` 是一步状态的哈希，逐步比较它就能找到两次运行分开的第一步。
 - **Web 上的帧**：页面 WebGPU 的帧时间只在真实 GPU 上按 16.7 ms 判定；在软件适配器上只打印、不判定（[平台表](../platforms.md)，`frame-budget-weak`）。

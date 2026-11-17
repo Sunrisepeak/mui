@@ -180,8 +180,8 @@ FrameOutput Headless::step(std::vector<InputEvent> events, std::optional<seconds
     }
     FrameOutput out = d.runtime->frame(in);
     // Moved to a display of another scale (a ResizeEvent's scale, as a window's host gives it): its pixels follow,
-    // drawn again at the new scale. The window's size stays the host's (a test resizing the layout within it, a
-    // recording over the change, keep one canvas).
+    // drawn again at the new scale. The window's size stays the host's, so a test resizing the layout within it keeps
+    // one canvas; a recording over a scale change holds frames of two sizes, which an animation file cannot.
     if (d.runtime->scale() != d.options.scale) {
         d.options.scale = d.runtime->scale();
         d.have_pixels = false;

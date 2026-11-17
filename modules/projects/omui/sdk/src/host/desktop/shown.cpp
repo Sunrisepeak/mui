@@ -42,15 +42,21 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     desktop.runtime().set_debug(o.debug);
     const auto kept = prepare(desktop.runtime());
     if (o.frames) {
-        // --frames N: N frames shown, then it ends, saying when the first was shown (RC3.6: the first frame's time).
+        // --frames N: N frames stepped, as a headless run steps them, and as many more as it takes for the first to
+        // be shown (within ten seconds); it says when the first was shown (RC3.6: the first frame's time).
+        const auto deadline = asked + std::chrono::seconds(10);
         std::optional<double> first;
-        while (desktop.frames_shown() < static_cast<std::size_t>(*o.frames)) {
+        for (int stepped = 0; stepped < *o.frames || (!first && std::chrono::steady_clock::now() < deadline); ++stepped) {
             if (!desktop.step(false)) break;
             if (!first && desktop.frames_shown() > 0)
                 first = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - asked).count();
         }
-        if (first) std::println(std::cerr, "first frame shown {:.1f} ms after the window was asked for", *first);
-        return desktop.frames_shown() >= static_cast<std::size_t>(*o.frames) ? 0 : 1;
+        if (!first) {
+            error("--frames: no frame was shown within ten seconds");
+            return 1;
+        }
+        std::println(std::cerr, "first frame shown {:.1f} ms after the window was asked for", *first);
+        return 0;
     }
     return desktop.run();
 }

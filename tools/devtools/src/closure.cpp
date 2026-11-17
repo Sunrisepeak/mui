@@ -76,9 +76,11 @@ std::optional<std::vector<std::string_view>> section(std::string_view readme, st
         if (level == 0 || level == std::string_view::npos || line.substr(level, 1) != " ") continue;
         if (!lower(trimmed(line.substr(level))).starts_with(lower(title))) continue;
         std::vector<std::string_view> body;
+        bool fenced = false;  // inside a fenced block a `#` line is code, not a heading
         for (std::size_t next = at + 1; next < lines.size(); ++next) {
+            if (trimmed(lines[next]).starts_with("```")) fenced = !fenced;
             const std::size_t other = lines[next].find_first_not_of('#');
-            if (other > 0 && other != std::string_view::npos && other <= level && lines[next].substr(other, 1) == " ") break;
+            if (!fenced && other > 0 && other != std::string_view::npos && other <= level && lines[next].substr(other, 1) == " ") break;
             body.push_back(lines[next]);
         }
         return body;
@@ -94,6 +96,13 @@ std::vector<std::string> items_of(const std::vector<std::string_view>& body) {
         else if (!items.empty() && line.starts_with("  ") && !trimmed(line).empty()) items.back() += " " + std::string(trimmed(line));
     }
     return items;
+}
+
+// At most `bytes` of a text, cut where a character begins (never inside UTF-8).
+std::string clipped(std::string_view text, std::size_t bytes) {
+    if (text.size() <= bytes) return std::string(text);
+    while (bytes > 0 && (static_cast<unsigned char>(text[bytes]) & 0xC0) == 0x80) --bytes;
+    return std::string(text.substr(0, bytes));
 }
 
 std::vector<std::string> cells_of(std::string_view row) {
@@ -231,8 +240,10 @@ std::optional<std::vector<std::string>> limitations_owed(std::string_view readme
     if (!body) return std::nullopt;
     static const std::regex form(R"re(^\*\*[^*]+\*\* \((foundation|part|specialised|application)\):)re");
     std::vector<std::string> missing;
-    for (const std::string& item : items_of(*body))
-        if (!std::regex_search(item, form)) missing.push_back(item.substr(0, 60));
+    const auto items = items_of(*body);
+    if (items.empty()) missing.emplace_back("(the section lists nothing: each limitation an item `- **…** (level): …`)");
+    for (const std::string& item : items)
+        if (!std::regex_search(item, form)) missing.push_back(clipped(item, 60));
     return missing;
 }
 
@@ -240,7 +251,7 @@ std::map<std::size_t, std::string> exceptions(std::string_view readme) {
     std::map<std::size_t, std::string> out;
     const auto body = section(readme, "Closure exceptions");
     if (!body) return out;
-    static const std::regex form(R"re(^\*\*(\d+)\*\*: (.+)$)re");
+    static const std::regex form(R"re(^\*\*(\d{1,2})\*\*: (.+)$)re");
     for (const std::string& item : items_of(*body))
         if (std::smatch match; std::regex_search(item, match, form)) out[static_cast<std::size_t>(std::stoul(match[1].str()))] = match[2].str();
     return out;
@@ -306,7 +317,7 @@ std::expected<Report, std::string> check(const fs::path& root) {
                 };
                 if (!has("Target") || !has("Gap") || !has("Graduation")) owes.push_back("the Experimental section's Target, Gap and Graduation");
             }
-            items[0] = owes.empty() ? pass(std::format("\"{}\"", said->substr(0, 80))) : owed(owes.front() + (owes.size() > 1 ? std::format(" (and {} more)", owes.size() - 1) : ""));
+            items[0] = owes.empty() ? pass(std::format("\"{}\"", clipped(*said, 80))) : owed(owes.front() + (owes.size() > 1 ? std::format(" (and {} more)", owes.size() - 1) : ""));
         }
         // 2 Each stable library's surface committed (api.omui.txt; lint keeps aliases and single letters out); programs and
         // conformance suites have none.
@@ -357,9 +368,20 @@ std::expected<Report, std::string> check(const fs::path& root) {
                 if (package->name.ends_with(".cts")) continue;  // a conformance suite: it is the tests, run by its subjects
                 // Its own tests, or its suite beside it; or a test anywhere imports one of its modules; or it is a build
                 // rule (`kind = "rules"`), run by every build that names it.
-                const bool has = fs::exists(root / package->path / "tests") || fs::exists(root / package->path / "cts" / "tests") ||
-                                 std::ranges::any_of(modules_of(root, package->path), [&](const std::string& module) { return imported.contains(module); }) ||
-                                 read_file(root / package->path / "mcpp.toml").contains("kind = \"rules\"");
+                const auto sources_in = [&](const fs::path& directory) {
+                    if (!fs::exists(directory)) return false;
+                    std::error_code error;
+                    for (auto it = fs::recursive_directory_iterator(directory, error); it != fs::recursive_directory_iterator(); it.increment(error))
+                        if (!error && it->is_regular_file() && it->path().extension() == ".cpp") return true;
+                    return false;
+                };
+                const auto rules = [&] {
+                    for (const auto line : lines_of(read_file(root / package->path / "mcpp.toml")))
+                        if (trimmed(line).starts_with("kind = \"rules\"")) return true;
+                    return false;
+                };
+                const bool has = sources_in(root / package->path / "tests") || sources_in(root / package->path / "cts" / "tests") ||
+                                 std::ranges::any_of(modules_of(root, package->path), [&](const std::string& module) { return imported.contains(module); }) || rules();
                 tested += has ? 1 : 0;
                 if (package->label != "experimental") {
                     ++counted;

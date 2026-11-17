@@ -414,6 +414,9 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
         }
         case PointerKind::cancel:
             if (long_press) self.cancel(std::exchange(long_press, 0));
+            // The node holding the drag is told, so it can put back what the drag changed (a dragged width, a
+            // handle, a drawer half-pulled), before the capture goes.
+            if (alive(capture)) (void)deliver(capture, e, e.position, true);
             if (alive(pressed)) at(pressed).state.pressed = false;
             pressed = capture = {};
             held = false;

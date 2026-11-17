@@ -163,7 +163,7 @@
       "name": "Closed, slept and resumed: no crash, nothing left blank (RC3.6)",
       "label": "stable",
       "cells": {
-        "linux-x64": {"status": "unverified", "needs": "a machine slept and resumed under test; a device lost on resume is let go and made again, else the CPU draws (omui.host.sdl3's desktop host), which no CI row can provoke"},
+        "linux-x64": {"status": "unverified", "needs": "a machine slept and resumed under test; a device lost on resume ends the application with a message (exit code 3) rather than draw with it — no CI row can provoke a loss — and making it again waits for the runtime to hand components the new device"},
         "web": {"status": "unverified", "needs": "a page hidden and shown, its WebGPU device lost, in a real browser"},
         "macos-arm64": {"status": "unverified", "needs": "a Mac slept and resumed under test"},
         "windows-x64": {"status": "unverified", "needs": "a Windows machine slept and resumed under test"}

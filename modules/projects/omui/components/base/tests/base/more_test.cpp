@@ -607,11 +607,27 @@ static UTest cases{"ui.base.more", [] {
         h.step({pointer});
         h.settle();
         expect(widths.peek()[0] == "48") << std::format("kept at the narrowest: {}", widths.peek()[0]);
-        if (const auto line = divider()) expect(line->x + 1 < 48 - 4 && line->x + 1 > 48 - 16) << std::format("past it, damped: {}", line->x + 1);
+        const auto line = divider();
+        expect(fatal(line.has_value())) << "the lit divider drawn while held past the narrowest";
+        expect(line->x + 1 < 48 - 4 && line->x + 1 > 48 - 16 && line->height >= 199) << std::format("past it, damped: {}", line->x + 1);
         pointer.kind = PointerKind::up; pointer.buttons = 0;
         h.step({pointer});
         h.settle();
         expect(undo(h) == 0 && widths.peek() == std::vector<std::string>{"200", "*"}) << "the drag taken back whole";
+        // Taken away mid-drag (a system gesture, the capture lost): the widths go back to what they were.
+        pointer.kind = PointerKind::move;
+        pointer.position = {grid.x + 200, grid.y + 18};
+        h.step({pointer});
+        pointer.kind = PointerKind::down; pointer.buttons = 1;
+        h.step({pointer});
+        pointer.kind = PointerKind::move;
+        pointer.position.x = grid.x + 240;
+        h.step({pointer});
+        expect(widths.peek()[0] == "240") << "dragged";
+        pointer.kind = PointerKind::cancel; pointer.buttons = 0;
+        h.step({pointer});
+        h.settle();
+        expect(widths.peek() == std::vector<std::string>{"200", "*"}) << std::format("cancelled: back to 200, not {}", widths.peek()[0]);
         // An agent: pixels, a share again; not a column, not a width.
         expect(act(h, "main/cols", "set_width", Value{}.set("field", "city").set("width", 120.0)) == 0 && widths.peek()[1] == "120") << "set by an agent";
         expect(undo(h) == 0 && widths.peek()[1] == "*") << "taken back";

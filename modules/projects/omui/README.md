@@ -70,8 +70,8 @@ Each names the level it is solved at (D-179: foundation, part, specialised, appl
 - **Input methods on machines** (foundation): composition and candidates are tested with synthetic events on every row; a real IME on each platform is not.
 - **A caret's blink is a hard cut** (part): the text box's caret is drawn on or off, not faded on the runtime's clock (component quality B6).
 - **A tree's chevron morphs instead of turning** (foundation): a matched morph interpolates the path's points in a line; a turn needs an arc path in hanim.
-- **A lost GPU device** (foundation): the desktop host lets it go and makes it again, else the CPU draws; no CI row can provoke a loss, so the path is unverified.
-- **The first frame is not timed** (foundation): the runtime's part is benchmarked (`ui/mount`), the process start to the window's first pixels is not.
+- **A lost GPU device** (foundation): the desktop host ends the application with a message (exit code 3) rather than draw with what was lost; making the device again needs the runtime to hand components the new one, which it cannot yet. No CI row can provoke a loss.
+- **The GPU's first frame** (foundation): from the window asked for to the first frame shown, the GPU renderer takes 207–334 ms on the RTX 4080 against the CPU's 41–53 ms — its device and pipelines are made first; process start to the first pixels is not held by CI.
 
 ## Closure exceptions
 

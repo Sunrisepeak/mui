@@ -23,7 +23,12 @@ UTest cases{"devtools.closure", [] {
         const auto report = closure::check(root());
         expect(fatal(report.has_value())) << (report ? "" : report.error());
         expect(eq(report->projects.size(), std::size_t{7})) << "mlibs, xrender, hanim, omui, xengine, gongfu, xtools";
-        expect(report->passed() + report->owed() <= report->projects.size() * closure::item_count) << "a cell passed, owed, exempt or not required";
+        for (const auto& project : report->projects) {
+            const auto spared = std::ranges::count(project.items, closure::Mark::not_required, &closure::Cell::mark);
+            // An experimental project owes the four starred items only; the others owe all ten.
+            expect(eq(static_cast<std::size_t>(spared), project.label == "experimental" ? closure::item_count - 4 : std::size_t{0})) << project.name;
+            for (const auto& cell : project.items) expect(!cell.note.empty()) << std::format("{}: every cell says why", project.name);
+        }
         for (const std::string_view language : {"en", "zh"})
             expect(read(root() / "docs" / std::string(language) / "closure.md") == closure::page(*report, language))
                 << std::format("docs/{}/closure.md is not current: run omui-devtools closure", language);
@@ -50,8 +55,12 @@ UTest cases{"devtools.closure", [] {
         expect(fatal(eq(owed->size(), std::size_t{1}))) << "the second item only; the next section not read";
         expect(owed->front().starts_with("**Slow**"));
         expect(!closure::limitations_owed("# t\n").has_value());
-        const auto exempt = closure::exceptions("# t\n\n## Closure exceptions\n\n- **7**: nothing runs per frame.\n- **x**: not a number\n");
-        expect(eq(exempt.size(), std::size_t{1}));
+        const auto empty = closure::limitations_owed("# t\n\n## Known limitations\n\nNone worth saying.\n");
+        expect(empty.has_value() && empty->size() == 1u) << "a section that lists nothing owes";
+        const auto fenced = closure::limitations_owed("# t\n\n## Known limitations\n\n```sh\n# a comment\n```\n\n- **Slow** (part): x.\n- **Bare** item\n");
+        expect(fenced.has_value() && fenced->size() == 1u) << "a `#` line inside a fence is code: the items after it are read";
+        const auto exempt = closure::exceptions("# t\n\n## Closure exceptions\n\n- **7**: nothing runs per frame.\n- **x**: not a number\n- **99999999999999999999**: too long\n");
+        expect(eq(exempt.size(), std::size_t{1})) << "a number too long is not read (nor thrown on)";
         expect(exempt.contains(7) && exempt.at(7) == "nothing runs per frame.");
     };
 }};

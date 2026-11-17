@@ -161,7 +161,7 @@ static UTest cases{"site.wall", [] {
         expect(eq(focused_card(), std::string("checkbox")));
     };
 
-    "the keyboard reaches every card: Tab visits all 36 components (and the works) once each, its ring drawn at each (RC3.6)"_test = [] {
+    "the keyboard reaches every card: Tab visits all 36 components and every work, composition and recipe once each, a focus ring drawn at each stop (RC3.6)"_test = [] {
         Page page;
         page.h.runtime().focus(page.h.runtime().find(path("canvas")));
         const Color focus = page.h.runtime().theme().color("focus");
@@ -178,7 +178,7 @@ static UTest cases{"site.wall", [] {
         };
         std::vector<std::string> visited;
         std::vector<std::string> unringed;
-        for (std::size_t press = 0; press <= site::component_catalog.size(); ++press) {
+        for (std::size_t press = 0; press < 400; ++press) {  // the whole wall, until it goes on out or comes round
             page.h.key(Key::tab);
             page.h.settle(seconds(2));
             const std::string card = focused_card();
@@ -190,14 +190,17 @@ static UTest cases{"site.wall", [] {
         std::ranges::sort(distinct);
         distinct.erase(std::ranges::unique(distinct).begin(), distinct.end());
         expect(eq(distinct.size(), visited.size())) << "no card twice before coming round";
-        // The works the wall also holds (`work-…`) are cards a person reaches too; nothing else is.
+        // The wall also holds the works, the compositions and the motion recipes (`work-…`, `composition-…`,
+        // `recipe-…`): cards a person reaches too; nothing else is.
         std::vector<std::string> strangers;
         std::size_t components = 0;
         for (const std::string& card : visited)
             if (site::find_component(card)) ++components;
-            else if (!card.starts_with("work-")) strangers.push_back(card);
+            else if (!card.starts_with("work-") && !card.starts_with("composition-") && !card.starts_with("recipe-")) strangers.push_back(card);
         expect(eq(components, site::component_catalog.size())) << std::format("{} of {} components reached", components, site::component_catalog.size());
         expect(strangers.empty()) << std::format("cards neither a component nor a work: {}", strangers);
+        const auto works = std::ranges::count_if(visited, [](const std::string& card) { return card.starts_with("work-"); });
+        expect(eq(static_cast<std::size_t>(works), site::work_ids.size())) << std::format("{} of {} works reached", works, site::work_ids.size());
         for (const auto& component : site::component_catalog)
             expect(std::ranges::any_of(visited, [&](const std::string& card) { const auto* info = site::find_component(card); return info && info->id == component.id; }))
                 << std::format("`{}` reached by Tab", component.id);

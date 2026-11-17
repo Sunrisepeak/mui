@@ -242,22 +242,17 @@ struct Desktop::Impl final : WindowHost {
         return {};
     }
 
-    // The device lost (a driver reset, a resume from sleep, a GPU taken away): what it held is gone. It is let go
-    // and made again, the next frame drawn whole on it; when none can be made, the CPU draws, unless the GPU is
-    // insisted on (RC3.6: closed, slept and resumed, not crashed or left blank).
+    // The device lost (a driver reset, a resume from sleep, a GPU taken away): what it held is gone, and what the
+    // components made on it (a world's buffers, a viewport's textures) cannot be told so — the runtime has no way to
+    // hand them another device yet. Rather than draw with what was lost, or leave the window blank, the application
+    // ends once, saying why (exit code 3); nothing is presented again. Making the device again waits for the
+    // runtime to tell its components (README: Known limitations).
     void lost(std::string_view where, std::string_view why) {
-        warn("{}: the device was lost ({}); making it again", where, why);
-        if (runtime) runtime->set_on_device(false), runtime->set_device(nullptr);
-        shown_pictures = ShownPictures{};  // its textures went with the device
-        gpu_frame = {};
-        gpu_w = gpu_h = 0;
-        gpu.reset();
-        device.reset();
-        shown = 0;
-        damage.invalidate();
+        if (quitting) return;
+        error("{}: the GPU device was lost ({}); the application ends rather than draw with it — start it again", where, why);
         ++devices_lost;
-        if (auto again = open_gpu(); !again) warn("{}", again.error().message);
-        else if (!gpu) warn("no GPU device again: the CPU draws");
+        quitting = true;
+        exit_code = 3;
     }
 
     // The frame as shown, read back (the GPU's texture, or the CPU's surface).

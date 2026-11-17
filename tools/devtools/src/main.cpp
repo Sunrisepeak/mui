@@ -912,9 +912,9 @@ int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
     for (const auto& package : made->packages) {
         const std::string project = package.name.substr(0, package.name.find('.'));
         ++counts[project][package.maturity.empty() ? "unlabelled" : package.maturity];
-        std::println("  {:<34} {:<12} {:<6} {}{}{}", package.name,
+        std::println("  {:<34} {:<12} {:<6} {}{}", package.name,
                      package.maturity.empty() ? "-" : package.maturity,
-                     package.built ? "built" : "feature", package.path, "",
+                     package.built ? "built" : "feature", package.path,
                      package.outside.empty() ? ""
                                              : std::format("  [{} strings leave its directory]",
                                                            package.outside.size()));
@@ -951,8 +951,17 @@ int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
 
     // Each member's archive, its sum and its descriptor are mcpp publish's own (2026.11.17.2: by identity, siblings at their
     // own versions; mcpp#947): a dry run over the closure — nothing leaves this machine — then laid out as the index is.
+    // target/dist is where mcpp publish writes, a real publish's archives too: cleared only when empty or this command's
+    // own (its mark), else left alone and the run refused.
     std::error_code error;
-    fs::remove_all(root / "target" / "dist", error);  // what this run writes, nothing an earlier one left
+    const fs::path dist = root / "target" / "dist";
+    const fs::path mark = dist / ".omui-release-index";
+    if (fs::exists(dist, error) && !fs::is_empty(dist, error) && !fs::exists(mark, error)) {
+        std::cerr << std::format("omui-devtools release index: {} holds what another publish wrote; move it away (or remove it) and run again\n",
+                                 mcpplibs::os::fs::utf8(dist));
+        return 1;
+    }
+    fs::remove_all(dist, error);  // what this run writes, nothing an earlier one left
     std::vector<std::string> args{"publish", "--dry-run", "--allow-dirty"};
     if (const auto tag = options.value("tag")) args.insert(args.end(), {"--tag", *tag});
     for (const auto& package : made->packages) args.insert(args.end(), {"-p", package.name});
@@ -964,7 +973,7 @@ int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
     }
     const fs::path out = options.value("out") ? mcpplibs::os::fs::from_utf8(*options.value("out"))
                                               : root / "target" / "release" / "index";
-    const fs::path dist = root / "target" / "dist";
+    std::ofstream(mark, std::ios::binary) << "written by omui-devtools release index (a dry run); safe to remove\n";
     fs::remove_all(out, error);
     // Its sums, one line an archive, a file a release tag (SHA256SUMS, or SHA256SUMS-<tag> when the closure spans several
     // versions: spec's is its own): each of the closure's archives in one of them, or the run is not the whole of it.
@@ -989,7 +998,11 @@ int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
             return 1;
         }
     }
-    for (const auto& file : sum_files) fs::copy_file(file, out / file.filename(), fs::copy_options::overwrite_existing, error);
+    for (const auto& file : sum_files)
+        if (fs::copy_file(file, out / file.filename(), fs::copy_options::overwrite_existing, error); error) {
+            std::cerr << std::format("omui-devtools release index: {}: {}\n", mcpplibs::os::fs::utf8(file.filename()), error.message());
+            return 1;
+        }
     const json summary{{"roots", made->roots},
                        {"packages", listed},
                        {"external", made->external},
@@ -1146,7 +1159,7 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "release") {
         const cmd::ParsedArgs& asked = parsed->subcommand()->get();
         if (asked.subcommand_name() != "index") {
-            std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--repo URL] [--mirror URL] [--sums FILE] [--index DIR] | versions [--write]\n";
+            std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--index DIR]\n";
             return 2;
         }
         return release_index(asked.subcommand()->get(), root);

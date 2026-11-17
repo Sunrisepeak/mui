@@ -30,6 +30,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 mlibs.ts    = { path = "../../../../base/ts" }  # the tool kernel's TypeScript: blanking, evaluation
 mlibs.utils = { path = "../../../../base/utils" }  # mlibs.error: why a call cannot be edited
+mcpplibs.os = "0.4.4"  # a data file read as every platform reads one
 
 [dev-dependencies]
 # Tests are mtest's (D-147).

@@ -74,7 +74,7 @@ UTest cases{"audio.device", [] {
         // fills the device is short only by what it asked beyond that — the owner woke late, or the device's own thread did
         // and caught up its periods back to back (red 129: macOS, 512 frames with the owner on time). Counted each window,
         // with a period for the request in flight across a fill.
-        constexpr std::int64_t period = 256;  // the device's (DeviceOptions::period)
+        const std::int64_t period = audio::DeviceOptions{}.period;  // the device's request
         std::int64_t missable = 0, before = device->frames();
         const auto window = [&] {
             const std::int64_t now = device->frames(), asked = now - before;

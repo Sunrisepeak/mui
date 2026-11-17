@@ -488,7 +488,7 @@ void Runtime::Impl::run_motion() {
             const Point at{std::clamp((pressed_at.x - n.screen.x) / n.screen.width, 0.0f, 1.0f),
                            std::clamp((pressed_at.y - n.screen.y) / n.screen.height, 0.0f, 1.0f)};
             if (held_now) press = std::pair{at, 1.0f};
-            else if (was_held) press = std::pair{at, -0.5f};
+            else if (slot == 3 && was_held) press = std::pair{at, -0.5f};  // a state's change, not an order or a replacement
         }
         // Changing on and on (a meter, a playhead, a scroll gliding, a camera flying): it moves by itself, shown as it
         // is; a morph is for a change, not for a motion.

@@ -883,6 +883,7 @@ Result<std::unique_ptr<SdlDevice>> make(const Options& options, bool release_vid
     caps.device = device_name ? device_name : std::string(name(*backend));
     caps.formats = ours(SDL_GetGPUShaderFormats(device)) & options.formats;
     caps.software = software_device(caps.device);
+    caps.subpixel_bits = subpixel_bits_of(caps.device);  // SwiftShader's Vulkan keeps 4, as its WebGPU does
     caps.compute = true;
     caps.max_texture_size = 8192;
     caps.max_color_targets = max_color_targets;  // every backend of SDL_GPU has four and more a pass

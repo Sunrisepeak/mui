@@ -3,6 +3,7 @@ module omui.lang.ts;
 
 import std;
 import mlibs.ts;
+import mcpplibs.os;
 
 namespace omui::lang::ts {
 
@@ -33,9 +34,9 @@ std::expected<std::string, std::string> data_text(const std::filesystem::path& f
         if (!data) return std::unexpected(data.error().text());
         return data->snapshot();
     }
-    std::ifstream in(file, std::ios::binary);
-    if (!in) return std::unexpected(std::format("{}: cannot be read", reinterpret_cast<const char*>(file.generic_u8string().c_str())));
-    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    auto text = mcpplibs::os::fs::read(file);
+    if (!text) return std::unexpected(std::format("{}: {}", mcpplibs::os::fs::utf8(file), text.error().message()));
+    return std::move(*text);
 }
 
 std::string_view omui_define_types() {

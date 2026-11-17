@@ -39,12 +39,13 @@ std::string utf8(const std::filesystem::path& path) {
 }
 
 // A data file's JSON: a `.xdef.ts` module evaluated through a workspace's registry of kinds (mlibs.xdef) — its own,
-// else the one the command runs in — else the file as it is.
+// else the one the command runs in, else the composition's evaluator (the kinds it was built with) — else the file
+// as it is. A workspace comes first: it knows every kind its packages register, the composition only its own.
 std::expected<std::string, std::string> data_text(const std::filesystem::path& file, const Sources& sources) {
     if (utf8(file.filename()).ends_with(".xdef.ts")) {
-        if (sources.data) return sources.data(file);  // the composition's, which knows the kinds
         auto workspace = mlibs::xdef::workspace_of(std::filesystem::absolute(file));
         if (!workspace) workspace = mlibs::xdef::workspace_of(std::filesystem::current_path());
+        if (!workspace && sources.data) return sources.data(file);
         if (!workspace)
             return std::unexpected(std::format("{}: a data module is evaluated with a workspace's kinds, and neither it nor this directory is in one "
                                                "(run it from a workspace, or give its .json)", utf8(file)));

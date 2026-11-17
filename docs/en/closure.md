@@ -4,7 +4,7 @@ Each project's closure checklist (release plan §5.1, gate 3): stable and previe
 
 | Project | Label | 1★ definition and features | 2 API review | 3 errors | 4★ agent surface | 5 ops and skill | 6★ tests | 7 benchmarks | 8 side by side | 9 independent use | 10★ known limitations |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| mlibs | stable | ✓ | ✓ | ✓ | ✓ | exempt | ✓ | ✓ | ○ | ○ | ✓ |
+| mlibs | stable | ✓ | ✓ | ✓ | ✓ | exempt | ✓ | ✓ | ✓ | ○ | ✓ |
 | xrender | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ✓ |
 | hanim | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ✓ |
 | omui | stable | ✓ | ✓ | ✓ | ✓ | ✓ | exempt | ✓ | ○ | ○ | ✓ |
@@ -12,11 +12,10 @@ Each project's closure checklist (release plan §5.1, gate 3): stable and previe
 | gongfu | experimental | ✓ | — | — | ✓ | — | ✓ | — | — | — | ✓ |
 | xtools | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | exempt | ○ | ○ | ✓ |
 
-54 passed, 10 owed.
+55 passed, 9 owed.
 
 ## Owed
 
-- **mlibs**, 8 side by side: no claim in the ledger dated from 2026-11-15
 - **mlibs**, 9 independent use: probe hanim-core-consumer builds from paths; from published packages once RC3.1 publishes them
 - **xrender**, 9 independent use: probe hanim-play-consumer builds from paths; from published packages once RC3.1 publishes them
 - **hanim**, 9 independent use: probe hanim-api-probe builds from paths; from published packages once RC3.1 publishes them

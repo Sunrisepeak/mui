@@ -21,7 +21,7 @@
     {
       "id": "xrender.throughput",
       "where": "modules/projects/xrender/README.md",
-      "says": "throughput leads Skia and resvg on fills, gradients and small draws (1.26–3.7×) and is level with Skia on strokes and joins",
+      "says": "throughput leads Skia and resvg on fills, gradients and small draws (1.26–3.7×) and is level with Skia on strokes and joins on the development machine; on CI's 4-thread runner fills and small draws lead (1.27×, 3.35×), gradients and joins are level, strokes 0.92× behind",
       "kind": "speed",
       "evidence": [
         {
@@ -40,8 +40,8 @@
           "ledger": "raster.joins-300.median_ms"
         }
       ],
-      "date": "2026-11-15",
-      "hardware": "speak-pc-32t (the development machine: 32 threads, RTX 4080)"
+      "date": "2026-11-17",
+      "hardware": "speak-pc-32t (the development machine: 32 threads, RTX 4080) and CI's ubuntu-24.04 runner (4 threads), each side by side in one job"
     },
     {
       "id": "skeleton.compression",
@@ -77,6 +77,19 @@
       ],
       "date": "2026-11-15",
       "hardware": "speak-pc-32t (the development machine: 32 threads, RTX 4080)"
+    },
+    {
+      "id": "markdown.html-web",
+      "where": "modules/content/markdown/README.md",
+      "says": "Markdown to HTML the whole way on the Web is level with md4w (0.97×) and 7.6× faster than markdown-it",
+      "kind": "speed",
+      "evidence": [
+        {
+          "ledger": "markdown.html.web.median_ms"
+        }
+      ],
+      "date": "2026-11-17",
+      "hardware": "CI's ubuntu-24.04 runner (4 threads), side by side in one job (Bench run 44168311039)"
     }
   ]
 }

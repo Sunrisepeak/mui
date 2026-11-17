@@ -4,7 +4,7 @@
 
 | 项目 | 标注 | 1★ 定义与特性 | 2 API 复查 | 3 错误 | 4★ Agent 面 | 5 ops 与 skill | 6★ 测试 | 7 基准 | 8 并排对照 | 9 独立消费 | 10★ 已知局限 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| mlibs | stable | ✓ | ✓ | ✓ | ✓ | 例外 | ✓ | ✓ | ○ | ○ | ✓ |
+| mlibs | stable | ✓ | ✓ | ✓ | ✓ | 例外 | ✓ | ✓ | ✓ | ○ | ✓ |
 | xrender | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ✓ |
 | hanim | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ✓ |
 | omui | stable | ✓ | ✓ | ✓ | ✓ | ✓ | 例外 | ✓ | ○ | ○ | ✓ |
@@ -12,11 +12,10 @@
 | gongfu | experimental | ✓ | — | — | ✓ | — | ✓ | — | — | — | ✓ |
 | xtools | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 例外 | ○ | ○ | ✓ |
 
-通过 54 项，欠 10 项。
+通过 55 项，欠 9 项。
 
 ## 欠着的
 
-- **mlibs**, 8 并排对照: no claim in the ledger dated from 2026-11-15
 - **mlibs**, 9 独立消费: probe hanim-core-consumer builds from paths; from published packages once RC3.1 publishes them
 - **xrender**, 9 独立消费: probe hanim-play-consumer builds from paths; from published packages once RC3.1 publishes them
 - **hanim**, 9 独立消费: probe hanim-api-probe builds from paths; from published packages once RC3.1 publishes them

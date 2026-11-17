@@ -1,24 +1,24 @@
 # 领先度（lead）
 
-由 `omui-devtools lead docs` 从台账生成（2026-11-15）。判定规则见第二部分方案 §2.2。
+由 `omui-devtools lead docs` 从台账生成（2026-11-17）。判定规则见第二部分方案 §2.2。
 
 ## 指标
 
 | 项目 | 指标 | 我方 | 最强竞品 | 比值 [95% 区间] | 判定 |
 |---|---|---|---|---|---|
-| hanim | motion.drive-1000.web.mean_ms | hanim-wasm 0.0285 | gsap 0.14106 | 4.94× [4.85, 4.98] | ahead |
-| hanim | motion.drive-1000.web.p95_ms | hanim-wasm 0.0236 | gsap 0.06704 | 2.83× [2.48, 3.58] | ahead |
-| hanim | motion.drive-1000.web.max_ms | hanim-wasm 1.4636 | gsap 3.89762 | 2.72× [2.48, 2.84] | ahead |
+| hanim | motion.drive-1000.web.mean_ms | hanim-wasm 0.0564 | gsap 0.26535 | 4.72× [4.59, 4.79] | ahead |
+| hanim | motion.drive-1000.web.p95_ms | hanim-wasm 0.0626 | gsap 0.12313 | 1.91× [1.86, 2.14] | ahead |
+| hanim | motion.drive-1000.web.max_ms | hanim-wasm 5.448 | gsap 10.539 | 1.88× [1.69, 2.05] | ahead |
 | hanim | motion.drive-10k.web.mean_ms | — | gsap, motion | — | planned |
 | hanim | motion.document.bytes | — | lottie, rive | — | planned |
 | hanim | motion.playback.ms | — | rive, lottie-web | — | planned |
 | hanim | motion.gpu.morph-1m.ms | — | hanim-cpu | — | unverified |
-| hanim | playback.lottie-200.median_ms | hanim 1.072 | thorvg 0.919 | 0.86× [0.85, 0.87] | behind |
-| xrender | raster.fills-1000.median_ms | xrender 8.838 | skia 11.657 | 1.31× [1.30, 1.32] | ahead |
-| xrender | raster.gradients-200.median_ms | xrender 5.734 | skia 7.17 | 1.26× [1.25, 1.28] | ahead |
-| xrender | raster.small-5000.median_ms | xrender 2.007 | resvg 7.381 | 3.69× [3.46, 3.70] | ahead |
-| xrender | raster.strokes-500.median_ms | xrender 10.493 | skia 10.295 | 0.98× [0.98, 0.99] | par |
-| xrender | raster.joins-300.median_ms | xrender 9.373 | skia 10.221 | 1.09× [1.08, 1.12] | par |
+| hanim | playback.lottie-200.median_ms | hanim 2.099 | thorvg 1.666 | 0.79× [0.79, 0.80] | behind |
+| xrender | raster.fills-1000.median_ms | xrender 18.158 | skia 23.147 | 1.27× [1.25, 1.28] | ahead |
+| xrender | raster.gradients-200.median_ms | xrender 11.723 | skia 11.632 | 0.99× [0.99, 1.00] | par |
+| xrender | raster.small-5000.median_ms | xrender 3.867 | resvg 12.905 | 3.35× [3.34, 3.38] | ahead |
+| xrender | raster.strokes-500.median_ms | xrender 21.689 | skia 19.67 | 0.92× [0.91, 0.93] | behind |
+| xrender | raster.joins-300.median_ms | xrender 19.87 | skia 19.551 | 0.99× [0.97, 0.99] | par |
 | xrender | raster.fills-1000.error | xrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | ahead |
 | xrender | raster.gradients-200.error | xrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | par |
 | xrender | raster.small-5000.error | xrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | ahead |
@@ -50,7 +50,7 @@
 | gongfu | rollback.8-frames.ms | — | ggrs | — | planned |
 | mlibs | text.paragraph.ms | — | skparagraph | — | planned |
 | mlibs | layout.flex-grid-5000.ms | — | taffy, yoga | — | planned |
-| mlibs | markdown.html.web.median_ms | mlibs.markdown-wasm 8.151 | md4w 8.211 | 1.01× [0.99, 1.03] | par |
+| mlibs | markdown.html.web.median_ms | mlibs.markdown-wasm 21.336 | md4w 20.788 | 0.97× [0.96, 0.98] | par |
 | mlibs | markdown.commonmark.pass | — | md4c, cmark-gfm | — | planned |
 | mlibs | i18n.data.bytes | — | icu4x | — | planned |
 

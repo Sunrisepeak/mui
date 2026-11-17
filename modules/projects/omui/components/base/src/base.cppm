@@ -1,4 +1,4 @@
-// openmui.ui.base — the Core components (spec §11) as behaviour: each class
+// omui.ui.base — the Core components (spec §11) as behaviour: each class
 // derives from the CRTP base omui-gen made from its contract, and uses the
 // runtime's public API only (component-binding §1). The look is the theme's.
 // Beside them, the package's own (its contract/ directory, made into code

@@ -87,7 +87,7 @@ inline Match decode(const omui::native::Json& j, std::type_identity<Match>) {
     return v;
 }
 
-// Registers the module for scripts (openmui.native; the C ABI's
+// Registers the module for scripts (omui.native; the C ABI's
 // omuiNativeCall), once, before any script runs.
 inline std::expected<void, std::string> define() {
     namespace n = omui::native;

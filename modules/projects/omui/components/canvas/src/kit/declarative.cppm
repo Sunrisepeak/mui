@@ -1,4 +1,4 @@
-// openmui.ui.canvas.kit:declarative — behaviours as data
+// omui.ui.canvas.kit:declarative — behaviours as data
 // (view-data-files §5): a statechart in a *.behavior.xdef.ts, run by C++. The
 // kit reads the JSON the module evaluates to (D-139; the build embeds it,
 // xdef snapshot writes it out).

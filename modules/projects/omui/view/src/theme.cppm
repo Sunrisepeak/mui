@@ -1,4 +1,4 @@
-// openmui.view:theme — design tokens.
+// omui.view:theme — design tokens.
 //
 // Components never hard-code a colour, a size or a curve: they read tokens
 // (colours, text styles, spacing, radii, shadows, motion) from the theme the

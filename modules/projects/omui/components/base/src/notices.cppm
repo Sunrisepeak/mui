@@ -1,4 +1,4 @@
-// openmui.ui.base:notices — what a page says about where things stand: an
+// omui.ui.base:notices — what a page says about where things stand: an
 // alert (a message in the page that needs attention, its tone, one action)
 // and a stepper (the steps of a sequence: those done, the current one, those
 // ahead; each step an item of the semantic tree, a done one gone back to).

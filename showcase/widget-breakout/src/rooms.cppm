@@ -77,7 +77,7 @@ struct Contraption {
 // `changed`: told when a brick's control is changed by anything but the field (an agent acting on it).
 [[nodiscard]] std::vector<Element> room_bricks(const RoomDef& r, std::function<void(std::size_t)> changed = {});
 
-// The scene a canvas room's bricks are in (openmui.ui.canvas): far, boxes
+// The scene a canvas room's bricks are in (omui.ui.canvas): far, boxes
 // of their colour; near, live cards and switches.
 inline constexpr std::string_view cloud_scene = "breakout.cloud";
 // The scene filled with the room's bricks (its kinds registered once).

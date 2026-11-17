@@ -1,4 +1,4 @@
-// openmui.ui.base:dialog — windows over the application: a dialog (modal by
+// omui.ui.base:dialog — windows over the application: a dialog (modal by
 // default: a scrim, focus kept inside, Escape or a press outside dismisses
 // it) and a tooltip (a short description of the element before it, shown
 // after a delay while it is hovered or focused).

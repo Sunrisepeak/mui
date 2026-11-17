@@ -1,4 +1,4 @@
-// openmui.ui.base:reading — kbd, separator, link, description list, spinner.
+// omui.ui.base:reading — kbd, separator, link, description list, spinner.
 module omui.ui.base;
 
 import std;

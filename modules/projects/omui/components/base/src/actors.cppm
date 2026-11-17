@@ -1,4 +1,4 @@
-// openmui.ui.base:actors — who else acts here, and what each did (agent
+// omui.ui.base:actors — who else acts here, and what each did (agent
 // connect §3.2): the person's agent link and the journal's actions of other
 // actors, newest last. Each record is a node of the semantic tree (an item,
 // `<id>/<entry>`); the last its history holds is taken back from here; the

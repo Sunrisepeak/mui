@@ -1,4 +1,4 @@
-// openmui.ui.markdown:parts — the nodes a document is made of (an
+// omui.ui.markdown:parts — the nodes a document is made of (an
 // implementation partition: nothing here is exported).
 //
 // Every block of the document is a node of its own, so the semantic tree has

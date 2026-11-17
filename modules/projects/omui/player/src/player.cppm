@@ -1,11 +1,11 @@
-// openmui.player — an application's views, components and scripts, run and
+// omui.player — an application's views, components and scripts, run and
 // reloaded in place (component-binding §9, §10.2).
 //
 //     omui::player::Player p(runtime, manifest, {omui::lang::js::typescript()});
 //     if (auto r = p.start(); !r) …;
 //     p.watch();   // saved files show at once
 //
-// Views and components are view documents (openmui.viewdoc); a script runs in
+// Views and components are view documents (omui.viewdoc); a script runs in
 // a Language, a plugin the entry registers (the player knows none itself), on
 // a thread of its own, over the C ABI. A file that changes is reloaded in
 // place: a view keeps its nodes and state, a component its instances, a

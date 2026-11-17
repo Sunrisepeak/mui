@@ -130,7 +130,7 @@ std::string emit_cpp_native(const NativeModule& m, const CppOptions& o, std::str
 
     // define().
     out += std::format(
-        "\n// Registers the module for scripts (openmui.native; the C ABI's\n"
+        "\n// Registers the module for scripts (omui.native; the C ABI's\n"
         "// omuiNativeCall), once, before any script runs.\n"
         "inline std::expected<void, std::string> define() {{\n"
         "    namespace n = omui::native;\n"

@@ -1,4 +1,4 @@
-// openmui.theme.styles — the style packs (S2), carried in the program.
+// omui.theme.styles — the style packs (S2), carried in the program.
 //
 //     omui::themes::add_styles();               // glass, neon, retro, ink, liquid; fluent, cupertino, material
 //     omui::theme::apply_style(rt, "neon");    // a cross-fade from what was shown

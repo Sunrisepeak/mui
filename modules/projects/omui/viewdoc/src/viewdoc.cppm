@@ -1,4 +1,4 @@
-// openmui.viewdoc — view documents (`*.view.xdef.json`, view-data-files §3).
+// omui.viewdoc — view documents (`*.view.xdef.json`, view-data-files §3).
 //
 // One of the two ways to write a view, as data: for designers, agents and
 // generative interfaces, for components shared by every language, and for

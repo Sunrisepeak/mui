@@ -1,4 +1,4 @@
-// openmui.accessibility:native — the one platform service of this build, as
+// omui.accessibility:native — the one platform service of this build, as
 // the adapter drives it: AccessKit's unix adapter (AT-SPI), its Windows
 // subclassing adapter (UI Automation) or its macOS one (NSAccessibility).
 // Each lives in its own unit (unix/, windows/, macos/), chosen by the

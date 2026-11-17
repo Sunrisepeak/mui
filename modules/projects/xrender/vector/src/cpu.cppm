@@ -78,7 +78,7 @@ struct RenderReport {
 [[nodiscard]] std::string_view command_kind_name(std::size_t index) noexcept;
 
 // Runs body(0) … body(count − 1) at the same time, in any order, and returns
-// when all have run: the host's thread pool (openmui.core's Tasks, or any
+// when all have run: the host's thread pool (omui.core's Tasks, or any
 // other). This package has none of its own.
 class Parallel {
 public:

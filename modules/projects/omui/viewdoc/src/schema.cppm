@@ -1,4 +1,4 @@
-// openmui.viewdoc:schema — the documents' JSON Schema and canonical format.
+// omui.viewdoc:schema — the documents' JSON Schema and canonical format.
 //
 // The schema is generated from what is registered (every component type,
 // its contract's properties with their types and documentation, its events,

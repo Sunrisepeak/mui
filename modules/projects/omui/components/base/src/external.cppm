@@ -1,4 +1,4 @@
-// openmui.ui.base:external — what the system draws inside the interface
+// omui.ui.base:external — what the system draws inside the interface
 // (D-141): a web page in the system's own web view, which the host places
 // over this node; the tree says where the page is, its title and whether it
 // is loading. Where the host has none, a card that opens the system's browser.

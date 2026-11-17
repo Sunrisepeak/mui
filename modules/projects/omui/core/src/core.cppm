@@ -1,4 +1,4 @@
-// openmui.core — the foundation of the openmui runtime.
+// omui.core — the foundation of the openmui runtime.
 //
 //   :base      the spec's values (Value, Role, Effect …), the shared geometry
 //              (openmui.geom), memory utilities (openmui.memory), anim's time

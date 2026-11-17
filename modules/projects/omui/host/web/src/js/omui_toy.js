@@ -1,4 +1,4 @@
-// openmui.host.web.toy's half in the page: window.toy (Toy's SDK, which the
+// omui.host.web.toy's half in the page: window.toy (Toy's SDK, which the
 // page loads itself) called by name, its promise answered through the
 // program's callback. An Emscripten library (--js-library).
 addToLibrary({

@@ -1,5 +1,5 @@
 // The style packs (styles/*.style.xdef.ts) embedded in the program:
-// partitions openmui.theme.styles:<name>_style.
+// partitions omui.theme.styles:<name>_style.
 import std;
 import mcpp;
 import omui.build.embed;

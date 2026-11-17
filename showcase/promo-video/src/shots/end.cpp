@@ -2,7 +2,7 @@
 // shrinks to its button and the camera dives into that one pixel — which
 // becomes the cursor of a command line, and the command that starts an
 // openmui program is typed. Under it, the film itself as data: this cut's
-// timeline in openmui.ui.timeline's editor, its playhead on this frame.
+// timeline in omui.ui.timeline's editor, its playhead on this frame.
 // Then the closing line.
 module omui.showcase.promo_video;
 

@@ -1,4 +1,4 @@
-// `omui::run` on the desktop: a window (openmui.host.sdl3).
+// `omui::run` on the desktop: a window (omui.host.sdl3).
 module omui;
 
 import std;

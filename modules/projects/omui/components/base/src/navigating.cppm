@@ -1,4 +1,4 @@
-// openmui.ui.base:navigating — finding one's way and the choices at hand: the
+// omui.ui.base:navigating — finding one's way and the choices at hand: the
 // choices for an element where the person asked for them (context menu),
 // more about an element while it is pointed at (hover card), the
 // application's commands found by name (command palette), its places down

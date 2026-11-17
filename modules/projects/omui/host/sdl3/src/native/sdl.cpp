@@ -1,4 +1,4 @@
-// SDL3 for openmui.host.sdl3:platform. The one unit that uses SDL (imported
+// SDL3 for omui.host.sdl3:platform. The one unit that uses SDL (imported
 // as a module, mcpplibs.mwrap.sdl3; its macros as constants): everything
 // leaves as openmui's own types.
 module omui.host.sdl3;

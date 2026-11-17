@@ -411,7 +411,7 @@ JSValue n_splice(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     return JS_UNDEFINED;
 }
 
-// The runtime's theme (openmui.theme): a JSON list of layers.
+// The runtime's theme (omui.theme): a JSON list of layers.
 JSValue n_theme(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     const Json layers = Json::parse(text(ctx, argv[0]), nullptr, false);
     std::vector<std::string> l;

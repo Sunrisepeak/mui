@@ -1,4 +1,4 @@
-// openmui.ui.base's components for finding one's way (W9): context menu,
+// omui.ui.base's components for finding one's way (W9): context menu,
 // hover card, command palette, sidebar, toolbar — driven as people and agents
 // drive them (a secondary press, pointing, typing, keys, actions, items),
 // their semantics, and a gallery whose pixels are pinned for every platform.

@@ -1,4 +1,4 @@
-// openmui.view:element — the view IR (contract ②, spec §4).
+// omui.view:element — the view IR (contract ②, spec §4).
 //
 // An Element is a component type, an explicit id or none, properties,
 // event handlers, transitions and children. Builders in every language,

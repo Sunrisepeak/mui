@@ -114,7 +114,7 @@ RoomDef cloud() {
     r.height = 2 * field_h;
     r.chamber = 700;
     r.hint = "Hold Z  see the whole room";
-    r.made = "The room is an infinite canvas (openmui.ui.canvas): a scene of nodes, drawn far away as one instanced batch of boxes and "
+    r.made = "The room is an infinite canvas (omui.ui.canvas): a scene of nodes, drawn far away as one instanced batch of boxes and "
              "promoted near to live components. The camera is part of the simulation's state, so a rewind brings it back exactly; it never "
              "zooms out past half, so the ball stays big enough to follow.";
     auto& b = r.bricks;

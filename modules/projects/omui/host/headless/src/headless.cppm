@@ -1,4 +1,4 @@
-// openmui.host.headless — openmui without a display (plan §8.2).
+// omui.host.headless — openmui without a display (plan §8.2).
 //
 // A Headless owns a runtime on a clock it steps itself (one frame per step,
 // at the frame rate it was given), injects input the way a person would

@@ -1,4 +1,4 @@
-// openmui.semantic:query — what to look for in the tree, and what to wait for
+// omui.semantic:query — what to look for in the tree, and what to wait for
 // (`find` and `wait` of openmui.tree@0.1, spec §9).
 //
 // A query matches nodes by id or subtree, role, name (a glob: `删除*`),

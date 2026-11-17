@@ -1,4 +1,4 @@
-// openmui.ui.base:slider — a number in a range, by dragging the thumb,
+// omui.ui.base:slider — a number in a range, by dragging the thumb,
 // clicking the track, keys (arrows step, Home and End jump) or actions;
 // `changed` while it moves, `committed` when a drag ends.
 export module omui.ui.base:slider;

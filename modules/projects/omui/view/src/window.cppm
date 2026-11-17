@@ -1,4 +1,4 @@
-// openmui.view:window — the window an interface is shown in (D-75), as the
+// omui.view:window — the window an interface is shown in (D-75), as the
 // interface sees it: its state (normal, maximized, minimized, fullscreen),
 // whether it is active, whether it is closing, and whether its frame is the
 // interface's own (framework-drawn) or the system's. What can be done to it —

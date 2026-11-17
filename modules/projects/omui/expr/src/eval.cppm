@@ -1,4 +1,4 @@
-// openmui.expr:eval — evaluating an expression, synchronously.
+// omui.expr:eval — evaluating an expression, synchronously.
 //
 // Names resolve through the environment (a binding's signals, a component's
 // properties, a model's row). Evaluation has no side effects and always ends;

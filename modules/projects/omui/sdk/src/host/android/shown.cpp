@@ -1,5 +1,5 @@
 // `omui::run` on Android: the window the platform's NativeActivity gives
-// (openmui.host.android), drawn by the framework.
+// (omui.host.android), drawn by the framework.
 module omui;
 
 import std;

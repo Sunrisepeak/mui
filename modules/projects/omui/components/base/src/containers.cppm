@@ -1,4 +1,4 @@
-// openmui.ui.base:containers — what holds the application's own content: a
+// omui.ui.base:containers — what holds the application's own content: a
 // split view (two panes sharing their room, the share moved by a handle that
 // is an item of its own) and a drawer (a sheet along the window's edge, over
 // the page).

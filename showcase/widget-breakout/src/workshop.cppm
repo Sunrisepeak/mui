@@ -1,6 +1,6 @@
 // openmui.showcase.widget_breakout:workshop — the contraptions' scripts
 // (gifts/*.ts, in TypeScript), what is inside their casings. Each script registers a verb `gift.<name>` answering its gift's
-// rules; the workshop runs them on openmui's script host (openmui.lang), and
+// rules; the workshop runs them on openmui's script host (omui.lang), and
 // applying an edited one (a preset, or the player's own edit) reloads it in
 // place (hot), asks its verb again, checks what it answers and hands the
 // rules over — a script never runs in a step: the rules reach the

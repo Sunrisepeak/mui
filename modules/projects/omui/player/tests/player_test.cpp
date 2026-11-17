@@ -121,7 +121,7 @@ UTest cases{"player", [] {
         write(dir / "ui" / "badge.view.xdef.json", badge_doc);
         write(dir / "logic" / "side.stub", R"j({"omui": "0.1", "view": {"root": {"type": "text", "id": "hello", "props": {"text": "from a script"}}}})j");
         player::Manifest m;
-        m.id = "org.openmui.player-test";
+        m.id = "org.omui.player-test";
         m.base = dir;
         m.components = {"ui/badge.view.xdef.json"};
         m.views = {"ui/main.view.xdef.json"};
@@ -204,7 +204,7 @@ UTest cases{"player", [] {
         const auto dir = scratch_dir("player-no-design");
         write(dir / "logic" / "side.stub", R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "x"}}}})j");
         player::Manifest m;
-        m.id = "org.openmui.player-no-design";
+        m.id = "org.omui.player-no-design";
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         Headless h(HeadlessOptions{.size = {320, 240}});
@@ -217,7 +217,7 @@ UTest cases{"player", [] {
         const auto dir = scratch_dir("player-no-designer");
         write(dir / "logic" / "side.stub", R"j({"omui": "0.1", "view": {"root": {"type": "column", "children": [{"type": "text", "id": "hello", "props": {"text": "hi"}}]}}})j");
         player::Manifest m;
-        m.id = "org.openmui.player-no-designer";
+        m.id = "org.omui.player-no-designer";
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         Headless h(HeadlessOptions{.size = {320, 240}});

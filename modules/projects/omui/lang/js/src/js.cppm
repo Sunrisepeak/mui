@@ -1,4 +1,4 @@
-// openmui.lang.js — JavaScript and TypeScript on the Script Binding Profile
+// omui.lang.js — JavaScript and TypeScript on the Script Binding Profile
 // (component-binding §5.2, §7), with QuickJS-ng.
 //
 //     import { signal, fmt, column, text, button, mount } from "openmui";

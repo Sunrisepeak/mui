@@ -1,4 +1,4 @@
-// openmui.ui.base:list — a list of a model's rows, virtualised (spec S-7):
+// omui.ui.base:list — a list of a model's rows, virtualised (spec S-7):
 // only the rows in view (and a few beyond) are nodes; the rest are stated by
 // the semantic tree all the same, offscreen, and an action on one brings it
 // into view first. Rows keep their measured heights; Tab enters at one item

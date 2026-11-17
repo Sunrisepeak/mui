@@ -1,4 +1,4 @@
-// openmui.ui.base:menu — a popup list of commands, and its items. The menu
+// omui.ui.base:menu — a popup list of commands, and its items. The menu
 // is an overlay below its parent (the button that opens it); `open` is
 // bindable; Escape, a press outside, or choosing an item closes it, and
 // focus goes back to where it came from.

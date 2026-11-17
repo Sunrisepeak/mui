@@ -1,4 +1,4 @@
-// openmui.core:verb — the application's named operations (spec §5).
+// omui.core:verb — the application's named operations (spec §5).
 //
 // A verb is what a button, a shortcut, a script and an agent all invoke by
 // name: `note.delete`. Its description states its effect; an irreversible or

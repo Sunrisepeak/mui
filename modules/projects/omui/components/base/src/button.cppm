@@ -1,4 +1,4 @@
-// openmui.ui.base:button — performs an action when activated (contract
+// omui.ui.base:button — performs an action when activated (contract
 // `button`): four variants, hover and press feedback (a fast colour change,
 // a snappy spring), keyboard focus ring, the verb it invokes classifying its
 // effect (S-1).

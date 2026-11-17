@@ -1,4 +1,4 @@
-// openmui.expr:ast — the expression AST and the combinators that build it.
+// omui.expr:ast — the expression AST and the combinators that build it.
 //
 // An Expr is an immutable tree of nodes; combinators share their arguments'
 // subtrees, so building is cheap and an expression can be reused anywhere.

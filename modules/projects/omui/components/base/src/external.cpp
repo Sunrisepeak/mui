@@ -1,4 +1,4 @@
-// What the system draws inside the interface (openmui.ui.base:external): a
+// What the system draws inside the interface (omui.ui.base:external): a
 // web page in the system's own web view, placed by the host over the node.
 module omui.ui.base;
 

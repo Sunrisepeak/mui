@@ -1,4 +1,4 @@
-// openmui.viewdoc:instance — a view document running.
+// omui.viewdoc:instance — a view document running.
 //
 //     auto view = omui::viewdoc::View::load(rt, text, {.file = "counter.view.xdef.json"});
 //     view->slot("toolbar", my_toolbar());

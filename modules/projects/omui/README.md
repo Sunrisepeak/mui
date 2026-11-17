@@ -18,7 +18,7 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 | [sdk](sdk) | `omui.sdk`: the umbrella package users name (`import omui;`): the runtime, the base components, the default theme, `omui::run`; runtime generation (D-144, `omui.generate`, preview) |
 | [entry](entry) | omui's programs: the player (a TypeScript application run from its manifest) and the development host (`omui dev`: the window held, the designer linked) |
 | [tools](tools) | omui's toolkit: the `omui` command, the MCP server, the generator `omui-gen` |
-| [components](components) | The component libraries (`openmui.ui.*`) |
+| [components](components) | The component libraries (`omui.ui.*`) |
 | [lang](lang) | The language binding: TypeScript, over the C ABI |
 | [cts](cts) | `omui.cts`: the specification's level S run in every language, on mlibs.cts |
 

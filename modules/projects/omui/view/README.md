@@ -63,7 +63,7 @@ The retained and immediate view runtime (plan §3–§5):
 - **immediate mode** (`omui::immediate`, `Ui`): ids from the id stack and
   call site, builds only when something happened;
 - **the frame is a pipeline** (D-66): eight stage plugins
-  (`openmui.view.timers` … `.debug`) over the frame's resources (`frame`,
+  (`omui.view.timers` … `.debug`) over the frame's resources (`frame`,
   `tree`, `layout`, `bounds`, `display`); `runtime_pipeline(Stages)` gives
   H0, H1 and H2; `RuntimeOptions::pipeline` / `plugins` add your own stages;
   `frame_pipeline()` and `stage_plugins()` change it between frames;

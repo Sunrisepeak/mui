@@ -1,4 +1,4 @@
-// openmui.expr — the expression language of bindings (view-data-files §4).
+// omui.expr — the expression language of bindings (view-data-files §4).
 //
 // One AST (registry/expr.json), two ways to write it: combinators in code and
 // CEL-compatible text in view documents and behaviours.

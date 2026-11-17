@@ -1,4 +1,4 @@
-// openmui.view:immediate — immediate mode (openmui.im, D-05).
+// omui.view:immediate — immediate mode (openmui.im, D-05).
 //
 // A function declares the interface every build; the declarations are
 // reconciled by id with the nodes, so immediate and retained mode produce one

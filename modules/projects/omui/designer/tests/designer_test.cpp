@@ -157,7 +157,7 @@ UTest cases{"designer", [] {
         const std::string first = R"j({"omui": "0.1", "view": {"root": {"type": "text", "id": "hello", "props": {"text": "first"}}}})j";
         write(dir / "logic" / "side.stub", first);
         player::Manifest m;
-        m.id = "org.openmui.player-design";
+        m.id = "org.omui.player-design";
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         Headless h(HeadlessOptions{.size = {320, 240}});
@@ -248,7 +248,7 @@ UTest cases{"designer", [] {
                                             file);
         write(dir / "logic" / "side.stub", doc);
         player::Manifest m;
-        m.id = "org.openmui.player-locate";
+        m.id = "org.omui.player-locate";
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         Headless h(HeadlessOptions{.size = {320, 240}});
@@ -287,7 +287,7 @@ UTest cases{"designer", [] {
 )j";
         write(dir / "logic" / "side.stub", base);
         player::Manifest m;
-        m.id = "org.openmui.player-history";
+        m.id = "org.omui.player-history";
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         Headless h(HeadlessOptions{.size = {320, 240}});
@@ -375,7 +375,7 @@ UTest cases{"designer", [] {
 )j";
         write(dir / "logic" / "side.stub", doc);
         player::Manifest m;
-        m.id = "org.openmui.player-stand-in";
+        m.id = "org.omui.player-stand-in";
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         int stand_ins = 0;
@@ -484,7 +484,7 @@ UTest cases{"designer", [] {
 )j";
         write(dir / "logic" / "side.stub", doc);
         player::Manifest m;
-        m.id = "org.openmui.player-timeline";
+        m.id = "org.omui.player-timeline";
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         int stand_ins = 0;
@@ -718,7 +718,7 @@ UTest cases{"designer", [] {
         const auto part = dir / "logic" / "part.stub";
         player::Language language{"stub", {".stub"}, [&](abi::OmuiRuntime rt) -> std::unique_ptr<player::Engine> { return std::make_unique<ModuleStub>(rt, part, log); }, {}, {}};
         player::Manifest m;
-        m.id = "org.openmui.player-modules";
+        m.id = "org.omui.player-modules";
         m.base = dir;
         m.scripts = {{"stub", "logic/main.stub"}};
         Headless h(HeadlessOptions{.size = {320, 240}});
@@ -765,7 +765,7 @@ UTest cases{"designer", [] {
         const auto dir = scratch_dir("player-design-film");
         write(dir / "logic" / "side.stub", page(false));
         player::Manifest m;
-        m.id = "org.openmui.player-design-film";
+        m.id = "org.omui.player-design-film";
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         Headless h(HeadlessOptions{.size = {240, 200}});
@@ -816,7 +816,7 @@ UTest cases{"designer", [] {
         write(dir / "ui" / "main.view.xdef.json", counter);
         write(dir / "ui" / "badge.view.xdef.json", badge_doc);
         player::Manifest m;
-        m.id = "org.openmui.player-scenario";
+        m.id = "org.omui.player-scenario";
         m.base = dir;
         m.components = {"ui/badge.view.xdef.json"};
         m.views = {"ui/main.view.xdef.json"};

@@ -35,7 +35,7 @@ struct embed_options {
 [[nodiscard]] std::vector<edge> plan_embed(const embed_options& opt);
 bool embed(embed_options opt);
 
-// ── theme packages (openmui.theme) ──────────────────────────────────────────
+// ── theme packages (omui.theme) ──────────────────────────────────────────
 
 struct theme_options {
     std::string module;                                   // the package's module (acme.themes)

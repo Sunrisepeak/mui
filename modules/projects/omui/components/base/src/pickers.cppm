@@ -1,4 +1,4 @@
-// openmui.ui.base:pickers — a date, a time of day and a colour, each chosen
+// omui.ui.base:pickers — a date, a time of day and a colour, each chosen
 // the way a person expects and named the way an agent needs: a date picker
 // (its popup a month, each day an item of the picker, `<id>/2026-11-05`), a
 // time picker (its hours and minutes spin buttons of their own) and a colour

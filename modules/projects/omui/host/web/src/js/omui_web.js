@@ -1,4 +1,4 @@
-// openmui.host.web's half in the page: what the C++ side cannot do through
+// omui.host.web's half in the page: what the C++ side cannot do through
 // Emscripten's HTML5 API. An Emscripten library (--js-library): each
 // function is linked into the program's JavaScript by name.
 //

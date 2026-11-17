@@ -1,4 +1,4 @@
-// Web pages in WKWebView (openmui.host.sdl3:web), for macOS alone: the
+// Web pages in WKWebView (omui.host.sdl3:web), for macOS alone: the
 // system's own web view, made and placed in the window's content view and
 // spoken to through mcpplibs.os's Objective-C runtime — no SDK header. What a
 // page is now (its address, title, loading, history) is read each turn of the

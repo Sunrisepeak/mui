@@ -1,4 +1,4 @@
-// openmui.view:primitives — the runtime's own components and their builders.
+// omui.view:primitives — the runtime's own components and their builders.
 //
 // Boxes (with column / row / stack / grid presets), text, images, scroll
 // views and custom painters: what every component package composes. Builders

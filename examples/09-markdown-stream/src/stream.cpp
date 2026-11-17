@@ -14,7 +14,7 @@ namespace md = mlibs::markdown;
 std::string pieces(std::size_t n) { return std::format("{} {}", n, n == 1 ? "piece" : "pieces"); }
 
 // The newest leaf of the document — where appended text lands — and the path
-// of its node: the ids openmui.ui.markdown gives its blocks.
+// of its node: the ids omui.ui.markdown gives its blocks.
 struct Leaf {
     std::string path;
     std::size_t length = 0;  // its text, in bytes (as its node draws it)

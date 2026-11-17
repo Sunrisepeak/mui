@@ -472,12 +472,12 @@ static UTest cases{"agent", [] {
         expect(exit_of(show) == 0);
         const Value* d = show[0].get("data");
         expect(d && d->get("name")->as_string() == "runtime.h2" && d->get("stages")->list()->size() == 9);  // … paint, motion, debug
-        expect((*d->get("stages")->list())[4].get("plugin")->as_string() == "openmui.view.layout");
+        expect((*d->get("stages")->list())[4].get("plugin")->as_string() == "omui.view.layout");
         expect(d->get("description") && d->get("description")->get("stages")->list()->size() == 9 && d->get("graph")->as_string().contains("writes display"));
-        expect(std::ranges::any_of(*d->get("plugins")->list(), [](const Value& x) { return x.get("name")->as_string() == "openmui.view.debug"; }));
+        expect(std::ranges::any_of(*d->get("plugins")->list(), [](const Value& x) { return x.get("name")->as_string() == "omui.view.debug"; }));
         auto rm = talk(p, R"({"op":"pipeline","action":"remove","stage":"debug"})");
         expect(exit_of(rm) == 0 && rm[0].get("data")->get("stages")->list()->size() == 8);
-        auto back = talk(p, R"({"op":"pipeline","action":"insert","stage":"debug","plugin":"openmui.view.debug","after":["paint"]})");
+        auto back = talk(p, R"({"op":"pipeline","action":"insert","stage":"debug","plugin":"omui.view.debug","after":["paint"]})");
         expect(exit_of(back) == 0 && back[0].get("data")->get("stages")->list()->size() == 9);
         auto bad = talk(p, R"({"op":"pipeline","action":"replace","stage":"paint","plugin":"nonesuch"})");
         expect(exit_of(bad) == 1 && bad[0].json().contains("no plugin `nonesuch`")) << bad[0].json();

@@ -1,4 +1,4 @@
-// openmui.ui.base:toggle and :checkbox share the shape of a two-state control
+// omui.ui.base:toggle and :checkbox share the shape of a two-state control
 // with a label: a box or track at the start, the label after it, the whole
 // clickable, Space (and Enter for a switch) toggling it.
 export module omui.ui.base:toggle;

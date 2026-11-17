@@ -1,4 +1,4 @@
-// openmui.ui.base:navigation — where one is among places: a breadcrumb (the
+// omui.ui.base:navigation — where one is among places: a breadcrumb (the
 // way down to here, each place a link) and a pagination (which page of many).
 // Each crumb and each page is a node of the semantic tree an agent finds and
 // activates (`<id>/<index>`, `<id>/<page>`, `<id>/previous`, `<id>/next`) —

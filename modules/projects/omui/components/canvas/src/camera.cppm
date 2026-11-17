@@ -1,4 +1,4 @@
-// openmui.ui.canvas:camera — where the canvas looks (canvas-markdown §1.5).
+// omui.ui.canvas:camera — where the canvas looks (canvas-markdown §1.5).
 //
 // The camera is the world point at the viewport's centre, in double
 // precision, and a zoom (screen pixels per world unit). Drawing is camera-

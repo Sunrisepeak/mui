@@ -1,4 +1,4 @@
-// openmui.ui.base:entry — what is typed and chosen at once: a combobox (one
+// omui.ui.base:entry — what is typed and chosen at once: a combobox (one
 // value typed or chosen from the options matching what is typed) and a tag
 // input (tags gathered by typing or choosing a suggestion, each a chip
 // removed by its ×). Both type into a text box of their own and offer their

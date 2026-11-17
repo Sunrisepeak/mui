@@ -1,4 +1,4 @@
-// openmui.core:platform — whose conventions the interface follows (D6). The
+// omui.core:platform — whose conventions the interface follows (D6). The
 // interface is drawn the same everywhere (D-140); how it answers a person is
 // each platform's: which key is `Mod`, whether a scroll pulled past its end
 // stretches and springs back, when a right button asks for a context menu,

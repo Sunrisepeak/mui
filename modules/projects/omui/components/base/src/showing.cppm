@@ -1,4 +1,4 @@
-// openmui.ui.base:showing — what is shown to be looked at: numbers over
+// omui.ui.base:showing — what is shown to be looked at: numbers over
 // labelled steps (chart) and one of several slides at a time (carousel).
 export module omui.ui.base:showing;
 

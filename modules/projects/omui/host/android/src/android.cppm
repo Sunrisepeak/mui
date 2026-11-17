@@ -1,4 +1,4 @@
-// openmui.host.android — omui on Android (W10, G1): the framework draws every
+// omui.host.android — omui on Android (W10, G1): the framework draws every
 // pixel (D-140) into the window the platform's NativeActivity gives it; the
 // person's touches are pointers (touch: Android's conventions — a stretch at
 // a scroll's edge is not Android's, a touch held asks for the context menu),

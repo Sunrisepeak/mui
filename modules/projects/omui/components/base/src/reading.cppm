@@ -1,4 +1,4 @@
-// openmui.ui.base:reading — what is read in the page and points on from it:
+// omui.ui.base:reading — what is read in the page and points on from it:
 // a key or chord to press (kbd), a line between groups (separator), text that
 // goes somewhere (link), terms and what they mean (description list) and
 // something happening for a while (spinner). They draw what they are now;

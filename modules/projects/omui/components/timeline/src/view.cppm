@@ -1,4 +1,4 @@
-// openmui.ui.timeline:view — the timeline editor's behaviour.
+// omui.ui.timeline:view — the timeline editor's behaviour.
 export module omui.ui.timeline:view;
 
 import std;

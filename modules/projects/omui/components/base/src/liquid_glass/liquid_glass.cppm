@@ -1,4 +1,4 @@
-// openmui.ui.liquid_glass — liquid glass as components (D-64, features §3.3).
+// omui.ui.liquid_glass — liquid glass as components (D-64, features §3.3).
 //
 //     import omui.ui.liquid_glass;
 //     omui::liquid_glass({.id = "toolbar", .radius = 22, .blur = 4}, {buttons…});

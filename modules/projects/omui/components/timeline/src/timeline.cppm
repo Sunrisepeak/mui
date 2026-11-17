@@ -1,4 +1,4 @@
-// openmui.ui.timeline — the timeline every editor shares, as a component.
+// omui.ui.timeline — the timeline every editor shares, as a component.
 //
 //     timeline_editor({.id = "edit", .document = text, .zoom = 120})
 //

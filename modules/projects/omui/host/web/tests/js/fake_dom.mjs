@@ -1,4 +1,4 @@
-// A small DOM, enough for the page's half of openmui.host.web
+// A small DOM, enough for the page's half of omui.host.web
 // (src/js/omui_web.js): elements with attributes, styles, children and
 // listeners; text nodes; focus; events dispatched through the capture and
 // bubble phases, trusted or not, as a browser would. Not a browser: no

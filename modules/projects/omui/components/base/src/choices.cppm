@@ -1,4 +1,4 @@
-// openmui.ui.base:choices — small choices: a segmented control (one of a few
+// omui.ui.base:choices — small choices: a segmented control (one of a few
 // side by side), a chip (pressed, a filter turned on and off, a tag removed)
 // and a range slider (two thumbs on one track). What each holds is an item of
 // the semantic tree an agent finds and operates (`<id>/<value>`,

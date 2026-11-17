@@ -1,4 +1,4 @@
-// openmui.ui.base:status — what something is and how it stands, small and
+// omui.ui.base:status — what something is and how it stands, small and
 // still: a badge (a label, a count, a dot in a tone), an avatar (a picture,
 // else initials on the name's own colour, a status dot) and a skeleton
 // (content's shape while it comes, busy to every reader). They draw what

@@ -221,8 +221,8 @@ void frame_counters(State& s, const FrameOutput& f, const Runtime* rt = nullptr)
             if (const auto* info = plugins.info(st); info && info->cost) us += info->cost->cpu_us;
         return us * std::max(1.0, static_cast<double>(f.stats.nodes) / 1000.0) / 1000.0;
     };
-    const double layout = f.stats.timings.layout / declared_ms({"openmui.view.layout"});
-    const double paint = f.stats.timings.paint / declared_ms({"openmui.view.paint", "openmui.view.motion", "openmui.view.debug"});
+    const double layout = f.stats.timings.layout / declared_ms({"omui.view.layout"});
+    const double paint = f.stats.timings.paint / declared_ms({"omui.view.paint", "omui.view.motion", "omui.view.debug"});
     s.counter("declared_cost", std::max(layout, paint));
 }
 

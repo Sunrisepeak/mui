@@ -1,4 +1,4 @@
-// openmui.ui.base:inputs — rating, otp input, form field, search box, toggle group.
+// omui.ui.base:inputs — rating, otp input, form field, search box, toggle group.
 module omui.ui.base;
 
 import std;

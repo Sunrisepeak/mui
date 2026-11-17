@@ -1,4 +1,4 @@
-// openmui.core:task — parallel work and the queue back to the UI thread.
+// omui.core:task — parallel work and the queue back to the UI thread.
 //
 // Layout of large subtrees, text shaping, rasterising tiles and rendering
 // video frames run on a work-stealing pool (taskflow, D-56). Results come back

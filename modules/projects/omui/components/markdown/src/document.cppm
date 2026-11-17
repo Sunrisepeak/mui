@@ -1,7 +1,7 @@
-// openmui.ui.markdown:document — the Markdown component.
+// omui.ui.markdown:document — the Markdown component.
 //
 // Its source is parsed by openmui.markdown into a document of blocks, and
-// every block becomes a node (openmui.ui.markdown:parts): the semantic tree
+// every block becomes a node (omui.ui.markdown:parts): the semantic tree
 // is the document's structure, links are link nodes whose activation reaches
 // outside the application (an agent states its answer), tasks are checkboxes
 // that rewrite their mark in the source. A source that extends the current

@@ -1,4 +1,4 @@
-// openmui.view:runtime — the tree of a running interface and its frames.
+// omui.view:runtime — the tree of a running interface and its frames.
 //
 // The runtime owns the nodes (a component instance each, with properties,
 // bindings, handlers, transitions and a layout box), runs a frame
@@ -227,7 +227,7 @@ inline constexpr std::size_t history_limit = 200;
 // The runtime's frame pipeline for a level: H0 (semantics) is timers, input,
 // regions and animations; H1 (layout) adds layout and bounds; H2 (paint)
 // adds paint and the debug overlay. Its stage plugins are
-// `openmui.view.<stage>`.
+// `omui.view.<stage>`.
 [[nodiscard]] mlibs::pipeline::Description runtime_pipeline(Stages stages);
 
 // An explicitly selected local presentation layer, independent of business
@@ -892,7 +892,7 @@ public:
     void point_out(NodeId by, std::string_view path) override;
     [[nodiscard]] const std::string& pointed_out() const noexcept;
 
-    struct Impl;  // defined by the implementation (openmui.view:impl)
+    struct Impl;  // defined by the implementation (omui.view:impl)
 
 private:
     friend class PresentationLease;

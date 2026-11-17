@@ -1,4 +1,4 @@
-// openmui.ui.base:surfaces — what holds content: a card (a surface with a
+// omui.ui.base:surfaces — what holds content: a card (a surface with a
 // title, a subtitle and its content; activated whole when interactive), an
 // accordion (a header always shown, its content while expanded), a toast (a
 // short message over a corner of the window, gone after a while) and a

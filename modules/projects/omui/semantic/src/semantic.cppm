@@ -1,4 +1,4 @@
-// openmui.semantic — the semantic tree for agents, tests and assistive
+// omui.semantic — the semantic tree for agents, tests and assistive
 // technology (spec §3, §9): snapshots, deltas, queries, actions, conditions,
 // checks; recording and replaying sessions.
 export module omui.semantic;

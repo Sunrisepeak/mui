@@ -1,4 +1,4 @@
-// openmui.ui.base:inputs — what a person gives: how much out of a few stars
+// omui.ui.base:inputs — what a person gives: how much out of a few stars
 // (rating), a one-time code a character a box (otp input), a control with
 // its label, its help and its error (form field), words to search with
 // (search box) and a few options each on or off (toggle group). Each is what

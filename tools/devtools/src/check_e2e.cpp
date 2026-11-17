@@ -199,7 +199,7 @@ int agent_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     // The frame's pipeline, read and changed in the running process (D-66).
     agent(0, {"pipeline", id}) && expect.has(R"("openmui\.view\.layout")") && expect.has(R"("stages"|"stage")");
     agent(0, {"pipeline", id, "remove", "--stage", "debug"});
-    agent(0, {"pipeline", id, "insert", "--stage", "debug", "--plugin", "openmui.view.debug", "--after", R"(["paint"])"});
+    agent(0, {"pipeline", id, "insert", "--stage", "debug", "--plugin", "omui.view.debug", "--after", R"(["paint"])"});
     agent(1, {"pipeline", id, "replace", "--stage", "paint", "--plugin", "nonesuch"});
     agent(0, {"wait", id, "--settled", "--timeout", "5"});
 

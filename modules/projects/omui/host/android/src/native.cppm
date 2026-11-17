@@ -1,4 +1,4 @@
-// openmui.host.android:native — what the platform's NativeActivity gives the
+// omui.host.android:native — what the platform's NativeActivity gives the
 // host, without one of its types: the window appearing, changing and going,
 // the activity pausing, resuming and ending, the person's touches and keys,
 // and the window's pixels. Defined in native/activity.cpp, built for Android

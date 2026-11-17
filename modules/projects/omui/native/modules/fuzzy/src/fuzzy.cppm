@@ -1,4 +1,4 @@
-// openmui.native.fuzzy — fuzzy matching (:matching, omui::fuzzy) for C++ and
+// omui.native.fuzzy — fuzzy matching (:matching, omui::fuzzy) for C++ and
 // for scripts (component-binding §8).
 //
 //     (void)omui::natives::fuzzy::define();   // a host, once, before scripts run

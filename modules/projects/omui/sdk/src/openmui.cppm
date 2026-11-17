@@ -23,7 +23,7 @@ export import omui.viewdoc;
 export import omui.ui.base;
 export import omui.ui.window;
 export import omui.host.headless;
-export import :host;  // the desktop's window (openmui.host.sdl3), or the page's canvas (openmui.host.web)
+export import :host;  // the desktop's window (omui.host.sdl3), or the page's canvas (omui.host.web)
 export import mlibs.i18n;
 export import :app;
 export import :system;

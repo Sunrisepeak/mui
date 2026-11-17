@@ -1,4 +1,4 @@
-// openmui.expr:parse — CEL-compatible text to the AST.
+// omui.expr:parse — CEL-compatible text to the AST.
 //
 // The subset of registry/expr.json: literals (null, booleans, ints, doubles,
 // strings with escapes, lists, maps), names, member access, indexing,

@@ -1,4 +1,4 @@
-// openmui.semantic:session — recording a session and replaying it exactly.
+// omui.semantic:session — recording a session and replaying it exactly.
 //
 // What is recorded is what drives the interface: the frames with their time
 // and input events, and the semantic actions with their actor and answer

@@ -9,7 +9,7 @@ export default defineContract({
     spec: "0.1",
     doc: "A wireframe of the semantic tree over the page: each node's box and role, the ones an agent can operate marked.",
     props: {
-      nodes: { type: "any", doc: "The semantic snapshot's nodes (openmui.semantic's to_value): their ids, roles, actions and window bounds." },
+      nodes: { type: "any", doc: "The semantic snapshot's nodes (omui.semantic's to_value): their ids, roles, actions and window bounds." },
     },
   },
 });

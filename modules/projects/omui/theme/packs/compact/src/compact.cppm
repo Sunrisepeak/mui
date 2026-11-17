@@ -1,4 +1,4 @@
-// openmui.theme.compact — the compact theme file, carried in the program.
+// omui.theme.compact — the compact theme file, carried in the program.
 export module omui.theme.compact;
 
 export import :compact_theme;

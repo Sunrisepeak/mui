@@ -1,4 +1,4 @@
-// openmui.native.fuzzy:matching — fuzzy matching as a finder does it.
+// omui.native.fuzzy:matching — fuzzy matching as a finder does it.
 //
 //     auto best = fuzzy::rank("mcfg", {"main.cpp", "my_config.toml", "src/mcpp/config.cppm"}, 10);
 //     // my_config.toml (m·c at word starts), then src/mcpp/config.cppm …

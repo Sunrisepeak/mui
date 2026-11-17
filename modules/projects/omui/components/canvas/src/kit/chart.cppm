@@ -1,4 +1,4 @@
-// openmui.ui.canvas.kit:chart — a behaviour file as read (not exported):
+// omui.ui.canvas.kit:chart — a behaviour file as read (not exported):
 // its JSON as a plain tree with positions (tree.cpp), and the statechart
 // compiled from it.
 module omui.ui.canvas.kit:chart;

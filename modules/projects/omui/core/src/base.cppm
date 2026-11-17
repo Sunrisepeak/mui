@@ -1,4 +1,4 @@
-// openmui.core:base — the vocabulary of the runtime.
+// omui.core:base — the vocabulary of the runtime.
 //
 // Values, roles, effects and the rest of the semantic vocabulary are the
 // spec's, so nothing converts between the runtime and the bus, the C ABI or a

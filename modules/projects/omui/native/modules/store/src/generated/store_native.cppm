@@ -29,7 +29,7 @@ export namespace omui::natives::store {
 
 // ── conversions (the contract's records to and from JSON) ──
 
-// Registers the module for scripts (openmui.native; the C ABI's
+// Registers the module for scripts (omui.native; the C ABI's
 // omuiNativeCall), once, before any script runs.
 inline std::expected<void, std::string> define() {
     namespace n = omui::native;

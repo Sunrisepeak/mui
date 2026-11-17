@@ -1,4 +1,4 @@
-// The page's half of openmui.host.web (src/js/omui_web.js) under node, with
+// The page's half of omui.host.web (src/js/omui_web.js) under node, with
 // a fake DOM (fake_dom.mjs): the library is loaded as Emscripten would link
 // it, its helpers stood in for (a "pointer" is the string itself, the
 // program's callback a function that records what it is given). What the C++

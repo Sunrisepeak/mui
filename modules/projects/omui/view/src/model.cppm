@@ -1,4 +1,4 @@
-// openmui.view:model — batch data (component-binding §6.1): a named list of
+// omui.view:model — batch data (component-binding §6.1): a named list of
 // rows, each a key and its fields. Lists render the rows they show of one;
 // scripts and agents push to it; a change bumps its revision, a signal, so
 // whatever reads it follows. Keys are ids (spec S-8): a list's items are

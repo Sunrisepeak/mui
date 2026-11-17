@@ -1,4 +1,4 @@
-// The platform's NativeActivity for openmui.host.android:native: the NDK's
+// The platform's NativeActivity for omui.host.android:native: the NDK's
 // headers here and nowhere else. The activity's callbacks run on the
 // platform's thread; they hand what happened to the program's thread, which
 // runs the program's own `main` (the host's loop is in it) — found in this

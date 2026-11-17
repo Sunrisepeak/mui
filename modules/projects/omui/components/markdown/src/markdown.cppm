@@ -1,4 +1,4 @@
-// openmui.ui.markdown — the Markdown component (canvas-markdown §2).
+// omui.ui.markdown — the Markdown component (canvas-markdown §2).
 //
 //     import omui.ui.markdown;
 //     omui::markdown({.id = "readme", .source = text, .base_url = "docs"});

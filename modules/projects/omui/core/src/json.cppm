@@ -1,4 +1,4 @@
-// openmui.core:json — JSON text to Values and back.
+// omui.core:json — JSON text to Values and back.
 //
 // Parsing is nlohmann.json's (D-56), driven through its SAX interface so the
 // result is built as a Value directly and an error carries its line and

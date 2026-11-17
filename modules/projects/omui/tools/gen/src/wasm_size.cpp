@@ -81,7 +81,7 @@ std::string escape(std::string_view s) {
 
 }  // namespace
 
-// A demangled name's owner (what an analysis build's name section holds: "void omui::Runtime@openmui.view::frame(…)").
+// A demangled name's owner (what an analysis build's name section holds: "void omui::Runtime@omui.view::frame(…)").
 std::string demangled_owner(std::string_view s, int depth) {
     std::string name(s);
     for (std::size_t at; (at = name.find("(anonymous namespace)")) != std::string::npos;) name.replace(at, 21, "{anonymous}");

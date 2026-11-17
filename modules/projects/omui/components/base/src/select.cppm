@@ -1,4 +1,4 @@
-// openmui.ui.base:select — one value from a popup list (role combo_box). A
+// omui.ui.base:select — one value from a popup list (role combo_box). A
 // composite component: it builds its own popup (an overlay at least as wide
 // as the field) and an option per value; choosing one writes `value` back,
 // emits `changed`, and closes the popup. Agents choose with set_value.

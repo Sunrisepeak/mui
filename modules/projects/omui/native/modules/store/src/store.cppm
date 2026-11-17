@@ -1,4 +1,4 @@
-// openmui.native.store — a program's own small storage (D-84 §6.2): the
+// omui.native.store — a program's own small storage (D-84 §6.2): the
 // plugin a host gives, and its face for scripts.
 //
 //     omui::store().set("theme", "dark");          // C++

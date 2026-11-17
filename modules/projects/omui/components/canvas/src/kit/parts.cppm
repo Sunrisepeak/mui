@@ -1,4 +1,4 @@
-// openmui.ui.canvas.kit:parts — what the behaviours share (not exported):
+// omui.ui.canvas.kit:parts — what the behaviours share (not exported):
 // geometry between the scene and the screen, and snapping, which dragging
 // and resizing ask.
 module omui.ui.canvas.kit:parts;

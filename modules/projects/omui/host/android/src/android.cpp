@@ -1,4 +1,4 @@
-// omui on Android (openmui.host.android): the loop — what the activity hands
+// omui on Android (omui.host.android): the loop — what the activity hands
 // over becomes the runtime's input and size, each frame drawn on the CPU and
 // shown in the window.
 module omui.host.android;

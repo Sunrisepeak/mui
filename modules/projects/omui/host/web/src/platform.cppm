@@ -1,4 +1,4 @@
-// openmui.host.web:platform — the page, as the rest of the host sees it: no
+// omui.host.web:platform — the page, as the rest of the host sees it: no
 // Emscripten type crosses this line (the page is native/browser/html5.cpp;
 // off the Web, native/elsewhere/none.cpp).
 module omui.host.web:platform;

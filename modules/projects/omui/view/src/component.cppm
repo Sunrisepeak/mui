@@ -1,4 +1,4 @@
-// openmui.view:component — what a component is to the runtime.
+// omui.view:component — what a component is to the runtime.
 //
 // A component is a C++ class; `component_type<C>()` derives its function
 // table at compile time from what the class defines (paint, measure,

@@ -1,4 +1,4 @@
-// openmui.ui.base:navigating — context menu, hover card, command palette, sidebar, toolbar.
+// omui.ui.base:navigating — context menu, hover card, command palette, sidebar, toolbar.
 module omui.ui.base;
 
 import std;

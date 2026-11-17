@@ -1,4 +1,4 @@
-// The page for openmui.host.web:platform: Emscripten's HTML5 API (its
+// The page for omui.host.web:platform: Emscripten's HTML5 API (its
 // macros become the constants below, here and nowhere else) and the
 // host's library, src/js/omui_web.js — the hidden textarea, the semantic
 // DOM mirror, window.omui, the clipboard and localStorage are its; what they

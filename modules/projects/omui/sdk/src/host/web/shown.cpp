@@ -1,4 +1,4 @@
-// `omui::run` on the Web: the page's canvas (openmui.host.web). The page's
+// `omui::run` on the Web: the page's canvas (omui.host.web). The page's
 // loop takes over and main does not return; the host lives as long as the page.
 module omui;
 

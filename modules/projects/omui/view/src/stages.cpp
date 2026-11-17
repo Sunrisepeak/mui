@@ -53,7 +53,7 @@ bool debugging(const Runtime::Impl& d) noexcept {
 }
 
 struct Plugin {
-    std::string_view       name;  // openmui.view.<name>
+    std::string_view       name;  // omui.view.<name>
     std::string_view       description;
     std::vector<pl::Port>  reads, writes;
     Body                   body;
@@ -131,7 +131,7 @@ std::vector<Plugin> plugins() {
 
 mlibs::pipeline::Description runtime_pipeline(Stages stages) {
     pl::Description d;
-    auto add = [&](std::string_view name) { d.stages.push_back({std::string(name), std::format("openmui.view.{}", name), {}, {}}); };
+    auto add = [&](std::string_view name) { d.stages.push_back({std::string(name), std::format("omui.view.{}", name), {}, {}}); };
     for (std::string_view s : {"timers", "input", "regions", "animations"}) add(s);
     if (stages >= Stages::layout) {
         add("layout");
@@ -149,7 +149,7 @@ mlibs::pipeline::Description runtime_pipeline(Stages stages) {
 void Runtime::Impl::register_stages() {
     for (Plugin& p : plugins()) {
         Runtime::Impl* d = this;
-        (void)registry.add({.name = std::format("openmui.view.{}", p.name),
+        (void)registry.add({.name = std::format("omui.view.{}", p.name),
                             .kind = "stage",
                             .interface = "omui.pipeline.stage@1",
                             .description = std::string(p.description),

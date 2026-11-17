@@ -1,4 +1,4 @@
-// openmui.view:impl — the runtime's internals, shared by its implementation
+// omui.view:impl — the runtime's internals, shared by its implementation
 // units (runtime, tree, props, frame, input, act); exported to no one.
 module omui.view:impl;
 

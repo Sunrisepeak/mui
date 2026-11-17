@@ -1,4 +1,4 @@
-// openmui.host.web.toy — Bilibili Toy's SDK for a program in a Toy page
+// omui.host.web.toy — Bilibili Toy's SDK for a program in a Toy page
 // (D-84 §6.5). Thin and optional: a program that never calls it runs the
 // same in any page; off a Toy page every call is refused (openas `refused`).
 //

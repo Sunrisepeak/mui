@@ -1,4 +1,4 @@
-// openmui.host.sdl3:web — web pages in the system's own web view, placed in
+// omui.host.sdl3:web — web pages in the system's own web view, placed in
 // the window over a node (D-141: an external surface). Declared on every
 // system, defined where the system has one (macOS: WKWebView, through
 // mcpplibs.os's Objective-C runtime; src/macos, built for it alone) and

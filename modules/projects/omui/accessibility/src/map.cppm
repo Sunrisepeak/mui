@@ -1,4 +1,4 @@
-// openmui.accessibility:map — the semantic tree as assistive technology reads
+// omui.accessibility:map — the semantic tree as assistive technology reads
 // it, without a platform: what each node becomes (AccessKit's model of a
 // node, which every platform adapter then serves), what changed since it was
 // last read, and the actions a screen reader asks for, performed on the tree.

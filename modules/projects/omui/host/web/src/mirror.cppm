@@ -1,4 +1,4 @@
-// openmui.host.web:mirror — the semantic tree as the page's hidden DOM
+// omui.host.web:mirror — the semantic tree as the page's hidden DOM
 // (design §6.2): what a screen reader, a browser's find-in-page and the
 // page's own tools read, since the canvas says nothing.
 //

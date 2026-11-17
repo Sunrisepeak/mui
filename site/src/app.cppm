@@ -17,7 +17,7 @@ export namespace omui::site {
 // hash route: #/zh/features runs it with --zh --features).
 [[nodiscard]] AppSpec app(std::string_view place = "home", std::string_view lang = "en", std::string_view incoming_route = {});
 
-// What a lens shows of a place's semantic snapshot (openmui.semantic's to_value):
+// What a lens shows of a place's semantic snapshot (omui.semantic's to_value):
 // the JSON an agent reads (a node a line), and the assertions a test would write.
 // The ids under `root` (the place) are shown from it: `…/page/doc/b0`, and the
 // test's `node("page/doc/b0")` under it.

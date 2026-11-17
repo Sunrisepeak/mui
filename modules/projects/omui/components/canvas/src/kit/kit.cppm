@@ -1,4 +1,4 @@
-// openmui.ui.canvas.kit — canvas behaviours (canvas-markdown §1.1–1.3).
+// omui.ui.canvas.kit — canvas behaviours (canvas-markdown §1.1–1.3).
 //
 //     import omui.ui.canvas.kit;
 //     omui::register_canvas_kit();

@@ -1,4 +1,4 @@
-// openmui.native — the native modules of a program (component-binding §8).
+// omui.native — the native modules of a program (component-binding §8).
 //
 //     # native/fuzzy.native.xdef.ts
 //     [native.fuzzy.functions.rank]

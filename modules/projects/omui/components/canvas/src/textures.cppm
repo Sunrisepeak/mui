@@ -1,4 +1,4 @@
-// openmui.ui.canvas:textures — the canvas's textures of its nodes (canvas-
+// omui.ui.canvas:textures — the canvas's textures of its nodes (canvas-
 // markdown §3.2 T1–T2, §3.3).
 //
 // A node of a kind with a content() — or a view(), laid out and painted by

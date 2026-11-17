@@ -1,4 +1,4 @@
-// openmui.ui.base:number_input — a number one types or steps (contract
+// omui.ui.base:number_input — a number one types or steps (contract
 // `number_input`): the digits typed while it has focus (Enter or leaving
 // keeps them, within min and max, on the step; Escape drops them), the −
 // and + buttons and the arrow keys step it. Every change is an action of

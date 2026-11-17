@@ -1,4 +1,4 @@
-// openmui.ui.liquid_glass:glass — the components.
+// omui.ui.liquid_glass:glass — the components.
 //
 // A liquid_glass draws its glass as an effect layer around itself and its
 // children: the layer's shape is its rounded box, the effect reads what the

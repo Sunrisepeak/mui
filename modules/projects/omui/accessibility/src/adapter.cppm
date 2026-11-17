@@ -1,4 +1,4 @@
-// openmui.accessibility:adapter — the platform's accessibility service, served
+// omui.accessibility:adapter — the platform's accessibility service, served
 // from a Mirror: UI Automation for a window's HWND, NSAccessibility for an
 // NSWindow, AT-SPI over D-Bus on Linux (no window needed). Attached once, it
 // answers the system's first question (activation) from the mirror and is

@@ -1,4 +1,4 @@
-// openmui.view — the retained view runtime (plan §3–§5): the element IR
+// omui.view — the retained view runtime (plan §3–§5): the element IR
 // (contract ②), components and their function tables, design tokens, the
 // runtime that turns elements into nodes and runs frames, and the
 // primitives everything else composes.

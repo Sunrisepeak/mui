@@ -1,4 +1,4 @@
-// openmui.ui.canvas — an infinite canvas (canvas-markdown §1, OMUI_EXT_canvas).
+// omui.ui.canvas — an infinite canvas (canvas-markdown §1, OMUI_EXT_canvas).
 //
 //     import omui.ui.canvas;
 //     auto& wall = omui::world::scene("wall");

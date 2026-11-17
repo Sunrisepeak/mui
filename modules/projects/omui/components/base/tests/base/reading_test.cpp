@@ -1,4 +1,4 @@
-// openmui.ui.base's components of what is read and points on (W9): kbd,
+// omui.ui.base's components of what is read and points on (W9): kbd,
 // separator, link, description list, spinner — driven as people and agents
 // drive them (keys, a click, actions), their semantics, and a gallery whose
 // pixels are pinned for every platform.

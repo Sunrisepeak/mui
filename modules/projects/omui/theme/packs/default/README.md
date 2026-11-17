@@ -9,7 +9,7 @@ openmui's default theme as data: [`default.theme.xdef.ts`](default.theme.xdef.ts
 The light and dark themes are the runtime's built-in tokens (`omui::Theme::light()` and `dark_theme()`). The package's test, and omui.theme's, hold the file and the code equal.
 
 ```cpp
-import openmui.theme.default_theme;      // `default` is a C++ keyword
+import omui.theme.default_theme;      // `default` is a C++ keyword
 (void)omui::themes::add_default();       // the player and the Python extension do this
 ```
 

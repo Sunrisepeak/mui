@@ -1,4 +1,4 @@
-// openmui.ui.canvas:view — the canvas component (canvas-markdown §1).
+// omui.ui.canvas:view — the canvas component (canvas-markdown §1).
 //
 // Each frame it asks the scene what the camera sees (a grid query: the cost
 // follows what is on screen, not the scene's size), picks each node's tier by

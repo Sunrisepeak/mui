@@ -1,4 +1,4 @@
-// openmui.core:event — input as the host delivers it (spec §6).
+// omui.core:event — input as the host delivers it (spec §6).
 //
 // One frame's input is a list of these. They have a JSON form, which is how
 // a headless host, the C ABI (OmuiFrameInput.events_json) and session

@@ -1,4 +1,4 @@
-// openmui.ui.base:showing — chart, carousel.
+// omui.ui.base:showing — chart, carousel.
 module omui.ui.base;
 
 import std;

@@ -1,4 +1,4 @@
-// openmui.ui.canvas:behavior — what makes a canvas do more than pan and
+// omui.ui.canvas:behavior — what makes a canvas do more than pan and
 // zoom (canvas-markdown §1.2–1.3): behaviours, by name.
 //
 // A behaviour is a C++ object a canvas holds (its `behaviors` property

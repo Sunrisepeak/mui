@@ -1,4 +1,4 @@
-// openmui.ui.canvas:scene — what a canvas shows: nodes in world space,
+// omui.ui.canvas:scene — what a canvas shows: nodes in world space,
 // stored by column (canvas-markdown §1.1, "SoA scene store").
 //
 // A node is a world rectangle (x, y in double precision: a wall of

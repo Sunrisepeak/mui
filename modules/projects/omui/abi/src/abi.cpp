@@ -666,7 +666,7 @@ OmuiResult omuiModelRows(OmuiRuntime rt, OmuiString model, std::uint32_t from, s
     return OMUI_SUCCESS;
 }
 
-// ── themes (openmui.theme) ──────────────────────────────────────────────────
+// ── themes (omui.theme) ──────────────────────────────────────────────────
 
 OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, void* user) noexcept {
     if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;

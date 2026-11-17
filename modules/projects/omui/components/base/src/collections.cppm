@@ -1,4 +1,4 @@
-// openmui.ui.base:collections — a model's rows as a hierarchy (a tree view)
+// omui.ui.base:collections — a model's rows as a hierarchy (a tree view)
 // and as a table (a data grid). Both draw only the rows in view, however
 // many there are, and state every row to the semantic tree as an item of its
 // own (`<id>/<key>`) that a screen reader reads and an agent operates; a

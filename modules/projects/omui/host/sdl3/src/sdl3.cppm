@@ -1,4 +1,4 @@
-// openmui.host.sdl3 — openmui on the desktop (plan §8.2).
+// omui.host.sdl3 — openmui on the desktop (plan §8.2).
 //
 //     omui::Desktop d({.title = "Notes", .app = "org.example.notes"});
 //     d.mount("main", notes());
@@ -39,7 +39,7 @@ struct DesktopOptions {
     // Serve the semantic tree to the platform's assistive technology (UI
     // Automation, NSAccessibility, AT-SPI): a screen reader reads it and asks
     // for its actions as the person's own input. Where AccessKit has no
-    // library it is not served (openmui.accessibility::available).
+    // library it is not served (omui.accessibility::available).
     bool                    accessibility = true;
     std::filesystem::path   agent_directory;      // default: agent::default_directory()
     Theme                   theme = Theme::light();

@@ -1,4 +1,4 @@
-// openmui.semantic:tree — the semantic tree of a running interface.
+// omui.semantic:tree — the semantic tree of a running interface.
 //
 // The tree is read from the runtime when its semantic revision moves, and
 // kept: a snapshot is a copy, `changes` compares with what the last call saw

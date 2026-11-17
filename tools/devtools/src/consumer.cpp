@@ -381,7 +381,7 @@ Outcome hanim_api(Probe& probe) {
         for (const auto& entry : metadata->data["graph"]["packages"]) {
             const std::string name = identity(entry["package"]);
             names.push_back(name);
-            if (forbidden.contains(name) || std::ranges::any_of(std::initializer_list<std::string_view>{"openmui.ui.", "openmui.host.", "omui.site", "openmui.rhi", "mlibs.rhi",
+            if (forbidden.contains(name) || std::ranges::any_of(std::initializer_list<std::string_view>{"omui.ui.", "omui.host.", "omui.site", "openmui.rhi", "mlibs.rhi",
                                                                                                          "openmui.render", "xrender"},
                                                                 [&](std::string_view prefix) { return name.starts_with(prefix); }))
                 return std::unexpected("forbidden UI/renderer dependency: " + name);
@@ -429,7 +429,7 @@ std::expected<json, std::string> play_audit(Probe& probe, const std::string& pro
         const json& item = package["package"];
         const std::string name = identity(item);
         names.push_back(name);
-        if (forbidden.contains(name) || name.starts_with("openmui.ui.") || name.starts_with("openmui.host.") || name.starts_with("omui.site"))
+        if (forbidden.contains(name) || name.starts_with("omui.ui.") || name.starts_with("omui.host.") || name.starts_with("omui.site"))
             return std::unexpected("forbidden UI/spec/testing/host package: " + name);
         const std::string source = item.value("source", "");
         if (name == "openlifa.openas" && !openas.empty() && (!source.starts_with("path+") || real(source.substr(5)) != openas))
@@ -993,7 +993,7 @@ Outcome hanim_features(Probe& probe) {
                 return std::ranges::any_of(prefixes, [&](std::string_view prefix) { return name.starts_with(prefix); });
             });
         };
-        if (has_prefix({"openmui.ui.", "openmui.host."}) ||
+        if (has_prefix({"omui.ui.", "omui.host."}) ||
             std::ranges::any_of(std::initializer_list<std::string_view>{"omui.core", "omui.sdk", "mlibs.testing", "openlifa.openmui"},
                                 [&](std::string_view name) { return packages.contains(std::string(name)); }))
             return std::unexpected("a UI or test dependency in the public product");

@@ -1,4 +1,4 @@
-// openmui.ui.window:frame — the components.
+// omui.ui.window:frame — the components.
 //
 // window_frame lays its content out inside its own padding — the shadow's
 // reach, and the title bar above — and composes its buttons (caption_button

@@ -1,4 +1,4 @@
-// openmui.theme — themes as data (view-data-files §3; component-binding §11).
+// omui.theme — themes as data (view-data-files §3; component-binding §11).
 //
 //     // default.theme.xdef.ts
 //     export default defineTheme({

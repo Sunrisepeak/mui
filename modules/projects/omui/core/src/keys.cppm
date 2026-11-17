@@ -1,4 +1,4 @@
-// openmui.core:keys — keys, modifiers, and the chords contracts bind.
+// omui.core:keys — keys, modifiers, and the chords contracts bind.
 //
 // Contracts write key bindings as text ("Right|Up", "Alt+Down", "Mod+S");
 // `Mod` is the platform's primary modifier (Ctrl, or Cmd on macOS), chosen by

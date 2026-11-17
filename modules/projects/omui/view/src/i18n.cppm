@@ -1,4 +1,4 @@
-// openmui.view:i18n — the application's languages (D-74): the locale packs
+// omui.view:i18n — the application's languages (D-74): the locale packs
 // and the application's catalogs (an openmui.i18n Library), the person's
 // languages, and `tr`, a text in them that is redone when the language or an
 // argument changes — no remount, the same ids (S-9).

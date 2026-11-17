@@ -1,4 +1,4 @@
-// openmui.lang:host — a script's thread beside a runtime (component-binding
+// omui.lang:host — a script's thread beside a runtime (component-binding
 // §6.2): the runtime's thread holds the tree; the script runs on its own.
 //
 //   script thread                       runtime thread

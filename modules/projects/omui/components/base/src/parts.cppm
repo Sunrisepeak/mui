@@ -1,4 +1,4 @@
-// openmui.ui.base:parts — what the base components share: colour mixing,
+// omui.ui.base:parts — what the base components share: colour mixing,
 // the keyboard focus ring, and labels that shape their text once. No motion:
 // a component draws its state; how a change moves is its slots' (universal
 // motion, D-93), the same for every component.

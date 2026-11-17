@@ -1,4 +1,4 @@
-// openmui.viewdoc:document — a view document as data, read and checked.
+// omui.viewdoc:document — a view document as data, read and checked.
 //
 //     auto r = omui::viewdoc::read(text, {.file = "counter.view.xdef.json"});
 //     for (const auto& d : r.diagnostics) std::println("{}", d.text());

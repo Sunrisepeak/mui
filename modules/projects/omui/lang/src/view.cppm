@@ -1,4 +1,4 @@
-// openmui.lang:view — what a script builds, as a view document.
+// omui.lang:view — what a script builds, as a view document.
 //
 // A script's view is data the runtime checks and runs (view-data-files §3):
 // its constants are the document's; its expressions (`fmt`, `select` …) are
@@ -139,7 +139,7 @@ public:
     };
     Result<void> verb(VerbSpec spec, std::function<Result<Json>(const Json& args)> fn);
 
-    // ── themes (openmui.theme) ──
+    // ── themes (omui.theme) ──
     // Composes the runtime's theme: a theme, then overlays ({"dark", "compact"}).
     // Why not, as "not-found: …" or "invalid-argument: …"; the theme stays.
     Result<void> theme(const std::vector<std::string>& layers);

@@ -2,7 +2,7 @@
 // Web's delivery: what a page downloads before its first frame, and what
 // splitting the heavy pages would save, Q-38). Its sections; its code by
 // function, each function's body attributed to an owner — the C++ module
-// it is attached to (openmui.view), a namespace (std, xrender), a C
+// it is attached to (omui.view), a namespace (std, xrender), a C
 // library by its prefix (hb_ HarfBuzz, FT_ FreeType, md_ md4c) — from the
 // name section an analysis build keeps (emscripten's --profiling-funcs: the
 // same code, its functions' names kept). Without one, the sections only.

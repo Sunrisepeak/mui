@@ -1,4 +1,4 @@
-// openmui.host.web.toy:sdk — window.toy as the rest of the layer sees it:
+// omui.host.web.toy:sdk — window.toy as the rest of the layer sees it:
 // a method by name, JSON in, JSON out, answered later on the page's thread
 // (native/browser/sdk.cpp; off the Web, native/elsewhere/none.cpp refuses).
 module omui.host.web.toy:sdk;

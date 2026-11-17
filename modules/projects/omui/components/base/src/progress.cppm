@@ -1,4 +1,4 @@
-// openmui.ui.base:progress — progress and choice among options: a progress
+// omui.ui.base:progress — progress and choice among options: a progress
 // bar (determinate, or indeterminate while value is negative) and radio
 // buttons (one value per group; the group is a signal they share).
 export module omui.ui.base:progress;

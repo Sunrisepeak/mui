@@ -1,4 +1,4 @@
-// openmui.ui.base's components of what a person gives (W9): rating, otp
+// omui.ui.base's components of what a person gives (W9): rating, otp
 // input, form field, search box, toggle group — driven as people and agents
 // drive them (a pointer, keys, typing, actions, an item as a node of its
 // own), their semantics, their history, and a gallery whose pixels are pinned

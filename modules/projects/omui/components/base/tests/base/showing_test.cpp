@@ -1,4 +1,4 @@
-// openmui.ui.base's components of what is shown (W9): chart, carousel —
+// omui.ui.base's components of what is shown (W9): chart, carousel —
 // their data read as an agent reads it (each point an item), driven as people
 // and agents drive them (pointing, arrows, dots, keys, a swipe), and a gallery
 // whose pixels are pinned for every platform.

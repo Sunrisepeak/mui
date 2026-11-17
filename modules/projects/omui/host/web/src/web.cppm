@@ -1,4 +1,4 @@
-// openmui.host.web — openmui in the browser (D-84 §6.2).
+// omui.host.web — openmui in the browser (D-84 §6.2).
 //
 //     omui::Web w({.title = "Notes", .app = "org.example.notes"});
 //     w.mount("main", notes());

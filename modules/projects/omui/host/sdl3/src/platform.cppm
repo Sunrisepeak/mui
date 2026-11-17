@@ -1,4 +1,4 @@
-// openmui.host.sdl3:platform — the window, as the rest of the host sees it:
+// omui.host.sdl3:platform — the window, as the rest of the host sees it:
 // no SDL type crosses this line (SDL lives in native/sdl.cpp).
 module omui.host.sdl3:platform;
 

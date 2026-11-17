@@ -1,4 +1,4 @@
-// openmui.ui.base:code — a code editor: a text box in its code mode (the
+// omui.ui.base:code — a code editor: a text box in its code mode (the
 // text coloured by what each stretch is, its lines numbered, Tab indenting,
 // Enter keeping the indent) on a surface that says its language.
 export module omui.ui.base:code;

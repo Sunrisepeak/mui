@@ -1,4 +1,4 @@
-// openmui.core:signal — state that the interface follows by itself.
+// omui.core:signal — state that the interface follows by itself.
 //
 //     auto count = omui::signal(0);
 //     auto label = omui::computed([=] { return std::format("clicked {} times", count()); });

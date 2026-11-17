@@ -1,4 +1,4 @@
-// openmui.ui.base's second batch (C2·W4): segmented, chip, range slider,
+// omui.ui.base's second batch (C2·W4): segmented, chip, range slider,
 // alert, stepper, the date, time and colour pickers, … — driven as people and agents drive them (pointer, keys,
 // actions, an item of a component as a node of its own), their semantics,
 // their history, and a gallery whose pixels are pinned for every platform.

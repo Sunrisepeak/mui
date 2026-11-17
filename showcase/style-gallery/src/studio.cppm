@@ -1,7 +1,7 @@
 // openmui.showcase.style_gallery — S2, the style workshop.
 //
 // One real interface — a settings panel and a dashboard over a wallpaper —
-// shown in a style pack (openmui.theme.styles); a sidebar to switch packs
+// shown in a style pack (omui.theme.styles); a sidebar to switch packs
 // (a cross-fade), an editor for the pack shown: its accent, its corners, each
 // of its effects' parameters, applied as they change; and an export that
 // writes the edited pack as a *.style.xdef.json. Agents get the same as the

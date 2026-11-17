@@ -1,4 +1,4 @@
-// openmui.accessibility — the semantic tree served to the platform's
+// omui.accessibility — the semantic tree served to the platform's
 // assistive technology (D-21; spec §3: one tree for pixels, agents, tests and
 // accessibility).
 //

@@ -1,4 +1,4 @@
-// openmui.view:glyphs — glyph motion: any node's text, animated glyph by
+// omui.view:glyphs — glyph motion: any node's text, animated glyph by
 // glyph, grapheme, word or line (D-60 sub-object tier, D-68).
 //
 // A component paints its text as it always does; the runtime then restyles

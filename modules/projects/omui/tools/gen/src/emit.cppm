@@ -32,7 +32,7 @@ export namespace omui::gen {
 // builder's options, the CRTP base that dispatches props and actions and
 // emits events) and the builder's definition.
 struct CppOptions {
-    std::string module;                 // the component package's module, e.g. openmui.ui.base
+    std::string module;                 // the component package's module, e.g. omui.ui.base
     std::string ns = "omui::ui";        // the namespace of the components
     bool        catalog = false;        // the contracts are the spec's Core ones (spec::catalog)
 };
@@ -49,7 +49,7 @@ struct CppOptions {
 // A native module's C++ (component-binding §8): the partition
 // `<module>:<name>_native` with its records, the declarations of the
 // functions the package implements, their conversions, and define(), which
-// registers them for scripts (openmui.native).
+// registers them for scripts (omui.native).
 [[nodiscard]] std::string emit_cpp_native(const NativeModule& m, const CppOptions& o, std::string_view source);
 // Script stubs of native modules: the TypeScript module declarations
 // (`openmui:native/<name>`).

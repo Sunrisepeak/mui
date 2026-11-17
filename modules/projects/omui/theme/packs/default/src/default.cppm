@@ -1,4 +1,4 @@
-// openmui.theme.default_theme — the default theme file, carried in the program.
+// omui.theme.default_theme — the default theme file, carried in the program.
 export module omui.theme.default_theme;
 
 export import :default_theme;

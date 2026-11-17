@@ -108,6 +108,37 @@ UTest cases{"host.sdl3", [] {
         expect(b.b == 255 && b.r == 0);
     };
 
+    "the first frame: from the host made to its first frame shown, by the CPU and (where there is one) the GPU — said, and held (RC3.6)"_test = [] {
+        for (const bool on_gpu : {false, true}) {
+            DesktopOptions o = offscreen(on_gpu ? "sdl3-first-gpu" : "sdl3-first-cpu");
+            if (on_gpu) {
+                o.renderer = DesktopOptions::Renderer::gpu;
+                if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+                if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+            }
+            const auto asked = std::chrono::steady_clock::now();
+            Desktop d(o);
+            auto opened = d.open();
+            if (!opened) {
+                if (on_gpu && mcpplibs::os::env::get("OMUI_REQUIRE_GPU") != "1") {
+                    std::println("  no GPU for the window here ({})", opened.error());
+                    continue;
+                }
+                expect(false) << opened.error().text();
+                continue;
+            }
+            d.mount("main", column({.padding = 20}, {text({.id = "hello", .text = "Hello"}), button({.id = "go", .text = "Go"})}));
+            while (d.frames_shown() == 0 && std::chrono::steady_clock::now() - asked < std::chrono::seconds(20)) (void)d.step(false);
+            const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - asked).count();
+            std::println("  first frame shown by the {} {:.1f} ms after the host was made", on_gpu ? "GPU" : "CPU", ms);
+            expect(d.frames_shown() > 0) << "shown at all";
+            // Held where CI runs it (shared runners, an unoptimised build, a software device): a regression of the start,
+            // not the figure the platform table gives (measured on the machine, RC3.6). Measured here (2026-11-17, a dev
+            // build, the fonts loaded already): the CPU 4.5 ms, lavapipe 236 ms.
+            expect(lt(ms, on_gpu ? 3000.0 : 1000.0)) << std::format("the first frame took {:.0f} ms", ms);
+        }
+    };
+
     "on the GPU: the swapchain shows the frame, and an effect file edited while it runs shows on the next frame"_test = [] {
         const auto dir = std::filesystem::temp_directory_path() / "openmui-host-effects";
         std::error_code ec;

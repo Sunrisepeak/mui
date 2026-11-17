@@ -60,3 +60,7 @@ Each names the level it is solved at (D-179: foundation, part, specialised, appl
 
 - **No workbench yet** (application): the toolkits are composed as one command and one MCP server; the omui application composing their panels and the workspace's history is owed.
 - **Only what is linked** (part): a toolkit not linked into `xtools` is not reachable through it.
+
+## Closure exceptions
+
+- **7**: a composition has no scene of its own to budget: every operation it reaches is its toolkit's, measured where that toolkit's project budgets it (tests/bench), and a bench scene here would link every toolkit into the bench's release build.

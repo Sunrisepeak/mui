@@ -10,9 +10,9 @@
 | omui | stable | ✓ | ✓ | ✓ | ✓ | ✓ | 例外 | ✓ | ○ | ○ | ✓ |
 | xengine | preview | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ○ | ✓ |
 | gongfu | experimental | ✓ | — | — | ✓ | — | ✓ | — | — | — | ✓ |
-| xtools | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ○ | ○ | ✓ |
+| xtools | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 例外 | ○ | ○ | ✓ |
 
-通过 53 项，欠 11 项。
+通过 54 项，欠 10 项。
 
 ## 欠着的
 
@@ -24,6 +24,5 @@
 - **omui**, 9 独立消费: probe features-consumer builds from paths; from published packages once RC3.1 publishes them
 - **xengine**, 8 并排对照: no claim in the ledger dated from 2026-11-15
 - **xengine**, 9 独立消费: no out-of-tree probe (tools/ci/*/mcpp.toml.in)
-- **xtools**, 7 基准: no budget in tests/bench
 - **xtools**, 8 并排对照: no claim in the ledger dated from 2026-11-15
 - **xtools**, 9 独立消费: no out-of-tree probe (tools/ci/*/mcpp.toml.in)

@@ -32,12 +32,17 @@ void tree_chevron(PaintContext& ctx, std::string_view key, Point c, bool down, C
     });
 }
 
-// A small triangle, up or down, centred at c (a column's sort).
-void triangle(PaintContext& ctx, Point c, bool up, Color color) {
-    const float w = 7, h = 4.5f, d = up ? -1.0f : 1.0f;
-    xrender::Path p;
-    p.move_to({c.x - w / 2, c.y - d * h / 2}).line_to({c.x + w / 2, c.y - d * h / 2}).line_to({c.x, c.y + d * h / 2}).close();
-    ctx.list.fill_path(p, xrender::FillRule::nonzero, xrender::Paint::solid(color));
+// A small triangle, up or down, centred at c (a column's sort): a part (`sort`, the column's field) always drawn
+// pointing up, under a half turn when down, so a change of direction turns it about its centre (component quality B6).
+void triangle(PaintContext& ctx, std::string_view field, Point c, bool up, Color color) {
+    const float w = 7, h = 4.5f;
+    ctx.part({.role = "sort", .id = field, .allocation = {c.x - w / 2, c.y - w / 2, w, w}}, [&] {
+        ctx.list.push_transform(Affine::translate(c.x, c.y) * (up ? Affine{} : Affine::scale(-1, -1)));
+        xrender::Path p;
+        p.move_to({-w / 2, h / 2}).line_to({w / 2, h / 2}).line_to({0, -h / 2}).close();
+        ctx.list.fill_path(p, xrender::FillRule::nonzero, xrender::Paint::solid(color));
+        ctx.list.pop_transform();
+    });
 }
 
 std::string lower(std::string_view s) {
@@ -509,7 +514,7 @@ void DataGrid::paint(PaintContext& ctx) const {
         const Size t = h.measure(ctx.services, hc, std::max(0.0f, widths[c] - 2 * grid_pad - 14));
         if (hover_ == -2 - static_cast<int>(c)) ctx.list.fill_rect({x, 0, widths[c], grid_head - 1}, th.color("surface_pressed").with_alpha(0.5f));
         h.paint(ctx, {x + grid_pad, (grid_head - t.height) / 2}, hc);
-        if (by) triangle(ctx, {x + grid_pad + t.width + 9, grid_head / 2}, !props.sort.starts_with('-'), th.color("accent"));
+        if (by) triangle(ctx, props.fields[c], {x + grid_pad + t.width + 9, grid_head / 2}, !props.sort.starts_with('-'), th.color("accent"));
         x += widths[c];
         // The edge under the pointer or dragged: its divider, lit and thicker, through the rows while dragged.
         if (edge_ == c) ctx.list.fill_rect({x - 1, 0, 2, resizing_ ? ctx.size.height : grid_head}, th.color("accent"));

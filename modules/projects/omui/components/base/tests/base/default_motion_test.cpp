@@ -478,6 +478,36 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(rest.has_value() && std::abs(*rest - 90) < 0.5f) << "at rest, pointing down";
     };
 
+    "a grid's sort turned the other way turns its arrow about its centre, a half turn (B6)"_test = [] {
+        Headless h(options());
+        Model& people = h.runtime().model("people");
+        for (const auto& [key, name, age] : std::vector<std::tuple<std::string, std::string, std::int64_t>>{{"ada", "Ada", 36}, {"alan", "Alan", 41}})
+            expect(people.push({Row{key, Value{}.set("name", name).set("age", age)}}).has_value());
+        auto sort = signal(std::string("age"));
+        h.mount("main", column({.padding = 24}, {data_grid({.id = "people", .fields = std::vector<std::string>{"name", "age"}, .model = "people",
+                                                            .sort = sort, .width = Dim(300.0f)})}));
+        h.settle();
+        sort.set("-age");
+        h.step();
+        // The transforms the arrow is drawn under: a rotation part-way (its matrix neither up's nor down's).
+        std::vector<float> seen;
+        for (int sample = 0; sample < 12; ++sample) {
+            h.advance(seconds(0.02));
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) > 0.05f)
+                    seen.push_back(std::atan2(push->transform.b, push->transform.a) * 180 / std::numbers::pi_v<float>);
+            if (sample == 3) save(h, "grid-sort-turning");
+        }
+        expect(std::ranges::any_of(seen, [](float angle) { return std::abs(angle) > 20 && std::abs(angle) < 160; }))
+            << std::format("the arrow part-way round: {}", seen);
+        h.settle();
+        const bool down = std::ranges::any_of(h.runtime().display_list().commands(), [](const auto& command) {
+            const auto* push = std::get_if<xrender::PushTransform>(&command);
+            return push && push->transform.a < -0.99f && push->transform.d < -0.99f;
+        });
+        expect(down) << "at rest, pointing down";
+    };
+
     "a focused field's caret blinks by fading, not a hard cut; shown whole again at once when moved (B6)"_test = [] {
         Headless h(options());
         h.mount("main", column({.padding = 24}, {text_box({.id = "field", .text = std::string("abc")})}));

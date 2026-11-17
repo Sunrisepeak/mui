@@ -2255,12 +2255,13 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                         shape(c.rect, c.radii, c.paint);
                     } else if constexpr (std::same_as<T, StrokeRoundRect>) {
                         // Analytic, as a fill: the stroke's outer rrect less its inner (ui.slang's rring).
-                        if (!(c.width > 0)) return;
-                        const Ring ring = stroke_ring(c.rect, c.radii, c.width);
-                        if (c.radii.smoothing > 0 && !c.radii.zero()) {
+                        const StrokeRoundRect stroke = placed(c, m());
+                        if (!(stroke.width > 0)) return;
+                        const Ring ring = stroke_ring(stroke.rect, stroke.radii, stroke.width);
+                        if (stroke.radii.smoothing > 0 && !stroke.radii.zero()) {
                             // Smoothed: the two outlines even-odd, through a mask, as the CPU fills them.
-                            const auto key = device_key(10).rect(c.rect).radii(c.radii).f32(c.width).value();
-                            if (rounded_instead(key, c.rect, c.radii, c.width, c.paint)) return;
+                            const auto key = device_key(10).rect(stroke.rect).radii(stroke.radii).f32(stroke.width).value();
+                            if (rounded_instead(key, stroke.rect, stroke.radii, stroke.width, c.paint)) return;
                             mask(g.cover(key,
                                          [&](xrender::raster::Coverage& cov) {
                                              Path outline;
@@ -2281,7 +2282,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                         set(p.rect, ring.outer.x, ring.outer.y, ring.outer.width, ring.outer.height);
                         const CornerRadii& o = ring.outer_radii;
                         set(p.radii, o.top_left, o.top_right, o.bottom_right, o.bottom_left);
-                        p.shape[0] = c.width;
+                        p.shape[0] = stroke.width;
                         emit(std::move(d));
                     } else if constexpr (std::same_as<T, BoxShadow>) {
                         const auto key = device_key(2).rect(c.rect).radii(c.radii).f32(c.offset.x).f32(c.offset.y).f32(c.blur).f32(c.spread).u64(c.inset).value();

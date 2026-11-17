@@ -166,7 +166,7 @@ void OtpInput::paint(PaintContext& ctx) const {
         const bool current = typing && index == at;
         ctx.list.fill_round_rect(cell, corners, xrender::Paint::solid(theme.color(off ? "surface_variant" : "surface")));
         ctx.list.stroke_round_rect({cell.x + 0.5f, cell.y + 0.5f, cell.width - 1, cell.height - 1}, corners, current ? 2.0f : 1.0f,
-                                   xrender::Paint::solid(theme.color(current ? "accent" : "border")));
+                                   xrender::Paint::solid(theme.color(current ? "accent" : "border")), xrender::StrokeAlign::device);
         const Color ink = theme.color(off ? "text_muted" : "text");
         if (const Size text = cells_[index].measure(ctx.services, ink); !cells_[index].text().empty())
             cells_[index].paint(ctx, {cell.x + (cell.width - text.width) / 2, (cell.height - text.height) / 2}, ink);
@@ -445,7 +445,7 @@ void ToggleGroup::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const float radius = theme.corner("medium", 8);
     if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, CornerRadii::all(radius).fitted(ctx.size), 1, xrender::Paint::solid(theme.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, CornerRadii::all(radius).fitted(ctx.size), 1, xrender::Paint::solid(theme.color("border")), xrender::StrokeAlign::device);
     at_.clear();
     float x = option_inset;
     for (std::size_t index = 0; index < labels_.size(); ++index) {

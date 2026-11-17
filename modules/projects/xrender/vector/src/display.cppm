@@ -268,7 +268,12 @@ inline Ring stroke_ring(const Rect& r, const CornerRadii& radii, float width) no
 
 struct FillRect      { Rect rect; Paint paint; };
 struct FillRoundRect { Rect rect; CornerRadii radii; Paint paint; };
-struct StrokeRoundRect { Rect rect; CornerRadii radii; float width; Paint paint; };  // centred on the edge
+// How a stroke's edges meet the device's pixels. `device`: the width becomes a whole number of device pixels, at
+// least one (so a width of zero is the hairline: one device pixel at any scale), and each outer edge moves out to
+// a pixel's edge, so a border is rows of full pixels whatever the scale or a node's fractional origin. The list
+// keeps what was asked; every reader places it under its own transform (`placed`).
+enum class StrokeAlign : std::uint8_t { none, device };
+struct StrokeRoundRect { Rect rect; CornerRadii radii; float width; Paint paint; StrokeAlign align = StrokeAlign::none; };  // centred on the edge
 struct BoxShadow     { Rect rect; CornerRadii radii; Point offset; float blur; float spread; Color color; bool inset; };
 struct FillPath      { PathView path; FillRule rule; Paint paint; };
 struct StrokePath    { PathView path; StrokeStyle style; Paint paint; };
@@ -327,6 +332,11 @@ struct ReferenceBox { std::uint32_t owner; std::string_view key; Rect allocation
 struct BeginPart { const PartFrame* frame; }; // arena-owned, like material payloads
 struct EndPart {};
 
+// The stroke as drawn under `m` (device pixels): as given unless aligned to the device; aligned only under a
+// transform that keeps the axes and scales them alike (a rotated or skewed one draws it as given, a zero width
+// as one device pixel). The CPU, the GPU, the damage and the SVG writer all draw this.
+[[nodiscard]] StrokeRoundRect placed(const StrokeRoundRect& stroke, const Affine& m) noexcept;
+
 using Command = std::variant<FillRect, FillRoundRect, StrokeRoundRect, BoxShadow, FillPath, StrokePath, DrawImage,
                              DrawGlyphs, PushClipRect, PushClipPath, PopClip, PushTransform, PopTransform, PushLayer,
                              PopLayer, ExternalTexture, BeginNode, EndNode, NodeFrame, ReferenceBox, BeginPart, EndPart>;
@@ -346,7 +356,7 @@ public:
     void fill_rect(const Rect& r, const Paint& p);
     void fill_rect(const Rect& r, Color c) { fill_rect(r, Paint::solid(c)); }
     void fill_round_rect(const Rect& r, const CornerRadii& radii, const Paint& p);
-    void stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p);
+    void stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p, StrokeAlign align = StrokeAlign::none);
     void box_shadow(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, Color c, bool inset = false);
     void fill_path(const Path& path, FillRule rule, const Paint& p);
     void stroke_path(const Path& path, const StrokeStyle& style, const Paint& p);

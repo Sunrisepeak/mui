@@ -97,7 +97,7 @@ void Button::paint(PaintContext& ctx) const {
     if (c.border) {
         CornerRadii inner = radii;
         for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - 0.5f);
-        ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, inner, 1, xrender::Paint::solid(*c.border));
+        ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, inner, 1, xrender::Paint::solid(*c.border), xrender::StrokeAlign::device);
     }
     const Color text = off ? ctx.theme.color("text_disabled", c.text) : c.text;
     const Size t = label_.measure(ctx.services, text, std::max(ctx.content.width + 0.5f, std::ceil(label_.min_content(ctx.services, text)) + 0.5f));

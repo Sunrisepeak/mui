@@ -268,11 +268,13 @@ namespace xrender {
     CornerRadii radii;
     Paint paint;
   };
+  enum class StrokeAlign : std::uint8_t { none, device };
   struct StrokeRoundRect {
     Rect rect;
     CornerRadii radii;
     float width;
     Paint paint;
+    StrokeAlign align = StrokeAlign::none;
   };
   struct BoxShadow {
     Rect rect;
@@ -382,6 +384,7 @@ namespace xrender {
   };
   struct EndPart {
   };
+  [[nodiscard]] StrokeRoundRect placed(const StrokeRoundRect& stroke, const Affine& m) noexcept;
   using Command = std::variant<FillRect, FillRoundRect, StrokeRoundRect, BoxShadow, FillPath, StrokePath, DrawImage, DrawGlyphs, PushClipRect, PushClipPath, PopClip, PushTransform, PopTransform, PushLayer, PopLayer, ExternalTexture, BeginNode, EndNode, NodeFrame, ReferenceBox, BeginPart, EndPart>;
   [[nodiscard]] std::uint64_t hash_command(const Command& command, std::uint64_t seed) noexcept;
   class DisplayList {
@@ -393,7 +396,7 @@ namespace xrender {
     void fill_rect(const Rect& r, const Paint& p);
     void fill_rect(const Rect& r, Color c);
     void fill_round_rect(const Rect& r, const CornerRadii& radii, const Paint& p);
-    void stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p);
+    void stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p, StrokeAlign align = StrokeAlign::none);
     void box_shadow(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, Color c, bool inset = false);
     void fill_path(const Path& path, FillRule rule, const Paint& p);
     void stroke_path(const Path& path, const StrokeStyle& style, const Paint& p);

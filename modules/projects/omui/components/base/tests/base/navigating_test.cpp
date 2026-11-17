@@ -231,6 +231,6 @@ static UTest cases{"ui.base.navigating", [] {
         const std::uint64_t pinned = hash_of(h.pixels());
         std::println("ui.base navigating {:016x}", pinned);
         expect(h.save_png(scratch_dir("ui-base-navigating") / "navigating@2x.png").has_value());
-        expect(pinned == 0x768c1d833368b328ULL) << std::format("navigating {:016x}", pinned);
+        expect(pinned == 0x0cd7687addb68a6aULL) << std::format("navigating {:016x}", pinned);
     };
 }};

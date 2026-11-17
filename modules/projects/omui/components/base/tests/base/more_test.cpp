@@ -293,7 +293,7 @@ static UTest cases{"ui.base.more", [] {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base pickers {:016x}", hash.value());
         expect(h.save_png(scratch_dir("ui-base-pickers") / "pickers@2x.png").has_value());
-        expect(hash.value() == 0xe0ca452249dd50ebULL) << std::format("pickers {:016x}", hash.value());
+        expect(hash.value() == 0x417007c957319ea3ULL) << std::format("pickers {:016x}", hash.value());
     };
 
     "split view: two panes sharing their room as the handle says; the handle a splitter of its own; dragged and taken back whole; kept within min"_test = [] {
@@ -739,7 +739,7 @@ static UTest cases{"ui.base.more", [] {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base entry {:016x}", hash.value());
         expect(h.save_png(scratch_dir("ui-base-entry") / "entry@2x.png").has_value());
-        expect(hash.value() == 0x69641969a6aab991ULL) << std::format("entry {:016x}", hash.value());
+        expect(hash.value() == 0x2101a8c99c5ae739ULL) << std::format("entry {:016x}", hash.value());
     };
 
     "code editor: its field a text box in code; set whole and taken back; Enter keeps the indent, Tab indents, Escape then Tab leaves"_test = [] {
@@ -818,7 +818,7 @@ static UTest cases{"ui.base.more", [] {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base code {:016x}", hash.value());
         expect(h.save_png(scratch_dir("ui-base-code") / "code@2x.png").has_value());
-        expect(hash.value() == 0x300f5cb5bfc41d5aULL) << std::format("code {:016x}", hash.value());
+        expect(hash.value() == 0xaf72a519828a4365ULL) << std::format("code {:016x}", hash.value());
     };
 
     "the gallery: the second batch, the same pixels on every platform"_test = [] {

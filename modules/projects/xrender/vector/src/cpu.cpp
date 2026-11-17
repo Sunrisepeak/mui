@@ -668,8 +668,9 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, xrender::raster::Su
                 } else if constexpr (std::same_as<T, FillRoundRect>) {
                     canvas.fill_round_rect(c.rect, c.radii, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, StrokeRoundRect>) {
-                    if (!(c.width > 0)) return;
-                    const Ring ring = stroke_ring(c.rect, c.radii, c.width);
+                    const StrokeRoundRect stroke = placed(c, m());
+                    if (!(stroke.width > 0)) return;
+                    const Ring ring = stroke_ring(stroke.rect, stroke.radii, stroke.width);
                     sc.path.clear();
                     sc.path.add_rounded_rect(ring.outer, ring.outer_radii);
                     if (ring.hollow) sc.path.add_rounded_rect(ring.inner, ring.inner_radii);

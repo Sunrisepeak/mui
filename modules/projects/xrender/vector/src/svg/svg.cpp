@@ -372,10 +372,14 @@ private:
                     if (const auto painted = paint(c.paint, "fill")) shape(c.rect, c.radii, *painted);
                     else island(commands, index, index, Why::paint);
                 } else if constexpr (std::same_as<T, StrokeRoundRect>) {
-                    if (!(c.width > 0)) return;
+                    // Aligned to the pixels of the picture the reference draws (island_scale over the view).
+                    const Affine device = Affine::scale(options_.island_scale, options_.island_scale) *
+                                          Affine::translate(-options_.view.x, -options_.view.y) * transforms_.back();
+                    const StrokeRoundRect stroke = placed(c, device);
+                    if (!(stroke.width > 0)) return;
                     const auto painted = paint(c.paint, "fill");
                     if (!painted) return island(commands, index, index, Why::paint);
-                    const Ring ring = stroke_ring(c.rect, c.radii, c.width);
+                    const Ring ring = stroke_ring(stroke.rect, stroke.radii, stroke.width);
                     std::string data = rounded(ring.outer, ring.outer_radii);
                     if (ring.hollow) data += rounded(ring.inner, ring.inner_radii);
                     ++picture_.report.shapes;

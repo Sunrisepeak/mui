@@ -1128,13 +1128,13 @@ static UTest cases{"view", [] {
         Hash h;
         for (int y = 0; y < px.height(); ++y)
             h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
-        const std::uint64_t list_hash = 0xd96bafc92fa398c4ULL;
+        const std::uint64_t list_hash = 0x21f51aab4284f3ddULL;
         std::println("view pixels {:016x} list {:016x}", h.value(), rt.display_list().hash());
         mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(px.pixels().data()), px.width(), px.height(), px.width() * 4};
         expect(mlibs::image::save_png(scratch_dir("view") / "scene@2x.png", v).has_value());
         expect(rt.display_list().balanced());
         // Pinned: GCC and LLVM, Linux, macOS and Windows render this scene to the same bytes.
-        expect(h.value() == 0x757f273db96fb674ULL) << std::format("pixels {:016x}", h.value());
+        expect(h.value() == 0xc1562298c3eb74e8ULL) << std::format("pixels {:016x}", h.value());
         expect(rt.display_list().hash() == list_hash) << std::format("list {:016x}", rt.display_list().hash());
     };
 

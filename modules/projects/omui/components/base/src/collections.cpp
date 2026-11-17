@@ -528,7 +528,7 @@ void DataGrid::paint(PaintContext& ctx) const {
         if (edge_ == c) ctx.list.fill_rect({x - 1, 0, 2, resizing_ ? ctx.size.height : grid_head}, th.color("accent"));
     }
     ctx.list.pop_clip();
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
 }
 
 void DataGrid::paint_over(PaintContext& ctx) const {

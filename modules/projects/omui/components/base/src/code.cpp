@@ -82,7 +82,7 @@ void CodeEditor::paint(PaintContext& ctx) const {
     tag_.paint(ctx, {12, (code_head - t.height) / 2}, th.color("text_muted"));
     const NodeId f = field();
     const bool focus = f && ctx.services.state(f).focused;  // its field's focus is its own
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, focus ? 1.5f : 1, xrender::Paint::solid(focus ? th.color("accent") : th.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, focus ? 1.5f : 1, xrender::Paint::solid(focus ? th.color("accent") : th.color("border")), xrender::StrokeAlign::device);
 }
 
 void CodeEditor::semantics(SemanticsContext&, spec::SemanticNode& node) const {

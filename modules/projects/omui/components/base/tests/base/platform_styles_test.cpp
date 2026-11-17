@@ -78,7 +78,7 @@ static UTest cases{"ui.base.platform_styles", [] {
         for (const auto& picture : pictures) pinned.push_back(hash_of(picture));
         std::println("ui.base platform styles {:016x} {:016x} {:016x}", pinned[0], pinned[1], pinned[2]);
         expect(pinned[0] != pinned[1] && pinned[1] != pinned[2] && pinned[0] != pinned[2]) << "each its own";
-        expect(pinned == std::vector<std::uint64_t>{0x1b10cc3601679777ULL, 0x75fba3ba2e43528aULL, 0x24a41059e59dea88ULL})
+        expect(pinned == std::vector<std::uint64_t>{0xfcc4ac81ee43c53aULL, 0xe44cae0c7c7ebb05ULL, 0xe6cbfeb352a3b926ULL})
             << std::format("platforms {:016x} {:016x} {:016x}", pinned[0], pinned[1], pinned[2]);
     };
 }};

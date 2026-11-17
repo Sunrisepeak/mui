@@ -269,8 +269,38 @@ void DisplayList::fill_round_rect(const Rect& r, const CornerRadii& radii, const
     if (radii.zero()) return fill_rect(r, p);
     commands_.emplace_back(FillRoundRect{r, radii, own(p)});
 }
-void DisplayList::stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p) {
-    commands_.emplace_back(StrokeRoundRect{r, radii, width, own(p)});
+void DisplayList::stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p, StrokeAlign align) {
+    commands_.emplace_back(StrokeRoundRect{r, radii, width, own(p), align});
+}
+
+StrokeRoundRect placed(const StrokeRoundRect& stroke, const Affine& m) noexcept {
+    if (stroke.align == StrokeAlign::none) return stroke;
+    StrokeRoundRect out = stroke;
+    const float scale = std::abs(m.a);
+    if (m.b != 0 || m.c != 0 || !(scale > 0) || std::abs(m.d) != scale || !std::isfinite(scale)) {
+        const float any = m.max_scale();
+        if (!(out.width > 0) && any > 0) out.width = 1 / any;
+        return out;
+    }
+    const float device_width = std::max(1.0f, std::round(stroke.width * scale));
+    const float half = device_width / 2;
+    // One axis: the two centre lines in device pixels, each outer edge moved out to a pixel's edge (so a fill under
+    // the border, to the same box, has no partial pixel showing past it), back in the list's units (a mirrored axis
+    // maps the far edge first). An edge within 1/64 of a pixel's is on it.
+    constexpr float on_edge = 1.0f / 64;
+    auto axis = [half](float from, float to, float factor, float offset) {
+        float low = factor * from + offset, high = factor * to + offset;
+        if (low > high) std::swap(low, high);
+        low = std::floor(low - half + on_edge) + half;
+        high = std::max(low, std::ceil(high + half - on_edge) - half);
+        const float first = (low - offset) / factor, second = (high - offset) / factor;
+        return std::pair{std::min(first, second), std::abs(second - first)};
+    };
+    const auto [x, width] = axis(stroke.rect.x, stroke.rect.right(), m.a, m.e);
+    const auto [y, height] = axis(stroke.rect.y, stroke.rect.bottom(), m.d, m.f);
+    out.rect = {x, y, width, height};
+    out.width = device_width / scale;
+    return out;
 }
 void DisplayList::box_shadow(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, Color c, bool inset) {
     commands_.emplace_back(BoxShadow{r, radii, offset, blur, spread, c, inset});
@@ -572,7 +602,7 @@ std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
             using T = std::decay_t<decltype(cmd)>;
             if constexpr (std::same_as<T, FillRect>) { h.put(cmd.rect); h.put(cmd.paint); }
             else if constexpr (std::same_as<T, FillRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.paint); }
-            else if constexpr (std::same_as<T, StrokeRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.width); h.put(cmd.paint); }
+            else if constexpr (std::same_as<T, StrokeRoundRect>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.width); h.put(cmd.paint); if (cmd.align != StrokeAlign::none) h.put(cmd.align); }  // unaligned: as before alignment existed
             else if constexpr (std::same_as<T, BoxShadow>) { h.put(cmd.rect); h.put(cmd.radii); h.put(cmd.offset); h.put(cmd.blur); h.put(cmd.spread); h.put(cmd.color); h.put(cmd.inset); }
             else if constexpr (std::same_as<T, FillPath>) { h.put(cmd.path); h.put(cmd.rule); h.put(cmd.paint); }
             else if constexpr (std::same_as<T, StrokePath>) { h.put(cmd.path); h.put(cmd.style); h.put(cmd.paint); }

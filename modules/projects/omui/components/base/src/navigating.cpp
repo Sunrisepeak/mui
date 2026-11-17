@@ -34,7 +34,7 @@ void raised(PaintContext& ctx, std::string_view corner, float fallback) {
     const CornerRadii corners = CornerRadii::all(theme.corner(corner, fallback)).fitted(ctx.size);
     parts::shadow(ctx, "lg", box, corners);
     ctx.list.fill_round_rect(box, corners, xrender::Paint::solid(theme.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")), xrender::StrokeAlign::device);
 }
 
 std::string lower(std::string_view text) {
@@ -637,7 +637,7 @@ void Toolbar::paint(PaintContext& ctx) const {
     const Theme& theme = ctx.theme;
     const CornerRadii corners = CornerRadii::all(theme.corner("medium", 8)).fitted(ctx.size);
     ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, corners, xrender::Paint::solid(theme.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")), xrender::StrokeAlign::device);
 }
 
 void Toolbar::semantics(SemanticsContext&, spec::SemanticNode& node) const {

@@ -156,7 +156,7 @@ void Select::paint(PaintContext& ctx) const {
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
     const bool open = expanded();
     const Color border = open ? th.color("accent") : th.color("border");
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(border));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(border), xrender::StrokeAlign::device);
     const Color c = props.value.empty() ? th.color("text_muted") : th.color("text");
     const Size t = label_.measure(ctx.services, c, ctx.content.width);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);
@@ -203,7 +203,7 @@ void SelectPopup::paint(PaintContext& ctx) const {
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
         paint_shadow(ctx.list, box, r, it->second);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
 }
 
 bool SelectPopup::on_event(EventContext&, const InputEvent& e) {

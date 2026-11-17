@@ -355,4 +355,38 @@ static UTest cases{"render.cpu", [] {
         cpu.render(faint, out, {}, options);
         expect(ge(int(out.at(2, 2).r), 126) && le(int(out.at(2, 2).r), 129));
     };
+
+    "a border aligned to the device is rows of whole pixels at any scale and origin"_test = [] {
+        render::CpuRenderer cpu;
+        // Every pixel the border's ink or the background, none between; `across` and `down` black pixels through the middle.
+        auto drawn = [&](float width, float scale, render::StrokeAlign align) {
+            render::DisplayList dl;
+            dl.stroke_round_rect({3.3f, 4.7f, 20.2f, 10.1f}, {}, width, render::Paint::solid(geom::Color::black()), align);
+            raster::Surface out(64, 48);  // the whole border at 2x
+            cpu.render(dl, out, {}, {.scale = scale, .background = geom::Color::white()});
+            struct Seen { int partial = 0, across = 0, down = 0; } seen;
+            for (int y = 0; y < out.height(); ++y)
+                for (int x = 0; x < out.width(); ++x) {
+                    const int r = out.at(x, y).r;
+                    seen.partial += r != 0 && r != 255;
+                    seen.across += y == static_cast<int>(10 * scale) && r == 0;
+                    seen.down += x == static_cast<int>(13 * scale) && r == 0;
+                }
+            return seen;
+        };
+        for (const float scale : {1.0f, 1.25f, 1.5f, 2.0f}) {
+            const auto one = drawn(1, scale, render::StrokeAlign::device);
+            const int rows = static_cast<int>(std::max(1.0f, std::round(scale)));
+            expect(eq(one.partial, 0) && eq(one.across, 2 * rows) && eq(one.down, 2 * rows)) << "1 px at scale " << scale;
+            const auto hairline = drawn(0, scale, render::StrokeAlign::device);
+            expect(eq(hairline.partial, 0) && eq(hairline.across, 2) && eq(hairline.down, 2)) << "the hairline at scale " << scale;
+        }
+        expect(gt(drawn(1, 1.25f, render::StrokeAlign::none).partial, 0)) << "unaligned, the same border is smeared across pixels";
+        // Under a rotation it is drawn as asked; a hairline there is one device pixel wide.
+        const render::StrokeRoundRect asked{{3.3f, 4.7f, 20.2f, 10.1f}, {}, 0, {}, render::StrokeAlign::device};
+        const auto turned = render::placed(asked, geom::Affine::rotation(std::cos(0.5f), std::sin(0.5f)) * geom::Affine::scale(2, 2));
+        expect(turned.rect == asked.rect && eq(turned.width, 0.5f));
+        const auto plain = render::placed({asked.rect, {}, 1, {}, render::StrokeAlign::none}, geom::Affine::scale(1.25f, 1.25f));
+        expect(plain.rect == asked.rect && eq(plain.width, 1.0f)) << "unaligned: untouched";
+    };
 }};

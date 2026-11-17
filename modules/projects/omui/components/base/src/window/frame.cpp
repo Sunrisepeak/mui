@@ -154,7 +154,7 @@ void WindowFrame::paint(PaintContext& ctx) const {
         if (!props.title.empty()) title_.paint(ctx, {std::max(bar.x + 8, x), bar.y + (bar.height - s.height) / 2}, text);
     }
     ctx.list.stroke_round_rect({edge.x + 0.5f, edge.y + 0.5f, edge.width - 1, edge.height - 1}, radii, 1,
-                               solid(mix(t.color("border"), t.color("border_strong"), active * 0.5f)));
+                               solid(mix(t.color("border"), t.color("border_strong"), active * 0.5f)), xrender::StrokeAlign::device);
 }
 
 void WindowFrame::semantics(SemanticsContext&, spec::SemanticNode& node) const {

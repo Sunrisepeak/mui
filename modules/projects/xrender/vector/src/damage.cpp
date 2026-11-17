@@ -47,7 +47,8 @@ std::optional<Rect> device_bounds(const Command& command, const Affine& m, Glyph
             if constexpr (std::same_as<T, FillRect> || std::same_as<T, FillRoundRect>) {
                 return grow(mapped(m, c.rect), aa);
             } else if constexpr (std::same_as<T, StrokeRoundRect>) {
-                return grow(mapped(m, grow(c.rect, c.width / 2)), aa);
+                const StrokeRoundRect stroke = placed(c, m);
+                return grow(mapped(m, grow(stroke.rect, stroke.width / 2)), aa);
             } else if constexpr (std::same_as<T, BoxShadow>) {
                 if (c.inset) return grow(mapped(m, c.rect), aa);
                 // The blur reaches three standard deviations (σ = blur / 2) and the

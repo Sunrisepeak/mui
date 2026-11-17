@@ -88,7 +88,7 @@ void Menu::paint(PaintContext& ctx) const {
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
         paint_shadow(ctx.list, box, r, it->second, k);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
 }
 
 void Menu::semantics(SemanticsContext&, spec::SemanticNode& node) const { node.states.set(State::expanded, props.open); }

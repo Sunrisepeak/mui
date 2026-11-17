@@ -32,7 +32,7 @@ void panel(PaintContext& ctx, double radius) {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = fitted(radius, ctx.size);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(ctx.theme.color("surface", Color::white())));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, xrender::Paint::solid(ctx.theme.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, xrender::Paint::solid(ctx.theme.color("border")), xrender::StrokeAlign::device);
 }
 
 }  // namespace

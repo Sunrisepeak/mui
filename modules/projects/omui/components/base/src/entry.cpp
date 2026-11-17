@@ -87,7 +87,7 @@ void ChoicePopup::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     parts::shadow(ctx, "lg", box, r);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
     const Value::List* l = choices_.list();
     if (!l) return;
     const std::size_t n = std::min(l->size(), choice_rows);
@@ -349,7 +349,7 @@ void TagInput::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::StrokeAlign::device);
 }
 
 std::vector<Element> TagInput::compose() {

@@ -220,7 +220,7 @@ void Chip::paint(PaintContext& ctx) const {
     Color fill = on ? th.color("accent_subtle") : th.color("surface");
     if (ctx.state.hovered && !off) fill = mix(fill, th.color("surface_pressed"), on ? 0.25f : 0.5f);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(fill));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(on ? th.color("accent") : th.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(on ? th.color("accent") : th.color("border")), xrender::StrokeAlign::device);
     const Color text = on ? th.color("accent") : th.color("text");
     float x = chip_pad;
     if (on) {

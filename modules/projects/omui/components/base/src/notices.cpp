@@ -83,7 +83,7 @@ void Alert::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     const Color tone = tone_colour(th, props.tone);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(parts::mix(th.color("surface"), tone, 0.08f)));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(tone.with_alpha(0.45f)));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(tone.with_alpha(0.45f)), xrender::StrokeAlign::device);
     const Rect c = ctx.content;
     // Its mark: a disc in its tone, and in it what kind it is (i, ✓, !, ×).
     const Point mid{c.x + alert_icon / 2, c.y + alert_icon / 2 + 1};

@@ -181,7 +181,7 @@ void Checkbox::paint(PaintContext& ctx) const {
         const Color strong = th.color("border_strong");
         const Color border = strong.with_alpha(strong.a * (1 - k));
         ctx.list.stroke_round_rect({b.x + 0.5f, b.y + 0.5f, b.width - 1, b.height - 1}, CornerRadii::all(r.top_left - 0.5f), 1,
-                                   xrender::Paint::solid(border));
+                                   xrender::Paint::solid(border), xrender::StrokeAlign::device);
     }
     if (k > 0) {
         const Color mark = th.color("on_accent");

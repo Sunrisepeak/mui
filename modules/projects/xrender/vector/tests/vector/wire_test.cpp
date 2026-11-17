@@ -20,6 +20,7 @@ void everything(render::DisplayList& list) {
     list.fill_rect({0, 0, 320, 240}, geom::Color::hex(0xf8fafc));
     list.fill_round_rect({10, 10, 200, 120}, geom::CornerRadii{12, 12, 12, 12, 0.6f}, render::Paint::solid(geom::Color::hex(0x4f46e5, 0.8f)));
     list.stroke_round_rect({20, 20, 80, 40}, geom::CornerRadii::all(6), 2, render::Paint::solid(geom::Color::hex(0x0f172a)));
+    list.stroke_round_rect({20.3f, 70.6f, 80, 40}, geom::CornerRadii::all(6), 0, render::Paint::solid(geom::Color::hex(0x0f172a)), render::StrokeAlign::device);
     list.box_shadow({30, 30, 60, 30}, geom::CornerRadii::all(8), {0, 4}, 10, -2, geom::Color::hex(0x000000, 0.2f));
     render::Path path;
     path.move_to({40, 150}).cubic_to({60, 110}, {120, 190}, {160, 150}).line_to({160, 200}).close();

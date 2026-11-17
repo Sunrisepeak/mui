@@ -317,6 +317,7 @@ namespace omui {
     virtual void point_out(NodeId by, std::string_view path);
     virtual hanim::Engine& engine() = 0;
     virtual std::uint64_t after(seconds delay, std::function<void()> fn) = 0;
+    virtual std::uint64_t ambient_after(seconds delay, std::function<void()> fn);
     virtual void cancel(std::uint64_t timer) = 0;
   };
   struct PaintPart {
@@ -950,6 +951,7 @@ namespace omui {
     std::uint64_t revision = 0;
     FrameStats stats;
     std::optional<seconds> next_timer;
+    std::optional<seconds> next_work;
     FrameDemand demand;
     std::string failure;
   };
@@ -1083,6 +1085,7 @@ namespace omui {
     [[nodiscard]] const DebugOptions& debug() const noexcept;
     [[nodiscard]] Value inspect(NodeId node) const;
     [[nodiscard]] std::optional<seconds> next_timer() const noexcept;
+    [[nodiscard]] std::optional<seconds> next_work() const noexcept;
     [[nodiscard]] NodeId hit_test(Point window) const;
     [[nodiscard]] NodeId control_at(Point window) const override;
     Envelope act(NodeId node, std::string_view action, const Invocation& call = {…});
@@ -1248,6 +1251,7 @@ namespace omui {
     void set_clipboard_text(std::string_view text) override;
     hanim::Engine& engine() override;
     std::uint64_t after(seconds delay, std::function<void()> fn) override;
+    std::uint64_t ambient_after(seconds delay, std::function<void()> fn) override;
     void cancel(std::uint64_t timer) override;
     [[nodiscard]] std::optional<Rect> text_input_rect() const noexcept;
     [[nodiscard]] std::string_view cursor() const;
@@ -1393,6 +1397,7 @@ namespace omui {
     hanim::PointPath translation_path;
     bool reshape = false;
     float press = 0;
+    double press_length = 0;
     friend bool operator==(const MotionSpec&, const MotionSpec&);
   };
   [[nodiscard]] MotionSpec compose_motion(std::initializer_list<MotionPrimitive> parts, Transition timing = Transition::spring_with());

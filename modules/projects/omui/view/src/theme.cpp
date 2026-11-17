@@ -253,7 +253,7 @@ MotionSpec compose_motion(std::initializer_list<MotionPrimitive> parts, Transiti
 
 std::span<const ComponentMotionRecipe> default_component_motion_recipes() {
     static constexpr ComponentMotionRecipe recipes[]{
-        {"button", "default.action", "default.focus", "default.reveal", "default.reveal"},
+        {"button", "default.action", "default.press", "default.reveal", "default.reveal"},
         {"toggle", "default.toggle", "default.focus", "default.reveal", "default.reveal"},
         {"checkbox", "default.check", "default.focus", "default.reveal", "default.reveal"},
         {"radio", "default.check", "default.focus", "default.reveal", "default.reveal"},
@@ -381,6 +381,13 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     add("enter.drop", compose_motion({P::match_drawing, P::drop}, Transition::tween(hanim::seconds(0.7), hanim::ease::linear)));
     add("travel.noise", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::noise}, gentle));
     add("text.reshape", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::reshape}, gentle));
+    // A button's states: hovered and focused fade quickly (default.focus's 0.10 s); pressed, it presses in about the
+    // finger and rings back out over a course of its own, and springs a little on release (component quality B4).
+    add("default.press", [&] {
+        MotionSpec press = compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::press}, Transition::tween(hanim::seconds(0.10)));
+        press.press_length = 0.45;
+        return press;
+    }());
     add("press.squash", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::press}, Transition::tween(hanim::seconds(0.45), hanim::ease::linear)));
     return lib;
 }
@@ -500,6 +507,10 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
         else if (t->as_string() == "auto") m.text = MotionSpec::TextTransition::automatic;
         else return std::nullopt;
         m.glyphs = true;
+    }
+    if (const Value* length = v.get("press_length")) {
+        if (!length->is_number() || !std::isfinite(length->as_double())) return std::nullopt;
+        m.press_length = std::clamp(length->as_double(), 0.0, 2.0);
     }
     if (const Value* roll = v.get("glyph_roll")) {
         if (!roll->is_number() || !std::isfinite(roll->as_double())) return std::nullopt;

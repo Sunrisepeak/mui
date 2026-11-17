@@ -329,6 +329,43 @@ static UTest cases{"ui.base.default-motion", [] {
         }
     };
 
+    "a button by default: hovered quickly; pressed, in about the finger on a course of its own; released, a little spring out (B4)"_test = [] {
+        Headless h(options());
+        h.mount("main", column({.padding = 24}, {button({.id = "go", .text = "Go"})}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/go"));
+        PointerEvent down;
+        down.kind = PointerKind::down; down.button = MouseButton::left; down.buttons = 1;
+        down.position = {bounds.x + bounds.width * .25f, bounds.center().y};
+        PointerEvent over = down;
+        over.kind = PointerKind::move; over.buttons = 0;
+        h.step({over});
+        expect_duration(h, "main/go", 0.10);  // the hover: default.focus's quick fade
+        h.settle();
+        // The scale the drawing is under about the finger: below 1 pressed in, above 1 sprung out.
+        const auto scaled = [&] {
+            float least = 1, most = 1;
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && push->transform.b == 0 && push->transform.a == push->transform.d)
+                    least = std::min(least, push->transform.a), most = std::max(most, push->transform.a);
+            return std::pair{least, most};
+        };
+        h.step({down});
+        h.advance(seconds(0.45 / 6));  // the press's first crest, past the 0.10 s the state's fade takes
+        expect(scaled().first < .96f) << std::format("pressed in: {}", scaled().first);
+        h.advance(seconds(0.2));
+        expect(!h.runtime().motions().empty()) << "still ringing after the state's own fade is done";
+        h.advance(seconds(0.5));
+        expect(h.runtime().motions().empty()) << "then at rest, pressed (the button's own pressed look)";
+        PointerEvent up = down;
+        up.kind = PointerKind::up; up.buttons = 0;
+        h.step({up});
+        h.advance(seconds(0.45 / 6));
+        expect(scaled().second > 1.004f) << std::format("released: sprung out a little, {}", scaled().second);
+        h.advance(seconds(1));
+        expect(h.runtime().motions().empty()) << "and at rest";
+    };
+
     "press.squash: a pressed button is pressed in about the finger and rings out"_test = [] {
         Headless h(options());
         auto sample = button({.id = "go", .text = "Go"});

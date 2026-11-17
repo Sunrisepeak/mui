@@ -146,6 +146,9 @@ struct Options {
     // end; at rest it is not there.
     std::optional<Point> pulse_at;
     float                pulse = 0;
+    // The press's own course, seconds: it rings out over this whatever the curve (a hover's quick fade carrying a
+    // press that takes its time; the morph lasts until both are done). 0: over the curve.
+    double               pulse_length = 0;
 };
 
 struct MorphStats {

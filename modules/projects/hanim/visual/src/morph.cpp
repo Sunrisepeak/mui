@@ -1302,6 +1302,7 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
     double longest = 0;
     for (const Pair& p : pairs_) longest = std::max(longest, p.delay);
     end_ = start_ + longest + options_.curve.length();
+    if (options_.pulse_at && options_.pulse != 0 && options_.pulse_length > 0) end_ = std::max(end_, start_ + options_.pulse_length);
 
     // Presentation frames never participate in piece matching, statistics,
     // visual bounds, budget or staggering. Reuse a visible owner's carrier
@@ -1544,7 +1545,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         e.base = wb.transform.inverse().value_or(Affine{});
     }
     // A press: pressed in about the finger at once, ringing out like rubber to nothing by the end.
-    const double pressed_course = clamp01(options_.curve.at(since));
+    const double pressed_course = options_.pulse_length > 0 ? clamp01(since / options_.pulse_length) : clamp01(options_.curve.at(since));
     const bool pressing = options_.pulse_at && options_.pulse != 0 && since > 0 && pressed_course < 1;
     if (pressing) {
         const Rect area = to_.empty() ? from_.bounds() : to_.bounds();

@@ -105,6 +105,7 @@ struct MotionSpec {
     hanim::PointPath      translation_path; // a moving piece's way (noise); reduced motion goes straight
     bool                  reshape = false; // a replaced glyph's outline morphs into its replacement's
     float                 press = 0;       // a state change under the pointer presses the drawing in by this, ringing out
+    double                press_length = 0;  // the press's own course, seconds (0: the motion's curve)
     friend bool operator==(const MotionSpec&, const MotionSpec&);
 };
 
@@ -209,7 +210,7 @@ public:
 // A slot's motion as a property, a style or a rule writes it: "none",
 // "morph", a library's name ("liquid"), either with a curve token after it
 // ("morph motion.spring.gentle"), or {use, curve, order ("together",
-// "document", "distance"), stagger, arrivals, glyphs, text (glyphs/replace/auto), text_rise (ems), glyph_roll (ems), text_contrast (0 or 1..4.5), meaning, rise, grow, stretch,
+// "document", "distance"), stagger, arrivals, glyphs, text (glyphs/replace/auto), text_rise (ems), glyph_roll (ems), press_length (seconds), text_contrast (0 or 1..4.5), meaning, rise, grow, stretch,
 // vertex_path = {bend: fraction} or {control1: [along, normal], control2: [along, normal]},
 // travel = {effect, param, peak, <numbers>…}} — `use` a library's name the
 // rest changes. Nullopt when it is none of these (the caller says why). A

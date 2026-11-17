@@ -125,7 +125,7 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
                 else {
                     constexpr Log motion_log{"motion"};
                     motion_log.warn("{}: a motion is \"none\", \"morph\", a library's name (\"liquid\"), either with a curve after it, "
-                                    "{{use, curve, order, stagger, arrivals, glyphs, text, text_rise, glyph_roll, text_contrast, meaning, rise, grow, stretch, vertex_path, travel}}, or a list of them; not {}",
+                                    "{{use, curve, order, stagger, arrivals, glyphs, text, text_rise, glyph_roll, press_length, text_contrast, meaning, rise, grow, stretch, vertex_path, travel}}, or a list of them; not {}",
                                     self.path(id), v->json());
                 }
                 continue;
@@ -402,6 +402,7 @@ void Runtime::Impl::run_motion() {
             if (press && spec.press > 0 && level != MotionLevel::reduced) {
                 options.pulse_at = press->first;
                 options.pulse = press->second * spec.press;
+                options.pulse_length = spec.press_length;
             }
             options.curve.velocity = velocity;
             options.rebase_layout = spec.placement == MotionSpec::PlacementPolicy::follow_layout ||
@@ -475,16 +476,17 @@ void Runtime::Impl::run_motion() {
             n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
             continue;
         }
+        const auto was_states = n.drawn_states;
         n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
         press.reset();
         if (spec->press > 0 && n.screen.width > 0 && n.screen.height > 0) {
-            // Pressed in about the finger while it is held (whatever the press changed); a state change
-            // after it lets go springs out a little.
+            // Pressed in about the finger while it is held (whatever the press changed); let go (pressed before,
+            // not now), it springs out a little. A hover or a focus alone presses nothing.
             const bool held_here = held && alive(pressed) && (pressed == id || contains(id, pressed));
             const Point at{std::clamp((pressed_at.x - n.screen.x) / n.screen.width, 0.0f, 1.0f),
                            std::clamp((pressed_at.y - n.screen.y) / n.screen.height, 0.0f, 1.0f)};
             if (held_here) press = std::pair{at, 1.0f};
-            else if (slot == 3) press = std::pair{at, -0.5f};
+            else if (slot == 3 && (was_states & 2u) != 0 && (states & 2u) == 0) press = std::pair{at, -0.5f};
         }
         // Changing on and on (a meter, a playhead, a scroll gliding, a camera flying): it moves by itself, shown as it
         // is; a morph is for a change, not for a motion.

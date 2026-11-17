@@ -385,6 +385,29 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(still) << "at rest, in its place";
     };
 
+    "a step done writes its check in: the stroke drawn part-way, then whole (B6)"_test = [] {
+        Headless h(options());
+        h.mount("main", column({.padding = 24}, {stepper({.id = "steps", .free = true, .steps = std::vector<std::string>{"Cart", "Address", "Payment"}})}));
+        h.settle();
+        act(h, "main/steps", "increment");
+        h.step();
+        // The appearing check: a stroke trimmed short of its end at some sample of the course.
+        bool partway = false;
+        for (int sample = 0; sample < 12 && !partway; ++sample) {
+            h.advance(seconds(0.02));
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* stroke = std::get_if<xrender::StrokePath>(&command); stroke && stroke->style.trim_end > 0.05f && stroke->style.trim_end < 0.95f)
+                    partway = true;
+        }
+        h.settle();
+        expect(partway) << "the check written in, not faded in whole";
+        const auto whole = std::ranges::none_of(h.runtime().display_list().commands(), [](const auto& command) {
+            const auto* stroke = std::get_if<xrender::StrokePath>(&command);
+            return stroke && stroke->style.trim_end < 1;
+        });
+        expect(whole) << "at rest, whole";
+    };
+
     "a pressed tab answers the finger: deeper than hovered, before the indicator moves (B5)"_test = [] {
         Headless h(options());
         auto selected = signal(std::string("general"));

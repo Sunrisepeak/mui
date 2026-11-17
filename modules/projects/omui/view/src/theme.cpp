@@ -368,7 +368,8 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     add("default.reveal", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::grow}, quick));
     add("default.panel", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::panel_lift, P::grow}, gentle));
     add("default.notice", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::lift, P::grow}, quick));
-    add("default.steps", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::stretch}, quick));
+    // A step done writes its check in, stroke by stroke (component quality B6).
+    add("default.steps", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::stretch, P::write}, quick));
     // The representations' recipes (convergence plan §6.8; universal motion §13.1).
     add("trace.focus", compose_motion({P::match_drawing, P::fade, P::write}, Transition::tween(hanim::seconds(0.32))));
     add("write.check", compose_motion({P::match_drawing, P::match_glyphs, P::write}, Transition::tween(hanim::seconds(0.26))));

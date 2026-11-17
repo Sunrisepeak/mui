@@ -478,6 +478,47 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(rest.has_value() && std::abs(*rest - 90) < 0.5f) << "at rest, pointing down";
     };
 
+    "a tree row opened: its children arrive one after another, in order (default.rows, B6)"_test = [] {
+        Headless h(options());
+        Model& files = h.runtime().model("files");
+        for (const auto& [key, label, parent] : std::vector<std::tuple<std::string, std::string, std::string>>{
+                 {"src", "src", ""}, {"a", "a.cpp", "src"}, {"b", "b.cpp", "src"}, {"c", "c.cpp", "src"}}) {
+            Value fields = Value{}.set("label", label);
+            if (!parent.empty()) fields.set("parent", parent);
+            expect(files.push({Row{key, fields}}).has_value());
+        }
+        h.mount("main", column({.padding = 24}, {tree_view({.id = "files", .model = "files", .width = Dim(240.0f), .height = Dim(200.0f)})}));
+        h.settle();
+        const Rect at = h.runtime().screen_bounds(h.runtime().find("main/files"));
+        // How much ink a row's band holds (its label's): rows 1–3 are the children once open.
+        const auto ink = [&](int row) {
+            const auto& px = h.pixels();
+            const int top = static_cast<int>(at.y + 6 + 30.0f * static_cast<float>(row)), bottom = top + 30;
+            int count = 0;
+            for (int y = top; y < bottom && y < px.height(); ++y)
+                for (int x = static_cast<int>(at.x + 40); x < static_cast<int>(at.right()) - 8 && x < px.width(); ++x) {
+                    const auto p = px.at(x, y);
+                    if (p.r + p.g + p.b < 3 * 160) ++count;
+                }
+            return count;
+        };
+        act(h, "main/files/src", "expand");
+        std::vector<std::array<int, 3>> seen;
+        for (int sample = 0; sample < 15; ++sample) {
+            h.advance(seconds(0.016));
+            seen.push_back({ink(1), ink(2), ink(3)});
+            if (sample == 2) save(h, "tree-rows-arriving");
+        }
+        h.settle();
+        // Each child's ink as a share of its own at rest (their labels differ): the first ahead of the third part-way.
+        const std::array<int, 3> rest{ink(1), ink(2), ink(3)};
+        expect(fatal(rest[0] > 50 && rest[1] > 50 && rest[2] > 50)) << std::format("at rest, all there: {}", rest);
+        const bool in_order = std::ranges::any_of(seen, [&](const std::array<int, 3>& now) {
+            return static_cast<double>(now[0]) / rest[0] > static_cast<double>(now[2]) / rest[2] + 0.2;
+        });
+        expect(in_order) << std::format("the first child further in than the third, part-way: {} of {}", seen, rest);
+    };
+
     "a grid's sort turned the other way turns its arrow about its centre, a half turn, and moves its rows to their new places (B6)"_test = [] {
         Headless h(options());
         Model& people = h.runtime().model("people");

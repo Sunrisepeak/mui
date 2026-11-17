@@ -62,6 +62,7 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
               : spec.order == MotionSpec::Order::reverse  ? hanim::visual::Order::reverse
                                                           : hanim::visual::Order::together;
     o.stagger = spec.stagger;
+    o.stagger_arrivals = spec.arrivals;
     o.appear = spec.appear;
     o.vanish = spec.vanish;
     o.stretch = spec.stretch;
@@ -124,7 +125,7 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
                 else {
                     constexpr Log motion_log{"motion"};
                     motion_log.warn("{}: a motion is \"none\", \"morph\", a library's name (\"liquid\"), either with a curve after it, "
-                                    "{{use, curve, order, stagger, glyphs, text, text_rise, glyph_roll, text_contrast, meaning, rise, grow, stretch, vertex_path, travel}}, or a list of them; not {}",
+                                    "{{use, curve, order, stagger, arrivals, glyphs, text, text_rise, glyph_roll, text_contrast, meaning, rise, grow, stretch, vertex_path, travel}}, or a list of them; not {}",
                                     self.path(id), v->json());
                 }
                 continue;

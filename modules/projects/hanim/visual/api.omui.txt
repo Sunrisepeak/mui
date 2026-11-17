@@ -121,6 +121,7 @@ namespace hanim::visual {
     Curve curve;
     Order order = Order::together;
     double stagger = 0;
+    bool stagger_arrivals = false;
     bool semantic = true;
     bool glyphs = true;
     TextTransition text = TextTransition::glyphs;

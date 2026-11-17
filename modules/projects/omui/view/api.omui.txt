@@ -1365,6 +1365,7 @@ namespace omui {
     Transition curve = Transition::spring_with();
     Order order = Order::together;
     double stagger = 0;
+    bool arrivals = false;
     bool glyphs = true;
     TextTransition text = TextTransition::glyphs;
     float text_rise = 0.35f;

@@ -193,22 +193,26 @@ void TreeView::paint(PaintContext& ctx) const {
         const Line& l = ls[i];
         const Rect r{tree_pad, tree_pad + static_cast<float>(i) * tree_row - offset_, ctx.size.width - 2 * tree_pad, tree_row};
         const bool chosen = l.key == props.value;
-        if (chosen) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("accent_subtle")));
-        else if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("surface_variant")));
-        for (int level = 0; level < l.depth; ++level) {
-            const bool lit = level == lit_level && i >= lit_from && i <= lit_to;
-            const float gx = std::round(r.x + 12 + static_cast<float>(level) * tree_indent);
-            ctx.list.fill_rect({gx, r.y, 1, tree_row}, th.color(lit ? "border_strong" : "border"));
-        }
         const float x = r.x + 6 + static_cast<float>(l.depth) * tree_indent;
+        // The row (its fill, guides and label) is a part by its key: rows opened under it arrive one by one and those
+        // below move down (`default.rows`; component quality B6). Its chevron is a part of its own, drawn after.
+        ctx.part({.role = "row", .id = l.key, .allocation = r}, [&] {
+            if (chosen) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("accent_subtle")));
+            else if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("surface_variant")));
+            for (int level = 0; level < l.depth; ++level) {
+                const bool lit = level == lit_level && i >= lit_from && i <= lit_to;
+                const float gx = std::round(r.x + 12 + static_cast<float>(level) * tree_indent);
+                ctx.list.fill_rect({gx, r.y, 1, tree_row}, th.color(lit ? "border_strong" : "border"));
+            }
+            parts::Label& label = labels_[i - from];
+            label.set_style("body");
+            label.set_max_lines(1);
+            label.set_text(label_of(l.row));
+            const Color c = chosen ? th.color("accent") : th.color("text");
+            const Size t = label.measure(ctx.services, c, std::max(0.0f, r.right() - x - 22));
+            label.paint(ctx, {x + 18, r.center().y - t.height / 2}, c);
+        });
         if (l.parent) tree_chevron(ctx, l.key, {x + 6, r.center().y}, is_open(l.key), th.color("text_muted"));
-        parts::Label& label = labels_[i - from];
-        label.set_style("body");
-        label.set_max_lines(1);
-        label.set_text(label_of(l.row));
-        const Color c = chosen ? th.color("accent") : th.color("text");
-        const Size t = label.measure(ctx.services, c, std::max(0.0f, r.right() - x - 22));
-        label.paint(ctx, {x + 18, r.center().y - t.height / 2}, c);
     }
     ctx.list.pop_clip();
 }

@@ -63,6 +63,9 @@ struct Options {
     Curve  curve;
     Order  order = Order::together;
     double stagger = 0;      // seconds between one piece's start and the next's, in `order`
+    // Staggered: only the pieces that arrive (none before), and a declared part's pieces as one — a tree's rows opened
+    // one after another while what was there moves at once. Off: every piece takes a rank.
+    bool   stagger_arrivals = false;
     bool   semantic = true;  // match nodes whose key changed by their meaning
     bool   glyphs = true;    // false retains the legacy whole-run crossfade
     TextTransition text = TextTransition::glyphs;

@@ -68,6 +68,7 @@ struct MotionSpec {
     Transition curve = Transition::spring_with();
     Order      order = Order::together;
     double     stagger = 0;      // seconds between pieces, in `order`
+    bool       arrivals = false; // staggered: only what arrives, a part's pieces as one (a tree's rows opened one by one)
     bool       glyphs = true;    // false: legacy whole-run crossfade
     TextTransition text = TextTransition::glyphs; // explicit glyph matching remains compatible
     float      text_rise = 0.35f; // whole-run replacement travel, in ems
@@ -208,7 +209,7 @@ public:
 // A slot's motion as a property, a style or a rule writes it: "none",
 // "morph", a library's name ("liquid"), either with a curve token after it
 // ("morph motion.spring.gentle"), or {use, curve, order ("together",
-// "document", "distance"), stagger, glyphs, text (glyphs/replace/auto), text_rise (ems), glyph_roll (ems), text_contrast (0 or 1..4.5), meaning, rise, grow, stretch,
+// "document", "distance"), stagger, arrivals, glyphs, text (glyphs/replace/auto), text_rise (ems), glyph_roll (ems), text_contrast (0 or 1..4.5), meaning, rise, grow, stretch,
 // vertex_path = {bend: fraction} or {control1: [along, normal], control2: [along, normal]},
 // travel = {effect, param, peak, <numbers>…}} — `use` a library's name the
 // rest changes. Nullopt when it is none of these (the caller says why). A

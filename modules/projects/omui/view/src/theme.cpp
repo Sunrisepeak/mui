@@ -282,7 +282,7 @@ std::span<const ComponentMotionRecipe> default_component_motion_recipes() {
         {"time_picker", "default.count", "default.focus", "default.panel", "default.panel"},
         {"color_picker", "default.surface", "default.focus", "default.panel", "default.panel"},
         {"split_view", "default.structure", "default.focus", "default.reveal", "default.reveal"},
-        {"tree_view", "default.structure", "default.focus", "default.reveal", "default.reveal"},
+        {"tree_view", "default.rows", "default.focus", "default.reveal", "default.reveal"},
         {"data_grid", "default.structure", "default.focus", "default.reveal", "default.reveal"},
         {"combobox", "default.selection", "default.focus", "default.panel", "default.panel"},
         {"tag_input", "default.structure", "default.focus", "default.reveal", "default.reveal"},
@@ -365,6 +365,15 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     }());
     add("default.surface", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, Transition::tween(hanim::seconds(0.18))));
     add("default.structure", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, gentle));
+    // Rows opened under a row arrive one after another, in the document's order, while those below move down at once
+    // (a tree's children; component quality B6).
+    add("default.rows", [&] {
+        MotionSpec rows = compose_motion({P::match_drawing, P::match_glyphs, P::fade}, gentle);
+        rows.order = MotionSpec::Order::document;
+        rows.stagger = 0.03;
+        rows.arrivals = true;
+        return rows;
+    }());
     add("default.reveal", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::grow}, quick));
     add("default.panel", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::panel_lift, P::grow}, gentle));
     add("default.notice", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::lift, P::grow}, quick));
@@ -488,6 +497,7 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
         else return std::nullopt;
     }
     if (const Value* st = v.get("stagger")) m.stagger = std::max(0.0, st->as_double());
+    if (const Value* arriving = v.get("arrivals")) m.arrivals = arriving->as_bool(false);
     if (const Value* t = v.get("text")) {
         if (t->as_string() == "glyphs") m.text = MotionSpec::TextTransition::glyphs;
         else if (t->as_string() == "replace") m.text = MotionSpec::TextTransition::replace;

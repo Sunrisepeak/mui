@@ -392,15 +392,50 @@ static UTest cases{"ui.base.default-motion", [] {
         act(h, "main/steps", "increment");
         h.step();
         // The appearing check: a stroke trimmed short of its end at some sample of the course.
+        // And the connector: how many pixels of its row are the accent, on the way and at rest (drawn, whatever
+        // transform the morph puts it under).
+        const Color accent = h.runtime().theme().color("accent");
+        std::optional<Rect> row;
+        const auto accent_run = [&] {
+            if (!row) return 0;
+            const auto& px = h.pixels();
+            const int y = static_cast<int>(row->y + 1);
+            int count = 0;
+            for (int x = static_cast<int>(row->x); x < static_cast<int>(row->right()) && x < px.width(); ++x) {
+                const auto p = px.at(x, y);
+                if (std::abs(p.r - accent.r * 255) < 40 && std::abs(p.g - accent.g * 255) < 40 && std::abs(p.b - accent.b * 255) < 40) ++count;
+            }
+            return count;
+        };
+        {
+            // The connector after the first step, where it is at rest now (the track, the fill to come).
+            Headless rest(options());
+            rest.mount("main", column({.padding = 24}, {stepper({.id = "steps", .free = true, .steps = std::vector<std::string>{"Cart", "Address", "Payment"}, .value = std::int64_t{1}})}));
+            rest.settle();
+            for (const auto& command : rest.runtime().display_list().commands())
+                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.height == 2 && fill->rect.width > 8 && fill->paint.color.r == accent.r &&
+                                                                                 fill->paint.color.g == accent.g && fill->paint.color.b == accent.b && !row)
+                    row = fill->rect;
+            // From the stepper's coordinates to the window's.
+            if (row) {
+                const Rect at = rest.runtime().screen_bounds(rest.runtime().find("main/steps"));
+                row = Rect{row->x + at.x, row->y + at.y, row->width, row->height};
+            }
+        }
+        expect(fatal(row.has_value())) << "the first connector filled at rest";
         bool partway = false;
-        for (int sample = 0; sample < 12 && !partway; ++sample) {
+        std::vector<int> seen;
+        for (int sample = 0; sample < 12; ++sample) {
             h.advance(seconds(0.02));
             for (const auto& command : h.runtime().display_list().commands())
                 if (const auto* stroke = std::get_if<xrender::StrokePath>(&command); stroke && stroke->style.trim_end > 0.05f && stroke->style.trim_end < 0.95f)
                     partway = true;
+            seen.push_back(accent_run());
         }
         h.settle();
-        expect(partway) << "the check written in, not faded in whole";
+        const int full = accent_run();
+        expect(full > 8 && std::ranges::any_of(seen, [&](int run) { return run > 2 && run < full - 2; }))
+            << std::format("the connector's fill flows toward the next step: {} of {} px on the way", seen, full);
         const auto whole = std::ranges::none_of(h.runtime().display_list().commands(), [](const auto& command) {
             const auto* stroke = std::get_if<xrender::StrokePath>(&command);
             return stroke && stroke->style.trim_end < 1;

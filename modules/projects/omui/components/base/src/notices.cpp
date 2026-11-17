@@ -250,16 +250,20 @@ void Stepper::paint(PaintContext& ctx) const {
         const Color lc = now ? th.color("text") : done ? th.color("text") : th.color("text_muted");
         const Size t = labels_[i].measure(ctx.services, lc);
         labels_[i].paint(ctx, {r.x + step_marker + step_gap, r.y + (step_row - t.height) / 2}, lc);
-        // The connector to the next: filled once this step is done.
+        // The connector to the next: its fill (the whole of it once this step is done) and the track left after it,
+        // each a part of its own — so a step done is the fill flowing toward the next as the track gives way, and at
+        // rest one of the two is all of it (component quality B6).
         if (i + 1 < labels_.size()) {
-            const Color cc = done ? th.color("accent") : th.color("border");
-            if (props.vertical) {
-                ctx.list.fill_rect({m.x - 1, r.bottom() + 2, 2, step_connector / 2 - 4}, cc);
-                y = r.bottom() + step_connector / 2;
-            } else {
-                ctx.list.fill_rect({r.right() + 8, m.y - 1, link - 16, 2}, cc);
-                x = r.right() + link;
-            }
+            const Rect line = props.vertical ? Rect{m.x - 1, r.bottom() + 2, 2, step_connector / 2 - 4} : Rect{r.right() + 8, m.y - 1, link - 16, 2};
+            const float along = done ? (props.vertical ? line.height : line.width) : 0.0f;
+            const Rect fill = props.vertical ? Rect{line.x, line.y, line.width, along} : Rect{line.x, line.y, along, line.height};
+            const Rect track = props.vertical ? Rect{line.x, line.y + along, line.width, line.height - along}
+                                              : Rect{line.x + along, line.y, line.width - along, line.height};
+            const std::string id = std::to_string(i);
+            ctx.part({.role = "connector_fill", .id = id, .allocation = line}, [&] { ctx.list.fill_rect(fill, th.color("accent")); });
+            ctx.part({.role = "connector_track", .id = id, .allocation = line}, [&] { ctx.list.fill_rect(track, th.color("border")); });
+            if (props.vertical) y = r.bottom() + step_connector / 2;
+            else x = r.right() + link;
         }
     }
 }

@@ -145,6 +145,9 @@ struct Desktop::Impl final : WindowHost {
     // The GPU path: a device that claimed the window, the renderer, and the
     // frame texture the swapchain shows.
     std::unique_ptr<mlibs::rhi::Device>             device;
+    // The device being made on a thread of its own from the start (RC3.6): the driver's start overlaps the fonts,
+    // the runtime and the window rather than following them; the window claimed when it is taken.
+    std::optional<xrender::rhi::sdl::Making>        making;
     std::optional<xrender::GpuFrame>          gpu;
     mlibs::rhi::Texture                             gpu_frame;
     std::size_t                                     devices_lost = 0;  // how many times the device was lost and made again
@@ -225,7 +228,13 @@ struct Desktop::Impl final : WindowHost {
         o.window = platform::window_id(*window);
         o.vsync = options.vsync;
         o.vulkan_library = options.vulkan_library;
-        auto made = xrender::rhi::sdl::create(o);
+        const bool made_early = making.has_value();
+        auto made = made_early ? making->get() : xrender::rhi::sdl::create(o);
+        making.reset();
+        // Made before the window: claimed now (a software device is let go below, unclaimed, when the CPU is faster).
+        if (made && made_early && !((*made)->caps().software && options.renderer == R::automatic)) {
+            if (auto claimed = xrender::rhi::sdl::claim(**made, o.window, o.vsync); !claimed) made = std::unexpected(claimed.error());
+        }
         if (!made) {
             if (options.renderer == R::gpu) return std::unexpected(ViewFailure{ViewError::device_failed, std::format("no GPU device for the window: {}", made.error().message)});
             return {};
@@ -367,6 +376,16 @@ struct Desktop::Impl final : WindowHost {
 Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
+    // The GPU's device begun at once, when the GPU may draw: SDL brought up here, the device made on a thread of its
+    // own while the fonts, the runtime and the window are (RC3.6: the first frame no longer waits for the driver's
+    // start after them). Where SDL cannot start, the window's opening says so.
+    if (d.options.renderer != DesktopOptions::Renderer::cpu && platform::start(d.options.video_driver)) {
+        xrender::rhi::sdl::Options early;
+        early.formats = xrender::gpu_shader_formats();
+        early.vulkan_library = d.options.vulkan_library;
+        early.video_driver = d.options.video_driver;
+        d.making.emplace(xrender::rhi::sdl::create_async(early));
+    }
     // The interface answers as the platform it runs on does (D6): Command for shortcuts, a scroll's
     // edges, when a right button asks for a context menu.
     if constexpr (mcpplibs::os::is_macos) set_platform(Platform::macos);
@@ -417,7 +436,8 @@ Desktop::~Desktop() {
     } else if (impl_->runtime) {
         impl_->runtime->set_device(nullptr);
     }
-    // The GPU's before the window it claimed.
+    // The GPU's before the window it claimed (one still being made: waited for, then let go).
+    impl_->making.reset();
     if (impl_->device && impl_->gpu_frame) impl_->device->destroy(impl_->gpu_frame);
     if (impl_->device) impl_->shown_pictures.release(*impl_->device);
     impl_->gpu.reset();

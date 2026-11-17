@@ -47,6 +47,34 @@ UTest cases{"rhi.sdl", [] {
         expect(!sdl::backends().empty());
     };
 
+    "a device made on a thread of its own (create_async): taken once, it draws; one not taken is let go"_test = [] {
+        sdl::Options o;
+        o.formats = cts::shader_formats();
+        o = environment_options(std::move(o));
+        auto making = sdl::create_async(o);
+        expect(making.valid());
+        auto made = making.get();
+        if (!made) {
+            if (required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", made.error().message);
+            return;
+        }
+        expect(!making.valid() && !making.get().has_value()) << "taken once";
+        const auto target = (*made)->create(TextureDesc{.width = 4, .height = 4, .usage = TextureUsage::color_target | TextureUsage::sampled});
+        expect(fatal(target.has_value()));
+        CommandList l;
+        l.begin_render({*target, LoadOp::clear, {1.0f, 0.0f, 0.0f, 1.0f}});
+        l.end_render();
+        auto sub = (*made)->submit(l);
+        expect(fatal(sub.has_value()));
+        expect((*made)->wait(*sub).has_value());
+        auto px = (*made)->read(*target, Region{0, 0, 4, 4});
+        expect(px.has_value() && static_cast<std::uint8_t>((*px)[0]) == 255 && static_cast<std::uint8_t>((*px)[1]) == 0) << "it draws";
+        (*made)->destroy(*target);
+        { auto untaken = sdl::create_async(o); }  // waited for and let go, its video released
+        auto again = sdl::create(o);
+        expect(again.has_value()) << "SDL's video still right for the next device";
+    };
+
     "upload, clear, copy, read back: the bytes, exactly"_test = [] {
         auto d = open_device();
         if (!d) return;

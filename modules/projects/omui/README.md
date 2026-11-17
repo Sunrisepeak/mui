@@ -71,7 +71,7 @@ Each names the level it is solved at (D-179: foundation, part, specialised, appl
 - **A caret's blink is a hard cut** (part): the text box's caret is drawn on or off, not faded on the runtime's clock (component quality B6).
 - **A tree's chevron morphs instead of turning** (foundation): a matched morph interpolates the path's points in a line; a turn needs an arc path in hanim.
 - **A lost GPU device** (foundation): the desktop host ends the application with a message (exit code 3) rather than draw with what was lost; making the device again needs the runtime to hand components the new one, which it cannot yet. No CI row can provoke a loss.
-- **The GPU's first frame** (foundation): from the window asked for to the first frame shown, the GPU renderer takes 207–334 ms on the RTX 4080 against the CPU's 41–53 ms — its device and pipelines are made first; process start to the first pixels is not held by CI.
+- **The GPU's first frame** (foundation): from the window asked for to the first frame shown, the GPU renderer takes 207–334 ms on the RTX 4080 against the CPU's 41–53 ms — its device and pipelines are made first. The device is now made on a thread of its own beside the fonts and the window (a dev build's A/B: 209–328 ms against 403–596 ms); still about four times the CPU's, and process start to the first pixels is not held by CI.
 
 ## Closure exceptions
 

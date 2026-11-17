@@ -838,10 +838,10 @@ Result<void> SdlDevice::fetch(Buffer b, std::uint32_t offset, std::span<std::byt
 
 }  // namespace
 
-Result<std::unique_ptr<Device>> create(const Options& options) {
-    if (options.formats.empty()) return fail(Errc::invalid, "no shader format: say which formats the program's shaders carry");
-    if (!options.vulkan_library.empty()) SDL_SetHint(SDL_HINT_VULKAN_LIBRARY, options.vulkan_library.c_str());
-    if (!video_acquire(options.video_driver)) return fail(Errc::unsupported, sdl_error("initialising SDL's video subsystem"));
+namespace {
+
+// The device, SDL's video held for it already (released here when none is made: `release_video`).
+Result<std::unique_ptr<SdlDevice>> make(const Options& options, bool release_video) {
     const SDL_PropertiesID props = SDL_CreateProperties();
     auto want = [&](const char* key, ShaderFormat f) { SDL_SetBooleanProperty(props, key, options.formats.has(f)); };
     want(SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, ShaderFormat::spirv);
@@ -856,14 +856,14 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     SDL_DestroyProperties(props);
     if (!device) {
         std::string why = sdl_error("no GPU device");
-        video_release();
+        if (release_video) video_release();
         return fail(Errc::unsupported, std::move(why));
     }
     const char* driver = SDL_GetGPUDeviceDriver(device);
     const auto backend = backend_of(driver ? driver : "");
     if (!backend) {
         SDL_DestroyGPUDevice(device);
-        video_release();
+        if (release_video) video_release();
         return fail(Errc::unsupported, std::format("SDL chose the GPU driver `{}`, which rhi does not map", driver ? driver : "?"));
     }
     Caps caps;
@@ -893,13 +893,74 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     caps.bc7 = sampled(SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM, SDL_GPU_TEXTUREFORMAT_BC7_RGBA_UNORM_SRGB);
     caps.astc = sampled(SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM, SDL_GPU_TEXTUREFORMAT_ASTC_4x4_UNORM_SRGB);
     caps.etc2 = false;  // SDL_GPU names no ETC2 format
-    auto made = std::make_unique<SdlDevice>(device, std::move(caps));
+    return std::make_unique<SdlDevice>(device, std::move(caps));
+}
+
+}  // namespace
+
+Result<std::unique_ptr<Device>> create(const Options& options) {
+    if (options.formats.empty()) return fail(Errc::invalid, "no shader format: say which formats the program's shaders carry");
+    if (!options.vulkan_library.empty()) SDL_SetHint(SDL_HINT_VULKAN_LIBRARY, options.vulkan_library.c_str());
+    if (!video_acquire(options.video_driver)) return fail(Errc::unsupported, sdl_error("initialising SDL's video subsystem"));
+    auto made = make(options, true);
+    if (!made) return std::unexpected(made.error());
     if (options.window != 0) {
-        SDL_Window* window = SDL_GetWindowFromID(static_cast<SDL_WindowID>(options.window));
-        if (!window) return fail(Errc::invalid, std::format("no window has the id {} (SDL_GetWindowID)", options.window));
-        if (auto r = made->claim(window, options.vsync); !r) return std::unexpected(r.error());
+        if (auto r = claim(**made, options.window, options.vsync); !r) return std::unexpected(r.error());
     }
-    return std::unique_ptr<Device>(std::move(made));
+    return std::unique_ptr<Device>(std::move(*made));
+}
+
+Making::Making(Making&& other) noexcept : made_(std::move(other.made_)), video_held_(std::exchange(other.video_held_, false)) {}
+Making& Making::operator=(Making&& other) noexcept {
+    if (this != &other) {
+        if (made_.valid()) (void)get();  // the one held before goes first
+        made_ = std::move(other.made_);
+        video_held_ = std::exchange(other.video_held_, false);
+    }
+    return *this;
+}
+Making::~Making() {
+    if (made_.valid()) (void)get();  // a device made and not taken goes now (on this thread)
+}
+bool Making::valid() const noexcept { return made_.valid(); }
+
+Result<std::unique_ptr<Device>> Making::get() {
+    if (!made_.valid()) return fail(Errc::invalid, "the device was taken already (Making::get once)");
+    auto made = made_.get();
+    if (!made && std::exchange(video_held_, false)) video_release();  // on the thread that brought it up
+    if (made) video_held_ = false;                                     // the device's now: it releases it
+    return made;
+}
+
+Making create_async(const Options& options) {
+    Making making;
+    if (options.formats.empty()) {
+        std::promise<Result<std::unique_ptr<Device>>> none;
+        none.set_value(fail(Errc::invalid, "no shader format: say which formats the program's shaders carry"));
+        making.made_ = none.get_future();
+        return making;
+    }
+    if (!options.vulkan_library.empty()) SDL_SetHint(SDL_HINT_VULKAN_LIBRARY, options.vulkan_library.c_str());
+    if (!video_acquire(options.video_driver)) {
+        std::promise<Result<std::unique_ptr<Device>>> none;
+        none.set_value(fail(Errc::unsupported, sdl_error("initialising SDL's video subsystem")));
+        making.made_ = none.get_future();
+        return making;
+    }
+    making.video_held_ = true;
+    making.made_ = std::async(std::launch::async, [options]() -> Result<std::unique_ptr<Device>> {
+        auto made = make(options, false);
+        if (!made) return std::unexpected(made.error());
+        return std::unique_ptr<Device>(std::move(*made));
+    });
+    return making;
+}
+
+Result<void> claim(Device& device, std::uint32_t window, bool vsync) {
+    SDL_Window* sdl_window = SDL_GetWindowFromID(static_cast<SDL_WindowID>(window));
+    if (!sdl_window) return fail(Errc::invalid, std::format("no window has the id {} (SDL_GetWindowID)", window));
+    // Only this module makes devices whose backend is SDL's (the caller's promise, as the comment says).
+    return static_cast<SdlDevice&>(device).claim(sdl_window, vsync);
 }
 
 std::vector<Backend> backends() {

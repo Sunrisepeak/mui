@@ -45,6 +45,30 @@ struct Options {
 // backend for those formats; the caller falls back to the CPU renderer).
 [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {});
 
+// A device made on a thread of its own while the caller goes on (a window's host loading its fonts and building its
+// first frame meanwhile; the driver's start, ~0.2 s on a discrete GPU, overlapped rather than waited for). SDL's video
+// is brought up on the calling thread, as SDL asks; the device is made on the other. `get` waits for it and hands it
+// over (once); a window is then claimed with `claim`, on the calling thread. Options::window is not used here.
+class Making {
+public:
+    Making() = default;
+    Making(Making&&) noexcept;
+    Making& operator=(Making&&) noexcept;
+    ~Making();  // not taken: waited for and let go
+    [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] Result<std::unique_ptr<Device>> get();
+
+private:
+    friend Making create_async(const Options& options);
+    std::future<Result<std::unique_ptr<Device>>> made_;
+    bool video_held_ = false;  // released here when no device came (a device releases its own)
+};
+[[nodiscard]] Making create_async(const Options& options = {});
+
+// A window (SDL_GetWindowID) claimed for a device this module made (`create` or `create_async`), its swapchain
+// waiting for the display or not: what Options::window does at creation, later.
+[[nodiscard]] Result<void> claim(Device& device, std::uint32_t window, bool vsync = true);
+
 // The options this machine's environment gives a device, over `base`: the Vulkan loader and SDL's video driver
 // named by OMUI_VULKAN_LIBRARY and OMUI_GPU_VIDEO_DRIVER when they are set (`omui-devtools gpu` sets them: CI's
 // software device, this machine's GPU without a display). Every program and test that opens a device as the

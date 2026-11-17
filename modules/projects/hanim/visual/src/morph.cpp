@@ -1854,6 +1854,9 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                         s.opacity = 0;  // drawn as the outline it reshapes from
                     } else {
                         s.opacity *= static_cast<float>(fade_in(u, options_.appear.fade_from));
+                        // Rolled in: from below its place, up to it.
+                        if (options_.glyph_roll > 0)
+                            s.transform = Affine::translate(0, gb.size * options_.glyph_roll * static_cast<float>(1 - std::clamp(u, 0.0, 1.0))) * s.transform;
                     }
                     styles[j] = s;
                 }
@@ -1882,7 +1885,9 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                         // Drawn under tf: where it was, mapped from the first run's space.
                         const Point at_a{ga.origin.x + ga.glyphs[i].position.x, ga.origin.y + ga.glyphs[i].position.y};
                         const Point here = inv->apply(pa.transform.apply(at_a));
-                        s.transform = Affine::translate(here.x - at_a.x, here.y - at_a.y) * s.transform;
+                        // Rolled out: up from where it was.
+                        const float rolled = options_.glyph_roll > 0 ? -ga.size * options_.glyph_roll * static_cast<float>(std::clamp(u, 0.0, 1.0)) : 0.0f;
+                        s.transform = Affine::translate(here.x - at_a.x, here.y - at_a.y + rolled) * s.transform;
                         gone[i] = s;
                     }
                     (void)inv_b;

@@ -67,6 +67,9 @@ struct Options {
     bool   glyphs = true;    // false retains the legacy whole-run crossfade
     TextTransition text = TextTransition::glyphs;
     float  text_rise = 0.35f; // whole-run replacement travel, in ems (0: fade only)
+    // A glyph replaced inside a run (a digit of a count): the one going rises out and its replacement rises in from
+    // below, this far in ems, while they fade — a roll (0: they fade in place).
+    float  glyph_roll = 0;
     // Guard unchanged opaque solid text on a provable solid rect/rrect.
     // Translucent carriers require safe endpoints and a known opaque uniform
     // composition under the actual emitted glyphs. Zero preserves compatibility.

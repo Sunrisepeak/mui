@@ -354,6 +354,37 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(h.runtime().motions().empty()) << "then at rest, pressed";
     };
 
+    "a badge's digit rolls: the one going rises out, its replacement rises in from below (B6)"_test = [] {
+        Headless h(options());
+        auto count = signal(std::int64_t{3});
+        h.mount("main", column({.padding = 24}, {badge({.id = "count", .count = count})}));
+        h.settle();
+        count.set(4);
+        h.step();
+        // Sampled through default.count's 0.22 s: the glyphs drawn with a vertical offset of their own, and which way —
+        // up (going) or down (coming); the going one fades early, the coming one late.
+        bool up = false, down = false;
+        for (int sample = 0; sample < 10; ++sample) {
+            h.advance(seconds(0.02));
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                    for (const auto& style : run->styles) {
+                        if (style.opacity <= 0.01f) continue;
+                        if (style.transform.f < -0.2f) up = true;
+                        if (style.transform.f > 0.2f) down = true;
+                    }
+            if (sample == 4) save(h, "badge-roll-middle");
+        }
+        expect(up) << "the 3 rises out";
+        expect(down) << "the 4 rises in from below";
+        h.settle();
+        bool still = true;
+        for (const auto& command : h.runtime().display_list().commands())
+            if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                for (const auto& style : run->styles) still = still && std::abs(style.transform.f) < 0.01f;
+        expect(still) << "at rest, in its place";
+    };
+
     "a pressed tab answers the finger: deeper than hovered, before the indicator moves (B5)"_test = [] {
         Headless h(options());
         auto selected = signal(std::string("general"));

@@ -39,6 +39,7 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
            : spec.text == MotionSpec::TextTransition::replace ? hanim::visual::TextTransition::replace
                                                            : hanim::visual::TextTransition::glyphs;
     o.text_rise = level == MotionLevel::reduced ? 0 : spec.text_rise;
+    o.glyph_roll = level == MotionLevel::reduced ? 0 : spec.glyph_roll;
     o.semantic = spec.meaning;
     o.minimum_text_contrast = spec.minimum_text_contrast;
     if (level == MotionLevel::reduced) {
@@ -123,7 +124,7 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
                 else {
                     constexpr Log motion_log{"motion"};
                     motion_log.warn("{}: a motion is \"none\", \"morph\", a library's name (\"liquid\"), either with a curve after it, "
-                                    "{{use, curve, order, stagger, glyphs, text, text_rise, text_contrast, meaning, rise, grow, stretch, vertex_path, travel}}, or a list of them; not {}",
+                                    "{{use, curve, order, stagger, glyphs, text, text_rise, glyph_roll, text_contrast, meaning, rise, grow, stretch, vertex_path, travel}}, or a list of them; not {}",
                                     self.path(id), v->json());
                 }
                 continue;

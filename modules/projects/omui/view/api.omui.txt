@@ -1368,6 +1368,7 @@ namespace omui {
     bool glyphs = true;
     TextTransition text = TextTransition::glyphs;
     float text_rise = 0.35f;
+    float glyph_roll = 0;
     double minimum_text_contrast = 4.5;
     bool meaning = true;
     hanim::Presence appear = *hanim::presence("fade_in", {…});

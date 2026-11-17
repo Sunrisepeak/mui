@@ -357,7 +357,12 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     add("default.check", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::check_grow}, quick));
     add("default.selection", compose_motion({P::match_drawing, P::match_glyphs, P::stretch}, quick));
     add("default.value", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, quick));
-    add("default.count", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, Transition::tween(hanim::seconds(0.22))));
+    // A count's digits roll: the one replaced rises out, the new one rises in (component quality B6).
+    add("default.count", [&] {
+        MotionSpec count = compose_motion({P::match_drawing, P::match_glyphs, P::fade}, Transition::tween(hanim::seconds(0.22)));
+        count.glyph_roll = 0.6f;
+        return count;
+    }());
     add("default.surface", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, Transition::tween(hanim::seconds(0.18))));
     add("default.structure", compose_motion({P::match_drawing, P::match_glyphs, P::fade}, gentle));
     add("default.reveal", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::grow}, quick));
@@ -488,6 +493,10 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
         else if (t->as_string() == "auto") m.text = MotionSpec::TextTransition::automatic;
         else return std::nullopt;
         m.glyphs = true;
+    }
+    if (const Value* roll = v.get("glyph_roll")) {
+        if (!roll->is_number() || !std::isfinite(roll->as_double())) return std::nullopt;
+        m.glyph_roll = static_cast<float>(std::clamp(roll->as_double(), 0.0, 2.0));
     }
     if (const Value* r = v.get("text_rise")) {
         if (!r->is_number() || !std::isfinite(r->as_double())) return std::nullopt;

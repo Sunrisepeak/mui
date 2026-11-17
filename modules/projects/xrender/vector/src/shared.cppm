@@ -1,4 +1,4 @@
-// openmui.render:shared — what the CPU and GPU renderers read a display list
+// xrender.vector:shared — what the CPU and GPU renderers read a display list
 // with, written once: its paths as the rasteriser's, and where a glyph is
 // drawn from (one placement for the CPU renderer, its glyph pass and the GPU
 // renderer, so all ask the glyph source the same questions and put the

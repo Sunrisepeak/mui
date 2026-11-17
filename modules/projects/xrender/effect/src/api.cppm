@@ -1,10 +1,10 @@
-// openmui.render.effect — a program's own pixel effects, as data and Slang (D-60,
+// xrender.effect — a program's own pixel effects, as data and Slang (D-60,
 // D-68; architecture §8).
 //
 // An effect is two files: `<name>.effect.xdef.ts` — its name, what it does,
 // its parameters (typed, limited, animatable like any property) and how far
 // it reaches outside its layer — and a Slang fragment shader written against
-// the effect template openmui.render carries (`import openmui_effect;`, see
+// the effect template xrender carries (`import openmui_effect;`, see
 // render's effects/lib/openmui_effect.slang). The library reads and checks
 // the file, compiles the shader for the device's shader format, checks that
 // it binds only what the template offers, and registers the effect with the

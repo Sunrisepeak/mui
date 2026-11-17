@@ -1,4 +1,4 @@
-// openmui.render:effects — pixel effects (D-60 pixel tier, D-68).
+// xrender.vector:effects — pixel effects (D-60 pixel tier, D-68).
 //
 // An effect is a pure function of a layer's pixels and its parameters: the
 // renderer draws a layer's content offscreen, hands it to the effect, and
@@ -11,7 +11,7 @@
 // adds its own. An effect has a CPU reference implementation, a GPU path, or
 // both: the built-ins have both, the GPU path held to the CPU's pixels
 // (effects/<name>.slang, written against the effect template
-// effects/lib/openmui_effect.slang); a program's Slang effect (openmui.render.effect)
+// effects/lib/openmui_effect.slang); a program's Slang effect (xrender.effect)
 // may have only the GPU path, and the CPU renderer counts it as skipped.
 //
 //     auto ref = render::effects().find("dissolve");
@@ -43,7 +43,7 @@ export import :metaball_shaders;
 export import :tone_shaders;
 export import :opacity_shaders;
 // The template's text (effects/lib/openmui_effect.slang), for a program's
-// effects compiled while it runs (openmui.render.effect).
+// effects compiled while it runs (xrender.effect).
 export import :effect_template;
 
 export namespace xrender {
@@ -129,7 +129,7 @@ struct EffectInfo {
     // and gives it as EffectInput::backdrop (the template's aux texture).
     bool                                                 backdrop = false;
     std::function<float(std::span<const float> params)> backdrop_blur;
-    // A program's effect loaded from files (openmui.render.effect): the file it came
+    // A program's effect loaded from files (xrender.effect): the file it came
     // from, and what the entry owns — name, doc, parameter names and the
     // shader point into it. Empty for the built-ins and effects registered
     // in code.

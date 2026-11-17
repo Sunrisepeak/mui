@@ -1,5 +1,5 @@
-// openmui.render.vector — 2D vector rendering, a rendering feature of
-// openmui.render (D-57, D-81).
+// xrender.vector — 2D vector rendering, a rendering feature of
+// xrender (D-57, D-81).
 //
 //   :display    the display list: paths, paints, strokes, clips, transforms,
 //               layers, glyph runs, images, node markers

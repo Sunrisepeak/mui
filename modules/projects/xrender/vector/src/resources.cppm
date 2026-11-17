@@ -1,4 +1,4 @@
-// openmui.render:resources — what a display list refers to by id.
+// xrender.vector:resources — what a display list refers to by id.
 //
 // Images live in an ImageStore (premultiplied pixels, shared, immutable);
 // glyphs come from a GlyphSource the text engine implements, so this package

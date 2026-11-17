@@ -1,4 +1,4 @@
-// openmui.render:pool — transient textures, pooled from frame to frame.
+// xrender.graph:pool — transient textures, pooled from frame to frame.
 //
 // A frame asks for textures by what they are (size, format, usage); the pool
 // hands out one it already made when it has one free, and makes one when it

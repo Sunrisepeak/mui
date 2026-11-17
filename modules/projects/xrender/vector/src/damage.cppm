@@ -1,4 +1,4 @@
-// openmui.render:damage — which rows of a surface a new display list changes.
+// xrender.vector:damage — which rows of a surface a new display list changes.
 //
 // A renderer that keeps its surface between frames only needs to draw where
 // the new list can differ from the last one. The tracker splits a list into

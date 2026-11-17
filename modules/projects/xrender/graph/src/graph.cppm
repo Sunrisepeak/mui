@@ -1,4 +1,4 @@
-// openmui.render:graph — a frame as passes over the device's textures (D-81).
+// xrender.graph:graph — a frame as passes over the device's textures (D-81).
 //
 // A rendering feature describes its frame as passes, in the order they run:
 // each names what it reads and writes, and records its commands when the

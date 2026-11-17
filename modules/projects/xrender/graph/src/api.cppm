@@ -1,4 +1,4 @@
-// openmui.render — the rendering architecture (D-81).
+// xrender — the rendering architecture (D-81).
 //
 //   :pool    textures by what they are, made once and handed out again in
 //            later frames; one nobody asked for in a while is released

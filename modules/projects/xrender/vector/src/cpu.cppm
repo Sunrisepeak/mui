@@ -1,4 +1,4 @@
-// openmui.render:cpu — the CPU reference backend: display lists to pixels with
+// xrender.vector:cpu — the CPU reference backend: display lists to pixels with
 // openmui.raster, byte-for-byte the same on every platform (spec R-2).
 //
 // Effects (D-68): a layer with an effect from render::effects() is drawn

@@ -1,7 +1,7 @@
 # hanim.render.vector
 
 An optional ordinary consumer of `hanim.library`, `hanim.effect` and `hanim.program`. It records
-the current contour frame into the existing `openmui.render.vector.DisplayList`;
+the current contour frame into the existing `xrender.vector.DisplayList`;
 the existing CPU renderer/rasterizer produces pixels. No UI, Engine, host,
 second geometry interpolator, material mixer or effect algorithm is introduced.
 

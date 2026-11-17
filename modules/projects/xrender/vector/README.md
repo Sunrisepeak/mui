@@ -144,7 +144,7 @@ internal passes, paints and individual effects stay source modules in this one
 package. It does not require the optional dynamic effect loader or desktop CTS.
 
 Use `import xrender.vector;` and `xrender`. Old
-`openmui.render.vector`/`omui::render` imports are same-package forwards with the
+`xrender.vector`/`omui::render` imports are same-package forwards with the
 same type and effect-registry identities. The `openmui_effect.slang` template
 name, effect IDs and `*.effect.xdef.ts` format stay unchanged. The embedded
 template and shader partitions now belong to `xrender.vector.api`.

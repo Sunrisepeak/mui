@@ -153,7 +153,7 @@ struct Cost {
 [[nodiscard]] bool costed(std::string_view kind) noexcept;
 
 struct PluginInfo {
-    std::string name;                // "openmui.render.cpu"
+    std::string name;                // "xrender.cpu"
     std::string kind = "stage";      // the plugin kinds of D-65
     std::string interface;           // "omui.pipeline.stage@1"
     std::string description;
@@ -206,7 +206,7 @@ struct Problem {
 
 // A description as JSON, a stage a line:
 //     {"pipeline": {"name": "desktop", "stages": [
-//       {"name": "raster", "plugin": "openmui.render.cpu", "after": ["damage"], "config": {"parallel": true}}
+//       {"name": "raster", "plugin": "xrender.cpu", "after": ["damage"], "config": {"parallel": true}}
 //     ]}}
 [[nodiscard]] std::string to_json(const Description& description);
 

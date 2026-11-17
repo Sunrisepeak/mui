@@ -1,4 +1,4 @@
-// openmui.render.vector:wire — a display list as bytes, and back (W16,
+// xrender.vector:wire — a display list as bytes, and back (W16,
 // D-154: an application in development draws into the host's window; its
 // display lists cross the process boundary). Every command is kept exactly —
 // floats as their bits, spans as their elements, node and part markers as

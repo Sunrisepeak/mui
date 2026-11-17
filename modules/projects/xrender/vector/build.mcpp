@@ -1,4 +1,4 @@
-// The GPU backend's shaders become partitions of openmui.render, for the
+// The GPU backend's shaders become partitions of xrender, for the
 // formats this build's target takes: shaders/<name>.slang (drawing,
 // compositing) and effects/<name>.slang (the built-in effects' GPU paths,
 // written against the effect template in effects/lib) as :<name>_shaders.

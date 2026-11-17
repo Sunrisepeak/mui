@@ -375,7 +375,7 @@ struct CinematicLook {
         Color color = Color::hex(0xffffff, 0.8f);
     } cracks;
     // Time standing still (刻's): over the frames [from, to) the picture is
-    // drawn grey (toward `tint`, openmui.render's `tone`), the struck stands
+    // drawn grey (toward `tint`, xrender's `tone`), the struck stands
     // as it was when time stopped, and the sparks and effects of hits in it
     // hang where they are, a few frames in; blows landing in it take effect
     // from `to` (the bell), when everything goes on and the colour is back.

@@ -52,6 +52,6 @@ external effect assets. This is the reason for its separate manifest. Parser
 and reload internals remain directories of this package, not separate projects.
 
 The new entry is `xrender.effect`, with C++ API
-`xrender::effect`. The same package retains `openmui.render.effect`
+`xrender::effect`. The same package retains `xrender.effect`
 and `omui::effect` as forwards to the one loader implementation. Shader filenames,
 asset schemas, registry keys and trace categories are unchanged.

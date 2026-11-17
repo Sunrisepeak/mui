@@ -1,4 +1,4 @@
-// openmui.render:display — contract ⑤, what a frame draws (spec §7).
+// xrender.vector:display — contract ⑤, what a frame draws (spec §7).
 //
 // Components paint into a display list; a renderer (the CPU reference raster
 // or the GPU renderer) turns it into pixels. The list is plain data: commands

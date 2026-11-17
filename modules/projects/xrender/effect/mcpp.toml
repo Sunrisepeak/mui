@@ -1,7 +1,7 @@
-# openmui.render.effect — a program's own pixel effects (D-60, D-68; architecture
+# xrender.effect — a program's own pixel effects (D-60, D-68; architecture
 # §8: "a third party's shader uses the effect template only"): a
 # `<name>.effect.xdef.ts` (read as its JSON) names the effect, its parameters and its Slang
-# shader, written against the template openmui.render carries; the library
+# shader, written against the template xrender carries; the library
 # compiles it for the device (mlibs.shader), registers it with the renderer's
 # effects, and loads it again when it — or anything the shader imports —
 # changes, without the program changing a line of C++.

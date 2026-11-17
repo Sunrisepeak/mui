@@ -4,7 +4,7 @@
 // its button, to the panel; the panel's semantic tree grows beside it, the
 // path to the button lit. Then the tree's lines leave it and settle on the
 // wordmark's outline, the wordmark fills in, and a band of light crosses it
-// (a wipe within a wipe: openmui.render's Slang effects).
+// (a wipe within a wipe: xrender's Slang effects).
 module omui.showcase.promo_video;
 
 import std;

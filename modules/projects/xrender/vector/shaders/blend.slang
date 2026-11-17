@@ -1,5 +1,5 @@
 // A layer composited over its backdrop under a blend mode other than normal
-// (openmui.render:gpu): the CPU reference's composite_pixel, step for step.
+// (xrender.vector:gpu): the CPU reference's composite_pixel, step for step.
 // The layer's pixel is scaled by the layer's opacity and the clip mask in
 // 8-bit integers (mul255), then blended with the backdrop — a copy of the
 // target under the layer — by W3C Compositing and Blending §10 on

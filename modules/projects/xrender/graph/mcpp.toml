@@ -1,4 +1,4 @@
-# openmui.render — the rendering architecture (D-81): a frame as a graph of
+# xrender — the rendering architecture (D-81): a frame as a graph of
 # passes over the device's textures, and the textures it makes, pooled from
 # frame to frame. Every rendering feature — 2D vector (render.vector), and
 # later sprites, meshes, particles — records its passes into one graph, so

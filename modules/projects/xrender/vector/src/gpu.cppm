@@ -1,4 +1,4 @@
-// openmui.render:gpu — the GPU backend of the renderer (D-33, D-57): a display
+// xrender.vector:gpu — the GPU backend of the renderer (D-33, D-57): a display
 // list drawn on an omui.rhi device into a colour target, matching the CPU
 // reference within the tolerances its tests state.
 //

@@ -12,8 +12,8 @@
 //
 // Frames are drawn by the GPU renderer into a texture the window's swapchain
 // shows (omui.rhi on SDL_GPU), or by the CPU renderer into a surface
-// streamed to the window — the same pixels (openmui.render's tests hold the
-// two together). A directory of effect files (openmui.render.effect) is loaded with
+// streamed to the window — the same pixels (xrender's tests hold the
+// two together). A directory of effect files (xrender.effect) is loaded with
 // the window and loaded again, between frames, when a file in it changes:
 // an effect's shader edited while the program runs shows on the next frame.
 export module omui.host.sdl3;
@@ -57,7 +57,7 @@ struct DesktopOptions {
     enum class Renderer : std::uint8_t { automatic, cpu, gpu };
     Renderer                renderer = Renderer::automatic;
     std::string             vulkan_library;   // the Vulkan loader the GPU device uses ("" the system's)
-    // A directory of effects (openmui.render.effect): `*.effect.xdef.json`, or
+    // A directory of effects (xrender.effect): `*.effect.xdef.json`, or
     // `*.effect.xdef.ts` read through `effect_data`; loaded with the window,
     // loaded again when a file changes. Effects are drawn by the GPU renderer;
     // the CPU renderer draws their layers without them.

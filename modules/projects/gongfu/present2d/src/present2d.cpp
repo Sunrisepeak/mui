@@ -1214,7 +1214,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     const View view{scene, camera};
 
     // Time standing still (a cinematic's stop): the whole picture drawn in a layer turned grey toward the
-    // stop's tint, its brightness kept (openmui.render's `tone`: shapes and pictures alike).
+    // stop's tint, its brightness kept (xrender's `tone`: shapes and pictures alike).
     const bool stopped = cine && cine->stop.from >= 0 && st.lock.frame >= cine->stop.from && st.lock.frame < cine->stop.to;
     if (stopped) {
         static const std::optional<render::EffectRef> tone = render::effects().find("tone");

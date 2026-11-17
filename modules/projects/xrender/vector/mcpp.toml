@@ -1,5 +1,5 @@
-# openmui.render.vector — 2D vector rendering, a rendering feature of
-# openmui.render (D-81): the display list of contract ⑤, its CPU reference
+# xrender.vector — 2D vector rendering, a rendering feature of
+# xrender (D-81): the display list of contract ⑤, its CPU reference
 # backend and its GPU backend (D-57). Knows nothing of nodes or views;
 # anything that produces a display list can render it.
 [package]

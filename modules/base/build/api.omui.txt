@@ -1,0 +1,37 @@
+== mlibs.build.embed
+export import mlibs.build.plan;
+namespace mlibs::build {
+  struct embed_options {
+    std::string module;
+    std::string ns;
+    std::string dir;
+    std::string suffix;
+    std::string tag;
+    bool index = false;
+    bool left_out = false;
+    std::string out_dir = std::string(mcpp::out_dir());
+    std::string subdir = "embed";
+  };
+  [[nodiscard]] std::vector<edge> plan_embed(const embed_options& opt);
+  bool embed(embed_options opt);
+}
+== mlibs.build.plan
+namespace mlibs::build {
+  struct edge {
+    std::string id;
+    std::string description;
+    std::vector<std::string> command;
+    std::vector<std::string> inputs;
+    std::vector<std::string> outputs;
+    std::vector<std::string> provides;
+    std::vector<std::string> imports;
+  };
+  bool submit(std::span<const edge> edges);
+  [[nodiscard]] std::string tool(std::string_view package, std::string_view program);
+  [[nodiscard]] std::string utf8(const std::filesystem::path& p);
+  [[nodiscard]] std::string generic_utf8(const std::filesystem::path& p);
+  [[nodiscard]] bool is_packed();
+  [[nodiscard]] std::string namespace_of(std::string_view module);
+  [[nodiscard]] std::vector<std::filesystem::path> files_ending(const std::filesystem::path& dir, std::string_view suffix);
+  [[nodiscard]] std::vector<std::string> files_under(const std::filesystem::path& dir);
+}

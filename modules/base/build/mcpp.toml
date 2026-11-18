@@ -1,0 +1,36 @@
+# mlibs.build — the foundation's build plugins (D-73, D-231): what any package's
+# build program shares (planned edges handed to mcpp, a tool built for the build,
+# a path's text, the files a plugin reads) and the embed plugin for data files a
+# program carries, each a partition holding its text (`xdef embed`). omui's
+# build plugins (mcpp/build) build on it; a package of the foundation uses it
+# directly, so no package below omui needs omui to build.
+#
+#   [build-dependencies]
+#   mlibs.build = { path = "…/modules/base/build", host-module = true }
+#
+#   // build.mcpp
+#   import mcpp;
+#   import mlibs.build.embed;
+#   int main() { return mlibs::build::embed({.module = "acme.data", .dir = "data", .suffix = ".json", .tag = "data"}) ? 0 : 1; }
+[package]
+namespace   = "mlibs"
+name        = "build"
+version     = "0.1.0"
+description = "Build plugins of the foundation: planned edges, tools built for the build, data files carried in the program (xdef embed)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["mlibs.xdef.tool"]  # lower-labelled parts it uses, each marked in its README
+separate = "build-stage: the foundation's build plugins, below omui's (D-231)"
+primary-module = "*"  # a collection: each plugin its own module (mlibs.build.plan, .embed)
+kind = "rules"
+agent = { library = "build plugins: what they do is a build's edges, which the build tool reports" }
+
+[build]
+sources = ["src/*/*.cppm", "src/*/*.cpp"]
+
+# xdef, built for the build machine and handed to the build program that uses these plugins.
+[dependencies]
+mlibs.xdef.tool = { path = "../xdef/tool", tools = ["xdef"], reexport = true }

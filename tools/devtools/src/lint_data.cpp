@@ -720,7 +720,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                             std::format("installs {}, which the manifest's `[package.metadata.openmui.compose.installs]` does not list (a build's "
                                         "report reads it)",
                                         name));
-                    if (!depended.contains(name))
+                    if (!depended.contains(name) && name != package_name(*member.data))
                         add("compose", member.path + "/build.mcpp", std::format("installs {}, which the manifest does not depend on", name));
                     else if (!provides)
                         add("compose", member.path + "/build.mcpp",

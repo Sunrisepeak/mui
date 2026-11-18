@@ -277,9 +277,16 @@ struct TasksEnd {
     }
 };
 
+struct GenerationEnd {
+    const generate::GenerationService* service = nullptr;
+    void operator()(generate::Generation* generation) const noexcept {
+        if (generation) service->destroy(generation);
+    }
+};
+
 struct Prepared {
     std::unique_ptr<agent::TaskBroker, TasksEnd> tasks;  // the agent surface's (agent::endpoint_slot); none without it
-    std::unique_ptr<generate::Generation> generation;
+    std::unique_ptr<generate::Generation, GenerationEnd> generation;  // the generation capability's (generate::generation_slot)
 };
 
 Prepared prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& access) {
@@ -296,8 +303,14 @@ Prepared prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& 
     if (const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot))
         kept.tasks = std::unique_ptr<agent::TaskBroker, TasksEnd>(surface->tasks(rt), TasksEnd{surface});
     if (app.generation) {
-        if (!app.generation->tasks) app.generation->tasks = kept.tasks.get();
-        kept.generation = std::make_unique<generate::Generation>(rt, std::move(*app.generation));
+        // Runtime generation is a capability a program is built with: without it the application runs, and says once
+        // what it lacks and how to have it.
+        if (const generate::GenerationService* service = mlibs::compose::process().get(generate::generation_slot)) {
+            if (!app.generation->tasks) app.generation->tasks = kept.tasks.get();
+            kept.generation = std::unique_ptr<generate::Generation, GenerationEnd>(service->make(rt, std::move(*app.generation)), GenerationEnd{service});
+        } else {
+            warn("generation is not served: {}", mlibs::compose::process().missing(generate::generation_slot.info).message);
+        }
     }
     return kept;
 }

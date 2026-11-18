@@ -27,6 +27,7 @@ import omui.core;
 import omui.view;
 import omui.viewdoc;
 import omui.agent;  // the protocol's types, background tasks
+import mlibs.compose;
 import :a2ui;
 
 export namespace omui::generate {
@@ -113,5 +114,22 @@ public:
 private:
     std::shared_ptr<Impl> impl_;  // shared with what the history keeps to undo a commit
 };
+
+// The slot runtime generation is installed at (mlibs.compose, D-238): an application's root makes its
+// generation through this table, so a program built without the capability (omui.sdk's feature `generate`) names
+// none of it and does not carry it; an application that asks for generation there is told how to have it. The
+// provider is this package's own (`install`): only a program's root calls it.
+struct GenerationService {
+    std::string_view name;  // "omui"
+    Generation* (*make)(Runtime& runtime, GenerationOptions options) = nullptr;
+    void (*destroy)(Generation* generation) noexcept = nullptr;
+};
+
+inline constexpr mlibs::compose::Slot<GenerationService> generation_slot{
+    {.id = "omui.sdk.generation",
+     .summary = "runtime generation: interface an agent makes while the application runs (generate.*)",
+     .absent = "build with omui.sdk's feature `generate` (the world `full` has it), or call omui::generate::install() before omui::run"}};
+
+void install();
 
 }  // namespace omui::generate

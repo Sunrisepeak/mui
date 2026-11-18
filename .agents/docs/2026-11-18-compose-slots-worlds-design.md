@@ -407,6 +407,8 @@ review 的两点结论：例子 01 的预算按可裁剪的代价调到实测值
 
 **K6 第二步的结果（2026-11-18）**：无头宿主的端点与它的截图、`omui.sdk` 的后台任务与回放的两个哈希都经 Agent 面的表；`omui::run` 在做任何宿主之前安装这次构建带的东西（原先只有窗口那条路径装）。例子 01 的 `lean` 13,989 KiB（上一步 15,178，少 1.19 MB），`full` 不变（18,086 KiB，预算内）。`lean` 里还剩：libpng 175 KiB（谁在引用还没有查）、运行时生成 171 KiB（要成为它自己的能力 `generate`）、JSON 138 KiB（别处也用）。无头宿主公开的 `png()`、`svg()` 没有改：调用它们的程序才带编码器。Web 的宿主还没有接。
 
+**K6 第三步的结果（2026-11-18）**：运行时生成是它自己的能力：槽 `omui.sdk.generation`，提供者在 `omui.sdk` 自己里（模块 `omui.generate`），feature `generate`，只有 `full` 带。四个世界第一次各不相同。例子 01（`size` 配置，装入字节数，从发布的索引构建）：`full` 18,088 KiB，`app` 17,307，`lean` 13,154，`minimal` 12,676。运行时生成实际带入 781 KiB（估计时只算了它自己的 171 KiB，没算它带进来的部分）。K6 还欠 Web 的宿主。
+
 ## 14. 出处
 
 - Kuiter 等，How Configurable Is the Linux Kernel? Analyzing Two Decades of Feature-Model History，TOSEM 2025：<https://dl.acm.org/doi/full/10.1145/3729423>

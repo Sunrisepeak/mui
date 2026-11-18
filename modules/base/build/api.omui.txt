@@ -5,6 +5,7 @@ namespace mlibs::build::compose {
   struct provider {
     std::string feature;
     std::string package;
+    std::string import;
     std::string call;
     Targets targets = Targets::all;
   };

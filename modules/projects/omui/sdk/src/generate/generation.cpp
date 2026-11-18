@@ -2,6 +2,7 @@
 module omui.generate;
 
 import std;
+import mlibs.compose;
 import omui.core;
 import omui.view;
 import omui.semantic;
@@ -666,6 +667,19 @@ VerbResult Generation::discard(const Value& args) {
     const std::string id = (*found)->id, surface = (*found)->surface;
     impl_->drafts.erase(id);
     return Value{}.set("draft", id).set("surface", surface).set("discarded", true);
+}
+
+namespace {
+
+Generation* make_generation(Runtime& runtime, GenerationOptions options) { return new Generation(runtime, std::move(options)); }
+void end_generation(Generation* generation) noexcept { delete generation; }
+
+}  // namespace
+
+// Made when installed, not when the program starts (mlibs.compose).
+void install() {
+    static const GenerationService service{"omui", &make_generation, &end_generation};
+    (void)mlibs::compose::process().install(generation_slot, service, service.name);
 }
 
 }  // namespace omui::generate

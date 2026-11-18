@@ -70,6 +70,7 @@ int main() {
                         .imports = {":shown"},
                         .function = "omui::hosting::install_services",
                         .providers = {{.feature = "agent", .package = "omui.agent", .call = "omui::agent::install()"},
+                                      {.feature = "generate", .package = "omui.sdk", .import = "omui.generate", .call = "omui::generate::install()"},
                                       {.feature = "gpu",
                                        .package = "omui.host.sdl3.gpu",
                                        .call = "omui::host::sdl3::gpu::install()",

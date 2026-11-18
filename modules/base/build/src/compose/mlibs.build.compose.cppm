@@ -42,7 +42,8 @@ enum class Targets : std::uint8_t { all, desktop, web, android };
 // call that installs it, fully qualified.
 struct provider {
     std::string feature;
-    std::string package;
+    std::string package;  // the package that provides (the root itself, for a provider of its own)
+    std::string import;   // the module the unit imports for it; empty: the package's name
     std::string call;
     Targets     targets = Targets::all;
 };

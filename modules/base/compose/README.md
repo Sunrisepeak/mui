@@ -144,6 +144,9 @@ Not here: a container that builds objects, services found by a string, providers
 |---|---|---|---|
 | `omui.accessibility.service` | `omui.accessibility` | `omui.accessibility.bridge` (AccessKit, by platform) | `omui.sdk` (feature `accessibility-bridge`) |
 | `omui.host.sdl3.gpu` | `omui.host.sdl3` | `omui.host.sdl3.gpu` (SDL_GPU's device, xrender's renderer, the effect library) | `omui.sdk` (feature `gpu`) |
-| `omui.agent.endpoint` | `omui.agent` | `omui.agent` itself (the endpoint, the captures) | `omui.sdk` (feature `agent`) |
+| `omui.agent.endpoint` | `omui.agent` | `omui.agent` itself (the endpoint, the captures, background tasks, a replay's hashes) | `omui.sdk` (feature `agent`) |
+| `omui.sdk.generation` | `omui.sdk` | `omui.sdk` itself (runtime generation) | `omui.sdk` (feature `generate`) |
+
+omui's example 01 (Linux x64, `-O3`): `full` 18,088 KiB, `app` 17,307, `lean` 13,154, `minimal` 12,676 — 18,040 before any of it could be left out.
 
 Tested: `tests/compose_test.cpp` — a slot of one and of many, the three absences, freezing, `describe`, two compositions apart; the slot contract in `mlibs.cts`'s tests.

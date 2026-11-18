@@ -79,6 +79,13 @@ namespace omui::generate {
     VerbResult forget(const Value& args);
     struct Impl;
   };
+  struct GenerationService {
+    std::string_view name;
+    Generation* (*make)(Runtime& runtime, GenerationOptions options) = nullptr;
+    void (*destroy)(Generation* generation) noexcept = nullptr;
+  };
+  inline constexpr mlibs::compose::Slot<GenerationService> generation_slot{…};
+  void install();
 }
 == omui:agent_guide
 namespace omui {

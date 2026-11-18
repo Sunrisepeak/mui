@@ -22,11 +22,14 @@ agent = { library = "the umbrella: it re-exports the packages of omui; its own p
 
 [package.metadata.openmui.compose]
 root = true  # the SDK chooses an application's providers (build.mcpp writes the unit that installs them)
+slots = ["omui.sdk.generation"]     # runtime generation (src/generate/generation.cppm)
+provides = ["omui.sdk.generation"]  # its own
 worlds = ["lean", "app", "full"]                         # a chain that only adds; `full` the default
 reductions = ["no-gamepad-hidapi", "software-present"]   # take away: no world implies them (`minimal` is `lean` with all of them)
 # What the unit installs, as build.mcpp's rows say it (lint compose holds the two alike): a build's report reads this.
 [package.metadata.openmui.compose.installs]
 "omui.agent" = { feature = "agent", targets = "all" }
+"omui.sdk" = { feature = "generate", targets = "all" }  # its own: runtime generation (module omui.generate)
 "omui.host.sdl3.gpu" = { feature = "gpu", targets = "desktop" }
 "omui.accessibility.bridge" = { feature = "accessibility-bridge", targets = "desktop" }
 
@@ -47,10 +50,13 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp
 default = ["full"]
 lean = {}
 app  = { implies = ["lean", "agent", "gpu", "accessibility-bridge"] }
-full = { implies = ["app"] }
+full = { implies = ["app", "generate"] }
 # The application's agent surface: the endpoint agents find it at and talk to it through, and its captures (omui.agent).
 # Without it the program serves no agent, as a platform without local endpoints does not.
 agent = {}
+# Runtime generation (omui.generate, preview): interface an agent makes while the application runs. An application
+# that asks for it (AppSpec::generation) in a program built without it runs, and says what it lacks.
+generate = {}
 # The GPU path of a desktop window: SDL_GPU's device and xrender's renderer (omui.host.sdl3.gpu). Without it the CPU
 # renderer draws every frame, as on a machine without a GPU.
 gpu = {}

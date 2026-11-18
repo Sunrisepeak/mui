@@ -46,6 +46,12 @@ without a GPU does, and `renderer = gpu` is refused naming the slot and how to h
 it. This package's tests draw with the CPU and hold that refusal; the device's are
 the provider's (a slot's owner cannot depend on its provider).
 
+Two reductions an application may ask for by this package's features (off by default; `omui.sdk` forwards them):
+`no-gamepad-hidapi` (SDL's HIDAPI game-controller drivers) and `software-present` — SDL's accelerated 2D back ends
+left out, so CPU frames are presented by SDL's software renderer through the window's surface. A program the GPU
+path draws presents through SDL_GPU and loses nothing; one drawing with the CPU presents without the display's
+acceleration (not yet timed on a display: only the first frame, offscreen, which is shown as before).
+
 `DesktopOptions::renderer` says who: `automatic` (the default) uses the GPU
 when the machine has one and the CPU renderer when the only device is a
 software rasteriser (lavapipe, WARP), which the CPU renderer outruns; `cpu`

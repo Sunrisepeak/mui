@@ -10,6 +10,7 @@ import xrender.vector;
 import xrender.frame;
 import mlibs.text;
 import mlibs.image;
+import mlibs.compose;
 import mlibs.trace;
 import xrender.text;
 
@@ -50,7 +51,7 @@ struct Headless::Impl {
     std::uint64_t                               shown_list = 0; // the list hash of the last frame shown (frame_shown)
     bool                                        have_pixels = false;
     xrender::DamageTracker                       damage;         // what the next list changes
-    std::unique_ptr<agent::Endpoint>            endpoint;
+    agent::Served                                endpoint;  // through the agent surface's slot (agent::endpoint_slot)
     bool                                        requests_held = false;  // the application is not ready yet
     std::int64_t                                frame = -1;
     Point                                       pointer_at{};          // where move() last put it
@@ -81,6 +82,12 @@ struct Headless::Impl {
         have_pixels = true;
     }
 };
+
+// Defined below, used where a session opens.
+namespace {
+std::expected<mlibs::image::View, ViewFailure> view_of(const xrender::raster::Surface& s, float scale, std::optional<Rect> region);
+}
+std::expected<std::vector<std::uint8_t>, ViewFailure> encoded(std::expected<std::vector<std::uint8_t>, std::string> bytes);
 
 Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
@@ -121,17 +128,32 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
         d.picture.show(d.window, d.surface, [this] { impl_->render_now(); });
         d.runtime->add_subject(d.picture);
     }
-    if (d.options.level == HeadlessLevel::session) {
+    // A session's endpoint is the agent surface's (agent::endpoint_slot): a program built without it serves
+    // none, as where local endpoints are not supported. What it captures goes through the surface's table, so
+    // such a program does not carry the encoders either (png() and svg() are theirs who call them).
+    if (const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot);
+        surface && d.options.level == HeadlessLevel::session) {
         agent::EndpointOptions eo;
         eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;
         eo.directory = d.options.endpoint_directory;
         eo.protocol.app = d.options.app;
-        eo.protocol.capture = capture();
-        eo.protocol.capture_svg = capture_svg();
+        eo.protocol.capture = [this, surface](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
+            Impl& held = *impl_;
+            if (held.options.level < HeadlessLevel::pixels) return std::unexpected(ViewFailure{ViewError::below_level});
+            held.render_now();
+            auto view = view_of(held.surface, held.options.scale, region);
+            if (!view) return std::unexpected(view.error());
+            return encoded(surface->png(*view));
+        };
+        eo.protocol.capture_svg = [this, surface](Rect region) {
+            Impl& held = *impl_;
+            const xrender::Resources resources{&held.runtime->images(), held.glyphs.get()};
+            return surface->vector_capture(*held.runtime, resources, region, held.options.scale, held.options.background);
+        };
         eo.protocol.pixel_owner = [this](Point at) { return node_at_pixel(at); };
         eo.protocol.input = d.options.agent_input;
-        d.endpoint = std::make_unique<agent::Endpoint>(*d.runtime, std::move(eo));
-        if (auto r = d.endpoint->start(); !r) {
+        d.endpoint = agent::Served(*surface, *d.runtime, std::move(eo));
+        if (auto r = d.endpoint.start(); !r) {
             warn("the agent endpoint did not start: {}", r.error());
             d.endpoint.reset();
         }
@@ -139,7 +161,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
 }
 
 Headless::~Headless() {
-    if (impl_->endpoint) impl_->endpoint->stop();
+    if (impl_->endpoint) impl_->endpoint.stop();
     // What reads the runtime, then the runtime, while the host is whole (the desktop's and the Web's order): its
     // components go with it, and one letting go of the pointer as it goes (a world's viewport) calls the host's
     // pointer lock — into a host half taken down, that wrote through a pointer libc++ has already cleared.
@@ -164,9 +186,9 @@ FrameOutput Headless::step(std::vector<InputEvent> events, std::optional<seconds
     std::optional<agent::AgentInput> given;
     const auto agent_begin = events.size();
     if (d.endpoint && !d.requests_held) {
-        d.endpoint->pump();
+        d.endpoint.pump();
         // An agent's input (--agent-input), a frame's worth, after the host's own.
-        given = d.endpoint->take_input();
+        given = d.endpoint.take_input();
         if (given) events.insert(events.end(), std::make_move_iterator(given->events.begin()), std::make_move_iterator(given->events.end()));
     }
     ++d.frame;

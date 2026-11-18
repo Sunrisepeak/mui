@@ -667,6 +667,33 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                                         name));
                 }
             }
+            // The tiers a root offers (compose design §13.1): its worlds are a chain that only adds, so no world may
+            // imply, however far down, a reduction — a feature that takes away (a third-party library's inner switch,
+            // forwarded): it would pass up the chain to the default. `worlds` and `reductions` name features it has.
+            if (roots.contains(member.path)) {
+                const auto* features = table_at(&*member.data, "features");
+                const std::vector<std::string> worlds = strings_of(compose, "worlds"), reductions = strings_of(compose, "reductions");
+                for (const std::string& name : worlds)
+                    if (!features || !features->get(name)) add("compose", member.path + "/mcpp.toml", std::format("`worlds` names `{}`, which [features] does not have", name));
+                for (const std::string& name : reductions)
+                    if (!features || !features->get(name)) add("compose", member.path + "/mcpp.toml", std::format("`reductions` names `{}`, which [features] does not have", name));
+                for (const std::string& world : worlds) {
+                    std::set<std::string> seen;
+                    std::vector<std::string> open{world};
+                    while (!open.empty() && features) {
+                        const std::string feature = std::move(open.back());
+                        open.pop_back();
+                        if (!seen.insert(feature).second) continue;
+                        if (std::ranges::contains(reductions, feature))
+                            add("compose", member.path + "/mcpp.toml",
+                                std::format("the world `{}` implies `{}`, a reduction: reductions take away and stay out of the worlds' chain "
+                                            "(an application names them, or a feature no world implies)",
+                                            world, feature));
+                        const auto* one = features->get(feature) ? features->get(feature)->as_table() : nullptr;
+                        for (const std::string& implied : strings_of(one, "implies")) open.push_back(implied);
+                    }
+                }
+            }
             // What a root's manifest says it installs (`installs`: a provider's package → its feature and targets; a
             // build's report reads it) is what its build program's rows say, and names features the manifest has.
             if (const auto* rows = table_at(compose, "installs")) {

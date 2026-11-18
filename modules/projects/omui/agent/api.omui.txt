@@ -253,6 +253,10 @@ namespace omui::agent {
     std::optional<AgentInput> (*take_input)(Endpoint& endpoint) = nullptr;
     std::expected<VectorCapture, ViewFailure> (*vector_capture)(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale, std::optional<Color> background) = nullptr;
     std::expected<std::vector<std::uint8_t>, std::string> (*png)(const mlibs::image::View& pixels) = nullptr;
+    TaskBroker* (*tasks)(Runtime& runtime) = nullptr;
+    void (*end_tasks)(TaskBroker* tasks) noexcept = nullptr;
+    std::string (*tree_hash)(semantic::Tree& tree) = nullptr;
+    std::expected<std::string, AgentFailure> (*pixels_hash)(std::span<const std::uint8_t> png) = nullptr;
   };
   inline constexpr mlibs::compose::Slot<EndpointService> endpoint_slot{…};
   void install();

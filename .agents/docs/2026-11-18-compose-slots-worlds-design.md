@@ -403,6 +403,10 @@ review 的两点结论：例子 01 的预算按可裁剪的代价调到实测值
 
 **对其他项目**（不在 0.1 的范围，K9 里只决定迁不迁）：xrender 的后端（SDL_GPU 已是提供者；WebGPU、WebGL 在 Web 上由宿主注入）、hanim 的包内分层（保持 feature）、meng 的模组与法则包（数据的提供者，运行时绑定，等 D-241 的后两种时刻）、工具的贡献清单（D-203）。
 
+**K5 的结果（2026-11-18）**：`compat.sdl3` 加了 `no-render-accelerated`（mcpp-index#829，3.4.18 的 revision 2）；`omui.host.sdl3` 与 `omui.sdk` 转发为 `software-present`；`omui.sdk` 有了 `minimal`（`lean` 加两项削减），清单里写明 `worlds` 与 `reductions`，lint `compose` 守住“世界不包含削减”。例子 01（`size` 配置，装入字节数）：`minimal` 14,700 KiB，`lean` 15,178，`full` 加 `software-present` 17,851（`full` 18,086）；`minimal` 在离屏窗口上出了第一帧。**没有量到的**：有显示器时 CPU 帧两种呈现方式的耗时——本机没有显示器，只有离屏的第一帧；这一项记为未验证，开关默认关。
+
+**K6 第二步的结果（2026-11-18）**：无头宿主的端点与它的截图、`omui.sdk` 的后台任务与回放的两个哈希都经 Agent 面的表；`omui::run` 在做任何宿主之前安装这次构建带的东西（原先只有窗口那条路径装）。例子 01 的 `lean` 13,989 KiB（上一步 15,178，少 1.19 MB），`full` 不变（18,086 KiB，预算内）。`lean` 里还剩：libpng 175 KiB（谁在引用还没有查）、运行时生成 171 KiB（要成为它自己的能力 `generate`）、JSON 138 KiB（别处也用）。无头宿主公开的 `png()`、`svg()` 没有改：调用它们的程序才带编码器。Web 的宿主还没有接。
+
 ## 14. 出处
 
 - Kuiter 等，How Configurable Is the Linux Kernel? Analyzing Two Decades of Feature-Model History，TOSEM 2025：<https://dl.acm.org/doi/full/10.1145/3729423>

@@ -16,12 +16,14 @@ repo        = "https://github.com/Sunrisepeak/mui"
 primary-module = "omui"  # the SDK's umbrella: `import omui;` (D-207)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: the SDK umbrella an application imports"
-lower = ["omui.host.android"]  # lower-labelled parts it uses, each marked in its README
+lower = ["omui.host.android", "mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
 reexports = ["hanim.visual", "mlibs.i18n", "omui.agent", "omui.core", "omui.expr", "omui.host.android", "omui.host.headless", "omui.host.sdl3", "omui.host.web", "omui.semantic", "omui.ui.base", "omui.view", "omui.viewdoc"]  # what its interface re-exports (lint module-closure)
 agent = { library = "the umbrella: it re-exports the packages of omui; its own part, runtime generation (src/generate/, module omui.generate), is reached through omui.agent's generate.* catalog" }
 
 [package.metadata.openmui.compose]
 root = true  # the SDK chooses an application's providers (build.mcpp writes the unit that installs them)
+worlds = ["lean", "app", "full"]                         # a chain that only adds; `full` the default
+reductions = ["no-gamepad-hidapi", "software-present"]   # take away: no world implies them (`minimal` is `lean` with all of them)
 # What the unit installs, as build.mcpp's rows say it (lint compose holds the two alike): a build's report reads this.
 [package.metadata.openmui.compose.installs]
 "omui.agent" = { feature = "agent", targets = "all" }
@@ -56,6 +58,12 @@ gpu = {}
 accessibility-bridge = {}
 # SDL's HIDAPI game-controller drivers on the desktop (evdev's path stays).
 no-gamepad-hidapi = { forward = ["omui.host.sdl3/no-gamepad-hidapi"] }
+# CPU frames presented by SDL's software renderer alone: its accelerated 2D back ends left out (omui.host.sdl3).
+software-present = { forward = ["omui.host.sdl3/software-present"] }
+# `lean` with every reduction: the smallest program. Reductions take away, so no world implies them or this (they
+# would pass up the chain to `full`), and the command line cannot add them back: name them on the line a release
+# is built with.
+minimal = { implies = ["lean", "no-gamepad-hidapi", "software-present"] }
 
 [dependencies]
 omui.core          = { path = "../core" }
@@ -67,6 +75,8 @@ mlibs.control       = { path = "../../../base/control" }  # generate: its catalo
 omui.expr          = { path = "../expr" }
 omui.viewdoc       = { path = "../viewdoc" }
 mlibs.utils         = { path = "../../../base/utils" }
+mlibs.compose       = { path = "../../../base/compose" }  # the agent surface's slot: tasks, replay
+mlibs.image         = { path = "../../../base/image" }    # a replay's frame, handed to the surface's encoder
 omui.ui.base       = { path = "../components/base" }
 omui.host.headless = { path = "../host/headless" }
 mlibs.i18n        = { path = "../../../content/i18n" }

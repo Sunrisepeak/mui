@@ -28,3 +28,5 @@ h.click("main/save");
 h.settle();
 h.save_png("after-save.png");
 ```
+
+The endpoint of a session (H3) is the application's agent surface's: this host reads the slot `omui.agent.endpoint` ([`mlibs.compose`](../../../../base/compose), a preview, `lower` in the manifest) where a session opens, and makes the endpoint and what it captures through its table. A program whose root installed none (`omui::agent::install()`; `omui.sdk` does, by its feature `agent`) has no endpoint at H3, as where local endpoints are not supported. `png()` and `svg()` are whoever calls them's.

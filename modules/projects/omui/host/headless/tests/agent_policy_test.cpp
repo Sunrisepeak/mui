@@ -17,6 +17,7 @@ UTest cases{"host.headless.agent_policy", [] {
     }
     "H3 forwards the trusted session of real endpoint input"_test = [] {
         const auto dir = scratch_dir("headless-agent-policy");
+        agent::install();  // the endpoint, installed as an application's SDK installs it
         Headless host({.level = HeadlessLevel::session, .size = {240, 160}, .app = "policy-headless", .endpoint_directory = dir});
         expect(host.endpoint() != nullptr) << "this test requires the real local endpoint";
         if (!host.endpoint()) return;

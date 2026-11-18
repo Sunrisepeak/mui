@@ -20,7 +20,7 @@ using Prepare = std::function<std::shared_ptr<void>(Runtime&)>;
 int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare);
 
 // Installs the services this program was built with: the platform's accessibility service, or nothing.
-// Before a host is made. Its unit is written by the build program (build.mcpp), by the manifest's
+// `omui::run` calls it first, before any host is made. Its unit is written by the build program (build.mcpp), by the manifest's
 // features and the target; what it does not name the program does not carry.
 void install_services();
 

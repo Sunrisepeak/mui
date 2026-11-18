@@ -11,6 +11,9 @@ import omui.ui.base;
 import omui.ui.window;
 import omui.host.headless;
 import mlibs.trace;
+import mlibs.compose;
+import mlibs.image;
+import xrender.raster;
 import mlibs.i18n;
 import mlibs.i18n.cldr;
 import mcpplibs.os;
@@ -267,8 +270,15 @@ struct TearDown {
 
 // What is kept while the application runs: its background tasks (task.*, W8) and its
 // generation (generate.*), when it has one — the generation goes first.
+struct TasksEnd {
+    const agent::EndpointService* surface = nullptr;
+    void operator()(agent::TaskBroker* tasks) const noexcept {
+        if (tasks) surface->end_tasks(tasks);
+    }
+};
+
 struct Prepared {
-    std::unique_ptr<agent::TaskBroker> tasks;
+    std::unique_ptr<agent::TaskBroker, TasksEnd> tasks;  // the agent surface's (agent::endpoint_slot); none without it
     std::unique_ptr<generate::Generation> generation;
 };
 
@@ -282,7 +292,9 @@ Prepared prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& 
     if (app.setup) app.setup(rt);
     if (app.view) rt.mount("main", app.view());
     Prepared kept;
-    kept.tasks = std::make_unique<agent::TaskBroker>(rt);
+    // Background tasks are the agent surface's: a program built without it has none (task.* is refused as unknown).
+    if (const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot))
+        kept.tasks = std::unique_ptr<agent::TaskBroker, TasksEnd>(surface->tasks(rt), TasksEnd{surface});
     if (app.generation) {
         if (!app.generation->tasks) app.generation->tasks = kept.tasks.get();
         kept.generation = std::make_unique<generate::Generation>(rt, std::move(*app.generation));
@@ -301,6 +313,12 @@ int replay(Headless& host, const AppSpec& app, const std::filesystem::path& file
     if (recording && recording->get("data")) recording = Value(*recording->get("data"));
     if (!recording || !recording->get("frames") || !recording->get("frames")->list()) {
         error("{}: not a recording (omui agent call … '{{\"op\":\"record\"}}')", utf8(file));
+        return 2;
+    }
+    // The hashes a replay ends on are the agent surface's (agent::endpoint_slot).
+    const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot);
+    if (!surface) {
+        error("--replay: {}", mlibs::compose::process().missing(agent::endpoint_slot.info).message);
         return 2;
     }
     const Value& scenario = *recording;
@@ -323,18 +341,21 @@ int replay(Headless& host, const AppSpec& app, const std::filesystem::path& file
     report.set("command", "replay").set("frames", static_cast<double>(frames));
     const Value* expect = scenario.get("expect");
     bool same = true;
-    const std::string tree = agent::tree_hash(host.tree());
+    const std::string tree = surface->tree_hash(host.tree());
     if (const Value* expected = expect ? expect->get("tree") : nullptr) {
         report.set("tree", Value{}.set("expected", *expected).set("got", tree).set("same", expected->as_string() == tree));
         same = same && expected->as_string() == tree;
     }
     if (const Value* expected = expect ? expect->get("pixels") : nullptr) {
         std::string got;
-        if (auto png = host.png()) {
-            auto pixels = agent::pixels_hash(*png);
+        const xrender::raster::Surface& shown = host.pixels();
+        const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(shown.row(0)), shown.width(), shown.height(), shown.width() * 4,
+                                      mlibs::image::Alpha::premultiplied};
+        if (auto png = surface->png(view)) {
+            auto pixels = surface->pixels_hash(*png);
             got = pixels ? *pixels : pixels.error().text();
         } else {
-            got = png.error().text();
+            got = png.error();
         }
         const bool equal = expected->as_string() == got;
         report.set("pixels", Value{}.set("expected", *expected).set("got", got).set("same", equal));
@@ -444,6 +465,9 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
 }  // namespace
 
 int run(AppSpec app, const RunOptions& o) {
+    // What this program was built with, installed before any host is made — a window, the page, or none (the
+    // generated unit: build.mcpp; a second run in one process installs nothing more).
+    hosting::install_services();
     if (o.no_agent_player) app.agent_players = false;  // the person's word for this run
     register_base_components();
     register_window_components();

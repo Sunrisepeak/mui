@@ -14,6 +14,8 @@ import omui.core;
 import omui.view;
 import :protocol;
 import :endpoint;
+import :broker;
+import omui.semantic;
 
 export namespace omui::agent {
 
@@ -32,6 +34,12 @@ struct EndpointService {
     std::expected<VectorCapture, ViewFailure> (*vector_capture)(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale,
                                                                 std::optional<Color> background) = nullptr;
     std::expected<std::vector<std::uint8_t>, std::string> (*png)(const mlibs::image::View& pixels) = nullptr;
+    // An application's background tasks (task.*), and their end.
+    TaskBroker* (*tasks)(Runtime& runtime) = nullptr;
+    void (*end_tasks)(TaskBroker* tasks) noexcept = nullptr;
+    // What a replay must end as: the semantic tree's hash, and a PNG's pixels'.
+    std::string (*tree_hash)(semantic::Tree& tree) = nullptr;
+    std::expected<std::string, AgentFailure> (*pixels_hash)(std::span<const std::uint8_t> png) = nullptr;
 };
 
 inline constexpr mlibs::compose::Slot<EndpointService> endpoint_slot{

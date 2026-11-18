@@ -40,6 +40,11 @@ sources = ["src/macos/*.cpp"]
 [features]
 # SDL's HIDAPI game-controller drivers (B6): evdev, the platform's own input, stays (246,757 B of example 01).
 no-gamepad-hidapi = { forward = ["compat.sdl3/no-hidapi"] }
+# CPU frames presented by SDL's software renderer alone (through the window's surface): SDL's accelerated 2D back
+# ends (Vulkan, OpenGL, OpenGL ES 2, the one over SDL_GPU; Direct3D, Metal) left out — 236 KB of example 01 as
+# `full`. A program whose frames the GPU path draws presents through SDL_GPU and loses nothing; one drawing with
+# the CPU presents without the display's acceleration.
+software-present = { forward = ["compat.sdl3/no-render-accelerated"] }
 
 [dependencies]
 # The system's notifications (mpal: the OS's services above mcpplibs.os).

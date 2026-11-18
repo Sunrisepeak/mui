@@ -88,7 +88,9 @@ acme.sdk = { version = "…", default-features = false, features = ["app"] }    
 acme.sdk = { version = "…", default-features = false, features = ["lean", "accessibility-bridge"] }   # or its own choice
 ```
 
-Development is always the full world: a development command adds it on the command line (`--features acme.sdk/full`; the command line adds features and takes none away), so the line above constrains only what ships.
+Three tiers of choice on that one line, which mix: a **world** (a chain that only adds: `lean` ⊂ `app` ⊂ `full`); **capabilities** on top of a world; and **reductions** — a third-party library's inner switches, forwarded by the root, which take away. A reduction stays out of the worlds' chain (implied by one, it would pass up to the default), so an application names it, or a feature no world implies that gathers them (`minimal`). The root's manifest lists both (`worlds`, `reductions`), and lint holds that no world implies a reduction. The framework gives the choices and a default; it does not decide for an application.
+
+Development is always the full world: a development command adds it on the command line (`--features acme.sdk/full`; the command line adds features and takes none away), so the line above constrains only what ships. (A reduction takes away and the command line cannot add it back: it belongs on the line a release is built with.)
 
 **See what a build is composed of** — an application's build program asks for the report; it decides nothing.
 

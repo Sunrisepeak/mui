@@ -99,6 +99,189 @@ HeadlessOptions scene_options(HeadlessLevel level = HeadlessLevel::pixels) {
     return o;
 }
 
+// ── D-247's workloads ──
+constexpr Size market_size{1896, 1030};  // the window NSH's Linux numbers were taken in
+
+// A counter: the smallest application a person can act on.
+struct Counter {
+    Signal<std::int32_t> count = signal(std::int32_t{0});
+
+    [[nodiscard]] View view() const {
+        const Signal<std::int32_t> value = count;
+        return column({.id = "counter", .padding = 24, .gap = 12, .background = "background"},
+                      {
+                          text({.id = "value", .text = computed([value] { return std::format("Count: {}", value.get()); }), .style = "title"}),
+                          button({.id = "inc", .text = "Increment", .on_activated = [value] { value.set(value.peek() + 1); }}),
+                      });
+    }
+};
+
+// A market board: a watch list with a live sparkline on every quote, an order
+// book and a tape, every one of them changing each tick.
+struct Market {
+    static constexpr std::size_t symbols = 22, points = 120, levels = 20, trades = 30;
+
+    std::array<std::array<float, points>, symbols> history{};  // a ring a symbol, 0..1
+    std::size_t                                    head = 0;
+    std::uint64_t                                  ticks = 0;
+    std::vector<Signal<std::string>>               price, change, bid, ask, tape;
+    std::vector<Signal<double>>                    bid_depth, ask_depth;
+
+    Market() {
+        for (std::size_t symbol = 0; symbol < symbols; ++symbol) price.push_back(signal(std::string())), change.push_back(signal(std::string()));
+        for (std::size_t level = 0; level < levels; ++level) {
+            bid.push_back(signal(std::string())), ask.push_back(signal(std::string()));
+            bid_depth.push_back(signal(0.0)), ask_depth.push_back(signal(0.0));
+        }
+        for (std::size_t trade = 0; trade < trades; ++trade) tape.push_back(signal(std::string()));
+        for (std::size_t warm = 0; warm < points; ++warm) tick();
+    }
+
+    // A wave a symbol, of whole numbers only: the same on every machine.
+    [[nodiscard]] static std::uint64_t wave(std::uint64_t at, std::uint64_t period) {
+        const std::uint64_t phase = at % (2 * period);
+        return phase < period ? phase : 2 * period - phase;
+    }
+
+    void tick() {
+        ++ticks;
+        head = (head + 1) % points;
+        for (std::size_t symbol = 0; symbol < symbols; ++symbol) {
+            const std::uint64_t period = 37 + symbol * 11;
+            const std::uint64_t level = wave(ticks * (3 + symbol % 5) + symbol * 17, period) * 1000 / period + wave(ticks * 7 + symbol, 13) * 6;
+            history[symbol][head] = static_cast<float>(level) / 1080.0f;
+            const std::uint64_t cents = 10000 + symbol * 731 + level * 3;
+            price[symbol].set(std::format("{}.{:02}", cents / 100, cents % 100));
+            change[symbol].set(std::format("{}{}.{:02}%", level >= 500 ? "+" : "−", (level >= 500 ? level - 500 : 500 - level) / 100,
+                                           (level >= 500 ? level - 500 : 500 - level) % 100));
+        }
+        for (std::size_t level = 0; level < levels; ++level) {
+            const std::uint64_t bids = 100 + wave(ticks * 5 + level * 29, 61) * 40, asks = 100 + wave(ticks * 3 + level * 31, 53) * 45;
+            bid[level].set(std::format("{}.{:02}  {}", 182, 50 - level, bids));
+            ask[level].set(std::format("{}.{:02}  {}", 182, 51 + level, asks));
+            bid_depth[level].set(static_cast<double>(bids) / 2600.0);
+            ask_depth[level].set(static_cast<double>(asks) / 2500.0);
+        }
+        for (std::size_t trade = trades - 1; trade > 0; --trade) tape[trade].set(tape[trade - 1].peek());
+        tape[0].set(std::format("{:02}:{:02}.{:03}   182.{:02}   {}", ticks / 7200 % 60, ticks / 120 % 60, ticks % 120 * 1000 / 120, 40 + ticks % 20,
+                                100 + wave(ticks * 13, 97) * 10));
+    }
+
+    [[nodiscard]] View view() {
+        std::vector<Element> watch, book, prints;
+        for (std::size_t symbol = 0; symbol < symbols; ++symbol)
+            watch.push_back(row({.id = std::format("s{}", symbol), .padding = 6, .gap = 10, .align = "center"},
+                                {
+                                    text({.id = "name", .text = std::format("SYM{:02}", symbol), .style = "label", .width = 64}),
+                                    painter({.id = "line", .height = 28, .grow = 1, .role = Role::figure, .label = std::format("SYM{:02} today", symbol),
+                                             .paint = [this, symbol](PaintContext& paint) { sparkline(paint, symbol); }}),
+                                    text({.id = "price", .text = price[symbol], .align = "end", .width = 84}),
+                                    text({.id = "change", .text = change[symbol], .style = "caption", .align = "end", .width = 72}),
+                                }));
+        for (std::size_t level = 0; level < levels; ++level)
+            book.push_back(row({.id = std::format("l{}", level), .gap = 8, .align = "center"},
+                               {
+                                   progress({.id = "bids", .value = bid_depth[level], .grow = 1}),
+                                   text({.id = "bid", .text = bid[level], .style = "code", .width = 120}),
+                                   text({.id = "ask", .text = ask[level], .style = "code", .width = 120}),
+                                   progress({.id = "asks", .value = ask_depth[level], .grow = 1}),
+                               }));
+        for (std::size_t trade = 0; trade < trades; ++trade) prints.push_back(text({.id = std::format("t{}", trade), .text = tape[trade], .style = "code"}));
+        return row({.id = "board", .padding = 12, .gap = 12, .background = "background"},
+                   {
+                       column({.id = "watch", .width = 620, .gap = 2}, std::move(watch)),
+                       column({.id = "book", .gap = 4, .grow = 1}, std::move(book)),
+                       column({.id = "tape", .width = 360, .gap = 2}, std::move(prints)),
+                   });
+    }
+
+private:
+    void sparkline(PaintContext& paint, std::size_t symbol) const {
+        const float   width = paint.size.width, height = paint.size.height;
+        xrender::Path path;
+        for (std::size_t point = 0; point < points; ++point) {
+            const float value = history[symbol][(head + 1 + point) % points];
+            const Point at{static_cast<float>(point) * width / static_cast<float>(points - 1), height - 2 - value * (height - 4)};
+            if (point == 0) path.move_to(at);
+            else path.line_to(at);
+        }
+        paint.list.stroke_path(path, {.width = 1.5f}, xrender::Paint::solid(paint.theme.color("accent")));
+    }
+};
+
+// A table of rows, as js-framework-benchmark's: an id, a label, one selected.
+struct Table {
+    struct Line {
+        std::int32_t        id = 0;
+        Signal<std::string> label;
+        bool operator==(const Line& other) const noexcept { return id == other.id; }
+    };
+    Signal<std::vector<Line>> lines = signal(std::vector<Line>{});
+    Signal<std::int32_t>      selected = signal(std::int32_t{-1});
+    std::int32_t              next = 1;
+
+    [[nodiscard]] static Line line(std::int32_t id) {
+        constexpr std::array<std::string_view, 8> adjectives{"pretty", "large", "big", "small", "tall", "short", "long", "handsome"};
+        constexpr std::array<std::string_view, 7> nouns{"table", "chair", "house", "desk", "car", "mouse", "keyboard"};
+        const auto index = static_cast<std::size_t>(id);
+        return {id, signal(std::format("{} {}", adjectives[index * 7 % adjectives.size()], nouns[index * 5 % nouns.size()]))};
+    }
+    void append(std::size_t count) {
+        std::vector<Line> all = lines.peek();
+        for (std::size_t made = 0; made < count; ++made) all.push_back(line(next++));
+        lines.set(std::move(all));
+    }
+    void clear() { lines.set({}); }
+    void fill(std::size_t count) {
+        std::vector<Line> all;
+        for (std::size_t made = 0; made < count; ++made) all.push_back(line(next++));
+        lines.set(std::move(all));
+    }
+    void keep(std::size_t count) {
+        if (lines.peek().size() != count) fill(count);
+    }
+    void update_every(std::size_t step) {
+        const std::vector<Line>& all = lines.peek();
+        for (std::size_t at = 0; at < all.size(); at += step) all[at].label.set(all[at].label.peek() + " !!!");
+    }
+    void select_next() {
+        const std::vector<Line>& all = lines.peek();
+        if (all.empty()) return;
+        cursor_ = (cursor_ + 37) % all.size();
+        selected.set(all[cursor_].id);
+    }
+    void swap(std::size_t first, std::size_t second) {
+        std::vector<Line> all = lines.peek();
+        if (first < all.size() && second < all.size()) std::swap(all[first], all[second]);
+        lines.set(std::move(all));
+    }
+    void remove(std::size_t at) {
+        std::vector<Line> all = lines.peek();
+        if (at < all.size()) all.erase(all.begin() + static_cast<std::ptrdiff_t>(at));
+        lines.set(std::move(all));
+    }
+
+    [[nodiscard]] View view() const {
+        const Signal<std::int32_t> chosen = selected;
+        return scroll({.id = "table", .height = Dim(mlibs::layout::pct(100)), .background = "background"},
+                      {each(
+                          lines, [](const Line& line) { return line.id; },
+                          [chosen](const Line& line, std::size_t) {
+                              const std::int32_t id = line.id;
+                              return row({.id = std::format("r{}", id), .padding = 6, .gap = 12, .align = "center",
+                                          .background = computed([chosen, id] { return Fill(chosen.get() == id ? "surface_variant" : "surface"); })},
+                                         {
+                                             text({.id = "id", .text = std::format("{}", id), .style = "caption", .width = 56}),
+                                             text({.id = "label", .text = line.label, .grow = 1}),
+                                             button({.id = "remove", .text = "×"}),
+                                         });
+                          })});
+    }
+
+private:
+    std::size_t cursor_ = 0;
+};
+
 // What a list is made of, by kind of command: where a frame's masks come from.
 std::string made_of(const xrender::DisplayList& list) {
     std::array<std::size_t, std::variant_size_v<xrender::Command>> kinds{};
@@ -967,6 +1150,187 @@ void add_framework_benchmarks() {
             s.resume();
         }
     });
+
+    // ── D-247: the core standard metrics' workloads (a counter, a list, a live market board, rows) ──
+    // In-process parts only: what a process presents and when is measured from outside it
+    // (N1's second part), on these same views.
+    add("core/engine-start", "the runtime made, no window and no view: fonts, theme, pipeline (NSH's engine start)", [](State& s) {
+        std::optional<Headless> host;
+        while (s.next()) {
+            host.emplace(scene_options(HeadlessLevel::layout));
+            s.pause();
+            host.reset();
+            s.resume();
+        }
+    });
+    add("core/first-frame/counter", "a counter mounted on a fresh runtime, its first frame laid out and painted into a list (NSH's first frame)",
+        [](State& s) {
+            std::optional<Headless> host;
+            while (s.next()) {
+                s.pause();
+                host.emplace(scene_options(HeadlessLevel::layout));
+                Counter counter;
+                s.resume();
+                host->mount("main", counter.view());
+                frame_counters(s, host->step());
+                s.pause();
+                host.reset();
+                s.resume();
+            }
+        });
+    add("core/start-to-first-pixels/counter", "from nothing to the counter's first frame as pixels: runtime made, mounted, laid out, drawn by the CPU at 800×600",
+        [](State& s) {
+            std::optional<Headless> host;
+            while (s.next()) {
+                Counter         counter;
+                HeadlessOptions o = scene_options();
+                o.size = {800, 600};
+                host.emplace(o);
+                host->mount("main", counter.view());
+                frame_counters(s, host->step());
+                (void)host->pixels();
+                s.pause();
+                host.reset();
+                s.resume();
+            }
+        });
+    const auto tap = [](HeadlessLevel level) {
+        return [level](State& s) {
+            Counter         counter;
+            HeadlessOptions o = scene_options(level);
+            o.size = {800, 600};
+            Headless h(o);
+            h.mount("main", counter.view());
+            h.settle();
+            const Rect  button = h.runtime().screen_bounds(h.runtime().find("main/inc"));
+            const Point at{button.x + button.width / 2, button.y + button.height / 2};
+            while (s.next()) {
+                h.click(at);  // move, press and release in one frame: the handler runs, the label is laid out and painted
+                if (level == HeadlessLevel::pixels) (void)h.pixels();
+            }
+            if (counter.count.peek() == 0) s.fail("the taps did not reach the button");
+        };
+    };
+    add("core/tap-to-commit/counter", "one tap on the counter: event to the frame's list (NSH's event to commit)", tap(HeadlessLevel::layout));
+    add("core/tap-to-pixels/counter", "one tap on the counter: event to the frame drawn by the CPU (the in-process part of input to next frame)",
+        tap(HeadlessLevel::pixels));
+
+    const auto list_scroll = [](bool on_gpu) {
+        return [on_gpu](State& s) {
+            std::optional<Gpu> gpu;
+            if (on_gpu) {
+                gpu.emplace(market_size);
+                if (!gpu->ready(s)) return;
+            }
+            HeadlessOptions o = scene_options();
+            o.size = market_size;
+            Headless h(o);
+            Model&   model = h.runtime().model("orders");
+            std::vector<Row> rows;
+            for (int i = 0; i < 10000; ++i)
+                rows.push_back({std::format("o{}", i), Value{}.set("title", std::format("Order {} — {} shares at {}.{:02}", i, 100 + i % 900, 10 + i % 400, i % 100))});
+            if (!model.push(std::move(rows))) return s.fail("the model refused its rows");
+            h.mount("main", column({.id = "page", .background = "background"},
+                                   {list_view({.id = "orders", .estimate = 36.0, .model = "orders", .height = Dim(mlibs::layout::pct(100))},
+                                              [](const Row& entry, std::size_t index) {
+                                                  return row({.id = "line", .padding = 8, .gap = 12, .align = "center"},
+                                                                {text({.id = "title", .text = Model::label_of(entry), .grow = 1}),
+                                                                 text({.id = "state", .text = index % 3 == 0 ? "filled" : "open", .style = "caption"}),
+                                                                 button({.id = "open", .text = "Open"})});
+                                              })}));
+            h.settle();
+            if (!on_gpu) (void)h.pixels();
+            xrender::text::GlyphCache glyphs(h.runtime().fonts());
+            const Point at{market_size.width / 2, market_size.height / 2};
+            float       position = 0, direction = 1;
+            while (s.next()) {
+                constexpr float stride = 60, extent = 36.0f * 9000;  // a flick's frame; back before the end
+                position += stride * direction;
+                if (position > extent || position <= 0) direction = -direction;
+                h.scroll(at, {0, stride * direction});
+                if (on_gpu) gpu->draw(s, h.runtime().display_list(), {&h.runtime().images(), &glyphs}, Color::white());
+                else (void)h.pixels();
+            }
+        };
+    };
+    add("core/list-scroll/frame", "10,000 rows of three parts each, the wheel scrolling 60 px every frame at 1896×1030: the frame, drawn by the CPU",
+        list_scroll(false));
+    add("core/list-scroll/frame-gpu", "the same, the GPU drawing every frame (submitted and waited for)", list_scroll(true));
+
+    const auto live = [](bool on_gpu) {
+        return [on_gpu](State& s) {
+            std::optional<Gpu> gpu;
+            if (on_gpu) {
+                gpu.emplace(market_size);
+                if (!gpu->ready(s)) return;
+            }
+            Market          market;
+            HeadlessOptions o = scene_options();
+            o.size = market_size;
+            Headless h(o);
+            h.mount("main", market.view());
+            h.settle();
+            if (!on_gpu) (void)h.pixels();
+            std::vector<NodeId> lines;
+            for (std::size_t symbol = 0; symbol < Market::symbols; ++symbol) {
+                const NodeId line = h.runtime().find(std::format("main/watch/s{}/line", symbol));
+                if (!line) return s.fail(std::format("no sparkline for symbol {}", symbol));
+                lines.push_back(line);
+            }
+            xrender::text::GlyphCache glyphs(h.runtime().fonts());
+            s.note("nodes", std::format("{}", h.runtime().node_count()));
+            while (s.next()) {
+                market.tick();
+                for (const NodeId line : lines) h.runtime().invalidate_paint(line);
+                const FrameOutput f = h.step();
+                frame_counters(s, f, &h.runtime());
+                if (on_gpu) gpu->draw(s, h.runtime().display_list(), {&h.runtime().images(), &glyphs}, Color::white());
+                else (void)h.pixels();
+            }
+        };
+    };
+    add("core/live-dashboard/frame",
+        "22 quotes with live sparklines, a 40-level order book and a 30-row tape all changing every frame at 1896×1030: the frame, drawn by the CPU",
+        live(false));
+    add("core/live-dashboard/frame-gpu", "the same, the GPU drawing every frame (submitted and waited for)", live(true));
+
+    // The row operations frameworks are compared by (js-framework-benchmark's): each to the frame's pixels.
+    const auto rows_scene = [](std::function<void(Table&)> before, std::function<void(Table&)> operation) {
+        return [before = std::move(before), operation = std::move(operation)](State& s) {
+            Table           table;
+            HeadlessOptions o = scene_options();
+            o.size = market_size;
+            Headless h(o);
+            h.mount("main", table.view());
+            h.settle();
+            while (s.next()) {
+                s.pause();
+                before(table);
+                (void)h.step();
+                (void)h.pixels();
+                s.resume();
+                operation(table);
+                frame_counters(s, h.step(), &h.runtime());
+                (void)h.pixels();
+            }
+        };
+    };
+    add("core/rows/create-1000", "1000 rows made on an empty table (js-framework-benchmark: create rows)",
+        rows_scene([](Table& table) { table.clear(); }, [](Table& table) { table.fill(1000); }));
+    add("core/rows/replace-1000", "all 1000 rows replaced by new ones (replace all rows)",
+        rows_scene([](Table& table) { table.fill(1000); }, [](Table& table) { table.fill(1000); }));
+    add("core/rows/update-every-10th", "every tenth row's label changed (partial update)",
+        rows_scene([](Table& table) { table.keep(1000); }, [](Table& table) { table.update_every(10); }));
+    add("core/rows/select", "a row chosen, the one before it let go (select row)",
+        rows_scene([](Table& table) { table.keep(1000); }, [](Table& table) { table.select_next(); }));
+    add("core/rows/swap", "the second row and the next to last change places (swap rows)",
+        rows_scene([](Table& table) { table.keep(1000); }, [](Table& table) { table.swap(1, 998); }));
+    add("core/rows/remove", "one row removed from the middle (remove row)",
+        rows_scene([](Table& table) { table.keep(1000); }, [](Table& table) { table.remove(500); }));
+    add("core/rows/append-1000", "1000 rows appended to 1000 (append rows)",
+        rows_scene([](Table& table) { table.fill(1000); }, [](Table& table) { table.append(1000); }));
+    add("core/rows/clear-1000", "1000 rows cleared (clear rows)",
+        rows_scene([](Table& table) { table.fill(1000); }, [](Table& table) { table.clear(); }));
 
     // ── what agents and tools read ──
     add("agent/snapshot", "the semantic snapshot of the dashboard, as the JSON an agent receives", [](State& s) {

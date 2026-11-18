@@ -70,13 +70,18 @@ jobs:
           gcc -std=c99 -Wall -Wextra -pedantic -Werror -Ispec/include -fsyntax-only tools/lint/abi_c99.c
           g++ -std=c++11 -Wall -Wextra -pedantic -Werror -Ispec/include -x c++ -fsyntax-only tools/lint/abi_c99.c
 
-  # The split drill (RC3.13, D-55): omui with only what it declares — its members and every member they reach by
-  # path, with the root's files, as a workspace of its own (omui-devtools split). Whatever omui needs and does not
-  # declare is missing there, and the build or a test says so.
+  # The split drill (RC3.13, D-55, D-231): each tier with only what it declares — the foundation alone, the
+  # foundation and omui, everything — its members and every member they reach by path, with the root's files, as a
+  # workspace of its own (omui-devtools split <tier>). Whatever a tier needs and does not declare is missing there,
+  # and the build or a test says so; a tier that reaches one above it is refused before anything builds.
   split:
-    name: test omui split from the repository
+    name: test the ${{ matrix.tier }} split from the repository
     runs-on: ubuntu-24.04
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        tier: [foundation, framework, engine]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -101,12 +106,15 @@ jobs:
         run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
       - name: A GPU for the renderer's device tests (lavapipe)
         run: mcpp run omui-devtools -p tools/devtools --profile ci -- gpu
-      - name: omui and what it declares, alone
-        run: mcpp run omui-devtools -p tools/devtools --profile ci -- split modules/projects/omui --out "$RUNNER_TEMP/omui"
+      - name: The tier and what it declares, alone
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- split ${{ matrix.tier }} --out "$RUNNER_TEMP/split"
       - name: Test every member of the split tree
-        working-directory: ${{ runner.temp }}/omui
+        working-directory: ${{ runner.temp }}/split
         run: |
-          mcpp test --workspace --profile ci --exclude omui.reflect --exclude omui.entry.devhost 2>&1 | tee tests.log
+          # omui.reflect (C++26) and the development host are the main rows' exclusions too; the foundation has neither.
+          excluded=""
+          if [ "${{ matrix.tier }}" != foundation ]; then excluded="--exclude omui.reflect --exclude omui.entry.devhost"; fi
+          mcpp test --workspace --profile ci $excluded 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::the split tree's tests failed"; exit 1; }
 
   # The Web row (D-84): the members that say they run on the Web, built for

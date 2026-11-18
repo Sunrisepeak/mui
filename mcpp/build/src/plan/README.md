@@ -1,6 +1,6 @@
 # omui.build.plan
 
-What openmui's build plugins share (`mcpp/README.md`); each plugin re-exports it. A plugin plans `edge`s:
+What omui's build plugins share (`mcpp/README.md`); each plugin re-exports it. The plumbing is the foundation's [mlibs.build.plan](../../../../modules/base/build), re-exported; omui adds `generator()`. A plugin plans `edge`s:
 - each edge has a command, its inputs and outputs;
 - for a generated module unit, the edge also says what the unit provides and what it imports, because a file that does not exist yet cannot be scanned.
 

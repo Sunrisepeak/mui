@@ -8,6 +8,7 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 
 | Package | |
 |---|---|
+| [build](build) | `mlibs.build`: the foundation's build plugins — planned edges, a tool built for the build, data files carried in the program as module partitions (`xdef embed`); omui's build plugins build on it (D-73, D-231) |
 | [cts](cts) | `mlibs.cts`: what a conformance suite is written with, on mtest's conformance kind — cases with stable ids and levels S/A/B declared against a subject, passed/failed/unsupported (from capabilities only), comparisons with evidence, the preparation contract; suites live with their contract's owner, the runner and reports are mtest's |
 | [dynamics](dynamics) | `mlibs.dynamics`: the generic solver core — swept collision, half-planes and one-way ledges, XPBD soft bodies, what a body is doing; deterministic, stepped on `mlibs.simulation` (hanim's engine and the engine's `xengine.dynamics` build on it; D-133, D-231) |
 | [simulation](simulation) | `mlibs.simulation`: the stepping substrate — fixed-step clocks, timelines of checkpoints and inputs (seek, replay, rollback), simulation tiers; no solver (D-133) |

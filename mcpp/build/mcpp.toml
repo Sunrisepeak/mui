@@ -5,7 +5,7 @@
 #   omui.build.contracts  contracts to C++ partitions, builders, script stubs and schemas
 #   omui.build.embed      data files carried in the program, each a partition holding its text
 #   omui.build.toy        the dist-toy pack format (Bilibili Toy, or a static page)
-#   omui.build.plan       what the plugins share; each re-exports it
+#   omui.build.plan       what the plugins share (mlibs.build.plan, the foundation's, and omui-gen); each re-exports it
 #
 #   [build-dependencies]
 #   omui.build = { path = "…/mcpp/build", host-module = true }
@@ -36,3 +36,5 @@ sources = ["src/*.cppm", "src/*/*.cppm", "src/*/*.cpp"]
 # it is a plain library of build programs: mcpp's 08-build-rules shape).
 [dependencies]
 omui.gen = { path = "../../modules/projects/omui/tools/gen", tools = ["omui-gen"], reexport = true }
+# The foundation's build plugins (D-231): the shared plumbing and plain data files carried (xdef embed).
+mlibs.build = { path = "../../modules/base/build", reexport = true }

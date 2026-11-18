@@ -5,6 +5,7 @@ import omui.gen.model;
 import omui.gen.read;
 import omui.gen.emit;
 import omui.gen.data;
+import mlibs.xdef.tool;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -46,7 +47,7 @@ UTest cases{"gen", [] {
         // The scripts' declarations, written by hand, carried in code.
         for (const auto& [file, name] : {std::pair{"openmui.d.ts", "binding_api"}, std::pair{"define.d.ts", "define_api"}})
             same(spec_dir() / "src" / "generated" / std::format("{}.cppm", name),
-                 gen::emit_embed(read(spec_dir() / "stubs" / file), std::format("spec/stubs/{}", file), "openmui.spec", "omui::spec::stubs", name));
+                 mlibs::xdef::emit_embed(read(spec_dir() / "stubs" / file), std::format("spec/stubs/{}", file), "openmui.spec", "omui::spec::stubs", name, gen::embedded_by));
         same(spec_dir() / "schema" / "core.components.json", gen::emit_view_schema(reg.contracts, "the Core profile"));
         // modules/projects/omui/abi's view of the same ABI.
         const auto abi = spec_dir().parent_path() / "modules" / "projects" / "omui" / "abi" / "src";
@@ -83,24 +84,6 @@ UTest cases{"gen", [] {
             ++seen;
         }
         expect(seen >= 5) << std::format("{} component partitions", seen);
-    };
-
-    "an embedded tag's table: every file by name with its text, its partitions exported through it"_test = [] {
-        const std::vector<std::pair<std::string, std::string>> files{{"b-two.webp", "b_two_art"}, {"a-one.webp", "a_one_art"}};
-        const std::string out = gen::emit_embed_index(files, "m", "omui::files", "art_files");
-        expect(out.find("export module m:art_files;") != std::string::npos) << out;
-        expect(out.find("export import :a_one_art;\nexport import :b_two_art;") != std::string::npos) << "its partitions, sorted, exported";
-        expect(out.find("std::array<std::pair<std::string_view, std::string_view>, 2> art_files{{\n    {\"a-one.webp\", a_one_art},\n    {\"b-two.webp\", b_two_art},\n}};") !=
-                  std::string::npos) << out;
-    };
-
-    "embedding bytes (a picture, a sound): escaped, NULs kept, the length given"_test = [] {
-        const std::string bytes("\x89PNG\r\n\x1a\n\0\xff", 10);
-        const std::string out = gen::emit_embed(bytes, "art.png", "m", "omui::files", "art_png");
-        expect(out.find("\\x89\\x50\\x4e\\x47") != std::string::npos && out.find(", 10}") != std::string::npos) << out;
-        expect(out.find("R\"omui(") == std::string::npos) << "not a raw string";
-        const std::string text = gen::emit_embed("plain text", "a.toml", "m", "omui::files", "a_toml");
-        expect(text.find("R\"omui(plain text)omui\"") != std::string::npos) << text;
     };
 
     "a contract's C++ base refuses a missing action"_test = [] {
@@ -216,7 +199,7 @@ UTest cases{"gen", [] {
             if (!snapshot) continue;
             // A module name is identifiers: `default` (a keyword) is `default_theme`.
             const std::string module = name == "default" ? "omui.theme.default_theme" : "omui.theme." + name;
-            const std::string want = gen::emit_embed(snapshot->json, snapshot->name, module, "omui::themes", name + "_theme");
+            const std::string want = mlibs::xdef::emit_embed(snapshot->json, snapshot->name, module, "omui::themes", name + "_theme", gen::embedded_by);
             expect(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want) << std::format("modules/projects/omui/theme/packs/{0}: run omui-gen embed modules/projects/omui/theme/packs/{0}/{0}.theme.xdef.ts --module {1} --namespace omui::themes "
                               "--name {0}_theme --out modules/projects/omui/theme/packs/{0}/src/generated",
                               name, module);
@@ -229,7 +212,7 @@ UTest cases{"gen", [] {
                 expect(staged_snapshot.has_value()) << (staged_snapshot ? "" : staged_snapshot.error());
                 if (!staged_snapshot) continue;
                 expect(read(pkg.path() / "src" / "generated" / (stage + "_theme.cppm")) ==
-                       gen::emit_embed(staged_snapshot->json, staged_snapshot->name, module, "omui::themes", stage + "_theme"))
+                       mlibs::xdef::emit_embed(staged_snapshot->json, staged_snapshot->name, module, "omui::themes", stage + "_theme", gen::embedded_by))
                     << std::format("modules/projects/omui/theme/packs/{0}: run omui-gen embed modules/projects/omui/theme/packs/{0}/staged/{2}.theme.xdef.ts --module {1} "
                                    "--namespace omui::themes --name {2}_theme --out modules/projects/omui/theme/packs/{0}/src/generated",
                                    name, module, stage);
@@ -244,7 +227,7 @@ UTest cases{"gen", [] {
         const std::string text{std::istreambuf_iterator<char>(in), {}};
         expect(!text.empty()) << "effects/lib/openmui_effect.slang";
         expect(read(render / "src" / "generated" / "effect_template.cppm") ==
-                  gen::emit_embed(text, "openmui_effect.slang", "xrender.vector.api", "xrender", "effect_template")) << "modules/projects/xrender/vector: run omui-gen embed modules/projects/xrender/vector/effects/lib/openmui_effect.slang --module xrender.vector.api "
+                  mlibs::xdef::emit_embed(text, "openmui_effect.slang", "xrender.vector.api", "xrender", "effect_template")) << "modules/projects/xrender/vector: run xdef embed modules/projects/xrender/vector/effects/lib/openmui_effect.slang --module xrender.vector.api "
               "--name effect_template --namespace xrender --out modules/projects/xrender/vector/src/generated";
     };
 
@@ -279,7 +262,7 @@ UTest cases{"gen", [] {
                                                                      path.generic_string());
                 const auto carried = path.parent_path() / kinds[kind].place;
                 if (name == kinds[kind].standard && std::filesystem::exists(carried))
-                    expect(read(carried) == gen::emit_embed(made->json, made->name, kinds[kind].module, "xengine::matter", kinds[kind].name))
+                    expect(read(carried) == mlibs::xdef::emit_embed(made->json, made->name, kinds[kind].module, "xengine::matter", kinds[kind].name, gen::embedded_by))
                         << std::format("{} is out of date: run omui-gen embed {} --module {} --name {} --namespace xengine::matter --out {}", carried.generic_string(),
                                        committed.generic_string(), kinds[kind].module, kinds[kind].name, carried.parent_path().generic_string());
             }

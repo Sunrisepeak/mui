@@ -1,6 +1,6 @@
 # omui.build.embed
 
-The build plugin for data files a program carries (D-73's embed plugin). Each file becomes a partition holding its text (`omui-gen embed`), so a shipped program has its files without reading any.
+The build plugin for data files a program carries (D-73's embed plugin). Each file becomes a partition holding its text, so a shipped program has its files without reading any. Plain files are the foundation's plugin's ([mlibs.build.embed](../../../../modules/base/build), `xdef embed`); a TypeScript data module (`*.xdef.ts`) is carried as the JSON it evaluates to with omui's kinds (`omui-gen embed`).
 
 ```cpp
 // build.mcpp

@@ -53,11 +53,12 @@ omui-devtools api -p modules/projects/xrender/vector --write    # after a change
 
 ## split
 
-A project as a repository of its own (RC3.13, D-55): its members and every member they reach by `path` (their tests' too), with the repository's root files, copied to a tree whose root manifest lists only them. Building and testing that tree is the drill: whatever the project needs and does not declare is missing there. CI's `split` row does it for omui.
+A project as a repository of its own (RC3.13, D-55): its members and every member they reach by `path` (their tests' too), with the repository's root files, copied to a tree whose root manifest lists only them. Building and testing that tree is the drill: whatever the project needs and does not declare is missing there. A tier (D-231) is split the same way: `foundation` (mlibs' groups, the foundation's projects, these tools), `framework` (and omui), `engine` (and the engine's projects); a tier whose members reach one of a tier above is refused, naming the member. CI's `split` rows do the three tiers.
 
 ```sh
-omui-devtools split modules/projects/omui --list            # the members and how many files
-omui-devtools split modules/projects/omui --out /tmp/omui   # the tree; then mcpp test --workspace there
+omui-devtools split foundation --list                       # the members and how many files
+omui-devtools split framework --out /tmp/framework          # the tree; then mcpp test --workspace there
+omui-devtools split modules/projects/omui --list            # one project and what it reaches
 ```
 
 ## release

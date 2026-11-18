@@ -81,6 +81,78 @@ int migrate(const mcpplibs::cmdline::ParsedArgs& args) {
     return 0;
 }
 
+// A generated unit written where it goes, unless it is already that; with `check`, only whether it is.
+int put(const std::filesystem::path& file, const std::string& text, bool check) {
+    const auto current = mcpplibs::os::fs::read(file);
+    if (current && *current == text) return 0;
+    if (check) {
+        std::println(std::cerr, "xdef: {} is not current", mcpplibs::os::fs::utf8(file));
+        return 1;
+    }
+    std::error_code error;
+    std::filesystem::create_directories(file.parent_path(), error);
+    std::ofstream(file, std::ios::binary) << text;
+    if (!std::filesystem::exists(file, error)) {
+        std::println(std::cerr, "xdef: cannot write {}", mcpplibs::os::fs::utf8(file));
+        return 1;
+    }
+    return 0;
+}
+
+// The namespace given, or the module's (acme.ui → acme::ui).
+std::string namespace_for(const mcpplibs::cmdline::ParsedArgs& args) {
+    if (const auto given = args.value("namespace")) return std::string(*given);
+    std::string ns;
+    for (const char c : args.value("module").value_or("")) ns += c == '.' ? std::string("::") : std::string(1, c);
+    return ns;
+}
+
+// --module, --name and --out are what every unit needs.
+bool asked_fully(const mcpplibs::cmdline::ParsedArgs& args, std::string_view command) {
+    for (const std::string_view option : {"module", "name", "out"})
+        if (!args.value(option)) {
+            std::println(std::cerr, "xdef {}: --{} is needed (--module, --name and --out)", command, option);
+            return false;
+        }
+    return true;
+}
+
+int embed(const mcpplibs::cmdline::ParsedArgs& args) {
+    if (!asked_fully(args, "embed")) return 2;
+    const auto file = mcpplibs::os::fs::from_utf8(args.positional(0));
+    const std::string name = mcpplibs::os::fs::utf8(file.filename());
+    if (name.ends_with(".ts")) {
+        // A data module is carried as what it evaluates to, with its owner's kinds: its owner's build plugin does it.
+        std::println(std::cerr, "xdef embed: {} is a data module: embed its snapshot (xdef snapshot --write, then the .json), or let its owner's build plugin carry it", name);
+        return 2;
+    }
+    const auto text = mcpplibs::os::fs::read(file);
+    if (!text) {
+        std::println(std::cerr, "xdef embed: cannot read {}", mcpplibs::os::fs::utf8(file));
+        return 1;
+    }
+    const std::string part(args.value("name").value_or(""));
+    const auto out = mcpplibs::os::fs::from_utf8(args.value("out").value_or(".")) / mcpplibs::os::fs::from_utf8(part + ".cppm");
+    return put(out, mlibs::xdef::emit_embed(*text, name, args.value("module").value_or(""), namespace_for(args), part), args.is_flag_set("check"));
+}
+
+int embed_index(const mcpplibs::cmdline::ParsedArgs& args) {
+    if (!asked_fully(args, "embed-index")) return 2;
+    std::vector<std::pair<std::string, std::string>> files;
+    for (std::size_t index = 0; index < args.positional_count(); ++index) {
+        const std::string pair(args.positional(index));
+        const auto equals = pair.find('=');
+        if (equals == std::string::npos) {
+            std::println(std::cerr, "xdef embed-index: `{}` is not <file>=<partition>", pair);
+            return 2;
+        }
+        files.emplace_back(pair.substr(0, equals), pair.substr(equals + 1));
+    }
+    const std::string part(args.value("name").value_or(""));
+    const auto out = mcpplibs::os::fs::from_utf8(args.value("out").value_or(".")) / mcpplibs::os::fs::from_utf8(part + ".cppm");
+    return put(out, mlibs::xdef::emit_embed_index(files, args.value("module").value_or(""), namespace_for(args), part), args.is_flag_set("check"));
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -99,6 +171,22 @@ int main(int argc, char** argv) {
                                          .option(Option("write").help("do it (default: say what would change)"))
                                          .option(Option("keep-notes").takes_value().value_name("PREFIX,…").help("Markdown under these relative prefixes kept as written"))
                                          .option(root))
+                         .subcommand(App("embed")
+                                         .description("a data file a program carries: its text as a module partition (a build plugin's step, D-73)")
+                                         .arg(Arg("file").required().help("the file (a data module is its owner's to carry)"))
+                                         .option(Option("module").takes_value().value_name("M").help("the package's module"))
+                                         .option(Option("name").takes_value().value_name("P").help("the partition's and the constant's name"))
+                                         .option(Option("namespace").takes_value().value_name("NS").help("the constant's namespace (default: the module's)"))
+                                         .option(Option("out").takes_value().value_name("DIR").help("where <name>.cppm goes"))
+                                         .option(Option("check").help("only say whether the unit there is current")))
+                         .subcommand(App("embed-index")
+                                         .description("the files embedded under one tag as one table, a partition re-exporting theirs")
+                                         .arg(Arg("files").help("<file>=<partition>, each (as many as there are)"))
+                                         .option(Option("module").takes_value().value_name("M").help("the package's module"))
+                                         .option(Option("name").takes_value().value_name("P").help("the table's partition and name"))
+                                         .option(Option("namespace").takes_value().value_name("NS").help("the table's namespace (default: the module's)"))
+                                         .option(Option("out").takes_value().value_name("DIR").help("where <name>.cppm goes"))
+                                         .option(Option("check").help("only say whether the unit there is current")))
                          .subcommand(App("check")
                                          .description("the container's rules: every data file's kind registered, every committed snapshot current")
                                          .arg(Arg("dir").help("the tree (default: here)"))
@@ -110,7 +198,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (!parsed->has_subcommand()) {
-        std::println(std::cerr, "xdef: a command: kinds, snapshot, migrate or check (xdef --help)");
+        std::println(std::cerr, "xdef: a command: kinds, snapshot, migrate, check, embed or embed-index (xdef --help)");
         return 2;
     }
     const std::string command(parsed->subcommand_name());
@@ -118,5 +206,7 @@ int main(int argc, char** argv) {
     if (command == "kinds") return kinds(args);
     if (command == "snapshot") return snapshot(args);
     if (command == "migrate") return migrate(args);
+    if (command == "embed") return embed(args);
+    if (command == "embed-index") return embed_index(args);
     return check(args);
 }

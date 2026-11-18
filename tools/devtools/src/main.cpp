@@ -224,7 +224,7 @@ cmd::App app() {
                         .option(Option("write").help("carry it out (else: what would change)")))
         .subcommand(cmd::App("split")
                         .description("A project as a repository of its own (RC3.13): its members and all they reach, with the root's files, as a workspace")
-                        .arg(cmd::Arg("project").required().help("its directory (modules/projects/omui)"))
+                        .arg(cmd::Arg("project").required().help("its directory (modules/projects/omui), or a tier: foundation, framework, engine (D-231)"))
                         .option(Option("out").takes_value().value_name("DIR").help("where the tree goes (default: target/split/<project>)"))
                         .option(Option("list").help("only say the members and how many files")))
         .subcommand(cmd::App("release")

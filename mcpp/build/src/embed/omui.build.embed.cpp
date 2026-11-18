@@ -3,56 +3,27 @@ module omui.build.embed;
 import std;
 import mcpp;
 import omui.build.plan;
+import mlibs.build.embed;
 
 namespace omui::build {
 
-std::vector<edge> plan_embed(const embed_options& opt) {
-    const std::string root = mcpp::manifest_dir();
+// Plain files are the foundation's (mlibs.build.embed, `xdef embed`); a data module (`*.xdef.ts`) is carried as the
+// JSON it evaluates to with omui's kinds, so its edge runs omui-gen's embed, which takes the same words.
+std::vector<mlibs::build::edge> plan_embed(const embed_options& opt) {
+    const bool data_modules = opt.suffix.ends_with(".xdef.ts");
     const std::string gen = generator();
-    if (root.empty() || opt.module.empty() || opt.suffix.empty() || opt.tag.empty() || gen.empty()) {
-        std::println(std::cerr, "omui.build.embed: embed() runs from build.mcpp, with a module, a suffix and a tag, and omui-gen built for the build");
+    if (data_modules && gen.empty()) {
+        std::println(std::cerr, "omui.build.embed: {} files are data modules, evaluated by omui-gen: build it for the build (omui.gen with tools = [\"omui-gen\"])", opt.suffix);
         return {};
     }
-    const std::string ns = opt.ns.empty() ? namespace_of(opt.module) : opt.ns;
-    const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
-    std::vector<edge> edges;
-    for (const auto& f : opt.left_out ? std::vector<std::filesystem::path>{} : files_ending(std::filesystem::path(root) / opt.dir, opt.suffix)) {
-        std::string stem = utf8(f.filename());
-        stem = stem.substr(0, stem.size() - opt.suffix.size());
-        for (char& c : stem)
-            if (c == '-' || c == '.') c = '_';
-        const std::string name = stem + "_" + opt.tag;
-        edge e;
-        e.id = std::format("openmui:{}:{}", opt.tag, stem);
-        e.description = std::format("{} {} → {}.cppm ({})", opt.tag, utf8(f.filename()), name, opt.module);
-        e.command = {gen, "embed", utf8(f), "--module", opt.module, "--namespace", ns, "--name", name, "--out", out};
-        e.inputs = {utf8(f), gen};
-        e.outputs = {out + "/" + name + ".cppm"};
-        e.provides = {opt.module + ":" + name};
-        e.imports = {"std"};
-        edges.push_back(std::move(e));
-    }
-    // And, asked for, one table of them all, `<module>:<tag>_files`: (the file's name, its text).
-    if (opt.index && (!edges.empty() || opt.left_out)) {
-        edge index;
-        index.id = std::format("openmui:{}:index", opt.tag);
-        index.description = std::format("{} files → {}_files.cppm ({})", opt.tag, opt.tag, opt.module);
-        index.command = {gen, "embed-index", "--module", opt.module, "--namespace", ns, "--name", opt.tag + "_files", "--out", out};
-        index.inputs = {gen};
-        index.imports = {"std"};
-        for (const edge& e : edges) {
-            const std::string part = e.provides.front().substr(opt.module.size() + 1);
-            // A data module is carried as its JSON, and found by that name.
-            std::string file = utf8(std::filesystem::path(e.inputs.front()).filename());
-            if (file.ends_with(".xdef.ts")) file = file.substr(0, file.size() - 3) + ".json";
-            index.command.push_back(file + "=" + part);
-            index.inputs.push_back(e.inputs.front());
-            index.imports.push_back(e.provides.front());
-        }
-        index.outputs = {out + "/" + opt.tag + "_files.cppm"};
-        index.provides = {opt.module + ":" + opt.tag + "_files"};
-        edges.push_back(std::move(index));
-    }
+    auto edges = mlibs::build::plan_embed({.module = opt.module, .ns = opt.ns, .dir = opt.dir, .suffix = opt.suffix, .tag = opt.tag, .index = opt.index,
+                                           .left_out = opt.left_out, .out_dir = opt.out_dir, .subdir = "openmui"});
+    if (data_modules)
+        for (auto& one : edges)
+            if (one.command.size() > 1 && one.command[1] == "embed") {
+                one.command[0] = gen;
+                one.inputs.back() = gen;
+            }
     return edges;
 }
 
@@ -64,7 +35,7 @@ bool embed(embed_options opt) {
         std::println(std::cerr, "omui.build.embed: no {} file in {}/", opt.suffix, opt.dir);
         return false;
     }
-    return submit(edges);
+    return mlibs::build::submit(edges);
 }
 
 bool themes(theme_options opt) {

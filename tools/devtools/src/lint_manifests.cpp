@@ -107,7 +107,7 @@ const std::vector<Allowed>& layer_rules() {
             {"sdk", with({"ui", "host", "components", "sdk"})},
             {"game", with({"ui", "host", "components", "game", "gongfu.core", "gongfu"})},
             {"tools", {"*"}},
-            {"mcpp", {"tools", "mcpp"}},  // build code only: the plugins, their shared base and the generator they run
+            {"mcpp", {"tools", "mcpp", "base"}},  // build code only: the plugins, their shared base, the foundation's (mlibs.build) and the generator they run
             {"app", {"*"}},
         };
     }();
@@ -213,6 +213,13 @@ Projects read_projects(const fs::path& root) {
                 one.through[other] = std::format("{}/{}", place, member.text().value_or(""));
             projects.parts.push_back(std::move(one));
         }
+    }
+    // omui's build plugins (mcpp/, D-231): omui's, of its tier, though not under its directory — a package below omui
+    // that builds with them would need omui to build.
+    if (const auto omui = std::ranges::find(projects.parts, std::string("omui"), &ProjectPart::name); omui != projects.parts.end()) {
+        ProjectPart plugins = *omui;
+        plugins.path = "mcpp";
+        projects.parts.push_back(std::move(plugins));
     }
     // Every project an identity names is one of them.
     std::set<std::string> known;
@@ -480,7 +487,8 @@ std::vector<Problem> check_projects(const Workspace& workspace) {
         const ProjectPart* own = project_of(projects, member.path);
         if (!own || !member.data) continue;
         std::vector<std::pair<const toml::table*, std::string_view>> tables{{table_at(*member.data, "dependencies"), ""},
-                                                                             {table_at(*member.data, "dev-dependencies"), " for its tests"}};
+                                                                             {table_at(*member.data, "dev-dependencies"), " for its tests"},
+                                                                             {table_at(*member.data, "build-dependencies"), " to build"}};
         if (const auto* features = table_at(*member.data, "feature-deps"))
             for (const auto& [_, one] : *features) tables.emplace_back(one.as_table(), "");
         if (const auto* targets = table_at(*member.data, "target"))

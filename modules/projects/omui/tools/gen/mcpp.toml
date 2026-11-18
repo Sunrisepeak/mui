@@ -14,6 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["mlibs.xdef.tool"]  # lower-labelled parts it uses, each marked in its README
 separate = "build-stage: omui-gen, contracts and data to code at build time"
 kind = "tool"
 agent = { part = "omui.agent" }  # the generator behind `omui` and the build plugins; reached as omui.agent's generation operations (D-174)
@@ -30,6 +31,7 @@ mlibs.utils = { path = "../../../../base/utils" }
 omui.lang.ts = { path = "../../lang/ts" }
 mlibs.json = { path = "../../../../base/json" }
 mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked first (D-209)
+"mlibs.xdef.tool" = { path = "../../../../base/xdef/tool" }  # the embed emitters (D-73), one owner
 nlohmann.json       = "3.12.0"
 mcpplibs.cmdline    = "0.0.3"
 

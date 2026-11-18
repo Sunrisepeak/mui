@@ -31,7 +31,7 @@ struct component_options {
 // The contract a file declares: its name, the file's (`<name>.contract.xdef.ts`).
 [[nodiscard]] std::vector<std::string> contract_names(const std::filesystem::path& file);
 
-[[nodiscard]] std::vector<edge> plan(const component_options& opt);
+[[nodiscard]] std::vector<mlibs::build::edge> plan(const component_options& opt);
 
 // Plans and submits; false (and a message) when the build cannot go on.
 bool components(component_options opt);
@@ -50,7 +50,7 @@ struct native_options {
 // The native modules a file declares (its `[native.<name>]` tables).
 [[nodiscard]] std::vector<std::string> native_names(const std::filesystem::path& file);
 
-[[nodiscard]] std::vector<edge> plan_natives(const native_options& opt);
+[[nodiscard]] std::vector<mlibs::build::edge> plan_natives(const native_options& opt);
 
 // Plans and submits the native modules' edges; false (and a message) when
 // the build cannot go on.

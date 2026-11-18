@@ -4,6 +4,8 @@ import std;
 import mcpp;
 import omui.build.plan;
 
+using namespace mlibs::build;
+
 namespace omui::build {
 
 namespace {

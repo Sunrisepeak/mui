@@ -32,7 +32,7 @@ struct embed_options {
 // `<module>:<tag>_files` a table of them all by file name (the module's
 // interface exports it, as it does the others): a program carries its data
 // files and reads none to have them.
-[[nodiscard]] std::vector<edge> plan_embed(const embed_options& opt);
+[[nodiscard]] std::vector<mlibs::build::edge> plan_embed(const embed_options& opt);
 bool embed(embed_options opt);
 
 // ── theme packages (omui.theme) ──────────────────────────────────────────

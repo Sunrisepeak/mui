@@ -7,6 +7,7 @@ export module omui.gen.emit;
 
 import std;
 import omui.gen.model;
+import mlibs.xdef.tool;  // the embed emitters omui-gen writes through (embedded_by)
 
 export namespace omui::gen {
 
@@ -55,19 +56,9 @@ struct CppOptions {
 // (`openmui:native/<name>`).
 [[nodiscard]] std::string emit_native_dts(const std::vector<NativeModule>& modules, std::string_view module);
 
-// A data file as a module partition `<module>:<name>`, its text an exported
-// `inline constexpr std::string_view <name>` in namespace `ns`: how a package
-// carries a theme, a document or a table in its code, generated, never
-// copied by hand.
-[[nodiscard]] std::string emit_embed(std::string_view text, std::string_view source, std::string_view module, std::string_view ns,
-                                     std::string_view name);
-// The files embedded under one tag as one table, partition `<module>:<name>`:
-// an exported array `<name>` of (the file's name, its text), so a program
-// finds its embedded files by name — no list kept by hand beside them.
-// `files`: each file's name and its partition's (and constant's) name.
-[[nodiscard]] std::string emit_embed_index(std::span<const std::pair<std::string, std::string>> files, std::string_view module, std::string_view ns,
-                                           std::string_view name);
-
+// A data file as a module partition and the files under a tag as one table: mlibs.xdef's emitters
+// (`mlibs::xdef::emit_embed`, `emit_embed_index`), the one owner, with omui-gen's header on what omui-gen writes.
+inline constexpr mlibs::xdef::Generator embedded_by{.program = "omui-gen", .note = " (omui.gen's test keeps this current)", .plugin = "openmui.build.embed"};
 // The JSON Schema fragment of view documents for a contract set: one
 // definition per component type with its properties and events.
 [[nodiscard]] std::string emit_view_schema(const std::vector<Contract>& contracts, std::string_view module);

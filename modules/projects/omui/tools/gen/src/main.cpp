@@ -52,6 +52,7 @@ import omui.gen.cldr;
 import omui.gen.dist_toy;
 import omui.gen.wasm_size;
 import omui.gen.data;
+import mlibs.xdef.tool;
 
 using namespace omui::gen;
 
@@ -167,7 +168,7 @@ int run_registry(const Options& o) {
             return 1;
         }
         const std::string text(std::istreambuf_iterator<char>(in), {});
-        w.put(o.out / "src" / "generated" / std::format("{}.cppm", name), emit_embed(text, std::format("spec/stubs/{}", file), "openmui.spec", "omui::spec::stubs", name));
+        w.put(o.out / "src" / "generated" / std::format("{}.cppm", name), mlibs::xdef::emit_embed(text, std::format("spec/stubs/{}", file), "openmui.spec", "omui::spec::stubs", name, embedded_by));
     }
     w.put(o.out / "schema" / "core.components.json", emit_view_schema(reg.contracts, "the Core profile"));
     if (o.check) {
@@ -333,7 +334,7 @@ int run_embed_index(const Options& o) {
         for (char c : o.module) ns += c == '.' ? std::string("::") : std::string(1, c);
     }
     Writer w{o.check};
-    w.put(o.out / (o.name + ".cppm"), emit_embed_index(files, o.module, ns, o.name));
+    w.put(o.out / (o.name + ".cppm"), mlibs::xdef::emit_embed_index(files, o.module, ns, o.name, embedded_by));
     if (o.check) {
         if (w.stale) return 1;
         std::println("omui-gen: generated files are current");
@@ -371,7 +372,7 @@ int run_embed(const Options& o) {
         for (char c : o.module) ns += c == '.' ? std::string("::") : std::string(1, c);
     }
     Writer w{o.check};
-    w.put(o.out / (o.name + ".cppm"), emit_embed(text, source, o.module, ns, o.name));
+    w.put(o.out / (o.name + ".cppm"), mlibs::xdef::emit_embed(text, source, o.module, ns, o.name, embedded_by));
     if (o.check) {
         if (w.stale) return 1;
         std::println("omui-gen: generated files are current");

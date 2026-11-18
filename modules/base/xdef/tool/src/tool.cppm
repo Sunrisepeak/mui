@@ -74,4 +74,23 @@ struct Migration {
 };
 [[nodiscard]] Migration migrate(const std::filesystem::path& root, const Registry& registry, bool write, std::span<const std::string> notes = {});
 
+// ── embedding: data files a program carries (D-73) ─────────────────────────
+
+// Who wrote a generated unit, as its header says: the program that makes it again, a note, and the build plugin
+// whose embed() found the files of an index.
+struct Generator {
+    std::string_view program = "xdef";
+    std::string_view note;
+    std::string_view plugin = "mlibs.build.embed";
+};
+// A file's text as the partition `<module>:<name>`: an exported `std::string_view <name>` in namespace `ns`, the
+// text as a raw string, or, when it is not UTF-8 text (a picture, a sound), every byte escaped with its length.
+// `source` is the file's name as the header gives it.
+[[nodiscard]] std::string emit_embed(std::string_view text, std::string_view source, std::string_view module, std::string_view ns,
+                                     std::string_view name, const Generator& by = {});
+// The files embedded under one tag as one table, partition `<module>:<name>`: it re-exports each file's partition
+// and an array `<name>` of (the file's name, its text), sorted by name; `files` pairs a name with its partition.
+[[nodiscard]] std::string emit_embed_index(std::span<const std::pair<std::string, std::string>> files, std::string_view module,
+                                           std::string_view ns, std::string_view name, const Generator& by = {});
+
 }  // namespace mlibs::xdef

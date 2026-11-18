@@ -158,6 +158,6 @@ UTest cases{"example.space", [] {
         expect(a.h.save_png(scratch_dir("space-pixels") / "project.png").has_value());
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        expect(eq(hash.hex(), std::string("4ba660cbbde4b20d")));
+        expect(eq(hash.hex(), std::string("e50154770084827c")));
     };
 }};

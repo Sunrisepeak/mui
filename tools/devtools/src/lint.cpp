@@ -423,11 +423,15 @@ std::vector<Problem> run_with(const fs::path& root, std::span<const std::string>
     std::ranges::move(check_sources(root, owners), std::back_inserter(problems));
     if (fs::exists(root / ".agents/docs/evaluation/lead.features.xdef.json"))
         for (auto& [where, what] : lead::problems(root)) problems.push_back({"lead", std::move(where), std::move(what)});
-    if (!only.empty()) std::erase_if(problems, [&](const Problem& problem) { return !std::ranges::contains(only, problem.rule); });
-    return problems;
+    return select(std::move(problems), only);
 }
 
 }  // namespace
+
+std::vector<Problem> select(std::vector<Problem> problems, std::span<const std::string> only) {
+    if (!only.empty()) std::erase_if(problems, [&](const Problem& problem) { return !std::ranges::contains(only, problem.rule); });
+    return problems;
+}
 
 std::vector<Problem> run(const fs::path& root, std::span<const std::string> only) {
     return run_with(root, only, repository_closures(), repository_owed());

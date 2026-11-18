@@ -108,7 +108,7 @@ UTest cases{"example.theming", [] {
         std::println("example.theming brand {}", brand_pixels);
         expect(h.save_png(shots / "brand.png").has_value());
         expect(light_pixels != dense_pixels && light_pixels != brand_pixels);
-        expect(eq(light_pixels + " " + dense_pixels + " " + brand_pixels, std::string("b71fdb4f2d783359 8799418b5f024785 d5848d7daebb5f06")));
+        expect(eq(light_pixels + " " + dense_pixels + " " + brand_pixels, std::string("66e8219fd761d128 9b823e429eaab6af 70333786dab29c1d")));
     };
 
     "a saved edit of the application's theme file shows at once; a broken one says where and changes nothing"_test = [] {

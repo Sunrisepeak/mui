@@ -164,6 +164,6 @@ UTest cases{"example.rating", [] {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("example.rating pixels {}", hash.hex());
         expect(h.save_png(scratch_dir("example-rating") / "shelf.png").has_value());
-        expect(eq(hash.hex(), std::string("04f5474390eb3b5c")));
+        expect(eq(hash.hex(), std::string("73fe6b755eef509c")));
     };
 }};

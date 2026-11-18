@@ -680,7 +680,7 @@ UTest cases{"showcase.widget_breakout", [] {
         g.h.advance(seconds(0.25));
         expect(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3) << "afresh";
         std::println("    choice {:016x}", choice);
-        expect(eq(choice, std::uint64_t{0x9db0d154abf33d39}));  // GCC (LLVM: CI)
+        expect(eq(choice, std::uint64_t{0xe2f65bb963ae468d}));  // GCC (LLVM: CI)
     };
 
     "between rooms, a casing open: its TypeScript script edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room"_test = [] {

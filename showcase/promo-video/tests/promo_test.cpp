@@ -160,15 +160,15 @@ UTest cases{"showcase.promo_video", [] {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        expect(eq(all.hex(), std::string("b83e09c5a4632c9a")));  // the end card types `omui new hello`; names promo.timeline.xdef.ts
+        expect(eq(all.hex(), std::string("a2cd43d9cce05c73")));  // the end card types `omui new hello`; names promo.timeline.xdef.ts
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         expect(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080) << "1080p";
-        if (hd) expect(eq(hex(promo::pixel_hash(**hd)), std::string("25318c2baa60810e")));
+        if (hd) expect(eq(hex(promo::pixel_hash(**hd)), std::string("2fa130e7ab17209a")));
         promo::Player uhd(film(), c, {.scale = 2, .fonts = &fonts(), .parallel_raster = false});
         auto k4 = uhd.frame(400);
         expect(k4 && (*k4)->width() == 3840 && (*k4)->height() == 2160) << "4K";
-        if (k4) expect(eq(hex(promo::pixel_hash(**k4)), std::string("85761f078734bdd1")));
+        if (k4) expect(eq(hex(promo::pixel_hash(**k4)), std::string("8e4c5a2fe9bcb41e")));
     };
 
     "seek: a frame drawn directly is the frame played to — in every chapter, after its moments, and through the rewind"_test = [] {

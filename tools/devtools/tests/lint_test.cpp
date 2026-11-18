@@ -40,7 +40,11 @@ UTest cases{"devtools.lint", [] {
 
     "a rule named alone: only its problems"_test = [] {
         const std::vector<std::string> only{"macros"};
-        for (const auto& problem : lint::run(root(), only)) expect(eq(problem.rule, std::string("macros")));
+        // What `run` keeps when a rule is named, on problems of two rules: the repository has none to keep, and
+        // reading it a second time is this test's time over again (290 s of a 300 s limit on Windows, red 131).
+        const auto kept = lint::select({{"macros", "a.cpp:1", "one"}, {"layout", "b", "two"}, {"macros", "c.cpp:2", "three"}}, only);
+        expect(eq(kept.size(), std::size_t{2}));
+        for (const auto& problem : kept) expect(eq(problem.rule, std::string("macros")));
         expect(eq(lint::rules().size(), std::size_t{44}));
     };
 }};

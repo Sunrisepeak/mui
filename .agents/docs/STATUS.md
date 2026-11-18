@@ -130,13 +130,15 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 | 67 | Linux x64 and macOS rows cancelled at 150 minutes | e1749f83 | F | mitigated: the limit is 240 minutes |
 | 87 | `mesh.glass` against the reference's exact way: 18.7% of the ball's pixels further than 6 levels | the measure, 2026-11-15 | T | open: the bound is the measurement, to be lowered by the work |
 | 102 | macOS `mesh.blocks`: Apple's paravirtual device draws the KTX2 floor 406 of 129,600 pixels past 6 levels from the reference (bound 0.2 %), the same picture as light already 387 — its sampling of the sRGB sizes, not the blocks | macOS; run 43718991717 | R | the case now holds blocks to the same picture as light on one device (RTX 4080: 0 apart, mean 0.003) and ≤ 0.05 % more from the reference; Apple's sRGB sampling open (RC2.15); lavapipe 26.2.1 crashes in its JIT here (this CPU only) |
+| 130 | site: the README media are not what its tests draw (39 pictures) after the borders and dividers aligned to device pixels | site; run 44198856187 (f77df51f) | T | fixed: written again by `omui-devtools media site` (borders and rules crisp, checked by eye); `media --check site` passes here |
+| 131 | Windows: `lint_test` 290.92 s at N0 against its 300 s limit: one case read the repository twice | Windows; run 44198856187 (f77df51f) | T | fixed: the case holds `lint::select` (the rule filter `run` ends with) to three made problems, no second walk; lint_test 7.9 s → 4.3 s here |
+| 132 | Every row: 10 members' pinned pictures (examples 03–06, 10, 12; markdown-wall, promo-video, style-gallery, widget-breakout) after the device-pixel alignment; Kiln's README pictures never written since RC1.5 (the PR rows skip the media check) | rows; run 44198856187 (f77df51f) | T | fixed: the same new hashes on Linux, macOS, Windows; pinned again and the four media drawn again; Kiln's test writes readme-kiln (same pictures); `media --check --showcases` passes here |
 
 ### Upstream issues
 
 - GCC 16.1 (not filed): a function-local using-declaration of an enum from another module inside a `constexpr` function of an interface is an ICE in `import_entity_module`; an alias declaration works.
 - mcpp#896: two packages with the same short name drop one from links (worked around: `xrender.graph`). mcpp#926: esbuild not found by tests on Windows (65). mcpp#936: a member's build rebuilds a mapped module (82). mcpp#874: target size and rebuild cascades. mcpp-index#750: `-pthread` on Android (50).
 - mcpp#941 (closed 2026-11-16, in use): `[test] features` — a package's own tests built with named features. Without it a part behind a non-default feature is tested only as a default or as its own package: what holds many of RC1.5's rule-1 and rule-3 merges (e.g. `mlibs.image.ktx2` as `mlibs.image`'s feature).
-| 130 | site: the README media are not what its tests draw (39 pictures) after the borders and dividers aligned to device pixels | site; run 44198856187 (f77df51f) | T | fixed: written again by `omui-devtools media site` (borders and rules crisp, checked by eye); `media --check site` passes here |
 
 ## For 0.2 (found during 0.1; one line each, with the task that found it)
 

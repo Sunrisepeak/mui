@@ -108,6 +108,6 @@ UTest cases{"example.contrast", [] {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("example.contrast pixels {}", hash.hex());
         expect(h.save_png(scratch_dir("example-contrast") / "contrast.png").has_value());
-        expect(eq(hash.hex(), std::string("53adbee3e3975e1a")));
+        expect(eq(hash.hex(), std::string("d16ab82cd985d491")));
     };
 }};

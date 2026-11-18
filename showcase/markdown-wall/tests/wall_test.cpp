@@ -608,6 +608,6 @@ UTest cases{"showcase.markdown-wall", [] {
         expect(a.h.save_png(still).has_value() && std::filesystem::file_size(still) < 1024 * 1024);
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        expect(eq(hash.hex(), std::string("b6ec1e50fa6e8f66")));
+        expect(eq(hash.hex(), std::string("16bbba5754cea248")));
     };
 }};

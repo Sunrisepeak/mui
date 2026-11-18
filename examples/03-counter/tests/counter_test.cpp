@@ -236,6 +236,6 @@ UTest cases{"example.counter", [] {
         const std::uint64_t got = pixels(h);
         std::println("example.counter pixels {:016x}", got);
         expect(h.save_png(scratch_dir("example-counter-png") / "tally.png").has_value());
-        expect(got == 0x9990209b82dd5910ULL) << std::format("pixels {:016x}", got);
+        expect(got == 0x2e38193969156d40ULL) << std::format("pixels {:016x}", got);
     };
 }};

@@ -18,6 +18,9 @@ export namespace omui::devtools::lint {
 // Every rule (or the ones named) over the tree under `root`.
 [[nodiscard]] std::vector<Problem> run(const std::filesystem::path& root, std::span<const std::string> only = {});
 
+// The problems of the rules named (all of them when none is): what `run` keeps.
+[[nodiscard]] std::vector<Problem> select(std::vector<Problem> problems, std::span<const std::string> only);
+
 // Removes // and /* */ comments and the contents of string and character
 // literals (raw strings too), keeping every line where it was.
 [[nodiscard]] std::string strip_comments(std::string_view text);

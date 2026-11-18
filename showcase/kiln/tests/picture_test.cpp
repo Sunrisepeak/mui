@@ -84,6 +84,10 @@ std::filesystem::path keep(const raster::Surface& picture, std::string_view name
     const auto file = directory / std::format("{}.png", name);
     const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(picture.pixels().data()), picture.width(), picture.height(), picture.width() * 4};
     expect(mlibs::image::save_png(file, view).has_value()) << file.generic_string();
+    // The README's pictures (omui-devtools media copies readme-kiln/ into media/).
+    const auto readme = std::filesystem::temp_directory_path() / "openmui-tests" / "readme-kiln";
+    std::filesystem::create_directories(readme);
+    std::filesystem::copy_file(file, readme / std::format("barricade-{}.png", name), std::filesystem::copy_options::overwrite_existing);
     return file;
 }
 std::uint64_t brightness(const raster::Surface& picture, int x0, int y0, int x1, int y1) {

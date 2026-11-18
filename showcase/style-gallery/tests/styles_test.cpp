@@ -76,7 +76,7 @@ UTest cases{"showcase.styles", [] {
         }
         expect(eq(looks.size(), themes::style_names.size()));
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        expect(eq(all.hex(), std::string("664d6eec05142c36")));
+        expect(eq(all.hex(), std::string("7ad590156b6b7b7c")));
     };
 
     "the README's loop: the packs in turn — an animated PNG under 1 MB"_test = [] {

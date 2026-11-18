@@ -164,6 +164,6 @@ UTest cases{"example.notes", [] {
         expect(title.exit_code() == 0 && title.ndjson().contains(R"("no heading")")) << title.ndjson();
         expect(eq(verb(h, "notes.open", Value{}.set("key", "n9")).exit_code().value_or(-1), 1));
 
-        expect(eq(first, std::string("25f626398be76161")));  // the help says the macros are TypeScript (D-138)
+        expect(eq(first, std::string("f02e93996f7a2586")));  // the help says the macros are TypeScript (D-138)
     };
 }};

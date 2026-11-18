@@ -12,7 +12,7 @@ What it shows is Live Design (D-149, D-151), played whole by `tests/live_design_
 4. **The agent reads the facts back** (`design.check`). The details open from 0 to 72 px, and the spring overshoots by about 40%, more than the 10% the person allowed. The person agrees to more damping (`design.set`), and the facts hold.
 5. **The demonstration becomes a test.** `design.save_scenario` keeps the person's steps and the expectations in `tests/renewal.scenario.xdef.json`, and `design.replay` plays them again.
 6. **Back through the history.** The timeline shows the design two steps back. A branch tries a tighter layout from there, and the agent switches back.
-7. **A film of the design.** `design.film` runs each step as it was presented, under its caption, frame by frame. `omui design film` renders it to WebM.
+7. **A film of the design.** `design.film` runs each step as it was presented, under its caption, frame by frame. `omui design film` renders it to WebM with the engine's video toolkit (`xtools video render`).
 8. **Written to the file** (`design.commit`). The TypeScript is the one source, and it still compiles. The edits' p95 stays within a frame (16 ms).
 
 ```sh

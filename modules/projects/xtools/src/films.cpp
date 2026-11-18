@@ -1,22 +1,35 @@
 // Films with omui's sources (convergence plan RC3.3): films are xengine.video's toolkit (the `video` command); the
 // frames of an omui view are omui's — a view document drawn on a headless host's clock, a step a frame — and so are
-// the kinds its data modules declare (omui.lang.ts). xtools serves the subject; omui's design film renders with them.
-module omui.cli;
+// the kinds its data modules declare (omui.lang.ts). Composed here, in the engine's tier, which knows both (D-231):
+// omui's command line does not build the video toolkit in; `omui design.film` runs `xtools video render`.
+module xtools;
 
 import std;
 import mcpplibs.os;
 import omui.core;
 import omui.viewdoc;
 import omui.host.headless;
+import omui.ui.base;
+import omui.ui.markdown;
 import xengine.video;
 import xengine.video.tool;
 import omui.lang.ts;
 
-namespace omui::cli {
+namespace xtools {
 
 namespace vid = xengine::video;
 
 namespace {
+
+// The official components, registered once: what a view document may name.
+void register_components() {
+    static const bool done = [] {
+        omui::register_base_components();
+        omui::register_markdown_component();
+        return true;
+    }();
+    (void)done;
+}
 
 std::string utf8(const std::filesystem::path& p) {
     const std::u8string u = p.generic_u8string();
@@ -25,6 +38,8 @@ std::string utf8(const std::filesystem::path& p) {
 
 // The frames a view document draws: a headless host on the video's clock,
 // a step a frame (the first at 0 s), CPU pixels.
+using omui::Headless, omui::HeadlessOptions;
+
 class ViewFrames final : public vid::FrameSource {
 public:
     explicit ViewFrames(const vid::Description& d)
@@ -32,7 +47,7 @@ public:
 
     std::expected<void, std::string> load(const std::filesystem::path& file) {
         register_components();
-        auto v = viewdoc::View::load_file(headless_.runtime(), file);
+        auto v = omui::viewdoc::View::load_file(headless_.runtime(), file);
         if (!v) {
             std::string all;
             for (const auto& d : v.error()) all += (all.empty() ? "" : "; ") + d.text(utf8(file));
@@ -53,7 +68,7 @@ public:
 
 private:
     Headless                     headless_;
-    std::optional<viewdoc::View> view_;
+    std::optional<omui::viewdoc::View> view_;
     std::int64_t                 next_ = 0;
 };
 
@@ -70,4 +85,4 @@ xengine::video::tool::Sources video_sources() {
 
 std::unique_ptr<mlibs::agent::Subject> films() { return std::make_unique<xengine::video::tool::Video>(video_sources()); }
 
-}  // namespace omui::cli
+}  // namespace xtools

@@ -34,6 +34,15 @@ mlibs.agent           = { path = "../../base/agent" }
 "xrender.tool"        = { path = "../xrender/tool" }
 "gongfu.studio"       = { path = "../gongfu/studio" }
 "xtools.audition"     = { path = "audition" }
+# films (films.cpp): the video toolkit with omui's sources — a view's frames on a headless host, its data kinds
+xengine.video          = { path = "../xengine/kernel/video" }
+"xengine.video.tool"   = { path = "../xengine/kernel/video/tool" }
+"omui.core"            = { path = "../omui/core" }
+"omui.viewdoc"         = { path = "../omui/viewdoc" }
+"omui.host.headless"   = { path = "../omui/host/headless" }
+"omui.lang.ts"         = { path = "../omui/lang/ts" }
+"omui.ui.base"         = { path = "../omui/components/base" }
+"omui.ui.markdown"     = { path = "../omui/components/markdown" }
 mcpplibs.os           = "0.4.4"
 
 [dev-dependencies]

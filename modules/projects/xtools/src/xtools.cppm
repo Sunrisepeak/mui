@@ -12,3 +12,11 @@ export namespace xtools {
 int run(std::span<const std::string> argv, std::istream& in, std::ostream& out, std::ostream& errors);
 
 }  // namespace xtools
+
+namespace xtools {
+
+// Films (films.cpp): xengine.video's toolkit with omui's sources — a view's frames drawn on a headless host's clock,
+// data modules evaluated with omui's kinds.
+[[nodiscard]] std::unique_ptr<mlibs::agent::Subject> films();
+
+}  // namespace xtools

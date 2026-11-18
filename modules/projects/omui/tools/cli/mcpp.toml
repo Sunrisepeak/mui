@@ -1,8 +1,8 @@
 # omui — the openmui command line (plan §2.2): agent operations against any
-# running application; check, fmt and schema for view documents; a view's
-# films with omui's sources (films(): the video toolkit, xengine.video.tool,
-# with a view's frames and omui's data kinds; xtools serves it); add and bench
-# as their members land.
+# running application; check, fmt and schema for view documents; add and bench
+# as their members land. A view's films are the engine's video toolkit with
+# omui's sources, composed by xtools (the engine's tier, D-231); `omui
+# design.film` runs `xtools video render` as a program.
 [package]
 namespace   = "omui"
 name        = "cli"
@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure): films() is an mlibs.agent Subject
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the omui command"
-lower = ["mlibs.project", "xengine.video", "xengine.video.tool"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mlibs.project"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 agent = { part = "omui.agent" }  # the `omui` command: the agent operations of omui.agent's catalog, at the application's endpoint (D-174)
 
@@ -40,8 +40,6 @@ omui.lang.ts     = { path = "../../lang/ts" }
 mlibs.ts         = { path = "../../../../base/ts" }  # strip_types: a data module's syntax checked (typecheck)
 omui.ui.base     = { path = "../../components/base" }
 omui.ui.markdown = { path = "../../components/markdown" }
-xengine.video      = { path = "../../../xengine/kernel/video" }
-"xengine.video.tool" = { path = "../../../xengine/kernel/video/tool" }
 omui.host.headless = { path = "../../host/headless" }
 mcpplibs.os      = "0.4.4"
 mlibs.project = { path = "../../../../base/project" }  # omui doctor: the project's health (general rules, omui's profiles)

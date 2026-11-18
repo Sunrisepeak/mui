@@ -22,7 +22,7 @@ This project only wires those toolkits into one session of the tool kernel (mlib
 | [hanim.timeline.tool](../hanim/timeline/tool) | `hanim-timeline` | `timeline` | hanim |
 | [xrender.tool](../xrender/tool) | `xrender` | `xrender` | xrender |
 | [gongfu.studio](../gongfu/studio) | `gongfu-studio` | `gongfu` | gongfu |
-| [xengine.video.tool](../xengine/kernel/video/tool) | `video` | `video` (here with omui's sources, composed by omui.cli's `films()`: a view's film, data modules anywhere) | xengine |
+| [xengine.video.tool](../xengine/kernel/video/tool) | `video` | `video` (here with omui's sources, composed by xtools' `films()`: a view's film, data modules anywhere; `omui design film` runs it) | xengine |
 
 The compositions that are more than one project's toolkit live here too (D-204):
 

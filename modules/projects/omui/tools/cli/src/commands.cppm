@@ -14,18 +14,12 @@ export import :omui_profile;  // omui's profiles as data (omui.profile.xdef.ts)
 export import mlibs.agent;
 import omui.core;
 import omui.viewdoc;
-import xengine.video.tool;  // films: the video toolkit with omui's sources (its types stay inside: a preview part, `lower`)
 
 export namespace omui::cli {
 
 
 // Runs a command line (argv[0] included); writes to `out` and `err`.
 int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err);
-
-// Films as an agent's subject `video` (video.cpp): xengine.video.tool's toolkit with omui's sources — a view's frames
-// drawn on a headless host's clock, data modules evaluated with omui's kinds (anywhere, a workspace or not).
-// xtools serves it; its operations are video.render, still, check, probe and timing.
-[[nodiscard]] std::unique_ptr<mlibs::agent::Subject> films();
 
 // A running application reached — omui agent: its endpoint; omui page: the bridge to the paired page — a request
 // sent and its records taken, waiting at most `limit`.
@@ -61,9 +55,6 @@ std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, s
 
 // The document commands (documents.cpp), for run().
 namespace omui::cli {
-
-// The sources omui gives the video toolkit (video.cpp): what films() composes and the design film renders with.
-[[nodiscard]] xengine::video::tool::Sources video_sources();
 
 // A diagnostic and the file it is about: what `omui check` prints, whichever check found it.
 struct Found {

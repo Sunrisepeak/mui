@@ -123,15 +123,13 @@ std::string list_of(const auto& names);
 
 // The tiers (D-231), each a repository of its own one day: dependencies point down only, tests included.
 constexpr std::array<std::string_view, 3> tiers{"foundation", "framework", "engine"};
-// The edges up a tier that are still to be cut, each with its task (implementation plan A5, A6): the lint passes
+// The edges up a tier that are still to be cut, each with its task (implementation plan A5): the lint passes
 // them and refuses every other; an edge here that no manifest has any more is a cut done, to be struck off.
 struct Pending {
     std::string_view from, to, task;
 };
-constexpr std::array<Pending, 3> pending_cuts{{
+constexpr std::array<Pending, 1> pending_cuts{{
     {"modules/projects/hanim", "modules/projects/xengine/kernel/dynamics", "A5: the solver hanim uses moves down to the foundation"},
-    {"modules/projects/omui/tools/cli", "modules/projects/xengine/kernel/video", "A6: `video` contributed by the engine's toolkit"},
-    {"modules/projects/omui/tools/cli", "modules/projects/xengine/kernel/video/tool", "A6: `video` contributed by the engine's toolkit"},
 }};
 
 struct ProjectPart {

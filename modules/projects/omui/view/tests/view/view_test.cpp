@@ -387,6 +387,51 @@ static UTest cases{"view", [] {
         expect(rt.bounds(rt.find("main/list/c")).y < rt.bounds(b).y) << "order follows the list";
     };
 
+    "each: a row whose item did not change is not built again; its node is kept and moved"_test = [] {
+        Runtime rt(options());
+        auto items = signal(std::vector<std::string>{"a", "b", "c", "d"});
+        int  built = 0, placed = 0;
+        const auto rows = [&] {
+            return column({.id = "list"}, {each(items, [](const std::string& name) { return name; }, [&built](const std::string& name) {
+                                                    ++built;
+                                                    return text({.id = name, .text = name});
+                                                })});
+        };
+        rt.mount("main", column({}, {rows(), column({.id = "numbered"},
+                                                    {each(items, [](const std::string& name) { return name; },
+                                                          [&placed](const std::string& name, std::size_t index) {
+                                                              ++placed;
+                                                              return text({.id = name, .text = std::format("{} {}", index, name)});
+                                                          })})}));
+        rt.frame();
+        expect(eq(built, 4) && eq(placed, 4));
+        const NodeId b = rt.find("main/list/b"), d = rt.find("main/list/d");
+        items.set({"a", "d", "c", "b"});  // two rows change places
+        rt.frame();
+        expect(eq(built, 4)) << "made from the item alone: none built again";
+        expect(eq(placed, 6)) << "made from the item and its place: the two that moved";
+        expect(rt.find("main/list/b") == b && rt.find("main/list/d") == d) << "the same nodes";
+        expect(rt.bounds(d).y < rt.bounds(b).y) << "in the list's order";
+        items.set({"a", "d", "c"});  // one removed
+        rt.frame();
+        expect(eq(built, 4) && eq(placed, 6));
+        expect(!rt.valid(rt.find("main/list/b")));
+        items.set({"a", "d", "c", "e"});  // one new
+        rt.frame();
+        expect(eq(built, 5) && eq(placed, 7));
+        expect(eq(rt.children(rt.find("main/list")).size(), std::size_t{4}));
+        // The same view mounted where no node of those keys is: every row made.
+        rt.mount("second", rows());
+        rt.frame();
+        expect(eq(built, 9));
+        expect(rt.valid(rt.find("second/e")));
+        items.set({"e", "a", "d", "c"});
+        rt.frame();
+        expect(eq(built, 9)) << "both mounts keep their rows";
+        expect(eq(rt.path(rt.children(rt.find("main/list"))[0]), std::string("main/list/e")));
+        expect(eq(rt.children(rt.find("second")).size(), std::size_t{4}));
+    };
+
     "pointer press activates; handlers, hover and pressed states"_test = [] {
         Runtime rt(options());
         int pressed = 0, entered = 0;

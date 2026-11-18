@@ -266,7 +266,7 @@ struct Table {
         return scroll({.id = "table", .height = Dim(mlibs::layout::pct(100)), .background = "background"},
                       {each(
                           lines, [](const Line& line) { return line.id; },
-                          [chosen](const Line& line, std::size_t) {
+                          [chosen](const Line& line) {
                               const std::int32_t id = line.id;
                               return row({.id = std::format("r{}", id), .padding = 6, .gap = 12, .align = "center",
                                           .background = computed([chosen, id] { return Fill(chosen.get() == id ? "surface_variant" : "surface"); })},

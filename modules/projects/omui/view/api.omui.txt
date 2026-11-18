@@ -514,6 +514,7 @@ namespace omui {
     std::function<void(void* instance)> configure;
     std::source_location where = std::source_location::current();
     std::string built_at;
+    std::function<Element()> kept;
     Element& prop(std::string name, Source s);
     template <PropertyType T> Element& prop(std::string name, const Prop<T>& p);
     Element& on(std::string event, Handler h);

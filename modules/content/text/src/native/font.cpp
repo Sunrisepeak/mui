@@ -42,8 +42,24 @@ struct Face {
     std::vector<std::uint8_t> data;
     hb_blob_t*                blob = nullptr;
     hb_face_t*                face = nullptr;
-    hb_set_t*                 unicodes = nullptr;
     FaceInfo                  info;
+
+    // The code points it has, collected when first asked: a fallback face no text reaches
+    // (a pack of 30,000 ideographs under Latin text) is never walked.
+    [[nodiscard]] const hb_set_t* coverage() const {
+        std::call_once(collected_, [this] {
+            unicodes_ = hb_set_create();
+            if (face) hb_face_collect_unicodes(face, unicodes_);
+        });
+        return unicodes_;
+    }
+    ~Face() {
+        if (unicodes_) hb_set_destroy(unicodes_);
+    }
+
+private:
+    mutable std::once_flag collected_;
+    mutable hb_set_t*      unicodes_ = nullptr;
 };
 
 struct Instance {
@@ -103,13 +119,11 @@ struct FontCollection::Impl {
     // What a collection with no faces shapes with: HarfBuzz's empty face, which
     // has no glyphs, so text takes no room and draws nothing instead of
     // reaching past the end of `faces`.
-    Face                               none = [] {
-        Face f;
-        f.face = hb_face_reference(hb_face_get_empty());
-        f.unicodes = hb_set_create();
-        f.info.units_per_em = 1000;
-        return f;
-    }();
+    Face                               none;
+    Impl() {
+        none.face = hb_face_reference(hb_face_get_empty());
+        none.info.units_per_em = 1000;
+    }
 
     [[nodiscard]] const Face& at(FaceId id) const noexcept {
         std::shared_lock g(lock);
@@ -126,11 +140,9 @@ struct FontCollection::Impl {
             std::scoped_lock g(r.lock);
             r.alive.erase(id);
         }
-        hb_set_destroy(none.unicodes);
         hb_face_destroy(none.face);
         for (Instance& i : instances) hb_font_destroy(i.font);
         for (auto& f : faces) {
-            hb_set_destroy(f->unicodes);
             hb_face_destroy(f->face);
             hb_blob_destroy(f->blob);
         }
@@ -228,8 +240,6 @@ std::expected<FaceId, std::string> FontCollection::add_data(std::vector<std::uin
         hb_blob_destroy(f->blob);
         return std::unexpected("not a font (no glyphs)");
     }
-    f->unicodes = hb_set_create();
-    hb_face_collect_unicodes(f->face, f->unicodes);
     FaceInfo& info = f->info;
     info.family = name_of(f->face, HB_OT_NAME_ID_TYPOGRAPHIC_FAMILY);
     if (info.family.empty()) info.family = name_of(f->face, HB_OT_NAME_ID_FONT_FAMILY);
@@ -286,7 +296,14 @@ std::vector<char32_t> FontCollection::uncovered_points() const {
 std::expected<FaceId, std::string> FontCollection::add_file(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
     if (!in) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
-    std::vector<std::uint8_t> data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    // Its size asked first and its bytes read at once: a byte at a time through the stream cost
+    // three times the file in allocations and most of a program's start.
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(file, ec);
+    if (ec) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
+    std::vector<std::uint8_t> data(static_cast<std::size_t>(size));
+    in.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size()));
+    if (static_cast<std::size_t>(in.gcount()) != data.size()) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
     auto id = add_data(std::move(data));
     if (!id) return std::unexpected(std::format("{}: {}", generic_utf8(file), id.error()));
     return id;
@@ -328,7 +345,7 @@ std::optional<FaceId> FontCollection::find_family(std::string_view family) const
     return std::nullopt;
 }
 
-bool FontCollection::covers(FaceId id, char32_t cp) const { return hb_set_has(impl_->at(id).unicodes, cp); }
+bool FontCollection::covers(FaceId id, char32_t cp) const { return hb_set_has(impl_->at(id).coverage(), cp); }
 
 void FontCollection::set_fallback(std::vector<FaceId> chain) {
     impl_->fallback = std::move(chain);
@@ -341,7 +358,7 @@ FaceId FontCollection::select(std::span<const std::string> families, std::u32str
         for (char32_t cp : cluster) {
             // Joiners, variation selectors and tags do not need a glyph of their own.
             if (cp == 0x200D || cp == 0x200C || (cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0xE0020 && cp <= 0xE007F)) continue;
-            if (!hb_set_has(face.unicodes, cp)) return false;
+            if (!hb_set_has(face.coverage(), cp)) return false;
         }
         return true;
     };

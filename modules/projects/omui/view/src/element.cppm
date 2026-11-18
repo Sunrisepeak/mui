@@ -180,6 +180,10 @@ struct Element {
     // Where a script built it, `file:line:column` (development mode: Live
     // Design maps a node to its source and back). Empty: built in C++, or not kept.
     std::string                                      built_at;
+    // In a region: the node of this key that the region already has stays as it is — nothing of
+    // it built, bound or configured again, only its place among its siblings taken from here —
+    // and where there is none, `kept()` makes the element (`each`: a row whose item did not change).
+    std::function<Element()>                         kept;
 
     Element& prop(std::string name, Source s);
     template <PropertyType T>
@@ -248,22 +252,56 @@ template <class F>
                            std::source_location where = std::source_location::current());
 
 // One element per item of a list signal, reconciled by `key`.
+//
+// An item's element is made from the item (`item(value)`), or from the item and its place
+// (`item(value, index)`): what else a row shows, it binds. So a row whose item compares equal to
+// what it was (and, for the second form, stands where it stood) is not built again when the list
+// changes — its node is kept and only moved: a swap, a removal or an append costs the rows that
+// changed, not the list. Write `item(value)` unless the row shows its index.
 template <class T, class KeyFn, class ItemFn>
 [[nodiscard]] Element each(Signal<std::vector<T>> items, KeyFn key, ItemFn item,
                            std::source_location where = std::source_location::current()) {
+    constexpr bool by_item_alone = std::invocable<const ItemFn&, const T&>;
+    struct Made {
+        T           item;
+        std::size_t index = 0;
+        std::string key;  // its node's: the element's own where it names one
+    };
+    auto made = std::make_shared<std::unordered_map<std::string, Made>>();
     return dynamic(
-        [items, key, item] {
+        [items, key, item, made] {
             std::vector<Element> out;
             const auto& list = items.get();
+            out.reserve(list.size());
+            std::unordered_map<std::string, Made> now;
+            now.reserve(list.size());
             // Only the list is a dependency: what an item reads binds its own
             // properties, so changing one item's text does not rebuild the list.
             untracked([&] {
-                for (std::size_t i = 0; i < list.size(); ++i) {
-                    Element e = item(list[i], i);
-                    if (e.key.empty()) e.key = std::format("{}", key(list[i]));
-                    out.push_back(std::move(e));
+                for (std::size_t index = 0; index < list.size(); ++index) {
+                    std::string name = std::format("{}", key(list[index]));
+                    auto build = [item, name, value = list[index], index] {
+                        Element element = [&] {
+                            if constexpr (by_item_alone) return item(value);
+                            else return item(value, index);
+                        }();
+                        if (element.key.empty()) element.key = name;
+                        return element;
+                    };
+                    const auto before = made->find(name);
+                    Element    element;
+                    if (before != made->end() && before->second.item == list[index] && (by_item_alone || before->second.index == index)) {
+                        element.key = before->second.key;
+                        element.kept = std::move(build);
+                    } else {
+                        element = build();
+                    }
+                    std::string node_key = element.key.empty() ? element.id : element.key;
+                    now.insert_or_assign(std::move(name), Made{list[index], index, std::move(node_key)});
+                    out.push_back(std::move(element));
                 }
             });
+            *made = std::move(now);
             return out;
         },
         where);

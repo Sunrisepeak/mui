@@ -196,6 +196,17 @@ std::vector<ChildSlot> Runtime::Impl::reconcile(NodeId parent, std::vector<Child
             out.push_back({{}, std::move(rs)});
             continue;
         }
+        if (e.kept) {
+            // A row that did not change: its node as it is; or, where this region has none of that key
+            // (the same view mounted a second time), the element made after all.
+            if (auto it = keyed.find(e.key); it != keyed.end() && !used[it->second]) {
+                used[it->second] = true;
+                out.push_back({old[it->second].node, {}});
+                continue;
+            }
+            Element whole = e.kept();
+            e = std::move(whole);
+        }
         const ComponentType& type = type_of(e);
         const std::string key = key_of(e);
         std::optional<std::size_t> match;

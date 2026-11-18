@@ -72,6 +72,11 @@ UTest cases{"gen.size", [] {
         expect(eq(gen::owner_of("_ZNKSt6vectorIiSaIiEE4sizeEv"), std::string("std")));
         expect(eq(gen::owner_of("_ZN8nlohmann16json_abi_v3_12_010basic_jsonEv", 1), std::string("nlohmann")));
         expect(eq(gen::owner_of("_Z4mainv"), std::string("(global)")));
+        expect(eq(gen::owner_of("_ZTVN4omui6render10DisplayListE"), std::string("omui::render"))) << "a vtable is its type's";
+        expect(eq(gen::owner_of("_ZGVZN3okl11generationsEvE1g"), std::string("okl::generations"))) << "a local static's guard";
+        expect(eq(gen::owner_of("_ZZN3okl11generationsEvE1g"), std::string("okl::generations"))) << "a function's local static";
+        expect(eq(gen::owner_of("_ZThn16_N4omui6render10DisplayList4fillEv"), std::string("omui::render"))) << "a thunk";
+        expect(eq(gen::owner_of("_RNvMNtCs6i54tJFfzR_9accesskit4tree4Node3new"), std::string("rust accesskit")));
         expect(eq(gen::owner_of("hb_buffer_create"), std::string("harfbuzz")));
         expect(eq(gen::owner_of("FT_Load_Glyph"), std::string("freetype")));
         expect(eq(gen::owner_of("md_parse"), std::string("md4c")));

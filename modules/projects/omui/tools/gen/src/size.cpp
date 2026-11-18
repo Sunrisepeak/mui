@@ -130,12 +130,40 @@ std::string demangled_owner(std::string_view s, int depth) {
 }
 
 std::string owner_of(std::string_view s, int depth) {
+    // Rust's v0 names (_R…): the crate, the first `C` path root (`C`, a disambiguator `s…_`, its length and name).
+    if (s.starts_with("_R")) {
+        for (std::size_t at = 2; at + 1 < s.size(); ++at) {
+            if (s[at] != 'C') continue;
+            std::size_t name = at + 1;
+            if (name < s.size() && s[name] == 's') {
+                const auto end = s.find('_', name);
+                if (end == std::string_view::npos) break;
+                name = end + 1;
+            }
+            std::size_t length = 0, digits = name;
+            while (digits < s.size() && s[digits] >= '0' && s[digits] <= '9') length = length * 10 + static_cast<std::size_t>(s[digits++] - '0');
+            if (digits == name || digits + length > s.size()) continue;
+            return "rust " + std::string(s.substr(digits, length));
+        }
+        return "rust";
+    }
     if (!s.starts_with("_Z")) {
         if (s.find_first_of(":( ") != std::string_view::npos) return demangled_owner(s, depth);
         if (const auto lib = library_of(s); !lib.empty()) return std::string(lib);
         return "(C) " + std::string(s.substr(0, std::min(s.find('_', 1), std::size_t{24})));
     }
     std::size_t i = 2;
+    // What is made for an entity is its owner's: a vtable, its type's information and name (TV, TI, TS, TT), a guard
+    // variable (GV), a thunk (Th<offset>_, Tv<offsets>_), a function's local static (Z<encoding>E…).
+    if (s.substr(i, 2) == "TV" || s.substr(i, 2) == "TI" || s.substr(i, 2) == "TS" || s.substr(i, 2) == "TT" || s.substr(i, 2) == "GV") i += 2;
+    else if (s.substr(i, 2) == "Th" || s.substr(i, 2) == "Tv") {
+        const int offsets = s[i + 1] == 'v' ? 2 : 1;
+        for (int skipped = 0; skipped < offsets && i < s.size(); ++skipped) {
+            const auto end = s.find('_', i);
+            i = end == std::string_view::npos ? s.size() : end + 1;
+        }
+    }
+    if (s.substr(i, 1) == "Z") ++i;  // a guard's local static too (GVZ…)
     if (i < s.size() && s[i] == 'L') ++i;  // internal linkage
     const bool nested = i < s.size() && s[i] == 'N';
     if (nested) {

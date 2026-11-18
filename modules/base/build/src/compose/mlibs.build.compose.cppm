@@ -74,4 +74,25 @@ struct build_facts {
 // Writes the unit for the build that runs this program and hands it over. False: said on standard error.
 bool unit(const unit_options& options);
 
+// What a build is to a target, for a report of it.
+struct target_facts {
+    std::string os;
+    std::string env;
+    std::string profile;
+};
+
+// The composition of a build, read from its resolved graph (mcpp's `graph_file`, JSON): every slot a package of
+// the graph declares (`[package.metadata.openmui.compose] slots`), who owns it, the packages that provide at it
+// (`provides`), and for each whether a composition root (`root = true`) installs it in this build — the root's
+// row for it (`[….compose.installs] "<package>" = { feature = "…", targets = "desktop" }`), the root's features and the target say — or why
+// not; a slot nothing is installed at says so (`absent`: "left-out" where a provider is in the graph and its
+// feature is off or its target is another, "none" where the graph has no provider). JSON, `composition@1`;
+// the problem, when the graph does not read.
+[[nodiscard]] std::expected<std::string, std::string> report_text(std::string_view graph, const target_facts& target);
+
+// For the graph's root (an application): writes `composition.json` under the build's output directory from the
+// graph mcpp hands this program. A build program that is given no graph (a dependency's) writes nothing and
+// answers true. It decides nothing: features are the manifest's and the command line's.
+bool report();
+
 }  // namespace mlibs::build::compose

@@ -7,6 +7,8 @@
       "why": "18,473,342 B (2026-11-18, GCC 16 on Linux x64): code 14,430,530, data 4,042,812 — std 10.5%, SDL 7.9%, omui.ui.base 7.5%, omui.view 5.4%, xrender's shaders 3.4%, FreeType 2.1%. The plan's bound after B1 (unreached code not linked: 26.7 MB before); B5, B6 and B8 bring it down (app ≤ 8 MB, lean ≤ 6 MB), the bound with them"
     }
   ],
+  "installs": ["omui.accessibility.bridge"],
+  "installs_why": "The providers the program installs (mlibs.compose): its world, `full`, held as the links are.",
   "links_why": "The packages built into the program (B5): a change to this list is a change to what the smallest application carries, said in review. Owed cuts: the image decoders (mcpplibs.mwrap.libjpeg_turbo, .libpng, .libwebp; compat.libpng, compat.libwebp, compat.zlib) reached through the view's Image and the agent's screenshots, and the solver (mlibs.dynamics, mlibs.simulation) through hanim — each to become its owner's feature (B6)",
   "links": [
     "compat.accesskit",

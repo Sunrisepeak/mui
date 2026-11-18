@@ -33,4 +33,5 @@ sources = ["src/*/*.cppm", "src/*/*.cpp"]
 
 # xdef, built for the build machine and handed to the build program that uses these plugins.
 [dependencies]
+mlibs.json = { path = "../json" }  # compose: the resolved graph read
 mlibs.xdef.tool = { path = "../xdef/tool", tools = ["xdef"], reexport = true }

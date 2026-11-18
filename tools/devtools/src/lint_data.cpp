@@ -661,6 +661,19 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                                         name));
                 }
             }
+            // What a root's manifest says it installs (`installs`: a provider's package → its feature and targets; a
+            // build's report reads it) is what its build program's rows say, and names features the manifest has.
+            if (const auto* rows = table_at(compose, "installs")) {
+                const std::string program = read_text(root / path_of(member.path) / "build.mcpp").value_or("");
+                for (const auto& [key, row] : *rows) {
+                    const std::string name(key.str());
+                    const std::string feature = row.as_table() && row.as_table()->get("feature") ? row.as_table()->get("feature")->value_or(std::string{}) : std::string{};
+                    if (feature.empty() || !program.contains("\"" + name + "\"") || !program.contains("\"" + feature + "\""))
+                        add("compose", member.path + "/mcpp.toml", std::format("`installs` lists {} by feature `{}`, and build.mcpp has no such row", name, feature));
+                    else if (const auto* features = table_at(&*member.data, "features"); !features || !features->get(feature))
+                        add("compose", member.path + "/mcpp.toml", std::format("`installs` names the feature `{}`, which [features] does not have", feature));
+                }
+            }
             // A root's build program names the providers its unit installs (mlibs.build.compose: `.package = "…"`): each
             // is a package this manifest depends on that says `provides`.
             if (roots.contains(member.path)) {
@@ -671,6 +684,11 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                     const bool provides = std::ranges::any_of(workspace.members, [&](const Member& other) {
                         return other.data && providers.contains(other.path) && package_name(*other.data) == name;
                     });
+                    if (const auto* rows = table_at(compose, "installs"); !rows || !rows->get(name))
+                        add("compose", member.path + "/build.mcpp",
+                            std::format("installs {}, which the manifest's `[package.metadata.openmui.compose.installs]` does not list (a build's "
+                                        "report reads it)",
+                                        name));
                     if (!depended.contains(name))
                         add("compose", member.path + "/build.mcpp", std::format("installs {}, which the manifest does not depend on", name));
                     else if (!provides)

@@ -100,6 +100,7 @@ int native_size(const fs::path& root, const Size& asked) {
     }
     // What it links (B5): the packages built into the program, from the build's resolution — beside its own bin/.
     std::set<std::string> links;
+    fs::path              program_out;  // the package's build-output directory, where its build program writes
     for (fs::path up = program->path.parent_path(); up.has_relative_path(); up = up.parent_path()) {
         const auto resolution = json::parse(mcpplibs::os::fs::read(up / "resolution.json").value_or(""), nullptr, false);
         if (resolution.is_discarded()) continue;
@@ -109,10 +110,29 @@ int native_size(const fs::path& root, const Size& asked) {
             const auto& id = package["package"];
             const std::string name = id.value("namespace", "") + "." + id.value("name", "");
             if (name != asked.package) links.insert(name);
+            else program_out = mcpplibs::os::fs::from_utf8(package.value("outDir", ""));
         }
         break;
     }
     std::cout << std::format("{} links {} packages\n", asked.package, links.size());
+    // What it is composed of (mlibs.compose, K4): each slot of the build, and the provider installed at it or why
+    // none is — from the composition its build program wrote (mlibs.build.compose's report), when it writes one.
+    std::set<std::string> installed;
+    bool                  composed = false;
+    if (const auto composition = json::parse(mcpplibs::os::fs::read(program_out / "composition.json").value_or(""), nullptr, false);
+        !program_out.empty() && !composition.is_discarded()) {
+        composed = true;
+        for (const auto& slot : composition.value("slots", json::array())) {
+            const auto providers = slot.value("providers", json::array());
+            for (const auto& provider : providers) {
+                const bool is_installed = provider.value("installed", false);
+                if (is_installed) installed.insert(provider.value("package", ""));
+                std::cout << std::format("  {} {} {} ({})\n", slot.value("id", ""), is_installed ? "<-" : "without", provider.value("package", ""),
+                                         provider.value("why", ""));
+            }
+            if (providers.empty()) std::cout << std::format("  {} has no provider in this build\n", slot.value("id", ""));
+        }
+    }
     if (asked.budget.empty()) return 0;
     const std::string budget_text = mcpplibs::os::fs::read(root / asked.budget).value_or("");
     auto over = over_budget(measured, budget_text);
@@ -124,6 +144,18 @@ int native_size(const fs::path& root, const Size& asked) {
             if (!expected.contains(name)) over.push_back(std::format("{} now links {}, which its budget's links do not list", asked.package, name));
         for (const auto& name : expected)
             if (!links.contains(name)) over.push_back(std::format("{} no longer links {}: take it out of its budget's links", asked.package, name));
+    }
+    // The budget's `installs`, when it lists them: the providers the program installs are exactly those.
+    if (const auto budget = json::parse(budget_text, nullptr, false); !budget.is_discarded() && budget.contains("installs")) {
+        std::set<std::string> expected;
+        for (const auto& name : budget["installs"]) expected.insert(name.get<std::string>());
+        if (!composed)
+            over.push_back(std::format("{} wrote no composition (mlibs.build.compose's report in its build.mcpp), and its budget lists installs", asked.package));
+        for (const auto& name : installed)
+            if (!expected.contains(name)) over.push_back(std::format("{} now installs {}, which its budget's installs do not list", asked.package, name));
+        for (const auto& name : expected)
+            if (composed && !installed.contains(name))
+                over.push_back(std::format("{} no longer installs {}: its world left it out, or take it out of its budget's installs", asked.package, name));
     }
     for (const auto& message : over) std::cout << "::error::" << message << '\n';
     if (over.empty()) std::cout << std::format("ok   within {}\n", mcpplibs::os::fs::generic_utf8(asked.budget));

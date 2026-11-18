@@ -2,7 +2,7 @@
 
 What a program is made of, chosen at its root: one mechanism for composing the engines, extending them from outside, and leaving out what a program does not need (D-238; [design](../../../.agents/docs/2026-11-18-compose-slots-worlds-design.md)).
 
-**Preview.** Here today: the run time, what manifests declare (lint `compose`), the unit a root's build writes ([`mlibs.build.compose`](../build)) and worlds as features. Owed (design, K4–K5): the composition's snapshot and diagnostics from the resolved graph, worlds derived from an application's declaration, the CI matrix.
+**Preview.** Here today: the run time, what manifests declare (lint `compose`), the unit a root's build writes and the composition an application's build reports ([`mlibs.build.compose`](../build)), and worlds as features. Owed (design, K4–K5): a diagnostic for a required slot left empty, worlds derived from an application's declaration, the CI matrix.
 
 ## The idea
 
@@ -63,6 +63,8 @@ provides = ["acme.accessibility.service"]
 ```toml
 [package.metadata.openmui.compose]
 root = true
+[package.metadata.openmui.compose.installs]   # what its unit installs, for a build's report (lint holds it to build.mcpp)
+"acme.accessibility.bridge" = { feature = "accessibility-bridge", targets = "desktop" }
 
 [features]
 default = ["full"]
@@ -87,6 +89,22 @@ acme.sdk = { version = "…", default-features = false, features = ["lean", "acc
 ```
 
 Development is always the full world: a development command adds it on the command line (`--features acme.sdk/full`; the command line adds features and takes none away), so the line above constrains only what ships.
+
+**See what a build is composed of** — an application's build program asks for the report; it decides nothing.
+
+```cpp
+// build.mcpp of the application
+if (!mlibs::build::compose::report()) return 1;   // composition.json in the build's output directory
+```
+
+```json
+{"$format":"composition@1", "application":"acme.hello", "target":{"os":"linux","env":"gnu","profile":"size"},
+ "roots":[{"package":"acme.sdk","features":["lean"]}],
+ "slots":[{"id":"acme.accessibility.service","owner":"acme.accessibility","absent":"left-out","providers":[
+   {"package":"acme.accessibility.bridge","installed":false,"why":"feature `accessibility-bridge` of acme.sdk is off"}]}]}
+```
+
+It is read from the resolved graph mcpp hands the root's build program: the slots the graph's packages declare, who provides at each, and for each provider whether a root installs it in this build — or why not.
 
 ## Rules
 

@@ -282,6 +282,10 @@ mlibs::build::compose::report();   // 写 <out>/composition.xdef.json；必需�
 
 **K3 的结果（2026-11-18）**：`mlibs.build.compose` 的 `unit()` 已有，`omui.sdk` 的安装单元由它生成（一行一项能力）。三个世界是 `omui.sdk` 的 feature（`default = ["full"]`；`app`、`full` 经 `implies` 带上 `accessibility-bridge`，`lean` 不带）。例子 01（`size` 配置，装入字节数）：`full` 与 `app` 18,062 KiB，`lean` 16,468 KiB；`full` 与 `lean` 各在离屏窗口上出了第一帧。清单写 `lean`、命令行加 `--features omui.sdk/full` 时桥在程序里（1,185 个 AccessKit 符号），不加时为 0：`implies` 传到了构建程序的 `has_feature`，命令行的加法成立。`omui dev` 的开发宿主在应用直接依赖 `omui.sdk` 时加这个参数；由播放器运行的 TS 应用依赖的是 `omui.entry.player`，它的世界归 K5。lint `compose` 加了两条：库不依赖组合根；组合根的构建程序点名的包是它依赖的、写了 `provides` 的包。`app` 与 `full` 现在相同，因为可选的能力只有一项；K4 的两项进来后才分开。
 
+**K4 第一步的结果（2026-11-18）**：`mlibs.build.compose` 的 `report()` 已有。应用的构建程序调用它，读 mcpp 给的依赖图，在构建输出目录写 `composition.json`（`composition@1`）：图里声明的每个槽、拥有者、提供者，以及每个提供者在这次构建里是否被某个组合根安装、或为什么没有；没有任何提供者被安装的槽标 `absent`（`left-out` 或 `none`）。组合根的清单多写一张表 `[package.metadata.openmui.compose.installs]`（提供者的包 → feature 与目标），报告靠它判断；lint `compose` 把它与构建程序里的行对齐。清单的 metadata 里不能写表的数组（mcpp 拒绝），所以是以包名为键的表。体积检查（`check size --native`）打印组合，并按预算里的 `installs` 守住：例子 01 的预算写了 `["omui.accessibility.bridge"]`，改成 `lean` 构建时检查失败并说明。`full`、`lean`、再 `full` 三次交替构建，报告每次都与构建一致。还欠：必需的槽缺提供者时的诊断（现在没有标为必需的槽）；每个提供者的字节数并进报告。
+
+**GPU 路径与 Agent 总线的现状（核对代码，未改）**：GPU 一支直接写在 `omui.host.sdl3` 的 `desktop.cpp` 里（建设备、渲染、呈现、读回），要先抽到一张服务表后面；`agent::Endpoint` 是具体类型，出现在宿主的公开接口、SDK 与 view 里，要先把 `omui.agent` 拆成接口与实现。顺序：GPU 路径在前；Agent 总线动手前先有一页拆分的设计。
+
 ## 11. 决策（提议）与任务
 
 | 编号 | 决策 |

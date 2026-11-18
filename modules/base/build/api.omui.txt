@@ -24,6 +24,13 @@ namespace mlibs::build::compose {
   [[nodiscard]] std::vector<provider> chosen(const unit_options& options, const build_facts& facts);
   [[nodiscard]] std::string unit_text(const unit_options& options, const build_facts& facts);
   bool unit(const unit_options& options);
+  struct target_facts {
+    std::string os;
+    std::string env;
+    std::string profile;
+  };
+  [[nodiscard]] std::expected<std::string, std::string> report_text(std::string_view graph, const target_facts& target);
+  bool report();
 }
 == mlibs.build.embed
 export import mlibs.build.plan;

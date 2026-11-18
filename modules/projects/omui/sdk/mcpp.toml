@@ -22,6 +22,9 @@ agent = { library = "the umbrella: it re-exports the packages of omui; its own p
 
 [package.metadata.openmui.compose]
 root = true  # the SDK chooses an application's providers (build.mcpp writes the unit that installs them)
+# What the unit installs, as build.mcpp's rows say it (lint compose holds the two alike): a build's report reads this.
+[package.metadata.openmui.compose.installs]
+"omui.accessibility.bridge" = { feature = "accessibility-bridge", targets = "desktop" }
 
 [targets.openmui]
 kind = "lib"

@@ -3,6 +3,7 @@ module mlibs.build.compose;
 import std;
 import mcpp;
 import mlibs.build.plan;
+import mlibs.json;
 
 namespace mlibs::build::compose {
 
@@ -87,6 +88,109 @@ bool unit(const unit_options& options) {
         }
     }
     mcpp::generated(utf8(file).c_str());
+    return true;
+}
+
+namespace {
+
+std::string json_text(std::string_view text) {
+    std::string out = "\"";
+    for (const char letter : text) {
+        if (letter == '"' || letter == '\\') out += '\\';
+        if (static_cast<unsigned char>(letter) < 0x20) out += std::format("\\u{:04x}", static_cast<unsigned>(letter));
+        else out += letter;
+    }
+    return out + '"';
+}
+
+std::vector<std::string> strings_of(const mlibs::json::Node& list) {
+    std::vector<std::string> out;
+    for (const mlibs::json::Node& item : list.items())
+        if (auto text = item.text()) out.push_back(std::move(*text));
+    return out;
+}
+
+Targets targets_named(std::string_view name) {
+    return name == "desktop" ? Targets::desktop : name == "web" ? Targets::web : name == "android" ? Targets::android : Targets::all;
+}
+
+struct Install {
+    std::string root, feature, package, targets;
+    bool        feature_on = false, on_target = false;
+};
+
+}  // namespace
+
+std::expected<std::string, std::string> report_text(std::string_view graph, const target_facts& target) {
+    const auto document = mlibs::json::Document::parse(graph, "graph.json");
+    if (!document) return std::unexpected(document.error().text());
+    std::map<std::string, std::string>              owner_of;   // a slot → its owner
+    std::map<std::string, std::vector<std::string>> providers;  // a slot → the packages that provide at it
+    std::vector<Install>                            installs;
+    std::string                                     roots, application;
+    for (const mlibs::json::Node& package : document->root()["packages"].items()) {
+        const std::string space = package["package"]["namespace"].text().value_or("");
+        const std::string name = (space.empty() ? "" : space + ".") + package["package"]["name"].text().value_or("");
+        if (package["root"].boolean().value_or(false)) application = name;
+        const mlibs::json::Node compose = package["metadata"]["openmui"]["compose"];
+        for (const std::string& slot : strings_of(compose["slots"])) owner_of.emplace(slot, name);
+        for (const std::string& slot : strings_of(compose["provides"])) providers[slot].push_back(name);
+        if (!compose["root"].boolean().value_or(false)) continue;
+        const std::vector<std::string> features = strings_of(package["features"]);
+        std::string listed;
+        for (const std::string& feature : features) listed += (listed.empty() ? "" : ",") + json_text(feature);
+        roots += std::format("{}\n    {{\"package\":{},\"features\":[{}]}}", roots.empty() ? "" : ",", json_text(name), listed);
+        for (const auto& [provider, row] : compose["installs"].members()) {
+            Install one{.root = name, .feature = row["feature"].text().value_or(""), .package = provider, .targets = row["targets"].text().value_or("all")};
+            one.feature_on = std::ranges::contains(features, one.feature);
+            one.on_target = on(targets_named(one.targets), target.os, target.env);
+            installs.push_back(std::move(one));
+        }
+    }
+    std::string slots;
+    for (const auto& [slot, owner] : owner_of) {
+        std::string listed;
+        bool        any = false;
+        for (const std::string& package : providers[slot]) {
+            const auto row = std::ranges::find(installs, package, &Install::package);
+            const bool installed = row != installs.end() && row->feature_on && row->on_target;
+            any = any || installed;
+            std::string why = row == installs.end() ? "no root of this build installs it"
+                              : !row->on_target     ? std::format("installed on {} targets, and this is not one", row->targets)
+                              : !row->feature_on    ? std::format("feature `{}` of {} is off", row->feature, row->root)
+                                                    : std::format("feature `{}` of {}", row->feature, row->root);
+            listed += std::format("{}\n      {{\"package\":{},\"installed\":{},\"why\":{}}}", listed.empty() ? "" : ",", json_text(package), installed,
+                                  json_text(why));
+        }
+        slots += std::format("{}\n    {{\"id\":{},\"owner\":{},\"absent\":{},\"providers\":[{}{}]}}", slots.empty() ? "" : ",", json_text(slot), json_text(owner),
+                             any ? "null" : providers[slot].empty() ? "\"none\"" : "\"left-out\"", listed, listed.empty() ? "" : "\n    ");
+    }
+    return std::format("{{\n  \"$format\":\"composition@1\",\n  \"application\":{},\n  \"target\":{{\"os\":{},\"env\":{},\"profile\":{}}},\n"
+                       "  \"roots\":[{}{}],\n  \"slots\":[{}{}]\n}}\n",
+                       json_text(application), json_text(target.os), json_text(target.env), json_text(target.profile), roots, roots.empty() ? "" : "\n  ", slots,
+                       slots.empty() ? "" : "\n  ");
+}
+
+bool report() {
+    const std::string graph_file = mcpp::graph_file();
+    if (graph_file.empty()) return true;
+    mcpp::rerun_if_changed(graph_file.c_str());
+    std::ifstream input(std::filesystem::path(std::u8string(graph_file.begin(), graph_file.end())), std::ios::binary);
+    const std::string graph{std::istreambuf_iterator<char>(input), {}};
+    const auto text = report_text(graph, {.os = mcpp::target_os(), .env = mcpp::target_env(), .profile = mcpp::profile()});
+    if (!text) {
+        std::println(std::cerr, "mlibs.build.compose: the resolved graph does not read: {}", text.error());
+        return false;
+    }
+    const std::filesystem::path file = std::filesystem::path(mcpp::out_dir()) / "composition.json";
+    std::error_code error;
+    std::filesystem::create_directories(file.parent_path(), error);
+    std::ofstream output(file, std::ios::binary | std::ios::trunc);
+    output << *text;
+    if (!output) {
+        std::println(std::cerr, "mlibs.build.compose: could not write {}", utf8(file));
+        return false;
+    }
     return true;
 }
 

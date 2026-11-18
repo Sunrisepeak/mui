@@ -15,27 +15,23 @@ import omui.lang;
 import omui.lang.ts;
 import mlibs.ts;
 import :prelude;
+import :natives;
 
 namespace omui::lang::js {
 
 using namespace mcpplibs::mwrap::quickjs_ng;          // quickjs.h's static inline API (JS_IsException, JS_ToCString …)
 using namespace mcpplibs::mwrap::quickjs_ng::macros;  // its macros (JS_UNDEFINED, JS_EVAL_TYPE_MODULE …)
 
-struct Script::Impl {
+struct Script::Impl final : Engine {
     Session&                                    session;
     JSRuntime*                                  rt = nullptr;
     JSContext*                                  ctx = nullptr;
     std::function<void(std::string_view)>       errors = [](std::string_view m) { std::println(std::cerr, "openmui js: {}", m); };
     std::string                                 module_source;  // the prelude and a builder per component
-    std::vector<abi::OmuiSignal>                ordered;        // signal()'s results in order, kept across reloads
-    std::size_t                                 next_signal = 0;
-    std::map<std::string, abi::OmuiSignal>      keyed;
     std::map<int, JSValue>                      functions;
     int                                         next_function = 1;
-    std::map<std::string, std::vector<int>>     slot_functions;  // a mounted view's handlers
-    std::vector<int>                            pending_slot;    // handlers of the mount in progress
-    std::vector<std::pair<std::uint64_t, int>>  watches;         // this run's watches (token, function): a reload lets them go
-    std::shared_ptr<bool>                       alive = std::make_shared<bool>(true);  // false once the script is destroyed
+    Natives                                     natives{session, *this};  // `__omui`'s table, its state (signals, watches, views' handlers)
+    std::shared_ptr<bool>                       alive = natives.alive;  // false once the script is destroyed
     // Its modules by path (hot reload, Live Design): the text an edit gives a
     // file instead of the file's, and each file's version — a changed module
     // gets a name of its own, so the next run evaluates it again and the rest
@@ -44,10 +40,17 @@ struct Script::Impl {
     std::map<std::string, int>                  versions;
     std::set<std::string>                       loaded;
     int                                         active = 0;  // its JavaScript on the script thread's stack
-    bool                                        keep_built_at = false;  // elements carry where they were built
     std::map<std::string, std::string>          ran;  // each script's text as it last ran (keep_built_at: where its elements were built)
 
-    explicit Impl(Session& s) : session(s) {}
+    explicit Impl(Session& s) : session(s) {
+        // The text that ran for a file: a script's (its JavaScript keeps the TypeScript's places), an edited module's, the file's.
+        natives.text_of = [this](std::string_view file) -> std::optional<std::string> {
+            if (const auto it = ran.find(std::string(file)); it != ran.end()) return it->second;
+            if (const auto it = overrides.find(std::string(file)); it != overrides.end()) return it->second;
+            if (auto read = mcpplibs::os::fs::read(mcpplibs::os::fs::from_utf8(file))) return std::move(*read);
+            return std::nullopt;
+        };
+    }
 
     // The context and the runtime let go: once, never while its JavaScript
     // is on the stack (Script::~Script waits for that, or the outermost
@@ -77,7 +80,7 @@ struct Script::Impl {
         functions.emplace(id, JS_DupValue(ctx, f));
         return id;
     }
-    void release(int id) {
+    void release(int id) override {
         if (auto it = functions.find(id); it != functions.end()) {
             JS_FreeValue(ctx, it->second);
             functions.erase(it);
@@ -115,7 +118,7 @@ struct Script::Impl {
     // Calls a kept function with one argument (a JSON text, parsed or as a
     // string); answers its result as text (JSON.stringify'd by the prelude for
     // verbs), or nothing when it threw.
-    std::optional<std::string> call(int id, std::string_view arg, bool parse) {
+    std::optional<std::string> call(int id, std::string_view arg, bool parse) override {
         Inside in(*this);
         auto it = functions.find(id);
         if (it == functions.end()) return std::nullopt;
@@ -162,285 +165,65 @@ std::int64_t integer(JSContext* ctx, JSValueConst v) {
     return x;
 }
 
-// ── __omui ──
+// ── __omui: the table's (natives.cpp), bound to QuickJS ──
+
+JSValue answer(JSContext* ctx, const Result<std::string>& r) { return r ? string(ctx, *r) : fail(ctx, r.error().text()); }
+JSValue answer(JSContext* ctx, const Result<void>& r) { return r ? JS_UNDEFINED : fail(ctx, r.error().text()); }
+JSValue answer(JSContext* ctx, const Result<std::int64_t>& r) { return r ? JS_NewInt64(ctx, *r) : fail(ctx, r.error().text()); }
 
 JSValue n_signal_create(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
-    auto& s = impl(ctx);
-    const Json initial = Json::parse(text(ctx, argv[0]), nullptr, false);
-    const std::string key = argc > 1 ? text(ctx, argv[1]) : std::string();
-    abi::OmuiSignal h = 0;
-    if (!key.empty()) {
-        if (auto it = s.keyed.find(key); it != s.keyed.end()) h = it->second;
-    } else if (s.next_signal < s.ordered.size()) {
-        h = s.ordered[s.next_signal];  // a reload: the same signal, its value kept…
-        // …unless the edit made it another kind of thing (a count become a plan's name): it starts again from its new
-        // first value. Numbers stay numbers; a first value of null keeps whatever was there.
-        const Json kept = s.session.get(h);
-        if (!initial.is_null() && !initial.is_discarded() && kept.type() != initial.type() && !(kept.is_number() && initial.is_number()))
-            s.session.set(h, initial);
-    }
-    if (!h) {
-        auto made = s.session.signal(initial);
-        if (!made) return fail(ctx, made.error().text());
-        h = *made;
-        if (!key.empty()) s.keyed.emplace(key, h);
-        else s.ordered.push_back(h);
-    }
-    if (key.empty()) ++s.next_signal;
-    return JS_NewInt64(ctx, static_cast<std::int64_t>(h));
+    return answer(ctx, impl(ctx).natives.signal_create(text(ctx, argv[0]), argc > 1 ? text(ctx, argv[1]) : std::string()));
 }
-
-JSValue n_signal_get(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    return string(ctx, impl(ctx).session.get(static_cast<abi::OmuiSignal>(integer(ctx, argv[0]))).dump());
-}
-
+JSValue n_signal_get(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return string(ctx, impl(ctx).natives.signal_get(integer(ctx, argv[0]))); }
 JSValue n_signal_set(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    Json v = Json::parse(text(ctx, argv[1]), nullptr, false);
-    impl(ctx).session.set(static_cast<abi::OmuiSignal>(integer(ctx, argv[0])), std::move(v));
+    impl(ctx).natives.signal_set(integer(ctx, argv[0]), text(ctx, argv[1]));
     return JS_UNDEFINED;
 }
-
 JSValue n_signal_watch(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     auto& s = impl(ctx);
     if (!JS_IsFunction(ctx, argv[1])) return fail(ctx, "watch(fn)");
-    const int id = s.keep(argv[1]);
-    Script::Impl* self = &s;
-    const std::uint64_t token = s.session.watch(static_cast<abi::OmuiSignal>(integer(ctx, argv[0])),
-                                                [self, alive = std::weak_ptr<bool>(s.alive), id](const Json& v) {
-                                                    if (auto a = alive.lock(); a && *a)
-                                                        (void)self->call(id, v.dump(-1, ' ', false, Json::error_handler_t::replace), false);
-                                                });
-    s.watches.emplace_back(token, id);
+    s.natives.signal_watch(integer(ctx, argv[0]), s.keep(argv[1]));
     return JS_UNDEFINED;
 }
-
-JSValue n_catalog(JSContext* ctx, JSValueConst, int, JSValueConst*) {
-    std::string out;
-    impl(ctx).session.host().ui([&] {
-        (void)abi::omuiCatalog(impl(ctx).session.host().runtime(), [](void* u, const char* d, std::size_t n) { static_cast<std::string*>(u)->append(d, n); }, &out);
-    });
-    return string(ctx, out);
-}
-
-// Development mode: where each element was built (built_at) moved from where QuickJS placed its
-// call — the last position its arguments recorded, inside them and often in a
-// nested call, which then has the same — to the call as written (its callee's
-// first character): outward from that position to the nearest call of its
-// builder, past as many as the elements below it with that position and that
-// builder (column > row > column, all ending in one text).
-struct Placed {
-    std::string reported;
-    std::map<std::string, std::size_t> chain;  // builders below with the same position, counted
-};
-
-Placed place_built_at(Script::Impl& s, Element& element, std::map<std::string, std::optional<ts::CallIndex>>& sources) {
-    Placed placed{element.built_at, {}};
-    const auto below = [&](std::vector<Element>& list) {
-        for (Element& child : list) {
-            Placed under = place_built_at(s, child, sources);
-            if (placed.reported.empty() && element.region) placed.reported = under.reported;  // a region has the position of what is in it
-            if (!under.reported.empty() && under.reported == placed.reported)
-                for (const auto& [builder, count] : under.chain) placed.chain[builder] += count;
-        }
-    };
-    below(element.children);
-    if (element.region) {
-        below(element.region->then);
-        below(element.region->otherwise);
-    }
-    if (element.built_at.empty() || element.type.empty()) return placed;
-    const std::string_view reported = element.built_at;
-    const auto column_at = reported.rfind(':');
-    const auto line_at = column_at == std::string_view::npos || column_at == 0 ? std::string_view::npos : reported.rfind(':', column_at - 1);
-    if (line_at == std::string_view::npos) return placed;
-    const std::string file(reported.substr(0, line_at));
-    std::size_t line = 0, column = 0;
-    (void)std::from_chars(reported.data() + line_at + 1, reported.data() + column_at, line);
-    (void)std::from_chars(reported.data() + column_at + 1, reported.data() + reported.size(), column);
-    auto [entry, fresh] = sources.try_emplace(file);
-    if (fresh) {
-        // The text that ran: a script's (its JavaScript keeps the TypeScript's places), an edited module's, a module's file.
-        std::optional<std::string> text;
-        if (const auto ran = s.ran.find(file); ran != s.ran.end()) text = ran->second;
-        else if (const auto edited = s.overrides.find(file); edited != s.overrides.end()) text = edited->second;
-        else if (std::ifstream in(mcpplibs::os::fs::from_utf8(file), std::ios::binary); in) text = std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
-        if (text)
-            if (auto index = ts::CallIndex::of(*text)) entry->second = std::move(*index);
-    }
-    const std::string builder = ts::camel_case(element.type);
-    if (entry->second)
-        if (const auto at = entry->second->enclosing(line, column, builder, placed.chain[builder]))
-            element.built_at = std::format("{}:{}:{}", file, at->first, at->second);
-    ++placed.chain[builder];
-    return placed;
-}
-
+JSValue n_catalog(JSContext* ctx, JSValueConst, int, JSValueConst*) { return string(ctx, impl(ctx).natives.catalog()); }
 JSValue n_mount(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     auto& s = impl(ctx);
-    const std::string slot = text(ctx, argv[0]);
-    const Json tree = Json::parse(text(ctx, argv[1]), nullptr, false);
     std::vector<int> handlers;
-    const std::int64_t count = [&] {
-        JSValue len = JS_GetPropertyStr(ctx, argv[2], "length");
-        const std::int64_t n = integer(ctx, len);
-        JS_FreeValue(ctx, len);
-        return n;
-    }();
+    JSValue length = JS_GetPropertyStr(ctx, argv[2], "length");
+    const std::int64_t count = integer(ctx, length);
+    JS_FreeValue(ctx, length);
     for (std::int64_t i = 0; i < count; ++i) {
         JSValue f = JS_GetPropertyUint32(ctx, argv[2], static_cast<std::uint32_t>(i));
         handlers.push_back(s.keep(f));
         JS_FreeValue(ctx, f);
     }
-    Script::Impl* self = &s;
-    auto root = element_from_json(tree, [&](std::size_t index) -> std::optional<Handler> {
-        if (index >= handlers.size()) return std::nullopt;
-        const int id = handlers[index];
-        return [self, alive = std::weak_ptr<bool>(s.alive), id](const Json& event) {
-            if (auto a = alive.lock(); a && *a) (void)self->call(id, event.dump(), true);
-        };
-    });
-    if (root && s.keep_built_at) {
-        std::map<std::string, std::optional<ts::CallIndex>> sources;
-        (void)place_built_at(s, *root, sources);
-    }
-    Result<void> r = root ? s.session.mount(slot, *root) : Result<void>(std::unexpected(root.error()));
-    if (!r) {
-        for (int id : handlers) s.release(id);
-        return fail(ctx, r.error().text());
-    }
-    // The view's old handlers go; the new ones stay while it is mounted.
-    for (int id : s.slot_functions[slot]) s.release(id);
-    s.slot_functions[slot] = std::move(handlers);
-    return JS_UNDEFINED;
+    return answer(ctx, s.natives.mount(text(ctx, argv[0]), text(ctx, argv[1]), std::move(handlers)));
 }
-
-JSValue n_unmount(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    auto& s = impl(ctx);
-    const std::string slot = text(ctx, argv[0]);
-    auto r = s.session.unmount(slot);
-    for (int id : s.slot_functions[slot]) s.release(id);
-    s.slot_functions.erase(slot);
-    if (!r) return fail(ctx, r.error().text());
-    return JS_UNDEFINED;
-}
-
-JSValue n_document(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    auto& s = impl(ctx);
-    const Json tree = Json::parse(text(ctx, argv[0]), nullptr, false);
-    // A document only shown: its handlers are placeholders.
-    auto root = element_from_json(tree, [](std::size_t) -> std::optional<Handler> { return [](const Json&) {}; });
-    if (!root) return fail(ctx, root.error().text());
-    return string(ctx, s.session.document(*root).dump());
-}
-
-abi::OmuiEffect effect_of(std::string_view e) {
-    if (e == "read") return abi::OMUI_EFFECT_READ;
-    if (e == "irreversible") return abi::OMUI_EFFECT_IRREVERSIBLE;
-    if (e == "external") return abi::OMUI_EFFECT_EXTERNAL;
-    return abi::OMUI_EFFECT_REVERSIBLE;
-}
-
+JSValue n_unmount(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.unmount(text(ctx, argv[0]))); }
+JSValue n_document(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.document(text(ctx, argv[0]))); }
 JSValue n_verb(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     auto& s = impl(ctx);
-    const Json o = Json::parse(text(ctx, argv[1]), nullptr, false);
-    Session::VerbSpec spec{text(ctx, argv[0]), o.value("summary", ""), effect_of(o.value("effect", "reversible")), o.value("answer", ""),
-                           o.value("person", false)};
-    const int id = s.keep(argv[2]);
-    Script::Impl* self = &s;
-    auto r = s.session.verb(std::move(spec), [self, alive = std::weak_ptr<bool>(s.alive), id](const Json& args) -> Result<Json> {
-        if (auto a = alive.lock(); !a || !*a) return std::unexpected(Error{abi::OMUI_ERROR_REFUSED, "the script is gone"});
-        auto out = self->call(id, args.dump(), false);
-        if (!out) return std::unexpected(Error{abi::OMUI_ERROR_REFUSED, "the verb threw"});
-        Json v = Json::parse(*out, nullptr, false);
-        return v.is_discarded() ? Json(nullptr) : v;
-    });
-    if (!r) {
-        s.release(id);
-        return fail(ctx, r.error().text());
-    }
-    return JS_UNDEFINED;
+    return answer(ctx, s.natives.verb(text(ctx, argv[0]), text(ctx, argv[1]), s.keep(argv[2])));
 }
-
-JSValue records(JSContext* ctx, const Result<std::vector<Json>>& r) {
-    if (!r) return fail(ctx, r.error().text());
-    return string(ctx, Json(*r).dump());
-}
-
-JSValue n_invoke(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    return records(ctx, impl(ctx).session.invoke(text(ctx, argv[0]), Json::parse(text(ctx, argv[1]), nullptr, false)));
-}
-JSValue n_act(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    return records(ctx, impl(ctx).session.act(Json::parse(text(ctx, argv[0]), nullptr, false)));
-}
-JSValue n_snapshot(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    return records(ctx, impl(ctx).session.snapshot(Json::parse(text(ctx, argv[0]), nullptr, false)));
-}
-
-JSValue n_find(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    auto n = impl(ctx).session.find(text(ctx, argv[0]));
-    if (!n) return fail(ctx, n.error().text());
-    return JS_NewInt64(ctx, static_cast<std::int64_t>(*n));
-}
-
-JSValue n_get(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    auto v = impl(ctx).session.get(static_cast<abi::OmuiNode>(integer(ctx, argv[0])), text(ctx, argv[1]));
-    if (!v) return fail(ctx, v.error().text());
-    return string(ctx, v->dump());
-}
-
-JSValue n_set(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    const Json props = Json::parse(text(ctx, argv[1]), nullptr, false);
-    std::vector<std::pair<std::string, Json>> list;
-    for (auto it = props.begin(); it != props.end(); ++it) list.emplace_back(it.key(), it.value());
-    auto r = impl(ctx).session.set(static_cast<abi::OmuiNode>(integer(ctx, argv[0])), list);
-    if (!r) return fail(ctx, r.error().text());
-    return JS_UNDEFINED;
-}
-
-JSValue n_rows(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    auto r = impl(ctx).session.rows(text(ctx, argv[0]));
-    if (!r) return fail(ctx, r.error().text());
-    return string(ctx, r->dump());
-}
-
+JSValue n_invoke(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.invoke(text(ctx, argv[0]), text(ctx, argv[1]))); }
+JSValue n_act(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.act(text(ctx, argv[0]))); }
+JSValue n_snapshot(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.snapshot(text(ctx, argv[0]))); }
+JSValue n_find(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.find(text(ctx, argv[0]))); }
+JSValue n_get(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.get(integer(ctx, argv[0]), text(ctx, argv[1]))); }
+JSValue n_set(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.set(integer(ctx, argv[0]), text(ctx, argv[1]))); }
+JSValue n_rows(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.rows(text(ctx, argv[0]))); }
 JSValue n_splice(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    auto r = impl(ctx).session.splice(text(ctx, argv[0]), static_cast<std::size_t>(std::max<std::int64_t>(0, integer(ctx, argv[1]))),
-                                      static_cast<std::size_t>(std::max<std::int64_t>(0, integer(ctx, argv[2]))),
-                                      Json::parse(text(ctx, argv[3]), nullptr, false));
-    if (!r) return fail(ctx, r.error().text());
-    return JS_UNDEFINED;
+    return answer(ctx, impl(ctx).natives.splice(text(ctx, argv[0]), integer(ctx, argv[1]), integer(ctx, argv[2]), text(ctx, argv[3])));
 }
-
-// The runtime's theme (omui.theme): a JSON list of layers.
-JSValue n_theme(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    const Json layers = Json::parse(text(ctx, argv[0]), nullptr, false);
-    std::vector<std::string> l;
-    if (layers.is_array())
-        for (const Json& x : layers)
-            if (x.is_string()) l.push_back(x.get<std::string>());
-    auto r = impl(ctx).session.theme(l);
-    if (!r) return fail(ctx, r.error().text());
-    return JS_UNDEFINED;
-}
-
-JSValue n_themes(JSContext* ctx, JSValueConst, int, JSValueConst*) {
-    const std::string out = impl(ctx).session.themes().dump();
-    return JS_NewStringLen(ctx, out.data(), out.size());
-}
-
+JSValue n_theme(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.theme(text(ctx, argv[0]))); }
+JSValue n_themes(JSContext* ctx, JSValueConst, int, JSValueConst*) { return string(ctx, impl(ctx).natives.themes()); }
 // Whether the elements it builds carry where they were built (development mode).
-JSValue n_keeps_built_at(JSContext* ctx, JSValueConst, int, JSValueConst*) { return JS_NewBool(ctx, impl(ctx).keep_built_at); }
-
-// A native module's function (component-binding §8): its result as JSON text.
+JSValue n_keeps_built_at(JSContext* ctx, JSValueConst, int, JSValueConst*) { return JS_NewBool(ctx, impl(ctx).natives.keep_built_at); }
 JSValue n_native_call(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
-    auto r = impl(ctx).session.native(text(ctx, argv[0]), text(ctx, argv[1]), Json::parse(text(ctx, argv[2]), nullptr, false));
-    if (!r) return fail(ctx, r.error().text());
-    const std::string out = r->dump();
-    return JS_NewStringLen(ctx, out.data(), out.size());
+    return answer(ctx, impl(ctx).natives.native_call(text(ctx, argv[0]), text(ctx, argv[1]), text(ctx, argv[2])));
 }
-
-// An `async` one: a promise of its result as JSON text. It runs on a worker
-// thread; the promise settles on the script thread, and its jobs run then.
+// An `async` one: a promise of its result as JSON text. It runs on a worker thread; the promise settles on the script
+// thread, and its jobs run then.
 JSValue n_native_async(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     JSValue resolving[2];
     JSValue promise = JS_NewPromiseCapability(ctx, resolving);
@@ -449,21 +232,18 @@ JSValue n_native_async(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     const int resolve = s.keep(resolving[0]), reject = s.keep(resolving[1]);
     JS_FreeValue(ctx, resolving[0]);
     JS_FreeValue(ctx, resolving[1]);
-    s.session.native_async(text(ctx, argv[0]), text(ctx, argv[1]), Json::parse(text(ctx, argv[2]), nullptr, false),
-                           [impl = &s, alive = std::weak_ptr<bool>(s.alive), resolve, reject](lang::Result<Json> r) {
-                               auto live = alive.lock();
-                               if (!live || !*live) return;
-                               Script::Impl::Inside in(*impl);
-                               const std::string out = r ? r->dump() : r.error().text();
-                               JSValue arg = JS_NewStringLen(impl->ctx, out.data(), out.size());
-                               JSValue f = impl->functions.at(r ? resolve : reject);
-                               JSValue x = JS_Call(impl->ctx, f, JS_UNDEFINED, 1, &arg);
-                               JS_FreeValue(impl->ctx, x);
-                               JS_FreeValue(impl->ctx, arg);
-                               impl->release(resolve);
-                               impl->release(reject);
-                               impl->run_jobs();
-                           });
+    s.natives.native_async(text(ctx, argv[0]), text(ctx, argv[1]), text(ctx, argv[2]), [impl = &s, resolve, reject](Result<std::string> r) {
+        Script::Impl::Inside in(*impl);
+        const std::string out = r ? *r : r.error().text();
+        JSValue arg = JS_NewStringLen(impl->ctx, out.data(), out.size());
+        JSValue f = impl->functions.at(r ? resolve : reject);
+        JSValue x = JS_Call(impl->ctx, f, JS_UNDEFINED, 1, &arg);
+        JS_FreeValue(impl->ctx, x);
+        JS_FreeValue(impl->ctx, arg);
+        impl->release(resolve);
+        impl->release(reject);
+        impl->run_jobs();
+    });
     return promise;
 }
 
@@ -646,7 +426,7 @@ Error gone() { return Error{abi::OMUI_ERROR_REFUSED, "the script is gone"}; }
 Result<void> run_module(Script::Impl& s, const std::string& code, const std::string& name) {
     if (!*s.alive) return std::unexpected(gone());
     Script::Impl::Inside in(s);
-    if (s.keep_built_at) s.ran[name.substr(0, name.find('#'))] = code;
+    if (s.natives.keep_built_at) s.ran[name.substr(0, name.find('#'))] = code;
     JSValue r = JS_Eval(s.ctx, code.data(), code.size(), name.c_str(), JS_EVAL_TYPE_MODULE);
     if (JS_IsException(r)) return std::unexpected(Error{abi::OMUI_ERROR_INVALID_ARGUMENT, s.exception_text()});
     s.run_jobs();
@@ -682,12 +462,7 @@ namespace {
 // A reload, on the script thread.
 Result<void> reload_module(Script::Impl& s, const std::string& code, const std::string& name) {
     if (!*s.alive) return std::unexpected(gone());
-    s.next_signal = 0;  // the module's signals are the last run's, in order
-    for (const auto& [token, id] : s.watches) {  // the last run's watches go: this run makes its own again
-        s.session.unwatch(token);
-        s.release(id);
-    }
-    s.watches.clear();
+    s.natives.reload();  // the run's signals found again in order, its watches let go
     // A module of the same name is cached: the new text gets a name of its own.
     static int generation = 0;
     return run_module(s, code, std::format("{}#{}", name, ++generation));
@@ -726,7 +501,7 @@ std::vector<std::filesystem::path> Script::modules() const {
 
 void Script::keep_built_at(bool on) {
     std::shared_ptr<Impl> s = impl_;
-    s->session.host().script([&] { s->keep_built_at = on; });
+    s->session.host().script([&] { s->natives.keep_built_at = on; });
 }
 
 Result<void> Script::reload_now(std::string code, std::string name) {

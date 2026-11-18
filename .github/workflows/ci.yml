@@ -112,8 +112,9 @@ jobs:
         working-directory: ${{ runner.temp }}/split
         run: |
           # omui.reflect (C++26) and the development host are the main rows' exclusions too; the foundation has neither.
-          excluded=""
-          if [ "${{ matrix.tier }}" != foundation ]; then excluded="--exclude omui.reflect --exclude omui.entry.devhost"; fi
+          # The repository's own tool is not tested here: its tests hold the whole repository's records and pages.
+          excluded="--exclude omui.devtools"
+          if [ "${{ matrix.tier }}" != foundation ]; then excluded="$excluded --exclude omui.reflect --exclude omui.entry.devhost"; fi
           mcpp test --workspace --profile ci $excluded 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::the split tree's tests failed"; exit 1; }
 

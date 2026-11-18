@@ -267,7 +267,9 @@ UTest cases{"gen", [] {
                                        committed.generic_string(), kinds[kind].module, kinds[kind].name, carried.parent_path().generic_string());
             }
         }
-        expect(found[0] >= 1 && found[1] >= 1) << "the standard definition and the standard appearance at least";
+        // The framework's tier alone (omui-devtools split framework) has no engine and so no matter.
+        if (std::filesystem::exists(repo / "modules" / "projects" / "meng"))
+            expect(found[0] >= 1 && found[1] >= 1) << "the standard definition and the standard appearance at least";
     };
 
 }};

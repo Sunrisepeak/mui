@@ -167,9 +167,15 @@ std::int64_t integer(JSContext* ctx, JSValueConst v) {
 
 // ── __omui: the table's (natives.cpp), bound to QuickJS ──
 
-JSValue answer(JSContext* ctx, const Result<std::string>& r) { return r ? string(ctx, *r) : fail(ctx, r.error().text()); }
-JSValue answer(JSContext* ctx, const Result<void>& r) { return r ? JS_UNDEFINED : fail(ctx, r.error().text()); }
-JSValue answer(JSContext* ctx, const Result<std::int64_t>& r) { return r ? JS_NewInt64(ctx, *r) : fail(ctx, r.error().text()); }
+// One template, not three overloads: choosing among overloads makes libc++ try converting a Result<void> into a
+// Result<std::string>, which is a hard error there (std::string's constructor from a `const void&`).
+template <class T>
+JSValue answer(JSContext* ctx, const Result<T>& r) {
+    if (!r) return fail(ctx, r.error().text());
+    if constexpr (std::is_void_v<T>) return JS_UNDEFINED;
+    else if constexpr (std::is_same_v<T, std::string>) return string(ctx, *r);
+    else return JS_NewInt64(ctx, static_cast<std::int64_t>(*r));
+}
 
 JSValue n_signal_create(JSContext* ctx, JSValueConst, int argc, JSValueConst* argv) {
     return answer(ctx, impl(ctx).natives.signal_create(text(ctx, argv[0]), argc > 1 ? text(ctx, argv[1]) : std::string()));

@@ -30,8 +30,9 @@ UTest cases{"mlibs.control.gen", [] {
         const auto repo = repository();
         std::size_t catalogs = 0;
         std::vector<std::filesystem::path> files;
-        for (const auto* place : {"modules", "showcase"})
-            for (const auto& entry : std::filesystem::recursive_directory_iterator(repo / place)) files.push_back(entry.path());
+        for (const auto* place : {"modules", "showcase"})  // a tier's tree (omui-devtools split) may have no showcases
+            if (std::filesystem::is_directory(repo / place))
+                for (const auto& entry : std::filesystem::recursive_directory_iterator(repo / place)) files.push_back(entry.path());
         for (const auto& path : files) {
             const std::filesystem::directory_entry entry(path);
             const auto name = mcpplibs::os::fs::utf8(entry.path().filename());

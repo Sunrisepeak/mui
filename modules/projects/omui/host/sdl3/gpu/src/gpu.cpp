@@ -6,6 +6,7 @@ import mlibs.rhi;
 import xrender.rhi.sdl;
 import xrender.frame;
 import xrender.vector;
+import xrender.effect;
 import omui.host.sdl3;
 
 namespace omui::host::sdl3::gpu {
@@ -53,12 +54,40 @@ mlibs::rhi::Result<std::unique_ptr<GpuRenderer>> renderer(mlibs::rhi::Device& de
     return std::unique_ptr<GpuRenderer>(std::make_unique<Renderer>(std::move(*frame)));
 }
 
+struct Effects final : GpuEffects {
+    explicit Effects(xrender::effect::Options options) : library_(std::move(options)) {}
+    xrender::effect::Library& library() noexcept override { return library_; }
+    std::vector<std::string> load(const std::filesystem::path& directory) override {
+        std::vector<std::string> problems;
+        if (auto loaded = library_.load_directory(directory); !loaded)
+            for (const xrender::effect::Diagnostic& problem : loaded.error()) problems.push_back(std::format("effect: {}", problem.text()));
+        return problems;
+    }
+    Reloaded reload() override {
+        Reloaded out;
+        for (const xrender::effect::Reload& one : library_.poll()) {
+            if (one.ok()) {
+                out.reloaded.push_back(std::format("effect {} reloaded in {} ms", one.name, static_cast<double>(one.took.count()) / 1000.0));
+            } else {
+                for (const xrender::effect::Diagnostic& problem : one.problems) out.problems.push_back(std::format("effect {}: {}", one.name, problem.text()));
+            }
+        }
+        return out;
+    }
+    xrender::effect::Library library_;
+};
+
+std::unique_ptr<GpuEffects> effects(const mlibs::rhi::Device* device, std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> data) {
+    return std::make_unique<Effects>(
+        xrender::effect::Options{.formats = device ? device->caps().formats : xrender::gpu_shader_formats(), .data = std::move(data)});
+}
+
 }  // namespace
 
 // Made when installed, not when the program starts (mlibs.compose: a table initialised at start-up would keep
 // the backend and the renderer in a program that never installs them).
 void install() {
-    static const GpuService service{"sdl-gpu", &begin, &create, &claim, &renderer};
+    static const GpuService service{"sdl-gpu", &begin, &create, &claim, &renderer, &effects};
     (void)mlibs::compose::process().install(gpu_slot, service, service.name);
 }
 

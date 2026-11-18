@@ -294,6 +294,8 @@ mlibs::build::compose::report();   // 写 <out>/composition.xdef.json；必需�
 - **`lean` 里仍有约 0.8 MB 与 GPU 有关的字节**：SDL 自己的 Vulkan 2D 渲染驱动 292 KB（宿主只用它的软件驱动呈现 CPU 的帧），以及效果库与着色器工具约 0.5 MB（宿主直接持有 `xrender::effect::Library`，而效果只有 GPU 渲染器会画）。前一项是 `compat.sdl3` 的一个开关，对每个世界都省；后一项要把效果库也放到提供者后面。
 - **默认的 `full` 比裁剪之前大了约 29 KB**（18,473,342 → 18,502,597 B），是运行时（约 10 KiB）与两个接缝的代价，超出例子 01 的预算（18,500,000）2,597 B。预算不改；先做 SDL 的那个开关（每个世界少 292 KB）把它收回来。在此之前这一项记为红灯。
 
+**效果库放到 GPU 提供者后面（2026-11-18）**：`GpuService` 多一项 `effects()`，宿主不再直接持有 `xrender::effect::Library`。例子 01 的 `lean` 15,175 KiB（上一步 15,809），`full` 18,080 KiB（18,513,569 B，超预算 13,569 B：每多一个接缝，`full` 多约 10 KB）。`lean` 里还剩与 GPU 有关的约 0.65 MB：SDL 的 2D 渲染驱动与它带入的 Vulkan 后端 306 KB、`xrender::shaders` 253 KB、`xrender::rhi` 与 `mlibs.rhi` 87 KB——后两项是 view 里画在设备上的组件引用的，还没有查到具体是谁。
+
 ## 11. 决策（提议）与任务
 
 | 编号 | 决策 |

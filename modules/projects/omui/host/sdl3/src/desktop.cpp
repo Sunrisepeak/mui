@@ -153,7 +153,7 @@ struct Desktop::Impl final : WindowHost {
     mlibs::rhi::Texture                             gpu_frame;
     std::size_t                                     devices_lost = 0;  // how many times the device was lost and made again
     std::uint32_t                            gpu_w = 0, gpu_h = 0;
-    std::optional<xrender::effect::Library>           effects;
+    std::unique_ptr<GpuEffects>                       effects;  // the GPU path's (gpu_slot)
 
     // The window as a window (D-75): who draws its frame, and its close.
     bool                                     framework = false;
@@ -370,14 +370,10 @@ struct Desktop::Impl final : WindowHost {
     // Effects whose files changed, loaded again; the next frame redrawn.
     void reload_effects() {
         if (!effects) return;
-        for (const xrender::effect::Reload& r : effects->poll()) {
-            if (r.ok()) {
-                info("effect {} reloaded in {} ms", r.name, static_cast<double>(r.took.count()) / 1000.0);
-                shown = 0;
-            } else {
-                for (const xrender::effect::Diagnostic& d : r.problems) warn("effect {}: {}", r.name, d.text());
-            }
-        }
+        const GpuEffects::Reloaded again = effects->reload();
+        for (const std::string& line : again.reloaded) info("{}", line);
+        for (const std::string& line : again.problems) warn("{}", line);
+        if (!again.reloaded.empty()) shown = 0;
     }
 };
 
@@ -485,10 +481,14 @@ std::expected<void, ViewFailure> Desktop::open() {
         }
     }
     if (!d.options.effects.empty()) {
-        d.effects.emplace(xrender::effect::Options{.formats = d.device ? d.device->caps().formats : xrender::gpu_shader_formats(), .data = d.options.effect_data});
-        if (auto loaded = d.effects->load_directory(d.options.effects); !loaded)
-            for (const xrender::effect::Diagnostic& p : loaded.error()) warn("effect: {}", p.text());
-        if (!d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
+        // Effects are the GPU path's: a program built without it loads none, and says so once.
+        if (const GpuService* service = mlibs::compose::process().get(gpu_slot)) {
+            d.effects = service->effects(d.device.get(), d.options.effect_data);
+            for (const std::string& line : d.effects->load(d.options.effects)) warn("{}", line);
+        } else {
+            warn("effects in {} are not loaded: {}", mcpplibs::os::fs::utf8(d.options.effects), mlibs::compose::process().missing(gpu_slot.info).message);
+        }
+        if (d.effects && !d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
     }
     d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
     d.runtime->set_renderer(d.gpu ? std::string(mlibs::rhi::name(d.device->caps().backend)) : std::string("cpu"));
@@ -617,7 +617,7 @@ accessibility::Mirror* Desktop::accessibility_mirror() noexcept { return impl_->
 accessibility::Adapter* Desktop::accessibility_adapter() noexcept { return impl_->access.get(); }
 std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
 bool Desktop::gpu() const noexcept { return impl_->gpu != nullptr; }
-xrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &*impl_->effects : nullptr; }
+xrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &impl_->effects->library() : nullptr; }
 float Desktop::scale() const noexcept { return impl_->runtime->scale(); }
 NodeId Desktop::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
 

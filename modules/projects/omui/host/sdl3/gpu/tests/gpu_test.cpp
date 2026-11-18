@@ -14,7 +14,7 @@ UTest cases{"host.sdl3.gpu", [] {
         omui::host::sdl3::gpu::install();
         const omui::GpuService* service = mlibs::compose::process().get(omui::gpu_slot);
         expect(fatal(service != nullptr));
-        expect(service->name == "sdl-gpu" && service->begin && service->create && service->claim && service->renderer);
+        expect(service->name == "sdl-gpu" && service->begin && service->create && service->claim && service->renderer && service->effects);
         omui::host::sdl3::gpu::install();  // a second installation changes nothing
         expect(mlibs::compose::process().get(omui::gpu_slot) == service);
     };

@@ -9,6 +9,7 @@ import std;
 import mlibs.compose;
 import mlibs.rhi;
 import xrender.frame;
+import xrender.effect;
 
 export namespace omui {
 
@@ -36,6 +37,23 @@ public:
                                                           std::uint32_t height, const xrender::GpuFrameOptions& options) = 0;
 };
 
+// A program's effect files (xrender.effect), which the GPU renderer draws: loaded from a directory, and loaded
+// again when a file changes. What it says is the host's to log.
+class GpuEffects {
+public:
+    virtual ~GpuEffects() = default;
+    [[nodiscard]] virtual xrender::effect::Library& library() noexcept = 0;
+    // The directory's effects loaded; a line for each problem.
+    [[nodiscard]] virtual std::vector<std::string> load(const std::filesystem::path& directory) = 0;
+    // The effects whose files changed, loaded again: a line for each that was (`reloaded`), a line for each
+    // problem of one that was not.
+    struct Reloaded {
+        std::vector<std::string> reloaded;
+        std::vector<std::string> problems;
+    };
+    [[nodiscard]] virtual Reloaded reload() = 0;
+};
+
 // The GPU path's provider: only what the host calls.
 struct GpuService {
     std::string_view name;  // "sdl-gpu"
@@ -47,6 +65,10 @@ struct GpuService {
     mlibs::rhi::Result<void> (*claim)(mlibs::rhi::Device& device, std::uint32_t window, bool vsync) = nullptr;
     // The renderer's pipelines and textures on the device.
     mlibs::rhi::Result<std::unique_ptr<GpuRenderer>> (*renderer)(mlibs::rhi::Device& device) = nullptr;
+    // The effect library for a device's shader formats (no device: the formats the renderer's shaders are
+    // compiled to), reading effect modules through `data` (empty: `.effect.xdef.json` alone).
+    std::unique_ptr<GpuEffects> (*effects)(const mlibs::rhi::Device* device,
+                                           std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> data) = nullptr;
 };
 
 inline constexpr mlibs::compose::Slot<GpuService> gpu_slot{

@@ -81,12 +81,23 @@ namespace omui {
     virtual ~GpuRenderer() = default;
     [[nodiscard]] virtual mlibs::rhi::Result<void> render(std::span<const xrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width, std::uint32_t height, const xrender::GpuFrameOptions& options) = 0;
   };
+  class GpuEffects {
+    virtual ~GpuEffects() = default;
+    [[nodiscard]] virtual xrender::effect::Library& library() noexcept = 0;
+    [[nodiscard]] virtual std::vector<std::string> load(const std::filesystem::path& directory) = 0;
+    struct Reloaded {
+      std::vector<std::string> reloaded;
+      std::vector<std::string> problems;
+    };
+    [[nodiscard]] virtual Reloaded reload() = 0;
+  };
   struct GpuService {
     std::string_view name;
     std::unique_ptr<GpuMaking> (*begin)(const GpuDeviceOptions& options) = nullptr;
     mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> (*create)(const GpuDeviceOptions& options) = nullptr;
     mlibs::rhi::Result<void> (*claim)(mlibs::rhi::Device& device, std::uint32_t window, bool vsync) = nullptr;
     mlibs::rhi::Result<std::unique_ptr<GpuRenderer>> (*renderer)(mlibs::rhi::Device& device) = nullptr;
+    std::unique_ptr<GpuEffects> (*effects)(const mlibs::rhi::Device* device, std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> data) = nullptr;
   };
   inline constexpr mlibs::compose::Slot<GpuService> gpu_slot{…};
 }

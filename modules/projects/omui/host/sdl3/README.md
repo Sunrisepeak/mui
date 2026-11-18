@@ -39,8 +39,8 @@ or by the CPU renderer into a surface streamed to an SDL renderer's texture —
 the same pixels, which xrender.vector's tests hold together.
 The GPU path is a provider's, installed at this package's slot `omui.host.sdl3.gpu`
 (`omui::gpu_slot`, `GpuService`; [`mlibs.compose`](../../../../base/compose), a preview,
-`lower` in the manifest): [`gpu`](gpu) (`omui.host.sdl3.gpu`) has SDL_GPU's device
-and xrender's renderer, and `omui.sdk` installs it. A program that installs none —
+`lower` in the manifest): [`gpu`](gpu) (`omui.host.sdl3.gpu`) has SDL_GPU's device,
+xrender's renderer and the effect library, and `omui.sdk` installs it. A program that installs none —
 an application built `lean` — draws every frame with the CPU renderer, as a machine
 without a GPU does, and `renderer = gpu` is refused naming the slot and how to have
 it. This package's tests draw with the CPU and hold that refusal; the device's are

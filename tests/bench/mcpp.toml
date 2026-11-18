@@ -30,6 +30,7 @@ xrender.scene = { path = "../../modules/projects/xrender/scene" }
 "xrender.mesh"  = { path = "../../modules/projects/xrender/mesh" }
 "xrender.mesh.gpu" = { path = "../../modules/projects/xrender/mesh/gpu" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
+mlibs.dynamics   = { path = "../../modules/base/dynamics" }
 xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics", features = ["rigid", "rigid3"] }
 # Navigation beside Detour called directly (simulation/nav-crowd-64), on the scenes of its conformance package.
 xengine.nav = { path = "../../modules/projects/xengine/game/nav" }

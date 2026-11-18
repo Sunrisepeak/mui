@@ -5,7 +5,7 @@ import mlibs.memory;
 import omui.core;
 import xengine.cellular;
 import xengine.cellular.present;
-import xengine.dynamics;
+import mlibs.dynamics;
 import xengine.dynamics.rigid;
 import xengine.dynamics.rigid3;
 import xengine.nav;
@@ -159,7 +159,7 @@ void add_simulation_benchmarks() {
     for (const int points : {24, 96}) {
         add(std::format("dynamics/softbody-{}", points), std::format("one XPBD step of a {}-particle soft body standing on a ledge: 8 substeps of edges, area, shape matching, collision", points),
             [points](State& s) {
-                namespace dyn = xengine::dynamics;
+                namespace dyn = mlibs::dynamics;
                 std::vector<std::array<double, 2>> outline;
                 for (int index = 0; index < points; ++index) {
                     const double angle = 2 * std::numbers::pi * index / points;

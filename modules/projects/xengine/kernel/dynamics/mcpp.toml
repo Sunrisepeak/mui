@@ -1,15 +1,16 @@
-# xengine.dynamics — every solved simulation (D-133): collision and queries,
-# the solver families (src/<family>/: xpbd today; rigid, articulation,
-# fluids, FEM, MPM later, each its own feature when it comes). What a body is
-# made of is xengine.matter's table, through the feature `matter`. The CPU core is base layer (hanim and
-# omui use it); a GPU part will be a gfx-layer rhi/ subpackage, as cellular's.
-# Doubles with + − × ÷ and √ only, without contraction or fast math: the same
-# bits everywhere.
+# xengine.dynamics — the engine's solved simulation (D-133): on the foundation's
+# solver core (mlibs.dynamics: collision, XPBD soft bodies; moved there in A5,
+# D-231), the engine's families (src/<family>/: rigid and rigid3 today;
+# articulation, fluids, FEM, MPM later, each its own feature when it comes), a
+# body as an agent's subject, and what a body is made of from xengine.matter's
+# table (the feature `matter`). A GPU part will be a gfx-layer rhi/ subpackage,
+# as cellular's. Doubles with + − × ÷ and √ only, without contraction or fast
+# math: the same bits everywhere.
 [package]
 namespace   = "xengine"
 name        = "dynamics"
 version     = "0.1.0"
-description = "Solved simulation: collision and queries, XPBD soft bodies from xengine.matter's materials; deterministic, steppable on mlibs.simulation"
+description = "The engine's solved simulation: rigid families in 2D and 3D, bodies as agents' subjects, materials from xengine.matter; on mlibs.dynamics"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"
@@ -19,23 +20,25 @@ maturity = "preview"  # release plan §2.1: stable, preview or experimental (lin
 separate = "library: rigid bodies in 2D and 3D for games, matter and tests"
 kind = "module"
 agent = "subject"
+reexports = ["mlibs.dynamics"]  # what its interface re-exports (lint module-closure): the solver core it builds on
 
 [targets.xengine-dynamics]
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/collision/*.cppm", "src/collision/*.cpp", "src/xpbd/*.cppm", "src/xpbd/*.cpp", "src/inspect/*.cppm", "src/inspect/*.cpp"]
+sources  = ["src/*.cppm"]
 # Optimised in every profile (the last -O wins), as cellular, xrender.mesh and xrender.particle are: a world
 # stepped at -O0 costs several times as much, which every consumer's tests would pay (emergence3d past
 # 300 s on arm, red 99); without fast-math or contraction the results are the same bits.
 cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
 
 [dependencies]
-mlibs.utils = { path = "../../../../base/utils" }
+mlibs.dynamics = { path = "../../../../base/dynamics" }
+mlibs.utils    = { path = "../../../../base/utils" }
 
 # A body as an agent's subject (src/agent/, module xengine.dynamics.agent; D-174): its steps on the clock
-# and history library, its operations through the agent kernel. A feature, so that the solver families
-# alone stay what they were — the small tools and nothing more (hanim's engine takes them so).
+# and history library, its operations through the agent kernel. A feature, so that the engine's kernels that
+# take a family (cellular's rigid, audio's rigid3-matter) link no agent kernel through it.
 [features]
 agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
 # What a body is made of, from xengine.matter's table (src/matter/, module xengine.dynamics.matter; D-165):
@@ -108,8 +111,6 @@ features = ["agent", "matter", "rigid", "rigid3", "rigid3-agent", "rigid3-matter
 
 [dev-dependencies]
 mcpplibs.mtest   = "0.8.4"
-# The solver stepped at the clock library's fixed steps (xpbd_test).
-mlibs.simulation = { path = "../../../../base/simulation" }
 # tests/agent_test.cpp: the agent contract's suite on a body (mlibs.agent.cts), then kicks, seeks and branches.
 mlibs.agent.cts  = { path = "../../../../base/agent/cts" }
 mlibs.json       = { path = "../../../../base/json" }

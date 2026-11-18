@@ -19,6 +19,7 @@ members = [
     "modules/base/agent",
     "modules/base/agent/cts",
     "modules/base/cts",
+    "modules/base/dynamics",
     "modules/base/geom",
     "modules/projects/hanim/core",
     "modules/base/image",

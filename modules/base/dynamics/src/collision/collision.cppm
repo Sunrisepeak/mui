@@ -1,10 +1,10 @@
-// xengine.dynamics.collision — the shapes every solver family collides with
+// mlibs.dynamics.collision — the shapes every solver family collides with
 // and the queries on them (D-133): half-planes, one-way ledges, boxes, and
 // swept collision — when a moving circle first touches a box.
 //
-//     if (auto hit = xengine::dynamics::sweep(ball.at, ball.radius, ball.velocity * left, brick)) {
+//     if (auto hit = mlibs::dynamics::sweep(ball.at, ball.radius, ball.velocity * left, brick)) {
 //         ball.at += ball.velocity * (left * hit->t);
-//         ball.velocity = xengine::dynamics::reflect(ball.velocity, hit->normal);
+//         ball.velocity = mlibs::dynamics::reflect(ball.velocity, hit->normal);
 //     }
 //
 // A circle of radius r moving by d meets a box where its centre's path meets
@@ -17,11 +17,11 @@
 //
 // Only + − × ÷ and √ — which IEEE 754 rounds exactly — on doubles, built
 // without contraction or fast math: the same bits everywhere (as hanim's).
-export module xengine.dynamics.collision;
+export module mlibs.dynamics.collision;
 
 import std;
 
-export namespace xengine::dynamics {
+export namespace mlibs::dynamics {
 
 struct V2 {
     double x = 0, y = 0;
@@ -79,4 +79,4 @@ struct Ledge {
     return x >= ledge.left && x <= ledge.right && before_y <= ledge.top + 1e-9 && y > ledge.top;
 }
 
-}  // namespace xengine::dynamics
+}  // namespace mlibs::dynamics

@@ -3,11 +3,11 @@
 // drags it; every run and every replay is the same bits.
 import std;
 import mlibs.simulation;
-import xengine.dynamics;
+import mlibs.dynamics;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
-namespace sim = xengine::dynamics;
+namespace sim = mlibs::dynamics;
 
 namespace {
 // A ring of 32 points, radius 20, about (100, 100); the ground at y = 300.

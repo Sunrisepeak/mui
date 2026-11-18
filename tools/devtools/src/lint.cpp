@@ -28,7 +28,7 @@ constexpr std::string_view proc_dir{proc_chars, sizeof proc_chars};
 // Members whose results are part of A-level conformance (identical bits): no libm transcendental.
 constexpr std::string_view deterministic[]{
     "modules/base/math",         "modules/base/utils",           "modules/projects/omui/native",   "modules/projects/xengine/kernel/audio",
-    "modules/projects/xengine/kernel/video", "modules/projects/xengine/kernel/dynamics", "modules/projects/xengine/kernel/particles",
+    "modules/projects/xengine/kernel/video", "modules/base/dynamics", "modules/projects/xengine/kernel/dynamics", "modules/projects/xengine/kernel/particles",
     "modules/projects/xengine/kernel/field", "showcase/widget-breakout/headless", "showcase/glade/headless", "modules/projects/hanim/core",
     "modules/projects/hanim",    "modules/projects/xrender/raster", "modules/content/layout",       "modules/base/geom",
     "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",

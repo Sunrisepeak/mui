@@ -14,7 +14,7 @@ import mcpplibs.mtest;
 using namespace mcpplibs::mtest;
 namespace matter = xengine::matter;
 namespace ca = xengine::cellular;
-namespace dyn = xengine::dynamics;
+namespace dyn = mlibs::dynamics;
 
 namespace {
 
@@ -431,7 +431,7 @@ static UTest cases{"matter.emergence", [] {
                 outline.push_back({17.5 * cell + 15 * std::cos(angle), 9.5 * cell + 15 * std::sin(angle)});
             }
             const std::array ground{dyn::Plane{.normal_x = 0, .normal_y = -1, .offset = -11 * cell}};
-            auto body = dyn::SoftBody::ring(outline, dyn::params_of(program, *program.material("rubber"), 7), ground);
+            auto body = dyn::SoftBody::ring(outline, xengine::dynamics::params_of(program, *program.material("rubber"), 7), ground);
             expect(fatal(body.has_value()));
             for (int settle = 0; settle < 240; ++settle) dyn::SoftBodyModel::step(*body, {});
             const double stood_at = body->centre()[0];

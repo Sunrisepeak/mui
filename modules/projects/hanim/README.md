@@ -542,7 +542,7 @@ this Node-only test profile is separate from the site's publishing profile.
 | Capability | Label | Packages | Evidence |
 |---|---|---|---|
 | Values, curves, channels, programs, the engine, the visual representation, the timeline, the 40 recipes ([each through its course](RECIPES.md)) | stable | `hanim.core`, `hanim`, `hanim.visual`, `hanim.timeline` | [timeline_test](core/tests/timeline_test.cpp), [recipes_test](tests/program/recipes_test.cpp) |
-| Springs and soft bodies through `xengine.dynamics`' core | stable, on a preview package (`lower`) | `hanim` | [drive_test](tests/engine/drive_test.cpp), [deform_test](tests/library/deform_test.cpp) |
+| Springs and soft bodies through `mlibs.dynamics` | stable, on a preview package (`lower`) | `hanim` | [drive_test](tests/engine/drive_test.cpp), [deform_test](tests/library/deform_test.cpp) |
 | Skeletons (the parts Quay uses: rig, clips, skinning driven) | preview | `hanim.skeleton` | [skeleton_test](skeleton/cts/tests/skeleton_test.cpp), [gltf_test](skeleton/cts/tests/gltf_test.cpp) |
 | GPU batch evaluation, the studio | preview | `hanim.rhi`, `hanim.studio` | [shape_webgpu_test](rhi/tests/shape_webgpu_test.cpp), [the studio's recipes_test](studio/tests/recipes_test.cpp) |
 

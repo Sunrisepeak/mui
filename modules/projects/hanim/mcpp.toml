@@ -10,7 +10,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: the animation engine every host and tool plays"
-lower = ["xengine.dynamics"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mlibs.dynamics"]  # lower-labelled parts it uses, each marked in its README
 kind = "runtime"
 agent = "subject"
 
@@ -41,9 +41,9 @@ control = { implies = ["engine"], sources = ["src/control/*.cppm", "src/control/
 # engine alone links stays what it was.
 agent = { implies = ["control"], sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
 
-# The engine steps simulated bodies with xengine.dynamics' xpbd solver on mlibs.simulation's timeline (D-131, D-133).
+# The engine steps simulated bodies with mlibs.dynamics' xpbd solver on mlibs.simulation's timeline (D-131, D-133, D-231).
 [feature-deps.engine]
-xengine.dynamics = { path = "../xengine/kernel/dynamics" }
+mlibs.dynamics   = { path = "../../base/dynamics" }
 mlibs.simulation = { path = "../../base/simulation" }
 
 [feature-deps.object]

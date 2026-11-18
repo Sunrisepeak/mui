@@ -5,7 +5,7 @@
 import std;
 import mlibs.agent.cts;
 import mlibs.json;
-import xengine.dynamics.xpbd;
+import mlibs.dynamics.xpbd;
 import xengine.dynamics.agent;
 import mcpplibs.mtest;
 
@@ -17,10 +17,10 @@ namespace dynamics = xengine::dynamics;
 namespace {
 
 // An octagon about (100, 250), a floor at y = 300 (the page's y grows downwards).
-dynamics::SoftBody octagon() {
+mlibs::dynamics::SoftBody octagon() {
     const std::array<std::array<double, 2>, 8> outline{{{120, 250}, {114, 264}, {100, 270}, {86, 264}, {80, 250}, {86, 236}, {100, 230}, {114, 236}}};
-    const std::array ground{dynamics::Plane{.normal_x = 0, .normal_y = -1, .offset = -300}};
-    auto body = dynamics::SoftBody::ring(outline, {}, ground);
+    const std::array ground{mlibs::dynamics::Plane{.normal_x = 0, .normal_y = -1, .offset = -300}};
+    auto body = mlibs::dynamics::SoftBody::ring(outline, {}, ground);
     expect(fatal(body.has_value()));
     return std::move(*body);
 }

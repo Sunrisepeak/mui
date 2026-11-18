@@ -406,10 +406,12 @@ std::span<const Closure> repository_closures() {
         {"mlibs.text", {}, {"xrender"}},
         // the stepping substrate: the standard library and the small tools only, no solver (D-133)
         {"mlibs.simulation", {"mlibs.simulation", "mlibs.utils"}, {}},
-        // every solved simulation: no UI, game, renderer, GPU or compiler in its CPU core (D-133); taken alone, no agent
-        // kernel either — a body or a field as an agent's subject is their feature `agent`, so what hanim's engine and every
-        // other consumer of the kernels links stays the small tools (the probes tools/ci/hanim-features and
-        // hanim-play-consumer hold hanim to that); what a body is made of (xengine.matter's table) is a feature too
+        // the solver core (D-133, D-231): the small tools alone — no UI, game, renderer, GPU, agent kernel or table; what
+        // hanim's engine links (the probes tools/ci/hanim-features and hanim-play-consumer hold hanim to that)
+        {"mlibs.dynamics", {"mlibs.dynamics", "mlibs.utils"}, {}},
+        // the engine's solved simulation: no UI, game, renderer, GPU or compiler (D-133); taken alone, no agent kernel
+        // either — a body or a field as an agent's subject is their feature `agent`, so what the engine's kernels that take
+        // a family link stays small; what a body is made of (xengine.matter's table) is a feature too
         {"xengine.dynamics", {}, {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader",
                                   "xengine.cellular", "mlibs.agent", "mlibs.json", "mlibs.control", "xengine.matter"}},
         {"xengine.cellular", {}, {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader",

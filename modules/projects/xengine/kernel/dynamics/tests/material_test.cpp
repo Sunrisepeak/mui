@@ -21,7 +21,7 @@ UTest cases{"dynamics.material", [] {
         expect(sim::params_of(*table, *table->material("stone"), 3).mass == 7.5 && sim::params_of(*table, *table->material("wood")).mass == 0.6 &&
                sim::params_of(*table, *table->material("rubber")).mass == 1.1);
         // What the table does not say keeps the base's; a material that is not the table's leaves it whole.
-        const sim::BodyParams base{.gravity_y = 2200, .damping = 0.4};
+        const mlibs::dynamics::BodyParams base{.gravity_y = 2200, .damping = 0.4};
         const auto kept = sim::params_of(*table, *jelly, 1, base);
         expect(kept.gravity_y == 2200 && kept.damping == 0.4 && kept.friction == 0.4);
         expect(sim::params_of(*table, 9999, 1, base).friction == base.friction && sim::params_of(*table, 9999, 1, base).mass == base.mass);

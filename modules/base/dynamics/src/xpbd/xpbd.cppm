@@ -1,5 +1,5 @@
-// xengine.dynamics.xpbd — soft bodies in 2D, deterministic: the xpbd solver
-// family of xengine.dynamics (D-133; animation and physics share it, §6.9).
+// mlibs.dynamics.xpbd — soft bodies in 2D, deterministic: the xpbd solver
+// family of mlibs.dynamics (D-133; animation and physics share it, §6.9).
 //
 // A body is a ring of particles held by its edges' lengths, its enclosed
 // area and the shape it was made in (shape matching), stepped by small-step
@@ -8,15 +8,15 @@
 // a dragging hand), so the body runs in a Timeline: checkpoints, replay and
 // seeking come with it.
 //
-//     auto body = xengine::dynamics::SoftBody::ring(outline, {.mass = 1}, {{.normal_y = -1,
-//     .offset = -400}}); mlibs::simulation::Timeline<xengine::dynamics::SoftBodyModel>
+//     auto body = mlibs::dynamics::SoftBody::ring(outline, {.mass = 1}, {{.normal_y = -1,
+//     .offset = -400}}); mlibs::simulation::Timeline<mlibs::dynamics::SoftBodyModel>
 //     history(*body); history.step({});                                         // 1/120 s on
-export module xengine.dynamics.xpbd;
+export module mlibs.dynamics.xpbd;
 
 import std;
-export import xengine.dynamics.collision;
+export import mlibs.dynamics.collision;
 
-export namespace xengine::dynamics {
+export namespace mlibs::dynamics {
 
 struct BodyParams {
     double mass = 1;  // the whole body's
@@ -105,4 +105,4 @@ struct Stage {
 };
 [[nodiscard]] std::span<const Stage> stages() noexcept;
 
-}  // namespace xengine::dynamics
+}  // namespace mlibs::dynamics

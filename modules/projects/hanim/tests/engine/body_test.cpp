@@ -9,7 +9,7 @@ import mcpplibs.mtest;
 
 using namespace hanim;
 using namespace mcpplibs::mtest;
-namespace sim = xengine::dynamics;
+namespace sim = mlibs::dynamics;
 
 namespace {
 template <class T, class E>

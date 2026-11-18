@@ -1,9 +1,8 @@
-// xengine.dynamics — every solved simulation (D-133): one owner for collision
-// and the solver families (xpbd today; rigid, articulation, fluids, FEM, MPM
-// as they come), each family's stages stated; what a body is made of is
-// xengine.matter's table (its mechanical columns), through the feature `matter` (xengine.dynamics.matter).
-// Stepped on mlibs.simulation's timeline; no renderer, no UI.
+// xengine.dynamics — the engine's solved simulation (D-133, D-231): it builds
+// on the foundation's solver core (mlibs.dynamics: collision, XPBD soft
+// bodies), re-exported here, and adds the engine's families as features (rigid,
+// rigid3; articulation, fluids, FEM, MPM as they come), what a body is made of
+// from xengine.matter's table (`matter`) and a body as an agent's subject
+// (`agent`). Stepped on mlibs.simulation's timeline; no renderer, no UI.
 export module xengine.dynamics;
-export import xengine.dynamics.collision;
-export import xengine.dynamics.xpbd;
-export import xengine.dynamics.inspect;
+export import mlibs.dynamics;

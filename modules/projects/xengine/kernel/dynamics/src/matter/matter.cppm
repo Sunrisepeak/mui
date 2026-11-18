@@ -7,7 +7,7 @@
 export module xengine.dynamics.matter;
 
 import std;
-export import xengine.dynamics.xpbd;
+export import mlibs.dynamics.xpbd;
 export import xengine.matter;
 
 export namespace xengine::dynamics {
@@ -15,6 +15,6 @@ export namespace xengine::dynamics {
 // A soft body's parameters from a material: its mechanical columns — friction, restitution, compliance,
 // shape_stiffness — and its mass, its density over water's (1000 kg/m³) times `area`. What the table does not
 // say keeps `base`'s; a material that is not the plan's leaves `base` as it is.
-[[nodiscard]] BodyParams params_of(const xengine::matter::Program& matter, xengine::matter::MaterialId material, double area = 1, BodyParams base = {}) noexcept;
+[[nodiscard]] mlibs::dynamics::BodyParams params_of(const xengine::matter::Program& matter, xengine::matter::MaterialId material, double area = 1, mlibs::dynamics::BodyParams base = {}) noexcept;
 
 }  // namespace xengine::dynamics

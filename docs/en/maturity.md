@@ -20,7 +20,7 @@ A capability below its package's label is marked in its project's feature table 
 | xengine | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 25 | 3 | 0 |
+| mlibs | 25 | 4 | 0 |
 | examples | 12 | 0 | 0 |
 | build plugins (mcpp) | 1 | 0 | 0 |
 | works (showcase) | 0 | 10 | 5 |
@@ -156,6 +156,7 @@ A capability below its package's label is marked in its project's feature table 
 | `mlibs.agent` | [modules/base/agent](../../modules/base/agent) | stable |
 | `mlibs.agent.cts` | [modules/base/agent/cts](../../modules/base/agent/cts) | stable |
 | `mlibs.cts` | [modules/base/cts](../../modules/base/cts) | stable |
+| `mlibs.dynamics` | [modules/base/dynamics](../../modules/base/dynamics) | preview |
 | `mlibs.geom` | [modules/base/geom](../../modules/base/geom) | stable |
 | `mlibs.image` | [modules/base/image](../../modules/base/image) | stable |
 | `mlibs.json` | [modules/base/json](../../modules/base/json) | stable |

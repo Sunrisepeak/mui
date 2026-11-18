@@ -335,8 +335,8 @@ Outcome hanim_core(Probe& probe) {
 // ---- hanim-api -------------------------------------------------------------------------------------------------
 
 // Whether a repository source is of the independent layers hanim may bring: mlibs (base, gfx and, with `wider`,
-// content and media), the gfx-layer projects hanim and xrender, and xengine.dynamics' CPU core (base layer by lint:
-// the solver hanim shares with games, D-131, D-133).
+// content and media; mlibs.dynamics, the solver hanim shares with games, is base: D-131, D-133, D-231), and the
+// gfx-layer projects hanim and xrender. Nothing of the engine's tier.
 bool independent(const fs::path& source, const fs::path& repo, bool wider) {
     if (!inside(source, repo)) return true;
     std::vector<std::string> parts;
@@ -345,8 +345,7 @@ bool independent(const fs::path& source, const fs::path& repo, bool wider) {
         return parts.size() >= prefix.size() && std::ranges::equal(prefix, std::span(parts).first(prefix.size()));
     };
     return starts({"modules", "base"}) || starts({"modules", "gfx"}) || (wider && (starts({"modules", "content"}) || starts({"modules", "media"}))) ||
-           starts({"modules", "projects", "hanim"}) || starts({"modules", "projects", "xrender"}) ||
-           starts({"modules", "projects", "xengine", "kernel", "dynamics"});
+           starts({"modules", "projects", "hanim"}) || starts({"modules", "projects", "xrender"});
 }
 
 Outcome hanim_api(Probe& probe) {
@@ -1000,14 +999,14 @@ Outcome hanim_features(Probe& probe) {
         if (item.name != "render-vector" && has_prefix({"openmui.render", "xrender", "mlibs.rhi", "xrender.raster", "mlibs.shader"}))
             return std::unexpected("the renderer enabled without opting in");
         if ((item.name == "control") != packages.contains("mlibs.control")) return std::unexpected("the control dependency did not follow the selected feature");
-        // hanim.core measures its contours with mlibs.geom; the engine's solver is xengine.dynamics (D-131, D-133).
+        // hanim.core measures its contours with mlibs.geom; the engine's solver is mlibs.dynamics (D-131, D-133, D-231).
         if (item.name == "core" &&
             packages != std::set<std::string>{"hanim.validation.feature_consumer", "mcpplibs.hanim", "hanim.core", "mlibs.math", "mlibs.utils", "mlibs.memory", "mlibs.geom"})
             return std::unexpected("the core feature's closure is not minimal");
         if (!packages.contains("mlibs.geom")) return std::unexpected("the shared geometry (the measures of hanim.core and the object feature) is missing");
         // The engine's solver and its timeline come with the engine feature alone (feature-deps, kept since mcpp 2026.11.7.1, #897).
         const bool engine = item.roles.contains("engine");
-        if (engine != packages.contains("xengine.dynamics") || engine != packages.contains("mlibs.simulation"))
+        if (engine != packages.contains("mlibs.dynamics") || engine != packages.contains("mlibs.simulation"))
             return std::unexpected("the engine solver's dependency did not follow the engine feature");
         std::set<fs::path> sources;
         for (const auto& entry : metadata->entries) sources.insert(source_of(entry, project));
@@ -1091,7 +1090,7 @@ Outcome hanim_features(Probe& probe) {
                            "[dependencies]\n\"hanim\" = { path = " + json(text_of(installed)).dump() + " }\n";
     for (const auto& [name, relative] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
              {"hanim.core", "projects/hanim/core"}, {"mlibs.geom", "base/geom"}, {"mlibs.memory", "base/memory"}, {"mlibs.utils", "base/utils"},
-             {"xengine.dynamics", "projects/xengine/kernel/dynamics"}, {"mlibs.simulation", "base/simulation"}})
+             {"mlibs.dynamics", "base/dynamics"}, {"mlibs.simulation", "base/simulation"}})
         manifest += json(name).dump() + " = { path = " + json(text_of(probe.repo / "modules" / relative)).dump() + " }\n";
     write_text(project / "mcpp.toml", manifest);
     copy_file_to(probe.repo / "tools/ci/hanim-api-probe/src/main.cpp", project / "src/main.cpp");

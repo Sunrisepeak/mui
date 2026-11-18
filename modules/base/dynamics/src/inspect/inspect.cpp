@@ -1,8 +1,8 @@
-module xengine.dynamics.inspect;
+module mlibs.dynamics.inspect;
 
 import std;
 
-namespace xengine::dynamics {
+namespace mlibs::dynamics {
 
 BodyReport report(const SoftBody& body) {
     BodyReport out;
@@ -38,4 +38,4 @@ std::string explain(const SoftBody& body) {
     return text;
 }
 
-}  // namespace xengine::dynamics
+}  // namespace mlibs::dynamics

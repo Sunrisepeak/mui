@@ -105,10 +105,10 @@ void DropCard::ensure(const PaintContext& ctx) const {
     // Jelly: it gives on landing and springs back. The numbers are the standard matter table's row (xengine.matter's
     // standard.matter.xdef.ts: density over water's, compliance, shape_stiffness, restitution, friction), written
     // here so that a page with one soft body carries no table and no reader of one.
-    const xengine::dynamics::BodyParams params{.mass = 1, .gravity_y = 2200, .edge_compliance = 0.0005, .area_compliance = 0.0002, .shape_stiffness = 0.012,
+    const mlibs::dynamics::BodyParams params{.mass = 1, .gravity_y = 2200, .edge_compliance = 0.0005, .area_compliance = 0.0002, .shape_stiffness = 0.012,
                                                 .restitution = 0.2, .friction = 0.4, .damping = 0.4};
     const float floor = ctx.size.height - readout_height - floor_gap;
-    const std::vector<xengine::dynamics::Plane> walls{{.normal_x = 0, .normal_y = -1, .offset = -(floor - made->origin.y)},
+    const std::vector<mlibs::dynamics::Plane> walls{{.normal_x = 0, .normal_y = -1, .offset = -(floor - made->origin.y)},
                                                        {.normal_x = 1, .normal_y = 0, .offset = -made->origin.x},
                                                        {.normal_x = -1, .normal_y = 0, .offset = -(ctx.size.width - made->origin.x)}};
     auto body = engine.simulate({made->object, "card"}, {.params = params, .colliders = walls, .points = 64, .carries = carried});

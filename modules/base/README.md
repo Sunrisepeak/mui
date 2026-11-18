@@ -9,6 +9,7 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 | Package | |
 |---|---|
 | [cts](cts) | `mlibs.cts`: what a conformance suite is written with, on mtest's conformance kind — cases with stable ids and levels S/A/B declared against a subject, passed/failed/unsupported (from capabilities only), comparisons with evidence, the preparation contract; suites live with their contract's owner, the runner and reports are mtest's |
+| [dynamics](dynamics) | `mlibs.dynamics`: the generic solver core — swept collision, half-planes and one-way ledges, XPBD soft bodies, what a body is doing; deterministic, stepped on `mlibs.simulation` (hanim's engine and the engine's `xengine.dynamics` build on it; D-133, D-231) |
 | [simulation](simulation) | `mlibs.simulation`: the stepping substrate — fixed-step clocks, timelines of checkpoints and inputs (seek, replay, rollback), simulation tiers; no solver (D-133) |
 | [control](control) | Independent openas policy, trusted sessions and invocation authority; shared by UI and standalone engines |
 | [agent](agent) | `mlibs.agent`: the agent kernel (D-173) — where agents find a program and talk to it (a named local endpoint, lines in and out, sessions served at the owner's safe point), for any subject: an interface, a world, a renderer's frame. Authority is `control`'s; recorded sessions (`*.session.xdef.jsonl`, feature `session`) |

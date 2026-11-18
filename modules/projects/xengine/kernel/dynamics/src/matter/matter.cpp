@@ -2,6 +2,8 @@ module xengine.dynamics.matter;
 
 import std;
 
+using namespace mlibs::dynamics;
+
 namespace xengine::dynamics {
 
 BodyParams params_of(const xengine::matter::Program& matter, xengine::matter::MaterialId material, double area, BodyParams base) noexcept {

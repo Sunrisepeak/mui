@@ -1,45 +1,30 @@
 # xengine.dynamics
 
-Every solved simulation in one owner (D-133): collision and its queries and the solver families — deterministic, stepped on [mlibs.simulation](../../../../base/simulation)'s timeline, with no renderer and no UI. The architecture and its phases: [simulation, dynamics and the compute layer](../../../../../.agents/docs/2026-11-08-simulation-dynamics-architecture-design.md).
+The engine's solved simulation (D-133): on the foundation's solver core [mlibs.dynamics](../../../../base/dynamics) (collision, XPBD soft bodies; moved there in A5, D-231), the rigid families in 2D and 3D, what a body is made of, and bodies as agents' subjects — deterministic, stepped on [mlibs.simulation](../../../../base/simulation)'s timeline, with no renderer and no UI. The architecture and its phases: [simulation, dynamics and the compute layer](../../../../../.agents/docs/2026-11-08-simulation-dynamics-architecture-design.md).
 
 ```cpp
-import xengine.dynamics;
-namespace dyn = xengine::dynamics;
+import xengine.dynamics.matter;                                                  // the solver core (mlibs.dynamics) and the table
+namespace dyn = mlibs::dynamics;
 
-if (auto hit = dyn::sweep(ball.at, ball.radius, ball.velocity * left, brick)) {   // collision
-    ball.at += ball.velocity * (left * hit->t);
-    ball.velocity = dyn::reflect(ball.velocity, hit->normal);
-}
-auto table = xengine::matter::standard();                                        // what things are made of: xengine.matter (import xengine.dynamics.matter;)
-auto body = dyn::SoftBody::ring(outline, dyn::params_of(*table, *table->material("jelly"), area), ground);   // xpbd
+auto table = xengine::matter::standard();                                        // what things are made of: xengine.matter
+auto body = dyn::SoftBody::ring(outline, xengine::dynamics::params_of(*table, *table->material("jelly"), area), ground);
 mlibs::simulation::Timeline<dyn::SoftBodyModel> history(*body, 1200, 60);       // replayable
 history.step({});
 ```
 
 | Part | What | State |
 |---|---|---|
-| `collision` | Half-planes, one-way ledges, boxes; swept collision (a moving circle against a box, exact); `depth`, `lands` | from the former `xengine.physics`; planes and ledges from the soft bodies |
+| `collision`, `xpbd`, `inspect` | The foundation's [mlibs.dynamics](../../../../base/dynamics): swept collision, half-planes and ledges, XPBD soft bodies, what a body is doing | moved in A5 (D-231) |
 | materials | Not here: what a body is made of is [xengine.matter](../matter)'s table (D-165 — the one table physics, chemistry and the lattice share). `params_of(table, material, area)` reads its mechanical columns (`density` over water's × the area as the mass, `friction`, `restitution`, `compliance`, `shape_stiffness`); it is the package's feature `matter` (module `xengine.dynamics.matter`, taking the matter kernel alone, no JSON): a solver takes numbers, and only a consumer that has materials takes the table — hanim's engine does not | moved from `xengine.dynamics.material` (2026-11-13); the standard table has its rows (rubber, wood, stone, jelly, cloth, sand, water), the same numbers |
-| `xpbd` | Soft bodies: rings of particles held by edges, area and shape matching (optionally upright); gravity, push, walk, hop, a dragging hand; half-planes and ledges with restitution and friction; `stages()` says a step's stages in order | from the former `xengine.simulation.bodies` |
 | `rigid` | 2D rigid bodies: Box2D v3.2 under this contract — fixed steps, contacts, save / restore / branch bit for bit (the feature `rigid`) | P1, M6.2 |
 | `rigid3` | 3D rigid bodies: Jolt Physics 5.6 under the same contract — boxes, spheres, capsules, hulls, meshes as ground, compounds, sensors; joints (fixed, hinge, slider, distance, point, cone) and walking characters as data on the world; contacts and where characters stand as a step's output; rays, shapes and shape casts asked; save / restore / branch bit for bit; an agent's subject (the features `rigid3`, `rigid3-agent`) | M6.4 |
 | `rigid3-matter` | Matter carried by 3D bodies (module `xengine.dynamics.objects`, `rigid3::Objects`): each body an instance of [xengine.matter](../matter), the bodies touching now (`World::touching`: asked of the shapes, asleep or awake) its pairs, the air about each a bath until the field carrier gives it — the standard laws on bodies, nothing named. A crate set alight lights the crate leaning on it and not the one apart; `why` says it caught by `burns` with heat in from that crate. In a field (`step(world, field)`) each body is a guest of the cell it is in, and the wind pushes it (`blow`); the weather's verbs choose by property: `rain` wets what is open to the sky, `lightning` strikes the highest open thing that conducts. A body holds by its mass (`capacity_unit`) and reacts over its surface (`exposed`); what transfers leave short of a whole unit is kept (its residue, part of its state). Behind: a body touching many (the ground) is the field's and terrain's, not one instance | M6.5 T5.1–T5.6 |
 | `rigid3-scene` | Bodies and particles in one air (module `xengine.dynamics.scene`, `rigid3::Scene`): the bodies (`Objects::guests_in`/`joined`) and a cloud of [xengine.particles](../particles) as two groups of one field step, each particle beside its cell and beside the carried body whose surface it lies against (`Cloud::against`, the field's `Between`), the wind where each is carrying the particles. A bucket of water on a burning crate puts it out by wetting it; a few drops boil off as steam that rises and comes back as water (the emergence set's 3) | M6.5 T5.7 |
 | `articulation`, fluids, FEM, MPM | Later solver families (each its own feature) | P2–P3 of the design |
 
-## Collision
+## Collision and soft bodies
 
-- **Sweeps:** when a moving circle first touches a box, exactly. The circle's centre travels toward the box grown by its radius: four faces moved out, and four quarter circles at the corners. The earliest crossing in the move is the hit, with its side's normal; at a corner, the normal points from the corner to the centre.
-  - A fast ball meets a thin box that a sampled step would skip.
-  - A ball already overlapping a box and moving further in meets it at once, on its nearest side.
-- **Event by event:** a game moves a ball from one collision to the next within a step. Between collisions it is where a formula says, so any instant can be computed, not sampled. This is what rewinding needs.
-- **Only real hits:** a contact counts when the circle moves into the side it meets. A graze along a face, or a tangent past a corner, is no hit, so a ball never bounces at zero time again and again.
-- **Corners keep their precision:** the first root is taken as c / (−b′ + √disc), which does not cancel when the circle starts a hair away.
-- **The same bits everywhere:** doubles with only + − × ÷ and √, which IEEE 754 rounds exactly, as hanim does.
-  - Lint's determinism rule checks that it never calls libm's transcendentals.
-  - It is built without contraction (`-ffp-contract=off`: no fused multiply-add) and without fast math (no reassociation, no flushing of subnormals).
-  - On x86-64 (SSE2), arm64 and wasm the rounding mode stays the default and there is no extended intermediate precision.
-  - It makes no NaN: a zero vector normalizes to zero.
+The shapes, swept collision and the XPBD soft bodies are the foundation's [mlibs.dynamics](../../../../base/dynamics) (moved there in A5, D-231: hanim's engine uses them); this package builds on them. What a body is made of is here (`params_of`, the feature `matter`), and so is the body as an agent's subject.
 
 ## Rigid bodies (rigid)
 
@@ -100,10 +85,6 @@ const auto first = world->cast(rigid3::Shape::sphere(0.5f), {}, {0, 10, 0}, {0, 
 - **The same bits everywhere**: the wrap's CI checks one scene on Linux x86-64 and arm64, macOS, Windows and wasm32, in the dev and release profiles, with 0, 1 and 4 workers; here a run with 1 and 3 workers is the single-threaded run's bits — with every joint form, a character, compounds and a sensor in the world too (`rigid3_parts_test`).
 - Beside the solver it wraps: `simulation/rigid3-tower-512` in `tests/bench` steps the same bodies on a `World` and on Jolt called directly (`rigid3::Direct`), taking turns.
 
-## Soft bodies (xpbd)
-
-A `SoftBody` is a ring of particles held by its edges' lengths, its enclosed area and the shape it was made in (shape matching; `upright` keeps the shape it springs back to unturned), stepped by small-step XPBD under gravity against half-planes and one-way ledges, with restitution and friction toward a walking speed at its feet, a push and a hop; a `Pin` is a dragging hand. `SoftBodyModel` is a `mlibs::simulation` model, so a body runs in a `Timeline` with checkpoints and exact replay; stepping allocates nothing. hanim's `Engine::simulate` makes any part of any object such a body and carries its geometry (and another figure later: `Engine::carry`) on a cage over the ring.
-
 ## Looking at it, holding it to its contract
 
 - `inspect`: `report(body)` (centre, bounds, area against rest, fastest speed, contacts by kind) and `explain(body)` in words, read between steps — an agent pauses a timeline, steps it once and reads.
@@ -111,11 +92,11 @@ A `SoftBody` is a ring of particles held by its edges' lengths, its enclosed are
 - The rigid family beside the solver it wraps: `simulation/rigid-pyramid-20` and `simulation/rigid-rain-1000` in `tests/bench` step the same bodies on a `World` and on Box2D called directly (`rigid::Direct`), in the same run and taking turns, every body at the same place in both — the wrapper costs 1.6% and 3.4% (release, locally); a budget holds it under 10%.
 - Benchmarks: `dynamics/softbody-24` and `-96` in `tests/bench` (zero allocations a step; a frame's budget for a figure's softness).
 
-Run `mcpp test -p xengine.dynamics -p xengine.dynamics.cts`: swept collision to the same bits, soft bodies dropped, landed on ledges, walked, kept upright and replayed bit for bit, the material table; both rigid families held to their hard constraints (`rigid_test`, `rigid3_test`, and `rigid3_parts_test` with joints, a character, compounds and a sensor).
+Run `mcpp test -p xengine.dynamics`: the material table, a body as an agent's subject; both rigid families held to their hard constraints (`rigid_test`, `rigid3_test`, and `rigid3_parts_test` with joints, a character, compounds and a sensor).
 
 ## Agent surface
 
-A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.dynamics.agent` — the package's feature `agent` (`xengine.dynamics = { path = …, features = ["agent"] }`), so that the solver families taken alone stay the small tools and nothing more (hanim's engine takes them so); every operation is decided there first (openas). Its operations are a catalog, [body.ops.xdef.ts](body.ops.xdef.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/body.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
+A soft body is a `Subject` of the agent kernel ([mlibs.agent](../../../../base/agent)), module `xengine.dynamics.agent` — the package's feature `agent` (`xengine.dynamics = { path = …, features = ["agent"] }`), so that the engine's kernels that take a family link no agent kernel through it; every operation is decided there first (openas). Its operations are a catalog, [body.ops.xdef.ts](body.ops.xdef.ts) (the table `src/agent/catalog.cppm` and the listings `src/agent/body.ops.json`, `.md` are `ops-gen`'s); how to use them, in order, is [skill.omui.md](skill.omui.md).
 
 | | |
 |---|---|

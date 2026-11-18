@@ -154,7 +154,7 @@ namespace hanim {
 }
 == hanim.engine
 export import hanim.program;
-export import xengine.dynamics;
+export import mlibs.dynamics;
 namespace hanim {
   struct PlaybackTag;
   using PlaybackRef = mlibs::memory::OwnedHandle<PlaybackTag>;
@@ -215,8 +215,8 @@ namespace hanim {
   struct ConstraintTag;
   using ConstraintRef = mlibs::memory::Handle<ConstraintTag>;
   struct BodyOptions {
-    xengine::dynamics::BodyParams params;
-    std::vector<xengine::dynamics::Plane> colliders;
+    mlibs::dynamics::BodyParams params;
+    std::vector<mlibs::dynamics::Plane> colliders;
     std::size_t points = 48;
     std::vector<std::string> carries;
   };
@@ -272,7 +272,7 @@ namespace hanim {
     [[nodiscard]] std::size_t constraint_count() const noexcept;
     [[nodiscard]] std::expected<BodyRef, EngineFailure> simulate(PartAddress part, BodyOptions options = {…});
     [[nodiscard]] std::expected<void, EngineFailure> pull(BodyRef body, std::optional<Vec2> hand);
-    [[nodiscard]] std::expected<void, EngineFailure> surfaces(BodyRef body, std::span<const xengine::dynamics::Ledge> ledges);
+    [[nodiscard]] std::expected<void, EngineFailure> surfaces(BodyRef body, std::span<const mlibs::dynamics::Ledge> ledges);
     [[nodiscard]] std::expected<void, EngineFailure> advance_bodies(seconds elapsed);
     [[nodiscard]] std::expected<void, EngineFailure> advance_body(BodyRef body, seconds elapsed);
     [[nodiscard]] std::expected<void, EngineFailure> step_body(BodyRef body, std::int64_t steps);
@@ -284,7 +284,7 @@ namespace hanim {
     [[nodiscard]] std::expected<void, EngineFailure> hop(BodyRef body, Vec2 velocity);
     [[nodiscard]] std::expected<void, EngineFailure> settle(BodyRef body, double grid = 0);
     [[nodiscard]] std::expected<void, EngineFailure> unsimulate(BodyRef body);
-    [[nodiscard]] std::expected<const xengine::dynamics::SoftBody*, EngineFailure> body(BodyRef body) const noexcept;
+    [[nodiscard]] std::expected<const mlibs::dynamics::SoftBody*, EngineFailure> body(BodyRef body) const noexcept;
   };
   template <Animatable T> class Drive {
     static constexpr std::size_t lane_count = static_cast<std::size_t>(lanes<T>::count);

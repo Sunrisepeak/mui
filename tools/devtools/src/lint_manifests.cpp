@@ -38,7 +38,8 @@ constexpr std::pair<std::string_view, std::string_view> path_layers[]{
     {"modules/projects/hanim", "gfx"},
     {"modules/projects/xrender", "gfx"},
     {"modules/projects/xrender/text", "content"},  // text as the renderer draws it: above mlibs.text
-    {"modules/projects/xengine/kernel/dynamics", "base"},  // the CPU core (hanim and omui use it, D-133)
+    {"modules/base/dynamics", "base"},  // the solver core (hanim and the engine use it, D-133, D-231)
+    {"modules/projects/xengine/kernel/dynamics", "base"},  // the engine's families on it (cellular and matter use them)
     {"modules/projects/xengine/kernel/cellular", "base"},  // its CPU part
     {"modules/projects/xengine/kernel/cellular/rhi", "gfx"},
     {"modules/projects/xengine/kernel/cellular/present", "gfx"},  // cells to an xrender image
@@ -123,14 +124,12 @@ std::string list_of(const auto& names);
 
 // The tiers (D-231), each a repository of its own one day: dependencies point down only, tests included.
 constexpr std::array<std::string_view, 3> tiers{"foundation", "framework", "engine"};
-// The edges up a tier that are still to be cut, each with its task (implementation plan A5): the lint passes
-// them and refuses every other; an edge here that no manifest has any more is a cut done, to be struck off.
+// The edges up a tier that are still to be cut, each with its task: the lint passes them and refuses every
+// other; an edge here that no manifest has any more is a cut done, to be struck off. None now (A5, A6 done).
 struct Pending {
     std::string_view from, to, task;
 };
-constexpr std::array<Pending, 1> pending_cuts{{
-    {"modules/projects/hanim", "modules/projects/xengine/kernel/dynamics", "A5: the solver hanim uses moves down to the foundation"},
-}};
+constexpr std::array<Pending, 0> pending_cuts{};
 
 struct ProjectPart {
     std::string path;  // "modules/projects/xengine/kernel/matter"

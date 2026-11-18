@@ -30,7 +30,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
 xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
 xengine.world   = { path = "../../../modules/projects/xengine/game/world" }
-xengine.dynamics = { path = "../../../modules/projects/xengine/kernel/dynamics" }
+mlibs.dynamics   = { path = "../../../modules/base/dynamics" }
 mlibs.simulation = { path = "../../../modules/base/simulation" }
 mlibs.math      = { path = "../../../modules/base/math" }
 mlibs.utils     = { path = "../../../modules/base/utils" }

@@ -5,7 +5,9 @@ import openas;
 import mlibs.agent;
 import mlibs.hash;
 import mlibs.json;
-import xengine.dynamics.inspect;
+import mlibs.dynamics.inspect;
+
+using namespace mlibs::dynamics;
 
 namespace xengine::dynamics::agent {
 
@@ -61,7 +63,7 @@ std::string Body::status() const {
 }
 
 std::string Body::observed(const SoftBody& body, std::int64_t frame, std::optional<std::int64_t> budget) const {
-    const BodyReport report = xengine::dynamics::report(body);
+    const BodyReport report = mlibs::dynamics::report(body);
     std::string out = std::format("{{\"frame\":{},\"hash\":\"{:016x}\",\"centre\":[{},{}],\"bounds\":[{},{},{},{}],\"area\":{},\"rest_area\":{},\"fastest\":{},\"contacts\":[",
                                   frame, hash_of(body), report.centre_x, report.centre_y, report.left, report.top, report.right, report.bottom, report.area,
                                   report.rest_area, report.fastest);
@@ -100,7 +102,7 @@ void Body::operate(std::string_view operation, const mlibs::agent::Request& requ
             out += std::format("{}{{\"at\":[{},{}],\"velocity\":[{},{}]}}", index ? "," : "", body.x[index], body.y[index], body.velocity_x[index], body.velocity_y[index]);
         return answer.data(out + "]}");
     }
-    if (operation == "body.contacts") return answer.data(mlibs::agent::json_text(xengine::dynamics::explain(body)));
+    if (operation == "body.contacts") return answer.data(mlibs::agent::json_text(mlibs::dynamics::explain(body)));
     if (operation == "body.push") {
         const auto push = push_of(request, {held_.force_x, held_.force_y, held_.walk, 0, 0});
         if (!push) return invalid(push.error());

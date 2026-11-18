@@ -6,7 +6,7 @@ import std;
 import mlibs.agent;
 import mlibs.json;
 import mlibs.testing;
-import xengine.dynamics;
+import mlibs.dynamics;
 import omui.showcase.widget_breakout.headless;
 import mcpplibs.mtest;
 
@@ -23,7 +23,7 @@ bo::Level wall_of_bricks() {
     std::uint32_t id = 0;
     for (std::uint32_t row = 0; row < 4; ++row)
         for (int column = 0; column < 8; ++column)
-            level.bricks.push_back({xengine::dynamics::Box{120.0 + column * 130, 100.0 + row * 40, 120, 30}, row == 0 ? bo::Kind::card : bo::Kind::button,
+            level.bricks.push_back({mlibs::dynamics::Box{120.0 + column * 130, 100.0 + row * 40, 120, 30}, row == 0 ? bo::Kind::card : bo::Kind::button,
                                     row == 0 ? 2 : 1, id++, row});
     return level;
 }

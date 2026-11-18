@@ -1,8 +1,8 @@
-module xengine.dynamics.xpbd;
+module mlibs.dynamics.xpbd;
 
 import std;
 
-namespace xengine::dynamics {
+namespace mlibs::dynamics {
 namespace {
 double signed_area(std::span<const double> x, std::span<const double> y) noexcept {
     double twice = 0;
@@ -279,4 +279,4 @@ std::span<const Stage> stages() noexcept {
     return list;
 }
 
-}  // namespace xengine::dynamics
+}  // namespace mlibs::dynamics

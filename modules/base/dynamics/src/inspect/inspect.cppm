@@ -1,17 +1,17 @@
-// xengine.dynamics.inspect — what a body is doing, for an agent or a person
+// mlibs.dynamics.inspect — what a body is doing, for an agent or a person
 // looking at it (D-133 contract 8): where it is, how fast its fastest point
 // goes, how far it is from its rest area, and what it touches — each contact
 // a particle on a half-plane or on a ledge. Read between steps (pause a
 // timeline, step it once, read): nothing here changes the body.
 //
-//     const auto report = xengine::dynamics::report(body);   // centre, bounds, contacts…
-//     std::println("{}", xengine::dynamics::explain(body));  // the same in words
-export module xengine.dynamics.inspect;
+//     const auto report = mlibs::dynamics::report(body);   // centre, bounds, contacts…
+//     std::println("{}", mlibs::dynamics::explain(body));  // the same in words
+export module mlibs.dynamics.inspect;
 
 import std;
-import xengine.dynamics.xpbd;
+import mlibs.dynamics.xpbd;
 
-export namespace xengine::dynamics {
+export namespace mlibs::dynamics {
 
 enum class ContactKind : std::uint8_t { plane, ledge };
 
@@ -34,4 +34,4 @@ struct BodyReport {
 // rest), its speed, its contacts by kind, and the stages a step goes through.
 [[nodiscard]] std::string explain(const SoftBody& body);
 
-}  // namespace xengine::dynamics
+}  // namespace mlibs::dynamics

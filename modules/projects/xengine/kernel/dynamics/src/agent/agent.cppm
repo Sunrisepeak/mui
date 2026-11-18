@@ -20,25 +20,25 @@ import mlibs.agent;
 import mlibs.control;
 import mlibs.simulation;
 import mlibs.json;
-import xengine.dynamics.xpbd;
+import mlibs.dynamics.xpbd;
 export import :catalog;
 
 export namespace xengine::dynamics::agent {
 
 struct Options {
     // What the owner holds on every step: the ledges it stands among, a pin. A request's push is added to it.
-    BodyInput    input;
+    mlibs::dynamics::BodyInput    input;
     std::int64_t keep = 3600;        // steps of history kept
     std::int64_t most_steps = 3600;  // a request's most
 };
 
 class Body final : public mlibs::agent::Subject {
 public:
-    explicit Body(const SoftBody& initial, Options options = {});
+    explicit Body(const mlibs::dynamics::SoftBody& initial, Options options = {});
 
     // One step under what is held (the owner's own way in: the same step a request makes).
     void step();
-    [[nodiscard]] const SoftBody& state() const noexcept { return timeline_.state(); }
+    [[nodiscard]] const mlibs::dynamics::SoftBody& state() const noexcept { return timeline_.state(); }
     [[nodiscard]] std::int64_t frame() const noexcept { return timeline_.frame(); }
 
     // ── the body as a subject ─────────────────────────────────────────────
@@ -53,7 +53,7 @@ public:
     [[nodiscard]] std::uint64_t state_hash() const override { return hash_of(timeline_.state()); }
     void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
 
-    [[nodiscard]] static std::uint64_t hash_of(const SoftBody& body) noexcept;
+    [[nodiscard]] static std::uint64_t hash_of(const mlibs::dynamics::SoftBody& body) noexcept;
 
 private:
     // What a request pushes with: a force and a walk held, a kick once.
@@ -61,12 +61,12 @@ private:
         double force_x = 0, force_y = 0, walk = 0, kick_x = 0, kick_y = 0;
     };
     [[nodiscard]] static std::expected<Push, std::string> push_of(const mlibs::agent::Request& request, Push held);
-    [[nodiscard]] BodyInput input_of(const Push& push) const noexcept;
-    [[nodiscard]] std::string observed(const SoftBody& body, std::int64_t frame, std::optional<std::int64_t> budget) const;
+    [[nodiscard]] mlibs::dynamics::BodyInput input_of(const Push& push) const noexcept;
+    [[nodiscard]] std::string observed(const mlibs::dynamics::SoftBody& body, std::int64_t frame, std::optional<std::int64_t> budget) const;
     [[nodiscard]] std::string status() const;
 
     Options                                    options_;
-    mlibs::simulation::Timeline<SoftBodyModel> timeline_;
+    mlibs::simulation::Timeline<mlibs::dynamics::SoftBodyModel> timeline_;
     Push                                       held_;
 };
 

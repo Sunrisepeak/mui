@@ -3,9 +3,11 @@ module xengine.dynamics.cts;
 import std;
 import mlibs.simulation;
 import mlibs.hash;
-import xengine.dynamics;
+import mlibs.dynamics;
 import xengine.dynamics.matter;
 import xengine.matter.json;
+
+using namespace mlibs::dynamics;
 
 namespace xengine::dynamics::cts {
 namespace {
@@ -29,7 +31,7 @@ std::string bits(const SoftBody& body) {
 
 // Every family's cases, in order.
 void cases() {
-    mlibs::cts::declare({"collision.sweep.face", "xengine.dynamics.collision@1", mlibs::cts::Level::exact, {"collision"}, [](Check& check) {
+    mlibs::cts::declare({"collision.sweep.face", "mlibs.dynamics.collision@1", mlibs::cts::Level::exact, {"collision"}, [](Check& check) {
         const auto hit = sweep({0, 50}, 10, {100, 0}, Box{50, 40, 20, 20});
         check.that(hit.has_value(), "a circle moving right meets the box's left face");
         if (hit) {
@@ -37,10 +39,10 @@ void cases() {
             check.that(hit->normal == V2{-1, 0}, "the left face's normal");
         }
     }});
-    mlibs::cts::declare({"collision.sweep.miss", "xengine.dynamics.collision@1", mlibs::cts::Level::exact, {"collision"}, [](Check& check) {
+    mlibs::cts::declare({"collision.sweep.miss", "mlibs.dynamics.collision@1", mlibs::cts::Level::exact, {"collision"}, [](Check& check) {
         check.that(!sweep({0, 0}, 5, {100, 0}, Box{50, 40, 20, 20}).has_value(), "a circle passing above meets nothing");
     }});
-    mlibs::cts::declare({"xpbd.rests-on-ground", "xengine.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Check& check) {
+    mlibs::cts::declare({"xpbd.rests-on-ground", "mlibs.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Check& check) {
         const std::array ground{Plane{.normal_x = 0, .normal_y = -1, .offset = -300}};
         auto body = disc({.shape_stiffness = 0.3}, ground);
         for (int step = 0; step < 120 * 4; ++step) SoftBodyModel::step(body, {});
@@ -49,7 +51,7 @@ void cases() {
         check.that(r.area > 0.95 * r.rest_area, "its area held within 5 %");
         check.evidence("state", bits(body));
     }});
-    mlibs::cts::declare({"xpbd.stands-on-ledge", "xengine.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Check& check) {
+    mlibs::cts::declare({"xpbd.stands-on-ledge", "mlibs.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Check& check) {
         auto body = disc({.shape_stiffness = 0.3});
         BodyInput input;
         input.ledges[0] = {40, 160, 200};
@@ -58,7 +60,7 @@ void cases() {
         const auto r = report(body);
         check.that(std::abs(r.bottom - 200) < 0.5 && !r.contacts.empty(), std::format("on the ledge (bottom {})", r.bottom));
     }});
-    mlibs::cts::declare({"xpbd.replays-bit-for-bit", "xengine.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Check& check) {
+    mlibs::cts::declare({"xpbd.replays-bit-for-bit", "mlibs.dynamics.xpbd@1", mlibs::cts::Level::exact, {"xpbd"}, [](Check& check) {
         const std::array ground{Plane{.normal_x = 0, .normal_y = -1, .offset = -300}};
         mlibs::simulation::Timeline<SoftBodyModel> history(disc({}, ground), 600, 30);
         BodyInput input;

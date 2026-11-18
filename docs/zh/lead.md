@@ -30,18 +30,28 @@
 | xrender | `raster.web.submit-5000.ms` | — | canvaskit | — | 计划中 |
 | xrender | `raster.wasm.bytes` | — | thorvg | — | 计划中 |
 | xrender | `gpu.fills-1000.ms` | — | vello, graphite | — | 待真机验证 |
-| omui | `ui.cold-start.ms` | — | slint, flutter | — | 计划中 |
+| omui | `ui.cold-start.ms` | — | slint, flutter, nsh | — | 计划中 |
 | omui | `web.first-paint.mobile.ms` | — | flutter-web, react-ssr | — | 计划中 |
 | omui | `web.interactive.mobile.ms` | — | flutter-web | — | 计划中 |
-| omui | `web.first-load.bytes` | — | flutter-web, react-ssr | — | 计划中 |
+| omui | `web.first-load.bytes` | — | flutter-web, react-ssr, nsh | — | 计划中 |
 | omui | `ui.list-10k.p99_ms` | — | flutter, compose | — | 计划中 |
 | omui | `ui.memory-10k.bytes` | — | flutter | — | 计划中 |
-| omui | `ui.input-latency.frames` | — | flutter, slint | — | 待真机验证 |
-| omui | `ui.hot-reload.ms` | — | flutter, react-vite | — | 计划中 |
+| omui | `ui.input-latency.frames` | — | flutter, slint, nsh | — | 待真机验证 |
+| omui | `ui.hot-reload.ms` | — | flutter, react-vite, nsh | — | 计划中 |
 | omui | `agent.ui-tasks.success` | — | a11y-tree-agent, screenshot-agent | — | 计划中 |
 | omui | `agent.ui-tasks.tokens` | — | a11y-tree-agent, screenshot-agent | — | 计划中 |
 | omui | `agent.connect.lines` | — | webmcp | — | 计划中 |
 | omui | `agent.build-ui.success` | — | react-vite-playwright, flutter | — | 计划中 |
+| omui | `core.live-dashboard.frame.p95_ms` | — | nsh | — | 计划中 |
+| omui | `core.list-scroll.frame.p95_ms` | — | nsh | — | 计划中 |
+| omui | `core.rest.cpu_percent` | — | nsh | — | 计划中 |
+| omui | `core.engine-start.us` | — | nsh | — | 计划中 |
+| omui | `core.first-frame.counter.ms` | — | nsh | — | 计划中 |
+| omui | `core.tap-to-commit.ms` | — | nsh | — | 计划中 |
+| omui | `core.memory.hello.private-dirty.bytes` | — | nsh | — | 计划中 |
+| omui | `core.size.hello.executable.bytes` | — | nsh | — | 计划中 |
+| omui | `core.size.hello.package.bytes` | — | nsh | — | 计划中 |
+| omui | `core.size.hello.app-code.bytes` | — | nsh | — | 计划中 |
 | omui.components | `components.canvas-1000.frame_ms` | — | figma-like-dom | — | 计划中 |
 | meng | `physics.pyramid.step_ms` | — | box2d-v3, rapier | — | 计划中 |
 | meng | `world.iterate-100k.ms` | — | bevy | — | 计划中 |

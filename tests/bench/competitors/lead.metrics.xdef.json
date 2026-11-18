@@ -321,7 +321,8 @@
       "ours": "omui",
       "competitors": [
         "slint",
-        "flutter"
+        "flutter",
+        "nsh"
       ],
       "status": "planned",
       "doc": "--- omui -------------------------------------------------------------------"
@@ -357,7 +358,8 @@
       "ours": "omui-site",
       "competitors": [
         "flutter-web",
-        "react-ssr"
+        "react-ssr",
+        "nsh"
       ],
       "status": "planned"
     },
@@ -392,7 +394,8 @@
       "ours": "omui",
       "competitors": [
         "flutter",
-        "slint"
+        "slint",
+        "nsh"
       ],
       "status": "unverified",
       "needs": "a 120 Hz display and a latency probe"
@@ -405,7 +408,8 @@
       "ours": "omui",
       "competitors": [
         "flutter",
-        "react-vite"
+        "react-vite",
+        "nsh"
       ],
       "status": "planned"
     },
@@ -453,6 +457,117 @@
       "competitors": [
         "react-vite-playwright",
         "flutter"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.live-dashboard.frame.p95_ms",
+      "about": "a live dashboard (22 sparklines, an order book and a tape updating together) at 120 Hz: the main thread's time a drawn frame, p95 (NSH's Stocks; its floor: Linux 5-6 ms, macOS 2.7-3.7, Windows 3.7-4.3)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned",
+      "doc": "--- omui: the core standard metrics, NSH the floor (D-247) ------------------"
+    },
+    {
+      "project": "omui",
+      "id": "core.list-scroll.frame.p95_ms",
+      "about": "a list scrolling at the display's rate: frame p95 (floor: Linux 1.7 ms, macOS 1.6, Windows 2.0)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.rest.cpu_percent",
+      "about": "a page at rest: no frame drawn, the process's CPU as a percent of one core (floor: 0-5)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.engine-start.us",
+      "about": "the engine started, without a window (floor: 75-155 us)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.first-frame.counter.ms",
+      "about": "a counter application's first frame, the engine's time for it, release (floor: 1.05-1.15 ms)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.tap-to-commit.ms",
+      "about": "one tap, from the event to the commit (floor: 0.12 ms)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.memory.hello.private-dirty.bytes",
+      "about": "the smallest windowed application at rest: private dirty memory, and what it holds over a bare system window (floor on Linux with GL: 41.6 MiB native, 45.4 scripted; +4.9, +8.7 over the window)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.size.hello.executable.bytes",
+      "about": "the smallest application's executable, stripped (floor: Linux 21.5 MB native, 25.7 scripted; macOS 12.4, 19.8; Windows 25.3, 28.6)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.size.hello.package.bytes",
+      "about": "the smallest application's package, compressed (floor: Linux 9.7 MB native, 11.6 scripted; macOS 6.0, 9.5; Windows 10.7, 12.4)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.size.hello.app-code.bytes",
+      "about": "a scripted hello's own code, its run time shared (floor: under 1 KB)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
       ],
       "status": "planned"
     },

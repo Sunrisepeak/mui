@@ -30,18 +30,28 @@ Every metric is ours against the strongest competitor, measured on one machine i
 | xrender | `raster.web.submit-5000.ms` | — | canvaskit | — | planned |
 | xrender | `raster.wasm.bytes` | — | thorvg | — | planned |
 | xrender | `gpu.fills-1000.ms` | — | vello, graphite | — | needs a device |
-| omui | `ui.cold-start.ms` | — | slint, flutter | — | planned |
+| omui | `ui.cold-start.ms` | — | slint, flutter, nsh | — | planned |
 | omui | `web.first-paint.mobile.ms` | — | flutter-web, react-ssr | — | planned |
 | omui | `web.interactive.mobile.ms` | — | flutter-web | — | planned |
-| omui | `web.first-load.bytes` | — | flutter-web, react-ssr | — | planned |
+| omui | `web.first-load.bytes` | — | flutter-web, react-ssr, nsh | — | planned |
 | omui | `ui.list-10k.p99_ms` | — | flutter, compose | — | planned |
 | omui | `ui.memory-10k.bytes` | — | flutter | — | planned |
-| omui | `ui.input-latency.frames` | — | flutter, slint | — | needs a device |
-| omui | `ui.hot-reload.ms` | — | flutter, react-vite | — | planned |
+| omui | `ui.input-latency.frames` | — | flutter, slint, nsh | — | needs a device |
+| omui | `ui.hot-reload.ms` | — | flutter, react-vite, nsh | — | planned |
 | omui | `agent.ui-tasks.success` | — | a11y-tree-agent, screenshot-agent | — | planned |
 | omui | `agent.ui-tasks.tokens` | — | a11y-tree-agent, screenshot-agent | — | planned |
 | omui | `agent.connect.lines` | — | webmcp | — | planned |
 | omui | `agent.build-ui.success` | — | react-vite-playwright, flutter | — | planned |
+| omui | `core.live-dashboard.frame.p95_ms` | — | nsh | — | planned |
+| omui | `core.list-scroll.frame.p95_ms` | — | nsh | — | planned |
+| omui | `core.rest.cpu_percent` | — | nsh | — | planned |
+| omui | `core.engine-start.us` | — | nsh | — | planned |
+| omui | `core.first-frame.counter.ms` | — | nsh | — | planned |
+| omui | `core.tap-to-commit.ms` | — | nsh | — | planned |
+| omui | `core.memory.hello.private-dirty.bytes` | — | nsh | — | planned |
+| omui | `core.size.hello.executable.bytes` | — | nsh | — | planned |
+| omui | `core.size.hello.package.bytes` | — | nsh | — | planned |
+| omui | `core.size.hello.app-code.bytes` | — | nsh | — | planned |
 | omui.components | `components.canvas-1000.frame_ms` | — | figma-like-dom | — | planned |
 | meng | `physics.pyramid.step_ms` | — | box2d-v3, rapier | — | planned |
 | meng | `world.iterate-100k.ms` | — | bevy | — | planned |

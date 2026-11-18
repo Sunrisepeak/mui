@@ -599,6 +599,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         };
         std::map<std::string, std::string> owner_of;          // a slot → the member that declares it
         std::set<std::string>              providers;         // members that provide
+        std::set<std::string>              roots;             // members that say `root = true`
         for (const auto& member : workspace.members) {
             if (!member.data) continue;
             const auto* compose = table_at(openmui_metadata(*member.data), "compose");
@@ -619,6 +620,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                     add("compose", member.path + "/mcpp.toml", std::format("declares the slot {}, and no source of it has that id (its `mlibs::compose::Slot`)", slot));
             }
             if (!strings_of(compose, "provides").empty()) providers.insert(member.path);
+            if (compose && compose->get("root") && compose->get("root")->value_or(false)) roots.insert(member.path);
         }
         for (const auto& member : workspace.members) {
             if (!member.data) continue;
@@ -634,18 +636,46 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                 for (const auto& [_, target] : *targets) tables.push_back(table_at(target.as_table(), "dependencies"));
             if (const auto* by_feature = table_at(&*member.data, "feature-deps"))
                 for (const auto& [_, feature] : *by_feature) tables.push_back(feature.as_table());
+            // A library is a member under modules/ that is not a product: a world is an application's to choose, and
+            // features merge over the whole graph — a library depending on a root would bring its default world back.
+            const bool is_library = member.path.starts_with("modules/") && !separate.starts_with("product");
+            std::set<std::string> depended;  // the packages it depends on outside its tests, by name
             for (const auto* table : tables) {
-                if (!table || is_root) continue;
+                if (!table) continue;
                 for (const auto& [_, node] : flatten(*table)) {
                     const auto* spec = node->as_table();
                     if (!spec || !spec->get("path")) continue;
                     const std::string target = resolved(member.path, spec->get("path")->value_or(std::string{}));
-                    if (!providers.contains(target)) continue;
                     const Member* other = workspace.find(target);
-                    add("compose", member.path + "/mcpp.toml",
-                        std::format("depends on {}, a provider: only a program's root chooses providers — depend on the slot's owner, or say "
-                                    "`[package.metadata.openmui.compose] root = true`",
-                                    other && other->data ? package_name(*other->data) : target));
+                    const std::string name = other && other->data ? package_name(*other->data) : target;
+                    depended.insert(name);
+                    if (providers.contains(target) && !is_root)
+                        add("compose", member.path + "/mcpp.toml",
+                            std::format("depends on {}, a provider: only a program's root chooses providers — depend on the slot's owner, or say "
+                                        "`[package.metadata.openmui.compose] root = true`",
+                                        name));
+                    if (roots.contains(target) && is_library && !roots.contains(member.path))
+                        add("compose", member.path + "/mcpp.toml",
+                            std::format("a library depends on {}, a composition root: its world is an application's to choose (features merge "
+                                        "over the graph, and this would bring the default world back)",
+                                        name));
+                }
+            }
+            // A root's build program names the providers its unit installs (mlibs.build.compose: `.package = "…"`): each
+            // is a package this manifest depends on that says `provides`.
+            if (roots.contains(member.path)) {
+                static const std::regex named(R"(\.package\s*=\s*"([^"]+)\")");
+                const std::string program = read_text(root / path_of(member.path) / "build.mcpp").value_or("");
+                for (std::sregex_iterator found(program.begin(), program.end(), named), end; found != end; ++found) {
+                    const std::string name = (*found)[1].str();
+                    const bool provides = std::ranges::any_of(workspace.members, [&](const Member& other) {
+                        return other.data && providers.contains(other.path) && package_name(*other.data) == name;
+                    });
+                    if (!depended.contains(name))
+                        add("compose", member.path + "/build.mcpp", std::format("installs {}, which the manifest does not depend on", name));
+                    else if (!provides)
+                        add("compose", member.path + "/build.mcpp",
+                            std::format("installs {}, whose manifest says no `provides` ([package.metadata.openmui.compose])", name));
                 }
             }
             bool feature_sources = false, target_exclusion = false;

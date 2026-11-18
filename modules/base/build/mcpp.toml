@@ -24,7 +24,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 lower = ["mlibs.xdef.tool"]  # lower-labelled parts it uses, each marked in its README
 separate = "build-stage: the foundation's build plugins, below omui's (D-231)"
-primary-module = "*"  # a collection: each plugin its own module (mlibs.build.plan, .embed)
+primary-module = "*"  # a collection: each plugin its own module (mlibs.build.plan, .embed, .compose)
 kind = "rules"
 agent = { library = "build plugins: what they do is a build's edges, which the build tool reports" }
 

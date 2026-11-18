@@ -29,13 +29,19 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp"]  # generate: runtime generation (preview), module omui.generate
 
-# What an application carries (B6). `accessibility-bridge`, on by default: the platform's accessibility service
-# through AccessKit (omui.accessibility.bridge), installed before a window is made. The build program writes the
-# unit that installs it (build.mcpp: `install_services`), by this feature and the target; an application that
-# depends on this with `default-features = false` installs none and does not carry AccessKit (1.55 MB of example 01
-# on Linux). The rest are off by default.
+# What an application carries (D-220; compose design §6a). A world is a feature: `full` (the default: everything),
+# `app` (without what only development and design tools need) and `lean` (the core and pixels); each capability is
+# one additive feature a world implies. An application writes nothing and has `full`, or one line:
+#     omui.sdk = { …, default-features = false, features = ["app"] }             # a world
+#     omui.sdk = { …, default-features = false, features = ["lean", "accessibility-bridge"] }   # or its own choice
+# `omui dev` builds with `full` whatever the line says. The build program writes the unit that installs each
+# capability's provider (build.mcpp: `install_services`); one not installed is not in the program.
 [features]
-default              = ["accessibility-bridge"]
+default = ["full"]
+lean = {}
+app  = { implies = ["lean", "accessibility-bridge"] }
+full = { implies = ["app"] }
+# The platform's accessibility service through AccessKit (omui.accessibility.bridge; 1.55 MB of example 01 on Linux).
 accessibility-bridge = {}
 # SDL's HIDAPI game-controller drivers on the desktop (evdev's path stays).
 no-gamepad-hidapi = { forward = ["omui.host.sdl3/no-gamepad-hidapi"] }
@@ -83,6 +89,9 @@ sources = ["src/host/android/*.cppm", "src/host/android/*.cpp"]
 
 [target.'cfg(os = "emscripten")'.build]
 sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
+
+[build-dependencies]
+mlibs.build = { path = "../../../base/build", host-module = true }  # compose: the unit that installs (build.mcpp)
 
 # SDK startup CTS exercise the actual generated profile and AppSpec run path.
 [dev-dependencies]

@@ -89,6 +89,16 @@ struct Builder {
     int builds = 0, failed = 0;
     std::string last;  // what the last build came to
 
+    // Development is the full world (compose design §6a): whatever world the application's line names for a
+    // release, what it develops with installs everything — the command line adds features and takes none away.
+    // Only where the SDK is the application's own dependency (mcpp names a dependency's feature by it).
+    [[nodiscard]] std::vector<std::string> world() const {
+        const auto manifest = os::fs::read(project / "mcpp.toml");
+        static const std::regex sdk(R"((^|\n)\s*"?omui\.sdk"?\s*=)");
+        if (!manifest || !std::regex_search(*manifest, sdk)) return {};
+        return {"--features", "omui.sdk/full"};
+    }
+
     void collect() {
         if (!building) return;
         for (auto chunk = building->read_output_for(std::chrono::milliseconds(0)); chunk && *chunk && !(*chunk)->empty();
@@ -103,6 +113,7 @@ struct Builder {
         os::process::spawn_options options;
         options.program = "mcpp";
         options.args = {"build"};
+        std::ranges::copy(world(), std::back_inserter(options.args));
         options.cwd = project;
         auto spawned = os::process::process::spawn(options);
         if (!spawned) {
@@ -145,7 +156,9 @@ int main(int argc, char** argv) {
             .start = [builder](const std::filesystem::path& socket) {
                 os::process::spawn_options options;
                 options.program = "mcpp";
-                options.args = {"run", "-q", "--", "--present-to", os::fs::utf8(socket)};
+                options.args = {"run", "-q"};
+                std::ranges::copy(builder->world(), std::back_inserter(options.args));
+                options.args.insert(options.args.end(), {"--", "--present-to", os::fs::utf8(socket)});
                 options.cwd = builder->project;
                 options.out = options.err = os::process::stdio::inherit;
                 options.bound_lifetime = true;

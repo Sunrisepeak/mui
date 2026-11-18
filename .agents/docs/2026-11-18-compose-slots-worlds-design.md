@@ -280,6 +280,8 @@ mlibs::build::compose::report();   // 写 <out>/composition.xdef.json；必需�
 
 **K2 的结果（2026-11-18）**：声明写在清单里，`[package.metadata.openmui.compose]`：拥有者写 `slots`，提供者的包写 `provides`，不是作品的组合根（SDK）写 `root = true`。没有另立数据文件：构建程序经 `mcpp::graph_file` 拿到各包的 `[package.metadata]` 原文（V2），K3 的求值直接读它。三条 lint 合成一条 `compose`：槽只有一个拥有者、以拥有者命名、标识在它的源码里；提供者点名的槽有人声明；测试之外只有组合根依赖提供者的包；同一个清单不同时用 feature 与目标配置的排除选源文件（红灯 136）。“表不在启动时初始化”不能靠读源码查，改为 K5 矩阵里的一条实测：不安装某个提供者的构建里没有它的字节。已有声明的实例是无障碍（拥有者、提供者、SDK 三处）；字体包、帧管线、RHI 后端迁入时补。
 
+**K3 的结果（2026-11-18）**：`mlibs.build.compose` 的 `unit()` 已有，`omui.sdk` 的安装单元由它生成（一行一项能力）。三个世界是 `omui.sdk` 的 feature（`default = ["full"]`；`app`、`full` 经 `implies` 带上 `accessibility-bridge`，`lean` 不带）。例子 01（`size` 配置，装入字节数）：`full` 与 `app` 18,062 KiB，`lean` 16,468 KiB；`full` 与 `lean` 各在离屏窗口上出了第一帧。清单写 `lean`、命令行加 `--features omui.sdk/full` 时桥在程序里（1,185 个 AccessKit 符号），不加时为 0：`implies` 传到了构建程序的 `has_feature`，命令行的加法成立。`omui dev` 的开发宿主在应用直接依赖 `omui.sdk` 时加这个参数；由播放器运行的 TS 应用依赖的是 `omui.entry.player`，它的世界归 K5。lint `compose` 加了两条：库不依赖组合根；组合根的构建程序点名的包是它依赖的、写了 `provides` 的包。`app` 与 `full` 现在相同，因为可选的能力只有一项；K4 的两项进来后才分开。
+
 ## 11. 决策（提议）与任务
 
 | 编号 | 决策 |

@@ -1,3 +1,30 @@
+== mlibs.build.compose
+export import mlibs.build.plan;
+namespace mlibs::build::compose {
+  enum class Targets : std::uint8_t { all, desktop, web, android };
+  struct provider {
+    std::string feature;
+    std::string package;
+    std::string call;
+    Targets targets = Targets::all;
+  };
+  struct unit_options {
+    std::string module;
+    std::vector<std::string> imports;
+    std::string function;
+    std::vector<provider> providers;
+    std::string file = "compose_unit.cpp";
+  };
+  struct build_facts {
+    std::function<bool(std::string_view)> has_feature;
+    std::string os;
+    std::string env;
+  };
+  [[nodiscard]] bool on(Targets targets, std::string_view os, std::string_view env) noexcept;
+  [[nodiscard]] std::vector<provider> chosen(const unit_options& options, const build_facts& facts);
+  [[nodiscard]] std::string unit_text(const unit_options& options, const build_facts& facts);
+  bool unit(const unit_options& options);
+}
 == mlibs.build.embed
 export import mlibs.build.plan;
 namespace mlibs::build {

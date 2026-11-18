@@ -20,7 +20,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openlifa.openas = "0.2.0"
+openlifa.openas = "0.2.1"
 mlibs.utils = { path = "../utils" }
 
 [dev-dependencies]

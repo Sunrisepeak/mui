@@ -43,7 +43,7 @@ mlibs.control    = { path = "../../../../base/control" }
 mlibs.simulation = { path = "../../../../base/simulation" }
 mlibs.json       = { path = "../../../../base/json" }
 xengine.input    = { path = "../input" }
-openlifa.openas  = "0.2.0"
+openlifa.openas  = "0.2.1"
 
 [test]
 features = ["net"]  # tests/net_test.cpp

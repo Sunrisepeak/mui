@@ -53,7 +53,7 @@ mlibs.agent      = { path = "../../modules/base/agent" }
 mlibs.utils      = { path = "../../modules/base/utils" }
 mlibs.json       = { path = "../../modules/base/json" }
 mlibs.xdef = { path = "../../modules/base/xdef" }  # a snapshot's format checked first (D-209)
-openlifa.openas  = "0.2.0"
+openlifa.openas  = "0.2.1"
 
 [build-dependencies]
 omui.build = { path = "../../mcpp/build", host-module = true }

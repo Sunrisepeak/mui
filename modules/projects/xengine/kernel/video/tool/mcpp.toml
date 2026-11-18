@@ -34,7 +34,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 mlibs.agent      = { path = "../../../../../base/agent" }
 mlibs.image      = { path = "../../../../../base/image" }
 mlibs.xdef.tool  = { path = "../../../../../base/xdef/tool" }
-openlifa.openas  = "0.2.0"
+openlifa.openas  = "0.2.1"
 xengine.video    = { path = ".." }
 "xengine.video.webm" = { path = "../webm" }
 xengine.audio    = { path = "../../audio" }

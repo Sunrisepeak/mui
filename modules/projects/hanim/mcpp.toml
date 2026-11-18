@@ -66,7 +66,7 @@ mlibs.control = { path = "../../base/control" }
 mlibs.agent     = { path = "../../base/agent" }
 mlibs.json      = { path = "../../base/json" }
 mlibs.utils     = { path = "../../base/utils" }
-openlifa.openas = "0.2.0"
+openlifa.openas = "0.2.1"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

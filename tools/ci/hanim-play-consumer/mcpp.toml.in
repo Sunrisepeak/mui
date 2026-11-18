@@ -19,7 +19,7 @@ xrender.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }
 mlibs.utils = { path = {{utils_path}} }
 mlibs.control = { path = {{control_path}} }
-openlifa.openas = "0.2.0"
+openlifa.openas = "0.2.1"
 mcpplibs.os = "0.4.4"
 nlohmann.json = "3.12.0"
 mcpplibs.cmdline = "0.0.3"

@@ -28,7 +28,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 [dependencies]
 mlibs.agent             = { path = "../../../base/agent" }
 mlibs.image             = { path = "../../../base/image" }
-openlifa.openas         = "0.2.0"
+openlifa.openas         = "0.2.1"
 hanim.timeline          = { path = "../../hanim/timeline" }
 xengine.audio           = { path = "../../xengine/kernel/audio" }
 "xengine.audio.timeline" = { path = "../../xengine/kernel/audio/timeline" }

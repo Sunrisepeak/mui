@@ -69,7 +69,7 @@ mlibs.simulation = { path = "../../../../base/simulation" }
 mlibs.agent      = { path = "../../../../base/agent" }
 mlibs.control    = { path = "../../../../base/control" }
 mlibs.json       = { path = "../../../../base/json" }
-openlifa.openas  = "0.2.0"
+openlifa.openas  = "0.2.1"
 
 [feature-deps.matter]
 xengine.matter = { path = "../matter", default-features = false }

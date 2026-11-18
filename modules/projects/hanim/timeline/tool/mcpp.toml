@@ -34,7 +34,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 # The command is the subject `timeline` behind the tool kernel's entries (mlibs.agent:host, T0).
 mlibs.agent      = { path = "../../../../base/agent" }
 mlibs.json       = { path = "../../../../base/json" }
-openlifa.openas  = "0.2.0"
+openlifa.openas  = "0.2.1"
 hanim.timeline   = { path = ".." }
 mlibs.utils      = { path = "../../../../base/utils" }
 mcpplibs.os      = "0.4.4"

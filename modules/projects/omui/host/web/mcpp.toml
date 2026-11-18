@@ -60,7 +60,7 @@ mlibs.text     = { path = "../../../../content/text" }
 mlibs.utils    = { path = "../../../../base/utils" }
 mlibs.image    = { path = "../../../../base/image" }
 mcpplibs.os      = "0.4.4"
-openlifa.openas  = "0.2.0"  # src/toy: Toy's errors in openas's words
+openlifa.openas  = "0.2.1"  # src/toy: Toy's errors in openas's words
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

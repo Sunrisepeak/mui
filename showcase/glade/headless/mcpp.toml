@@ -43,4 +43,4 @@ mlibs.utils       = { path = "../../../modules/base/utils" }
 mcpplibs.mtest  = "0.8.4"
 mlibs.agent     = { path = "../../../modules/base/agent" }
 mlibs.json      = { path = "../../../modules/base/json" }
-openlifa.openas = "0.2.0"
+openlifa.openas = "0.2.1"

@@ -492,7 +492,7 @@ Outcome hanim_play(Probe& probe, const fs::path& openas) {
         for (std::size_t at = manifest.find(mark); at != std::string::npos; at = manifest.find(mark, at + value.size())) manifest.replace(at, mark.size(), value);
     }
     if (!openas.empty()) {
-        const std::string published = "openlifa.openas = \"0.2.0\"";
+        const std::string published = "openlifa.openas = \"0.2.1\"";
         if (const auto at = manifest.find(published); at != std::string::npos)
             manifest.replace(at, published.size(), "openlifa.openas = { path = " + json(text_of(openas)).dump() + " }");
     }

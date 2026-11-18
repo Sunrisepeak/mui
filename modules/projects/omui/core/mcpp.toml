@@ -39,7 +39,7 @@ hanim.core            = { path = "../../hanim/core" }
 mlibs.geom     = { path = "../../../base/geom" }
 mlibs.memory   = { path = "../../../base/memory" }
 mlibs.json     = { path = "../../../base/json" }
-openlifa.openas        = "0.2.0"
+openlifa.openas        = "0.2.1"
 nlohmann.json          = "3.12.0"
 taskflow.taskflow      = "4.1.0"
 mcpplibs.mwrap.concurrentqueue = "1.0.5"

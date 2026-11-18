@@ -43,4 +43,4 @@ agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
 mlibs.agent     = { path = "../../../../base/agent" }
 mlibs.control   = { path = "../../../../base/control" }
 mlibs.json      = { path = "../../../../base/json" }
-openlifa.openas = "0.2.0"
+openlifa.openas = "0.2.1"

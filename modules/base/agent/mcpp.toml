@@ -42,7 +42,7 @@ mlibs.utils   = { path = "../utils" }
 mlibs.json    = { path = "../json" }
 # Authority: every request of a subject is decided there first (openas).
 mlibs.control = { path = "../control" }
-openlifa.openas = "0.2.0"
+openlifa.openas = "0.2.1"
 mcpplibs.os   = "0.4.4"
 
 [test]

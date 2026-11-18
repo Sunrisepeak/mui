@@ -41,7 +41,7 @@ mlibs.agent    = { path = "../../../base/agent" }
 mlibs.json     = { path = "../../../base/json" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.utils    = { path = "../../../base/utils" }
-openlifa.openas = "0.2.0"
+openlifa.openas = "0.2.1"
 mcpplibs.os    = "0.4.4"
 nlohmann.json  = "3.12.0"
 

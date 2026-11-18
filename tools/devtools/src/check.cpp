@@ -76,12 +76,12 @@ int size(const fs::path& root, const Size& asked) {
     fs::path wasm = program->path;
     wasm.replace_extension(".wasm");
     const fs::path report = asked.json.empty() ? root / "target" / (asked.package + ".wasm-size.json") : asked.json;
-    std::vector<std::string> gen{"run", "-p", "omui.gen", "omui-gen", "--", "wasm-size", mcpplibs::os::fs::utf8(wasm), "--json", mcpplibs::os::fs::utf8(report),
+    std::vector<std::string> gen{"run", "-p", "omui.gen", "omui-gen", "--", "size", mcpplibs::os::fs::utf8(wasm), "--json", mcpplibs::os::fs::utf8(report),
                                  "--top", "40"};
     if (!asked.markdown.empty()) gen.insert(gen.end(), {"--markdown", mcpplibs::os::fs::utf8(asked.markdown)});
     if (const auto [status, said] = mcpp(root, gen); status != 0) {
         std::cout << said;
-        return failed("omui-gen wasm-size failed");
+        return failed("omui-gen size failed");
     }
     const auto measured_report = json::parse(mcpplibs::os::fs::read(report).value_or(""), nullptr, false);
     if (measured_report.is_discarded()) return failed("the size report is not JSON");

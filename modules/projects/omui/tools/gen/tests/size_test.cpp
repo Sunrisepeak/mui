@@ -1,9 +1,11 @@
-// omui-gen's wasm size: a WebAssembly binary's sections, its code by owner
-// (a module, a namespace, a C library) from its name section, its largest
-// functions — on a binary made here, byte by byte; and symbols' owners.
+// omui-gen's size: a WebAssembly binary's sections, its code by owner (a
+// module, a namespace, a C library) from its name section, its largest
+// functions — on a binary made here, byte by byte; symbols' owners; and an
+// ELF program's, this test's own (B3).
 import std;
-import omui.gen.wasm_size;
+import omui.gen.size;
 import mcpplibs.mtest;
+import mcpplibs.os;
 
 using namespace mcpplibs::mtest;
 using namespace omui;
@@ -61,7 +63,7 @@ std::vector<std::uint8_t> program() {
 
 }  // namespace
 
-UTest cases{"gen.wasm_size", [] {
+UTest cases{"gen.size", [] {
 
     "a symbol's owner: the module it is attached to, else its namespaces, else a C library by its prefix"_test = [] {
         expect(eq(gen::owner_of("_ZNW7openmuiW4view4omui7Runtime5frameEv"), std::string("openmui.view")));
@@ -105,5 +107,25 @@ UTest cases{"gen.wasm_size", [] {
         auto cut = w;
         cut.resize(cut.size() - 10);
         expect(!gen::wasm_size(cut).has_value()) << "cut short";
+    };
+
+    "an ELF program: what it loads, by owner from its symbol table (this test itself, where it is ELF)"_test = [] {
+        const auto image = mcpplibs::os::env::image();
+        if (!image) return;
+        std::ifstream in(*image, std::ios::binary);
+        const std::vector<std::uint8_t> self((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        if (self.size() < 4 || self[0] != 0x7f || self[1] != 'E') return;  // not Linux: Mach-O and PE are not read yet
+        auto r = gen::program_size(self, 10);
+        expect(fatal(r.has_value())) << (r ? "" : r.error());
+        expect(r->shipped > 0 && r->code > 0 && r->shipped <= r->total && r->code + r->data == r->shipped);
+        expect(std::ranges::any_of(r->sections, [](const gen::SizeEntry& s) { return s.name == ".text"; })) << "its sections by name";
+        // A stripped program (CI's profile) has its sections only; one that keeps its symbols, its owners.
+        if (std::ranges::any_of(r->sections, [](const gen::SizeEntry& s) { return s.name == ".symtab"; })) {
+            expect(std::ranges::any_of(r->owners, [](const gen::SizeEntry& o) { return o.name == "omui.gen.size"; })) << gen::to_markdown(*r, 15);
+            expect(r->largest.size() == 10 && r->largest[0].bytes >= r->largest[9].bytes);
+        } else {
+            expect(r->functions == 0 && r->owners.empty());
+        }
+        expect(!gen::elf_size(std::vector<std::uint8_t>{0x7f, 'E', 'L', 'F'}).has_value()) << "cut short";
     };
 }};

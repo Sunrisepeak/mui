@@ -10,7 +10,7 @@
 //           before anything compiles: both files provide the partition `omui.features:sink`.
 // size      where a page's WebAssembly bytes go (W8, Q-38; the foundation plan's M6.3 budget): a package built for
 //           wasm32-emscripten as a release is (-O2, the wasm-size profile: its functions' names kept, left out of
-//           the count), `omui-gen wasm-size` over it — sections, code by owner, largest functions — and, given a
+//           the count), `omui-gen size` over it — sections, code by owner, largest functions — and, given a
 //           budget (<name>.budget.xdef.json), its bytes held to it.
 // templates the templates (component-binding §10.1), rendered as `mcpp new --template` renders a published one
 //           ({{var}} in *.in files, the suffix dropped; until omui is in mcpp-index), their omui dependencies

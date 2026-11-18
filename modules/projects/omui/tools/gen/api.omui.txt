@@ -325,29 +325,31 @@ namespace omui::gen {
   [[nodiscard]] std::vector<Contract> read_contracts(const std::filesystem::path& file, const Registry& registry, Diagnostics& diags);
   [[nodiscard]] std::vector<NativeModule> read_natives(const std::filesystem::path& file, const Registry& registry, Diagnostics& diags);
 }
-== omui.gen.unicode
+== omui.gen.size
 namespace omui::gen {
-  [[nodiscard]] std::expected<std::string, std::string> emit_unicode_tables(const std::filesystem::path& ucd, std::string_view version);
-  [[nodiscard]] std::expected<std::string, std::string> unicode_test_subset(const std::filesystem::path& file, int step);
-}
-== omui.gen.wasm_size
-namespace omui::gen {
-  struct WasmSizeEntry {
+  struct SizeEntry {
     std::string name;
     std::size_t bytes = 0;
     std::size_t functions = 0;
   };
-  struct WasmSizeReport {
+  struct SizeReport {
     std::size_t total = 0;
     std::size_t shipped = 0;
-    std::vector<WasmSizeEntry> sections;
+    std::vector<SizeEntry> sections;
     std::size_t code = 0, data = 0;
     std::size_t functions = 0, named = 0;
-    std::vector<WasmSizeEntry> owners;
-    std::vector<WasmSizeEntry> largest;
+    std::vector<SizeEntry> owners;
+    std::vector<SizeEntry> largest;
   };
-  [[nodiscard]] std::expected<WasmSizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top = 40);
+  [[nodiscard]] std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top = 40);
+  [[nodiscard]] std::expected<SizeReport, std::string> elf_size(std::span<const std::uint8_t> elf, std::size_t top = 40);
+  [[nodiscard]] std::expected<SizeReport, std::string> program_size(std::span<const std::uint8_t> program, std::size_t top = 40);
   [[nodiscard]] std::string owner_of(std::string_view symbol, int depth = 2);
-  [[nodiscard]] std::string to_json(const WasmSizeReport& report);
-  [[nodiscard]] std::string to_markdown(const WasmSizeReport& report, std::size_t owners = 40);
+  [[nodiscard]] std::string to_json(const SizeReport& report);
+  [[nodiscard]] std::string to_markdown(const SizeReport& report, std::size_t owners = 40);
+}
+== omui.gen.unicode
+namespace omui::gen {
+  [[nodiscard]] std::expected<std::string, std::string> emit_unicode_tables(const std::filesystem::path& ucd, std::string_view version);
+  [[nodiscard]] std::expected<std::string, std::string> unicode_test_subset(const std::filesystem::path& file, int step);
 }

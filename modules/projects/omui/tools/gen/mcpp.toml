@@ -36,6 +36,7 @@ nlohmann.json       = "3.12.0"
 mcpplibs.cmdline    = "0.0.3"
 
 [dev-dependencies]
+mcpplibs.os = "0.4.4"  # the test program's own image (size_test)
 mcpplibs.mtest = "0.8.4"
 xrender.text = { path = "../../../xrender/text" }
 mlibs.text    = { path = "../../../../content/text" }

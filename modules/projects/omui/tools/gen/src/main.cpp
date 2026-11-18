@@ -32,10 +32,10 @@
 //   omui-gen dist-toy-split <package dir> --primary <wasm> --deferred <wasm> [--lazy <route>,…]
 //       a packed page's program cut in two by wasm-split (omui-devtools site split):
 //       the first screen's half first, the rest compiled after it
-//   omui-gen wasm-size <file.wasm> [--json <out.json>] [--markdown <out.md>] [--top N]
-//       where a WebAssembly program's bytes go: its sections, its code by owner
-//       (module, namespace, C library) and its largest functions (W8;
-//       openmui.gen.wasm_size — names from an analysis build's name section)
+//   omui-gen size <program: .wasm or ELF> [--json <out.json>] [--markdown <out.md>] [--top N]
+//       where a program's bytes go (WebAssembly or ELF): its sections, its code
+//       by owner (module, namespace, C library) and its largest symbols (W8, B3;
+//       omui.gen.size — names from a name section or a symbol table)
 //       openmui.i18n's locale packs (*.locale.xdef.json) and likely subtags
 //       openmui.unicode's tables (and a subset of the UCD's conformance tests)
 //
@@ -50,7 +50,7 @@ import omui.gen.emit;
 import omui.gen.unicode;
 import omui.gen.cldr;
 import omui.gen.dist_toy;
-import omui.gen.wasm_size;
+import omui.gen.size;
 import omui.gen.data;
 import mlibs.xdef.tool;
 
@@ -406,19 +406,19 @@ int run_contracts(const Options& o, bool emit) {
 
 }  // namespace
 
-// omui-gen wasm-size: the report on stdout (Markdown), and as files when asked.
-int wasm_size_main(const mcpplibs::cmdline::ParsedArgs& args) {
+// omui-gen size: the report on stdout (Markdown), and as files when asked.
+int size_main(const mcpplibs::cmdline::ParsedArgs& args) {
     const std::string file = args.positional(0), json = args.value("json").value_or(""), markdown = args.value("markdown").value_or("");
     const std::size_t top = args.value_as<std::size_t>("top").value_or(40);
     std::ifstream in(std::filesystem::path(file), std::ios::binary);
     if (!in) {
-        std::println(std::cerr, "omui-gen wasm-size: cannot read {}", file);
+        std::println(std::cerr, "omui-gen size: cannot read {}", file);
         return 1;
     }
     const std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    auto r = omui::gen::wasm_size(bytes, top);
+    auto r = omui::gen::program_size(bytes, top);
     if (!r) {
-        std::println(std::cerr, "omui-gen wasm-size: {}: {}", file, r.error());
+        std::println(std::cerr, "omui-gen size: {}: {}", file, r.error());
         return 1;
     }
     auto write = [](const std::string& path, const std::string& text) {
@@ -514,9 +514,9 @@ mcpplibs::cmdline::App command_line() {
                         .option(Option("primary").takes_value().value_name("WASM").help("wasm-split's first half"))
                         .option(Option("deferred").takes_value().value_name("WASM").help("its second"))
                         .option(Option("lazy").takes_value().value_name("ROUTE,…").help("the routes whose first screen the first half covers")))
-        .subcommand(App("wasm-size")
-                        .description("where a WebAssembly program's bytes go: its sections, its code by owner, its largest functions")
-                        .arg(Arg("file").required().help("FILE.wasm"))
+        .subcommand(App("size")
+                        .description("where a program's bytes go (WebAssembly or ELF): its sections, its code by owner, its largest symbols")
+                        .arg(Arg("file").required().help("FILE: .wasm or an ELF program"))
                         .option(Option("json").takes_value().value_name("FILE").help("also as JSON"))
                         .option(Option("markdown").takes_value().value_name("FILE").help("also as Markdown"))
                         .option(Option("top").value_type<std::size_t>().help("the largest N functions (default 40)")));
@@ -537,7 +537,7 @@ int main(int argc, char** argv) {
     const mcpplibs::cmdline::ParsedArgs& args = parsed->subcommand()->get();
     if (command == "dist-toy") return dist_toy_main(args);
     if (command == "dist-toy-split") return dist_toy_split_main(args);
-    if (command == "wasm-size") return wasm_size_main(args);
+    if (command == "size") return size_main(args);
     auto options = options_of(command, args);
     if (!options) return usage();
     if (options->command == "registry") return run_registry(*options);

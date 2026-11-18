@@ -1,5 +1,5 @@
 // Reading a WebAssembly binary's sections, code bodies and name section.
-module omui.gen.wasm_size;
+module omui.gen.size;
 
 import std;
 
@@ -178,10 +178,10 @@ std::string owner_of(std::string_view s, int depth) {
     return scope.empty() ? std::string("(unknown)") : scope;
 }
 
-std::expected<WasmSizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top) {
+std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top) {
     if (wasm.size() < 8 || !std::equal(wasm.begin(), wasm.begin() + 4, std::array<std::uint8_t, 4>{0x00, 0x61, 0x73, 0x6d}.begin()))
         return std::unexpected("not a WebAssembly binary (no \\0asm)");
-    WasmSizeReport r;
+    SizeReport r;
     r.total = wasm.size();
     r.shipped = 8;
     Reader in{wasm, 8};
@@ -242,14 +242,14 @@ std::expected<WasmSizeReport, std::string> wasm_size(std::span<const std::uint8_
         }
         if (!sec.ok) return std::unexpected(std::format("the {} section cannot be read", name));
         if (id != 0) r.shipped += start + size - begin;  // its id, its size and its bytes
-        auto it = std::ranges::find(r.sections, name, &WasmSizeEntry::name);
+        auto it = std::ranges::find(r.sections, name, &SizeEntry::name);
         if (it == r.sections.end()) r.sections.push_back({name, size, 0});
         else it->bytes += size;
         in.at = start + size;
     }
     r.functions = bodies.size();
-    std::map<std::string, WasmSizeEntry> owners;
-    std::vector<WasmSizeEntry> each;
+    std::map<std::string, SizeEntry> owners;
+    std::vector<SizeEntry> each;
     for (std::size_t k = 0; k < bodies.size(); ++k) {
         const auto it = names.find(imported_functions + k);
         const std::string name = it == names.end() ? std::format("(function {})", imported_functions + k) : it->second;
@@ -262,16 +262,16 @@ std::expected<WasmSizeReport, std::string> wasm_size(std::span<const std::uint8_
         each.push_back({name, bodies[k], 1});
     }
     for (auto& [_, o] : owners) r.owners.push_back(std::move(o));
-    std::ranges::sort(r.owners, std::greater{}, &WasmSizeEntry::bytes);
-    std::ranges::sort(each, std::greater{}, &WasmSizeEntry::bytes);
+    std::ranges::sort(r.owners, std::greater{}, &SizeEntry::bytes);
+    std::ranges::sort(each, std::greater{}, &SizeEntry::bytes);
     each.resize(std::min(each.size(), top));
     r.largest = std::move(each);
-    std::ranges::sort(r.sections, std::greater{}, &WasmSizeEntry::bytes);
+    std::ranges::sort(r.sections, std::greater{}, &SizeEntry::bytes);
     return r;
 }
 
-std::string to_json(const WasmSizeReport& r) {
-    auto list = [](const std::vector<WasmSizeEntry>& v, bool functions) {
+std::string to_json(const SizeReport& r) {
+    auto list = [](const std::vector<SizeEntry>& v, bool functions) {
         std::string out = "[";
         for (std::size_t i = 0; i < v.size(); ++i) {
             out += std::format("{}{{\"name\":\"{}\",\"bytes\":{}", i ? "," : "", escape(v[i].name), v[i].bytes);
@@ -284,7 +284,7 @@ std::string to_json(const WasmSizeReport& r) {
                        r.total, r.shipped, r.code, r.data, r.functions, r.named, list(r.sections, false), list(r.owners, true), list(r.largest, false));
 }
 
-std::string to_markdown(const WasmSizeReport& r, std::size_t owners) {
+std::string to_markdown(const SizeReport& r, std::size_t owners) {
     auto kib = [](std::size_t b) { return std::format("{:.1f} KiB", static_cast<double>(b) / 1024.0); };
     auto share = [&](std::size_t b) { return r.code ? std::format("{:.1f}%", 100.0 * static_cast<double>(b) / static_cast<double>(r.code)) : std::string("-"); };
     std::string out = std::format("**{}** shipped ({} in the file): code {}, data {}; {} functions, {} named.\n\n", kib(r.shipped), kib(r.total), kib(r.code),

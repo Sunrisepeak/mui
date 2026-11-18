@@ -242,6 +242,15 @@ opt     = 2
 debug   = false
 ldflags = ["--profiling-funcs"]
 
+# A program's bytes, looked into (B3; omui-devtools check size --native): dist's code (-O3, NDEBUG, trimmed paths)
+# with its symbol table kept, for `omui-gen size` to say which owner each byte is; dist strips it.
+[workspace.profile.size]
+opt        = 3
+debug      = false
+strip      = false
+ndebug     = true
+trim_paths = true
+
 # The shipped Emscripten website uses LLVM -Oz for size; the normal native
 # release profile remains available for performance checks.
 # Delivery and interactive frame budgets are both checked in Chromium.

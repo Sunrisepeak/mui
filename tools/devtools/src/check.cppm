@@ -86,6 +86,7 @@ struct Size {
     std::filesystem::path json;      // the report (default: target/<package>.wasm-size.json)
     std::filesystem::path markdown;  // and as a table, when asked
     std::filesystem::path budget;    // the budgets, when it has them
+    bool native = false;             // this machine's program (the size profile: dist's code, its symbols kept), not the Web's
 };
 
 [[nodiscard]] int features(const std::filesystem::path& root);

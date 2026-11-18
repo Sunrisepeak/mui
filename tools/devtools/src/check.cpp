@@ -67,7 +67,48 @@ std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>&
     return out;
 }
 
+namespace {
+
+// A program built for this machine as dist builds it, its symbol table kept (the size profile): `omui-gen size` says
+// what it loads and which owner each byte is (B3).
+int native_size(const fs::path& root, const Size& asked) {
+    const auto built = run::build(root, {"-p", asked.package, "--profile", "size"});
+    if (!built) return failed(std::format("{} did not build in the size profile: {}", asked.package, built.error()));
+    const auto program = std::ranges::find_if(*built, [](const run::Artifact& artifact) { return artifact.kind == "bin"; });
+    if (program == built->end()) return failed(std::format("{}'s build reported no program", asked.package));
+    const fs::path report = asked.json.empty() ? root / "target" / (asked.package + ".size.json") : asked.json;
+    std::vector<std::string> gen{"run", "-p", "omui.gen", "omui-gen", "--", "size", mcpplibs::os::fs::utf8(program->path), "--json",
+                                 mcpplibs::os::fs::utf8(report), "--top", "40"};
+    if (!asked.markdown.empty()) gen.insert(gen.end(), {"--markdown", mcpplibs::os::fs::utf8(asked.markdown)});
+    if (const auto [status, said] = mcpp(root, gen); status != 0) {
+        std::cout << said;
+        return failed("omui-gen size failed");
+    }
+    const auto measured_report = json::parse(mcpplibs::os::fs::read(report).value_or(""), nullptr, false);
+    if (measured_report.is_discarded()) return failed("the size report is not JSON");
+    const std::map<std::string, std::uint64_t> measured{{"program.shipped", measured_report.value("shipped", std::uint64_t{0})},
+                                                        {"program.code", measured_report.value("code", std::uint64_t{0})},
+                                                        {"program.data", measured_report.value("data", std::uint64_t{0})}};
+    const double shipped = std::max<double>(1.0, static_cast<double>(measured.at("program.shipped")));
+    std::cout << std::format("{}: {} loaded — code {}, data {}; {} symbols\n", asked.package, kib(measured.at("program.shipped")),
+                             kib(measured.at("program.code")), kib(measured.at("program.data")), measured_report.value("functions", 0));
+    int listed = 0;
+    for (const auto& owner : measured_report.value("owners", json::array())) {
+        if (listed++ == 15) break;
+        const auto bytes = owner.value("bytes", std::uint64_t{0});
+        std::cout << std::format("  {:>9}  {:4.1f}%  {}\n", kib(bytes), 100.0 * static_cast<double>(bytes) / shipped, owner.value("name", ""));
+    }
+    if (asked.budget.empty()) return 0;
+    const auto over = over_budget(measured, mcpplibs::os::fs::read(root / asked.budget).value_or(""));
+    for (const auto& message : over) std::cout << "::error::" << message << '\n';
+    if (over.empty()) std::cout << std::format("ok   within {}\n", mcpplibs::os::fs::generic_utf8(asked.budget));
+    return over.empty() ? 0 : 1;
+}
+
+}  // namespace
+
 int size(const fs::path& root, const Size& asked) {
+    if (asked.native) return native_size(root, asked);
     std::vector<std::string> args{"-p", asked.package, "--target", "wasm32-emscripten", "--profile", "wasm-size"};
     const auto built = run::build(root, std::move(args));
     if (!built) return failed(std::format("{} did not build for the Web with its names kept: {}", asked.package, built.error()));

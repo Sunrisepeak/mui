@@ -1,0 +1,10 @@
+{
+  "about": "What the smallest desktop application loads (B3; omui-devtools check size --native): example 01 built as dist builds it (-O3, NDEBUG) with its symbol table kept, the allocated sections of its program counted (.bss and the symbols left out). Bytes.",
+  "budgets": [
+    {
+      "metric": "program.shipped",
+      "max": 18500000,
+      "why": "18,473,342 B (2026-11-18, GCC 16 on Linux x64): code 14,430,530, data 4,042,812 — std 10.5%, SDL 7.9%, omui.ui.base 7.5%, omui.view 5.4%, xrender's shaders 3.4%, FreeType 2.1%. The plan's bound after B1 (unreached code not linked: 26.7 MB before); B5, B6 and B8 bring it down (app ≤ 8 MB, lean ≤ 6 MB), the bound with them"
+    }
+  ]
+}

@@ -278,7 +278,8 @@ cmd::App app() {
                         .description("CI's acceptance steps: each builds what it needs, runs it and holds the result")
                         .subcommand(cmd::App("features").description("M0 ⑤: a feature selects one of two exclusive sources; both at once is refused"))
                         .subcommand(cmd::App("size")
-                                        .description("A package's WebAssembly bytes as a release ships them, by owner; held to a budget when given")
+                                        .description("A package's WebAssembly bytes as a release ships them (or, --native, this machine's program as dist builds it), by owner; held to a budget when given")
+                                        .option(Option("native").help("this machine's program in the size profile (dist's code, its symbols kept), not the Web's"))
                                         .option(Option("package").short_name('p').takes_value().value_name("MEMBER").help("the program's package"))
                                         .option(Option("json").takes_value().value_name("FILE").help("the report (default: target/<package>.wasm-size.json)"))
                                         .option(Option("markdown").takes_value().value_name("FILE").help("the report as a table"))
@@ -1254,6 +1255,7 @@ int main(int argc, char** argv) {
             asked.package = *given.value("package");
             asked.json = mcpplibs::os::fs::from_utf8(given.value("json").value_or(""));
             asked.markdown = mcpplibs::os::fs::from_utf8(given.value("markdown").value_or(""));
+            asked.native = given.is_flag_set("native");
             asked.budget = mcpplibs::os::fs::from_utf8(given.value("budget").value_or(""));
             return step::size(root, asked);
         }

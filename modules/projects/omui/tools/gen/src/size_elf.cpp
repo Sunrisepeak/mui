@@ -74,7 +74,7 @@ std::expected<SizeReport, std::string> elf_size(std::span<const std::uint8_t> el
             if (!name || !info || !index || !size || *size == 0 || *index == 0 || *index >= sections.size()) continue;
             const int kind = *info & 0xf;  // 1 an object, 2 a function
             if (kind != 1 && kind != 2) continue;
-            if (!(sections[*index].flags & allocated)) continue;
+            if (!(sections[*index].flags & allocated) || sections[*index].type == no_bits) continue;  // in memory, not in the file
             const std::string_view symbol_name = string_at(strings, *name);
             ++report.functions;
             if (!symbol_name.empty()) ++report.named;

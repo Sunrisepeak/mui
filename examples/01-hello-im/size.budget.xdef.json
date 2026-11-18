@@ -3,8 +3,8 @@
   "budgets": [
     {
       "metric": "program.shipped",
-      "max": 18500000,
-      "why": "18,473,342 B (2026-11-18, GCC 16 on Linux x64): code 14,430,530, data 4,042,812 — std 10.5%, SDL 7.9%, omui.ui.base 7.5%, omui.view 5.4%, xrender's shaders 3.4%, FreeType 2.1%. The plan's bound after B1 (unreached code not linked: 26.7 MB before); B5, B6 and B8 bring it down (app ≤ 8 MB, lean ≤ 6 MB), the bound with them"
+      "max": 18530000,
+      "why": "18,519,893 B (2026-11-18, GCC 16 on Linux x64, the world `full`). It was 18,473,342 B before the program could be composed: the 46 KB more is what being able to leave things out costs the default — mlibs.compose's run time (about 10 KiB) and three seams (the accessibility service, the GPU path with effects, the agent surface; 6–11 KB each) — accepted in review; `lean` is 15,178 KiB for it. Code 14.1 MB, data 4.0 MB — std 10.7%, SDL 7.9%, omui.ui.base 7.6%, omui.view 5.7%. The plan's bound after B1 (unreached code not linked: 26.7 MB before); what brings it down is in the compose design §13.2"
     }
   ],
   "installs": ["omui.accessibility.bridge", "omui.agent", "omui.host.sdl3.gpu"],

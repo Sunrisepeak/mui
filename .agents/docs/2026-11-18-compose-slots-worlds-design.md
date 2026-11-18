@@ -1,6 +1,6 @@
 # compose：组合、扩展与裁剪的通用框架（子方案，D-238–D-246 提议）
 
-2026-11-18 起草，**第二版**（§6a：构建一侧全部落在 mcpp 已有的能力上；世界就是组合根的 feature）；2026-11-18 review 通过三点（准入线 100 KiB、名字 compose 与 `mlibs.compose`、K0–K5 替换 B6 余下部分与 B7、B8 的做法），开始实施。基线：`e278b0e6`（PR #1）。compose 是内部代号。它是[顶层设计](2026-11-18-omui-meng-top-level-design.md) D-220（分级、可选、默认最好）、D-212／D-213（闭包由声明推出）与 D-221（三种取得方式）的机制一层；实施上它替换[实施方案](2026-11-18-omui-meng-implementation-plan.md)里 B6 余下的部分、B7 与 B8 的做法，任务的验收不变。
+2026-11-18 起草，**第三版**（§6a：构建一侧全部落在 mcpp 已有的能力上，世界就是组合根的 feature；§13：可配置的三层、能力清单、拆分与规划）；2026-11-18 review 通过三点（准入线 100 KiB、名字 compose 与 `mlibs.compose`、K0–K5 替换 B6 余下部分与 B7、B8 的做法），开始实施。基线：`e278b0e6`（PR #1）。compose 是内部代号。它是[顶层设计](2026-11-18-omui-meng-top-level-design.md) D-220（分级、可选、默认最好）、D-212／D-213（闭包由声明推出）与 D-221（三种取得方式）的机制一层；实施上它替换[实施方案](2026-11-18-omui-meng-implementation-plan.md)里 B6 余下的部分、B7 与 B8 的做法，任务的验收不变。
 
 ## 1. 问题
 
@@ -320,7 +320,7 @@ mlibs::build::compose::report();   // 写 <out>/composition.xdef.json；必需�
 | D-245 | 准入线：新的槽或提供者省下 ≥ 100 KiB，或隔离一项依赖、许可、平台 |
 | D-246 | 各项目用自己的标识，底下一份数据；外来的提供者没有环境权限，合格以拥有者的 CTS 为准 |
 
-任务（替换 B6 余下部分、B7、B8 的做法；估计的单位是检查点）：
+任务（替换 B6 余下部分、B7、B8 的做法；估计的单位是检查点）。K0–K3 已完成；K4 之后的拆分以 §13.4 为准：
 
 | 任务 | 内容 | 依赖 | 验收 | 估计 |
 |---|---|---|---|---|
@@ -335,7 +335,75 @@ mlibs::build::compose::report();   // 写 <out>/composition.xdef.json；必需�
 
 **已定（2026-11-18）**：准入线取 100 KiB；名字 compose 与 `mlibs.compose`；K0–K5 替换 B6 余下部分与 B7、B8 的做法。
 
-## 12. 出处
+## 13. 收口：可配置的三层、能力清单、拆分与规划（第三版，2026-11-18）
+
+review 的两点结论：例子 01 的预算按可裁剪的代价调到实测值（红灯 138 关闭）；SDL 的加速 2D 渲染驱动做成开关而不是替所有人选一种。由此定下的总原则：**框架给选择，不替应用决定**——每一项可以不带的东西都有名字、有默认、能单独开关，世界只是方便的起点。
+
+### 13.1 可配置的三层
+
+应用在一行依赖上能做三种粒度的选择，三种可以混用：
+
+| 层 | 写法 | 含义 |
+|---|---|---|
+| 世界 | `features = ["app"]` | 一条包含链：`lean` ⊂ `app` ⊂ `full`（默认）。只做加法，上一级 `implies` 下一级 |
+| 能力 | `features = ["lean", "agent"]` | 在某个世界之上再加某几项；每项能力是组合根的一个加法的 feature |
+| 削减 | `features = ["lean", "no-gamepad-hidapi", "software-present"]` | 第三方库内部的开关：只减不加，所以不进包含链（进了就会沿 `implies` 传到 `full`）；应用按需点名，或用 `minimal`——`lean` 加上全部削减，不被任何世界包含 |
+
+- 默认什么都不写就是 `full`：D-220 的“默认最好”。
+- 开发永远全量：`omui dev` 在命令行加 `full`。削减类的开关是减法，命令行抵消不了，所以**削减只应出现在发布用的清单行里**；这一条写进 `omui.sdk` 的 README，K8 的推导生成清单行时遵守。
+- 为什么削减是减法：`compat.*` 的包被别的包（`mcpplibs.mwrap.*`）带着默认 feature 依赖，feature 在整张图上合并，正向的默认关不掉；所以第三方库内部只能用 `no-*`（D-242 的例外），组合根原样转发。
+
+### 13.2 能力清单（omui，窗口应用；例子 01、Linux x64、`size` 配置的实测）
+
+| 能力 | 做法（§6a.5） | 组合根的 feature | 世界 | 实测或估计 | 状态 |
+|---|---|---|---|---|---|
+| 无障碍的平台服务 | 提供者的包（AccessKit） | `accessibility-bridge` | `app`、`full` | 1,594 KiB | 已做（K0） |
+| GPU 路径与效果 | 提供者的包（SDL_GPU、渲染器、效果库） | `gpu` | `app`、`full` | 1,293 KiB | 已做（K4） |
+| Agent 面：端点、截图 | 同包的提供者 | `agent` | `app`、`full` | 估 0.9 MB（`omui.agent` 312、`mlibs.agent` 181、PNG 与 zlib 222 KiB 等） | 槽已有，窗口宿主已接；无头宿主与 SDK 未接（K6） |
+| 后台任务、回放 | 并入 Agent 面的表 | `agent` | 同上 | 含在上一行 | 未做（K6） |
+| 运行时生成 | 同包的提供者（在 `omui.sdk` 里） | `generate` | `full` | 138 KiB 起 | 未做（K6） |
+| 手柄的 HIDAPI 驱动 | `compat.sdl3` 的开关 | `no-gamepad-hidapi`（削减） | `minimal` | 241 KiB | 已做（B6） |
+| SDL 的加速 2D 渲染驱动 | `compat.sdl3` 的开关 | `software-present`（削减） | `minimal` | `full` 约 236 KiB，`lean` 约 370 KiB | 未做（K5） |
+| 语言环境的数据（CLDR） | 数据的提供者 | 待定 | 待定 | `mlibs.i18n` 394 KiB | 未核对（K7） |
+| 动画的求解器 | 包内的 feature（hanim） | 待定 | 待定 | B5 的欠项 | 未核对（K7） |
+| 字体包 | 数据包，按依赖 | 应用自己的依赖 | — | 每包 0.3–9 MB | 已做（B4） |
+| 图像解码器 | 自动（链接器回收） | 无 | — | 0（没人调用就不在） | 不需要槽 |
+| 设计器 | 播放器的 feature | `omui.entry.player/design` | 开发 | — | 已有（D-149） |
+
+平台与宿主（窗口、Web、Android、无头）不在这张表里：它们是平台轴，由目标配置选，不是能力。
+
+**现状与目标**：`full` 18,086 KiB，`lean` 15,178 KiB。上表全部做完后 `lean` 的估计是 13.5–14 MB，`minimal` 再少约 0.6 MB。B8 的目标（`app` ≤ 8 MB、`lean` ≤ 6 MB）靠裁剪到不了：`lean` 里最大的几项是标准库 1.7 MB、SDL 1.4 MB、基础组件 1.4 MB、view 1.0 MB，都在核心与像素之内。差距要由 B1 的第二步（相同代码折叠，需要 lld）、B5（断开越级的依赖）、组件按用到的登记（K8）与标准库的用法来收，不属于组合框架；这里如实写明，不改目标。
+
+### 13.3 框架自身的收口
+
+| 项 | 现状 | 要做 |
+|---|---|---|
+| 运行时 `mlibs.compose` | 有，预览级；三个槽在用 | 两个使用者以上的条件已满足；K9 评审后定稿 API、升稳定级 |
+| 槽的契约 `mlibs.cts:slots` | 有；无障碍的槽在跑 | GPU 与 Agent 的槽补上（K6） |
+| 声明与 lint `compose` | 有；认得同包的提供者 | 加“削减类的 feature 不被世界包含”（K5） |
+| 生成 `compose::unit` | 有 | — |
+| 报告 `compose::report` | 有；体积检查按 `installs` 守住 | 每个提供者的字节数并进报告；必需的槽缺提供者时的诊断（K7） |
+| 矩阵 | 没有；三个世界是手工量的 | CI 里每个世界与每项能力单独缺席各一条冒烟（K7） |
+| 推导 | 没有 | 由 `omui.config.ts` 与用到的组件算出清单行（K8，即 B7） |
+| 接缝的代价 | 每个 6–11 KB，`full` 共多约 46 KB | 记入预算；K9 评审时看能否压低（表的形状、错误类型的实例化） |
+
+### 13.4 拆分与规划
+
+已完成：K0–K3，K4 的报告与 GPU 路径，Agent 面的第一部分。余下按依赖排：
+
+| 任务 | 内容 | 依赖 | 验收 | 估计 |
+|---|---|---|---|---|
+| K5 | 削减层：`compat.sdl3` 加 `no-render-accelerated`（mcpp-index）；`omui.host.sdl3` 与 `omui.sdk` 转发为 `software-present`；`minimal` 世界；lint 的那一条；CPU 帧两种呈现方式的耗时各量一次并写进 README | — | 例子 01 的 `minimal` 能构建、出第一帧；呈现耗时有数 | 2 |
+| K6 | Agent 面接完：无头宿主与 Web 宿主经槽；后台任务与回放并入表；运行时生成成为 `generate`；GPU 与 Agent 的槽跑契约的用例 | — | 例子 01 的 `lean` 里没有 `omui.agent` 与 PNG 的字节；三个宿主的测试通过 | 3 |
+| K7 | 证据与矩阵：报告并入字节数；必需的槽的诊断；CI 里每个世界与每项能力缺席各一条冒烟（构建、第一帧、预算）；CLDR 与求解器两项核对后入表或写明不立 | K5、K6 | 矩阵的每一格通过或记入红灯；B8 的三条冒烟在 CI，差距写明 | 3 |
+| K8 | 推导（B7a、B7b）：从 `omui.config.ts` 与用到的组件算出世界与清单行，`omui build` 代写，直接用 mcpp 时构建程序核对；组件的注册表只登记用到的；由播放器运行的 TS 应用的世界 | K7 | B7b 的验收 | 5 |
+| K9 | 定稿：整体评审（接缝的代价、API、命名）；`mlibs.compose` 升稳定级；其余实例迁入或写明不迁（帧管线的阶段、RHI 后端在 Web 上的选择、工具的贡献清单、法则包） | K7 | 评审的结论进 STATUS；lint `maturity` 里不再有 `lower = ["mlibs.compose"]` | 2 |
+
+顺序：K5 与 K6 互不依赖，先 K5（小，且定下削减层的形状），再 K6；K7 之后才有 CI 的矩阵守着，K8 最大、排在它后面。合计约 15 个检查点。
+
+**对其他项目**（不在 0.1 的范围，K9 里只决定迁不迁）：xrender 的后端（SDL_GPU 已是提供者；WebGPU、WebGL 在 Web 上由宿主注入）、hanim 的包内分层（保持 feature）、meng 的模组与法则包（数据的提供者，运行时绑定，等 D-241 的后两种时刻）、工具的贡献清单（D-203）。
+
+## 14. 出处
 
 - Kuiter 等，How Configurable Is the Linux Kernel? Analyzing Two Decades of Feature-Model History，TOSEM 2025：<https://dl.acm.org/doi/full/10.1145/3729423>
 - Tërnava 等，Small Yet Configurable: Unveiling Null Variability in Software，2026：<https://arxiv.org/abs/2604.15957>

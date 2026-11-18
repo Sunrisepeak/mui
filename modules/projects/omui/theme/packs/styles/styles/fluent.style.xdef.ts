@@ -45,6 +45,8 @@ export default defineStyle({
     },
 
     radius: { small: 2, medium: 4, large: 8, xl: 8 },
+    // The platform's own switch (Fluent 2's toggle: 40 × 20, the knob 12).
+    spacing: { switch_width: 40, switch_height: 20, switch_thumb_inset: 4 },
 
     shadows: {
       // Fluent's shadow4, 16 and 64: a key light over an ambient one.

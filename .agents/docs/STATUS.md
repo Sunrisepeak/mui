@@ -179,6 +179,6 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 ## Next
 
 1. N0 reached (run 44168311060). The push after it carries RC3.1, the review of 4a3e0712..479f3371 and RC2.17's hairlines; its run is N1's first read.
-2. In flight: RC2.17 (IME and bridge cells on machines; the switch's proportions with a blind comparison), RC3.1 (publishing is the maintainer's).
+2. In flight: RC2.17 (IME and bridge cells on machines; the default switch's 40 × 22 against a blind comparison — the platform packs now draw their own: Fluent 40 × 20, Cupertino 51 × 31, Material 52 × 32), RC3.1 (publishing is the maintainer's).
 3. RC3.5 (install-first start after RC3.1); RC3.6's sleep and resume on machines.
 4. Then N1, N2a, N2b checked on one run; RC4; RC5.

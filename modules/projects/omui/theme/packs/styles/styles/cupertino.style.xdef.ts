@@ -46,6 +46,8 @@ export default defineStyle({
     },
 
     radius: { small: 6, medium: 10, large: 14, xl: 20 },
+    // The platform's own switch (UISwitch: 51 × 31, the thumb 27).
+    spacing: { switch_width: 51, switch_height: 31, switch_thumb_inset: 2 },
 
     shadows: {
       sm: { x: 0, y: 1, blur: 3, spread: 0, color: "#000000 / 0.08", ambient: { x: 0, y: 0, blur: 1, spread: 0, color: "#000000 / 0.05" } },

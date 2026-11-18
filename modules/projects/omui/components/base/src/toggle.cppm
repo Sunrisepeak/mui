@@ -32,8 +32,12 @@ public:
     ActResult preview(ActContext& ctx, std::string_view action) const;
 
 private:
+    void take_track(const Theme& theme) const;
     mutable parts::Label  label_;
     mutable double thumb_ = 0, hover_ = 0;
+    // The track as the theme sizes it (`switch_width`, `switch_height`, `switch_thumb_inset`), kept from the last
+    // measure or paint for what has no theme at hand (effect shapes).
+    mutable float track_width_ = 40, track_height_ = 22, thumb_inset_ = 2;
     mutable bool   shown_ = false;
 };
 

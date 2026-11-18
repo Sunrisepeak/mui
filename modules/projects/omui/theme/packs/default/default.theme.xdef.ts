@@ -61,6 +61,10 @@ export default defineTheme({
       xxl: 32,
       // A switch's thumb, pressed, stretches by this towards where it will go (as iOS does).
       switch_press_stretch: 6,
+      // A switch's track and the thumb's inset in it (a style pack sets its platform's).
+      switch_width: 40,
+      switch_height: 22,
+      switch_thumb_inset: 2,
     },
 
     radius: {

@@ -57,6 +57,7 @@ void common(Theme& t) {
     for (auto [k, v] : {std::pair{"none", 0.0f}, {"xs", 4.0f}, {"s", 8.0f}, {"m", 12.0f}, {"l", 16.0f}, {"xl", 24.0f}, {"xxl", 32.0f}})
         t.spacing[k] = v;
     t.spacing["switch_press_stretch"] = 6;  // a pressed switch's thumb stretches along its travel
+    t.spacing["switch_width"] = 40, t.spacing["switch_height"] = 22, t.spacing["switch_thumb_inset"] = 2;  // its track
     for (auto [k, v] : {std::pair{"none", 0.0f}, {"small", 4.0f}, {"medium", 8.0f}, {"large", 12.0f}, {"xl", 16.0f}, {"full", 9999.0f}})
         t.radius[k] = v;
     for (const auto& token : spec::motion_tokens)

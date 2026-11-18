@@ -11,7 +11,6 @@ using parts::mix;
 
 namespace {
 
-constexpr float track_w = 40, track_h = 22, thumb_inset = 2;
 constexpr float box_size = 18;
 constexpr float gap = 8;
 
@@ -26,6 +25,12 @@ Size with_label(parts::Label& label, Services& s, Color color, Size control, flo
 }  // namespace
 
 // ── toggle ──
+
+void Toggle::take_track(const Theme& theme) const {
+    track_width_ = theme.space("switch_width", 40);
+    track_height_ = theme.space("switch_height", 22);
+    thumb_inset_ = std::clamp(theme.space("switch_thumb_inset", 2), 0.0f, track_height_ / 2);
+}
 
 void Toggle::mounted() {
     thumb_ = props.checked ? 1 : 0;
@@ -48,13 +53,14 @@ void Toggle::prop_changed(ToggleProp p) {
 
 Size Toggle::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, mlibs::layout::Available aw, mlibs::layout::Available) {
     const float room = width.value_or(aw.is_definite() ? aw.value : std::numeric_limits<float>::infinity());
-    return with_label(label_, m.services, label_color(m.services.theme(), props.disabled), {track_w, track_h}, room);
+    take_track(m.services.theme());
+    return with_label(label_, m.services, label_color(m.services.theme(), props.disabled), {track_width_, track_height_}, room);
 }
 
 float Toggle::baseline(MeasureContext& m, Size content) {
     const Color c = label_color(m.services.theme(), props.disabled);
     if (label_.text().empty()) return content.height;
-    const Size t = label_.measure(m.services, c, std::max(0.0f, content.width - track_w - gap));
+    const Size t = label_.measure(m.services, c, std::max(0.0f, content.width - track_width_ - gap));
     return (content.height - t.height) / 2 + label_.baseline(m.services, c);
 }
 
@@ -62,34 +68,35 @@ float Toggle::baseline(MeasureContext& m, Size content) {
 std::size_t Toggle::effect_shapes(Size, Rect content, std::span<xrender::EffectShape> out) const {
     if (out.size() < 2) return 0;
     const float t = static_cast<float>(thumb_);
-    const float y = content.y + (content.height - track_h) / 2;
-    const float d = track_h - 2 * thumb_inset;
-    const float x = content.x + thumb_inset + t * (track_w - 2 * thumb_inset - d);
-    out[0] = {{content.x, y, track_w, track_h}, CornerRadii::all(track_h / 2)};
-    out[1] = {{x, y + thumb_inset, d, d}, CornerRadii::all(d / 2)};
+    const float y = content.y + (content.height - track_height_) / 2;
+    const float d = track_height_ - 2 * thumb_inset_;
+    const float x = content.x + thumb_inset_ + t * (track_width_ - 2 * thumb_inset_ - d);
+    out[0] = {{content.x, y, track_width_, track_height_}, CornerRadii::all(track_height_ / 2)};
+    out[1] = {{x, y + thumb_inset_, d, d}, CornerRadii::all(d / 2)};
     return 2;
 }
 
 void Toggle::paint(PaintContext& ctx) const {
     shown_ = true;
     const Theme& th = ctx.theme;
+    take_track(th);
     const bool off = props.disabled || ctx.state.disabled;
     hover_ = !off && ctx.state.hovered ? 1.0 : 0.0;
     const float t = static_cast<float>(thumb_);
     const float k = std::clamp(t, 0.0f, 1.0f);
     const Rect content = ctx.content;
-    const float y = content.y + (content.height - track_h) / 2;
+    const float y = content.y + (content.height - track_height_) / 2;
     if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
 
     Color track = mix(th.color("track"), th.color("accent"), k);
     track = mix(track, mix(track, Color::black(), 0.08f), static_cast<float>(hover_));
-    ctx.list.fill_round_rect({content.x, y, track_w, track_h}, CornerRadii::all(track_h / 2), xrender::Paint::solid(track));
-    const float d = track_h - 2 * thumb_inset;
-    const float x = content.x + thumb_inset + t * (track_w - 2 * thumb_inset - d);
+    ctx.list.fill_round_rect({content.x, y, track_width_, track_height_}, CornerRadii::all(track_height_ / 2), xrender::Paint::solid(track));
+    const float d = track_height_ - 2 * thumb_inset_;
+    const float x = content.x + thumb_inset_ + t * (track_width_ - 2 * thumb_inset_ - d);
     // Pressed, the thumb stretches towards where it will go (the theme's
     // `switch_press_stretch`, 0: it keeps its shape): on, to the left; off, to the right.
     const float stretch = ctx.state.pressed && !off ? th.space("switch_press_stretch", 0) : 0.0f;
-    const Rect thumb{x - stretch * k, y + thumb_inset, d + stretch, d};
+    const Rect thumb{x - stretch * k, y + thumb_inset_, d + stretch, d};
     // The state's halo round the thumb (the theme's `switch_halo:hovered` /
     // `:pressed`, in the track's colour; none declared: none drawn).
     parts::depth(ctx, "switch_halo", thumb, CornerRadii::all(d / 2), hover_ > 0, ctx.state.pressed && !off, std::nullopt, track);
@@ -98,16 +105,16 @@ void Toggle::paint(PaintContext& ctx) const {
 
     if (!label_.text().empty()) {
         const Color lc = label_color(th, false);
-        const Size ts = label_.measure(ctx.services, lc, std::max(0.0f, content.width - track_w - gap));
-        label_.paint(ctx, {content.x + track_w + gap, content.y + (content.height - ts.height) / 2}, lc);
+        const Size ts = label_.measure(ctx.services, lc, std::max(0.0f, content.width - track_width_ - gap));
+        label_.paint(ctx, {content.x + track_width_ + gap, content.y + (content.height - ts.height) / 2}, lc);
     }
     if (off) ctx.list.pop_layer();
 }
 
 void Toggle::paint_over(PaintContext& ctx) const {
     if (!(ctx.state.focused && ctx.state.focus_visible)) return;
-    const float y = ctx.content.y + (ctx.content.height - track_h) / 2;
-    focus_ring(ctx, {ctx.content.x, y, track_w, track_h}, CornerRadii::all(track_h / 2));
+    const float y = ctx.content.y + (ctx.content.height - track_height_) / 2;
+    focus_ring(ctx, {ctx.content.x, y, track_width_, track_height_}, CornerRadii::all(track_height_ / 2));
 }
 
 void Toggle::semantics(SemanticsContext&, spec::SemanticNode& node) const {

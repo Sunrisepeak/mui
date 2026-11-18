@@ -47,6 +47,8 @@ export default defineStyle({
     },
 
     radius: { small: 8, medium: 12, large: 16, xl: 28, button: 9999 },
+    // The platform's own switch (Material 3's switch: 52 × 32, the selected handle 24).
+    spacing: { switch_width: 52, switch_height: 32, switch_thumb_inset: 4 },
 
     shadows: {
       // Elevation levels 1, 2 and 3.

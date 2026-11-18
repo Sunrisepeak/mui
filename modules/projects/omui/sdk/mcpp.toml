@@ -33,6 +33,8 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp
 default                 = ["accessibility-bridge"]
 accessibility-bridge    = { forward = ["omui.accessibility/bridge"] }
 no-accessibility-bridge = { forward = ["omui.accessibility/no-bridge"] }
+# SDL's HIDAPI game-controller drivers on the desktop (evdev's path stays): on unless this is said.
+no-gamepad-hidapi       = { forward = ["omui.host.sdl3/no-gamepad-hidapi"] }
 
 [dependencies]
 omui.core          = { path = "../core" }

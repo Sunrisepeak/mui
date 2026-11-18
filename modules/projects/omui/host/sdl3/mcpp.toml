@@ -39,6 +39,8 @@ sources = ["src/macos/*.cpp"]
 default                 = ["accessibility-bridge"]
 accessibility-bridge    = { forward = ["omui.accessibility/bridge"] }
 no-accessibility-bridge = { forward = ["omui.accessibility/no-bridge"] }
+# SDL's HIDAPI game-controller drivers (B6): evdev, the platform's own input, stays (246,757 B of example 01).
+no-gamepad-hidapi       = { forward = ["compat.sdl3/no-hidapi"] }
 
 [dependencies]
 # The system's notifications (mpal: the OS's services above mcpplibs.os).
@@ -63,6 +65,7 @@ xrender.rhi.sdl     = { path = "../../../xrender/rhi/sdl" }
 xrender.effect   = { path = "../../../xrender/effect" }
 mcpplibs.os      = "0.4.4"
 mcpplibs.mwrap.sdl3 = "3.4.18"
+compat.sdl3 = "3.4.18"  # its build switches (mcpplibs.mwrap.sdl3 wraps this one)
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

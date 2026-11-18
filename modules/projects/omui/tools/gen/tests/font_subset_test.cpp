@@ -103,7 +103,7 @@ std::filesystem::path repository() {
 
 UTest cases{"gen.font_subset", [] {
     const auto root = repository();
-    const auto font = read(root / "modules/content/text/fonts/NotoSansSC.ttf");
+    const auto font = read(root / "modules/content/text/fonts/han/NotoSansSC.ttf");
 
     "Noto Sans SC cut to two characters and the punctuation: a fraction of it, whole, the same cut the same bytes"_test = [&] {
         expect(font.size() > 1000000) << "the font is there";

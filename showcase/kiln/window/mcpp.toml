@@ -32,6 +32,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+mlibs.text.fonts = { path = "../../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 omui.showcase.kiln = { path = ".." }
 meng.runtime  = { path = "../../../modules/projects/meng/game/runtime", features = ["lines"] }  # kiln-play's
 mlibs.agent      = { path = "../../../modules/base/agent" }

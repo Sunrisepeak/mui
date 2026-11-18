@@ -60,10 +60,10 @@ ReferenceReplay::ReferenceReplay() : s_(std::make_unique<State>()) {
     // Exactly the fonts the page carries, in the order its runtime takes them
     // (dist_toy's Inter, Noto Sans SC, JetBrains Mono): a glyph none of them
     // has falls back the same way here, in CI and in a browser.
-    const auto dir = mlibs::text::FontCollection::default_directory();
     std::vector<mlibs::text::FaceId> chain;
     for (const char* name : {"Inter.ttf", "NotoSansSC.ttf", "JetBrainsMono.ttf"})
-        if (auto id = s_->fonts.add_file(dir / name)) chain.push_back(*id);
+        if (const auto file = mlibs::text::FontCollection::default_file(name))
+            if (auto id = s_->fonts.add_file(*file)) chain.push_back(*id);
     s_->fonts.set_fallback(std::move(chain));
     restart();
 }

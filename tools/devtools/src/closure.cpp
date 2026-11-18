@@ -380,8 +380,19 @@ std::expected<Report, std::string> check(const fs::path& root) {
                         if (trimmed(line).starts_with("kind = \"rules\"")) return true;
                     return false;
                 };
+                // A data package (no code: files it deploys, as a font pack) is tested by the package it sits in.
+                const auto owner_tests = [&] {
+                    const fs::path own = root / package->path;
+                    std::error_code error;
+                    for (auto it = fs::recursive_directory_iterator(own, error); it != fs::recursive_directory_iterator(); it.increment(error))
+                        if (!error && it->is_regular_file() && (it->path().extension() == ".cpp" || it->path().extension() == ".cppm")) return false;
+                    for (fs::path up = own.parent_path(); up != root && up.has_relative_path(); up = up.parent_path())
+                        if (fs::exists(up / "mcpp.toml") && sources_in(up / "tests")) return true;
+                    return false;
+                };
                 const bool has = sources_in(root / package->path / "tests") || sources_in(root / package->path / "cts" / "tests") ||
-                                 std::ranges::any_of(modules_of(root, package->path), [&](const std::string& module) { return imported.contains(module); }) || rules();
+                                 std::ranges::any_of(modules_of(root, package->path), [&](const std::string& module) { return imported.contains(module); }) || rules() ||
+                                 owner_tests();
                 tested += has ? 1 : 0;
                 if (package->label != "experimental") {
                     ++counted;

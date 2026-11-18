@@ -34,6 +34,7 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/shots/*.cpp", "code/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+mlibs.text.fonts = { path = "../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 xrender.text = { path = "../../modules/projects/xrender/text" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
 mlibs.utils = { path = "../../modules/base/utils" }

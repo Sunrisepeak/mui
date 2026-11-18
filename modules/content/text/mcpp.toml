@@ -22,22 +22,15 @@ kind = "lib"
 sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
-# The default fonts (FontCollection::add_defaults) go with a packed
-# application: `fonts/` beside the program (default_directory's second place),
-# and an APK's assets/fonts, which the Android host unpacks into the
-# application's own directory — each with its licence.
+# The default UI font goes with a packed application: `fonts/` beside the
+# program (default_directory's second place), and an APK's assets/fonts, which
+# the Android host unpacks into the application's own directory — with its
+# licence. Every other default font is a pack of its own (fonts/<pack>,
+# D-214): an application carries the scripts it depends on.
 [runtime]
 deploy = [
     { from = "fonts/Inter.ttf", to = "fonts" },
-    { from = "fonts/NotoSansSC.ttf", to = "fonts" },
-    { from = "fonts/NotoSansArabic.ttf", to = "fonts" },
-    { from = "fonts/TwemojiMozilla.ttf", to = "fonts" },
-    { from = "fonts/JetBrainsMono.ttf", to = "fonts" },
     { from = "fonts/OFL-inter.txt", to = "licenses/fonts" },
-    { from = "fonts/OFL-notosanssc.txt", to = "licenses/fonts" },
-    { from = "fonts/OFL-notosansarabic.txt", to = "licenses/fonts" },
-    { from = "fonts/LICENSE-TwemojiMozilla.md", to = "licenses/fonts" },
-    { from = "fonts/OFL-jetbrainsmono.txt", to = "licenses/fonts" },
 ]
 
 [dependencies]
@@ -51,4 +44,5 @@ mcpplibs.mwrap.sheenbidi = "3.0.0"
 mcpplibs.mtest = "0.8.4"
 mlibs.utils = { path = "../../base/utils" }
 mlibs.image   = { path = "../../base/image" }
+mlibs.text.fonts = { path = "fonts" }  # the fixed set the tests draw with (D-214)
 

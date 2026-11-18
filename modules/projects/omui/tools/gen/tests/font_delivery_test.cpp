@@ -193,7 +193,7 @@ struct Package {
 
 UTest cases{"gen.font_delivery", [] {
     const auto directory = mlibs::text::FontCollection::default_directory();
-    const auto inter = read(directory / "Inter.ttf"), mono = read(directory / "JetBrainsMono.ttf");
+    const auto inter = read(directory / "Inter.ttf"), mono = read(*mlibs::text::FontCollection::default_file("JetBrainsMono.ttf"));
     "real Inter full and initial plus Mono preserve metadata shaping and pixels through the actual packer"_test = [&] {
         expect(!inter.empty() && !mono.empty()) << "real default TTF fixtures are available"; if (inter.empty() || mono.empty()) return;
         expect(u32(table(inter, "post"), 0) == 0x00020000u && u32(table(mono, "post"), 0) == 0x00020000u);
@@ -220,7 +220,7 @@ UTest cases{"gen.font_delivery", [] {
         }
         expect(inter_full == 1 && inter_initial == 1 && monospaced == 1);
         expect(read(package.root / "fonts/Inter.ttf") == inter && read(package.root / "fonts/JetBrainsMono.ttf") == mono) << "source inputs are never rewritten";
-        expect(read(directory / "Inter.ttf") == inter && read(directory / "JetBrainsMono.ttf") == mono);
+        expect(read(directory / "Inter.ttf") == inter && read(*mlibs::text::FontCollection::default_file("JetBrainsMono.ttf")) == mono);
     };
     "already-post3 and missing-post delivery inputs are byte-idempotent"_test = [&] {
         expect(!inter.empty()); if (inter.empty()) return;

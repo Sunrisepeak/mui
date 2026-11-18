@@ -150,6 +150,33 @@ bool FontCollection::alive(std::uint64_t id) {
     return r.alive.contains(id);
 }
 
+namespace {
+
+// The source tree's fonts: a checkout of openmui above the program or the
+// working directory (any build profile in the tree, where release builds trim
+// source paths), else this file's own tree (development builds, out-of-tree
+// consumers).
+std::filesystem::path checkout_fonts() {
+    namespace os = mcpplibs::os;
+    const auto above = [](std::filesystem::path dir) -> std::optional<std::filesystem::path> {
+        std::error_code ec;
+        for (int depth = 0; depth < 12 && !dir.empty(); ++depth) {
+            const auto fonts = dir / "modules" / "content" / "text" / "fonts";
+            if (std::filesystem::is_regular_file(fonts / "Inter.ttf", ec)) return fonts;
+            if (dir == dir.parent_path()) break;
+            dir = dir.parent_path();
+        }
+        return std::nullopt;
+    };
+    if (const auto exe = os::env::image())
+        if (auto fonts = above(exe->parent_path())) return *fonts;
+    std::error_code ec;
+    if (auto fonts = above(std::filesystem::current_path(ec))) return *fonts;
+    return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path() / "fonts";
+}
+
+}  // namespace
+
 std::filesystem::path FontCollection::default_directory() {
     namespace os = mcpplibs::os;
     // 1. OMUI_FONTS; 2. `fonts/` beside the program (a packaged application);
@@ -161,24 +188,33 @@ std::filesystem::path FontCollection::default_directory() {
         std::error_code ec;
         return std::filesystem::is_regular_file(dir / "Inter.ttf", ec);
     };
-    auto checkout_above = [&](std::filesystem::path dir) -> std::optional<std::filesystem::path> {
-        for (int depth = 0; depth < 12 && !dir.empty(); ++depth) {
-            if (has_fonts(dir / "modules" / "content" / "text" / "fonts")) return dir / "modules" / "content" / "text" / "fonts";
-            if (dir == dir.parent_path()) break;
-            dir = dir.parent_path();
-        }
-        return std::nullopt;
-    };
     // On the Web, the page's file system: the page puts the fonts in /fonts before the program starts.
     if constexpr (os::is_emscripten)
         if (has_fonts("/fonts")) return "/fonts";
     const auto exe = os::env::image();
     if (exe && has_fonts(exe->parent_path() / "fonts")) return exe->parent_path() / "fonts";
-    if (exe)
-        if (auto d = checkout_above(exe->parent_path())) return *d;
+    return checkout_fonts();
+}
+
+std::optional<std::filesystem::path> FontCollection::default_file(std::string_view file, const std::filesystem::path& directory) {
+    namespace os = mcpplibs::os;
+    const auto pack = std::ranges::find(default_fonts, file, &DefaultFont::file);
+    const auto in = [&](const std::filesystem::path& dir) -> std::optional<std::filesystem::path> {
+        std::error_code ec;
+        if (std::filesystem::is_regular_file(dir / file, ec)) return dir / file;
+        if (pack != default_fonts.end() && !pack->pack.empty() && std::filesystem::is_regular_file(dir / pack->pack / file, ec))
+            return dir / pack->pack / file;
+        return std::nullopt;
+    };
+    if (auto found = in(directory)) return found;
+    // A pack the program did not take, in the checkout it was built in: only for the program's own fonts/ (under
+    // node too, whose file system is the machine's; a page's has no checkout).
+    if (auto env = os::env::get("OMUI_FONTS"); env && !env->empty()) return std::nullopt;
+    const auto exe = os::env::image();
     std::error_code ec;
-    if (auto d = checkout_above(std::filesystem::current_path(ec))) return *d;
-    return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path() / "fonts";
+    if (pack == default_fonts.end() || pack->pack.empty() || !exe || !std::filesystem::equivalent(directory, exe->parent_path() / "fonts", ec))
+        return std::nullopt;
+    return in(checkout_fonts());
 }
 
 std::expected<FaceId, std::string> FontCollection::add_data(std::vector<std::uint8_t> data) {
@@ -258,12 +294,12 @@ std::expected<FaceId, std::string> FontCollection::add_file(const std::filesyste
 
 std::expected<void, std::string> FontCollection::add_defaults(const std::filesystem::path& directory) {
     std::vector<FaceId> chain;
-    for (auto name : {"Inter.ttf", "NotoSansSC.ttf", "NotoSansArabic.ttf", "TwemojiMozilla.ttf", "JetBrainsMono.ttf"}) {
-        // A page may carry fewer than five (a Toy package takes the scripts it
-        // shows): the ones there, in this order; Inter at least.
-        std::error_code ec;
-        if (chain.size() > 0 && !std::filesystem::exists(directory / name, ec)) continue;
-        auto id = add_file(directory / name);
+    for (const auto& font : default_fonts) {
+        // A program carries the packs it took (D-214), a page the scripts it
+        // shows: the ones there, in this order; Inter at least.
+        const auto file = default_file(font.file, directory);
+        if (!file && chain.size() > 0) continue;
+        auto id = add_file(file.value_or(directory / font.file));
         if (!id) return std::unexpected(id.error());
         chain.push_back(*id);
     }

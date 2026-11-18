@@ -700,13 +700,21 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     if (fonts_dir.empty()) fonts_dir = text_fonts(p.graph).value_or(fs::path());
     if (fonts_dir.empty() || !fs::is_directory(fonts_dir, ec))
         return std::unexpected("openmui.text's fonts were not found (give --fonts-dir, or pack through mcpp so the graph names them)");
+    // Each font beside the others or in its pack's directory (mlibs.text's tree: fonts/<pack>/, D-214).
+    std::map<std::string, fs::path> font_files;  // stem → file
+    for (auto at = fs::recursive_directory_iterator(fonts_dir, ec); at != fs::recursive_directory_iterator(); at.increment(ec)) {
+        if (at.depth() > 0) at.disable_recursion_pending();
+        if (at->is_regular_file(ec) && at->path().extension() == ".ttf") font_files.try_emplace(utf8(at->path().stem()), at->path());
+    }
     std::vector<std::string> stems = p.fonts;
     if (stems.empty() || (stems.size() == 1 && stems[0] == "all")) {
         stems.clear();
-        for (const auto& e : fs::directory_iterator(fonts_dir, ec))
-            if (e.path().extension() == ".ttf") stems.push_back(utf8(e.path().stem()));
-        std::ranges::sort(stems);
+        for (const auto& [stem, file] : font_files) stems.push_back(stem);
     }
+    const auto font_file = [&](const std::string& stem, std::string_view suffix) {
+        const auto found = font_files.find(stem);
+        return (found != font_files.end() ? found->second.parent_path() : fonts_dir) / (stem + std::string(suffix));
+    };
     for (const auto& [font, text] : p.font_initial) {
         if (text.empty() || std::ranges::find(stems, font) == stems.end())
             return std::unexpected(std::format("--font-initial {} needs nonempty text and a selected font", font));
@@ -716,7 +724,7 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     std::vector<std::pair<std::string, std::string>> fonts, initial;
     std::map<std::string, std::string> coverage;  // a language's face: the blocks it covers, as JSON ranges
     for (const std::string& stem : stems) {
-        auto bytes = read(fonts_dir / (stem + ".ttf"));
+        auto bytes = read(font_file(stem, ".ttf"));
         if (!bytes) return std::unexpected(std::format("font {}: {}", stem, bytes.error()));
         const auto first = std::ranges::find(p.font_initial, stem, &std::pair<std::string, std::string>::first);
         if (first != p.font_initial.end()) {
@@ -739,7 +747,7 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             std::set<char32_t> keep;
             always_kept(keep);
             if (first != p.font_initial.end()) characters_of(first->second, keep);
-            if (auto common = read(fonts_dir / (stem + ".common.txt"))) characters_of(*common, keep);
+            if (auto common = read(font_file(stem, ".common.txt"))) characters_of(*common, keep);
             if (auto read_all = characters_of_files(sub->text, keep); !read_all) return std::unexpected(std::format("--subset {}: {}", stem, read_all.error()));
             FontSubsetReport r;
             auto cut = subset_font(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()), keep, &r);
@@ -784,11 +792,15 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             if (e.is_regular_file()) {
                 if (auto r = keep_licence(e.path(), p.out / "licenses" / fs::relative(e.path(), p.stage / "licenses", ec)); !r) return std::unexpected(r.error());
             }
-    for (const auto& e : fs::directory_iterator(fonts_dir, ec)) {
-        const std::string name = utf8(e.path().filename());
-        if (name.starts_with("OFL") || name.starts_with("LICENSE"))
-            if (auto r = keep_licence(e.path(), p.out / "licenses" / "fonts" / name); !r) return std::unexpected(r.error());
-    }
+    // A font's licence is beside it: the directories of the fonts carried.
+    std::set<fs::path> font_dirs;
+    for (const std::string& stem : stems) font_dirs.insert(font_file(stem, ".ttf").parent_path());
+    for (const fs::path& dir : font_dirs)
+        for (const auto& e : fs::directory_iterator(dir, ec)) {
+            const std::string name = utf8(e.path().filename());
+            if (name.starts_with("OFL") || name.starts_with("LICENSE"))
+                if (auto r = keep_licence(e.path(), p.out / "licenses" / "fonts" / name); !r) return std::unexpected(r.error());
+        }
 
     // The files fetched once the program is drawn, each a hashed asset.
     std::vector<std::pair<std::string, std::string>> later;

@@ -42,6 +42,8 @@
 //           readme-<showcase>: a still, or an animated WebP or PNG under 1 MiB; deterministic, so committed in
 //           showcase/<showcase>/media/), and the site's stills and two animations under site/media/: run the
 //           tests and copy what they drew, or (`check`) hold the committed files to what the tests drew.
+// distribution  the smallest application's distribution (B4, D-214): example 01 packed for this machine as a
+//           directory; Inter alone of the fonts (at most 0.9 MB), no window system's library.
 // android   omui on Android (W10): example 01 packed into an APK (mcpp.plugins' dist-apk; the platform's
 //           NativeActivity, no Java) and checked inside — the application's library, the C++ runtime, the default
 //           fonts with their licences; then, where the machine can run an emulator (KVM), installed on Android 7.0
@@ -97,6 +99,7 @@ struct Size {
 // shows: the showcases' directory names and "site"; none, every showcase and the site.
 [[nodiscard]] int media(const std::filesystem::path& root, std::vector<std::string> shows, bool check_only);
 [[nodiscard]] int android(const std::filesystem::path& root, const std::filesystem::path& out);
+[[nodiscard]] int distribution(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 [[nodiscard]] int web(const std::filesystem::path& root, std::string_view profile);
 [[nodiscard]] int browser_checks(const std::filesystem::path& root);
 

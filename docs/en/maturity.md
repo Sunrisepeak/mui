@@ -20,7 +20,7 @@ A capability below its package's label is marked in its project's feature table 
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 26 | 4 | 0 |
+| mlibs | 31 | 4 | 0 |
 | examples | 12 | 0 | 0 |
 | build plugins (mcpp) | 1 | 0 | 0 |
 | works (showcase) | 0 | 10 | 5 |
@@ -181,6 +181,11 @@ A capability below its package's label is marked in its project's feature table 
 | `mlibs.layout` | [modules/content/layout](../../modules/content/layout) | stable |
 | `mlibs.markdown` | [modules/content/markdown](../../modules/content/markdown) | stable |
 | `mlibs.text` | [modules/content/text](../../modules/content/text) | stable |
+| `mlibs.text.fonts` | [modules/content/text/fonts](../../modules/content/text/fonts) | stable |
+| `mlibs.text.fonts.han` | [modules/content/text/fonts/han](../../modules/content/text/fonts/han) | stable |
+| `mlibs.text.fonts.arabic` | [modules/content/text/fonts/arabic](../../modules/content/text/fonts/arabic) | stable |
+| `mlibs.text.fonts.emoji` | [modules/content/text/fonts/emoji](../../modules/content/text/fonts/emoji) | stable |
+| `mlibs.text.fonts.mono` | [modules/content/text/fonts/mono](../../modules/content/text/fonts/mono) | stable |
 
 ### examples
 

@@ -28,6 +28,7 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
+mlibs.text.fonts = { path = "../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 omui.sdk         = { path = "../../modules/projects/omui/sdk" }
 omui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
 mcpplibs.os         = "0.4.4"

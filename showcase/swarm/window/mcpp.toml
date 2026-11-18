@@ -32,6 +32,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+mlibs.text.fonts = { path = "../../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 omui.showcase.swarm.headless = { path = "../headless" }
 meng.runtime  = { path = "../../../modules/projects/meng/game/runtime", features = ["lines"] }  # swarm-play's
 omui.sdk         = { path = "../../../modules/projects/omui/sdk" }

@@ -1,0 +1,23 @@
+# mlibs.text.fonts — every default font (D-214's `bundled`): the four packs
+# beside Inter, which mlibs.text carries itself. Pixels the same on every
+# platform for any script: the site, the showcases, the games and the tests
+# that draw Chinese, Arabic, emoji or code take this; an application that
+# shows one script takes that pack alone (`mlibs.text.fonts.han` …).
+[package]
+namespace   = "mlibs.text"
+name        = "fonts"
+version     = "0.1.0"
+description = "Every default font of mlibs.text: the Chinese, Arabic, emoji and code packs"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "dependency: one name for every pack, which a distribution then carries"
+kind = "runtime"
+
+[dependencies]
+mlibs.text.fonts.han    = { path = "han" }
+mlibs.text.fonts.arabic = { path = "arabic" }
+mlibs.text.fonts.emoji  = { path = "emoji" }
+mlibs.text.fonts.mono   = { path = "mono" }

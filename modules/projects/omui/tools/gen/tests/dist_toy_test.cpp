@@ -222,7 +222,7 @@ UTest cases{"gen.dist_toy", [] {
     };
 
     "another language's face says the blocks it covers: Han, not emoji — fetched only for a character it could draw"_test = [] {
-        std::ifstream in(mlibs::text::FontCollection::default_directory() / "NotoSansSC.ttf", std::ios::binary);
+        std::ifstream in(*mlibs::text::FontCollection::default_file("NotoSansSC.ttf"), std::ios::binary);
         const std::string bytes{std::istreambuf_iterator<char>(in), {}};
         const auto blocks = gen::font_blocks(std::span(reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()));
         expect(blocks.has_value()) << (blocks ? "" : blocks.error());
@@ -231,7 +231,7 @@ UTest cases{"gen.dist_toy", [] {
         expect(covers(U'中') && covers(U'文') && !covers(U'\U00002705') && !covers(U'\U0001F600')) << std::format("{} ranges", blocks->size());
         expect(blocks->size() < 64) << "a few ranges: small enough for the page";
         Tree t;
-        fs::copy_file(mlibs::text::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
+        fs::copy_file(*mlibs::text::FontCollection::default_file("NotoSansSC.ttf"), t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
         auto p = t.package();
         p.fonts = {"Inter", "NotoSansSC"};
         p.font_languages = {{"NotoSansSC", {"zh"}}};
@@ -284,7 +284,7 @@ UTest cases{"gen.dist_toy", [] {
 
     "initial font coverage is a separate hashed asset, selected only while the full font is deferred"_test = [] {
         Tree t;
-        fs::copy_file(mlibs::text::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
+        fs::copy_file(*mlibs::text::FontCollection::default_file("NotoSansSC.ttf"), t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
         auto p = t.package();
         p.fonts = {"Inter", "NotoSansSC"};
         p.font_languages = {{"NotoSansSC", {"zh"}}};
@@ -332,7 +332,7 @@ UTest cases{"gen.dist_toy", [] {
 
     "decoded asset sizes and an executable loading fixture accompany the actual package"_test = [] {
         Tree t;
-        fs::copy_file(mlibs::text::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
+        fs::copy_file(*mlibs::text::FontCollection::default_file("NotoSansSC.ttf"), t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
         put(t.root / "words.txt", "A readable page 中文 龙");
         put(t.root / "art" / "later.webp", "deferred picture bytes");
         auto p = t.package(); p.sdk = false; p.out = scratch_dir("dist-toy-loading");

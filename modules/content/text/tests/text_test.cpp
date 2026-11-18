@@ -321,11 +321,30 @@ UTest cases{"text", [] {
         expect(std::ranges::all_of(rocket, [&](const text::ColorLayer& l) { return !fonts().outline(glyphs[2].first, l.glyph).verbs.empty(); })) << "each layer is a glyph with an outline";
     };
 
+    "the default fonts: Inter with the library, every other script a pack a program carries when it takes it (D-214)"_test = [] {
+        for (const auto& font : text::default_fonts) {
+            const auto file = text::FontCollection::default_file(font.file);
+            expect(fatal(file.has_value())) << font.file;
+            // Beside the program (the packs this test takes, flat) or in the source tree's fonts/<pack>/.
+            const auto where = file->parent_path();
+            expect(font.pack.empty() ? where.filename() == "fonts" : where.filename() == "fonts" || where.filename() == std::filesystem::path(font.pack))
+                << std::format("{}: {}", font.file, file->generic_string());
+        }
+        // A distribution that took no pack: Inter alone, and every other script is not drawn from anywhere else.
+        const auto dir = scratch_dir("text") / "only-inter";
+        std::filesystem::create_directories(dir);
+        std::filesystem::copy_file(text::FontCollection::default_file("Inter.ttf").value(), dir / "Inter.ttf", std::filesystem::copy_options::overwrite_existing);
+        text::FontCollection inter_only;
+        auto loaded = inter_only.add_defaults(dir);
+        expect(loaded.has_value() && inter_only.face_count() == 1) << (loaded ? std::format("{} faces", inter_only.face_count()) : loaded.error());
+        expect(!text::FontCollection::default_file("NotoSansSC.ttf", dir).has_value());
+    };
+
     "fonts load from a directory whose name is not ASCII (Windows: not through the code page)"_test = [] {
         const auto dir = scratch_dir("text") / std::filesystem::path(u8"中文 字体 目录");
         std::filesystem::create_directories(dir);
-        for (const char* f : {"Inter.ttf", "NotoSansSC.ttf", "NotoSansArabic.ttf", "TwemojiMozilla.ttf", "JetBrainsMono.ttf"})
-            std::filesystem::copy_file(text::FontCollection::default_directory() / f, dir / f, std::filesystem::copy_options::overwrite_existing);
+        for (const auto& font : text::default_fonts)
+            std::filesystem::copy_file(text::FontCollection::default_file(font.file).value(), dir / font.file, std::filesystem::copy_options::overwrite_existing);
         text::FontCollection c;
         auto r = c.add_defaults(dir);
         expect(r.has_value() && c.face_count() == 5) << (r ? "" : r.error());

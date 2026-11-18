@@ -68,6 +68,18 @@ struct Metrics {
 // Fonts may be made (a weight not seen yet) on the thread that shapes while
 // glyph caches on other threads read them (a canvas's textures, rasterised in
 // the background); faces and the fallback chain are set up before that.
+// The default fonts in their fallback order, and the pack each comes in
+// (D-214): Inter with mlibs.text itself, every other in a package of its own,
+// `mlibs.text.fonts.<pack>`, which an application showing that script depends
+// on (`mlibs.text.fonts`: all of them). A distribution carries what it took.
+struct DefaultFont {
+    std::string_view file;
+    std::string_view pack;  // empty: mlibs.text's own
+};
+inline constexpr std::array<DefaultFont, 5> default_fonts{{
+    {"Inter.ttf", ""}, {"NotoSansSC.ttf", "han"}, {"NotoSansArabic.ttf", "arabic"}, {"TwemojiMozilla.ttf", "emoji"}, {"JetBrainsMono.ttf", "mono"},
+}};
+
 class FontCollection {
 public:
     FontCollection();
@@ -80,6 +92,13 @@ public:
     // The directory of the default fonts: $OMUI_FONTS, else `fonts/` beside
     // the executable, else the source tree's modules/content/text/fonts.
     [[nodiscard]] static std::filesystem::path default_directory();
+    // Where a default font is (`default_fonts`' file): in `directory` as a
+    // program's `fonts/` has them, or in its pack's subdirectory as the source
+    // tree has them. A program's own `fonts/` without a pack it did not take
+    // (D-214) has it from a checkout it was built in — the fixed set tests
+    // draw with; a packed program elsewhere, the Web and $OMUI_FONTS have only
+    // what they carry. nullopt: none.
+    [[nodiscard]] static std::optional<std::filesystem::path> default_file(std::string_view file, const std::filesystem::path& directory = default_directory());
 
     // This collection's identity, never reused (an address is: a collection
     // made where a freed one was would find caches keyed by the address and
@@ -87,8 +106,8 @@ public:
     [[nodiscard]] std::uint64_t id() const noexcept;
     [[nodiscard]] static bool alive(std::uint64_t id);
 
-    // Loads the five default fonts (Inter, JetBrains Mono, Noto Sans SC,
-    // Noto Sans Arabic, Twemoji) and makes them the fallback chain.
+    // Loads the default fonts found (`default_fonts`: Inter at least) and
+    // makes them the fallback chain, in that order.
     std::expected<void, std::string> add_defaults(const std::filesystem::path& directory = default_directory());
 
     std::expected<FaceId, std::string> add_file(const std::filesystem::path& file);

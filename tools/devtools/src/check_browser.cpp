@@ -227,7 +227,10 @@ int browser_checks(const fs::path& root) {
     if (!web) return 1;
     const auto drawing = program_of(*web, "drawing_test");
     if (!drawing) return 1;
-    const std::vector<std::pair<fs::path, std::string>> fonts{{fs::absolute(root / "modules/content/text/fonts"), "/fonts"}};
+    // mlibs.text's tree keeps Inter in fonts/ and each pack in fonts/<pack>/ (D-214); the page has them side by side.
+    std::vector<std::pair<fs::path, std::string>> fonts{{fs::absolute(root / "modules/content/text/fonts"), "/fonts"}};
+    for (const auto& pack : fs::directory_iterator(root / "modules/content/text/fonts"))
+        if (pack.is_directory()) fonts.emplace_back(fs::absolute(pack.path()), "/fonts");
     const std::vector<std::string> vulkan{"--enable-features=Vulkan", "--use-vulkan=swiftshader", "--use-angle=vulkan"};
     if (!in_page(*drawing, {"--webgpu"}, std::chrono::seconds(300), {}, fonts) && !in_page(*drawing, {"--webgpu"}, std::chrono::seconds(300), vulkan, fonts)) {
         std::cout << "::notice::this browser's WebGPU cannot present to a canvas headless: host.web's WebGPU frames checked offscreen\n";

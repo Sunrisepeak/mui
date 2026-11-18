@@ -75,6 +75,10 @@ int android(const fs::path& root, const fs::path& out) {
                        return std::string_view(part.begin(), part.end()).ends_with(std::format(" {}", inside));
                    }))
             return failed(std::format("the APK has no {}", inside));
+    // Example 01 takes no font pack (D-214): Inter is the APK's only font.
+    for (const auto part : std::views::split(std::string_view(*listing), '\n'))
+        if (const std::string_view line(part.begin(), part.end()); line.contains(" assets/fonts/") && !line.ends_with(" assets/fonts/Inter.ttf") && line.ends_with(".ttf"))
+            return failed(std::format("the APK carries a font pack example 01 did not take: {}", line));
     std::cout << std::format("android: {} ({} KiB): the library, the C++ runtime, the fonts and their licences\n", mcpplibs::os::fs::utf8(*apk),
                              fs::file_size(*apk, error) / 1024)
               << std::flush;

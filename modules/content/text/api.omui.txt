@@ -82,6 +82,11 @@ namespace mlibs::text {
     float underline_thickness = 0;
     [[nodiscard]] float line_height() const noexcept;
   };
+  struct DefaultFont {
+    std::string_view file;
+    std::string_view pack;
+  };
+  inline constexpr std::array<DefaultFont, 5> default_fonts{…};
   class FontCollection {
     FontCollection();
     ~FontCollection();
@@ -90,6 +95,7 @@ namespace mlibs::text {
     FontCollection(const FontCollection&) = delete;
     FontCollection& operator=(const FontCollection&) = delete;
     [[nodiscard]] static std::filesystem::path default_directory();
+    [[nodiscard]] static std::optional<std::filesystem::path> default_file(std::string_view file, const std::filesystem::path& directory = default_directory());
     [[nodiscard]] std::uint64_t id() const noexcept;
     [[nodiscard]] static bool alive(std::uint64_t id);
     std::expected<void, std::string> add_defaults(const std::filesystem::path& directory = default_directory());

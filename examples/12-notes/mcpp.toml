@@ -38,6 +38,7 @@ main = "src/main.cpp"
 sources = ["src/*.cpp"]
 
 [dependencies]
+mlibs.text.fonts = { path = "../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 omui.entry.player = { path = "../../modules/projects/omui/entry/player" }
 
 [dev-dependencies]

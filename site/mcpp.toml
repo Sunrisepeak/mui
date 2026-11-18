@@ -43,6 +43,7 @@ sources = ["src/targets/native.cppm"]
 sources = ["src/targets/web.cppm"]
 
 [dependencies]
+mlibs.text.fonts = { path = "../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 mcpplibs.cmdline = "0.0.3"
 omui.sdk         = { path = "../modules/projects/omui/sdk" }
 omui.ui.base = { path = "../modules/projects/omui/components/base" }  # liquid glass (omui.ui.liquid_glass): a signature work, glass that flows

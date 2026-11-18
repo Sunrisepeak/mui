@@ -74,6 +74,11 @@ members = [
     "modules/content/layout",
     "modules/content/markdown",
     "modules/content/text",
+    "modules/content/text/fonts",
+    "modules/content/text/fonts/han",
+    "modules/content/text/fonts/arabic",
+    "modules/content/text/fonts/emoji",
+    "modules/content/text/fonts/mono",
     "modules/projects/meng/kernel/audio",
     "modules/projects/meng/kernel/audio/device",
     "modules/projects/meng/kernel/video",
@@ -250,7 +255,7 @@ trim_paths = true
 # function and per object, and links tests with the collection already; programs too, every profile, each platform's
 # way (wasm-ld collects by default). Measured: example 01 in dist, 26.7 MB to 18.5 MB on Linux x64, its pixels the same.
 [workspace.target.'cfg(os = "linux")'.build]
-ldflags = ["-Wl,--gc-sections"]
+ldflags = ["-Wl,--gc-sections", "-Wl,--as-needed"]
 
 [workspace.target.'cfg(os = "macos")'.build]
 ldflags = ["-Wl,-dead_strip"]

@@ -26,6 +26,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+mlibs.text.fonts = { path = "../../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 omui.showcase.quay = { path = ".." }
 omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
 meng.ui       = { path = "../../../modules/projects/meng/game/ui" }

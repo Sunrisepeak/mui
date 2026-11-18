@@ -2,13 +2,15 @@
 
 Part of rendering determinism (D-48): the default text of openmui renders with these files on every platform, never with whatever the system has.
 
+Inter goes with every program (mlibs.text's own deploy). Every other font is a pack, a package of its own in its directory (D-214): a program carries the scripts it depends on — `mlibs.text.fonts.han` ([han](han)), `.arabic` ([arabic](arabic)), `.emoji` ([emoji](emoji)), `.mono` ([mono](mono)), or `mlibs.text.fonts` for all four (the site, the showcases, the readers of any text). `FontCollection::default_file` finds a font beside the program or in its pack's directory here; a program built in a checkout without a pack draws it from the checkout, so the tests draw with the fixed set while a distribution carries only what it took.
+
 | File | Font | Coverage | Licence |
 |---|---|---|---|
 | `Inter.ttf` | Inter (variable: opsz, wght) | Latin, Greek, Cyrillic — the UI face | SIL OFL 1.1 (`OFL-inter.txt`) |
-| `JetBrainsMono.ttf` | JetBrains Mono (variable: wght) | code | SIL OFL 1.1 (`OFL-jetbrainsmono.txt`) |
-| `NotoSansArabic.ttf` | Noto Sans Arabic (variable: wdth, wght) | Arabic | SIL OFL 1.1 (`OFL-notosansarabic.txt`) |
-| `NotoSansSC.ttf` | Noto Sans SC (variable: wght), subset to GB 2312 (6763 hanzi) and CJK punctuation | Simplified Chinese | SIL OFL 1.1 (`OFL-notosanssc.txt`) |
-| `TwemojiMozilla.ttf` | Twemoji Mozilla 0.7.0 (COLR colour glyphs) | emoji | code Apache 2.0, graphics CC BY 4.0 (`LICENSE-TwemojiMozilla.md`) |
+| `mono/JetBrainsMono.ttf` | JetBrains Mono (variable: wght) | code | SIL OFL 1.1 (`OFL-jetbrainsmono.txt`) |
+| `arabic/NotoSansArabic.ttf` | Noto Sans Arabic (variable: wdth, wght) | Arabic | SIL OFL 1.1 (`OFL-notosansarabic.txt`) |
+| `han/NotoSansSC.ttf` | Noto Sans SC (variable: wght), subset to GB 2312 (6763 hanzi) and CJK punctuation | Simplified Chinese | SIL OFL 1.1 (`OFL-notosanssc.txt`) |
+| `emoji/TwemojiMozilla.ttf` | Twemoji Mozilla 0.7.0 (COLR colour glyphs) | emoji | code Apache 2.0, graphics CC BY 4.0 (`LICENSE-TwemojiMozilla.md`) |
 
 Sources: google/fonts (`ofl/inter`, `ofl/jetbrainsmono`, `ofl/notosansarabic`, `ofl/notosanssc`), mozilla/twemoji-colr release v0.7.0. SHA-256:
 

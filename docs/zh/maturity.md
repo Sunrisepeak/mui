@@ -20,7 +20,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 31 | 4 | 0 |
+| mlibs | 31 | 5 | 0 |
 | 例子 | 12 | 0 | 0 |
 | 构建插件（mcpp） | 1 | 0 | 0 |
 | 作品（showcase） | 0 | 10 | 5 |
@@ -157,6 +157,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `mlibs.agent` | [modules/base/agent](../../modules/base/agent) | 稳定 |
 | `mlibs.agent.cts` | [modules/base/agent/cts](../../modules/base/agent/cts) | 稳定 |
 | `mlibs.build` | [modules/base/build](../../modules/base/build) | 稳定 |
+| `mlibs.compose` | [modules/base/compose](../../modules/base/compose) | 预览 |
 | `mlibs.cts` | [modules/base/cts](../../modules/base/cts) | 稳定 |
 | `mlibs.dynamics` | [modules/base/dynamics](../../modules/base/dynamics) | 预览 |
 | `mlibs.geom` | [modules/base/geom](../../modules/base/geom) | 稳定 |

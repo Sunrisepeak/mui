@@ -1,0 +1,44 @@
+== mlibs.compose
+namespace mlibs::compose {
+  enum class Cardinality : std::uint8_t { one, many };
+  struct SlotInfo {
+    std::string_view id;
+    int version = 1;
+    Cardinality cardinality = Cardinality::one;
+    std::string_view summary = {…};
+    std::string_view absent = {…};
+  };
+  template <class Service> struct Slot {
+    SlotInfo info;
+  };
+  enum class Errc : std::uint8_t { absent, occupied, frozen };
+  constexpr mlibs::error::Description describe(Errc code) noexcept;
+  using Error = mlibs::error::Error<Errc>;
+  enum class Absence : std::uint8_t { unsaid, left_out, platform };
+  [[nodiscard]] constexpr std::string_view name(Absence absence) noexcept;
+  struct Described {
+    std::string slot;
+    int version = 1;
+    Cardinality cardinality = Cardinality::one;
+    std::string summary;
+    std::vector<std::string> providers;
+    Absence absence = Absence::unsaid;
+    std::string way;
+  };
+  class Composition {
+    Composition();
+    ~Composition();
+    Composition(const Composition&) = delete;
+    Composition& operator=(const Composition&) = delete;
+    template <class Service> std::expected<void, Error> install(const Slot<Service>& slot, const Service& service, std::string_view provider);
+    template <class Service> [[nodiscard]] const Service* get(const Slot<Service>& slot) const noexcept;
+    template <class Service> [[nodiscard]] std::vector<const Service*> all(const Slot<Service>& slot) const;
+    [[nodiscard]] std::string_view provider(const SlotInfo& slot) const noexcept;
+    void leave_out(const SlotInfo& slot, Absence why);
+    [[nodiscard]] Error missing(const SlotInfo& slot) const;
+    void freeze() noexcept;
+    [[nodiscard]] bool frozen() const noexcept;
+    [[nodiscard]] std::vector<Described> describe() const;
+  };
+  [[nodiscard]] Composition& process() noexcept;
+}

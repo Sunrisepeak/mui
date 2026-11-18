@@ -50,6 +50,7 @@
     "mcpplibs.openkal-linux",
     "mcpplibs.os",
     "mlibs.agent",
+    "mlibs.compose",
     "mlibs.control",
     "mlibs.dynamics",
     "mlibs.geom",

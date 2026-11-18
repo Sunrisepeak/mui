@@ -11,6 +11,7 @@
 export module omui.accessibility:adapter;
 
 import std;
+import mlibs.compose;
 import omui.core;
 import omui.view;
 import :map;
@@ -42,7 +43,16 @@ struct Service {
     std::expected<std::unique_ptr<Session>, Failure> (*attach)(Mirror& mirror, void* window, const AdapterOptions& options) = nullptr;
 };
 
-// The bridge's: once, before a host attaches (omui.accessibility.bridge::install).
+// The slot a platform's service is installed at (mlibs.compose): one provider. A program without one —
+// built without the bridge, or on a platform AccessKit has no library for — serves no assistive technology.
+inline constexpr mlibs::compose::Slot<Service> service_slot{
+    {.id = "omui.accessibility.service",
+     .summary = "the platform's assistive-technology service (UI Automation, NSAccessibility, AT-SPI)",
+     .absent = "build with omui.sdk's feature `accessibility-bridge`, or depend on omui.accessibility.bridge and call "
+               "omui::accessibility::bridge::install() before a host is made"}};
+
+// The bridge's: once, before a host attaches (omui.accessibility.bridge::install), into the process's
+// composition under the service's name.
 void install(const Service& service) noexcept;
 // Whether a platform's service is installed.
 [[nodiscard]] bool available() noexcept;

@@ -292,6 +292,9 @@ UTest cases{"accessibility", [] {
         expect(!a11y::available() && a11y::service() == "none");
         auto adapter = a11y::Adapter::attach(mirror, nullptr);
         expect(!adapter.has_value()) << "refused, saying why";
+        if (!adapter)
+            expect(adapter.error().message.contains("omui.accessibility.service") && adapter.error().message.contains("accessibility-bridge"))
+                << "the slot and the way out: " << adapter.error().message;
         expect(mirror.size() > 0) << "the mapping works without a service";
     };
 }};

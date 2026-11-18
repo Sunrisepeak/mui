@@ -20,6 +20,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: the semantic tree as assistive technology reads it, on every platform"
 kind = "runtime"
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
 agent = { part = "omui.agent" }
 
 [targets.openmui-accessibility]
@@ -33,6 +34,8 @@ omui.core     = { path = "../core" }
 omui.view     = { path = "../view" }
 omui.semantic = { path = "../semantic" }
 mlibs.utils     = { path = "../../../base/utils" }
+mlibs.compose   = { path = "../../../base/compose" }  # the slot a platform's service is installed at
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+mlibs.cts = { path = "../../../base/cts" }  # the slot contract (slot_test)

@@ -2,31 +2,28 @@
 module omui.accessibility;
 
 import std;
+import mlibs.compose;
 import mlibs.error;
 
 namespace omui::accessibility {
 
-namespace {
+// A second installation of the one service is refused by the composition and changes nothing.
+void install(const Service& service) noexcept { (void)mlibs::compose::process().install(service_slot, service, service.name); }
 
-std::atomic<const Service*> installed{nullptr};
-
-}  // namespace
-
-void install(const Service& service) noexcept { installed.store(&service); }
-
-bool available() noexcept { return installed.load() != nullptr; }
+bool available() noexcept { return mlibs::compose::process().get(service_slot) != nullptr; }
 
 std::string_view service() noexcept {
-    const Service* s = installed.load();
-    return s ? s->name : std::string_view("none");
+    const Service* installed = mlibs::compose::process().get(service_slot);
+    return installed ? installed->name : std::string_view("none");
 }
 
 std::expected<std::unique_ptr<Adapter>, Failure> Adapter::attach(Mirror& mirror, void* window, AdapterOptions options) {
-    const Service* s = installed.load();
-    if (!s || !s->attach)
-        return std::unexpected(Failure{mlibs::error::Kind::refused,
-                                       "no assistive-technology service: the application leaves the bridge out, or AccessKit has no library here"});
-    auto session = s->attach(mirror, window, options);
+    const Service* installed = mlibs::compose::process().get(service_slot);
+    if (!installed || !installed->attach) {
+        const mlibs::compose::Error absent = mlibs::compose::process().missing(service_slot.info);
+        return std::unexpected(Failure{absent.kind(), absent.message});
+    }
+    auto session = installed->attach(mirror, window, options);
     if (!session) return std::unexpected(std::move(session.error()));
     return std::unique_ptr<Adapter>(new Adapter(std::move(*session)));
 }

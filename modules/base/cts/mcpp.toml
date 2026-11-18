@@ -22,6 +22,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: the kit every conformance suite is written with"
 kind = "module"
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
 
 [targets.mlibs-cts]
 kind = "lib"
@@ -31,6 +32,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 mlibs.utils    = { path = "../utils" }
+mlibs.compose  = { path = "../compose" }  # :slots, the slot contract
 # A suite's cases are mtest's conformance cases: the library, not only its tests.
 mcpplibs.mtest = "0.8.4"
 

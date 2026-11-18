@@ -16,6 +16,10 @@ This package is the mapping and the seam a service is installed at (`Service`,
 (`omui.accessibility.bridge`), which `omui.sdk` installs before a window is
 made. A program that installs none carries no AccessKit: `available()` is
 false and `Adapter::attach` is refused, as on a platform without a service.
+The seam is a slot of `mlibs.compose` (`service_slot`,
+`omui.accessibility.service`; a preview, `lower` in the manifest): the
+refusal names the slot and the way out, and the slot contract's cases
+(`mlibs.cts:slots`) run on it in `tests/slot_test.cpp`.
 
 AccessKit's C bindings come from mcpp-index (`compat.accesskit`, imported as
 the module `mcpplibs.mwrap.accesskit`), only in `bridge/src/native/accesskit/`.

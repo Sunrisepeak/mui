@@ -3,6 +3,7 @@
 // and as mtest's own cases — and the comparisons.
 import std;
 import mlibs.cts;
+import mlibs.compose;
 import mlibs.error;
 import mcpplibs.mtest;
 
@@ -268,5 +269,30 @@ UTest cases{"cts", [] {
         expect(run({.writes_when_lowered = true}).ids(cts::Status::failed) == Ids{"presentation.world-the-same-at-every-step", "presentation.world-the-same-while-ladders-move"});
         expect(run({.forgets_why = true}).ids(cts::Status::failed) == Ids{"presentation.says-where-and-why"});
         expect(run({.one_name = true}).ids(cts::Status::failed) == Ids{"presentation.ladders-named"});
+    };
+
+    "the slot contract: a sound slot passes each case; one that says no way out, or no summary, fails `slot.declared`"_test = [] {
+        struct Service {
+            int value = 0;
+        };
+        static constexpr mlibs::compose::Slot<Service> sound{{.id = "toy.service", .summary = "a toy's service", .absent = "call toy::install()"}};
+        static constexpr mlibs::compose::Slot<Service> many{
+            {.id = "toy.pack", .cardinality = mlibs::compose::Cardinality::many, .summary = "a toy's packs", .absent = "depend on a pack"}};
+        static constexpr mlibs::compose::Slot<Service> silent{{.id = "Toy", .version = 0}};
+        static const Service service{7};
+        const auto good = cts::tally([] {
+            cts::against({.subject = "toy"}, [] {
+                cts::slots::declare("toy@1", sound, service);
+                cts::slots::declare("toy@1", many, service);
+            });
+        });
+        expect(good.ok() && eq(good.count(cts::Status::passed), std::size_t{6})) << good.text();
+        const auto bad = cts::tally([] { cts::against({.subject = "toy"}, [] { cts::slots::declare("toy@1", silent); }); });
+        expect(!bad.ok() && bad.ids(cts::Status::failed) == std::vector<std::string>{"slot.declared"}) << bad.text();
+        expect(eq(cts::slots::problems(silent.info).size(), std::size_t{5})) << "the id's form, its letters, the version, the summary, the way out";
+    };
+
+    "mlibs.compose's own error codes say what went wrong and the way out"_test = [] {
+        cts::against({.subject = "mlibs.compose"}, [] { cts::errors::declare("mlibs.compose@1", mlibs::compose::Errc::frozen); });
     };
 }};

@@ -11,6 +11,7 @@ import omui.showcase.markdown_wall;
 import mlibs.testing;
 import mcpplibs.mtest;
 import omui.abi;
+import omui.agent;
 import omui.lang;
 import omui.lang.js;
 import mcpplibs.os;
@@ -153,6 +154,7 @@ Tour as_agent() {
     o.size = {1440, 900};
     o.app = "wall-tour";
     o.endpoint_directory = dir;
+    omui::agent::install();  // a test is its program's root: the endpoint installed as an application's SDK installs it
     App a(std::vector<omui::wall::Document>{}, std::move(o));
     listen(a, t.records);
     expect(a.h.endpoint() && a.h.endpoint()->listening()) << "the endpoint listens";

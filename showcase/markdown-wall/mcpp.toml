@@ -53,6 +53,7 @@ omui.build = { path = "../../mcpp/build", host-module = true }
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 omui.abi      = { path = "../../modules/projects/omui/abi" }
+omui.agent    = { path = "../../modules/projects/omui/agent" }
 omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
 mcpplibs.os      = "0.4.4"
 

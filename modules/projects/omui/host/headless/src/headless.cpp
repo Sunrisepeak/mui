@@ -131,8 +131,12 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     // A session's endpoint is the agent surface's (agent::endpoint_slot): a program built without it serves
     // none, as where local endpoints are not supported. What it captures goes through the surface's table, so
     // such a program does not carry the encoders either (png() and svg() are theirs who call them).
-    if (const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot);
-        surface && d.options.level == HeadlessLevel::session) {
+    const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot);
+    // Asked for and not there: said, with the way to it (D-186) — a test that makes its own host is its program's root.
+    if (!surface && d.options.level == HeadlessLevel::session)
+        warn("a session was asked for, but this program has not installed the agent surface: no endpoint is served "
+             "(`omui::run` installs it in the `app` and `full` worlds; a program that makes its own host calls `omui::agent::install()` first)");
+    if (surface && d.options.level == HeadlessLevel::session) {
         agent::EndpointOptions eo;
         eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;
         eo.directory = d.options.endpoint_directory;

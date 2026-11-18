@@ -200,9 +200,12 @@ UTest cases{"example.live-design", [] {
         const Value history = done("design.history");
         expect(history.get("branches")->get("compact") != nullptr && !history.get("uncommitted")->as_bool()) << history.json();
 
-        // The design as a film: each step as it was presented, captioned.
-        const Value film = done("design.film", Value{}.set("fps", 12).set("seconds", 0.5));
-        expect(film.get("steps")->as_int() >= 8 && film.get("frames")->as_int() == film.get("steps")->as_int() * 6) << film.json();
+        // The design as a film: each step as it was presented, captioned — kept where the video toolkit renders it
+        // (`xtools video render <it>/design.video.xdef.json`: ten seconds and more of the design, G3).
+        const auto film_dir = std::filesystem::temp_directory_path() / "openmui-tests" / "design-film";
+        const Value film = done("design.film", Value{}.set("fps", 12).set("seconds", 1.25).set("out", film_dir.generic_string()));
+        expect(film.get("steps")->as_int() >= 8 && film.get("frames")->as_int() == film.get("steps")->as_int() * 15) << film.json();
+        expect(std::filesystem::exists(film_dir / "design.video.xdef.json")) << film.json();
 
         // Written to the file at last: the TypeScript is the one source, and it still compiles.
         (void)done("design.commit");

@@ -140,11 +140,13 @@ inline Element code_card_view(Size window, Rect near, std::string_view place, st
                          std::move(lines))});
 }
 
-// A film's caption (design.film): what the step was, at the bottom.
+// A film's caption (design.film): what the step was, at the bottom — within the window, two lines at most (a step's
+// raw words, a property's JSON, are longer than the window is wide).
 inline Element caption_view(Size window, std::string words) {
     return column({.width = window.width, .height = window.height, .padding = 14, .justify = "end", .align = "center"},
                   {box({.id = "caption", .padding = Edges(8.0f, 14.0f), .background = Fill(std::string(glass)), .radius = 10, .label = words},
-                       {text({.text = words, .style = "label", .color = Fill(std::string(ink)), .wrap = false, .max_lines = 1})})});
+                       {text({.text = words, .style = "label", .color = Fill(std::string(ink)), .align = "center", .wrap = true, .max_lines = 2,
+                              .max_width = std::max(0.0f, window.width - 56.0f)})})});
 }
 
 // The timeline (D-151 §2.14): the design's history and its time in one

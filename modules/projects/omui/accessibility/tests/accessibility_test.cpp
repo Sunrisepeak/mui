@@ -282,22 +282,16 @@ UTest cases{"accessibility", [] {
         (void)unused;
     };
 
-    "the update AccessKit would be told"_test = [] {
+    "without a bridge installed: no service, an adapter refused, the mirror as anywhere"_test = [] {
         Runtime rt(options());
         App app;
         rt.mount("main", app.view());
         rt.frame({seconds(0), {}});
         a11y::Mirror mirror(rt, {.name = "Notes"});
         (void)mirror.refresh();
-        const std::string text = a11y::debug(mirror, {.scale = 2});
-        if constexpr (!a11y::available) {
-            expect(text.empty() && a11y::service() == "none");
-            return;
-        }
-        expect(text.find("role: Window") != std::string::npos && text.find("\"Notes\"") != std::string::npos) << text;
-        expect(text.find("label: \"Add note\"") != std::string::npos && text.find("Click") != std::string::npos) << text;
-        expect(text.find("value: \"0 notes\"") != std::string::npos) << text;
-        expect(text.find("toolkit_name: Some(\"openmui\")") != std::string::npos) << text;
-        expect(!a11y::service().empty() && a11y::service() != "none");
+        expect(!a11y::available() && a11y::service() == "none");
+        auto adapter = a11y::Adapter::attach(mirror, nullptr);
+        expect(!adapter.has_value()) << "refused, saying why";
+        expect(mirror.size() > 0) << "the mapping works without a service";
     };
 }};

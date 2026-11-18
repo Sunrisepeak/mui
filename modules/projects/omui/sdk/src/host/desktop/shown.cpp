@@ -34,6 +34,7 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     const std::string_view mode = o.window.empty() ? std::string_view(app.window) : std::string_view(o.window);
     d.frame = mode == "framework" ? DesktopOptions::Frame::framework : DesktopOptions::Frame::native;
     const auto asked = std::chrono::steady_clock::now();
+    install_services();
     Desktop desktop(d);
     if (auto r = desktop.open(); !r) {
         error("no window ({}); `--headless` runs without a display", r.error());

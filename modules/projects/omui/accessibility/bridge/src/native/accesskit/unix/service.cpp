@@ -1,6 +1,6 @@
 // AT-SPI, through AccessKit's unix adapter: it speaks D-Bus on threads of its
 // own, so every handler is called from another thread.
-module omui.accessibility;
+module omui.accessibility.bridge;
 
 import std;
 import mcpplibs.mwrap.accesskit;

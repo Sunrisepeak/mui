@@ -4,20 +4,18 @@
 // answers the system's first question (activation) from the mirror and is
 // told, after each frame, what changed; what assistive technology asks waits
 // in the mirror until the host serves it between frames.
+//
+// The service is a bridge's (B6): omui.accessibility.bridge installs
+// AccessKit's where it has a library; an application that leaves the bridge
+// out keeps the mapping alone, and `available()` is false.
 export module omui.accessibility:adapter;
 
 import std;
 import omui.core;
 import omui.view;
 import :map;
-import :platform;
 
 export namespace omui::accessibility {
-
-// Whether this build serves a platform's assistive technology at all.
-inline constexpr bool available = platform::available;
-// The service served: "uia", "nsaccessibility", "atspi", or "none".
-[[nodiscard]] std::string_view service() noexcept;
 
 struct AdapterOptions {
     std::string toolkit = "openmui";
@@ -25,14 +23,37 @@ struct AdapterOptions {
     float       scale = 1;  // physical pixels per logical pixel
 };
 
-// The tree as a platform adapter would first be told it: AccessKit's own
-// debug text of the full update ("" where there is no AccessKit).
-[[nodiscard]] std::string debug(const Mirror& mirror, const AdapterOptions& options = {});
+// One attachment of a platform's service to a mirror, as a bridge serves it.
+class Session {
+public:
+    virtual ~Session() = default;
+    virtual void update() = 0;
+    virtual void window_focus(bool focused) = 0;
+    virtual void set_scale(float scale) = 0;
+    virtual void window_bounds(Rect outer, Rect inner) = 0;
+    [[nodiscard]] virtual bool active() const noexcept = 0;
+};
+
+// A platform's service: its name ("uia", "nsaccessibility", "atspi") and how
+// it attaches to a mirror and window. Only what a host calls: whatever the
+// table names stays in a program that installs it.
+struct Service {
+    std::string_view name;
+    std::expected<std::unique_ptr<Session>, Failure> (*attach)(Mirror& mirror, void* window, const AdapterOptions& options) = nullptr;
+};
+
+// The bridge's: once, before a host attaches (omui.accessibility.bridge::install).
+void install(const Service& service) noexcept;
+// Whether a platform's service is installed.
+[[nodiscard]] bool available() noexcept;
+// The service served: "uia", "nsaccessibility", "atspi", or "none".
+[[nodiscard]] std::string_view service() noexcept;
 
 class Adapter {
 public:
     // `window`: the HWND (Windows) or NSWindow* (macOS) the tree belongs to;
-    // ignored on Linux. On Windows, before the window is first shown.
+    // ignored on Linux. On Windows, before the window is first shown. Refused
+    // where no service is installed.
     [[nodiscard]] static std::expected<std::unique_ptr<Adapter>, Failure> attach(Mirror& mirror, void* window,
                                                                                     AdapterOptions options = {});
     ~Adapter();
@@ -50,11 +71,10 @@ public:
     void window_bounds(Rect outer, Rect inner);
     // Whether assistive technology has asked for the tree.
     [[nodiscard]] bool active() const noexcept;
-    struct Impl;
 
 private:
-    explicit Adapter(std::unique_ptr<Impl> impl);
-    std::unique_ptr<Impl> impl_;
+    explicit Adapter(std::unique_ptr<Session> session);
+    std::unique_ptr<Session> session_;
 };
 
 }  // namespace omui::accessibility

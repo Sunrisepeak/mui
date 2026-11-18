@@ -1,17 +1,28 @@
 == omui.accessibility
 export import :map;
-export import :platform;
 export import :adapter;
 == omui.accessibility:adapter
 namespace omui::accessibility {
-  inline constexpr bool available = platform::available;
-  [[nodiscard]] std::string_view service() noexcept;
   struct AdapterOptions {
     std::string toolkit = "openmui";
     std::string toolkit_version = "0.1.0";
     float scale = 1;
   };
-  [[nodiscard]] std::string debug(const Mirror& mirror, const AdapterOptions& options = {…});
+  class Session {
+    virtual ~Session() = default;
+    virtual void update() = 0;
+    virtual void window_focus(bool focused) = 0;
+    virtual void set_scale(float scale) = 0;
+    virtual void window_bounds(Rect outer, Rect inner) = 0;
+    [[nodiscard]] virtual bool active() const noexcept = 0;
+  };
+  struct Service {
+    std::string_view name;
+    std::expected<std::unique_ptr<Session>, Failure> (*attach)(Mirror& mirror, void* window, const AdapterOptions& options) = nullptr;
+  };
+  void install(const Service& service) noexcept;
+  [[nodiscard]] bool available() noexcept;
+  [[nodiscard]] std::string_view service() noexcept;
   class Adapter {
     [[nodiscard]] static std::expected<std::unique_ptr<Adapter>, Failure> attach(Mirror& mirror, void* window, AdapterOptions options = {…});
     ~Adapter();
@@ -22,7 +33,6 @@ namespace omui::accessibility {
     void set_scale(float scale);
     void window_bounds(Rect outer, Rect inner);
     [[nodiscard]] bool active() const noexcept;
-    struct Impl;
   };
 }
 == omui.accessibility:map
@@ -100,8 +110,4 @@ namespace omui::accessibility {
     [[nodiscard]] std::size_t waiting() const;
     [[nodiscard]] semantic::Tree& tree() noexcept;
   };
-}
-== omui.accessibility:platform
-namespace omui::accessibility::platform {
-  inline constexpr bool available = false;
 }

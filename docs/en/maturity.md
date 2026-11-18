@@ -14,7 +14,7 @@ A capability below its package's label is marked in its project's feature table 
 
 | Project | stable | preview | experimental |
 |---|---|---|---|
-| omui | 28 | 2 | 1 |
+| omui | 29 | 2 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
 | meng | 0 | 21 | 2 |
@@ -34,6 +34,7 @@ A capability below its package's label is marked in its project's feature table 
 |---|---|---|
 | `omui.abi` | [modules/projects/omui/abi](../../modules/projects/omui/abi) | stable |
 | `omui.accessibility` | [modules/projects/omui/accessibility](../../modules/projects/omui/accessibility) | stable |
+| `omui.accessibility.bridge` | [modules/projects/omui/accessibility/bridge](../../modules/projects/omui/accessibility/bridge) | stable |
 | `omui.agent` | [modules/projects/omui/agent](../../modules/projects/omui/agent) | stable |
 | `omui.core` | [modules/projects/omui/core](../../modules/projects/omui/core) | stable |
 | `omui.sdk` | [modules/projects/omui/sdk](../../modules/projects/omui/sdk) | stable |

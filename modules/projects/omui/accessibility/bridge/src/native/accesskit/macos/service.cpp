@@ -1,7 +1,7 @@
 // NSAccessibility, through AccessKit's macOS subclassing adapter on the
 // window's content view; SDL keeps the keyboard focus on the window, so the
 // window's class forwards its focused element to the view.
-module omui.accessibility;
+module omui.accessibility.bridge;
 
 import std;
 import mcpplibs.mwrap.accesskit;

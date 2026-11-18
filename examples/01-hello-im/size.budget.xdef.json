@@ -70,6 +70,7 @@
     "mlibs.xdef",
     "nlohmann.json",
     "omui.accessibility",
+    "omui.accessibility.bridge",
     "omui.agent",
     "omui.core",
     "omui.expr",

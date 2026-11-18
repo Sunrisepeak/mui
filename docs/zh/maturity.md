@@ -14,7 +14,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 
 | 项目 | 稳定 | 预览 | 实验 |
 |---|---|---|---|
-| omui | 28 | 2 | 1 |
+| omui | 29 | 2 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
 | meng | 0 | 21 | 2 |
@@ -34,6 +34,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 |---|---|---|
 | `omui.abi` | [modules/projects/omui/abi](../../modules/projects/omui/abi) | 稳定 |
 | `omui.accessibility` | [modules/projects/omui/accessibility](../../modules/projects/omui/accessibility) | 稳定 |
+| `omui.accessibility.bridge` | [modules/projects/omui/accessibility/bridge](../../modules/projects/omui/accessibility/bridge) | 稳定 |
 | `omui.agent` | [modules/projects/omui/agent](../../modules/projects/omui/agent) | 稳定 |
 | `omui.core` | [modules/projects/omui/core](../../modules/projects/omui/core) | 稳定 |
 | `omui.sdk` | [modules/projects/omui/sdk](../../modules/projects/omui/sdk) | 稳定 |

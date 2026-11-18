@@ -9,10 +9,16 @@ tests read, and asks for its actions.
 | Windows x86_64 | UI Automation | AccessKit's subclassing adapter on the window's HWND |
 | macOS arm64 | NSAccessibility | AccessKit's subclassing adapter on the NSWindow's content view |
 | Linux x86_64 | AT-SPI (D-Bus) | AccessKit's unix adapter |
-| elsewhere | none | the mapping alone; `available` is false |
+| elsewhere | none | the mapping alone; `available()` is false |
+
+This package is the mapping and the seam a service is installed at (`Service`,
+`install`, `Adapter`); the services are a package of their own, [`bridge`](bridge)
+(`omui.accessibility.bridge`), which `omui.sdk` installs before a window is
+made. A program that installs none carries no AccessKit: `available()` is
+false and `Adapter::attach` is refused, as on a platform without a service.
 
 AccessKit's C bindings come from mcpp-index (`compat.accesskit`, imported as
-the module `mcpplibs.mwrap.accesskit`), only in `src/native/accesskit/`.
+the module `mcpplibs.mwrap.accesskit`), only in `bridge/src/native/accesskit/`.
 
 - **The mapping** (`describe`) — a node becomes AccessKit's: its role by the
   spec's own column (`roles.toml`'s `accesskit`); its name, or for static

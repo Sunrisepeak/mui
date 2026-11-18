@@ -26,8 +26,14 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp"]  # generate: runtime generation (preview), module omui.generate
 
-# What an application may leave out (B6), each off by default.
+# What an application carries (B6). `accessibility-bridge`, on by default: the platform's accessibility service
+# through AccessKit (omui.accessibility.bridge), installed before a window is made. The build program writes the
+# unit that installs it (build.mcpp: `install_services`), by this feature and the target; an application that
+# depends on this with `default-features = false` installs none and does not carry AccessKit (1.55 MB of example 01
+# on Linux). The rest are off by default.
 [features]
+default              = ["accessibility-bridge"]
+accessibility-bridge = {}
 # SDL's HIDAPI game-controller drivers on the desktop (evdev's path stays).
 no-gamepad-hidapi = { forward = ["omui.host.sdl3/no-gamepad-hidapi"] }
 
@@ -58,6 +64,7 @@ mcpplibs.cmdline      = "0.0.3"
 # (src/host/<where>/shown.cpp) that name it.
 [target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.dependencies]
 omui.host.sdl3 = { path = "../host/sdl3" }
+omui.accessibility.bridge = { path = "../accessibility/bridge" }  # installed by the generated unit (feature accessibility-bridge)
 
 [target.'cfg(env = "android")'.dependencies]
 omui.host.android = { path = "../host/android" }

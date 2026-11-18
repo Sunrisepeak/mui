@@ -1,12 +1,13 @@
-// The adapter over AccessKit: nodes as AccessKit's, the platform's requests
+// The service over AccessKit: nodes as AccessKit's, the platform's requests
 // as the mirror's, and the platform service of this build (native.cppm).
-module omui.accessibility;
+module omui.accessibility.bridge;
 
 import std;
 import mlibs.error;
 import omui.core;
 import mlibs.trace;
 import mcpplibs.mwrap.accesskit;
+import omui.accessibility;
 import :native;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -226,20 +227,15 @@ accesskit_tree_update* whole(const Mirror& mirror, const AdapterOptions& options
     return u;
 }
 
-}  // namespace
-
-std::string_view service() noexcept { return native::name(); }
-
-struct Adapter::Impl {
+struct AccessKitSession final : Session {
     Mirror&                 mirror;
     AdapterOptions          options;
     native::Service*        service = nullptr;
     std::atomic<float>      scale{1};
-    std::atomic<bool>       active{false};
+    std::atomic<bool>       active_now{false};
     Mirror::Changes         pending;   // what `update` tells the platform
     bool                    rescaled = false;
 
-    Impl(Mirror& m, AdapterOptions o) : mirror(m), options(std::move(o)), scale(options.scale) {}
 
     // Everything (any thread).
     accesskit_tree_update* full() const { return whole(mirror, options, scale.load()); }
@@ -264,18 +260,18 @@ struct Adapter::Impl {
     }
 
     static accesskit_tree_update* on_activate(void* self) {
-        auto* impl = static_cast<Impl*>(self);
-        impl->active = true;
+        auto* impl = static_cast<AccessKitSession*>(self);
+        impl->active_now = true;
         log_.info("assistive technology asked for the tree ({})", native::name());
         return impl->full();
     }
-    static accesskit_tree_update* on_update(void* self) { return static_cast<Impl*>(self)->changes(); }
+    static accesskit_tree_update* on_update(void* self) { return static_cast<AccessKitSession*>(self)->changes(); }
     static void on_deactivate(void* self) {
-        static_cast<Impl*>(self)->active = false;
+        static_cast<AccessKitSession*>(self)->active_now = false;
         log_.info("assistive technology let the tree go");
     }
     static void on_action(accesskit_action_request* request, void* self) {
-        auto* impl = static_cast<Impl*>(self);
+        auto* impl = static_cast<AccessKitSession*>(self);
         Request r;
         r.target = request->target_node;
         r.action = static_cast<Action>(request->action);
@@ -301,49 +297,42 @@ struct Adapter::Impl {
         accesskit_action_request_free(request);
         impl->mirror.queue(std::move(r));
     }
+
+    explicit AccessKitSession(Mirror& m, AdapterOptions o) : mirror(m), options(std::move(o)), scale(options.scale) {}
+    ~AccessKitSession() override { native::close(service); }
+
+    void update() override {
+        mlibs::trace::Span span("accessibility.update", "accessibility");
+        pending = mirror.refresh();
+        if (pending.empty() && !rescaled) return;
+        native::update(service, &AccessKitSession::on_update, this);
+        pending = {};
+    }
+    void window_focus(bool focused) override { native::focus(service, focused); }
+    void set_scale(float to) override {
+        if (scale.exchange(to) != to) rescaled = true;
+    }
+    void window_bounds(Rect outer, Rect inner) override {
+        const double s = scale.load();
+        auto rect = [s](Rect r) { return accesskit_rect{r.x * s, r.y * s, (r.x + r.width) * s, (r.y + r.height) * s}; };
+        native::bounds(service, rect(outer), rect(inner));
+    }
+    [[nodiscard]] bool active() const noexcept override { return active_now.load(); }
 };
 
-std::expected<std::unique_ptr<Adapter>, Failure> Adapter::attach(Mirror& mirror, void* window, AdapterOptions options) {
+std::expected<std::unique_ptr<Session>, Failure> attach(Mirror& mirror, void* window, const AdapterOptions& options) {
     mlibs::trace::Span span("accessibility.attach", "accessibility");
-    auto impl = std::make_unique<Impl>(mirror, std::move(options));
+    auto session = std::make_unique<AccessKitSession>(mirror, options);
     (void)mirror.refresh();  // the activation that may come at once reads it
-    native::Handlers h{&Impl::on_activate, &Impl::on_action, &Impl::on_deactivate, impl.get()};
-    auto service = native::open(window, h);
-    if (!service) return std::unexpected(Failure{mlibs::error::Kind::failed, std::move(service.error())});
-    impl->service = *service;
+    native::Handlers h{&AccessKitSession::on_activate, &AccessKitSession::on_action, &AccessKitSession::on_deactivate, session.get()};
+    auto opened = native::open(window, h);
+    if (!opened) return std::unexpected(Failure{mlibs::error::Kind::failed, std::move(opened.error())});
+    session->service = *opened;
     log_.info("serving {} nodes to {}", mirror.size(), native::name());
-    return std::unique_ptr<Adapter>(new Adapter(std::move(impl)));
+    return std::unique_ptr<Session>(std::move(session));
 }
 
-Adapter::Adapter(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
-
-Adapter::~Adapter() {
-    if (impl_) native::close(impl_->service);
-}
-
-void Adapter::update() {
-    mlibs::trace::Span span("accessibility.update", "accessibility");
-    impl_->pending = impl_->mirror.refresh();
-    if (impl_->pending.empty() && !impl_->rescaled) return;
-    native::update(impl_->service, &Impl::on_update, impl_.get());
-    impl_->pending = {};
-}
-
-void Adapter::window_focus(bool focused) { native::focus(impl_->service, focused); }
-
-void Adapter::set_scale(float scale) {
-    if (impl_->scale.exchange(scale) != scale) impl_->rescaled = true;
-}
-
-void Adapter::window_bounds(Rect outer, Rect inner) {
-    const double s = impl_->scale.load();
-    auto rect = [s](Rect r) { return accesskit_rect{r.x * s, r.y * s, (r.x + r.width) * s, (r.y + r.height) * s}; };
-    native::bounds(impl_->service, rect(outer), rect(inner));
-}
-
-bool Adapter::active() const noexcept { return impl_->active.load(); }
-
-std::string debug(const Mirror& mirror, const AdapterOptions& options) {
+std::string debug_text(const Mirror& mirror, const AdapterOptions& options) {
     accesskit_tree_update* u = whole(mirror, options, options.scale);
     char* text = accesskit_tree_update_debug(u);
     std::string out = text ? text : "";
@@ -352,4 +341,19 @@ std::string debug(const Mirror& mirror, const AdapterOptions& options) {
     return out;
 }
 
+}  // namespace
+
 }  // namespace omui::accessibility
+
+namespace omui::accessibility::bridge {
+
+// Made when installed, not when the program starts: a table initialised at start-up would name `attach`
+// from the program's initialisers, and the linker would keep AccessKit in a program that never installs it.
+void install() {
+    static const Service accesskit_service{native::name(), &attach};
+    omui::accessibility::install(accesskit_service);
+}
+
+std::string debug(const Mirror& mirror, const AdapterOptions& options) { return debug_text(mirror, options); }
+
+}  // namespace omui::accessibility::bridge

@@ -1,0 +1,5 @@
+== omui.accessibility.bridge
+namespace omui::accessibility::bridge {
+  void install();
+  [[nodiscard]] std::string debug(const Mirror& mirror, const AdapterOptions& options = {…});
+}

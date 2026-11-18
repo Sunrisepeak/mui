@@ -38,8 +38,9 @@ struct DesktopOptions {
     bool                    agent_input = true;   // agents may give input as a person's devices would (decided as their requests)
     // Serve the semantic tree to the platform's assistive technology (UI
     // Automation, NSAccessibility, AT-SPI): a screen reader reads it and asks
-    // for its actions as the person's own input. Where AccessKit has no
-    // library it is not served (omui.accessibility::available).
+    // for its actions as the person's own input. Served by the service the
+    // program installed (omui.accessibility.bridge; omui.sdk installs it);
+    // without one it is not served (omui::accessibility::available()).
     bool                    accessibility = true;
     std::filesystem::path   agent_directory;      // default: agent::default_directory()
     Theme                   theme = Theme::light();

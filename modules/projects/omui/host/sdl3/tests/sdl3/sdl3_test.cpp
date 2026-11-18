@@ -9,6 +9,7 @@ import std;
 import mcpplibs.os;
 import mcpplibs.mwrap.sdl3;  // a virtual gamepad (the gamepad test)
 import omui.host.sdl3;
+import omui.accessibility.bridge;  // the platform's service, installed as an application's SDK installs it
 import omui.ui.base;  // web_view (the system's web view, macOS)
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -506,9 +507,10 @@ float4 invert_fs(EffectPixel px) : SV_Target {
     "assistive technology: the tree served, a screen reader's click performed between frames"_test = [] {
         DesktopOptions o = offscreen("sdl3-access");
         o.accessibility = true;
+        accessibility::bridge::install();  // before the host is made, as an application's SDK does
         Desktop d(o);
         if (!d.open()) return;
-        if constexpr (!accessibility::available) {
+        if (!accessibility::available()) {
             expect(d.accessibility_mirror() == nullptr && d.accessibility_adapter() == nullptr);
             return;
         }

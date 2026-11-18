@@ -2,6 +2,7 @@
 // assistive technology (D-21; spec §3: one tree for pixels, agents, tests and
 // accessibility).
 //
+//     omui::accessibility::bridge::install();  // the platform's service (omui.accessibility.bridge)
 //     accessibility::Mirror mirror(runtime, {.name = "Notes"});
 //     auto adapter = accessibility::Adapter::attach(mirror, hwnd_or_nswindow);
 //     // each turn of the loop:
@@ -11,5 +12,4 @@
 export module omui.accessibility;
 
 export import :map;
-export import :platform;
 export import :adapter;

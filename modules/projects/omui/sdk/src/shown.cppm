@@ -19,6 +19,11 @@ using Prepare = std::function<std::shared_ptr<void>(Runtime&)>;
 // Shows the application until it ends; answers the exit code.
 int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare);
 
+// Installs the services this program was built with: the platform's accessibility service, or nothing.
+// Before a host is made. Its unit is written by the build program (build.mcpp), by the manifest's
+// features and the target; what it does not name the program does not carry.
+void install_services();
+
 // The person's languages as the host states them.
 [[nodiscard]] std::vector<std::string> host_locales();
 

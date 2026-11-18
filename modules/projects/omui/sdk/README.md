@@ -9,7 +9,7 @@ The SDK's umbrella: `import omui;` gives an application the runtime (signals, vi
 | Android's host | preview | `lower` in the manifest |
 | the templates (`templates/`: app-ts, app-cpp, component, native, theme) | stable | `omui new NAME [--template T]` is `mcpp new NAME --template omui.sdk:T`: this package's archive carries them |
 
-What an application carries can be cut down by this package's features (B6), each off by default: `no-gamepad-hidapi` leaves out SDL's HIDAPI game-controller drivers on the desktop, the platform's own joystick input staying (example 01: 246,917 B less; `omui.sdk = { …, features = ["no-gamepad-hidapi"] }`).
+What an application carries is chosen by this package's features (B6). `accessibility-bridge`, on by default, installs the platform's accessibility service ([`omui.accessibility.bridge`](../accessibility/bridge): AT-SPI, NSAccessibility, UI Automation through AccessKit) before a window is made; an application that depends on the SDK with `default-features = false` installs none and does not carry AccessKit (example 01: 18,049 KiB loaded with it, 16,461 KiB without), and accessibility is then not served, as on a platform without a service. The rest are off by default: `no-gamepad-hidapi` leaves out SDL's HIDAPI game-controller drivers on the desktop, the platform's own joystick input staying (example 01: 246,917 B less; `omui.sdk = { …, features = ["no-gamepad-hidapi"] }`).
 
 ## Agent surface
 

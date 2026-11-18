@@ -585,7 +585,7 @@ std::expected<void, ViewFailure> Desktop::open() {
         }
     }
     // Assistive technology's adapter, attached before the window is shown.
-    if (d.options.accessibility && accessibility::available) {
+    if (d.options.accessibility && accessibility::available()) {
         d.mirror = std::make_unique<accessibility::Mirror>(*d.runtime, accessibility::MirrorOptions{.name = d.options.title});
         d.mirror->set_wake([] { platform::wake(); });
         auto adapter = accessibility::Adapter::attach(*d.mirror, platform::native_window(*d.window), {.scale = d.runtime->scale()});

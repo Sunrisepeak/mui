@@ -35,5 +35,5 @@ mcpplibs.mtest = "0.8.4"
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from.
 [package.metadata.openmui.xdef]
-kinds = { profile = 1 }
-modules = { "mlibs/define" = ["profile"] }
+kinds = { profile = 1, project = 1 }  # project: a project's identity (<project>.project.xdef.ts, D-208)
+modules = { "mlibs/define" = ["profile", "project"] }

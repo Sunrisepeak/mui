@@ -5,7 +5,7 @@
 // makes the catalog (src/catalog/catalog.cppm, the subject `document`'s), the
 // listing (studio.ops.json, for the MCP entry) and the reference (studio.ops.md); effects are openas's. Operating a host's Engine
 // is hanim's own catalog (hanim.ops.xdef.ts).
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "studio",

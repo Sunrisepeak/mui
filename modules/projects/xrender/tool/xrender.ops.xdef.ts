@@ -6,7 +6,7 @@
 // reference (xrender.ops.md); effects are openas's. Drawing itself is the
 // library's (a display list into the CPU or GPU renderer); a running
 // application's pixels are its host's `capture`.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "xrender",

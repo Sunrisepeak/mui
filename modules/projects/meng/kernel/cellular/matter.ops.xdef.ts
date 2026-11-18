@@ -3,7 +3,7 @@
 // and by their place in the definition — beside the field's own operations (field.ops.xdef.ts), which keep
 // time: field.step, field.seek. ops-gen makes the table (src/matter/agent/catalog.cppm) and the listings
 // (matter.ops.json, matter.ops.md); effects are openas's, admission is mlibs.control's.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "matter",

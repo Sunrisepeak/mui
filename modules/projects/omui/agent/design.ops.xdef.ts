@@ -6,7 +6,7 @@
 // player implements them; ops-gen makes the table (src/catalog/design.cppm)
 // the player registers them from and MCP serves them by, and the listings
 // (src/catalog/design.ops.json, design.ops.md). Effects are openas's.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "design",

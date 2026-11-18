@@ -529,7 +529,7 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
         const std::string leaf = utf8_of(child.path().filename());
         const fs::path snapshot = child.path() / path_of(leaf + ".project.xdef.json");
         if (fs::exists(snapshot, error)) continue;
-        write(child.path() / path_of(leaf + ".project.xdef.ts"), std::format("import {{ defineProject }} from \"omui/define\";\nexport default defineProject({{ name: \"{}\", tier: \"foundation\", dependsOn: [\"mlibs\"] }});\n", leaf));
+        write(child.path() / path_of(leaf + ".project.xdef.ts"), std::format("import {{ defineProject }} from \"mlibs/define\";\nexport default defineProject({{ name: \"{}\", tier: \"foundation\", dependsOn: [\"mlibs\"] }});\n", leaf));
         write(snapshot, std::format("{{\"$format\":\"project@1\",\"project\":{{\"name\":\"{}\",\"tier\":\"foundation\",\"dependsOn\":[\"mlibs\"]}}}}\n", leaf));
     }
 }
@@ -562,7 +562,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         // a project of the foundation whose part above it is reached: allowed by the project's list, refused by the tiers (D-231)
         {.rule = "project-dag", .dependencies = {{"modules/projects/thing", "[dependencies]\ntop = { path = \"top\" }\n"}},
          .also_unexpected = {"agent-surface"},
-         .files = {{"modules/projects/thing/thing.project.xdef.ts", "import { defineProject } from \"omui/define\";\nexport default defineProject({ name: \"thing\", tier: \"foundation\", "
+         .files = {{"modules/projects/thing/thing.project.xdef.ts", "import { defineProject } from \"mlibs/define\";\nexport default defineProject({ name: \"thing\", tier: \"foundation\", "
                     "dependsOn: [\"mlibs\", \"thing.top\"], parts: [{ path: \"top\", name: \"thing.top\", tier: \"engine\", dependsOn: [\"mlibs\"] }] });\n"},
                    {"modules/projects/thing/thing.project.xdef.json",
                     R"({"$format":"project@1","project":{"name":"thing","tier":"foundation","dependsOn":["mlibs","thing.top"],)"

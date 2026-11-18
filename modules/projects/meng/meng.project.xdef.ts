@@ -1,6 +1,6 @@
 // Who meng is (D-208): read by the lint (the projects' order) and the rename command. Its parts sit at
 // different heights: the simulation kernels below hanim, the media kernels above it, the game layer above omui.
-import { defineProject } from "omui/define";
+import { defineProject } from "mlibs/define";
 
 const kernels = ["mlibs", "xrender", "meng.sim", "hanim", "meng.media"];
 const simulation = ["dynamics", "cellular", "matter", "particles", "field"];

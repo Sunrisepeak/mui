@@ -18,6 +18,11 @@ separate = "build-stage: stage 0's ops-gen, an operation catalogue to its C++ ta
 kind = "module"
 lower = ["mlibs.xdef.tool"]  # lower-labelled parts it uses, each marked in its README
 
+# The declared data kind this package owns (mlibs.xdef registry, D-209): an operation catalog, read here.
+[package.metadata.openmui.xdef]
+kinds = { ops = 1 }
+modules = { "mlibs/define" = ["ops"] }
+
 [targets.mlibs-control-gen]
 kind = "lib"
 

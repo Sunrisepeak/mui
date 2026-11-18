@@ -4,7 +4,7 @@
 // ops-gen makes the table (src/agent/catalog.cppm) and the listings
 // (src/agent/body.ops.json, body.ops.md); effects are openas's, admission is
 // mlibs.control's.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "body",

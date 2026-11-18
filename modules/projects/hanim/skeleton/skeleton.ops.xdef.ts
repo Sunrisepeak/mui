@@ -5,7 +5,7 @@
 // listings (src/agent/skeleton.ops.json, skeleton.ops.md); effects are openas's, admission is mlibs.control's. A
 // character is named by its index (from 0), a clip, a state and a joint by name; places are metres, [x, y, z]
 // with y up.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "skeleton",

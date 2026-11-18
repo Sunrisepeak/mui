@@ -33,9 +33,9 @@ UTest cases{"lang.ts define", [] {
         for (const auto kind : ts::data_kinds) {
             std::string name(kind);
             name[0] = static_cast<char>(name[0] - 'a' + 'A');
-            const bool spec = std::ranges::contains(ts::spec_kinds, kind);  // D-157: the spec's formats, the implementation's
-            write(dir / "kind.ts", std::format("import {{ define{0} }} from \"{1}/define\";\nexport default define{0}({{ a: 1 }});\n", name,
-                                               spec ? "openmui" : "omui"));
+            // D-157, D-209: the spec's formats, the foundation's, the implementation's.
+            const auto from = std::ranges::contains(ts::spec_kinds, kind) ? "openmui" : std::ranges::contains(ts::foundation_kinds, kind) ? "mlibs" : "omui";
+            write(dir / "kind.ts", std::format("import {{ define{0} }} from \"{1}/define\";\nexport default define{0}({{ a: 1 }});\n", name, from));
             auto data = ts::evaluate(dir / "kind.ts");
             expect(data && data->kind == kind && data->json == R"({"a":1})") << (data ? data->kind : data.error().text());
         }

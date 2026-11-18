@@ -16,14 +16,16 @@ UTest cases{"lang.ts registry", [] {
         const auto registry = mlibs::xdef::Registry::read(*workspace);
         expect(registry.has_value()) << (registry ? "" : registry.error());
         if (!registry) return;
-        const auto registered = [&](std::string_view module) {
+        const auto registered = [&](std::string_view module, bool any_owner = false) {
             std::set<std::string> out;
             for (const auto& kind : registry->kinds)
-                if (kind.module == module && kind.owner == "omui.lang.ts") out.insert(kind.name);
+                if (kind.module == module && (any_owner || kind.owner == "omui.lang.ts")) out.insert(kind.name);
             return out;
         };
         const auto written = [](std::span<const std::string_view> kinds) { return std::set<std::string>(kinds.begin(), kinds.end()); };
         expect(registered("openmui/define") == written(omui::lang::ts::spec_kinds));
         expect(registered("omui/define") == written(omui::lang::ts::omui_kinds));
+        // The foundation's, which omui's tools read: what its owners register (mlibs.control.gen, mlibs.project).
+        expect(registered("mlibs/define", true) == written(omui::lang::ts::foundation_kinds));
     };
 }};

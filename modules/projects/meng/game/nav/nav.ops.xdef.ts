@@ -4,7 +4,7 @@
 // step, return to a frame, ask what would be. ops-gen makes the table (src/agent/catalog.cppm) and the
 // listings (src/agent/nav.ops.json, nav.ops.md); effects are openas's, admission is mlibs.control's. A walker, an
 // obstacle and a link are each named by its id (a number); places are the world's metres, [x, y, z] with y up.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "nav",

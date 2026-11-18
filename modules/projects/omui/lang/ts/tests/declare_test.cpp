@@ -72,7 +72,9 @@ UTest cases{"lang.ts declare", [] {
 
     "omui/define's declarations name each of its define functions"_test = [] {
         const std::string_view text = ts::omui_define_types();
-        for (const std::string_view name : {"defineConfig", "defineOps", "defineTheme", "defineStyle", "defineMotion"})
+        for (const std::string_view name : {"defineConfig", "defineTheme", "defineStyle", "defineMotion"})
             expect(text.contains(std::format("export declare function {}(", name))) << name;
+        for (const std::string_view name : {"defineOps", "defineProject"})
+            expect(ts::foundation_define_types().contains(std::format("export declare function {}(", name))) << name;
     };
 }};

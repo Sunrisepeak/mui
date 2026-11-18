@@ -4,7 +4,7 @@
 // ask what would be. ops-gen makes the runtime's table
 // (src/catalog.cppm) and the listings (src/world.ops.json, world.ops.md);
 // effects are openas's, admission is mlibs.control's.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "world",

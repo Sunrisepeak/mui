@@ -52,7 +52,8 @@ namespace omui::lang::ts {
 export import mlibs.ts;
 namespace omui::lang::ts {
   inline constexpr std::array<std::string_view, 3> spec_kinds{…};
-  inline constexpr std::array<std::string_view, 17> omui_kinds{…};
+  inline constexpr std::array<std::string_view, 15> omui_kinds{…};
+  inline constexpr std::array<std::string_view, 3> foundation_kinds{…};
   inline constexpr std::array<std::string_view, 20> data_kinds{…};
   [[nodiscard]] std::string define_module_source(bool spec);
   [[nodiscard]] mlibs::ts::DataOptions data_options(mlibs::ts::DataOptions options = {…});
@@ -60,6 +61,7 @@ namespace omui::lang::ts {
   [[nodiscard]] std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate_source(std::string_view source, std::string_view name, mlibs::ts::DataOptions options = {…});
   [[nodiscard]] std::expected<std::string, std::string> data_text(const std::filesystem::path& file);
   [[nodiscard]] std::string_view omui_define_types();
+  [[nodiscard]] std::string_view foundation_define_types();
 }
 == omui.lang.ts:edit
 namespace omui::lang::ts {

@@ -4,7 +4,7 @@
 // the layer and the object that drew it. ops-gen makes the table
 // (src/catalog.cppm) and the listings (src/frame.ops.json, frame.ops.md);
 // effects are openas's, admission is mlibs.control's.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "frame",

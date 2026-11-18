@@ -7,7 +7,7 @@
 // in omui.config.ts, narrowed by the user's settings and the session (openas).
 // omui.agent:generation implements them; ops-gen makes the table
 // (src/catalog/generate.cppm) and the listings MCP serves.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "generate",

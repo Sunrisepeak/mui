@@ -8,7 +8,7 @@
 // list them. `agent` and `page` are the protocol's catalogs (omui.agent). ops-gen makes the table the
 // command line serves them by (src/catalog/cli.cppm) and the listings
 // (src/catalog/omui-cli.ops.json, .md).
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "omui-cli",

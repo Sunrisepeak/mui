@@ -17,9 +17,11 @@ export namespace omui::lang::ts {
 // The kinds the define functions make (D-157): the spec's formats from "openmui/define", the implementation's
 // from "omui/define".
 inline constexpr std::array<std::string_view, 3> spec_kinds{"contract", "native", "view"};
-inline constexpr std::array<std::string_view, 17> omui_kinds{"config",   "ops",       "theme", "style",  "motion",   "sound",    "music",  "timeline",
-                                                             "subtitles", "video",    "effect", "behavior", "messages", "matter", "appearance", "world",
-                                                             "project"};
+inline constexpr std::array<std::string_view, 15> omui_kinds{"config",   "theme",  "style",    "motion",   "sound",  "music",      "timeline", "subtitles",
+                                                             "video",    "effect", "behavior", "messages", "matter", "appearance", "world"};
+// The foundation's, from "mlibs/define" (their owners mlibs.control.gen and mlibs.project; D-209): a framework's tool
+// reads them too.
+inline constexpr std::array<std::string_view, 3> foundation_kinds{"ops", "profile", "project"};
 inline constexpr std::array<std::string_view, 20> data_kinds{"contract", "native",    "view",  "config", "ops",      "theme",    "style",  "motion",     "sound",
                                                              "music",    "timeline",  "subtitles", "video", "effect", "behavior", "messages", "matter", "appearance", "world",
                                                              "project"};
@@ -41,8 +43,10 @@ inline constexpr std::array<std::string_view, 20> data_kinds{"contract", "native
 // reads it. omui's tools and the compositions over them take a data file's text here, one way.
 [[nodiscard]] std::expected<std::string, std::string> data_text(const std::filesystem::path& file);
 
-// The TypeScript declarations of "omui/define", for type-checking an application's configuration and catalogs
-// ("openmui/define"'s are the spec's own, spec/stubs/define.d.ts).
+// The TypeScript declarations of "omui/define", for type-checking an application's configuration and looks
+// ("openmui/define"'s are the spec's own, spec/stubs/define.d.ts), and of "mlibs/define"'s operation catalogs and
+// project identities.
 [[nodiscard]] std::string_view omui_define_types();
+[[nodiscard]] std::string_view foundation_define_types();
 
 }  // namespace omui::lang::ts

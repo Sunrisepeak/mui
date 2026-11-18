@@ -112,7 +112,7 @@ UTest cases{"lang.js declare", [] {
     "the files: the API and every registered builder, the natives, the define functions, tsc's configuration"_test = [] {
         const fs::path root = temp_dir() / "app";
         const auto files = declared(root);
-        expect(eq(files.size(), std::size_t{5}));
+        expect(eq(files.size(), std::size_t{6}));
         const std::string api = read(root / ".omui" / "types" / "openmui.d.ts");
         for (const std::string_view part : {"export declare function signal<T>(", "export declare function mount(", "export interface NodeProps {",
                                             "export declare function button(props?: ButtonProps", "export declare function textBox(props?: TextBoxProps",
@@ -121,6 +121,7 @@ UTest cases{"lang.js declare", [] {
         expect(read(root / ".omui" / "types" / "natives.d.ts").contains(R"(declare module "openmui:native/fuzzy")"));
         expect(read(root / ".omui" / "types" / "openmui-define.d.ts").contains("export declare function defineContract("));
         expect(read(root / ".omui" / "types" / "omui-define.d.ts").contains("export declare function defineConfig("));
+        expect(read(root / ".omui" / "types" / "mlibs-define.d.ts").contains("export declare function defineOps("));
         const std::string config = read(root / ".omui" / "types" / "tsconfig.json");
         expect(config.contains(R"("erasableSyntaxOnly": true)") && config.contains(R"("../../**/*.ts")") && config.contains(R"("./openmui.d.ts")")) << config;
     };

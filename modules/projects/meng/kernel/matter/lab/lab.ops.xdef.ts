@@ -4,7 +4,7 @@
 // frame's (the picture), which the lab's session has too. The first design adapter that is not an interface:
 // its history and its claims are the kernel's (mlibs.agent). ops-gen makes the table (src/catalog.cppm)
 // and the listings (src/lab.ops.json, src/lab.ops.md).
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 const intent = { name: "intent", type: "string", doc: "what the change is for: its commit's message", optional: true };
 const kept = "lab.revert to the commit before it (`HEAD~1`)";

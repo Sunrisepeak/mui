@@ -2,7 +2,7 @@
 // timeline's keyed gain, meng.audio's mixer and bus, an omui view that shows it — so it lives with the toolchain
 // whole, xtools, not with any one of them. ops-gen makes the catalog (src/catalog/catalog.cppm), the listing
 // (audition.ops.json) and the reference (audition.ops.md).
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "audition",

@@ -4,7 +4,7 @@
 // the listings (src/agent/particles.ops.json, particles.ops.md); effects are openas's, admission is
 // mlibs.control's. A particle is named by its id (a number, in the order emitted); a material by its name in
 // the world's definition of matter; places are metres, [x, y, z] with y up.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "particles",

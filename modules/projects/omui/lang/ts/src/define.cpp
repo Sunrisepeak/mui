@@ -17,6 +17,9 @@ std::string define_module_source(bool spec) {
 mlibs::ts::DataOptions data_options(mlibs::ts::DataOptions options) {
     options.modules.push_back({"openmui/define", define_module_source(true)});
     options.modules.push_back({"omui/define", define_module_source(false)});
+    std::vector<mlibs::ts::DefinedKind> foundation;
+    for (const auto kind : foundation_kinds) foundation.push_back({kind, 1});
+    options.modules.push_back({"mlibs/define", mlibs::ts::define_module(foundation)});
     return options;
 }
 
@@ -41,7 +44,7 @@ std::expected<std::string, std::string> data_text(const std::filesystem::path& f
 
 std::string_view omui_define_types() {
     return R"ts(// omui/define — omui's own data formats written as TypeScript data modules
-// (D-139, D-157): an application's configuration, an operation catalog.
+// (D-139, D-157): an application's configuration, its looks and sounds.
 // A module's default export is one define call, evaluated to the JSON omui reads.
 
 /** What a define call makes: the document of one kind, evaluated to JSON. */
@@ -81,84 +84,6 @@ export interface Config {
 }
 /** `export default defineConfig({ agent: { release: "dual-user" } })`; a switch given at launch wins. */
 export declare function defineConfig(config: Config): Defined<"config">;
-
-// ── an operation catalog (`ops-gen`: CLI, MCP and the reference) ────
-
-/** How much an operation changes (openas §2.4). */
-export type Effect = "read" | "reversible" | "irreversible";
-/** How long it takes: at once, within a frame, a bounded time, or long enough to show progress. */
-export type Cost = "instant" | "frame" | "bounded" | "heavy";
-export type ParamType = "bool" | "integer" | "number" | "seconds" | "string" | "json" | "path" | (string & {});
-
-export interface Param {
-    name: string;
-    type: ParamType;
-    doc?: string;
-    optional?: boolean;
-}
-export interface Operation {
-    /** Dotted: `fighter.bake`. */
-    name: string;
-    effect: Effect;
-    summary: string;
-    params?: Param[];
-    /** What it answers: `json`, a type, or a description. */
-    result?: string;
-    cost?: Cost;
-    /** How to take it back, for what changes. */
-    undo?: string;
-    // ── less often ──
-    /** Only a person may run it. */
-    person?: boolean;
-    cancellable?: boolean;
-    /** It runs another product's operation. */
-    delegated?: boolean;
-    /** The runtime's undo takes it back. */
-    undoable?: boolean;
-    /** It holds a terminal or a window while it runs: a person's command line runs it, an agent's entries do not. */
-    terminal?: boolean;
-    /** Its arguments as they are sent, the plainest first (`{}`: none): `describe` shows them as requests. */
-    examples?: Record<string, unknown>[];
-    /** Words an intent may use for it that the summary does not (`"fire"` for a heat): `find` reads them. */
-    keywords?: string[];
-    /** What follows it when it is done (the reading that shows what a change did): given with its result. */
-    then?: { why: string; request: Step }[];
-}
-/** A request as it is sent: an operation of the catalog by its whole name, and its arguments. */
-export type Step = { op: string } & Record<string, unknown>;
-/** A task to begin with: what it gets done, and the requests that do it, in order. */
-export interface Task {
-    /** Lowercase words joined by `-`. */
-    name: string;
-    summary: string;
-    steps: Step[];
-}
-/** A level an agent plays at (games): how it sees and how fast it may act. */
-export interface Tier {
-    name: string;
-    doc?: string;
-    view?: "drawn" | "full";
-    reaction_ms?: number;
-    actions_per_second?: number;
-    /** The operations open at this tier. */
-    operations?: string[];
-}
-export interface Catalog {
-    product: string;
-    doc: string;
-    operations: Operation[];
-    /** Where the listings go (`media/ops`). */
-    generated?: string;
-    /** A program's module and namespace, for the catalog's C++. */
-    module?: string;
-    namespace?: string;
-    /** The partition holding it (`catalog` when absent): a module with two catalogs names the second. */
-    partition?: string;
-    tiers?: Tier[];
-    /** Three to five tasks an agent that knows nothing of the product begins with; each runs as written. */
-    tasks?: Task[];
-}
-export declare function defineOps(catalog: Catalog): Defined<"ops">;
 
 // ── looks (omui.theme; until their formats join the spec) ───────────────
 
@@ -678,6 +603,98 @@ export interface World {
 }
 /** `export default defineWorld({ name: "a cavern", legend: { "#": "stone", "P": "start" }, rows: ["#####", "#P..#", "#####"] })`. */
 export declare function defineWorld(world: World): Defined<"world">;
+
+)ts";
+}
+
+std::string_view foundation_define_types() {
+    return R"ts(// mlibs/define — the foundation's data formats written as TypeScript data
+// modules (D-139, D-209): an operation catalog (mlibs.control.gen), a project's
+// identity (mlibs.project). A module's default export is one define call.
+
+/** What a define call makes: the document of one kind, evaluated to JSON. */
+export interface Defined<Kind extends string> {
+    readonly kind: Kind;
+}
+
+// ── an operation catalog (`ops-gen`: CLI, MCP and the reference) ────
+
+/** How much an operation changes (openas §2.4). */
+export type Effect = "read" | "reversible" | "irreversible";
+/** How long it takes: at once, within a frame, a bounded time, or long enough to show progress. */
+export type Cost = "instant" | "frame" | "bounded" | "heavy";
+export type ParamType = "bool" | "integer" | "number" | "seconds" | "string" | "json" | "path" | (string & {});
+
+export interface Param {
+    name: string;
+    type: ParamType;
+    doc?: string;
+    optional?: boolean;
+}
+export interface Operation {
+    /** Dotted: `fighter.bake`. */
+    name: string;
+    effect: Effect;
+    summary: string;
+    params?: Param[];
+    /** What it answers: `json`, a type, or a description. */
+    result?: string;
+    cost?: Cost;
+    /** How to take it back, for what changes. */
+    undo?: string;
+    // ── less often ──
+    /** Only a person may run it. */
+    person?: boolean;
+    cancellable?: boolean;
+    /** It runs another product's operation. */
+    delegated?: boolean;
+    /** The runtime's undo takes it back. */
+    undoable?: boolean;
+    /** It holds a terminal or a window while it runs: a person's command line runs it, an agent's entries do not. */
+    terminal?: boolean;
+    /** Its arguments as they are sent, the plainest first (`{}`: none): `describe` shows them as requests. */
+    examples?: Record<string, unknown>[];
+    /** Words an intent may use for it that the summary does not (`"fire"` for a heat): `find` reads them. */
+    keywords?: string[];
+    /** What follows it when it is done (the reading that shows what a change did): given with its result. */
+    then?: { why: string; request: Step }[];
+}
+/** A request as it is sent: an operation of the catalog by its whole name, and its arguments. */
+export type Step = { op: string } & Record<string, unknown>;
+/** A task to begin with: what it gets done, and the requests that do it, in order. */
+export interface Task {
+    /** Lowercase words joined by `-`. */
+    name: string;
+    summary: string;
+    steps: Step[];
+}
+/** A level an agent plays at (games): how it sees and how fast it may act. */
+export interface Tier {
+    name: string;
+    doc?: string;
+    view?: "drawn" | "full";
+    reaction_ms?: number;
+    actions_per_second?: number;
+    /** The operations open at this tier. */
+    operations?: string[];
+}
+export interface Catalog {
+    product: string;
+    doc: string;
+    operations: Operation[];
+    /** Where the listings go (`media/ops`). */
+    generated?: string;
+    /** A program's module and namespace, for the catalog's C++. */
+    module?: string;
+    namespace?: string;
+    /** The partition holding it (`catalog` when absent): a module with two catalogs names the second. */
+    partition?: string;
+    tiers?: Tier[];
+    /** Three to five tasks an agent that knows nothing of the product begins with; each runs as written. */
+    tasks?: Task[];
+}
+export declare function defineOps(catalog: Catalog): Defined<"ops">;
+
 // ── a project's identity (<project>.project.xdef.ts, D-208) ──────────────
 
 /**

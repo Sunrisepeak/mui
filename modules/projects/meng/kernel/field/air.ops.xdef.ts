@@ -3,7 +3,7 @@
 // (a fire's heat held, a gust of wetness once), step it, return to a frame, ask what would be, and why a cell is
 // what it is. ops-gen makes the table (src/agent/catalog.cppm) and the listings (src/agent/air.ops.json,
 // air.ops.md); effects are openas's, admission is mlibs.control's.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "air",

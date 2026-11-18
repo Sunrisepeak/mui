@@ -5,7 +5,7 @@
 // be read at any time and stay readable; a cancel is taken at once, and what
 // a cancelled task would have committed never is. omui.agent:tasks
 // implements them (TaskBroker); ops-gen makes the table and listings.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "task",

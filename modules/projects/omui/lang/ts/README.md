@@ -6,7 +6,7 @@ TypeScript is the one upper-level language of omui: code, config and data at onc
 
 ## Data formats (`:define`)
 
-`evaluate(file)` is mlibs.ts's with omui's two define modules, by layer (D-157): `"openmui/define"` has the spec's formats (`defineContract`, `defineNative`, `defineView`), `"omui/define"` the implementation's (`defineConfig`, `defineOps`, `defineTheme`, `defineStyle`, `defineMotion`, `defineMatter`, `defineProject` …). `omui_define_types()` gives the TypeScript declarations of `"omui/define"`; `"openmui/define"`'s are the spec's (`spec/stubs/define.d.ts`).
+`evaluate(file)` is mlibs.ts's with three define modules, by layer (D-157, D-209): `"openmui/define"` has the spec's formats (`defineContract`, `defineNative`, `defineView`), `"omui/define"` the implementation's (`defineConfig`, `defineTheme`, `defineStyle`, `defineMotion`, `defineMatter` …), `"mlibs/define"` the foundation's that omui's tools read too (`defineOps`, mlibs.control.gen's; `defineProject` and `defineProfile`, mlibs.project's). `omui_define_types()` and `foundation_define_types()` give the TypeScript declarations of `"omui/define"` and of `"mlibs/define"`'s catalogs and identities; `"openmui/define"`'s are the spec's (`spec/stubs/define.d.ts`).
 
 
 ## Declarations (`:declare`)

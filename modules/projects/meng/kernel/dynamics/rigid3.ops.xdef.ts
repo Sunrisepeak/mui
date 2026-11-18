@@ -5,7 +5,7 @@
 // (src/rigid3/agent/catalog.cppm) and the listings (src/rigid3/agent/rigid3.ops.json, rigid3.ops.md);
 // effects are openas's, admission is mlibs.control's. A body, a joint and a character are each named by its id
 // (a number); places are the world's metres, [x, y, z] with y up.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "rigid3",

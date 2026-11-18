@@ -4,7 +4,7 @@
 // come from the built-in sync card or PNG files; a view's frames are omui's, given by a composition (xtools) that
 // adds omui's view source — the same operations there take a view document. ops-gen makes the catalog
 // (src/catalog/catalog.cppm), the listing (video.ops.json) and the reference (video.ops.md).
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "video",

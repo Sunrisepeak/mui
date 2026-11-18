@@ -6,7 +6,7 @@
 // with why). ops-gen makes the catalog (src/catalog/catalog.cppm), the
 // listing (timeline.ops.json) and the reference (timeline.ops.md); effects are
 // openas's.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "timeline",

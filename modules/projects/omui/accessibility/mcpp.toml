@@ -23,6 +23,9 @@ kind = "runtime"
 lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
 agent = { part = "omui.agent" }
 
+[package.metadata.openmui.compose]
+slots = ["omui.accessibility.service"]  # the platform's assistive-technology service (src/adapter.cppm)
+
 [targets.openmui-accessibility]
 kind = "lib"
 

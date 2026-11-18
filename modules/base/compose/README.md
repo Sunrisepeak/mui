@@ -2,7 +2,17 @@
 
 What a program is made of, chosen at its root: slots, providers and compositions — one mechanism for composing the engines, extending them from outside, and leaving out what a program does not need (D-238, [design](../../../.agents/docs/2026-11-18-compose-slots-worlds-design.md)).
 
-**Preview.** The run time is here; the declared data (`compose` kind), the build's evaluation of worlds and the lints are tasks K2–K5 of the design.
+**Preview.** The run time is here, and what manifests declare (below, held by lint `compose`); the build's evaluation of worlds is tasks K3–K5 of the design.
+
+A manifest says what its package is to a composition, under `[package.metadata.openmui.compose]`:
+
+| Key | Who writes it | What it says |
+|---|---|---|
+| `slots = ["<owner>.<name>", …]` | a slot's owner | the slots it declares (each id is in its sources, as a `Slot` constant) |
+| `provides = ["<slot>", …]` | a provider's package | the slots it has a provider of |
+| `root = true` | a program's root that is not a product (an SDK) | it chooses providers: it may depend on providers' packages |
+
+Lint `compose` holds them: a slot has one owner and is named after it; a provider names a declared slot; outside tests only a root (a product, or a package that says `root`) depends on a provider's package; a manifest does not choose sources by a feature and by a target's exclusion at once.
 
 | Concept | What it is |
 |---|---|

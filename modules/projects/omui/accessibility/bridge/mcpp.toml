@@ -19,6 +19,9 @@ separate = "platform: AccessKit's bridges to UIA, NSAccessibility and AT-SPI, de
 kind = "runtime"
 agent = { part = "omui.agent" }
 
+[package.metadata.openmui.compose]
+provides = ["omui.accessibility.service"]  # AccessKit's, by platform
+
 [targets.openmui-accessibility-bridge]
 kind = "lib"
 

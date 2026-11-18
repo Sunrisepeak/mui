@@ -583,6 +583,86 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         }
     }
 
+    // compose (D-238–D-243): what a manifest says of slots and providers (`[package.metadata.openmui.compose]`:
+    // `slots`, the ids this package owns; `provides`, the slots it has a provider of; `root = true`, a program's
+    // root that chooses providers) holds together. A slot has one owner, is named after it, and its id is in the
+    // owner's sources (the `Slot` constant); a provider names a declared slot; only a root — a product, or a
+    // package that says so — depends on a provider's package outside its tests; and a manifest does not choose
+    // one set of sources by a feature and by a target's exclusion at once (red 136).
+    {
+        const auto strings_of = [](const toml::table* table, std::string_view key) {
+            std::vector<std::string> out;
+            if (const auto* list = table && table->get(key) ? table->get(key)->as_array() : nullptr)
+                for (const auto& item : *list)
+                    if (auto one = item.value<std::string>()) out.push_back(*one);
+            return out;
+        };
+        std::map<std::string, std::string> owner_of;          // a slot → the member that declares it
+        std::set<std::string>              providers;         // members that provide
+        for (const auto& member : workspace.members) {
+            if (!member.data) continue;
+            const auto* compose = table_at(openmui_metadata(*member.data), "compose");
+            const std::string name = package_name(*member.data);
+            for (const std::string& slot : strings_of(compose, "slots")) {
+                if (const auto [found, fresh] = owner_of.emplace(slot, member.path); !fresh) {
+                    add("compose", member.path + "/mcpp.toml", std::format("declares the slot {}, which {} owns: a slot has one owner", slot, found->second));
+                    continue;
+                }
+                if (!slot.starts_with(name + "."))
+                    add("compose", member.path + "/mcpp.toml", std::format("the slot {} is not named after its owner ({}.<name>)", slot, name));
+                bool in_sources = false;
+                std::error_code error;
+                for (fs::recursive_directory_iterator file(root / path_of(member.path) / "src", error), end; !error && file != end && !in_sources; file.increment(error))
+                    if (file->is_regular_file(error) && (file->path().extension() == ".cppm" || file->path().extension() == ".cpp"))
+                        in_sources = read_text(file->path()).value_or("").contains("\"" + slot + "\"");
+                if (!in_sources)
+                    add("compose", member.path + "/mcpp.toml", std::format("declares the slot {}, and no source of it has that id (its `mlibs::compose::Slot`)", slot));
+            }
+            if (!strings_of(compose, "provides").empty()) providers.insert(member.path);
+        }
+        for (const auto& member : workspace.members) {
+            if (!member.data) continue;
+            const auto* metadata = openmui_metadata(*member.data);
+            const auto* compose = table_at(metadata, "compose");
+            for (const std::string& slot : strings_of(compose, "provides"))
+                if (!owner_of.contains(slot))
+                    add("compose", member.path + "/mcpp.toml", std::format("provides {}, a slot no package declares (`slots` of its owner's manifest)", slot));
+            const std::string separate = metadata && metadata->get("separate") ? metadata->get("separate")->value_or(std::string{}) : std::string{};
+            const bool is_root = separate.starts_with("product") || (compose && compose->get("root") && compose->get("root")->value_or(false));
+            std::vector<const toml::table*> tables{table_at(&*member.data, "dependencies")};
+            if (const auto* targets = table_at(&*member.data, "target"))
+                for (const auto& [_, target] : *targets) tables.push_back(table_at(target.as_table(), "dependencies"));
+            if (const auto* by_feature = table_at(&*member.data, "feature-deps"))
+                for (const auto& [_, feature] : *by_feature) tables.push_back(feature.as_table());
+            for (const auto* table : tables) {
+                if (!table || is_root) continue;
+                for (const auto& [_, node] : flatten(*table)) {
+                    const auto* spec = node->as_table();
+                    if (!spec || !spec->get("path")) continue;
+                    const std::string target = resolved(member.path, spec->get("path")->value_or(std::string{}));
+                    if (!providers.contains(target)) continue;
+                    const Member* other = workspace.find(target);
+                    add("compose", member.path + "/mcpp.toml",
+                        std::format("depends on {}, a provider: only a program's root chooses providers — depend on the slot's owner, or say "
+                                    "`[package.metadata.openmui.compose] root = true`",
+                                    other && other->data ? package_name(*other->data) : target));
+                }
+            }
+            bool feature_sources = false, target_exclusion = false;
+            if (const auto* features = table_at(&*member.data, "features"))
+                for (const auto& [_, feature] : *features)
+                    feature_sources = feature_sources || (feature.as_table() && feature.as_table()->get("sources"));
+            if (const auto* targets = table_at(&*member.data, "target"))
+                for (const auto& [_, target] : *targets)
+                    for (const std::string& source : strings_of(table_at(target.as_table(), "build"), "sources"))
+                        target_exclusion = target_exclusion || source.starts_with("!");
+            if (feature_sources && target_exclusion)
+                add("compose", member.path + "/mcpp.toml",
+                    "chooses sources by a feature and by a target's exclusion (`!`): what a program carries, and which implementation a "
+                    "platform has, are chosen in different packages (a provider's package holds the platform's choice)");
+        }
+    }
+
     // packages (D-194 as revised 2026-11-17, plan §4.2): every member says why it is a package of its own,
     // `separate = "<reason>: <one sentence>"`. The plan's five isolations — platform, build-stage, suite (a CTS
     // more than one package runs), closure (one lint `closure` proves apart), dependency (a heavy dependency or a

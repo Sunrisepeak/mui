@@ -84,7 +84,7 @@
 - **动画**：组件不写动画（D-93，lint `motion`），只画状态和可选的部件名；变化怎么动由节点的 motion 槽和风格包配方决定，由 hanim 统一求值。UI 框架负责身份、语义、呈现和命中一致性。每个宿主只有一个 hanim Engine。表示与选择策略见[多表示方案](.agents/docs/2026-11-05-hanim-representations-selection-policy-design.md)。画布相机飞行这类导航运动是例外，需在行内写 `MOTION-OK:` 和理由。
 - **界面全平台自绘**（D-140）：窗口和系统集成面（边框、菜单栏、托盘、通知、文件对话框）可选原生或自绘，界面内容一律自绘；webview 只作可选的外部表面组件，不做 Web 前端模式（D-141）。
 - **渲染器只写一次**：xrender 的渲染图承载所有渲染特性（vector、effect，以后的 mesh、particle）；GPU 路径只依赖 `mlibs.rhi` 接口，后端（SDL_GPU、WebGPU、WebGL）是 xrender 的实现，由宿主注入；模拟等计算只依赖接口，不依赖 xrender。
-- **标准**：`spec/` 是 [`openlifa/openmui`](https://github.com/openlifa/openmui) 子模块，openas 来自 [`openlifa/openas`](https://github.com/openlifa/openas)。改标准就在标准仓库各自的单 PR 分支（`openmui-design`／`openas-design`）提交，提交人为 `Sunrisepeak <speakshen@outlook.com>`，带 `-s`；代码 Apache-2.0，规范文本 CC BY-SA 4.0。actor、效果、信封、授权以 openas 为准，运行时用 `openas::decide` 判定请求。
+- **标准**：`spec/` 是 [`openlifa/openmui`](https://github.com/openlifa/openmui) 子模块，openas 来自 [`openlifa/openas`](https://github.com/openlifa/openas)。两个标准的设计分支已合入各自的 main（2026-11-18：openmui 0.4.1、openas 0.2.1）；改标准就在标准仓库开一个小 PR（一次增补一个，CI 通过后合入并打补丁版本的 tag，非增补的改动升次版本号），提交人为 `Sunrisepeak <speakshen@outlook.com>`，带 `-s`；代码 Apache-2.0，规范文本 CC BY-SA 4.0。actor、效果、信封、授权以 openas 为准，运行时用 `openas::decide` 判定请求。
 
 ## 4. 代码规范
 

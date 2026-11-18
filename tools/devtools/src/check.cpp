@@ -98,8 +98,33 @@ int native_size(const fs::path& root, const Size& asked) {
         const auto bytes = owner.value("bytes", std::uint64_t{0});
         std::cout << std::format("  {:>9}  {:4.1f}%  {}\n", kib(bytes), 100.0 * static_cast<double>(bytes) / shipped, owner.value("name", ""));
     }
+    // What it links (B5): the packages built into the program, from the build's resolution — beside its own bin/.
+    std::set<std::string> links;
+    for (fs::path up = program->path.parent_path(); up.has_relative_path(); up = up.parent_path()) {
+        const auto resolution = json::parse(mcpplibs::os::fs::read(up / "resolution.json").value_or(""), nullptr, false);
+        if (resolution.is_discarded()) continue;
+        for (const auto& package : resolution["graph"].value("packages", json::array())) {
+            const auto instances = package.value("instances", json::array());
+            if (std::ranges::find(instances, json("target")) == instances.end() || package.value("root", false)) continue;
+            const auto& id = package["package"];
+            const std::string name = id.value("namespace", "") + "." + id.value("name", "");
+            if (name != asked.package) links.insert(name);
+        }
+        break;
+    }
+    std::cout << std::format("{} links {} packages\n", asked.package, links.size());
     if (asked.budget.empty()) return 0;
-    const auto over = over_budget(measured, mcpplibs::os::fs::read(root / asked.budget).value_or(""));
+    const std::string budget_text = mcpplibs::os::fs::read(root / asked.budget).value_or("");
+    auto over = over_budget(measured, budget_text);
+    // The budget's `links`, when it lists them: the program links exactly those — one more or one fewer is said.
+    if (const auto budget = json::parse(budget_text, nullptr, false); !budget.is_discarded() && budget.contains("links")) {
+        std::set<std::string> expected;
+        for (const auto& name : budget["links"]) expected.insert(name.get<std::string>());
+        for (const auto& name : links)
+            if (!expected.contains(name)) over.push_back(std::format("{} now links {}, which its budget's links do not list", asked.package, name));
+        for (const auto& name : expected)
+            if (!links.contains(name)) over.push_back(std::format("{} no longer links {}: take it out of its budget's links", asked.package, name));
+    }
     for (const auto& message : over) std::cout << "::error::" << message << '\n';
     if (over.empty()) std::cout << std::format("ok   within {}\n", mcpplibs::os::fs::generic_utf8(asked.budget));
     return over.empty() ? 0 : 1;

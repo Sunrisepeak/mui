@@ -24,6 +24,7 @@ agent = { library = "the umbrella: it re-exports the packages of omui; its own p
 root = true  # the SDK chooses an application's providers (build.mcpp writes the unit that installs them)
 # What the unit installs, as build.mcpp's rows say it (lint compose holds the two alike): a build's report reads this.
 [package.metadata.openmui.compose.installs]
+"omui.host.sdl3.gpu" = { feature = "gpu", targets = "desktop" }
 "omui.accessibility.bridge" = { feature = "accessibility-bridge", targets = "desktop" }
 
 [targets.openmui]
@@ -42,8 +43,11 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp
 [features]
 default = ["full"]
 lean = {}
-app  = { implies = ["lean", "accessibility-bridge"] }
+app  = { implies = ["lean", "gpu", "accessibility-bridge"] }
 full = { implies = ["app"] }
+# The GPU path of a desktop window: SDL_GPU's device and xrender's renderer (omui.host.sdl3.gpu). Without it the CPU
+# renderer draws every frame, as on a machine without a GPU.
+gpu = {}
 # The platform's accessibility service through AccessKit (omui.accessibility.bridge; 1.55 MB of example 01 on Linux).
 accessibility-bridge = {}
 # SDL's HIDAPI game-controller drivers on the desktop (evdev's path stays).
@@ -76,6 +80,7 @@ mcpplibs.cmdline      = "0.0.3"
 # (src/host/<where>/shown.cpp) that name it.
 [target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.dependencies]
 omui.host.sdl3 = { path = "../host/sdl3" }
+"omui.host.sdl3.gpu" = { path = "../host/sdl3/gpu" }  # installed by the generated unit (feature gpu)
 omui.accessibility.bridge = { path = "../accessibility/bridge" }  # installed by the generated unit (feature accessibility-bridge)
 
 [target.'cfg(env = "android")'.dependencies]

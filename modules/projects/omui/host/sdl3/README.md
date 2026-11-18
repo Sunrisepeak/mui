@@ -37,6 +37,15 @@ Frames are drawn by the GPU renderer (xrender.vector's `GpuRenderer` on an
 omui.rhi device that claimed the window) into a texture the swapchain shows,
 or by the CPU renderer into a surface streamed to an SDL renderer's texture —
 the same pixels, which xrender.vector's tests hold together.
+The GPU path is a provider's, installed at this package's slot `omui.host.sdl3.gpu`
+(`omui::gpu_slot`, `GpuService`; [`mlibs.compose`](../../../../base/compose), a preview,
+`lower` in the manifest): [`gpu`](gpu) (`omui.host.sdl3.gpu`) has SDL_GPU's device
+and xrender's renderer, and `omui.sdk` installs it. A program that installs none —
+an application built `lean` — draws every frame with the CPU renderer, as a machine
+without a GPU does, and `renderer = gpu` is refused naming the slot and how to have
+it. This package's tests draw with the CPU and hold that refusal; the device's are
+the provider's (a slot's owner cannot depend on its provider).
+
 `DesktopOptions::renderer` says who: `automatic` (the default) uses the GPU
 when the machine has one and the CPU renderer when the only device is a
 software rasteriser (lavapipe, WARP), which the CPU renderer outruns; `cpu`

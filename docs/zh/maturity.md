@@ -14,7 +14,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 
 | 项目 | 稳定 | 预览 | 实验 |
 |---|---|---|---|
-| omui | 29 | 2 | 1 |
+| omui | 30 | 2 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
 | meng | 0 | 21 | 2 |
@@ -42,6 +42,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `omui.host.headless` | [modules/projects/omui/host/headless](../../modules/projects/omui/host/headless) | 稳定 |
 | `omui.host.android` | [modules/projects/omui/host/android](../../modules/projects/omui/host/android) | 预览 |
 | `omui.host.sdl3` | [modules/projects/omui/host/sdl3](../../modules/projects/omui/host/sdl3) | 稳定 |
+| `omui.host.sdl3.gpu` | [modules/projects/omui/host/sdl3/gpu](../../modules/projects/omui/host/sdl3/gpu) | 稳定 |
 | `omui.host.web` | [modules/projects/omui/host/web](../../modules/projects/omui/host/web) | 稳定 |
 | `omui.native` | [modules/projects/omui/native](../../modules/projects/omui/native) | 稳定 |
 | `omui.player` | [modules/projects/omui/player](../../modules/projects/omui/player) | 稳定 |

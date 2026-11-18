@@ -36,3 +36,4 @@ mcpplibs.os      = "0.4.4"
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 omui.host.sdl3     = { path = "../../../modules/projects/omui/host/sdl3" }
+"omui.host.sdl3.gpu" = { path = "../../../modules/projects/omui/host/sdl3/gpu" }  # the GPU path, installed by the test as the SDK installs it

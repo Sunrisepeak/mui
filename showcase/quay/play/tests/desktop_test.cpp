@@ -5,6 +5,7 @@
 import std;
 import omui;
 import omui.host.sdl3;
+import omui.host.sdl3.gpu;
 import omui.showcase.quay.window;
 import mlibs.image;
 import mcpplibs.os;
@@ -40,6 +41,7 @@ UTest cases{"quay.desktop", [] {
         options.renderer = omui::DesktopOptions::Renderer::gpu;
         options.theme = omui::Theme::dark_theme();
         if (auto library = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) options.vulkan_library = *library;
+        omui::host::sdl3::gpu::install();  // the host made here, not by omui::run: the GPU path installed as the SDK does
         omui::Desktop desktop(options);
         const auto opened = desktop.open();
         if (!opened || !desktop.gpu()) {

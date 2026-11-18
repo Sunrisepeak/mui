@@ -13,6 +13,7 @@ struct Entry {
 };
 
 struct Record {
+    std::string        id;
     SlotInfo           info;
     std::vector<Entry> entries;
     Absence            absence = Absence::unsaid;
@@ -21,23 +22,28 @@ struct Record {
 }  // namespace
 
 struct Composition::State {
-    mutable std::shared_mutex                  mutex;
+    mutable std::mutex                         mutex;  // until frozen: installs are the root's, reads before it few
     std::atomic<bool>                          frozen{false};
-    mutable std::map<std::string, Record, std::less<>> slots;
+    // A few slots a program: kept in the order first told of, found by their ids (no tree for a handful).
+    mutable std::vector<Record> slots;
 
     // Read under the lock until frozen; a frozen composition changes no more.
     template <class Read>
     auto read(Read&& body) const {
         if (frozen.load(std::memory_order_acquire)) return body();
-        std::shared_lock lock(mutex);
+        std::lock_guard lock(mutex);
         return body();
     }
     [[nodiscard]] const Record* find(std::string_view id) const {
-        const auto found = slots.find(id);
-        return found == slots.end() ? nullptr : &found->second;
+        for (const Record& record : slots)
+            if (record.id == id) return &record;
+        return nullptr;
     }
     Record& record(const SlotInfo& slot) {
-        Record& made = slots[std::string(slot.id)];
+        for (Record& known : slots)
+            if (known.id == slot.id) return known;
+        Record& made = slots.emplace_back();
+        made.id = slot.id;
         made.info = slot;
         return made;
     }
@@ -47,7 +53,7 @@ Composition::Composition() : state_(std::make_unique<State>()) {}
 Composition::~Composition() = default;
 
 std::expected<void, Error> Composition::install_erased(const SlotInfo& slot, const void* service, std::string_view provider) {
-    std::unique_lock lock(state_->mutex);
+    std::lock_guard lock(state_->mutex);
     if (state_->frozen.load(std::memory_order_acquire))
         return std::unexpected(Error{Errc::frozen, std::format("`{}` was not installed at {}", provider, slot.id), std::string(slot.id)});
     Record& record = state_->record(slot);
@@ -83,7 +89,7 @@ std::string_view Composition::provider(const SlotInfo& slot) const noexcept {
 }
 
 void Composition::leave_out(const SlotInfo& slot, Absence why) {
-    std::unique_lock lock(state_->mutex);
+    std::lock_guard lock(state_->mutex);
     if (state_->frozen.load(std::memory_order_acquire)) return;
     state_->record(slot).absence = why;
 }
@@ -91,7 +97,7 @@ void Composition::leave_out(const SlotInfo& slot, Absence why) {
 Error Composition::missing(const SlotInfo& slot) const {
     Absence why = Absence::unsaid;
     if (!state_->frozen.load(std::memory_order_acquire)) {
-        std::unique_lock lock(state_->mutex);
+        std::lock_guard lock(state_->mutex);
         why = state_->record(slot).absence;  // asked for and missing: `describe` says so
     } else if (const Record* record = state_->find(slot.id)) {
         why = record->absence;
@@ -104,7 +110,7 @@ Error Composition::missing(const SlotInfo& slot) const {
 }
 
 void Composition::freeze() noexcept {
-    std::unique_lock lock(state_->mutex);
+    std::lock_guard lock(state_->mutex);
     state_->frozen.store(true, std::memory_order_release);
 }
 
@@ -113,8 +119,8 @@ bool Composition::frozen() const noexcept { return state_->frozen.load(std::memo
 std::vector<Described> Composition::describe() const {
     return state_->read([&] {
         std::vector<Described> out;
-        for (const auto& [id, record] : state_->slots) {
-            Described described{.slot = id,
+        for (const Record& record : state_->slots) {
+            Described described{.slot = record.id,
                                 .version = record.info.version,
                                 .cardinality = record.info.cardinality,
                                 .summary = std::string(record.info.summary),
@@ -125,6 +131,7 @@ std::vector<Described> Composition::describe() const {
             if (described.providers.empty()) described.way = std::string(record.info.absent);
             out.push_back(std::move(described));
         }
+        std::ranges::sort(out, {}, &Described::slot);
         return out;
     });
 }

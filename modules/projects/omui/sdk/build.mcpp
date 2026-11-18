@@ -69,7 +69,11 @@ int main() {
     if (!compose::unit({.module = "omui",
                         .imports = {":shown"},
                         .function = "omui::hosting::install_services",
-                        .providers = {{.feature = "accessibility-bridge",
+                        .providers = {{.feature = "gpu",
+                                       .package = "omui.host.sdl3.gpu",
+                                       .call = "omui::host::sdl3::gpu::install()",
+                                       .targets = compose::Targets::desktop},
+                                      {.feature = "accessibility-bridge",
                                        .package = "omui.accessibility.bridge",
                                        .call = "omui::accessibility::bridge::install()",
                                        .targets = compose::Targets::desktop}}}))

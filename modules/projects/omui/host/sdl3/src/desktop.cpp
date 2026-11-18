@@ -14,7 +14,8 @@ import mlibs.text;
 import mlibs.image;
 import mlibs.trace;
 import mlibs.rhi;
-import xrender.rhi.sdl;
+import mlibs.compose;
+import :gpu;
 import xrender.effect;
 import mcpplibs.os;
 import :platform;
@@ -147,8 +148,8 @@ struct Desktop::Impl final : WindowHost {
     std::unique_ptr<mlibs::rhi::Device>             device;
     // The device being made on a thread of its own from the start (RC3.6): the driver's start overlaps the fonts,
     // the runtime and the window rather than following them; the window claimed when it is taken.
-    std::optional<xrender::rhi::sdl::Making>        making;
-    std::optional<xrender::GpuFrame>          gpu;
+    std::unique_ptr<GpuMaking>                      making;
+    std::unique_ptr<GpuRenderer>                    gpu;
     mlibs::rhi::Texture                             gpu_frame;
     std::size_t                                     devices_lost = 0;  // how many times the device was lost and made again
     std::uint32_t                            gpu_w = 0, gpu_h = 0;
@@ -224,30 +225,36 @@ struct Desktop::Impl final : WindowHost {
     std::expected<void, ViewFailure> open_gpu() {
         using R = DesktopOptions::Renderer;
         if (options.renderer == R::cpu) return {};
-        xrender::rhi::sdl::Options o;
-        o.formats = xrender::gpu_shader_formats();
+        // The GPU path is a provider's (gpu_slot): a program built without it draws with the CPU, as on a machine
+        // with no GPU — unless the GPU was insisted on, which is refused saying how to have it.
+        const GpuService* service = mlibs::compose::process().get(gpu_slot);
+        if (!service) {
+            if (options.renderer == R::gpu) return std::unexpected(ViewFailure{ViewError::device_failed, mlibs::compose::process().missing(gpu_slot.info).message});
+            return {};
+        }
+        GpuDeviceOptions o;
         o.window = platform::window_id(*window);
         o.vsync = options.vsync;
         o.vulkan_library = options.vulkan_library;
-        const bool made_early = making.has_value();
-        auto made = made_early ? making->get() : xrender::rhi::sdl::create(o);
+        const bool made_early = making != nullptr;
+        auto made = made_early ? making->get() : service->create(o);
         making.reset();
         // Made before the window: claimed now (a software device is let go below, unclaimed, when the CPU is faster).
         if (made && made_early && !((*made)->caps().software && options.renderer == R::automatic)) {
-            if (auto claimed = xrender::rhi::sdl::claim(**made, o.window, o.vsync); !claimed) made = std::unexpected(claimed.error());
+            if (auto claimed = service->claim(**made, o.window, o.vsync); !claimed) made = std::unexpected(claimed.error());
         }
         if (!made) {
             if (options.renderer == R::gpu) return std::unexpected(ViewFailure{ViewError::device_failed, std::format("no GPU device for the window: {}", made.error().message)});
             return {};
         }
         if ((*made)->caps().software && options.renderer == R::automatic) return {};  // the CPU renderer is faster
-        auto r = xrender::GpuFrame::create(**made);
+        auto r = service->renderer(**made);
         if (!r) {
             if (options.renderer == R::gpu) return std::unexpected(ViewFailure{ViewError::device_failed, std::format("the GPU renderer: {}", r.error().message)});
             return {};
         }
         device = std::move(*made);
-        gpu.emplace(std::move(*r));
+        gpu = std::move(*r);
         if (runtime) runtime->set_on_device(true), runtime->set_device(device.get());  // content as lists where it may be (a canvas's `content: auto`); worlds drawn on it
         return {};
     }
@@ -380,14 +387,14 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     // The GPU's device begun at once, when the GPU may draw: SDL brought up here, the device made on a thread of its
     // own while the fonts, the runtime and the window are (RC3.6: the first frame no longer waits for the driver's
     // start after them). Where SDL cannot start, the window's opening says so.
-    if (d.options.renderer != DesktopOptions::Renderer::cpu && platform::start(d.options.video_driver)) {
-        xrender::rhi::sdl::Options early;
-        early.formats = xrender::gpu_shader_formats();
+    if (const GpuService* service = mlibs::compose::process().get(gpu_slot);
+        service && d.options.renderer != DesktopOptions::Renderer::cpu && platform::start(d.options.video_driver)) {
+        GpuDeviceOptions early;
         early.vulkan_library = d.options.vulkan_library;
         platform::hold();  // no other host's end, and no last window closing, quits SDL under this making
         d.holds_sdl = true;
         early.video_driver = d.options.video_driver;
-        d.making.emplace(xrender::rhi::sdl::create_async(early));
+        d.making = service->begin(early);
     }
     // The interface answers as the platform it runs on does (D6): Command for shortcuts, a scroll's
     // edges, when a right button asks for a context menu.
@@ -455,7 +462,9 @@ std::expected<void, ViewFailure> Desktop::open() {
     Impl& d = *impl_;
     if (d.window) return {};
     // A window for the GPU first (when it may draw); the CPU's otherwise.
-    const bool try_gpu = d.options.renderer != DesktopOptions::Renderer::cpu;
+    // (No provider of the GPU path: the CPU's window at once — unless the GPU is insisted on, which open_gpu refuses.)
+    const bool try_gpu = d.options.renderer != DesktopOptions::Renderer::cpu &&
+                         (mlibs::compose::process().get(gpu_slot) != nullptr || d.options.renderer == DesktopOptions::Renderer::gpu);
     d.framework = d.options.frame == DesktopOptions::Frame::framework;
     platform::WindowOptions wo{d.options.title, d.options.size, d.options.resizable, d.options.vsync, d.options.video_driver,
                                d.options.render_driver, try_gpu, d.framework, true};
@@ -607,7 +616,7 @@ agent::Endpoint* Desktop::endpoint() noexcept { return impl_->endpoint.get(); }
 accessibility::Mirror* Desktop::accessibility_mirror() noexcept { return impl_->mirror.get(); }
 accessibility::Adapter* Desktop::accessibility_adapter() noexcept { return impl_->access.get(); }
 std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
-bool Desktop::gpu() const noexcept { return impl_->gpu.has_value(); }
+bool Desktop::gpu() const noexcept { return impl_->gpu != nullptr; }
 xrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &*impl_->effects : nullptr; }
 float Desktop::scale() const noexcept { return impl_->runtime->scale(); }
 NodeId Desktop::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }

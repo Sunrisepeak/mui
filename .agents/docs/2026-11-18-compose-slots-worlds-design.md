@@ -286,6 +286,14 @@ mlibs::build::compose::report();   // 写 <out>/composition.xdef.json；必需�
 
 **GPU 路径与 Agent 总线的现状（核对代码，未改）**：GPU 一支直接写在 `omui.host.sdl3` 的 `desktop.cpp` 里（建设备、渲染、呈现、读回），要先抽到一张服务表后面；`agent::Endpoint` 是具体类型，出现在宿主的公开接口、SDK 与 view 里，要先把 `omui.agent` 拆成接口与实现。顺序：GPU 路径在前；Agent 总线动手前先有一页拆分的设计。
 
+**K4 第二步的结果（2026-11-18）：GPU 路径是提供者。** 槽 `omui.host.sdl3.gpu` 归 `omui.host.sdl3`（`GpuService`：开始做设备、现在做设备、认领窗口、做渲染器）；提供者是新包 `omui.host.sdl3.gpu`（SDL_GPU 的设备与 xrender 的渲染器）；`omui.sdk` 的 feature `gpu`，`app` 与 `full` 带、`lean` 不带。没有提供者时宿主用 CPU 画每一帧，和没有 GPU 的机器一样；坚持要 GPU（`Renderer::gpu`）时被拒绝，拒绝里带槽名与出路。例子 01（`size` 配置，装入字节数）：`full` 与 `app` 18,069 KiB，`lean` 15,809 KiB。设备上的四个用例在 lavapipe 与本机 RTX 4080 上各通过一次。
+
+三件事值得记下：
+
+- **拥有者不能依赖自己的提供者，测试也不行**（mcpp 拒绝这个环）。宿主的测试改为只守缺席的路径；要真提供者的用例搬到提供者的包里。这成为一条规则。
+- **`lean` 里仍有约 0.8 MB 与 GPU 有关的字节**：SDL 自己的 Vulkan 2D 渲染驱动 292 KB（宿主只用它的软件驱动呈现 CPU 的帧），以及效果库与着色器工具约 0.5 MB（宿主直接持有 `xrender::effect::Library`，而效果只有 GPU 渲染器会画）。前一项是 `compat.sdl3` 的一个开关，对每个世界都省；后一项要把效果库也放到提供者后面。
+- **默认的 `full` 比裁剪之前大了约 29 KB**（18,473,342 → 18,502,597 B），是运行时（约 10 KiB）与两个接缝的代价，超出例子 01 的预算（18,500,000）2,597 B。预算不改；先做 SDL 的那个开关（每个世界少 292 KB）把它收回来。在此之前这一项记为红灯。
+
 ## 11. 决策（提议）与任务
 
 | 编号 | 决策 |

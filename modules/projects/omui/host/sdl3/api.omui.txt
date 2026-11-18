@@ -6,6 +6,7 @@ export import omui.agent;
 export import omui.accessibility;
 export import xrender.raster;
 export import xrender.effect;
+export import :gpu;
 namespace omui {
   struct DesktopOptions {
     std::string title = "openmui";
@@ -63,4 +64,29 @@ namespace omui {
     struct Impl;
   };
   [[nodiscard]] std::vector<std::string> preferred_locales();
+}
+== omui.host.sdl3:gpu
+namespace omui {
+  struct GpuDeviceOptions {
+    std::string vulkan_library;
+    std::string video_driver;
+    std::uint32_t window = 0;
+    bool vsync = true;
+  };
+  class GpuMaking {
+    virtual ~GpuMaking() = default;
+    [[nodiscard]] virtual mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> get() = 0;
+  };
+  class GpuRenderer {
+    virtual ~GpuRenderer() = default;
+    [[nodiscard]] virtual mlibs::rhi::Result<void> render(std::span<const xrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width, std::uint32_t height, const xrender::GpuFrameOptions& options) = 0;
+  };
+  struct GpuService {
+    std::string_view name;
+    std::unique_ptr<GpuMaking> (*begin)(const GpuDeviceOptions& options) = nullptr;
+    mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> (*create)(const GpuDeviceOptions& options) = nullptr;
+    mlibs::rhi::Result<void> (*claim)(mlibs::rhi::Device& device, std::uint32_t window, bool vsync) = nullptr;
+    mlibs::rhi::Result<std::unique_ptr<GpuRenderer>> (*renderer)(mlibs::rhi::Device& device) = nullptr;
+  };
+  inline constexpr mlibs::compose::Slot<GpuService> gpu_slot{…};
 }

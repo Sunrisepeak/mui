@@ -16,10 +16,13 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "platform: desktop windows and input through SDL3, native only"
-lower = ["mpal"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mpal", "mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
 reexports = ["omui.accessibility", "omui.agent", "omui.core", "omui.semantic", "omui.view", "xrender.effect", "xrender.raster"]  # what its interface re-exports (lint module-closure)
 kind = "host"
 agent = { part = "omui.agent" }
+
+[package.metadata.openmui.compose]
+slots = ["omui.host.sdl3.gpu"]  # the GPU path of a window (src/gpu.cppm)
 
 [targets.openmui-host-sdl3]
 kind = "lib"
@@ -54,10 +57,9 @@ xrender.frame = { path = "../../../xrender/frame" }
 mlibs.text     = { path = "../../../../content/text" }
 mlibs.image    = { path = "../../../../base/image" }
 mlibs.utils    = { path = "../../../../base/utils" }
-# Quoted: as dotted keys of one table, `xrender.rhi.sdl` would extend the
-# inline table `mlibs.rhi`, which TOML forbids.
+# The device's interface; the SDL_GPU backend and the renderer on it are a provider's (omui.host.sdl3.gpu, at gpu_slot).
 mlibs.rhi         = { path = "../../../../gfx/rhi" }
-xrender.rhi.sdl     = { path = "../../../xrender/rhi/sdl" }
+mlibs.compose     = { path = "../../../../base/compose" }
 xrender.effect   = { path = "../../../xrender/effect" }
 mcpplibs.os      = "0.4.4"
 mcpplibs.mwrap.sdl3 = "3.4.18"

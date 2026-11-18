@@ -14,7 +14,7 @@ A capability below its package's label is marked in its project's feature table 
 
 | Project | stable | preview | experimental |
 |---|---|---|---|
-| omui | 29 | 2 | 1 |
+| omui | 30 | 2 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
 | meng | 0 | 21 | 2 |
@@ -42,6 +42,7 @@ A capability below its package's label is marked in its project's feature table 
 | `omui.host.headless` | [modules/projects/omui/host/headless](../../modules/projects/omui/host/headless) | stable |
 | `omui.host.android` | [modules/projects/omui/host/android](../../modules/projects/omui/host/android) | preview |
 | `omui.host.sdl3` | [modules/projects/omui/host/sdl3](../../modules/projects/omui/host/sdl3) | stable |
+| `omui.host.sdl3.gpu` | [modules/projects/omui/host/sdl3/gpu](../../modules/projects/omui/host/sdl3/gpu) | stable |
 | `omui.host.web` | [modules/projects/omui/host/web](../../modules/projects/omui/host/web) | stable |
 | `omui.native` | [modules/projects/omui/native](../../modules/projects/omui/native) | stable |
 | `omui.player` | [modules/projects/omui/player](../../modules/projects/omui/player) | stable |

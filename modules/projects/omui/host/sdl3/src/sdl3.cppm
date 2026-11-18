@@ -26,6 +26,7 @@ export import omui.agent;
 export import omui.accessibility;
 export import xrender.raster;
 export import xrender.effect;
+export import :gpu;
 
 export namespace omui {
 

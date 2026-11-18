@@ -114,6 +114,7 @@ It is read from the resolved graph mcpp hands the root's build program: the slot
 - **Features only add.** No exclusive pairs, no `no-*` (but for a third-party library's inner switch, in its `compat.*` wrap). A default is taken away in one place: `default-features = false` on the application's line.
 - **The three questions stay apart.** A manifest does not choose one set of sources by a feature and by a target's exclusion at once.
 - **Slots sit at the grain of a service or a batch**, never a node, a pixel or a sample. An owner reads its slot where it prepares and keeps the pointer; a frozen composition is read without a lock.
+- **An owner tests the empty slot, a provider the filled one.** A slot's owner cannot depend on its provider, its tests included (a cycle): the owner's tests hold the absent path and the refusal, and the tests that need the real provider live in the provider's package.
 - **A slot or a provider earns its place**: it saves 100 KiB or more that the linker cannot collect on its own, or keeps a system dependency, a licence or a platform apart. What nobody calls the linker already leaves out, with no switch (image decoders: no slot).
 
 Which way a provider goes, by what it is:
@@ -130,7 +131,7 @@ Lint `compose` holds what can be read: a slot has one owner, is named after it a
 
 ## The run time
 
-`Slot<Service>` (id `owner.name`, version, one or many, summary, the way out) · `Composition`: `install`, `get`, `all`, `provider`, `leave_out` (why a slot is empty: left out, or the platform's), `missing` (the refusal), `freeze`, `describe` (what is installed, what is absent and why) · `process()`. A composition is a value: a test, a second world or a tool makes its own. It costs a program 13 KiB once, whatever the number of slots.
+`Slot<Service>` (id `owner.name`, version, one or many, summary, the way out) · `Composition`: `install`, `get`, `all`, `provider`, `leave_out` (why a slot is empty: left out, or the platform's), `missing` (the refusal), `freeze`, `describe` (what is installed, what is absent and why) · `process()`. A composition is a value: a test, a second world or a tool makes its own. It costs a program about 10 KiB once, whatever the number of slots (a handful of slots in a vector, one mutex until frozen).
 
 Not here: a container that builds objects, services found by a string, providers discovered at start-up, a shape for services — a service's type is its owner's.
 
@@ -139,5 +140,6 @@ Not here: a container that builds objects, services found by a string, providers
 | Slot | Owner | Provider | Root |
 |---|---|---|---|
 | `omui.accessibility.service` | `omui.accessibility` | `omui.accessibility.bridge` (AccessKit, by platform) | `omui.sdk` (feature `accessibility-bridge`) |
+| `omui.host.sdl3.gpu` | `omui.host.sdl3` | `omui.host.sdl3.gpu` (SDL_GPU's device, xrender's renderer) | `omui.sdk` (feature `gpu`) |
 
 Tested: `tests/compose_test.cpp` — a slot of one and of many, the three absences, freezing, `describe`, two compositions apart; the slot contract in `mlibs.cts`'s tests.

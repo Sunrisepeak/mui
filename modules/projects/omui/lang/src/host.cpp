@@ -86,7 +86,12 @@ void drain_posted(void* p) {
 }  // namespace
 
 Host::Host(abi::OmuiRuntime runtime)
-    : rt_(runtime), runtime_thread_(std::this_thread::get_id()), inbox_(std::make_shared<Inbox>()), inbox_id_(enrol(inbox_)) {
+    : rt_(runtime), runtime_thread_(std::this_thread::get_id()), inbox_(std::make_shared<Inbox>()), inbox_id_(enrol(inbox_)),
+      threaded_(threads_available()) {
+    if (!threaded_) {
+        script_thread_id_ = runtime_thread_;  // one thread: the script's is the runtime's
+        return;
+    }
     std::promise<std::thread::id> started;
     auto id = started.get_future();
     thread_ = std::jthread([this, &started](std::stop_token stop) {
@@ -105,6 +110,13 @@ Host::~Host() {
 }
 
 void Host::post(std::function<void()> fn) {
+    if (!threaded_) {
+        // One thread: the script's work waits for the next frame boundary, as what it asks of the runtime does.
+        inbox_->push(std::move(fn));
+        if (abi::omuiPost(rt_, drain_posted, reinterpret_cast<void*>(static_cast<std::uintptr_t>(inbox_id_))) != abi::OMUI_SUCCESS)
+            inbox_->drain();
+        return;
+    }
     {
         std::scoped_lock lock(mutex_);
         queue_.push_back(std::move(fn));

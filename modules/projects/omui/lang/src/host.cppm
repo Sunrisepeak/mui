@@ -35,13 +35,18 @@ using Result = std::expected<T, Error>;
 class Host {
 public:
     // Attaches to a runtime whose thread is the caller's, and starts the
-    // script thread.
+    // script thread — where the platform has threads. Where it has none (the
+    // Web: the page's engine runs scripts on the page's one thread) the script's
+    // thread is the runtime's: ui() and script() run at once, and what is posted
+    // for the script runs at the next frame boundary (omuiPost), never in a frame.
     explicit Host(abi::OmuiRuntime runtime);
     ~Host();
     Host(const Host&) = delete;
     Host& operator=(const Host&) = delete;
 
     [[nodiscard]] abi::OmuiRuntime runtime() const noexcept { return rt_; }
+    // Whether the script has a thread of its own (false: it shares the runtime's).
+    [[nodiscard]] bool threaded() const noexcept { return threaded_; }
 
     // Work for the script thread, from any thread.
     void post(std::function<void()> fn);
@@ -102,6 +107,8 @@ public:
     struct Inbox;  // the runtime thread's queue; posts reach it by id
 
 private:
+    // Whether this platform runs a script on a thread of its own (native/threads, native/web).
+    static bool threads_available() noexcept;
     void run_on_ui(std::function<void()> fn);
     void run_on_script(std::function<void()> fn);
     void loop(std::stop_token stop);
@@ -116,6 +123,7 @@ private:
     bool                              running_ = false;
     std::shared_ptr<Inbox>            inbox_;
     std::uint64_t                     inbox_id_ = 0;  // what a post carries: no allocation to leak
+    bool                              threaded_ = true;
     std::jthread                      thread_;
 };
 

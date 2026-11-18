@@ -16,6 +16,7 @@ namespace omui::lang {
     Host(const Host&) = delete;
     Host& operator=(const Host&) = delete;
     [[nodiscard]] abi::OmuiRuntime runtime() const noexcept;
+    [[nodiscard]] bool threaded() const noexcept;
     void post(std::function<void()> fn);
     template <class F> auto ui(F fn) -> std::invoke_result_t<F&>;
     void send(std::function<void()> fn);

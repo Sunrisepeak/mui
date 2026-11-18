@@ -153,6 +153,8 @@ UTest cases{"lang", [] {
     "a handler's echo of what it was told is no write: it never puts back a value the runtime has moved on from"_test = [] {
         Runtime r;
         lang::Host host(r.rt);
+        // Two threads racing: the script's busy while the runtime moves on. With one thread (the Web) there is no race.
+        if (!host.threaded()) skip("one thread here (the Web): the script is never busy while the runtime moves");
         lang::Session session(host);
         std::atomic<OmuiSignal> sig{0};
         // `onChanged: (e) => body.set(e.text)`: the script sets the signal to what it is told it now is.

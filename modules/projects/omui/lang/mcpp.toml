@@ -24,6 +24,13 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
+# Whether a script has a thread of its own (Host): yes, but on the Web, where the page's one thread runs it.
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/threads/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/web/*.cpp"]
+
 [dependencies]
 omui.abi   = { path = "../abi" }
 nlohmann.json = "3.12.0"

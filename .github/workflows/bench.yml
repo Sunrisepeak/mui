@@ -13,8 +13,8 @@ on:
   schedule:
     - cron: "0 5 * * 1"  # Mondays, 05:00 UTC
   workflow_dispatch:
-  pull_request:
-    paths: [".github/workflows/bench.yml"]
+  # Not on a pull request (D-248): its path filter reads the whole pull request's changes, so on the design
+  # branch every push started it. By hand: gh workflow run Bench --ref openmui-design
 
 concurrency:
   group: bench-${{ github.ref }}

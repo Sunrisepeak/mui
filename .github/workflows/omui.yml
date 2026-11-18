@@ -13,12 +13,9 @@ name: omui
 on:
   push:
     tags: ['omui-v*']
-  pull_request:
-    paths:
-      - 'modules/projects/omui/tools/cli/**'
-      - 'modules/projects/omui/agent/**'
-      - '.github/workflows/omui.yml'
   workflow_dispatch:
+  # Not on a pull request (D-248): its path filter reads the whole pull request's changes, so on the design
+  # branch every push started it. By hand: gh workflow run omui --ref openmui-design
 
 concurrency:
   group: omui-${{ github.ref }}

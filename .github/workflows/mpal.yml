@@ -5,11 +5,9 @@ name: mpal
 # the notification centre on macOS, toasts on Windows — exercised where they
 # are. mpal depends on nothing in this repository but mcpplibs.os.
 on:
-  pull_request:
-    paths:
-      - 'modules/base/mpal/**'
-      - '.github/workflows/mpal.yml'
   workflow_dispatch:
+  # Not on a pull request (D-248): its path filter reads the whole pull request's changes, so on the design
+  # branch every push started it. By hand: gh workflow run mpal --ref openmui-design
 
 concurrency:
   group: mpal-${{ github.ref }}

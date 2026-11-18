@@ -9,6 +9,8 @@ The SDK's umbrella: `import omui;` gives an application the runtime (signals, vi
 | Android's host | preview | `lower` in the manifest |
 | the templates (`templates/`: app-ts, app-cpp, component, native, theme) | stable | `omui new NAME [--template T]` is `mcpp new NAME --template omui.sdk:T`: this package's archive carries them |
 
+What an application carries is switched by this package's features (B6), each on by default: `accessibility-bridge` — the platform's service through AccessKit, or `no-accessibility-bridge`, the mapping alone (example 01 on Linux: 18.0 MB → 16.5 MB loaded). An application chooses with `omui.sdk = { …, default-features = false, features = ["no-accessibility-bridge"] }`.
+
 ## Agent surface
 
 The packages it re-exports are reached as each says; runtime generation through [omui.agent](../agent)'s `generate.*` catalog.

@@ -26,6 +26,14 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp"]  # generate: runtime generation (preview), module omui.generate
 
+# What an application carries (B6), each on by default: the platform's accessibility service through AccessKit
+# (AT-SPI over D-Bus, NSAccessibility, UI Automation; 1.41 MB of example 01 on Linux) or the mapping alone. An
+# application that leaves it out depends on this with `default-features = false, features = ["no-accessibility-bridge"]`.
+[features]
+default                 = ["accessibility-bridge"]
+accessibility-bridge    = { forward = ["omui.accessibility/bridge"] }
+no-accessibility-bridge = { forward = ["omui.accessibility/no-bridge"] }
+
 [dependencies]
 omui.core          = { path = "../core" }
 omui.view          = { path = "../view" }
@@ -38,6 +46,7 @@ omui.viewdoc       = { path = "../viewdoc" }
 mlibs.utils         = { path = "../../../base/utils" }
 omui.ui.base       = { path = "../components/base" }
 omui.host.headless = { path = "../host/headless" }
+omui.accessibility = { path = "../accessibility", default-features = false }  # the bridge chosen below
 mlibs.i18n        = { path = "../../../content/i18n" }
 "mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
 mcpplibs.os           = "0.4.4"
@@ -52,7 +61,7 @@ mcpplibs.cmdline      = "0.0.3"
 # Web the page's canvas, on Android the NativeActivity's window (W10) — the host, and the partition (openmui:host) and unit
 # (src/host/<where>/shown.cpp) that name it.
 [target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.dependencies]
-omui.host.sdl3 = { path = "../host/sdl3" }
+omui.host.sdl3 = { path = "../host/sdl3", default-features = false }  # its accessibility bridge: this package's features
 
 [target.'cfg(env = "android")'.dependencies]
 omui.host.android = { path = "../host/android" }

@@ -33,6 +33,13 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 [target.macos.build]
 sources = ["src/macos/*.cpp"]
 
+# The platform's accessibility service through AccessKit (B6): on unless a consumer that depends on this without
+# its defaults says otherwise (omui.sdk chooses for an application).
+[features]
+default                 = ["accessibility-bridge"]
+accessibility-bridge    = { forward = ["omui.accessibility/bridge"] }
+no-accessibility-bridge = { forward = ["omui.accessibility/no-bridge"] }
+
 [dependencies]
 # The system's notifications (mpal: the OS's services above mcpplibs.os).
 mpal = { path = "../../../../base/mpal" }
@@ -41,7 +48,7 @@ omui.core     = { path = "../../core" }
 omui.view     = { path = "../../view" }
 omui.semantic = { path = "../../semantic" }
 omui.agent    = { path = "../../agent" }
-omui.accessibility = { path = "../../accessibility" }
+omui.accessibility = { path = "../../accessibility", default-features = false }  # which: this package's features
 xrender.raster   = { path = "../../../xrender/raster" }
 xrender.vector   = { path = "../../../xrender/vector" }
 # The frame's entry: the host hands its layers to the renderer, which composes (D-162).

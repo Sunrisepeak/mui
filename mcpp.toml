@@ -246,6 +246,15 @@ debug      = false
 ndebug     = true
 trim_paths = true
 
+# What a program does not reach is not linked (implementation plan B1): mcpp compiles every unit one section per
+# function and per object, and links tests with the collection already; programs too, every profile, each platform's
+# way (wasm-ld collects by default). Measured: example 01 in dist, 26.7 MB to 18.5 MB on Linux x64, its pixels the same.
+[workspace.target.'cfg(os = "linux")'.build]
+ldflags = ["-Wl,--gc-sections"]
+
+[workspace.target.'cfg(os = "macos")'.build]
+ldflags = ["-Wl,-dead_strip"]
+
 [workspace.package]
 standard = "c++23"
 mcpp     = ">=2026.10.26.1"
@@ -255,7 +264,7 @@ mcpp     = ">=2026.10.26.1"
 # make_shared's type tag) as strong symbols, so two units of one program define
 # them twice. The definitions are identical; the linker keeps one.
 [workspace.target.x86_64-windows-gnu.build]
-ldflags = ["-Wl,--allow-multiple-definition"]
+ldflags = ["-Wl,--allow-multiple-definition", "-Wl,--gc-sections"]
 # HarfBuzz's amalgamated unit exceeds COFF's 2^15 sections under GCC; the big
 # object format lifts the limit. Graph-wide, so it reaches that dependency.
 dialect_cxxflags = ["-Wa,-mbig-obj"]

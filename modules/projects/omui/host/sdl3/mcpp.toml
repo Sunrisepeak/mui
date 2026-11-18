@@ -33,14 +33,10 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 [target.macos.build]
 sources = ["src/macos/*.cpp"]
 
-# The platform's accessibility service through AccessKit (B6): on unless a consumer that depends on this without
-# its defaults says otherwise (omui.sdk chooses for an application).
+# What an application may leave out (B6), each off by default.
 [features]
-default                 = ["accessibility-bridge"]
-accessibility-bridge    = { forward = ["omui.accessibility/bridge"] }
-no-accessibility-bridge = { forward = ["omui.accessibility/no-bridge"] }
 # SDL's HIDAPI game-controller drivers (B6): evdev, the platform's own input, stays (246,757 B of example 01).
-no-gamepad-hidapi       = { forward = ["compat.sdl3/no-hidapi"] }
+no-gamepad-hidapi = { forward = ["compat.sdl3/no-hidapi"] }
 
 [dependencies]
 # The system's notifications (mpal: the OS's services above mcpplibs.os).
@@ -50,7 +46,7 @@ omui.core     = { path = "../../core" }
 omui.view     = { path = "../../view" }
 omui.semantic = { path = "../../semantic" }
 omui.agent    = { path = "../../agent" }
-omui.accessibility = { path = "../../accessibility", default-features = false }  # which: this package's features
+omui.accessibility = { path = "../../accessibility" }
 xrender.raster   = { path = "../../../xrender/raster" }
 xrender.vector   = { path = "../../../xrender/vector" }
 # The frame's entry: the host hands its layers to the renderer, which composes (D-162).

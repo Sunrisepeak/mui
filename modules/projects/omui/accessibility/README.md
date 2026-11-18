@@ -11,8 +11,6 @@ tests read, and asks for its actions.
 | Linux x86_64 | AT-SPI (D-Bus) | AccessKit's unix adapter |
 | elsewhere | none | the mapping alone; `available` is false |
 
-The service is the feature `bridge` (the default); `no-bridge` builds the mapping alone on every platform, as elsewhere does (B6). Exactly one: both provide the same partitions. omui.host.sdl3 and omui.sdk forward the choice (`accessibility-bridge`, `no-accessibility-bridge`).
-
 AccessKit's C bindings come from mcpp-index (`compat.accesskit`, imported as
 the module `mcpplibs.mwrap.accesskit`), only in `src/native/accesskit/`.
 

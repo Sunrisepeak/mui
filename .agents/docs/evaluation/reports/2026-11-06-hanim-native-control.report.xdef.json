@@ -248,8 +248,8 @@
             "mlibs.raster",
             "mlibs.rhi",
             "mlibs.trace",
-            "xengine.render",
-            "xengine.render.vector"
+            "meng.render",
+            "meng.render.vector"
           ],
           "product_sources": [
             "modules/gfx/hanim/src/effect/effect.cpp",
@@ -366,8 +366,8 @@
             "mlibs.trace",
             "nlohmann.json",
             "openlifa.openas",
-            "xengine.render",
-            "xengine.render.vector"
+            "meng.render",
+            "meng.render.vector"
           ],
           "capture_denial_publishes_no_files": true
         },
@@ -402,8 +402,8 @@
             "mlibs.trace",
             "nlohmann.json",
             "openlifa.openas",
-            "xengine.render",
-            "xengine.render.vector"
+            "meng.render",
+            "meng.render.vector"
           ],
           "capture_denial_publishes_no_files": true
         }

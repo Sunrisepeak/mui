@@ -11,13 +11,13 @@
 import std;
 import mlibs.agent;
 import mlibs.json;
-import xengine.playtest;
+import meng.playtest;
 import omui.showcase.quay;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
 namespace agent = mlibs::agent;
-namespace playtest = xengine::playtest;
+namespace playtest = meng::playtest;
 
 namespace {
 

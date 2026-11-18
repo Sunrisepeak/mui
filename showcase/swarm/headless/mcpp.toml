@@ -1,5 +1,5 @@
 # Swarm as a game on its own (D-162): a small top-down shooter — its rules (src/sim.cpp) and the game as
-# xengine.runtime plays it (the Playable in the interface): stepped without omui, sought back and branched
+# meng.runtime plays it (the Playable in the interface): stepped without omui, sought back and branched
 # ahead, played by an agent through the agent kernel as a person plays. One package: the rules are one file
 # and have no other consumer (D-99).
 [package]
@@ -23,9 +23,9 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
-xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
-xengine.world   = { path = "../../../modules/projects/xengine/game/world" }
+meng.runtime = { path = "../../../modules/projects/meng/game/runtime" }
+meng.input   = { path = "../../../modules/projects/meng/game/input" }
+meng.world   = { path = "../../../modules/projects/meng/game/world" }
 mlibs.math      = { path = "../../../modules/base/math" }
 mlibs.utils     = { path = "../../../modules/base/utils" }
 

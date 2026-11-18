@@ -1,9 +1,9 @@
-// Swarm — a small top-down shooter, as a game the runtime plays (xengine.runtime's Playable).
+// Swarm — a small top-down shooter, as a game the runtime plays (meng.runtime's Playable).
 //
 // The player moves with two axes, aims with the pointer and shoots with a button; enemies arrive in waves from
 // one side of the arena and chase the player; a bullet that hits an enemy removes it and scores; an enemy that
 // touches the player costs a life; with no life left the game is lost. A pure function of the state and each
-// step's actions, 120 steps a second: the state is plain data (xengine.world's block of entities and a few
+// step's actions, 120 steps a second: the state is plain data (meng.world's block of entities and a few
 // numbers), so a copy is a branch and a timeline rewinds and replays it bit for bit.
 //
 //   swarm::Standalone game(swarm::start(), {.keep = 600});
@@ -11,9 +11,9 @@
 export module omui.showcase.swarm.headless;
 
 import std;
-export import xengine.runtime;
-export import xengine.input;
-export import xengine.world;
+export import meng.runtime;
+export import meng.input;
+export import meng.world;
 export import mlibs.math;
 
 export namespace swarm {
@@ -49,7 +49,7 @@ struct Enemy {
 struct Bullet {
     std::uint32_t age = 0;  // steps flown
 };
-using Field = xengine::World<128, Body, Enemy, Bullet>;
+using Field = meng::World<128, Body, Enemy, Bullet>;
 
 // The side a wave comes from.
 enum class Side : std::uint32_t { east, south, west, north };
@@ -76,7 +76,7 @@ struct State {
     std::uint64_t random = 0;           // the stream that places enemies and picks sides (mlibs.math's SplitMix64)
 };
 struct Input {
-    xengine::Actions player{};
+    meng::Actions player{};
 };
 
 // A new game: the player in the middle, three lives, the first wave half a second away. The same seed, the same game.
@@ -104,7 +104,7 @@ struct Play {
     static void step(State& state, const Input& input) noexcept { swarm::step(state, input); }
     [[nodiscard]] static std::uint64_t checksum(const State& state) noexcept { return swarm::checksum(state); }
     [[nodiscard]] static std::string observe(const State& state, bool full) { return swarm::observe(state, full); }
-    static void play(Input& input, const xengine::Actions& actions) noexcept { input.player = actions; }
+    static void play(Input& input, const meng::Actions& actions) noexcept { input.player = actions; }
     [[nodiscard]] static bool over(const State& state) noexcept { return swarm::over(state); }
 
     // The rules a player is told before playing (a cold start at the game had to infer each of them from previews).
@@ -114,7 +114,7 @@ struct Play {
         "the wave before and always slower than the player; the first wave comes from the east, the side of each later one is not known until it "
         "arrives. There is no winning: the waves go on, and the game ends when the lives are gone";
     // What the controls mean, and what to begin with (D-186): `world.state` lists them, `find` answers "shoot".
-    static constexpr std::array<xengine::runtime::Control, 6> controls{{
+    static constexpr std::array<meng::runtime::Control, 6> controls{{
         {.name = "left", .summary = "Move the player left (toward x = 0)", .axis = 0, .toward = -1},
         {.name = "right", .summary = "Move the player right", .axis = 0, .toward = 1},
         {.name = "up", .summary = "Move the player up (toward y = 0, the top of the arena)", .axis = 1, .toward = -1},
@@ -123,10 +123,10 @@ struct Play {
         {.name = "aim", .summary = "Where the gun points: a place in the arena, [x, y], each 0 to 1 of it ([0, 0] the top-left corner); it stays aimed that way",
          .pointer = true},
     }};
-    static constexpr std::array<xengine::runtime::Move, 2> hold_the_gate{{{.hold = {"aim", "shoot"}, .steps = 600, .pointer = {1.0, 0.5}}, {.steps = 1}}};
-    static constexpr std::array<xengine::runtime::Move, 2> sidestep{{{.hold = {"left", "up"}, .steps = 120}, {.steps = 12}}};
-    static constexpr std::array<xengine::runtime::Move, 1> stand{{{.steps = 600}}};
-    static constexpr std::array<xengine::runtime::Task, 3> tasks{{
+    static constexpr std::array<meng::runtime::Move, 2> hold_the_gate{{{.hold = {"aim", "shoot"}, .steps = 600, .pointer = {1.0, 0.5}}, {.steps = 1}}};
+    static constexpr std::array<meng::runtime::Move, 2> sidestep{{{.hold = {"left", "up"}, .steps = 120}, {.steps = 12}}};
+    static constexpr std::array<meng::runtime::Move, 1> stand{{{.steps = 600}}};
+    static constexpr std::array<meng::runtime::Task, 3> tasks{{
         {"hold-the-east-gate", "From a new game: aim east and hold fire for five seconds — the first wave comes from the east and is shot as it closes in; see the score",
          hold_the_gate},
         {"sidestep", "Move up and left for a second, let go, and see where the player stands", sidestep},
@@ -134,6 +134,6 @@ struct Play {
     }};
 };
 
-using Standalone = xengine::runtime::Runtime<Play>;
+using Standalone = meng::runtime::Runtime<Play>;
 
 }  // namespace swarm

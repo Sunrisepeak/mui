@@ -24,16 +24,16 @@ constexpr std::array<Place, 7> places{{
     {"xrender", "modules/projects/xrender/README.md", {"modules/projects/xrender", "", ""}},
     {"hanim", "modules/projects/hanim/README.md", {"modules/projects/hanim", "", ""}},
     {"omui", "modules/projects/omui/README.md", {"modules/projects/omui", "", ""}},
-    {"xengine", "modules/projects/xengine/README.md", {"modules/projects/xengine", "", ""}},
+    {"meng", "modules/projects/meng/README.md", {"modules/projects/meng", "", ""}},
     {"gongfu", "modules/projects/gongfu/README.md", {"modules/projects/gongfu", "", ""}},
     {"xtools", "modules/projects/xtools/README.md", {"modules/projects/xtools", "", ""}},
 }};
 
 // A bench scene's first segment → the project that owns what it measures.
 constexpr std::array<std::pair<std::string_view, std::string_view>, 18> bench_owners{{
-    {"agent", "omui"}, {"audio", "xengine"}, {"canvas", "omui"}, {"canvas-kit", "omui"}, {"dynamics", "xengine"},
-    {"game", "xengine"}, {"glass", "xrender"}, {"gongfu", "gongfu"}, {"log", "mlibs"}, {"markdown", "omui"},
-    {"motion", "hanim"}, {"public-motion", "hanim"}, {"render", "xrender"}, {"simulation", "xengine"},
+    {"agent", "omui"}, {"audio", "meng"}, {"canvas", "omui"}, {"canvas-kit", "omui"}, {"dynamics", "meng"},
+    {"game", "meng"}, {"glass", "xrender"}, {"gongfu", "gongfu"}, {"log", "mlibs"}, {"markdown", "omui"},
+    {"motion", "hanim"}, {"public-motion", "hanim"}, {"render", "xrender"}, {"simulation", "meng"},
     {"styles", "omui"}, {"text", "mlibs"}, {"trace", "mlibs"}, {"ui", "omui"},
 }};
 

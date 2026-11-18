@@ -43,10 +43,10 @@
 | omui | agent.connect.lines | — | webmcp | — | planned |
 | omui | agent.build-ui.success | — | react-vite-playwright, flutter | — | planned |
 | omui.components | components.canvas-1000.frame_ms | — | figma-like-dom | — | planned |
-| xengine | physics.pyramid.step_ms | — | box2d-v3, rapier | — | planned |
-| xengine | world.iterate-100k.ms | — | bevy | — | planned |
-| xengine | cellular.4096.fps | — | noita-like | — | unverified |
-| xengine | agent.game-tasks.success | — | godot-mcp | — | planned |
+| meng | physics.pyramid.step_ms | — | box2d-v3, rapier | — | planned |
+| meng | world.iterate-100k.ms | — | bevy | — | planned |
+| meng | cellular.4096.fps | — | noita-like | — | unverified |
+| meng | agent.game-tasks.success | — | godot-mcp | — | planned |
 | gongfu | rollback.8-frames.ms | — | ggrs | — | planned |
 | mlibs | text.paragraph.ms | — | skparagraph | — | planned |
 | mlibs | layout.flex-grid-5000.ms | — | taffy, yoga | — | planned |
@@ -77,10 +77,10 @@
 | xrender | B.pixels 为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图 | build-reliably | evidence | ahead |
 | xrender | xrender.same-source CPU 与 GPU 同源：CPU 参考逐位，GPU 差 ≤ 1/255 | craft | evidence | — |
 | xrender | xrender.web-first Web 优先：每次提交只跨一次 wasm 边界 | craft | planned | — |
-| xengine | G Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩 | together | evidence | ahead |
-| xengine | xengine.equal-play 人与 Agent 平等游玩：同一套感知和反应约束，逐位回放 | together | evidence | ahead |
-| xengine | xengine.native 原生胜过适配：场景是数据、编辑是事务、模拟确定、离屏同源 | build-reliably | planned | — |
-| xengine | xengine.rollback 全游戏可回滚、可分支 | foundation | planned | — |
+| meng | G Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩 | together | evidence | ahead |
+| meng | meng.equal-play 人与 Agent 平等游玩：同一套感知和反应约束，逐位回放 | together | evidence | ahead |
+| meng | meng.native 原生胜过适配：场景是数据、编辑是事务、模拟确定、离屏同源 | build-reliably | planned | — |
+| meng | meng.rollback 全游戏可回滚、可分支 | foundation | planned | — |
 | gongfu | gongfu.rollback-kernel 确定性回滚内核，可以原样拆出 | craft | evidence | ahead |
 | gongfu | gongfu.characters-as-data 角色即数据，由 Agent 制作，诊断带行列号 | build-reliably | planned | — |
 | gongfu | gongfu.sparring Agent 陪练：人类档约束，能解释自己的选择 | together | planned | — |
@@ -96,11 +96,11 @@
 | C: every application an MCP server from its semantic tree: typed operations with their openas effects, no tool code written | omui | webmcp: app-defined, playwright-mcp: partial, mcp-apps: app-defined | ahead | `tools/mcp/tests/mcp_test.cpp` |
 | C: transactions, undo and dry_run as protocol operations, any application | omui | webmcp: app-defined, playwright-mcp: none, app-intents: partial, a2ui: none | ahead | `tools/mcp/tests/mcp_test.cpp` |
 | C: actions only a person may take: refused to every request over the bus, whatever actor it names | omui | webmcp: partial, playwright-mcp: none, app-intents: partial | ahead | `tools/mcp/tests/mcp_test.cpp` |
-| xengine.equal-play: an agent player at a declared human tier (reaction, rate, what it sees), its record replayed to the same checksum | xengine | godot: none, unity-ml-agents: partial | ahead | `showcase/widget-breakout/tests/agent_player_test.cpp` |
+| meng.equal-play: an agent player at a declared human tier (reaction, rate, what it sees), its record replayed to the same checksum | meng | godot: none, unity-ml-agents: partial | ahead | `showcase/widget-breakout/tests/agent_player_test.cpp` |
 | B.pixels: a frame as SVG, every shape a group named by its node, what SVG cannot say a marked pixel island | xrender | skia: partial, resvg: none | ahead | `modules/projects/xrender/vector/tests/vector/svg_test.cpp` |
 | hanim.morph: topology-aligned morphs between shapes of different contour and hole counts, strokes and fills, CPU and GPU the same frames | hanim | gsap-morphsvg: partial, flubber: partial | ahead | `modules/projects/hanim/studio/tests/signature_test.cpp` |
 | gongfu.rollback-kernel: fixed-point fighting kernel: 10,000 random-depth rollbacks byte-identical, extractable whole | gongfu | ggpo: app-defined, ggrs: app-defined | ahead | `modules/projects/gongfu/tests/gongfu_test.cpp` |
 | A: any application's steps previewed before they are allowed: run unseen and taken back (no journal, no history, motion off), the pictures before and after and the semantic changes; a step that asks the person shown, not done | omui | webmcp: none, playwright-mcp: none, mcp-apps: none, app-intents: app-defined | ahead | `tools/mcp/tests/mcp_test.cpp` |
 | B: a pixel to the node that drew it, the nodes it sits in, and the line of the program that built each (ui_drew), headless | omui | react-devtools: partial, flutter-devtools: partial, playwright-mcp: none | ahead | `tools/mcp/tests/mcp_test.cpp` |
 | C: every omui page offers its operations as WebMCP tools where the browser has navigator.modelContext — no application code; what needs the person asked through the browser | omui | webmcp: app-defined, mcp-apps: app-defined, playwright-mcp: partial | ahead | `modules/projects/omui/host/web/tests/js/page.test.mjs` |
-| G: an agent playtests a game headless at a person's tier, at many times real time, and reports where it is hard or tedious, each problem with a record that replays to the same bytes | xengine | godot-mcp: none, unity-ml-agents: partial, modl-ai: partial | ahead | `showcase/widget-breakout/tests/agent_player_test.cpp` |
+| G: an agent playtests a game headless at a person's tier, at many times real time, and reports where it is hard or tedious, each problem with a record that replays to the same bytes | meng | godot-mcp: none, unity-ml-agents: partial, modl-ai: partial | ahead | `showcase/widget-breakout/tests/agent_player_test.cpp` |

@@ -8,7 +8,7 @@
 | xrender | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ✓ |
 | hanim | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ✓ |
 | omui | stable | ✓ | ✓ | ✓ | ✓ | ✓ | 例外 | ✓ | ○ | ○ | ✓ |
-| xengine | preview | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ○ | ✓ |
+| meng | preview | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ○ | ✓ |
 | gongfu | experimental | ✓ | — | — | ✓ | — | ✓ | — | — | — | ✓ |
 | xtools | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 例外 | ○ | ○ | ✓ |
 
@@ -21,7 +21,7 @@
 - **hanim**, 9 独立消费: probe hanim-api-probe builds from paths; from published packages once RC3.1 publishes them
 - **omui**, 8 并排对照: no claim in the ledger dated from 2026-11-15
 - **omui**, 9 独立消费: probe features-consumer builds from paths; from published packages once RC3.1 publishes them
-- **xengine**, 8 并排对照: no claim in the ledger dated from 2026-11-15
-- **xengine**, 9 独立消费: no out-of-tree probe (tools/ci/*/mcpp.toml.in)
+- **meng**, 8 并排对照: no claim in the ledger dated from 2026-11-15
+- **meng**, 9 独立消费: no out-of-tree probe (tools/ci/*/mcpp.toml.in)
 - **xtools**, 8 并排对照: no claim in the ledger dated from 2026-11-15
 - **xtools**, 9 独立消费: no out-of-tree probe (tools/ci/*/mcpp.toml.in)

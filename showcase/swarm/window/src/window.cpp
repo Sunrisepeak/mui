@@ -8,24 +8,24 @@ namespace {
 
 using omui::Key;
 
-xengine::Bindings bindings() {
-    xengine::Bindings made;
-    for (const Key left : {Key::a, Key::left}) made.key(xengine::ui::code(left), xengine::Axis{0, -1});
-    for (const Key right : {Key::d, Key::right}) made.key(xengine::ui::code(right), xengine::Axis{0, 1});
-    for (const Key up : {Key::w, Key::up}) made.key(xengine::ui::code(up), xengine::Axis{1, -1});
-    for (const Key down : {Key::s, Key::down}) made.key(xengine::ui::code(down), xengine::Axis{1, 1});
-    made.key(xengine::ui::code(Key::space), xengine::Button{shoot_button});
-    made.mouse(1, xengine::Button{shoot_button});
+meng::Bindings bindings() {
+    meng::Bindings made;
+    for (const Key left : {Key::a, Key::left}) made.key(meng::ui::code(left), meng::Axis{0, -1});
+    for (const Key right : {Key::d, Key::right}) made.key(meng::ui::code(right), meng::Axis{0, 1});
+    for (const Key up : {Key::w, Key::up}) made.key(meng::ui::code(up), meng::Axis{1, -1});
+    for (const Key down : {Key::s, Key::down}) made.key(meng::ui::code(down), meng::Axis{1, 1});
+    made.key(meng::ui::code(Key::space), meng::Button{shoot_button});
+    made.mouse(1, meng::Button{shoot_button});
     // A gamepad: the left stick (or the d-pad) moves, A or the right trigger shoots where the gun points.
     using omui::GamepadAxis, omui::GamepadButton;
-    made.pad_axis(xengine::ui::pad(GamepadAxis::left_x), xengine::Axis{0, 1});
-    made.pad_axis(xengine::ui::pad(GamepadAxis::left_y), xengine::Axis{1, 1});
-    made.pad_button(xengine::ui::pad(GamepadButton::dpad_left), xengine::Axis{0, -1});
-    made.pad_button(xengine::ui::pad(GamepadButton::dpad_right), xengine::Axis{0, 1});
-    made.pad_button(xengine::ui::pad(GamepadButton::dpad_up), xengine::Axis{1, -1});
-    made.pad_button(xengine::ui::pad(GamepadButton::dpad_down), xengine::Axis{1, 1});
-    made.pad_button(xengine::ui::pad(GamepadButton::south), xengine::Button{shoot_button});
-    made.pad_button(xengine::ui::pad(GamepadButton::right_trigger), xengine::Button{shoot_button});
+    made.pad_axis(meng::ui::pad(GamepadAxis::left_x), meng::Axis{0, 1});
+    made.pad_axis(meng::ui::pad(GamepadAxis::left_y), meng::Axis{1, 1});
+    made.pad_button(meng::ui::pad(GamepadButton::dpad_left), meng::Axis{0, -1});
+    made.pad_button(meng::ui::pad(GamepadButton::dpad_right), meng::Axis{0, 1});
+    made.pad_button(meng::ui::pad(GamepadButton::dpad_up), meng::Axis{1, -1});
+    made.pad_button(meng::ui::pad(GamepadButton::dpad_down), meng::Axis{1, 1});
+    made.pad_button(meng::ui::pad(GamepadButton::south), meng::Button{shoot_button});
+    made.pad_button(meng::ui::pad(GamepadButton::right_trigger), meng::Button{shoot_button});
     return made;
 }
 
@@ -51,7 +51,7 @@ Arena::~Arena() {
 void Arena::mount(omui::Services& services, omui::NodeId node) {
     services_ = &services, node_ = node;
     view_.mount(services, node);
-    game_.emplace(start(options().seed), xengine::runtime::Options{.stepping = xengine::runtime::Stepping::owner, .seat = xengine::runtime::Seat::owner, .keep = 600, .record = true});
+    game_.emplace(start(options().seed), meng::runtime::Options{.stepping = meng::runtime::Stepping::owner, .seat = meng::runtime::Seat::owner, .keep = 600, .record = true});
     frame_ = xrender::raster::Surface(static_cast<int>(arena_width) * scale, static_cast<int>(arena_height) * scale);
     view_.show({.label = "the arena",
                 .subject = &*game_,
@@ -65,7 +65,7 @@ void Arena::mount(omui::Services& services, omui::NodeId node) {
 }
 
 bool Arena::on_event(omui::EventContext&, const omui::InputEvent& event) {
-    return services_ && xengine::ui::feed(sampler_, event, services_->bounds(node_));
+    return services_ && meng::ui::feed(sampler_, event, services_->bounds(node_));
 }
 
 void Arena::run(std::int32_t steps) {
@@ -122,13 +122,13 @@ omui::AppSpec app(Options given) {
 }
 
 std::string recorded(const Standalone& game) {
-    std::vector<xengine::Actions> frames;
+    std::vector<meng::Actions> frames;
     for (const Input& step : game.recorded()) frames.push_back(step.player);
-    return xengine::to_recording(std::format("seed {}", options().seed), frames);
+    return meng::to_recording(std::format("seed {}", options().seed), frames);
 }
 
 std::expected<State, std::string> replayed(std::string_view lines) {
-    const auto recording = xengine::from_recording(lines);
+    const auto recording = meng::from_recording(lines);
     if (!recording) return std::unexpected(recording.error());
     if (!recording->heading.starts_with("seed ")) return std::unexpected(std::string("line 1: `seed N`, the game it was played on"));
     const std::string_view number = std::string_view(recording->heading).substr(5);
@@ -136,7 +136,7 @@ std::expected<State, std::string> replayed(std::string_view lines) {
     if (const auto read = std::from_chars(number.data(), number.data() + number.size(), seed); read.ec != std::errc{} || read.ptr != number.data() + number.size())
         return std::unexpected(std::format("line 1: `{}` is not a seed (a whole number)", number));
     State state = start(seed);
-    for (const xengine::Actions& actions : recording->frames) step(state, Input{actions});
+    for (const meng::Actions& actions : recording->frames) step(state, Input{actions});
     return state;
 }
 

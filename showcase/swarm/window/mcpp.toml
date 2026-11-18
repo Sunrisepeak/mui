@@ -33,10 +33,10 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 omui.showcase.swarm.headless = { path = "../headless" }
-xengine.runtime  = { path = "../../../modules/projects/xengine/game/runtime", features = ["lines"] }  # swarm-play's
+meng.runtime  = { path = "../../../modules/projects/meng/game/runtime", features = ["lines"] }  # swarm-play's
 omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
-xengine.ui       = { path = "../../../modules/projects/xengine/game/ui" }
-xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
+meng.ui       = { path = "../../../modules/projects/meng/game/ui" }
+meng.input    = { path = "../../../modules/projects/meng/game/input" }
 xrender.raster   = { path = "../../../modules/projects/xrender/raster" }
 xrender.vector   = { path = "../../../modules/projects/xrender/vector" }
 mlibs.geom       = { path = "../../../modules/base/geom" }

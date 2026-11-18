@@ -4,7 +4,7 @@
 //   picture->show(state);                     // each frame: reads the state
 //   picture->draw(list, {0, 0, 768, 384});
 //
-// The world is shown by xengine.cellular.present's ladders (D-178): what the level calls scenery is simulated
+// The world is shown by meng.cellular.present's ladders (D-178): what the level calls scenery is simulated
 // beside the world where there is room and drawn as placed where there is not; the light is a glow, or below
 // that frames of a flame baked once from the glow's own form of a hearth, or the shade alone. The game's state
 // is read, never written: the same game at every step. Over the world: what flies, the wand's bolts, the exit,
@@ -12,10 +12,10 @@
 export module omui.showcase.kiln.picture;
 import std;
 export import omui.showcase.kiln.sim;
-export import xengine.cellular.present.world;
+export import meng.cellular.present.world;
 
 export namespace kiln {
-namespace ca = xengine::cellular;
+namespace ca = meng::cellular;
 
 class Picture {
 public:

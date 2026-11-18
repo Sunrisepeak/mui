@@ -10,8 +10,8 @@ import openas;
 import omui.core;
 import omui.lang.ts;
 import hanim.timeline;
-import xengine.audio.timeline;
-import xengine.audio;
+import meng.audio.timeline;
+import meng.audio;
 import xrender.vector;
 import mlibs.image;
 import omui.host.headless;
@@ -23,7 +23,7 @@ namespace {
 
 using namespace omui;
 namespace tl = hanim::timeline;
-namespace au = xengine::audio;
+namespace au = meng::audio;
 
 }  // namespace
 
@@ -52,8 +52,8 @@ int automation(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream
     for(const auto& c:chosen_track->clips)if(c.name==*clip) {if(chosen)return fail("ambiguous clip name");chosen=&c;}
     if(!chosen)return fail("clip not found");
     const auto property=a.value("property");
-    const auto gain=xengine::audio::GainAutomation::prepare(*chosen,{.sample_rate=timeline->sample_rate,.property=property?*property:"gain",.outside=0});
-    if(!gain)return fail(std::string(xengine::audio::gain_error_name(gain.error())));
+    const auto gain=meng::audio::GainAutomation::prepare(*chosen,{.sample_rate=timeline->sample_rate,.property=property?*property:"gain",.outside=0});
+    if(!gain)return fail(std::string(meng::audio::gain_error_name(gain.error())));
     au::Mixer mixer({.rate=timeline->sample_rate});
     au::Sound tone{.name="reference-tone",.gain=.1f,.bus="music"};
     tone.layers.push_back({.length=static_cast<float>(duration),.pitch={220,220},

@@ -17,7 +17,7 @@ import omui.showcase.widget_breakout;
 import mlibs.testing;
 import mcpplibs.mtest;
 import omui.ui.canvas;
-import xengine.audio;
+import meng.audio;
 
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
@@ -36,7 +36,7 @@ struct Landing {
 Landing landing(const bo::State& s) {
     const double line = s.paddles[0].y - 8 - 8;
     Landing best;
-    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) {
+    s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) {
         if (b.on != 0) return;
         std::array<mlibs::dynamics::V2, 16> pts{};
         const std::size_t n = bo::trace(s, b.at, b.velocity, b.radius, pts, 5000);
@@ -61,7 +61,7 @@ Landing landing(const bo::State& s) {
 void guard(const bo::State& s, bo::Input& in) {
     if (!s.paddles[1].active) return;
     double best = 1e9, to = s.paddles[1].x;
-    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) {
+    s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) {
         if (b.on) return;
         if (auto x = bo::Copilot::meets(b.at.x, b.at.y, b.velocity.x, b.velocity.y, 46, bo::field_w, 8)) {
             const double steps = (b.at.y - 46) / -b.velocity.y;
@@ -78,7 +78,7 @@ bo::Input catcher(const bo::State& s, double offset) {
     const double x = l.any ? l.x - offset * s.paddles[0].half : s.paddles[0].x;
     in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(x, 0.0, bo::field_w) / bo::field_w * 32767));
     bool waiting = false;
-    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { waiting = waiting || b.on == 1; });
+    s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { waiting = waiting || b.on == 1; });
     if (waiting && s.frame % 20 == 0) in.player.pressed = in.player.held = 1u << bo::launch_button;
     guard(s, in);
     return in;
@@ -89,17 +89,17 @@ bo::Input catch_only(const bo::State& s) { return catcher(s, 0.25 * static_cast<
 
 std::int32_t core_hp(const bo::State& s) {
     std::int32_t hp = 0;
-    s.world.each<bo::Brick>([&](xengine::Entity, const bo::Brick& b) { hp += b.kind == bo::Kind::core ? b.durability : 0; });
+    s.world.each<bo::Brick>([&](meng::Entity, const bo::Brick& b) { hp += b.kind == bo::Kind::core ? b.durability : 0; });
     return hp;
 }
 std::int32_t open_shutters(const bo::State& s) {
     std::int32_t n = 0;
-    s.world.each<bo::Brick>([&](xengine::Entity, const bo::Brick& b) { n += b.kind == bo::Kind::shutter && b.on; });
+    s.world.each<bo::Brick>([&](meng::Entity, const bo::Brick& b) { n += b.kind == bo::Kind::shutter && b.on; });
     return n;
 }
 std::int32_t charge(const bo::State& s) {
     std::int32_t n = 0;
-    s.world.each<bo::Brick>([&](xengine::Entity, const bo::Brick& b) { n += b.kind == bo::Kind::slider ? b.charge : 0; });
+    s.world.each<bo::Brick>([&](meng::Entity, const bo::Brick& b) { n += b.kind == bo::Kind::slider ? b.charge : 0; });
     return n;
 }
 
@@ -141,7 +141,7 @@ struct Planner {
     }
     bo::Input decide(const bo::State& s) {
         bool waiting = false;
-        s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { waiting = waiting || b.on == 1; });
+        s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { waiting = waiting || b.on == 1; });
         if (waiting && !s.over && !s.freeze) {
             double best = -1e18, aim = 0;
             for (int k = 0; k < 7; ++k) {
@@ -268,7 +268,7 @@ struct Game {
     std::string disagreement() {
         const auto& def = bo::room(component().props.room);
         std::vector<const bo::Brick*> by_id(def.bricks.size(), nullptr);
-        state().world.each<bo::Brick>([&](xengine::Entity, const bo::Brick& b) { by_id[b.id] = &b; });
+        state().world.each<bo::Brick>([&](meng::Entity, const bo::Brick& b) { by_id[b.id] = &b; });
         if (def.canvas) {  // the canvas's scene: a node for each brick standing
             auto& scene = world::scene(bo::cloud_scene);
             for (std::size_t i = 0; i < def.bricks.size(); ++i)
@@ -316,7 +316,7 @@ UTest cases{"showcase.widget_breakout", [] {
         expect(eq(nodes.size(), bo::room(1).bricks.size()));
         const Rect me = g.h.runtime().bounds(g.field());
         std::size_t matched = 0;
-        g.state().world.each<bo::Body, bo::Brick>([&](xengine::Entity, const bo::Body& b, const bo::Brick& br) {
+        g.state().world.each<bo::Body, bo::Brick>([&](meng::Entity, const bo::Body& b, const bo::Brick& br) {
             const Rect r = g.h.runtime().bounds(nodes[br.id]);
             const double sx = bo::field_w / me.width, sy = bo::field_h / me.height;
             matched += b.box.x == (r.x - me.x) * sx && b.box.y == (r.y - me.y) * sy && b.box.w == r.width * sx && b.box.h == r.height * sy;
@@ -341,7 +341,7 @@ UTest cases{"showcase.widget_breakout", [] {
         expect(g.act("launch"));
         g.h.advance(seconds(0.1));
         bo::Ball b{};
-        g.state().world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& x) { b = x; });
+        g.state().world.each<bo::Ball>([&](meng::Entity, const bo::Ball& x) { b = x; });
         expect(b.on == 0 && b.velocity.x < 0 && std::abs(b.velocity.x / b.velocity.y - 0.6) < 0.05) << std::format("({}, {})", b.velocity.x, b.velocity.y);
         expect(!g.act("aim", Value{}.set("across", "left"))) << "a number";
         expect(g.act("release"));
@@ -469,7 +469,7 @@ UTest cases{"showcase.widget_breakout", [] {
         w.h.step();
         auto waiting = [&] {
             bool on = false;
-            w.state().world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { on = on || b.on != 0; });
+            w.state().world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { on = on || b.on != 0; });
             return on;
         };
         expect(waiting()) << "a ball on the paddle";
@@ -552,7 +552,7 @@ UTest cases{"showcase.widget_breakout", [] {
         auto agrees = [&] {
             std::size_t wrong = 0;
             std::vector<bool> standing(def.bricks.size(), false);
-            g.state().world.each<bo::Brick>([&](xengine::Entity, const bo::Brick& b) { standing[b.id] = true; });
+            g.state().world.each<bo::Brick>([&](meng::Entity, const bo::Brick& b) { standing[b.id] = true; });
             for (std::size_t i = 0; i < def.bricks.size(); ++i) wrong += scene.find(bo::brick_id(i)).has_value() != standing[i];
             return wrong;
         };
@@ -765,11 +765,11 @@ UTest cases{"showcase.widget_breakout", [] {
         expect(g.act("pause"));
         g.play(25 * bo::steps_per_second);
         auto& sounds = const_cast<bo::Field&>(g.component()).sounds();
-        const auto samples = xengine::audio::render(sounds.mixer(), g.state().frame * sounds.step_samples() + sounds.mixer().rate());
+        const auto samples = meng::audio::render(sounds.mixer(), g.state().frame * sounds.step_samples() + sounds.mixer().rate());
         const auto begun = sounds.mixer().begun();
         expect(begun > 20) << std::format("{} sounds", begun);
-        const auto heard = xengine::audio::hash(samples);
-        expect(xengine::audio::peak(samples) > 0.05f && xengine::audio::peak(samples) <= 1.0f) << std::format("peak {}", xengine::audio::peak(samples));
+        const auto heard = meng::audio::hash(samples);
+        expect(meng::audio::peak(samples) > 0.05f && meng::audio::peak(samples) <= 1.0f) << std::format("peak {}", meng::audio::peak(samples));
         std::println("    heard {:016x} ({} sounds)", heard, begun);
         // Its level, measured: never clipped (a peak under −0.5 dBFS), loud enough to be heard over a room, not a wall of sound.
         double energy = 0;
@@ -782,7 +782,7 @@ UTest cases{"showcase.widget_breakout", [] {
         std::println("    level: peak {:.1f} dBFS, RMS {:.1f} dBFS", peak_db, rms_db);
         expect(peak_db <= -0.5 && rms_db > -24 && rms_db < -10) << std::format("peak {:.1f}, RMS {:.1f} dBFS", peak_db, rms_db);
         // To listen to: the run as heard, its theme under it.
-        const auto wav = xengine::audio::wav(samples, sounds.mixer().rate());
+        const auto wav = meng::audio::wav(samples, sounds.mixer().rate());
         std::ofstream(scratch_dir("breakout-heard") / "heard.wav", std::ios::binary).write(reinterpret_cast<const char*>(wav.data()), static_cast<std::streamsize>(wav.size()));
         expect(eq(heard, std::uint64_t{0x62ef9b47a1e4120d}));  // GCC (LLVM: CI)
     };

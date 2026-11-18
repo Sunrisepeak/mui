@@ -78,7 +78,7 @@ class Subject {
 public:
     virtual ~Subject() = default;
     [[nodiscard]] virtual std::string_view name() const noexcept = 0;            // "world"
-    [[nodiscard]] virtual std::string_view interface_name() const noexcept = 0;  // what its operations speak: "xengine.world@0.1"
+    [[nodiscard]] virtual std::string_view interface_name() const noexcept = 0;  // what its operations speak: "meng.world@0.1"
     [[nodiscard]] virtual Capabilities capabilities() const noexcept = 0;
     // Its catalog (ops-gen's table): each operation by its whole name ("world.observe"), with its effect,
     // parameters, cost and how it is undone.

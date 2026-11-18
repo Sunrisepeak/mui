@@ -230,7 +230,7 @@
     },
     {
       "id": "G",
-      "project": "xengine",
+      "project": "meng",
       "line": "together",
       "title": "Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩",
       "status": "evidence",
@@ -239,11 +239,11 @@
         "godot-mcp",
         "unity-ai"
       ],
-      "doc": "--- xengine ----------------------------------------------------------------"
+      "doc": "--- meng ----------------------------------------------------------------"
     },
     {
-      "id": "xengine.equal-play",
-      "project": "xengine",
+      "id": "meng.equal-play",
+      "project": "meng",
       "line": "together",
       "title": "人与 Agent 平等游玩：同一套感知和反应约束，逐位回放",
       "status": "evidence",
@@ -254,8 +254,8 @@
       ]
     },
     {
-      "id": "xengine.native",
-      "project": "xengine",
+      "id": "meng.native",
+      "project": "meng",
       "line": "build-reliably",
       "title": "原生胜过适配：场景是数据、编辑是事务、模拟确定、离屏同源",
       "status": "planned",
@@ -264,8 +264,8 @@
       ]
     },
     {
-      "id": "xengine.rollback",
-      "project": "xengine",
+      "id": "meng.rollback",
+      "project": "meng",
       "line": "foundation",
       "title": "全游戏可回滚、可分支",
       "status": "planned",

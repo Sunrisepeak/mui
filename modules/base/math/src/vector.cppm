@@ -15,7 +15,7 @@ export namespace mlibs::math {
 struct Vec2 {
     float x = 0, y = 0;
     // Two floats and nothing between or after them: what stores or hashes one as bytes (a component
-    // of xengine.world) is told so here, once.
+    // of meng.world) is told so here, once.
     static constexpr bool no_padding = true;
     // Written out: a defaulted comparison here, used in a constant expression by an importer, ends
     // gcc 16.1.

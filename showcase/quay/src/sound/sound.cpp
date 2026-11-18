@@ -6,8 +6,8 @@ import mlibs.math;
 namespace quay {
 
 namespace {
-namespace audio = xengine::audio;
-namespace space = xengine::audio::space;
+namespace audio = meng::audio;
+namespace space = meng::audio::space;
 namespace math = mlibs::math;
 
 constexpr std::uint64_t servo_every = 38;  // steps between a walking warden's servo cycles

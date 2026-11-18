@@ -37,10 +37,10 @@ Answered told(agent::SubjectSession& session, std::string_view line, std::source
 }
 
 // An agent in the seat, the game stepped by it, shown everything (it may ask why).
-xengine::runtime::Options assist() {
+meng::runtime::Options assist() {
     return {.tier = {.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true},
-            .stepping = xengine::runtime::Stepping::agent,
-            .seat = xengine::runtime::Seat::agent,
+            .stepping = meng::runtime::Stepping::agent,
+            .seat = meng::runtime::Seat::agent,
             .keep = 600};
 }
 

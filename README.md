@@ -23,11 +23,11 @@ One repository, several projects. Each project is used on its own — its own RE
 | [**omui**](modules/projects/omui) | A UI framework: one semantic tree drives pixels, motion, accessibility, agents and tests; implements the [openmui](https://github.com/openlifa/openmui) specification | `omui` — new, dev, run, test, package; agents | hanim, xrender |
 | [**hanim**](modules/projects/hanim) | A composable, agent-native animation engine: UI animation, video and game animation from one set of capabilities | `hanim` (a document → its frames), `hanim-timeline` | xrender |
 | [**xrender**](modules/projects/xrender) | A renderer whose CPU and GPU paths share one source, Web first, its pixels reviewable by agents (code name) | a library | mlibs |
-| [**xengine**](modules/projects/xengine) | A game-engine system: kernels (matter, dynamics, particles, audio, video) and a game layer above omui (code name) | `xengine-playtest` | all of the above |
-| [**gongfu**](modules/projects/gongfu) | A deterministic, rollback-ready fighting-game framework whose characters are data | — | xengine |
+| [**meng**](modules/projects/meng) | A game-engine system: kernels (matter, dynamics, particles, audio, video) and a game layer above omui (code name) | `meng-playtest` | all of the above |
+| [**gongfu**](modules/projects/gongfu) | A deterministic, rollback-ready fighting-game framework whose characters are data | — | meng |
 | [**mlibs**](modules) | Domain-free libraries beneath every project: math, geometry, images, text, the GPU interface, the agent kernel | libraries | — |
 
-The layers only point down — mlibs ← xrender ← hanim ← omui ← xengine's game layer ← works — so taking one project takes only what is beneath it ([AGENTS.md](AGENTS.md) §2–3).
+The layers only point down — mlibs ← xrender ← hanim ← omui ← meng's game layer ← works — so taking one project takes only what is beneath it ([AGENTS.md](AGENTS.md) §2–3).
 
 ## Works
 

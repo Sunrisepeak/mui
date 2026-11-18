@@ -3,8 +3,8 @@ module omui.showcase.widget_breakout.sim;
 import std;
 import mlibs.math;
 import mlibs.hash;
-import xengine.world;
-import xengine.input;
+import meng.world;
+import meng.input;
 import mlibs.dynamics;
 
 namespace omui::breakout {
@@ -62,7 +62,7 @@ V2 steep(V2 v) noexcept {
 
 // A ball resting on paddle `i`, waiting to be launched.
 void rest(State& s, std::size_t i) {
-    const xengine::Entity e = s.world.create();
+    const meng::Entity e = s.world.create();
     if (!e.valid()) return;
     const Paddle& p = s.paddles[i];
     const double side = i == 0 ? -1 : 1;  // above the bottom paddle, below the top one
@@ -70,7 +70,7 @@ void rest(State& s, std::size_t i) {
     if (i == 0) s.aim_phase = 60, s.aim_held = 0;
 }
 
-void move_paddle(Paddle& p, const xengine::Actions& a, double half) {
+void move_paddle(Paddle& p, const meng::Actions& a, double half) {
     const double was = p.x;
     if (a.pointer_x >= 0) {
         const double target = a.pointer_x / 32767.0 * field_w;
@@ -103,7 +103,7 @@ void drop(State& s, V2 at, Gift own) {
                 --nth;
             }
     }
-    const xengine::Entity e = s.world.create();
+    const meng::Entity e = s.world.create();
     if (!e.valid()) return;
     s.world.add(e, Capsule{at, g, 0});
     happened(s, Happened::gift, static_cast<std::uint32_t>(g), at);
@@ -113,14 +113,14 @@ void give(State& s, Gift g) {
     switch (g) {
         case Gift::wide: s.paddles[0].wide = s.rules.wide_steps; break;
         case Gift::slow: s.slow = s.rules.slow_steps; break;
-        case Gift::pierce: s.world.each<Ball>([&](xengine::Entity, Ball& b) { b.pierce = static_cast<std::uint32_t>(s.rules.pierce_steps); }); break;
+        case Gift::pierce: s.world.each<Ball>([&](meng::Entity, Ball& b) { b.pierce = static_cast<std::uint32_t>(s.rules.pierce_steps); }); break;
         case Gift::magnet: s.paddles[0].magnet = s.rules.magnet_catches; break;
         case Gift::multi: {
             // Each flying ball gains its extra balls: turned 20° one way and the other, then 40°.
             constexpr std::array<std::array<double, 3>, 4> turns{{{1, cos20, sin20}, {-1, cos20, sin20}, {1, cos40, sin40}, {-1, cos40, sin40}}};
             std::array<Ball, 64> more{};
             std::size_t n = 0;
-            s.world.each<Ball>([&](xengine::Entity, Ball& b) {
+            s.world.each<Ball>([&](meng::Entity, Ball& b) {
                 if (b.on != 0) return;
                 for (std::size_t t = 0; t < static_cast<std::size_t>(s.rules.multi_balls); ++t)
                     if (n < more.size()) {
@@ -131,7 +131,7 @@ void give(State& s, Gift g) {
                     }
             });
             for (std::size_t i = 0; i < n; ++i)
-                if (const xengine::Entity e = s.world.create(); e.valid()) s.world.add(e, more[i]);
+                if (const meng::Entity e = s.world.create(); e.valid()) s.world.add(e, more[i]);
             break;
         }
         case Gift::none: break;
@@ -143,7 +143,7 @@ void give(State& s, Gift g) {
 struct Contact {
     double                         t = 2;
     V2                             normal;
-    std::array<xengine::Entity, 4>   bricks{};
+    std::array<meng::Entity, 4>   bricks{};
     std::size_t                    count = 0;
     std::int32_t                   paddle = -1;
     bool                           wall = false;
@@ -181,7 +181,7 @@ Contact first_contact(const State& s, V2 at, double radius, V2 d, double left, b
     }
     // Bricks, by index: all but open shutters and gates.
     const bool open = gates_open(s);
-    s.world.each<Body, Brick>([&](xengine::Entity e, const Body& body, const Brick& brick) {
+    s.world.each<Body, Brick>([&](meng::Entity e, const Body& body, const Brick& brick) {
         if ((brick.kind == Kind::gate && open) || (brick.kind == Kind::shutter && brick.on)) return;
         if (auto h = mlibs::dynamics::sweep(at, radius, d, body.box))
             meet(*h, [&] {
@@ -191,11 +191,11 @@ Contact first_contact(const State& s, V2 at, double radius, V2 d, double left, b
     return c;
 }
 
-void zap(State& s, xengine::Entity e, std::int32_t damage);
+void zap(State& s, meng::Entity e, std::int32_t damage);
 
 // A switch flips, and what is on its circuit moves: shutters open or
 // close, kickers turn, capacitors with a charge discharge now.
-void flip(State& s, xengine::Entity e) {
+void flip(State& s, meng::Entity e) {
     Brick& sw = s.world.get<Brick>(e);
     sw.on ^= 1u;
     const V2 from = middle(s.world.get<Body>(e).box);
@@ -203,7 +203,7 @@ void flip(State& s, xengine::Entity e) {
     ++s.combo;
     if (sw.wire == 0) return;
     const std::uint32_t wire = sw.wire;
-    s.world.each<Body, Brick>([&](xengine::Entity t, const Body& body, Brick& b) {
+    s.world.each<Body, Brick>([&](meng::Entity t, const Body& body, Brick& b) {
         if (t == e || b.wire != wire || b.kind == Kind::toggle) return;
         if (b.kind == Kind::shutter || b.kind == Kind::kicker) b.on ^= 1u;
         else if (b.kind == Kind::slider && b.charge > 0 && b.fuse == 0) b.fuse = early_fuse;
@@ -213,7 +213,7 @@ void flip(State& s, xengine::Entity e) {
 }
 
 // A capacitor takes a hit's charge (a beam's too); full, it is about to fire.
-void charge(State& s, xengine::Entity e) {
+void charge(State& s, meng::Entity e) {
     Brick& c = s.world.get<Brick>(e);
     const V2 at = middle(s.world.get<Body>(e).box);
     if (c.fuse != 0) {  // about to fire, or cooling down
@@ -229,7 +229,7 @@ void charge(State& s, xengine::Entity e) {
     }
 }
 
-void shatter(State& s, xengine::Entity e) {  // a broken brick's due: score, sparks, a drop
+void shatter(State& s, meng::Entity e) {  // a broken brick's due: score, sparks, a drop
     Brick& brick = s.world.get<Brick>(e);
     const V2 at = middle(s.world.get<Body>(e).box);
     happened(s, Happened::broke, brick.id, at, s.combo);
@@ -251,9 +251,9 @@ void shatter(State& s, xengine::Entity e) {  // a broken brick's due: score, spa
         if (s.cores <= 0) {  // the room shuts down: a wave from here, the capsules gone
             s.ending = wave_steps;
             s.core_at = at;
-            std::array<xengine::Entity, 64> gone{};
+            std::array<meng::Entity, 64> gone{};
             std::size_t n = 0;
-            s.world.each<Capsule>([&](xengine::Entity c, Capsule&) {
+            s.world.each<Capsule>([&](meng::Entity c, Capsule&) {
                 if (n < gone.size()) gone[n++] = c;
             });
             for (std::size_t i = 0; i < n; ++i) s.world.destroy(gone[i]);
@@ -264,7 +264,7 @@ void shatter(State& s, xengine::Entity e) {  // a broken brick's due: score, spa
 }
 
 // A breakable brick takes `damage`.
-void damage_brick(State& s, xengine::Entity e, std::int32_t damage) {
+void damage_brick(State& s, meng::Entity e, std::int32_t damage) {
     Brick& brick = s.world.get<Brick>(e);
     const V2 at = middle(s.world.get<Body>(e).box);
     brick.durability -= damage;
@@ -284,21 +284,21 @@ void damage_brick(State& s, xengine::Entity e, std::int32_t damage) {
 // A beam from a capacitor (along its row) or a paddle's finisher (up its
 // column): to the nearest wall, closed shutter or gate each way, everything
 // in between taking `damage` (a switch flipped, a capacitor charged by one).
-void beam(State& s, const Box& from, bool across, std::int32_t damage, xengine::Entity self, std::uint32_t id) {
+void beam(State& s, const Box& from, bool across, std::int32_t damage, meng::Entity self, std::uint32_t id) {
     double lo = 0, hi = across ? field_w : from.y;  // along the beam: its reach either way (up the field only, from a paddle)
     const double a0 = across ? from.y : from.x, a1 = across ? from.bottom() : from.right();  // its band, across it
     const double f0 = across ? from.x : from.y, f1 = across ? from.right() : from.y;         // the source's extent along it
     auto along = [&](const Box& b) { return across ? std::pair{b.x, b.right()} : std::pair{b.y, b.bottom()}; };
     auto band = [&](const Box& b) { return across ? b.y < a1 && b.bottom() > a0 : b.x < a1 && b.right() > a0; };
-    s.world.each<Body, Brick>([&](xengine::Entity e, const Body& body, const Brick& b) {
+    s.world.each<Body, Brick>([&](meng::Entity e, const Body& body, const Brick& b) {
         if (e == self || !band(body.box) || !blocks(s, b)) return;
         const auto [b0, b1] = along(body.box);
         if (b1 <= f0) lo = std::max(lo, b1);
         if (across && b0 >= f1) hi = std::min(hi, b0);
     });
-    std::array<xengine::Entity, 96> struck{};
+    std::array<meng::Entity, 96> struck{};
     std::size_t n = 0;
-    s.world.each<Body, Brick>([&](xengine::Entity e, const Body& body, const Brick& b) {
+    s.world.each<Body, Brick>([&](meng::Entity e, const Body& body, const Brick& b) {
         if (e == self || !band(body.box) || blocks(s, b)) return;
         const auto [b0, b1] = along(body.box);
         if (b1 > lo && b0 < hi && n < struck.size()) struck[n++] = e;
@@ -312,7 +312,7 @@ void beam(State& s, const Box& from, bool across, std::int32_t damage, xengine::
 }
 
 // What a beam does to a brick.
-void zap(State& s, xengine::Entity e, std::int32_t damage) {
+void zap(State& s, meng::Entity e, std::int32_t damage) {
     const Brick& b = s.world.get<Brick>(e);
     switch (b.kind) {
         case Kind::toggle: flip(s, e); break;
@@ -328,7 +328,7 @@ void zap(State& s, xengine::Entity e, std::int32_t damage) {
     }
 }
 
-void fire(State& s, xengine::Entity e) {
+void fire(State& s, meng::Entity e) {
     Brick& c = s.world.get<Brick>(e);
     const std::int32_t damage = c.charge;
     c.charge = 0;
@@ -339,7 +339,7 @@ void fire(State& s, xengine::Entity e) {
 // A ball meets a brick (`normal`: of all it met at once). Whether it sent
 // the ball somewhere (a kicker: only away from the side met, else it is a
 // wall — a ball never kicked into what kicked it).
-bool hit_brick(State& s, xengine::Entity e, Ball& ball, V2 normal) {
+bool hit_brick(State& s, meng::Entity e, Ball& ball, V2 normal) {
     Brick& brick = s.world.get<Brick>(e);
     const V2 at = middle(s.world.get<Body>(e).box);
     switch (brick.kind) {
@@ -421,7 +421,7 @@ bool hit_paddle(State& s, Ball& b, std::size_t i, double paddle_at) {
     return false;
 }
 
-void fly(State& s, xengine::Entity e) {
+void fly(State& s, meng::Entity e) {
     {
         // Its spin turns it a little (exact: a step along the perpendicular, back to its speed), dying away.
         Ball& b = s.world.get<Ball>(e);
@@ -480,7 +480,7 @@ void aim_camera(State& s, bool look) {
     if (s.height <= field_h) return;
     double top = s.height;
     bool above = false;
-    s.world.each<Ball>([&](xengine::Entity, const Ball& b) {
+    s.world.each<Ball>([&](meng::Entity, const Ball& b) {
         top = std::min(top, b.at.y - 4 * b.radius);
         above = above || b.above;
     });
@@ -491,9 +491,9 @@ void aim_camera(State& s, bool look) {
 // The shutdown's wave: every breakable brick it reaches breaks, scoring.
 void wave(State& s) {
     const double r = static_cast<double>(wave_steps - s.ending + 1) * wave_speed;
-    std::array<xengine::Entity, 128> reached{};
+    std::array<meng::Entity, 128> reached{};
     std::size_t n = 0;
-    s.world.each<Body, Brick>([&](xengine::Entity e, const Body& body, const Brick& b) {
+    s.world.each<Body, Brick>([&](meng::Entity e, const Body& body, const Brick& b) {
         if (!breakable(b.kind)) return;
         const V2 d = middle(body.box) - s.core_at;
         if (mlibs::dynamics::dot(d, d) <= r * r && n < reached.size()) reached[n++] = e;
@@ -549,7 +549,7 @@ State start(const Level& level) {
     s.gate_period = level.gate_period;
     s.gate_open = level.gate_open;
     for (const BrickSpec& b : level.bricks) {
-        const xengine::Entity e = s.world.create();
+        const meng::Entity e = s.world.create();
         if (!e.valid()) break;
         s.world.add(e, Body{b.box});
         s.world.add(e, Brick{b.kind, b.durability, b.id, b.row, b.gift, b.wire, b.on, 0, 0});
@@ -559,7 +559,7 @@ State start(const Level& level) {
     rest(s, 0);
     s.aim_phase = level.aim_phase;
     if (level.opening != Gift::none)
-        if (const xengine::Entity e = s.world.create(); e.valid()) s.world.add(e, Capsule{{s.paddles[0].x, s.paddles[0].y - 80}, level.opening, 0});
+        if (const meng::Entity e = s.world.create(); e.valid()) s.world.add(e, Capsule{{s.paddles[0].x, s.paddles[0].y - 80}, level.opening, 0});
     return s;
 }
 
@@ -575,7 +575,7 @@ void step(State& s, const Input& in) {
     aim_camera(s, in.player.down(look_button));
     if (in.aim_set) s.aim = std::clamp(in.aim, -aim_most, aim_most), s.aim_held = 1;
     // Balls on a paddle ride it, hit-stop or not.
-    s.world.each<Ball>([&](xengine::Entity, Ball& b) {
+    s.world.each<Ball>([&](meng::Entity, Ball& b) {
         if (b.on != 0) b.at.x = s.paddles[b.on - 1].x + b.dx;
     });
     if (s.freeze > 0) {
@@ -591,7 +591,7 @@ void step(State& s, const Input& in) {
     ++s.idle;
     // The aim sweeps to and fro while a ball waits (a triangle, two seconds across), unless an agent holds it.
     bool waiting = false;
-    s.world.each<Ball>([&](xengine::Entity, const Ball& b) { waiting = waiting || b.on == 1; });
+    s.world.each<Ball>([&](meng::Entity, const Ball& b) { waiting = waiting || b.on == 1; });
     if (waiting && !s.aim_held) {
         const std::int32_t p = s.aim_phase % 240, u = p < 120 ? p : 240 - p;
         s.aim = (u / 60.0 - 1) * aim_most;
@@ -600,7 +600,7 @@ void step(State& s, const Input& in) {
     // The launch: from the bottom paddle along the aim; from the top one down, a little to the right.
     std::array<bool, 2> launch{in.player.went_down(launch_button), in.second.went_down(launch_button)};
     bool launched = false;
-    s.world.each<Ball>([&](xengine::Entity, Ball& b) {
+    s.world.each<Ball>([&](meng::Entity, Ball& b) {
         if (b.on == 0) return;
         const std::size_t i = b.on - 1;
         if (!launch[i]) return;
@@ -612,9 +612,9 @@ void step(State& s, const Input& in) {
     });
     if (launched) s.aim_held = 0;
     // Capacitors about to fire, by index.
-    std::array<xengine::Entity, 32> due{};
+    std::array<meng::Entity, 32> due{};
     std::size_t f = 0;
-    s.world.each<Brick>([&](xengine::Entity e, Brick& b) {
+    s.world.each<Brick>([&](meng::Entity e, Brick& b) {
         if (b.kind != Kind::slider || b.fuse == 0) return;
         if (b.fuse < 0) ++b.fuse;  // cooling down
         else if (--b.fuse == 0 && f < due.size()) due[f++] = e;
@@ -622,9 +622,9 @@ void step(State& s, const Input& in) {
     for (std::size_t i = 0; i < f; ++i)
         if (s.world.alive(due[i])) fire(s, due[i]);
     // The flying balls, by index (a ball made this step flies from the next).
-    std::array<xengine::Entity, 128> flying{};
+    std::array<meng::Entity, 128> flying{};
     std::size_t n = 0;
-    s.world.each<Ball>([&](xengine::Entity e, Ball& b) {
+    s.world.each<Ball>([&](meng::Entity e, Ball& b) {
         if (b.on == 0 && n < flying.size()) flying[n++] = e;
     });
     for (std::size_t i = 0; i < n && !s.ending; ++i)
@@ -653,9 +653,9 @@ void step(State& s, const Input& in) {
         }
     if (s.ending) return;
     // Capsules fall; the bottom paddle catches them.
-    std::array<xengine::Entity, 64> caught{};
+    std::array<meng::Entity, 64> caught{};
     std::size_t c = 0;
-    s.world.each<Capsule>([&](xengine::Entity e, Capsule& k) {
+    s.world.each<Capsule>([&](meng::Entity e, Capsule& k) {
         k.at.y += 2.5;
         if (mlibs::dynamics::overlaps(k.at, 10, paddle_box(s.paddles[0])) || k.at.y > s.height + 20)
             if (c < caught.size()) caught[c++] = e;
@@ -670,7 +670,7 @@ void step(State& s, const Input& in) {
     }
     // No ball left: the chain unbanked is lost, then a life, and a new ball on the paddle; none left: over.
     bool any = false;
-    s.world.each<Ball>([&](xengine::Entity, Ball&) { any = true; });
+    s.world.each<Ball>([&](meng::Entity, Ball&) { any = true; });
     if (!any) {
         if (s.combo >= 3) happened(s, Happened::chain_lost, 0, {s.paddles[0].x, s.paddles[0].y}, s.combo);
         --s.lives;

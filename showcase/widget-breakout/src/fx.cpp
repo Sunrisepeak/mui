@@ -129,7 +129,7 @@ void Fx::react(const State& s, const RoomDef& room) {
 
     // The balls: their trails (a bounce squashes one), the first flying one's path kept.
     bool first = true;
-    s.world.each<Ball>([&](xengine::Entity e, const Ball& b) {
+    s.world.each<Ball>([&](meng::Entity e, const Ball& b) {
         Trail* t = nullptr;
         for (Trail& c : trails)
             if (c.ball == e.index && c.generation == e.generation) t = &c;

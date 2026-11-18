@@ -2,7 +2,7 @@ import std;
 import xtools.audition;
 import omui.core;
 import mlibs.image;
-import xengine.audio;
+import meng.audio;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mcpplibs.os;
@@ -66,8 +66,8 @@ UTest cases{"xtools.audition", [] {
             expect(samples->front().get("gain")->as_double()==0 && samples->back().get("gain")->as_double()==0);
             const auto encoded=fs::read(fs::from_utf8(prefix+".wav"));expect(encoded.has_value());if(!encoded)return;
             const auto pcm=std::string(report->get("pcm_hash")->as_string());
-            const auto sound=xengine::audio::read_wav(std::as_bytes(std::span(encoded->data(),encoded->size())));
-            expect(sound && sound->rate==48000 && sound->samples.size()==96000 && xengine::audio::peak(sound->samples)>.01f);
+            const auto sound=meng::audio::read_wav(std::as_bytes(std::span(encoded->data(),encoded->size())));
+            expect(sound && sound->rate==48000 && sound->samples.size()==96000 && meng::audio::peak(sound->samples)>.01f);
             if(previous_pcm.empty()) {previous_pcm=pcm;previous_wav=*encoded;}
             else expect(pcm==previous_pcm && *encoded==previous_wav) << "observation frame rate does not alter actual WAV bytes";
             const auto image=mlibs::image::load_png(fs::from_utf8(prefix+".png"));expect(image.has_value());

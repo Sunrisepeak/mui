@@ -9,10 +9,10 @@
     "mgame/sim/mcpp.toml"
   ],
   "migrated_packages": [
-    "xengine.simulation",
-    "xengine.simulation.cellular",
-    "xengine.simulation.cellular.rhi",
-    "xengine.simulation.cellular.rhi.cts"
+    "meng.simulation",
+    "meng.simulation.cellular",
+    "meng.simulation.cellular.rhi",
+    "meng.simulation.cellular.rhi.cts"
   ],
   "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
   "tests": [
@@ -326,34 +326,34 @@
     }
   ],
   "dependency_boundaries": {
-    "xengine.simulation": [
+    "meng.simulation": [
       "mlibs.log",
       "mlibs.trace",
-      "xengine.simulation"
+      "meng.simulation"
     ],
-    "xengine.simulation.cellular": [
+    "meng.simulation.cellular": [
       "mlibs.log",
       "mlibs.trace",
-      "xengine.simulation.cellular"
+      "meng.simulation.cellular"
     ],
-    "xengine.simulation.cellular.rhi": [
+    "meng.simulation.cellular.rhi": [
       "mlibs.hash",
       "mlibs.log",
       "mlibs.memory",
       "mlibs.rhi",
       "mlibs.trace",
-      "xengine.simulation.cellular",
-      "xengine.simulation.cellular.rhi"
+      "meng.simulation.cellular",
+      "meng.simulation.cellular.rhi"
     ],
-    "xengine.simulation.cellular.rhi.cts": [
+    "meng.simulation.cellular.rhi.cts": [
       "mlibs.hash",
       "mlibs.log",
       "mlibs.memory",
       "mlibs.rhi",
       "mlibs.trace",
-      "xengine.simulation.cellular",
-      "xengine.simulation.cellular.rhi",
-      "xengine.simulation.cellular.rhi.cts"
+      "meng.simulation.cellular",
+      "meng.simulation.cellular.rhi",
+      "meng.simulation.cellular.rhi.cts"
     ]
   },
   "foundation": {
@@ -1237,7 +1237,7 @@
   "limits": [
     "No hardware GPU performance or all-platform CI claim.",
     "Simulation benchmark did not run: root locked resolution passed, but the generated fighting host-build workspace repeatedly missed six image/TOML dependencies; rebuilding that scratch workspace did not persist through replanning. Existing budgets were not weakened.",
-    "Legacy mgame.sim C++ import remains usable, but the dependency key, directory and -p selector must migrate to xengine.simulation.",
+    "Legacy mgame.sim C++ import remains usable, but the dependency key, directory and -p selector must migrate to meng.simulation.",
     "No new public animation or creative-work count is claimed by this refactor."
   ],
   "static_checks": [

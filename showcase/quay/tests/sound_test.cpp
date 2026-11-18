@@ -7,8 +7,8 @@ import mlibs.hash;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
-namespace audio = xengine::audio;
-namespace space = xengine::audio::space;
+namespace audio = meng::audio;
+namespace space = meng::audio::space;
 namespace math = mlibs::math;
 
 namespace {

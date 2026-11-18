@@ -1,5 +1,5 @@
 # The fight as a game on its own (the release plan's RC2.11, D-162): a match between two of the work's fighters —
-# the seat's player on the left, gongfu.ai's computer on the right — as xengine.runtime plays it: stepped with no
+# the seat's player on the left, gongfu.ai's computer on the right — as meng.runtime plays it: stepped with no
 # interface, sought back and branched ahead, and played by an agent on a person's tier (a fifth of a second's
 # reaction, ten actions a second) as a person plays. One package: the game is one file and its fighters, carried by
 # gongfu.rules as the window's are.
@@ -26,8 +26,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 gongfu          = { path = "../../../modules/projects/gongfu" }
 "gongfu.data"    = { path = "../../../modules/projects/gongfu/data" }
-xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
-xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
+meng.runtime = { path = "../../../modules/projects/meng/game/runtime" }
+meng.input   = { path = "../../../modules/projects/meng/game/input" }
 mlibs.utils     = { path = "../../../modules/base/utils" }
 
 [build-dependencies]

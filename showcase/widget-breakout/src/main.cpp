@@ -7,8 +7,8 @@
 import std;
 import mcpplibs.cmdline;
 import omui;
-import xengine.audio;
-import xengine.audio.device;
+import meng.audio;
+import meng.audio.device;
 import omui.showcase.widget_breakout;
 
 int main(int argc, char** argv) {
@@ -22,13 +22,13 @@ int main(int argc, char** argv) {
     // The game heard through the system's output (none headless, or with --quiet).
     if (!quiet)
         omui::breakout::hear_with([](omui::breakout::Sounds& s) -> std::shared_ptr<void> {
-            auto device = xengine::audio::Device::open(s.mixer());
+            auto device = meng::audio::Device::open(s.mixer());
             if (!device) {
                 std::println(std::cerr, "omui-breakout: no sound ({})", device.error());
                 return nullptr;
             }
             s.live(true);
-            return std::make_shared<xengine::audio::Device>(std::move(*device));
+            return std::make_shared<meng::audio::Device>(std::move(*device));
         });
     return omui::run(omui::breakout::app(), command->options);
 }

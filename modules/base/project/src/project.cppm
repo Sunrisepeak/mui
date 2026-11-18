@@ -4,7 +4,7 @@
 //     auto findings = mlibs::project::check(*project, {mlibs::project::general(), mlibs::project::workspace()});
 //
 // A profile is a set of rules over the model; the general rules hold for every project, a domain's owner adds
-// its own (omui: an application, an extension; hanim: a film; xengine: a game). A package says its profile in
+// its own (omui: an application, an extension; hanim: a film; meng: a game). A package says its profile in
 // `[package.metadata.openmui] profile = "app"`; a rule of a profile looks only at packages that say it.
 export module mlibs.project;
 

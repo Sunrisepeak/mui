@@ -1,7 +1,7 @@
 {
   "set": "matter-lab",
   "doc": "The material lab's cold start (RC2.18, D-186): a fresh agent session with no skill and no files, told only that the program reads a JSON request a line. The tasks are the foundation design's first two trials (2026-11-14), made repeatable; each is checked through the lab afterwards — its history's actor, a material's row, the scene — and the agent's last message only for what the task asks it to say.",
-  "package": "xengine.matter.lab",
+  "package": "meng.matter.lab",
   "program": "matter-lab",
   "setup": [["new", "{dir}", "--shape", "48x24"]],
   "wrapper": {"name": "lab", "args": ["run", "{dir}", "--actor", "agent:coldstart"]},

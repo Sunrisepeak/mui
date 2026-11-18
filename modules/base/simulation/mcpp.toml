@@ -1,8 +1,8 @@
 # mlibs.simulation — the stepping substrate every simulation runs on (D-133):
 # a fixed-step clock, a timeline of owned checkpoints and recorded inputs
 # (seek, replay, rollback, branches) and the tiers a simulation declares.
-# It holds no solver: physics is xengine.dynamics, cellular rules
-# xengine.cellular, a game its own model. Domain-agnostic, so in mlibs.
+# It holds no solver: physics is meng.dynamics, cellular rules
+# meng.cellular, a game its own model. Domain-agnostic, so in mlibs.
 [package]
 namespace   = "mlibs"
 name        = "simulation"

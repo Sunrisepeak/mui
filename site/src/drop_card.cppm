@@ -1,7 +1,7 @@
 // openmui.site:drop_card — the home's soft landing (the site plan §5 ③).
 //
 // A card (an avatar, a title, lines of text, a button), let go over a floor: one soft body of jelly
-// (xengine.dynamics' material table, through hanim's Engine::simulate on the
+// (meng.dynamics' material table, through hanim's Engine::simulate on the
 // host's one engine) under the card, everything on it carried by its
 // cage. Its time is the body's own (Engine::body_time, seek_body): `at` is
 // written as it falls, and set — a slider dragged, an agent's `seek` — it

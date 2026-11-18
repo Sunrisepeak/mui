@@ -6,7 +6,7 @@ import omui.showcase.fighting;
 import gongfu;
 import gongfu.present2d;
 import omui.showcase.widget_breakout.sim;
-import xengine.world;
+import meng.world;
 import omui.showcase.quay.picture;
 import xrender.rhi.sdl;
 import mlibs.rhi;
@@ -82,7 +82,7 @@ bo::Level breakout_wall() {
 bo::Input breakout_player(const bo::State& s) {
     bo::Input in;
     double x = bo::field_w / 2, lowest = -1;
-    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) {
+    s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) {
         if (b.on == 0 && b.at.y > lowest) lowest = b.at.y, x = b.at.x;
     });
     in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(x, 0.0, bo::field_w) / bo::field_w * 32767));
@@ -104,7 +104,7 @@ struct Velocity {
 struct Health {
     std::uint32_t points = 0;
 };
-using World = xengine::Chunked<Position, Velocity, Health>;
+using World = meng::Chunked<Position, Velocity, Health>;
 // 100,000 entities, all with a place, two in three moving, one in five with health.
 World made() {
     World world;
@@ -159,7 +159,7 @@ void add_game_benchmarks() {
             s.note("scope", std::format("one thread; {} draws, {} lights, {} views of lamps, {} casters in the moon's map; {} games played to the end and begun again (not timed); the same frames the device suite holds to the reference at 480x270",
                                         last.draws, last.lamps, last.lamp_views, last.casters, played->games()));
         });
-    add("world/chunked-branch-100k", "a branch of a world of 100,000 entities (xengine.world's Chunked, 1,565 chunks): the copy, one entity written in it, the two compared — what a snapshot, a rewind point or an agent's what-if costs (D-169)",
+    add("world/chunked-branch-100k", "a branch of a world of 100,000 entities (meng.world's Chunked, 1,565 chunks): the copy, one entity written in it, the two compared — what a snapshot, a rewind point or an agent's what-if costs (D-169)",
         [](State& s) {
             const chunked::World world = chunked::made();
             std::uint64_t which = 0;
@@ -185,7 +185,7 @@ void add_game_benchmarks() {
             s.items(66667);
             s.note("scope", "one thread; the first write to each shared chunk copies it (the worst case of a branch: all of them), the copy itself not timed");
         });
-    add("breakout/step", "one step of the widget breakout's simulation over a full wall: paddles, swept balls (several), bricks, capsules (xengine S4 design §5)", [](State& s) {
+    add("breakout/step", "one step of the widget breakout's simulation over a full wall: paddles, swept balls (several), bricks, capsules (meng S4 design §5)", [](State& s) {
         bo::State st = bo::start(breakout_wall());
         for (int i = 0; i < 600; ++i) bo::step(st, breakout_player(st));  // under way: balls in the wall
         std::int64_t balls = 0, steps = 0;
@@ -196,7 +196,7 @@ void add_game_benchmarks() {
                 s.resume();
             }
             bo::step(st, breakout_player(st));
-            st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball&) { ++balls; });
+            st.world.each<bo::Ball>([&](meng::Entity, const bo::Ball&) { ++balls; });
             ++steps;
         }
         s.counter("balls_per_step", static_cast<double>(balls) / static_cast<double>(std::max<std::int64_t>(steps, 1)));

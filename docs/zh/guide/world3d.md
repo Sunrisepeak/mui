@@ -4,7 +4,7 @@
 
 ## 刚体与人群
 
-港口是一个三维刚体世界（`xengine.dynamics` 的 rigid3：在引擎契约之下的 Jolt）：集装箱固定，板条箱可动，守夜人是角色。集装箱的三角形同时组成射线与声音所遇的网格；钢板让声音透过 0.15，并把 800 Hz 以上变闷。
+港口是一个三维刚体世界（`meng.dynamics` 的 rigid3：在引擎契约之下的 Jolt）：集装箱固定，板条箱可动，守夜人是角色。集装箱的三角形同时组成射线与声音所遇的网格；钢板让声音透过 0.15，并把 800 Hz 以上变闷。
 
 <!-- code: showcase/quay/src/sim/sim.cpp#bodies -->
 ```cpp
@@ -25,7 +25,7 @@ statics->walls.push_back({.mesh = &statics->mesh, .tree = &statics->tree, .place
 const auto keeper = bodies->add(rigid3::CharacterDef{.at = level.start});
 ```
 
-守卫走在用同一批三角形建的导航网格上（`xengine.nav`：Detour 的人群），各有巡逻路线：
+守卫走在用同一批三角形建的导航网格上（`meng.nav`：Detour 的人群），各有巡逻路线：
 
 <!-- code: showcase/quay/src/sim/sim.cpp#crowd -->
 ```cpp
@@ -51,7 +51,7 @@ state.ground = mlibs::simulation::Branching<nav::World>(std::move(*ground));
 
 ## 人听到和看到的
 
-人的视图（`quay::observe`）从不说出任何东西的位置。声音经 `xengine.audio.space` 的 `reach`（扬声器播放所依的同一条规则）穿过集装箱的钢板到达耳朵；太轻的听不到：
+人的视图（`quay::observe`）从不说出任何东西的位置。声音经 `meng.audio.space` 的 `reach`（扬声器播放所依的同一条规则）穿过集装箱的钢板到达耳朵；太轻的听不到：
 
 <!-- code: showcase/quay/src/headless/headless.cpp#hearing -->
 ```cpp

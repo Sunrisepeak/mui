@@ -27,9 +27,9 @@ constexpr std::string_view proc_dir{proc_chars, sizeof proc_chars};
 
 // Members whose results are part of A-level conformance (identical bits): no libm transcendental.
 constexpr std::string_view deterministic[]{
-    "modules/base/math",         "modules/base/utils",           "modules/projects/omui/native",   "modules/projects/xengine/kernel/audio",
-    "modules/projects/xengine/kernel/video", "modules/base/dynamics", "modules/projects/xengine/kernel/dynamics", "modules/projects/xengine/kernel/particles",
-    "modules/projects/xengine/kernel/field", "showcase/widget-breakout/headless", "showcase/glade/headless", "modules/projects/hanim/core",
+    "modules/base/math",         "modules/base/utils",           "modules/projects/omui/native",   "modules/projects/meng/kernel/audio",
+    "modules/projects/meng/kernel/video", "modules/base/dynamics", "modules/projects/meng/kernel/dynamics", "modules/projects/meng/kernel/particles",
+    "modules/projects/meng/kernel/field", "showcase/widget-breakout/headless", "showcase/glade/headless", "modules/projects/hanim/core",
     "modules/projects/hanim",    "modules/projects/xrender/raster", "modules/content/layout",       "modules/base/geom",
     "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
     "modules/content/i18n",      "modules/projects/omui/view",    "showcase/promo-video"};
@@ -47,10 +47,10 @@ constexpr Rule all_rules[]{
     {"headers", "no header files but openmui.h; #include only in native/ units"},
     {"platform", "no operating-system header, environment or process access: through mcpplibs.os"},
     {"thirdparty", "a wrapped C library (mcpplibs.mwrap.*) only in a native/ unit (D-83)"},
-    {"legacy-import", "no removed forwarder, Lua or Python binding, or omui:: alias of another owner (D-106, D-138)"},
+    {"legacy-import", "no removed forwarder, Lua or Python binding, omui:: alias of another owner, or the engine's old name (D-106, D-138, D-234)"},
     {"testing", "mlibs.testing only in test programs (tests/)"},
     {"cmdline", "a program's command line declared with mcpplibs.cmdline, never scanned by hand (D-56)"},
-    {"naming", "no bare `mui`: the owner's name (openmui, omui, a product, mlibs, xengine)"},
+    {"naming", "no bare `mui`: the owner's name (openmui, omui, a product, mlibs, meng)"},
     {"exceptions", "no throw / try in runtime and module sources; a native/ unit may catch a library's"},
     {"paths", "no path::string() / generic_string() outside tests: utf8() / generic_utf8()"},
     {"determinism", "deterministic members call no libm transcendental"},
@@ -200,6 +200,8 @@ struct Patterns {
     std::regex removed_binding{R"(^omui\.(lang\.lua|lang\.python|entry\.python)(\.|:|$))"};
     // `(?<![\w])` in the script: std::regex has no look-behind, so the character before is matched.
     std::regex legacy_alias{R"((^|[^\w])omui::(cellular|effect|geom|hash|i18n|imageio|layout|math|md|pipeline|raster|render|rhi|session|shader|testing|trace|typeset|unicode)::)"};
+    // Renamed code names (D-208): the engine's was xengine (D-234).
+    std::regex renamed_engine{R"((^|[^\w])xengine(::|\.[a-z]))"};
     std::regex testing_import{R"((export\s+)?import\s+(mlibs|openmui)\.testing\b)"};
     std::regex hand_parsed{R"(==\s*"--[A-Za-z]|starts_with\("--[A-Za-z]|\bargv\[[a-z_]\w*\])"};
     std::regex bare_mui{R"(\bmui(::|_[a-z])|\bMUI_|\bnamespace\s+mui\b|\bmodule\s+mui\b|import\s+mui\b)"};
@@ -265,13 +267,15 @@ void check_source(std::string_view rel, std::string_view text, const Patterns& r
         }
         if (line.contains("omui::") && search(line, re.legacy_alias))
             add("legacy-import", at(no), "an omui:: alias of another owner's namespace (D-106): name the owner");
+        if (stripped.contains("xengine") && search(stripped, re.renamed_engine))
+            add("legacy-import", at(no), "xengine is meng now (D-234): `meng.*` modules, `meng::` (omui-devtools rename did the rest)");
         // Test programs (a package's tests/) are mtest's; the benchmark runners under tests/bench are programs.
         if ((line.contains("--") || line.contains("argv[")) && search(line, re.hand_parsed) && (!in_tests || rel.starts_with("tests/bench/")))
             add("cmdline", at(no),
                 "a command line scanned by hand: declare its options with mcpplibs.cmdline (a program run by omui::run adds them beside "
                 "RunOptions::declare) (D-56)");
         if ((line.contains("mui") || line.contains("MUI_")) && search(line, re.bare_mui))
-            add("naming", at(no), "bare `mui`; use the owner: openmui (spec), omui (UI), a named product, mlibs or xengine");
+            add("naming", at(no), "bare `mui`; use the owner: openmui (spec), omui (UI), a named product, mlibs or meng");
     }
 
     const std::string_view top = parts.empty() ? std::string_view{} : parts.front();
@@ -545,6 +549,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {"cmdline", "tools/x/src/main.cpp",
          "int main(int argc, char** argv) {\n    for (int i = 1; i < argc; ++i) if (std::string_view(argv[i]) == \"--json\") return 1;\n}\n"},
         {"legacy-import", "modules/ui/core/src/l.cpp", "module x;\nimport openmui.geom;\n"},
+        {"legacy-import", "modules/ui/core/src/e.cpp", "module x;\nimport xengine.dynamics;\n"},
         {"thirdparty", "modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"},
         // the manifests'
         {"toml", "modules/ui/core/mcpp.toml", "[package]\nnamespace = \"omui\"\nname = \"core\"\n[dependencies]\na.b = \"1\"\na.b.c = \"2\"\n"},

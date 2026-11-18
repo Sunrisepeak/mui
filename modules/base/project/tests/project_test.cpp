@@ -86,7 +86,7 @@ UTest cases{"mlibs.project", [] {
         std::ranges::move(*declared, std::back_inserter(all));
         std::set<std::string> names;
         for (const auto& profile : all) names.insert(profile.name);
-        expect(names.contains("app") && names.contains("extension") && names.contains("film") && names.contains("game")) << "omui's, hanim's and xengine's";
+        expect(names.contains("app") && names.contains("extension") && names.contains("film") && names.contains("game")) << "omui's, hanim's and meng's";
         std::error_code error;
         std::size_t examples = 0;
         std::vector<std::filesystem::path> corpus;

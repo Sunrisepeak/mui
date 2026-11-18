@@ -18,9 +18,9 @@ What has been run where (release plan §2.5). **Real**: on real hardware or a re
 | Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6) | stable | real | unverified | unverified | unverified | | |
 | High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6) | stable | software | unverified | software | software | | |
 | Closed, slept and resumed: no crash, nothing left blank (RC3.6) | stable | unverified | unverified | unverified | unverified | | |
-| 3D rigid bodies (xengine.dynamics.rigid3, Jolt): stepping, contacts, the agent subject | preview | real | real | real | real | real | unverified |
-| Navigation and crowds (xengine.nav) | preview | real | real | real | real | real | unverified |
-| Sound in a place (xengine.audio.space), rendered on the CPU | preview | real | real | real | real | real | unverified |
+| 3D rigid bodies (meng.dynamics.rigid3, Jolt): stepping, contacts, the agent subject | preview | real | real | real | real | real | unverified |
+| Navigation and crowds (meng.nav) | preview | real | real | real | real | real | unverified |
+| Sound in a place (meng.audio.space), rendered on the CPU | preview | real | real | real | real | real | unverified |
 
 ## What each cell rests on
 
@@ -63,7 +63,7 @@ What has been run where (release plan §2.5). **Real**: on real hardware or a re
 - **Input methods (composition, candidates)**, Web (wasm32): page_test: an input method composing in the hidden textarea, headless Chromium (omui-devtools check browser); missing: a real IME in a browser
 - **Input methods (composition, candidates)**, macOS arm64: synthetic preedit events (the same tests on CI row macos-15)
 - **Input methods (composition, candidates)**, Windows x64: synthetic preedit events (the same tests on CI row windows-2022)
-- **Gamepads (Quay, widget breakout)**, Linux x64: synthetic gamepad events (xengine.ui ui_test, omui.core input_test, widget-breakout gamepad_test, quay.window's second night with a gamepad)
+- **Gamepads (Quay, widget breakout)**, Linux x64: synthetic gamepad events (meng.ui ui_test, omui.core input_test, widget-breakout gamepad_test, quay.window's second night with a gamepad)
 - **Gamepads (Quay, widget breakout)**, Web (wasm32): missing: the Gamepad API in a real browser with a pad
 - **Gamepads (Quay, widget breakout)**, macOS arm64: the same tests on CI row macos-15
 - **Gamepads (Quay, widget breakout)**, Windows x64: the same tests on CI row windows-2022
@@ -86,23 +86,23 @@ What has been run where (release plan §2.5). **Real**: on real hardware or a re
 - **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, Web (wasm32): missing: a page hidden and shown, its WebGPU device lost, in a real browser
 - **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, macOS arm64: missing: a Mac slept and resumed under test
 - **Closed, slept and resumed: no crash, nothing left blank (RC3.6)**, Windows x64: missing: a Windows machine slept and resumed under test
-- **3D rigid bodies (xengine.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Linux x64: CI row ubuntu-24.04, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
-- **3D rigid bodies (xengine.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Web (wasm32): CI row wasm32-emscripten under node, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
-- **3D rigid bodies (xengine.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, macOS arm64: CI row macos-15, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
-- **3D rigid bodies (xengine.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Windows x64: CI row windows-2022, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
-- **3D rigid bodies (xengine.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Linux arm64: CI row ubuntu-24.04-arm, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
-- **3D rigid bodies (xengine.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Android: missing: the member's tests on the emulator row (it runs example 01 only)
-- **Navigation and crowds (xengine.nav)**, Linux x64: CI row ubuntu-24.04, run 44168311060: xengine.nav.cts nav_test, nav_agent_test
-- **Navigation and crowds (xengine.nav)**, Web (wasm32): CI row wasm32-emscripten under node, run 44168311060: xengine.nav.cts nav_test, nav_agent_test
-- **Navigation and crowds (xengine.nav)**, macOS arm64: CI row macos-15, run 44168311060: xengine.nav.cts nav_test, nav_agent_test
-- **Navigation and crowds (xengine.nav)**, Windows x64: CI row windows-2022, run 44168311060: xengine.nav.cts nav_test, nav_agent_test
-- **Navigation and crowds (xengine.nav)**, Linux arm64: CI row ubuntu-24.04-arm, run 44168311060: xengine.nav.cts nav_test, nav_agent_test
-- **Navigation and crowds (xengine.nav)**, Android: missing: the member's tests on the emulator row (it runs example 01 only)
-- **Sound in a place (xengine.audio.space), rendered on the CPU**, Linux x64: CI row ubuntu-24.04, run 44168311060: xengine.audio space_test
-- **Sound in a place (xengine.audio.space), rendered on the CPU**, Web (wasm32): CI row wasm32-emscripten under node, run 44168311060: xengine.audio space_test
-- **Sound in a place (xengine.audio.space), rendered on the CPU**, macOS arm64: CI row macos-15, run 44168311060: xengine.audio space_test
-- **Sound in a place (xengine.audio.space), rendered on the CPU**, Windows x64: CI row windows-2022, run 44168311060: xengine.audio space_test
-- **Sound in a place (xengine.audio.space), rendered on the CPU**, Linux arm64: CI row ubuntu-24.04-arm, run 44168311060: xengine.audio space_test
-- **Sound in a place (xengine.audio.space), rendered on the CPU**, Android: missing: the member's tests on the emulator row (it runs example 01 only)
+- **3D rigid bodies (meng.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Linux x64: CI row ubuntu-24.04, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
+- **3D rigid bodies (meng.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Web (wasm32): CI row wasm32-emscripten under node, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
+- **3D rigid bodies (meng.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, macOS arm64: CI row macos-15, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
+- **3D rigid bodies (meng.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Windows x64: CI row windows-2022, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
+- **3D rigid bodies (meng.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Linux arm64: CI row ubuntu-24.04-arm, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test
+- **3D rigid bodies (meng.dynamics.rigid3, Jolt): stepping, contacts, the agent subject**, Android: missing: the member's tests on the emulator row (it runs example 01 only)
+- **Navigation and crowds (meng.nav)**, Linux x64: CI row ubuntu-24.04, run 44168311060: meng.nav.cts nav_test, nav_agent_test
+- **Navigation and crowds (meng.nav)**, Web (wasm32): CI row wasm32-emscripten under node, run 44168311060: meng.nav.cts nav_test, nav_agent_test
+- **Navigation and crowds (meng.nav)**, macOS arm64: CI row macos-15, run 44168311060: meng.nav.cts nav_test, nav_agent_test
+- **Navigation and crowds (meng.nav)**, Windows x64: CI row windows-2022, run 44168311060: meng.nav.cts nav_test, nav_agent_test
+- **Navigation and crowds (meng.nav)**, Linux arm64: CI row ubuntu-24.04-arm, run 44168311060: meng.nav.cts nav_test, nav_agent_test
+- **Navigation and crowds (meng.nav)**, Android: missing: the member's tests on the emulator row (it runs example 01 only)
+- **Sound in a place (meng.audio.space), rendered on the CPU**, Linux x64: CI row ubuntu-24.04, run 44168311060: meng.audio space_test
+- **Sound in a place (meng.audio.space), rendered on the CPU**, Web (wasm32): CI row wasm32-emscripten under node, run 44168311060: meng.audio space_test
+- **Sound in a place (meng.audio.space), rendered on the CPU**, macOS arm64: CI row macos-15, run 44168311060: meng.audio space_test
+- **Sound in a place (meng.audio.space), rendered on the CPU**, Windows x64: CI row windows-2022, run 44168311060: meng.audio space_test
+- **Sound in a place (meng.audio.space), rendered on the CPU**, Linux arm64: CI row ubuntu-24.04-arm, run 44168311060: meng.audio space_test
+- **Sound in a place (meng.audio.space), rendered on the CPU**, Android: missing: the member's tests on the emulator row (it runs example 01 only)
 
 Generated by `omui-devtools platforms` from [release.platforms.xdef.json](../release.platforms.xdef.json); do not edit.

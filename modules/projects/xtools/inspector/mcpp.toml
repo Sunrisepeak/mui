@@ -1,4 +1,4 @@
-# xtools.inspector — the openmui Inspector (D-61, D-63, D-67), a composition of the toolchain whole (xtools, plan §4.5: it composes hanim.studio and xengine.cellular): a tool
+# xtools.inspector — the openmui Inspector (D-61, D-63, D-67), a composition of the toolchain whole (xtools, plan §4.5: it composes hanim.studio and meng.cellular): a tool
 # written in openmui that connects to any running openmui application and
 # shows its semantic tree, a node's type / source / props / layout / state,
 # frame times against the 60 Hz budget, the frame's pipeline, and the
@@ -17,7 +17,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the inspector program"
-lower = ["hanim.studio", "xengine.cellular", "xengine.cellular.present"]  # lower-labelled parts it uses, each marked in its README
+lower = ["hanim.studio", "meng.cellular", "meng.cellular.present"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 agent = { part = "omui.agent" }  # an omui application: its views and its Reaction lab's verbs (inspector.ops.xdef.ts) through the protocol (D-174)
 
@@ -37,8 +37,8 @@ mlibs.utils = { path = "../../../base/utils" }
 mlibs.control = { path = "../../../base/control" }
 omui.sdk = { path = "../../../projects/omui/sdk" }
 mlibs.simulation = { path = "../../../base/simulation" }
-xengine.cellular = { path = "../../../projects/xengine/kernel/cellular" }
-"xengine.cellular.present" = { path = "../../../projects/xengine/kernel/cellular/present" }
+meng.cellular = { path = "../../../projects/meng/kernel/cellular" }
+"meng.cellular.present" = { path = "../../../projects/meng/kernel/cellular/present" }
 # The motion workbench reads, draws and tunes hanim's animation documents.
 hanim.studio = { path = "../../../projects/hanim/studio" }
 mcpplibs.os = "0.4.4"

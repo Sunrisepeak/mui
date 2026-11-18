@@ -44,7 +44,7 @@ UTest cases{"math.color", [] {
         std::vector<std::uint32_t> cells{1,     1,    1,       2,               9,
                                          0,     200,  0,       300,             0,
                                          0,     0,    4,       7,               5};
-        // Worked by hand (xengine.cellular's CONTRACT.md states the arithmetic):
+        // Worked by hand (meng.cellular's CONTRACT.md states the arithmetic):
         //   plain    the base, opaque: itself.
         //   hot      share (200 − 100) · 256 / 200 = 128, amount 128 · 192 / 255 = 96:
         //            red (128 · 160 + 255 · 96 + 128) >> 8 = 176, green 40, blue 20; light red (255 · 96 + 128) >> 8 = 96.

@@ -1,7 +1,7 @@
 module omui.showcase.widget_breakout.headless;
 
 import std;
-import xengine.world;
+import meng.world;
 
 namespace omui::breakout {
 
@@ -29,14 +29,14 @@ std::string Play::observe(const State& state, bool full) {
                                   field_w, state.height, paddle.x, paddle.y, paddle.half, state.score, state.lives, state.bricks, state.aim, state.over);
     out += ",\"balls\":[";
     bool first = true;
-    state.world.each<Ball>([&](xengine::Entity, const Ball& ball) {
+    state.world.each<Ball>([&](meng::Entity, const Ball& ball) {
         out += std::format("{}{{\"x\":{},\"y\":{},\"vx\":{},\"vy\":{},\"waiting\":{}}}", first ? "" : ",", ball.at.x, ball.at.y, ball.velocity.x, ball.velocity.y,
                            ball.on != 0);
         first = false;
     });
     out += "],\"bricks\":[";
     first = true;
-    state.world.each<Body, Brick>([&](xengine::Entity, const Body& body, const Brick& brick) {
+    state.world.each<Body, Brick>([&](meng::Entity, const Body& body, const Brick& brick) {
         if (brick.kind == Kind::hidden && !full) return;
         out += std::format("{}{{\"id\":{},\"kind\":\"{}\",\"box\":[{},{},{},{}],\"durability\":{}}}", first ? "" : ",", brick.id, kind_name(brick.kind),
                            body.box.x, body.box.y, body.box.w, body.box.h, brick.durability);

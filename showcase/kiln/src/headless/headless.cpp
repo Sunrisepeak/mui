@@ -3,14 +3,14 @@ module omui.showcase.kiln;
 import std;
 import openas;
 import mlibs.agent;
-import xengine.cellular.matter.agent;
-import xengine.cellular.rigid.agent;
+import meng.cellular.matter.agent;
+import meng.cellular.rigid.agent;
 
 namespace kiln {
 
 namespace {
 // The standard definition lives as long as the program: shared without owning.
-std::shared_ptr<const xengine::matter::Program> definition() { return {std::shared_ptr<void>(), &kiln::matter()}; }
+std::shared_ptr<const meng::matter::Program> definition() { return {std::shared_ptr<void>(), &kiln::matter()}; }
 }  // namespace
 
 Causes::Causes(Standalone& game, openas::Actor player)

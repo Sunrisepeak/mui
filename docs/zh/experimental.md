@@ -11,18 +11,18 @@
 - **差距**：LLVM has no reflection in the toolchain the rows use; nothing else depends on it.
 - **毕业条件**：every tier-1 row builds and tests it.
 
-## xengine.particles
+## meng.particles
 
-包：`xengine.particles` · [README](../../modules/projects/xengine/kernel/particles/README.md)
+包：`meng.particles` · [README](../../modules/projects/meng/kernel/particles/README.md)
 
 - **目标**：flying matter (sparks, drops, grit) under the standard laws, on the CPU reference and, bit for bit where it holds authority, on the GPU (D-184).
 - **现状**：CPU: gravity, drag, collision against triangles, ageing; each particle an instance of matter beside its neighbours and the air.
 - **差距**：no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is xrender.particle's, a picture).
 - **毕业条件**：a contract suite on every tier-1 row, a second consumer, the magnitudes within tolerance.
 
-## xengine.field
+## meng.field
 
-包：`xengine.field` · [README](../../modules/projects/xengine/kernel/field/README.md)
+包：`meng.field` · [README](../../modules/projects/meng/kernel/field/README.md)
 
 - **目标**：the ambient carrier of matter — air, heat, wetness and wind — giving physical magnitudes under the same laws as the other carriers, on the CPU reference and the GPU.
 - **现状**：the sparse lattice of 8³ blocks, buoyancy, semi-Lagrangian advection, a fixed count of pressure iterations; Glade its one consumer.
@@ -34,9 +34,9 @@
 包：`gongfu`, `gongfu.data`, `gongfu.present2d`, `gongfu.rules`, `gongfu.studio` · [README](../../modules/projects/gongfu/README.md)
 
 - **目标**：a fighting framework at the level of the best (side by side with Street Fighter 6 on hit feel, readability and rollback), characters as data.
-- **现状**：the core is deterministic in fixed point — 10,000 random-depth rollbacks byte-identical; characters compile from data with diagnostics at line and column; six fighters play in `showcase/fighting` from the keyboard or an agent; a match is a game of xengine.runtime (`showcase/fighting/headless`), which an agent plays through on a person's tier.
+- **现状**：the core is deterministic in fixed point — 10,000 random-depth rollbacks byte-identical; characters compile from data with diagnostics at line and column; six fighters play in `showcase/fighting` from the keyboard or an agent; a match is a game of meng.runtime (`showcase/fighting/headless`), which an agent plays through on a person's tier.
 - **差距**：presentation (supers, hit impact, interface) is behind SF6 in the side-by-side; drawing is 2D only; agents as remote rollback opponents are not done.
-- **局限**：one stage, 2D; no network transport (xengine.net has none).
+- **局限**：one stage, 2D; no network transport (meng.net has none).
 - **毕业条件**：two characters play a whole match from the release's packages; an agent plays one at a person's tier; the match's contract runs green on every tier-1 row; the SF6 comparison at par on hit feel and readability.
 
 ## xtools

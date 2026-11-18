@@ -37,8 +37,8 @@ Answered told(agent::SubjectSession& session, std::string_view line, std::source
 }
 
 // The game played by its owner's input (a recording, a test), shown everything or as a person.
-xengine::runtime::Options options(bool everything) {
-    xengine::runtime::Options out{.stepping = xengine::runtime::Stepping::agent, .seat = xengine::runtime::Seat::owner, .keep = 900};
+meng::runtime::Options options(bool everything) {
+    meng::runtime::Options out{.stepping = meng::runtime::Stepping::agent, .seat = meng::runtime::Seat::owner, .keep = 900};
     if (everything) out.tier = {.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true};
     return out;
 }
@@ -50,7 +50,7 @@ kiln::State cavern() {
 // Mui chooses the bomb and throws it at the floor a little ahead of her; then nothing for `after` frames.
 void bomb(kiln::Standalone& game, int after) {
     const auto press = [&](int button, std::int16_t x = -1, std::int16_t y = -1) {
-        xengine::Actions actions{.held = 1u << button, .pressed = 1u << button};
+        meng::Actions actions{.held = 1u << button, .pressed = 1u << button};
         actions.pointer_x = x, actions.pointer_y = y;
         game.step({.player = actions});
         game.step({});

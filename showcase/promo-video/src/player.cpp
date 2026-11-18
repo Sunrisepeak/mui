@@ -6,7 +6,7 @@ import std;
 import mlibs.hash;
 import hanim.core;
 import omui;
-import xengine.video;
+import meng.video;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::warn;

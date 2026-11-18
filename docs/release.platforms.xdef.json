@@ -109,7 +109,7 @@
       "name": "Gamepads (Quay, widget breakout)",
       "label": "preview",
       "cells": {
-        "linux-x64": {"status": "software", "evidence": "synthetic gamepad events (xengine.ui ui_test, omui.core input_test, widget-breakout gamepad_test, quay.window's second night with a gamepad)"},
+        "linux-x64": {"status": "software", "evidence": "synthetic gamepad events (meng.ui ui_test, omui.core input_test, widget-breakout gamepad_test, quay.window's second night with a gamepad)"},
         "macos-arm64": {"status": "software", "evidence": "the same tests on CI row macos-15"},
         "windows-x64": {"status": "software", "evidence": "the same tests on CI row windows-2022"},
         "web": {"status": "unverified", "needs": "the Gamepad API in a real browser with a pad"}
@@ -171,40 +171,40 @@
     },
     {
       "id": "rigid3",
-      "name": "3D rigid bodies (xengine.dynamics.rigid3, Jolt): stepping, contacts, the agent subject",
+      "name": "3D rigid bodies (meng.dynamics.rigid3, Jolt): stepping, contacts, the agent subject",
       "label": "preview",
       "cells": {
-        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
-        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
-        "macos-arm64": {"status": "real", "evidence": "CI row macos-15, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
-        "windows-x64": {"status": "real", "evidence": "CI row windows-2022, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
-        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm, run 44168311060: xengine.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "macos-arm64": {"status": "real", "evidence": "CI row macos-15, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "windows-x64": {"status": "real", "evidence": "CI row windows-2022, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
         "android": {"status": "unverified", "needs": "the member's tests on the emulator row (it runs example 01 only)"}
       }
     },
     {
       "id": "nav",
-      "name": "Navigation and crowds (xengine.nav)",
+      "name": "Navigation and crowds (meng.nav)",
       "label": "preview",
       "cells": {
-        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04, run 44168311060: xengine.nav.cts nav_test, nav_agent_test"},
-        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node, run 44168311060: xengine.nav.cts nav_test, nav_agent_test"},
-        "macos-arm64": {"status": "real", "evidence": "CI row macos-15, run 44168311060: xengine.nav.cts nav_test, nav_agent_test"},
-        "windows-x64": {"status": "real", "evidence": "CI row windows-2022, run 44168311060: xengine.nav.cts nav_test, nav_agent_test"},
-        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm, run 44168311060: xengine.nav.cts nav_test, nav_agent_test"},
+        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
+        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
+        "macos-arm64": {"status": "real", "evidence": "CI row macos-15, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
+        "windows-x64": {"status": "real", "evidence": "CI row windows-2022, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
+        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
         "android": {"status": "unverified", "needs": "the member's tests on the emulator row (it runs example 01 only)"}
       }
     },
     {
       "id": "audio-space",
-      "name": "Sound in a place (xengine.audio.space), rendered on the CPU",
+      "name": "Sound in a place (meng.audio.space), rendered on the CPU",
       "label": "preview",
       "cells": {
-        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04, run 44168311060: xengine.audio space_test"},
-        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node, run 44168311060: xengine.audio space_test"},
-        "macos-arm64": {"status": "real", "evidence": "CI row macos-15, run 44168311060: xengine.audio space_test"},
-        "windows-x64": {"status": "real", "evidence": "CI row windows-2022, run 44168311060: xengine.audio space_test"},
-        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm, run 44168311060: xengine.audio space_test"},
+        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04, run 44168311060: meng.audio space_test"},
+        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node, run 44168311060: meng.audio space_test"},
+        "macos-arm64": {"status": "real", "evidence": "CI row macos-15, run 44168311060: meng.audio space_test"},
+        "windows-x64": {"status": "real", "evidence": "CI row windows-2022, run 44168311060: meng.audio space_test"},
+        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm, run 44168311060: meng.audio space_test"},
         "android": {"status": "unverified", "needs": "the member's tests on the emulator row (it runs example 01 only)"}
       }
     }

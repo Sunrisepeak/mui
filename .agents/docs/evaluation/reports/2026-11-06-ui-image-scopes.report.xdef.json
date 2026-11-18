@@ -533,7 +533,7 @@
         "-p",
         "openmui.motion",
         "-p",
-        "xengine.render.vector",
+        "meng.render.vector",
         "--locked"
       ],
       "exit": 0,
@@ -549,7 +549,7 @@
         "-p",
         "openmui.motion",
         "-p",
-        "xengine.render.vector",
+        "meng.render.vector",
         "--profile",
         "release",
         "--locked"
@@ -567,7 +567,7 @@
         "-p",
         "openmui.motion",
         "-p",
-        "xengine.render.vector",
+        "meng.render.vector",
         "--target",
         "wasm32-emscripten",
         "--profile",
@@ -587,7 +587,7 @@
         "-p",
         "openmui.motion",
         "-p",
-        "xengine.render.vector",
+        "meng.render.vector",
         "--target",
         "wasm32-emscripten",
         "--profile",
@@ -603,7 +603,7 @@
       "argv": [
         "test",
         "-p",
-        "xengine.render.cts",
+        "meng.render.cts",
         "effect_output_bounds_gpu_test",
         "--locked"
       ],

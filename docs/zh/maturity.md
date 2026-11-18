@@ -17,7 +17,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | omui | 28 | 2 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
-| xengine | 0 | 21 | 2 |
+| meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
 | mlibs | 26 | 4 | 0 |
@@ -101,33 +101,33 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `xrender.rhi.webgpu` | [modules/projects/xrender/rhi/webgpu](../../modules/projects/xrender/rhi/webgpu) | 稳定 |
 | `xrender.rhi.webgl` | [modules/projects/xrender/rhi/webgl](../../modules/projects/xrender/rhi/webgl) | 稳定 |
 
-### xengine
+### meng
 
 | 包 | 目录 | 标注 |
 |---|---|---|
-| `xengine.dynamics` | [modules/projects/xengine/kernel/dynamics](../../modules/projects/xengine/kernel/dynamics) | 预览 |
-| `xengine.cellular` | [modules/projects/xengine/kernel/cellular](../../modules/projects/xengine/kernel/cellular) | 预览 |
-| `xengine.matter` | [modules/projects/xengine/kernel/matter](../../modules/projects/xengine/kernel/matter) | 预览 |
-| `xengine.particles` | [modules/projects/xengine/kernel/particles](../../modules/projects/xengine/kernel/particles) | 实验 |
-| `xengine.field` | [modules/projects/xengine/kernel/field](../../modules/projects/xengine/kernel/field) | 实验 |
-| `xengine.matter.cts` | [modules/projects/xengine/kernel/matter/cts](../../modules/projects/xengine/kernel/matter/cts) | 预览 |
-| `xengine.matter.lab` | [modules/projects/xengine/kernel/matter/lab](../../modules/projects/xengine/kernel/matter/lab) | 预览 |
-| `xengine.cellular.present` | [modules/projects/xengine/kernel/cellular/present](../../modules/projects/xengine/kernel/cellular/present) | 预览 |
-| `xengine.cellular.rhi` | [modules/projects/xengine/kernel/cellular/rhi](../../modules/projects/xengine/kernel/cellular/rhi) | 预览 |
-| `xengine.cellular.rhi.cts` | [modules/projects/xengine/kernel/cellular/rhi/cts](../../modules/projects/xengine/kernel/cellular/rhi/cts) | 预览 |
-| `xengine.audio` | [modules/projects/xengine/kernel/audio](../../modules/projects/xengine/kernel/audio) | 预览 |
-| `xengine.audio.device` | [modules/projects/xengine/kernel/audio/device](../../modules/projects/xengine/kernel/audio/device) | 预览 |
-| `xengine.video` | [modules/projects/xengine/kernel/video](../../modules/projects/xengine/kernel/video) | 预览 |
-| `xengine.video.webm` | [modules/projects/xengine/kernel/video/webm](../../modules/projects/xengine/kernel/video/webm) | 预览 |
-| `xengine.video.tool` | [modules/projects/xengine/kernel/video/tool](../../modules/projects/xengine/kernel/video/tool) | 预览 |
-| `xengine.audio.timeline` | [modules/projects/xengine/kernel/audio/timeline](../../modules/projects/xengine/kernel/audio/timeline) | 预览 |
-| `xengine.world` | [modules/projects/xengine/game/world](../../modules/projects/xengine/game/world) | 预览 |
-| `xengine.runtime` | [modules/projects/xengine/game/runtime](../../modules/projects/xengine/game/runtime) | 预览 |
-| `xengine.playtest` | [modules/projects/xengine/game/playtest](../../modules/projects/xengine/game/playtest) | 预览 |
-| `xengine.input` | [modules/projects/xengine/game/input](../../modules/projects/xengine/game/input) | 预览 |
-| `xengine.ui` | [modules/projects/xengine/game/ui](../../modules/projects/xengine/game/ui) | 预览 |
-| `xengine.nav` | [modules/projects/xengine/game/nav](../../modules/projects/xengine/game/nav) | 预览 |
-| `xengine.nav.cts` | [modules/projects/xengine/game/nav/cts](../../modules/projects/xengine/game/nav/cts) | 预览 |
+| `meng.dynamics` | [modules/projects/meng/kernel/dynamics](../../modules/projects/meng/kernel/dynamics) | 预览 |
+| `meng.cellular` | [modules/projects/meng/kernel/cellular](../../modules/projects/meng/kernel/cellular) | 预览 |
+| `meng.matter` | [modules/projects/meng/kernel/matter](../../modules/projects/meng/kernel/matter) | 预览 |
+| `meng.particles` | [modules/projects/meng/kernel/particles](../../modules/projects/meng/kernel/particles) | 实验 |
+| `meng.field` | [modules/projects/meng/kernel/field](../../modules/projects/meng/kernel/field) | 实验 |
+| `meng.matter.cts` | [modules/projects/meng/kernel/matter/cts](../../modules/projects/meng/kernel/matter/cts) | 预览 |
+| `meng.matter.lab` | [modules/projects/meng/kernel/matter/lab](../../modules/projects/meng/kernel/matter/lab) | 预览 |
+| `meng.cellular.present` | [modules/projects/meng/kernel/cellular/present](../../modules/projects/meng/kernel/cellular/present) | 预览 |
+| `meng.cellular.rhi` | [modules/projects/meng/kernel/cellular/rhi](../../modules/projects/meng/kernel/cellular/rhi) | 预览 |
+| `meng.cellular.rhi.cts` | [modules/projects/meng/kernel/cellular/rhi/cts](../../modules/projects/meng/kernel/cellular/rhi/cts) | 预览 |
+| `meng.audio` | [modules/projects/meng/kernel/audio](../../modules/projects/meng/kernel/audio) | 预览 |
+| `meng.audio.device` | [modules/projects/meng/kernel/audio/device](../../modules/projects/meng/kernel/audio/device) | 预览 |
+| `meng.video` | [modules/projects/meng/kernel/video](../../modules/projects/meng/kernel/video) | 预览 |
+| `meng.video.webm` | [modules/projects/meng/kernel/video/webm](../../modules/projects/meng/kernel/video/webm) | 预览 |
+| `meng.video.tool` | [modules/projects/meng/kernel/video/tool](../../modules/projects/meng/kernel/video/tool) | 预览 |
+| `meng.audio.timeline` | [modules/projects/meng/kernel/audio/timeline](../../modules/projects/meng/kernel/audio/timeline) | 预览 |
+| `meng.world` | [modules/projects/meng/game/world](../../modules/projects/meng/game/world) | 预览 |
+| `meng.runtime` | [modules/projects/meng/game/runtime](../../modules/projects/meng/game/runtime) | 预览 |
+| `meng.playtest` | [modules/projects/meng/game/playtest](../../modules/projects/meng/game/playtest) | 预览 |
+| `meng.input` | [modules/projects/meng/game/input](../../modules/projects/meng/game/input) | 预览 |
+| `meng.ui` | [modules/projects/meng/game/ui](../../modules/projects/meng/game/ui) | 预览 |
+| `meng.nav` | [modules/projects/meng/game/nav](../../modules/projects/meng/game/nav) | 预览 |
+| `meng.nav.cts` | [modules/projects/meng/game/nav/cts](../../modules/projects/meng/game/nav/cts) | 预览 |
 
 ### gongfu
 

@@ -4,12 +4,12 @@
 //   auto state = quay::start(quay::level::harbour());
 //   quay::step(state, {.player = actions});            // a 60th of a second
 //
-// The quay, its containers and crates are a 3D rigid world (xengine.dynamics.rigid3: Jolt under our contract); the
-// watchkeeper is its character; the wardens walk the quay's navigation mesh (xengine.nav: Detour's crowd). Both
+// The quay, its containers and crates are a 3D rigid world (meng.dynamics.rigid3: Jolt under our contract); the
+// watchkeeper is its character; the wardens walk the quay's navigation mesh (meng.nav: Detour's crowd). Both
 // worlds are held as values (`mlibs::simulation::Branching`), so the state is a value: a copy is a branch.
 //
 // The wardens know only what they hear and see. Each step's noises — a shot, running feet, a crate knocked — reach
-// each warden by xengine.audio.space's `reach`, the rule the player's own speakers play by (distance, and each wall
+// each warden by meng.audio.space's `reach`, the rule the player's own speakers play by (distance, and each wall
 // on the way); one loud enough is heard, and the warden goes to where it seems to have come from — further than it
 // was if walls dulled it. A warden sees the watchkeeper within its sight's reach and angle when a ray from its eye
 // to the watchkeeper's head meets nothing on the way. It never reads where the watchkeeper is.
@@ -18,17 +18,17 @@
 export module omui.showcase.quay.sim;
 
 import std;
-export import xengine.input;
-export import xengine.nav;
-export import xengine.dynamics.rigid3;
-export import xengine.audio.space;
+export import meng.input;
+export import meng.nav;
+export import meng.dynamics.rigid3;
+export import meng.audio.space;
 export import mlibs.simulation;
 export import mlibs.geom;
 
 export namespace quay {
 
-namespace rigid3 = xengine::dynamics::rigid3;
-namespace nav = xengine::nav;
+namespace rigid3 = meng::dynamics::rigid3;
+namespace nav = meng::nav;
 using mlibs::math::Vec3;
 
 inline constexpr std::int32_t steps_per_second = 60;
@@ -149,7 +149,7 @@ inline constexpr std::array<std::string_view, 3> outcome_names{"playing", "won",
 struct Statics {
     mlibs::geom::Mesh              mesh;
     mlibs::geom::Bvh               tree;
-    std::vector<xengine::audio::space::Wall> walls;
+    std::vector<meng::audio::space::Wall> walls;
 };
 
 struct State {
@@ -174,7 +174,7 @@ struct State {
     std::string                                  why;  // how it ended
 };
 struct Input {
-    xengine::Actions player;
+    meng::Actions player;
 };
 
 [[nodiscard]] State start(const Level& level);

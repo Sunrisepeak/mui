@@ -15,28 +15,28 @@ constexpr double look_per_pixel = 0.0022;              // radians a logical pixe
 constexpr int    cpu_width = 320, cpu_height = 180;    // the reference's picture where the host has no device
 constexpr std::int32_t sound_lead = 2048;              // frames the output is kept ahead (43 ms at 48 kHz): a frame's wait and some
 
-xengine::Bindings bindings() {
-    xengine::Bindings made;
-    made.key(xengine::ui::code(Key::w), xengine::Axis{1, 1});
-    made.key(xengine::ui::code(Key::s), xengine::Axis{1, -1});
-    made.key(xengine::ui::code(Key::d), xengine::Axis{0, 1});
-    made.key(xengine::ui::code(Key::a), xengine::Axis{0, -1});
-    made.key(xengine::ui::code(Key::space), xengine::Button{jump_button});
-    made.key(xengine::ui::code(Key::e), xengine::Button{use_button});
-    made.key(xengine::ui::code(Key::shift), xengine::Button{run_button});
-    made.mouse(1, xengine::Button{fire_button});
+meng::Bindings bindings() {
+    meng::Bindings made;
+    made.key(meng::ui::code(Key::w), meng::Axis{1, 1});
+    made.key(meng::ui::code(Key::s), meng::Axis{1, -1});
+    made.key(meng::ui::code(Key::d), meng::Axis{0, 1});
+    made.key(meng::ui::code(Key::a), meng::Axis{0, -1});
+    made.key(meng::ui::code(Key::space), meng::Button{jump_button});
+    made.key(meng::ui::code(Key::e), meng::Button{use_button});
+    made.key(meng::ui::code(Key::shift), meng::Button{run_button});
+    made.mouse(1, meng::Button{fire_button});
     // A gamepad: the left stick walks (up is forward), the right stick looks — given with the mouse's look in
     // `input` — the right trigger or R1 fires, A jumps, X works the beacon or a fuse box, the left stick pressed runs.
     using omui::GamepadAxis, omui::GamepadButton;
-    made.pad_axis(xengine::ui::pad(GamepadAxis::left_x), xengine::Axis{0, 1});
-    made.pad_axis(xengine::ui::pad(GamepadAxis::left_y), xengine::Axis{1, -1});
-    made.pad_axis(xengine::ui::pad(GamepadAxis::right_x), xengine::Axis{2, 1});
-    made.pad_axis(xengine::ui::pad(GamepadAxis::right_y), xengine::Axis{3, -1});
-    made.pad_button(xengine::ui::pad(GamepadButton::right_trigger), xengine::Button{fire_button});
-    made.pad_button(xengine::ui::pad(GamepadButton::right_shoulder), xengine::Button{fire_button});
-    made.pad_button(xengine::ui::pad(GamepadButton::south), xengine::Button{jump_button});
-    made.pad_button(xengine::ui::pad(GamepadButton::west), xengine::Button{use_button});
-    made.pad_button(xengine::ui::pad(GamepadButton::left_stick), xengine::Button{run_button});
+    made.pad_axis(meng::ui::pad(GamepadAxis::left_x), meng::Axis{0, 1});
+    made.pad_axis(meng::ui::pad(GamepadAxis::left_y), meng::Axis{1, -1});
+    made.pad_axis(meng::ui::pad(GamepadAxis::right_x), meng::Axis{2, 1});
+    made.pad_axis(meng::ui::pad(GamepadAxis::right_y), meng::Axis{3, -1});
+    made.pad_button(meng::ui::pad(GamepadButton::right_trigger), meng::Button{fire_button});
+    made.pad_button(meng::ui::pad(GamepadButton::right_shoulder), meng::Button{fire_button});
+    made.pad_button(meng::ui::pad(GamepadButton::south), meng::Button{jump_button});
+    made.pad_button(meng::ui::pad(GamepadButton::west), meng::Button{use_button});
+    made.pad_button(meng::ui::pad(GamepadButton::left_stick), meng::Button{run_button});
     return made;
 }
 
@@ -67,9 +67,9 @@ void Harbour::mount(omui::Services& services, omui::NodeId node) {
     services_ = &services, node_ = node;
     view_.mount(services, node);
     const Level played = level::named(options().level).value_or(level::harbour());
-    game_.emplace(start(played), xengine::runtime::Options{.stepping = xengine::runtime::Stepping::owner, .seat = xengine::runtime::Seat::owner, .keep = 600, .record = true});
+    game_.emplace(start(played), meng::runtime::Options{.stepping = meng::runtime::Stepping::owner, .seat = meng::runtime::Seat::owner, .keep = 600, .record = true});
     if (auto made = picture::Picture::make(played)) picture_.emplace(std::move(*made));
-    xengine::ui::Viewport::Shown shown{.label = "the harbour", .subject = &*game_, .width = 960, .height = 540, .look = true};
+    meng::ui::Viewport::Shown shown{.label = "the harbour", .subject = &*game_, .width = 960, .height = 540, .look = true};
     if (mlibs::rhi::Device* device = services.device(); device && picture_) {
         if (auto made = picture::OnDevice::make(*device, *picture_, 960, 540)) {  // sized to the node at each frame
             on_device_.emplace(std::move(*made));
@@ -85,9 +85,9 @@ void Harbour::mount(omui::Services& services, omui::NodeId node) {
     if (const Hearing hearing = options().hearing; hearing != Hearing::none) {
         if (auto made = Sound::make(game_->state())) {
             sound_.emplace(std::move(*made));
-            feed_ = std::make_unique<xengine::audio::Feed>(sound_->mixer().rate());
+            feed_ = std::make_unique<meng::audio::Feed>(sound_->mixer().rate());
             feed_->fill(sound_->mixer(), sound_lead);  // ahead before the output starts
-            if (auto opened = xengine::audio::Device::open(*feed_, {.null = hearing == Hearing::silent})) output_.emplace(std::move(*opened));
+            if (auto opened = meng::audio::Device::open(*feed_, {.null = hearing == Hearing::silent})) output_.emplace(std::move(*opened));
             else std::println(std::cerr, "quay: no sound ({})", opened.error());
         }
     }
@@ -98,7 +98,7 @@ void Harbour::mount(omui::Services& services, omui::NodeId node) {
 
 bool Harbour::on_event(omui::EventContext& ctx, const omui::InputEvent& event) {
     const bool looked = view_.on_event(ctx, event);
-    const bool played = services_ && xengine::ui::feed(sampler_, event, services_->bounds(node_));
+    const bool played = services_ && meng::ui::feed(sampler_, event, services_->bounds(node_));
     return looked || played;
 }
 
@@ -185,15 +185,15 @@ omui::AppSpec app(Options given) {
 }
 
 std::string recorded(const Standalone& game) {
-    std::vector<xengine::Actions> frames;
+    std::vector<meng::Actions> frames;
     for (const Input& step : game.recorded()) frames.push_back(step.player);
     // The harbour, the first level, is played with no heading.
     const std::string_view level = game.state().level;
-    return xengine::to_recording(level.empty() || level == "harbour" ? std::string() : std::format("level {}", level), frames);
+    return meng::to_recording(level.empty() || level == "harbour" ? std::string() : std::format("level {}", level), frames);
 }
 
 std::expected<State, std::string> replayed(std::string_view lines) {
-    const auto recording = xengine::from_recording(lines);
+    const auto recording = meng::from_recording(lines);
     if (!recording) return std::unexpected(recording.error());
     // The level the heading names; else the harbour.
     std::optional<Level> level = level::harbour();
@@ -204,7 +204,7 @@ std::expected<State, std::string> replayed(std::string_view lines) {
         if (!level) return std::unexpected(std::format("line 1: no level is named `{}` (harbour, flawed, second-night)", name));
     }
     State state = start(*level);
-    for (const xengine::Actions& actions : recording->frames) step(state, Input{actions});
+    for (const meng::Actions& actions : recording->frames) step(state, Input{actions});
     return state;
 }
 

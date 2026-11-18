@@ -31,12 +31,12 @@ void draw(const State& state, xrender::DisplayList& list, geom::Rect dest) {
     for (float y = grid; y < arena_height; y += grid) list.fill_rect({dest.x, dest.y + y * down, dest.width, 1}, lines);
     list.stroke_round_rect(dest, {}, 2, xrender::Paint::solid(rim));
 
-    state.field.each<Body, Enemy>([&](xengine::Entity, const Body& body, const Enemy& enemy) {
+    state.field.each<Body, Enemy>([&](meng::Entity, const Body& body, const Enemy& enemy) {
         const geom::Color colour = wave_colours[(enemy.wave + wave_colours.size() - 1) % wave_colours.size()];
         disc(body.at, enemy_radius, colour);
         disc(body.at, enemy_radius * 0.45f, geom::Color{colour.r * 0.55f, colour.g * 0.55f, colour.b * 0.55f, 1});
     });
-    state.field.each<Body, Bullet>([&](xengine::Entity, const Body& body, const Bullet&) { disc(body.at, bullet_radius, bullet_colour); });
+    state.field.each<Body, Bullet>([&](meng::Entity, const Body& body, const Bullet&) { disc(body.at, bullet_radius, bullet_colour); });
 
     // The player, and the gun's line toward where it aims; while a touch costs nothing it blinks (eight steps on, eight off).
     const bool faded = state.safe_for > 0 && (state.safe_for / 8) % 2 == 1;

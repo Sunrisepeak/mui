@@ -8,7 +8,7 @@ export default defineProject({
     packages: "gongfu",
     programs: ["gongfu-studio"],
     tier: "engine",
-    dependsOn: ["mlibs", "xrender", "xengine.sim", "hanim", "xengine.media", "gongfu.core"],
+    dependsOn: ["mlibs", "xrender", "meng.sim", "hanim", "meng.media", "gongfu.core"],
     parts: [
         // Its core alone (the standard library; mlibs for its tests): a fixture the game layer's tests may take.
         { path: ".", name: "gongfu.core", exact: true, dependsOn: ["mlibs"] },

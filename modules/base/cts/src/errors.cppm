@@ -3,8 +3,8 @@
 // sentence of what went wrong, and its way out: what the caller does next. An agent that meets the error acts on the way out;
 // one that is empty leaves it guessing.
 //
-//     mlibs::cts::against({.subject = "xengine.matter"}, [] {
-//         mlibs::cts::errors::declare("xengine.matter@1", xengine::matter::Errc::unstable);   // the last code
+//     mlibs::cts::against({.subject = "meng.matter"}, [] {
+//         mlibs::cts::errors::declare("meng.matter@1", meng::matter::Errc::unstable);   // the last code
 //     });
 //
 // A domain's codes are its enum's values from 0 to the last, as the enums are declared (no values given).

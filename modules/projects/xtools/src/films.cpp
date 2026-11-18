@@ -1,4 +1,4 @@
-// Films with omui's sources (convergence plan RC3.3): films are xengine.video's toolkit (the `video` command); the
+// Films with omui's sources (convergence plan RC3.3): films are meng.video's toolkit (the `video` command); the
 // frames of an omui view are omui's — a view document drawn on a headless host's clock, a step a frame — and so are
 // the kinds its data modules declare (omui.lang.ts). Composed here, in the engine's tier, which knows both (D-231):
 // omui's command line does not build the video toolkit in; `omui design.film` runs `xtools video render`.
@@ -11,13 +11,13 @@ import omui.viewdoc;
 import omui.host.headless;
 import omui.ui.base;
 import omui.ui.markdown;
-import xengine.video;
-import xengine.video.tool;
+import meng.video;
+import meng.video.tool;
 import omui.lang.ts;
 
 namespace xtools {
 
-namespace vid = xengine::video;
+namespace vid = meng::video;
 
 namespace {
 
@@ -74,7 +74,7 @@ private:
 
 }  // namespace
 
-xengine::video::tool::Sources video_sources() {
+meng::video::tool::Sources video_sources() {
     return {.view = [](const vid::Description& description, const std::filesystem::path& file) -> std::expected<std::unique_ptr<vid::FrameSource>, std::string> {
                 auto frames = std::make_unique<ViewFrames>(description);
                 if (auto loaded = frames->load(file); !loaded) return std::unexpected(loaded.error());
@@ -83,6 +83,6 @@ xengine::video::tool::Sources video_sources() {
             .data = [](const std::filesystem::path& file) { return omui::lang::ts::data_text(file); }};
 }
 
-std::unique_ptr<mlibs::agent::Subject> films() { return std::make_unique<xengine::video::tool::Video>(video_sources()); }
+std::unique_ptr<mlibs::agent::Subject> films() { return std::make_unique<meng::video::tool::Video>(video_sources()); }
 
 }  // namespace xtools

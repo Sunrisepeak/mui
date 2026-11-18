@@ -22,14 +22,14 @@ This project only wires those toolkits into one session of the tool kernel (mlib
 | [hanim.timeline.tool](../hanim/timeline/tool) | `hanim-timeline` | `timeline` | hanim |
 | [xrender.tool](../xrender/tool) | `xrender` | `xrender` | xrender |
 | [gongfu.studio](../gongfu/studio) | `gongfu-studio` | `gongfu` | gongfu |
-| [xengine.video.tool](../xengine/kernel/video/tool) | `video` | `video` (here with omui's sources, composed by xtools' `films()`: a view's film, data modules anywhere; `omui design film` runs it) | xengine |
+| [meng.video.tool](../meng/kernel/video/tool) | `video` | `video` (here with omui's sources, composed by xtools' `films()`: a view's film, data modules anywhere; `omui design film` runs it) | meng |
 
 The compositions that are more than one project's toolkit live here too (D-204):
 
 | Package | What it composes |
 |---|---|
-| [xtools.audition](audition) | A timeline's gain automation heard on a real audio bus and seen in a headless omui view (hanim.timeline, xengine.audio, omui) |
-| [xtools.inspector](inspector) | The Inspector (`xtools-inspector`): a running application's semantic tree, a node's details, frame times, its pipeline and clock (omui); the motion workbench over an animation document (hanim.studio); the Reaction lab over cellular projects (xengine.cellular) |
+| [xtools.audition](audition) | A timeline's gain automation heard on a real audio bus and seen in a headless omui view (hanim.timeline, meng.audio, omui) |
+| [xtools.inspector](inspector) | The Inspector (`xtools-inspector`): a running application's semantic tree, a node's details, frame times, its pipeline and clock (omui); the motion workbench over an animation document (hanim.studio); the Reaction lab over cellular projects (meng.cellular) |
 
 ```sh
 xtools hanim document.check rise.json        # the same as: hanim document.check rise.json

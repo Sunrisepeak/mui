@@ -17,7 +17,7 @@ A capability below its package's label is marked in its project's feature table 
 | omui | 28 | 2 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
-| xengine | 0 | 21 | 2 |
+| meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
 | mlibs | 26 | 4 | 0 |
@@ -101,33 +101,33 @@ A capability below its package's label is marked in its project's feature table 
 | `xrender.rhi.webgpu` | [modules/projects/xrender/rhi/webgpu](../../modules/projects/xrender/rhi/webgpu) | stable |
 | `xrender.rhi.webgl` | [modules/projects/xrender/rhi/webgl](../../modules/projects/xrender/rhi/webgl) | stable |
 
-### xengine
+### meng
 
 | Package | Directory | Label |
 |---|---|---|
-| `xengine.dynamics` | [modules/projects/xengine/kernel/dynamics](../../modules/projects/xengine/kernel/dynamics) | preview |
-| `xengine.cellular` | [modules/projects/xengine/kernel/cellular](../../modules/projects/xengine/kernel/cellular) | preview |
-| `xengine.matter` | [modules/projects/xengine/kernel/matter](../../modules/projects/xengine/kernel/matter) | preview |
-| `xengine.particles` | [modules/projects/xengine/kernel/particles](../../modules/projects/xengine/kernel/particles) | experimental |
-| `xengine.field` | [modules/projects/xengine/kernel/field](../../modules/projects/xengine/kernel/field) | experimental |
-| `xengine.matter.cts` | [modules/projects/xengine/kernel/matter/cts](../../modules/projects/xengine/kernel/matter/cts) | preview |
-| `xengine.matter.lab` | [modules/projects/xengine/kernel/matter/lab](../../modules/projects/xengine/kernel/matter/lab) | preview |
-| `xengine.cellular.present` | [modules/projects/xengine/kernel/cellular/present](../../modules/projects/xengine/kernel/cellular/present) | preview |
-| `xengine.cellular.rhi` | [modules/projects/xengine/kernel/cellular/rhi](../../modules/projects/xengine/kernel/cellular/rhi) | preview |
-| `xengine.cellular.rhi.cts` | [modules/projects/xengine/kernel/cellular/rhi/cts](../../modules/projects/xengine/kernel/cellular/rhi/cts) | preview |
-| `xengine.audio` | [modules/projects/xengine/kernel/audio](../../modules/projects/xengine/kernel/audio) | preview |
-| `xengine.audio.device` | [modules/projects/xengine/kernel/audio/device](../../modules/projects/xengine/kernel/audio/device) | preview |
-| `xengine.video` | [modules/projects/xengine/kernel/video](../../modules/projects/xengine/kernel/video) | preview |
-| `xengine.video.webm` | [modules/projects/xengine/kernel/video/webm](../../modules/projects/xengine/kernel/video/webm) | preview |
-| `xengine.video.tool` | [modules/projects/xengine/kernel/video/tool](../../modules/projects/xengine/kernel/video/tool) | preview |
-| `xengine.audio.timeline` | [modules/projects/xengine/kernel/audio/timeline](../../modules/projects/xengine/kernel/audio/timeline) | preview |
-| `xengine.world` | [modules/projects/xengine/game/world](../../modules/projects/xengine/game/world) | preview |
-| `xengine.runtime` | [modules/projects/xengine/game/runtime](../../modules/projects/xengine/game/runtime) | preview |
-| `xengine.playtest` | [modules/projects/xengine/game/playtest](../../modules/projects/xengine/game/playtest) | preview |
-| `xengine.input` | [modules/projects/xengine/game/input](../../modules/projects/xengine/game/input) | preview |
-| `xengine.ui` | [modules/projects/xengine/game/ui](../../modules/projects/xengine/game/ui) | preview |
-| `xengine.nav` | [modules/projects/xengine/game/nav](../../modules/projects/xengine/game/nav) | preview |
-| `xengine.nav.cts` | [modules/projects/xengine/game/nav/cts](../../modules/projects/xengine/game/nav/cts) | preview |
+| `meng.dynamics` | [modules/projects/meng/kernel/dynamics](../../modules/projects/meng/kernel/dynamics) | preview |
+| `meng.cellular` | [modules/projects/meng/kernel/cellular](../../modules/projects/meng/kernel/cellular) | preview |
+| `meng.matter` | [modules/projects/meng/kernel/matter](../../modules/projects/meng/kernel/matter) | preview |
+| `meng.particles` | [modules/projects/meng/kernel/particles](../../modules/projects/meng/kernel/particles) | experimental |
+| `meng.field` | [modules/projects/meng/kernel/field](../../modules/projects/meng/kernel/field) | experimental |
+| `meng.matter.cts` | [modules/projects/meng/kernel/matter/cts](../../modules/projects/meng/kernel/matter/cts) | preview |
+| `meng.matter.lab` | [modules/projects/meng/kernel/matter/lab](../../modules/projects/meng/kernel/matter/lab) | preview |
+| `meng.cellular.present` | [modules/projects/meng/kernel/cellular/present](../../modules/projects/meng/kernel/cellular/present) | preview |
+| `meng.cellular.rhi` | [modules/projects/meng/kernel/cellular/rhi](../../modules/projects/meng/kernel/cellular/rhi) | preview |
+| `meng.cellular.rhi.cts` | [modules/projects/meng/kernel/cellular/rhi/cts](../../modules/projects/meng/kernel/cellular/rhi/cts) | preview |
+| `meng.audio` | [modules/projects/meng/kernel/audio](../../modules/projects/meng/kernel/audio) | preview |
+| `meng.audio.device` | [modules/projects/meng/kernel/audio/device](../../modules/projects/meng/kernel/audio/device) | preview |
+| `meng.video` | [modules/projects/meng/kernel/video](../../modules/projects/meng/kernel/video) | preview |
+| `meng.video.webm` | [modules/projects/meng/kernel/video/webm](../../modules/projects/meng/kernel/video/webm) | preview |
+| `meng.video.tool` | [modules/projects/meng/kernel/video/tool](../../modules/projects/meng/kernel/video/tool) | preview |
+| `meng.audio.timeline` | [modules/projects/meng/kernel/audio/timeline](../../modules/projects/meng/kernel/audio/timeline) | preview |
+| `meng.world` | [modules/projects/meng/game/world](../../modules/projects/meng/game/world) | preview |
+| `meng.runtime` | [modules/projects/meng/game/runtime](../../modules/projects/meng/game/runtime) | preview |
+| `meng.playtest` | [modules/projects/meng/game/playtest](../../modules/projects/meng/game/playtest) | preview |
+| `meng.input` | [modules/projects/meng/game/input](../../modules/projects/meng/game/input) | preview |
+| `meng.ui` | [modules/projects/meng/game/ui](../../modules/projects/meng/game/ui) | preview |
+| `meng.nav` | [modules/projects/meng/game/nav](../../modules/projects/meng/game/nav) | preview |
+| `meng.nav.cts` | [modules/projects/meng/game/nav/cts](../../modules/projects/meng/game/nav/cts) | preview |
 
 ### gongfu
 

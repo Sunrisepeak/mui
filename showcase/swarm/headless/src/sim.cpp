@@ -5,8 +5,8 @@ module omui.showcase.swarm.headless;
 import std;
 import mlibs.hash;
 import mlibs.math;
-import xengine.input;
-import xengine.world;
+import meng.input;
+import meng.world;
 
 namespace swarm {
 
@@ -37,7 +37,7 @@ void arrive(State& state) noexcept {
     if (state.to_come > 0) {
         if (state.spawn_in > 0) {
             --state.spawn_in;
-        } else if (const xengine::Entity enemy = state.field.create(); enemy.valid()) {  // a full field: it waits a step
+        } else if (const meng::Entity enemy = state.field.create(); enemy.valid()) {  // a full field: it waits a step
             state.field.add(enemy, Body{entry(state.from, mlibs::math::unit24(stream.next())), {}});
             state.field.add(enemy, Enemy{static_cast<std::uint32_t>(state.wave)});
             --state.to_come, ++state.enemies;
@@ -68,7 +68,7 @@ State start(std::uint64_t seed) noexcept {
 void step(State& state, const Input& input) noexcept {
     if (over(state)) return;  // a game lost stays as it ended
     ++state.frame;
-    const xengine::Actions& actions = input.player;
+    const meng::Actions& actions = input.player;
 
     // The player: pushed by two axes (a diagonal is no faster), kept inside the arena.
     Vec2 push{static_cast<float>(actions.axis(0)), static_cast<float>(actions.axis(1))};
@@ -85,7 +85,7 @@ void step(State& state, const Input& input) noexcept {
     }
     if (state.reload > 0) --state.reload;
     if (actions.down(shoot_button) && state.reload == 0) {
-        if (const xengine::Entity bullet = state.field.create(); bullet.valid()) {
+        if (const meng::Entity bullet = state.field.create(); bullet.valid()) {
             state.field.add(bullet, Body{state.player + state.aim * player_radius, state.aim * bullet_speed});
             state.field.add(bullet, Bullet{});
             state.reload = reload_steps;
@@ -96,7 +96,7 @@ void step(State& state, const Input& input) noexcept {
     arrive(state);
 
     // Enemies go straight at the player.
-    state.field.each<Body, Enemy>([&](xengine::Entity, Body& body, Enemy& enemy) {
+    state.field.each<Body, Enemy>([&](meng::Entity, Body& body, Enemy& enemy) {
         const Vec2 toward = state.player - body.at;
         const float away = length(toward);
         body.velocity = away > 0.05f ? toward * (enemy_speed(enemy.wave) / away) : Vec2{};
@@ -105,13 +105,13 @@ void step(State& state, const Input& input) noexcept {
 
     // Bullets fly; one that meets an enemy removes it and is spent, one that leaves the arena is gone. A
     // bullet moves a unit a step and the two radii are 2.6: none passes through an enemy between steps.
-    std::array<xengine::Entity, Field::capacity> spent;
+    std::array<meng::Entity, Field::capacity> spent;
     std::size_t spent_count = 0;
-    state.field.each<Body, Bullet>([&](xengine::Entity bullet, Body& body, Bullet& flown) {
+    state.field.each<Body, Bullet>([&](meng::Entity bullet, Body& body, Bullet& flown) {
         body.at = body.at + body.velocity * per_step;
         ++flown.age;
         bool hit = false;
-        state.field.each<Body, Enemy>([&](xengine::Entity enemy, Body& other, Enemy& what) {
+        state.field.each<Body, Enemy>([&](meng::Entity enemy, Body& other, Enemy& what) {
             if (hit || !state.field.alive(enemy)) return;
             const Vec2 apart = other.at - body.at;
             const float reach = bullet_radius + enemy_radius;
@@ -128,7 +128,7 @@ void step(State& state, const Input& input) noexcept {
 
     // An enemy that touches the player costs a life and is gone; for a moment after, nothing does.
     if (state.safe_for > 0) --state.safe_for;
-    state.field.each<Body, Enemy>([&](xengine::Entity enemy, Body& body, Enemy&) {
+    state.field.each<Body, Enemy>([&](meng::Entity enemy, Body& body, Enemy&) {
         if (state.safe_for > 0) return;
         const Vec2 apart = body.at - state.player;
         const float reach = player_radius + enemy_radius;
@@ -164,13 +164,13 @@ std::string observe(const State& state, bool full) {
     out += std::format(R"("player":{{"x":{:.2f},"y":{:.2f},"aim":[{:.3f},{:.3f}],"safe_for":{},"reload":{}}},"enemies":[)", state.player.x, state.player.y, state.aim.x,
                        state.aim.y, state.safe_for, state.reload);
     bool first = true;
-    state.field.each<Body, Enemy>([&](xengine::Entity, const Body& body, const Enemy&) {
+    state.field.each<Body, Enemy>([&](meng::Entity, const Body& body, const Enemy&) {
         out += std::format(R"({}{{"x":{:.2f},"y":{:.2f},"away":{:.2f}}})", first ? "" : ",", body.at.x, body.at.y, length(body.at - state.player));
         first = false;
     });
     out += R"(],"bullets":[)";
     first = true;
-    state.field.each<Body, Bullet>([&](xengine::Entity, const Body& body, const Bullet&) {
+    state.field.each<Body, Bullet>([&](meng::Entity, const Body& body, const Bullet&) {
         out += std::format("{}[{:.2f},{:.2f}]", first ? "" : ",", body.at.x, body.at.y);
         first = false;
     });

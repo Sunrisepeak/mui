@@ -8,9 +8,9 @@
 
 标准定义自带 17 种材料（空气、水、冰、蒸汽、木、灰、石、沙、油、岩浆、火药、铁……）和 19 条规律，可以直接用。自己的定义是一份数据，作为包叠加在它上面——甚至可以是世界原本没有的规律，比如这里的磁：
 
-<!-- code: modules/projects/xengine/kernel/matter/packs/magnetism.matter.xdef.ts -->
+<!-- code: modules/projects/meng/kernel/matter/packs/magnetism.matter.xdef.ts -->
 ```ts
-// A law the world did not have (xengine.matter; the foundation plan's §6.15, D-181, D-182): magnetism, as a pack
+// A law the world did not have (meng.matter; the foundation plan's §6.15, D-181, D-182): magnetism, as a pack
 // laid over the standard definition. A lodestone gives a field; the field spreads through everything and fades;
 // what is magnetic is drawn up its slope — filings fly to the stone, a crate of iron slides to it, a crate of
 // wood stays. No kernel, carrier or work knows the word: it is a channel, two properties and four laws.
@@ -46,7 +46,7 @@ export default defineMatter({
 
 世界是一张 0.1 米一格的格点，加上由格子组成的刚体和飞在空中的格子。下面出自物质套件的测试（其中的 `material` 取标准定义里的一种材料）：
 
-<!-- code: modules/projects/xengine/kernel/matter/cts/tests/cts/ladder_test.cpp#cavern -->
+<!-- code: modules/projects/meng/kernel/matter/cts/tests/cts/ladder_test.cpp#cavern -->
 ```cpp
 // A cavern with a fire of its own: a floor, a post of wood alight at its foot, a crate afloat in a pool.
 std::unique_ptr<bodies::MatterWorld> cavern() {
@@ -91,7 +91,7 @@ export default defineWorld({
 
 世界是一个确定的值；下面出自物质套件的测试（`make` 搭出一个有刚体、水和着火木头的场景）：
 
-<!-- code: modules/projects/xengine/kernel/matter/cts/tests/cts/coupling_test.cpp#branch -->
+<!-- code: modules/projects/meng/kernel/matter/cts/tests/cts/coupling_test.cpp#branch -->
 ```cpp
 auto world = make(true);
 for (int frame = 0; frame < 60; ++frame) world->step();
@@ -119,7 +119,7 @@ expect(branched) << "the branch ran on as the original did";
 
 画一个世界：画面读取世界，再把显示列表交给 CPU 参考渲染器（出自阶梯的测试）：
 
-<!-- code: modules/projects/xengine/kernel/matter/cts/tests/cts/ladder_test.cpp#shown -->
+<!-- code: modules/projects/meng/kernel/matter/cts/tests/cts/ladder_test.cpp#shown -->
 ```cpp
 struct Shown {
     xrender::ImageStore images;
@@ -155,7 +155,7 @@ matter-lab run lab            # 一行一个请求
 
 实验台的测试回放的一段会话，画面存在它旁边（`media/`）：
 
-<!-- code: modules/projects/xengine/kernel/matter/lab/media/coal-beside-wood.jsonl -->
+<!-- code: modules/projects/meng/kernel/matter/lab/media/coal-beside-wood.jsonl -->
 ```jsonl
 {"op":"matter.place","material":"stone","region":[0,29,64,3]}
 {"op":"matter.place","material":"stone","region":[30,22,2,7]}
@@ -178,7 +178,7 @@ matter-lab run lab            # 一行一个请求
 
 `matter.explain` 问“这一格为什么是现在这样”，回答是哪条规律成立、它读到了什么、热是谁给的。加一种新材料是一条 `lab.material`（这里是煤），改完世界立刻重放。
 
-更多：[物质](../../../modules/projects/xengine/kernel/matter/README.md)、[格点与世界](../../../modules/projects/xengine/kernel/cellular/README.md)、[实验台](../../../modules/projects/xengine/kernel/matter/lab/README.md)。现在只有 2D。
+更多：[物质](../../../modules/projects/meng/kernel/matter/README.md)、[格点与世界](../../../modules/projects/meng/kernel/cellular/README.md)、[实验台](../../../modules/projects/meng/kernel/matter/lab/README.md)。现在只有 2D。
 
 ## 出了问题怎么办
 

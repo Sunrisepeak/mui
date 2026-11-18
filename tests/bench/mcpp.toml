@@ -31,20 +31,20 @@ xrender.scene = { path = "../../modules/projects/xrender/scene" }
 "xrender.mesh.gpu" = { path = "../../modules/projects/xrender/mesh/gpu" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
 mlibs.dynamics   = { path = "../../modules/base/dynamics" }
-xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics", features = ["rigid", "rigid3"] }
+meng.dynamics = { path = "../../modules/projects/meng/kernel/dynamics", features = ["rigid", "rigid3"] }
 # Navigation beside Detour called directly (simulation/nav-crowd-64), on the scenes of its conformance package.
-xengine.nav = { path = "../../modules/projects/xengine/game/nav" }
-"xengine.nav.cts" = { path = "../../modules/projects/xengine/game/nav/cts" }
+meng.nav = { path = "../../modules/projects/meng/game/nav" }
+"meng.nav.cts" = { path = "../../modules/projects/meng/game/nav/cts" }
 # Skeletal animation (motion/skeleton-*): ACL's playback beside the raw channels, and a crowd's whole step.
 "hanim.skeleton" = { path = "../../modules/projects/hanim/skeleton" }
 "hanim.skeleton.cts" = { path = "../../modules/projects/hanim/skeleton/cts" }
 # With the lattice as a carrier of matter (simulation/matter-lattice-*), and a field of it as an agent's subject
 # with its record of causes (simulation/matter-256-causes; the feature implies `matter` and `agent`); and the
 # whole 2D world, its bodies made of the lattice's cells (simulation/world-128x64-frame; the feature `rigid`).
-xengine.cellular = { path = "../../modules/projects/xengine/kernel/cellular", features = ["matter-agent", "rigid"] }
-xengine.matter = { path = "../../modules/projects/xengine/kernel/matter" }
+meng.cellular = { path = "../../modules/projects/meng/kernel/cellular", features = ["matter-agent", "rigid"] }
+meng.matter = { path = "../../modules/projects/meng/kernel/matter" }
 # With matter's look as a shade on the lattice's presenter (simulation/matter-256-shade).
-"xengine.cellular.present" = { path = "../../modules/projects/xengine/kernel/cellular/present" }
+"meng.cellular.present" = { path = "../../modules/projects/meng/kernel/cellular/present" }
 "hanim.core" = { path = "../../modules/projects/hanim/core" }
 "hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 omui.sdk             = { path = "../../modules/projects/omui/sdk" }
@@ -53,9 +53,9 @@ mlibs.utils           = { path = "../../modules/base/utils" }
 # The host's parallel-for a cellular step takes (simulation/matter-1024-*).
 mlibs.memory          = { path = "../../modules/base/memory" }
 mlibs.markdown        = { path = "../../modules/content/markdown" }
-xengine.audio           = { path = "../../modules/projects/xengine/kernel/audio" }
+meng.audio           = { path = "../../modules/projects/meng/kernel/audio" }
 "hanim.timeline"       = { path = "../../modules/projects/hanim/timeline" }
-"xengine.audio.timeline" = { path = "../../modules/projects/xengine/kernel/audio/timeline" }
+"meng.audio.timeline" = { path = "../../modules/projects/meng/kernel/audio/timeline" }
 omui.ui.canvas       = { path = "../../modules/projects/omui/components/canvas" }
 omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
 omui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
@@ -64,7 +64,7 @@ omui.showcase.widget_breakout.headless = { path = "../../showcase/widget-breakou
 # A frame of the FPS slice on a device (game/quay-frame-1080p-gpu, D-187).
 omui.showcase.quay = { path = "../../showcase/quay" }  # its picture
 # A chunked world branched and stepped (world/chunked-*).
-xengine.world = { path = "../../modules/projects/xengine/game/world" }
+meng.world = { path = "../../modules/projects/meng/game/world" }
 "gongfu"                  = { path = "../../modules/projects/gongfu" }
 "gongfu.present2d"      = { path = "../../modules/projects/gongfu/present2d" }
 omui.theme = { path = "../../modules/projects/omui/theme" }  # with its packs

@@ -411,39 +411,39 @@ std::span<const Closure> repository_closures() {
         {"mlibs.dynamics", {"mlibs.dynamics", "mlibs.utils"}, {}},
         // the engine's solved simulation: no UI, game, renderer, GPU or compiler (D-133); taken alone, no agent kernel
         // either — a body or a field as an agent's subject is their feature `agent`, so what the engine's kernels that take
-        // a family link stays small; what a body is made of (xengine.matter's table) is a feature too
-        {"xengine.dynamics", {}, {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader",
-                                  "xengine.cellular", "mlibs.agent", "mlibs.json", "mlibs.control", "xengine.matter"}},
-        {"xengine.cellular", {}, {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader",
-                                  "mlibs.agent", "mlibs.json", "mlibs.control", "xengine.matter"}},
+        // a family link stays small; what a body is made of (meng.matter's table) is a feature too
+        {"meng.dynamics", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "xrender", "mlibs.rhi", "mlibs.shader",
+                                  "meng.cellular", "mlibs.agent", "mlibs.json", "mlibs.control", "meng.matter"}},
+        {"meng.cellular", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "xrender", "mlibs.rhi", "mlibs.shader",
+                                  "mlibs.agent", "mlibs.json", "mlibs.control", "meng.matter"}},
         // hanim by default is its engine: control and the stage as an agent's subject are features a consumer asks for
-        {"hanim", {}, {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender", "xengine.matter", "xengine.cellular"}},
+        {"hanim", {}, {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender", "meng.matter", "meng.cellular"}},
         // skeletal animation by default is its channels, ACL and the player: glTF (xrender.asset) and the subject are features
-        {"hanim.skeleton", {}, {"omui", "xrender", "mlibs.agent", "mlibs.json", "mlibs.control", "xengine"}},
-        {"xengine.cellular.rhi", {}, {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender"}},
+        {"hanim.skeleton", {}, {"omui", "xrender", "mlibs.agent", "mlibs.json", "mlibs.control", "meng"}},
+        {"meng.cellular.rhi", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "xrender"}},
         // the field on screen: the renderer's resources (and what they reach), no UI, game, animation, effect loader or shader compiler
-        {"xengine.cellular.present", {}, {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xengine.runtime", "hanim", "mlibs.shader",
+        {"meng.cellular.present", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "meng.runtime", "hanim", "mlibs.shader",
                                           "xrender.effect"}},
         // the agent kernel: below every engine, knowing none of them (D-173)
-        {"mlibs.agent", {}, {"omui", "xengine", "hanim", "xrender", "gongfu"}},
+        {"mlibs.agent", {}, {"omui", "meng", "hanim", "xrender", "gongfu"}},
         // a game on its own: no interface, no bridge to one (D-162)
-        {"xengine.runtime", {}, {"omui", "xengine.ui"}},
+        {"meng.runtime", {}, {"omui", "meng.ui"}},
         // the frame's entry: the renderer and the agent kernel, no interface, game or animation (D-162)
-        {"xrender.frame", {}, {"omui", "xengine", "hanim"}},
+        {"xrender.frame", {}, {"omui", "meng", "hanim"}},
         // three dimensions (M6.3): geometry, numbers and the device's interface — no interface, animation, display list or shader compiler
         {"xrender.scene", {"xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
         {"xrender.mesh", {"xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
         {"xrender.mesh.gpu", {"xrender.mesh.gpu", "xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils", "mlibs.rhi", "mlibs.memory"}, {}},
-        // … and an application that draws in two dimensions links none of it (a world is shown as a picture its owner drew: xengine.ui)
+        // … and an application that draws in two dimensions links none of it (a world is shown as a picture its owner drew: meng.ui)
         {"omui.sdk", {}, {"xrender.mesh", "xrender.scene"}},
         {"omui.host.sdl3", {}, {"xrender.mesh", "xrender.scene"}},
         {"omui.host.web", {}, {"xrender.mesh", "xrender.scene"}},
         {"omui.host.headless", {}, {"xrender.mesh", "xrender.scene"}},
         {"omui.site", {}, {"xrender.mesh", "xrender.scene"}},
-        {"xengine.ui", {}, {"xrender.mesh", "xrender.scene"}},
+        {"meng.ui", {}, {"xrender.mesh", "xrender.scene"}},
         // the breakout on its own: its simulation and the runtime, nothing of omui's interface
         {"omui.showcase.widget_breakout.headless", {}, {"omui.core", "omui.view", "omui.semantic", "omui.agent", "omui.viewdoc", "omui.player",
-                                                        "omui.designer", "omui.sdk", "omui.host", "omui.ui", "omui.theme", "omui.lang", "xengine.ui"}},
+                                                        "omui.designer", "omui.sdk", "omui.host", "omui.ui", "omui.theme", "omui.lang", "meng.ui"}},
     };
     return table;
 }

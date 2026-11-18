@@ -3,26 +3,26 @@ import std;
 import mlibs.simulation;
 import mlibs.memory;
 import omui.core;
-import xengine.cellular;
-import xengine.cellular.present;
+import meng.cellular;
+import meng.cellular.present;
 import mlibs.dynamics;
-import xengine.dynamics.rigid;
-import xengine.dynamics.rigid3;
-import xengine.nav;
-import xengine.nav.cts;
+import meng.dynamics.rigid;
+import meng.dynamics.rigid3;
+import meng.nav;
+import meng.nav.cts;
 import hanim.skeleton;
 import hanim.skeleton.cts;
-import xengine.matter.json;
-import xengine.cellular.matter;
-import xengine.cellular.matter.agent;
-import xengine.cellular.present;
-import xengine.matter.appearance;
-import xengine.cellular.rigid;
+import meng.matter.json;
+import meng.cellular.matter;
+import meng.cellular.matter.agent;
+import meng.cellular.present;
+import meng.matter.appearance;
+import meng.cellular.rigid;
 import mlibs.trace;
 
 namespace omui::bench {
 namespace {
-namespace ca=xengine::cellular;
+namespace ca=meng::cellular;
 struct Model {
     struct State {ca::Program program;ca::Shape shape;std::vector<std::uint32_t> current,next;};
     struct Input {bool unused=false;};
@@ -179,14 +179,14 @@ void add_simulation_benchmarks() {
     // D-165: the matter kernel's reference step — the laws on any carrier — and the same world on the lattice
     // (the program lowered, T1.7): the same bits, by the carrier's own path.
     struct MatterWorld {
-        xengine::matter::Program program;
+        meng::matter::Program program;
         std::uint32_t side = 64;
         std::vector<std::uint32_t> state, next;
     };
     // 64x64 of air with strips of wood alight at one end and one of water — the standard laws' shape
     // (3 transfers, 1 adjustment, 10 reactions and conversions), stepped 40 times by the reference.
     const auto matter_world = []() -> std::optional<MatterWorld> {
-        namespace matter = xengine::matter;
+        namespace matter = meng::matter;
         using P = matter::Property;
         matter::Definition definition = matter::Definition::standard();
         definition.materials = {{"air", {P{"phase", "gas"}, P{"density", 1.2}, P{"oxygen", 1.0}}, {}},
@@ -220,7 +220,7 @@ void add_simulation_benchmarks() {
         return world;
     };
     const auto pairs_of = [](std::uint32_t side) {
-        std::vector<xengine::matter::Pair> pairs;
+        std::vector<meng::matter::Pair> pairs;
         for (std::uint32_t y = 0; y < side; ++y)
             for (std::uint32_t x = 0; x < side; ++x) {
                 if (x + 1 < side) pairs.push_back({y * side + x, y * side + x + 1, 1});
@@ -234,7 +234,7 @@ void add_simulation_benchmarks() {
             if (!world) { s.fail("the definition was refused"); return; }
             const std::uint32_t side = world->side;
             const auto pairs = pairs_of(side);
-            xengine::matter::Workspace workspace;
+            meng::matter::Workspace workspace;
             for (int warm = 0; warm < 40; ++warm) { (void)world->program.step({side * side, pairs}, world->state, world->next, workspace); world->state.swap(world->next); }
             const auto burning = std::ranges::count_if(std::span(world->state).subspan(*world->program.channel("burning") * side * side, side * side), [](std::uint32_t value) { return value != 0; });
             s.items(side * side);
@@ -249,7 +249,7 @@ void add_simulation_benchmarks() {
             const auto lattice = ca::lower(world->program, {.moves = false});
             if (!lattice) { s.fail("the program was not lowered"); return; }
             const auto pairs = pairs_of(side);
-            xengine::matter::Workspace workspace;
+            meng::matter::Workspace workspace;
             std::vector<std::uint32_t> cells = world->state, cells_next(cells.size());
             for (int warm = 0; warm < 40; ++warm) {
                 (void)world->program.step({side * side, pairs}, world->state, world->next, workspace);
@@ -264,7 +264,7 @@ void add_simulation_benchmarks() {
         });
     add("simulation/matter-lattice-256-sparse", "256x256 of the standard matter with cells that move: a basin of water, sand, and a strip of wood alight — only the tiles awake run (D-167)",
         [](State& s) {
-            const auto program = xengine::matter::standard();
+            const auto program = meng::matter::standard();
             if (!program) { s.fail("the standard definition was refused"); return; }
             const auto lattice = ca::lower(*program);
             if (!lattice) { s.fail("the program was not lowered"); return; }
@@ -305,8 +305,8 @@ void add_simulation_benchmarks() {
         });
     // M6.2: the whole 2D world — the lattice, what flies, the coupling and the rigid step — on a cavern the size of a
     // showcase's: what a game pays a frame, and what a playtest that branches ahead pays thousands of times.
-    namespace rigid = xengine::cellular::rigid;
-    const auto cavern = [](State& s, const xengine::matter::Program& program) -> std::unique_ptr<rigid::MatterWorld> {
+    namespace rigid = meng::cellular::rigid;
+    const auto cavern = [](State& s, const meng::matter::Program& program) -> std::unique_ptr<rigid::MatterWorld> {
         auto made = rigid::MatterWorld::make(program, {.shape = {128, 64}, .tile = {16, 16}, .seed = 17, .fill = "air"});
         if (!made) { s.fail(made.error()); return nullptr; }
         rigid::MatterWorld& world = **made;
@@ -328,7 +328,7 @@ void add_simulation_benchmarks() {
     };
     add("simulation/world-128x64-frame", "a 128x64 cavern of the standard matter with bodies in it: a floor, a pool with crates afloat, a barricade alight — one frame of the whole world (lattice, flight, coupling, rigid)",
         [cavern](State& s) {
-            const auto program = xengine::matter::standard();
+            const auto program = meng::matter::standard();
             if (!program) { s.fail("the standard definition was refused"); return; }
             const auto made = cavern(s, *program);
             if (!made) return;
@@ -351,7 +351,7 @@ void add_simulation_benchmarks() {
         });
     // T2.9: the rigid family beside the solver it wraps. The same bodies on a World and on Box2D called directly,
     // each stepped from the same start in the same run, in turn: the wrapper's cost is a number, not a guess.
-    namespace solid = xengine::dynamics::rigid;
+    namespace solid = meng::dynamics::rigid;
     const auto beside = [](State& s, const std::vector<solid::Piece>& pieces, int steps) {
         using clock = std::chrono::steady_clock;
         // A round each; compared by their medians, so one round the machine was busy in does not decide it.
@@ -408,7 +408,7 @@ void add_simulation_benchmarks() {
         s.note("scope", std::format("{} bodies, {} steps a round from the same start; the median round: Box2D directly {:.3f} ms, through the World {:.3f} ms; every body at the same place in both, bit for bit",
                                     pieces.size(), steps, plain_ms, through));
     };
-    add("simulation/rigid-pyramid-20", "a pyramid of 210 boxes on a floor, 240 steps from the moment it is built — xengine.dynamics.rigid's World beside Box2D called directly on the same bodies",
+    add("simulation/rigid-pyramid-20", "a pyramid of 210 boxes on a floor, 240 steps from the moment it is built — meng.dynamics.rigid's World beside Box2D called directly on the same bodies",
         [beside](State& s) {
             std::vector<solid::Piece> pieces{{{.kind = solid::Kind::fixed, .at = {0, -0.5f}}, solid::Shape::box(40, 0.5f), {}}};
             for (int row = 0; row < 20; ++row)
@@ -429,8 +429,8 @@ void add_simulation_benchmarks() {
         });
     // M6.4: the 3D rigid family beside the solver it wraps — the same bodies on a rigid3 World and on Jolt called
     // directly, taking turns from the same start, as the 2D rows do; every body at the same place in both.
-    namespace solid3 = xengine::dynamics::rigid3;
-    add("simulation/rigid3-tower-512", "a block of 8 × 8 × 8 boxes on a floor struck by a heavy ball, 240 steps from the moment it is built — xengine.dynamics.rigid3's World beside Jolt called directly on the same bodies",
+    namespace solid3 = meng::dynamics::rigid3;
+    add("simulation/rigid3-tower-512", "a block of 8 × 8 × 8 boxes on a floor struck by a heavy ball, 240 steps from the moment it is built — meng.dynamics.rigid3's World beside Jolt called directly on the same bodies",
         [](State& s) {
             using clock = std::chrono::steady_clock;
             std::vector<solid3::Piece> pieces{{{.kind = solid3::Kind::fixed, .at = {0, -0.5f, 0}}, solid3::Shape::box({40, 0.5f, 40}), {}}};
@@ -495,7 +495,7 @@ void add_simulation_benchmarks() {
         });
     // M6.4: navigation beside the library it wraps — a crowd of 64 sent across a room (through a doorway, up a link)
     // stepped on a nav World and on Detour's crowd called directly on the same mesh and walkers, taking turns.
-    add("simulation/nav-crowd-64", "64 walkers sent across a room with a wall, a doorway and a link up onto a platform, 600 steps — xengine.nav's World beside Detour's crowd called directly on the same mesh and walkers",
+    add("simulation/nav-crowd-64", "64 walkers sent across a room with a wall, a doorway and a link up onto a platform, 600 steps — meng.nav's World beside Detour's crowd called directly on the same mesh and walkers",
         [](State& s) {
             using clock = std::chrono::steady_clock;
             constexpr int steps = 600;
@@ -504,8 +504,8 @@ void add_simulation_benchmarks() {
             s.items(static_cast<std::uint64_t>(steps));
             while (s.next()) {
                 s.pause();
-                xengine::nav::World world = xengine::nav::cts::crowd(64);
-                auto plain = xengine::nav::Direct::of(world);
+                meng::nav::World world = meng::nav::cts::crowd(64);
+                auto plain = meng::nav::Direct::of(world);
                 if (!plain) { s.fail("the scene was refused"); return; }
                 const bool world_first = rounds % 2 == 1;
                 const auto run_world = [&] {
@@ -602,7 +602,7 @@ void add_simulation_benchmarks() {
         });
     add("simulation/world-128x64-branch", "the same cavern branched: the whole world copied — the field, what flies, the coupling, the rigid world from its own image — what a timeline's snapshot and an agent's `world.branch` cost before a frame is run",
         [cavern](State& s) {
-            const auto program = xengine::matter::standard();
+            const auto program = meng::matter::standard();
             if (!program) { s.fail("the standard definition was refused"); return; }
             auto made = cavern(s, *program);
             if (!made) return;
@@ -617,7 +617,7 @@ void add_simulation_benchmarks() {
         });
     add("simulation/matter-256-causes", "the same 256x256 of matter as an agent's subject: a step with the record of causes made at its commit (D-169) — what watching a field costs",
         [](State& s) {
-            const auto program = xengine::matter::standard();
+            const auto program = meng::matter::standard();
             if (!program) { s.fail("the standard definition was refused"); return; }
             const std::uint32_t side = 256;
             // Two worlds alike; the second is not watched: what a step costs with no record.
@@ -655,9 +655,9 @@ void add_simulation_benchmarks() {
         });
     add("simulation/matter-256-shade", "256x256 of the standard matter on screen by the standard appearance, every tile: each cell's shade and its light (D-168; the worst case)",
         [](State& s) {
-            const auto program = xengine::matter::standard();
+            const auto program = meng::matter::standard();
             if (!program) { s.fail("the standard definition was refused"); return; }
-            const auto look = xengine::matter::standard_look(*program);
+            const auto look = meng::matter::standard_look(*program);
             if (!look) { s.fail("the standard appearance was refused"); return; }
             const auto lattice = ca::lower(*program);
             if (!lattice) { s.fail("the program was not lowered"); return; }
@@ -700,7 +700,7 @@ void add_simulation_benchmarks() {
     // alight, lava beside water, open to air — stepped sparsely in pieces on the shared pool (Execution::parallel),
     // and checked to be the bits of the same steps run one after another.
     const auto matter_1024 = [](State& s, bool sparse) {
-        const auto program = xengine::matter::standard();
+        const auto program = meng::matter::standard();
         if (!program) { s.fail("the standard definition was refused"); return; }
         const auto lattice = ca::lower(*program, {.seed = 3});
         if (!lattice) { s.fail("the program was not lowered"); return; }

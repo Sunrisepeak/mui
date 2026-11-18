@@ -28,9 +28,9 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 omui.showcase.quay = { path = ".." }
 omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
-xengine.ui       = { path = "../../../modules/projects/xengine/game/ui" }
-xengine.input    = { path = "../../../modules/projects/xengine/game/input" }
-xengine.audio.device = { path = "../../../modules/projects/xengine/kernel/audio/device" }
+meng.ui       = { path = "../../../modules/projects/meng/game/ui" }
+meng.input    = { path = "../../../modules/projects/meng/game/input" }
+meng.audio.device = { path = "../../../modules/projects/meng/kernel/audio/device" }
 xrender.raster   = { path = "../../../modules/projects/xrender/raster" }
 mlibs.rhi        = { path = "../../../modules/gfx/rhi" }
 mcpplibs.cmdline = "0.0.3"

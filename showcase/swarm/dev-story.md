@@ -10,12 +10,12 @@ How Swarm was made: by one agent session from one prompt, with no person in betw
 
 > You are a developer new to this repository. Read AGENTS.md first, then whatever READMEs and module interfaces you need.
 >
-> Task: from scratch, make a small 2D top-down shooter as a new showcase member under showcase/ (pick the directory and package names by the repository's rules), using only the public capabilities of the engine (xengine.runtime, xengine.input, xengine.world or whatever fits; mlibs for math, hash and random).
+> Task: from scratch, make a small 2D top-down shooter as a new showcase member under showcase/ (pick the directory and package names by the repository's rules), using only the public capabilities of the engine (meng.runtime, meng.input, meng.world or whatever fits; mlibs for math, hash and random).
 >
 > The game: the player moves with two axes, aims with the pointer and shoots with a button; enemies arrive in waves and chase the player; a bullet that hits an enemy removes it and scores; an enemy that touches the player costs a life; the game ends when lives run out. Keep it small, but it must really play.
 >
 > Requirements:
-> 1. The game is a `Playable` of xengine.runtime: deterministic (the same inputs give the same checksum), with what a player is shown as JSON (and a legend for anything that is not self-evident), and it says its own `controls` and `tasks` (see how showcase/kiln/headless does).
+> 1. The game is a `Playable` of meng.runtime: deterministic (the same inputs give the same checksum), with what a player is shown as JSON (and a legend for anything that is not self-evident), and it says its own `controls` and `tasks` (see how showcase/kiln/headless does).
 > 2. A program that plays it over lines, like showcase/kiln/play (`<name>-play run --session FILE`).
 > 3. Tests in the member: the same inputs give the same checksum on two runs; a seek back and replay gives the same bits; an enemy is shot and the score rises; the game can be lost; each of the game's own tasks, sent as written through a session, does what it says; the agent contract suite (mlibs.agent.cts) passes on the game as the runtime's own test runs it.
 > 4. A short README for the member (its first line says what it is), listed where the repository's lint expects it. Run `mcpp run omui-devtools -p tools/devtools -- lint` and fix what it reports about your member.
@@ -39,9 +39,9 @@ The files of this directory at the commit that adds it are as that session left 
 
 | Layer | Package | What it is |
 |---|---|---|
-| Time and the agent | `xengine.runtime`, `mlibs.simulation`, `mlibs.agent` | the game as a `Playable` on a timeline; the subject `world` (observe, act, step, seek, branch); the game's own `controls` (six) and `tasks` (three) |
-| What is in the arena | `xengine.world` | enemies and bullets as entities in one block of plain data: a copy is a branch |
-| Input | `xengine.input` | a player's actions (axes, a button, the pointer), a person's or an agent's |
+| Time and the agent | `meng.runtime`, `mlibs.simulation`, `mlibs.agent` | the game as a `Playable` on a timeline; the subject `world` (observe, act, step, seek, branch); the game's own `controls` (six) and `tasks` (three) |
+| What is in the arena | `meng.world` | enemies and bullets as entities in one block of plain data: a copy is a branch |
+| Input | `meng.input` | a player's actions (axes, a button, the pointer), a person's or an agent's |
 | Numbers | `mlibs.math`, `mlibs.hash` | vectors, the random stream (SplitMix64), the checksum |
 | The program | `mlibs.agent`'s `converse`, `mcpplibs.cmdline`, `mcpplibs.os` | `swarm-play run --session FILE`: the session's file is the game |
 
@@ -69,7 +69,7 @@ By its report; each is a finding about what is below the game.
 | Missing | Substitute here | Where it belongs |
 |---|---|---|
 | The length of a `Vec2` and a `Vec2` of length one (`Vec3` has both) | `std::sqrt(dot(v, v))` in `src/sim.cpp` | `mlibs.math` |
-| A component of `xengine.world` holding floats has to vouch for its own layout (`no_padding`) | `Body` says it | `xengine.world` (a check that sees through members needs reflection) |
+| A component of `meng.world` holding floats has to vouch for its own layout (`no_padding`) | `Body` says it | `meng.world` (a check that sees through members needs reflection) |
 | Whether two circles meet | a squared distance against a squared sum of radii | `mlibs.geom`, when a second game asks |
 | Why a game is over, in the runtime's answers | the view's `outcome` | the game's view is the right place; the runtime knows only `over` |
 | A picture | none | a host and a display list, as Kiln's `picture` |
@@ -81,10 +81,10 @@ Each from the two tables above, in the mainline, in the checkpoint after the one
 - `mlibs.math` has `length(Vec2)` and `normalized(Vec2)`, and `Vec2` says `no_padding`; `src/sim.cpp` uses the library's `length` (its own is gone).
 - The lint reports a manifest that is not TOML as a problem (rule `toml`: the file, what the parser said, and the quoting rule), and goes on to nothing else.
 - Kiln's manifest lost the needless quotes.
-- The program is the runtime's: `xengine.runtime`'s `lines` feature (`play_over_lines`). `play/src/entry/main.cpp` was 78 lines, a copy of Kiln's with the names changed; it is one call now, as Kiln's is.
+- The program is the runtime's: `meng.runtime`'s `lines` feature (`play_over_lines`). `play/src/entry/main.cpp` was 78 lines, a copy of Kiln's with the names changed; it is one call now, as Kiln's is.
 - `find` says what a control is (a button, an axis, the pointer) beside what it does.
 
-Not changed: a circle test in `mlibs.geom` (one game asks; the substitute is one line), and components of `xengine.world` seeing through their members (needs reflection).
+Not changed: a circle test in `mlibs.geom` (one game asks; the substitute is one line), and components of `meng.world` seeing through their members (needs reflection).
 
 ## 7. Self-review
 

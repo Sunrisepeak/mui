@@ -8,7 +8,7 @@ import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
 namespace math = mlibs::math;
-namespace nav = xengine::nav;
+namespace nav = meng::nav;
 
 namespace {
 

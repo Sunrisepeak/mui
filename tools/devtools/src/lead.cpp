@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 
 constexpr std::array statuses{"planned", "evidence", "claimed"};
 constexpr std::array lines{"use-safely", "build-reliably", "together", "craft", "foundation"};
-constexpr std::array projects{"omui", "omui.components", "hanim", "xrender", "xengine", "gongfu", "spec"};
+constexpr std::array projects{"omui", "omui.components", "hanim", "xrender", "meng", "gongfu", "spec"};
 
 struct Words {
     std::string_view title, intro, metrics, features, capabilities, head_metric, head_feature, head_capability, planned, pending;

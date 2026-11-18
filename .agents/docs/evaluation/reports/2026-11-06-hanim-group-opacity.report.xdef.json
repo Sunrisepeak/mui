@@ -363,7 +363,7 @@
           "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
           "test",
           "-p",
-          "xengine.render.vector",
+          "meng.render.vector",
           "--locked"
         ],
         "exit": 0,
@@ -390,7 +390,7 @@
           "test",
           "opacity_test",
           "-p",
-          "xengine.render.vector",
+          "meng.render.vector",
           "--locked",
           "--profile",
           "wasm-test",
@@ -408,7 +408,7 @@
           "test",
           "vector_gpu_test",
           "-p",
-          "xengine.render.cts",
+          "meng.render.cts",
           "--locked",
           "--profile",
           "release"

@@ -12,7 +12,7 @@
 // paid; the magnet; the duet's finisher; a gate that comes round; the upper
 // chamber; the orbit guard; a forecast that is the path the ball takes.
 import std;
-import xengine.input;
+import meng.input;
 import mlibs.dynamics;
 import mlibs.simulation;
 import mlibs.hash;
@@ -37,8 +37,8 @@ bo::Level wall_of_bricks(std::uint64_t seed = 1) {
     return l;
 }
 
-xengine::Actions launch() {
-    xengine::Actions a;
+meng::Actions launch() {
+    meng::Actions a;
     a.held = a.pressed = 1u << bo::launch_button;
     return a;
 }
@@ -47,7 +47,7 @@ xengine::Actions launch() {
 bo::Input follow(const bo::State& s, std::int64_t f) {
     bo::Input in;
     double x = bo::field_w / 2, lowest = -1;
-    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) {
+    s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) {
         if (b.on == 0 && b.at.y > lowest) lowest = b.at.y, x = b.at.x;
     });
     const double aim = x + 23.0 * static_cast<double>((f / 37) % 3 - 1);  // off-centre now and then (no libm: the same everywhere)
@@ -58,13 +58,13 @@ bo::Input follow(const bo::State& s, std::int64_t f) {
 
 std::int32_t balls(const bo::State& s) {
     std::int32_t n = 0;
-    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball&) { ++n; });
+    s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball&) { ++n; });
     return n;
 }
 
 // The state's ball (the first) flying from `at` with `velocity`.
 void fling(bo::State& s, V2 at, V2 velocity) {
-    s.world.each<bo::Ball>([&](xengine::Entity, bo::Ball& b) {
+    s.world.each<bo::Ball>([&](meng::Entity, bo::Ball& b) {
         b.on = 0;
         b.at = at;
         b.velocity = velocity;
@@ -72,12 +72,12 @@ void fling(bo::State& s, V2 at, V2 velocity) {
 }
 bo::Ball ball(const bo::State& s) {
     bo::Ball out{};
-    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { out = b; });
+    s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { out = b; });
     return out;
 }
 bo::Brick* brick(bo::State& s, std::uint32_t id) {
     bo::Brick* out = nullptr;
-    s.world.each<bo::Brick>([&](xengine::Entity, bo::Brick& b) {
+    s.world.each<bo::Brick>([&](meng::Entity, bo::Brick& b) {
         if (b.id == id) out = &b;
     });
     return out;
@@ -153,7 +153,7 @@ UTest cases{"breakout.sim", [] {
         l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 0, 0});  // out of the way: the field is not cleared
         bo::State st = bo::start(l);
         // A ball falling at the bottom paddle's height, 120 pixels to its right; the paddle swings at it with the pointer.
-        st.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
+        st.world.each<bo::Ball>([](meng::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {760, 640};
             b.velocity = {0, 9};
@@ -176,16 +176,16 @@ UTest cases{"breakout.sim", [] {
         l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 0, 0});
         bo::State st = bo::start(l);
         const double face = st.paddles[0].y - 6;  // inside the paddle's thickness, below its top
-        st.world.each<bo::Ball>([&](xengine::Entity, bo::Ball& b) {
+        st.world.each<bo::Ball>([&](meng::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {st.paddles[0].x + 40, face + 4};
             b.velocity = {-3, 2};
         });
         double y0 = 0;
-        st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { y0 = b.at.y; });
+        st.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { y0 = b.at.y; });
         for (int f = 0; f < 20; ++f) bo::step(st, {});
         double y = y0;
-        st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { y = b.at.y; });
+        st.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { y = b.at.y; });
         expect(y > y0 + 10 || balls(st) == 0) << std::format("it fell on: from {} to {}", y0, y);
     };
 
@@ -195,7 +195,7 @@ UTest cases{"breakout.sim", [] {
         l.bricks.push_back({Box{600, 200, 100, 30}, bo::Kind::wall, 1, 2, 0});
         l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 3, 0});  // out of the way: the field is not cleared
         bo::State st = bo::start(l);
-        st.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
+        st.world.each<bo::Ball>([](meng::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {600, 400};
             b.velocity = {0, -6};
@@ -203,7 +203,7 @@ UTest cases{"breakout.sim", [] {
         V2 after{};
         for (int f = 0; f < 60; ++f) {
             bo::step(st, {});
-            st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { after = b.velocity; });
+            st.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { after = b.velocity; });
             if (after.y > 0) break;
         }
         expect(after.x == 0 && after.y == 6) << std::format("({}, {})", after.x, after.y);
@@ -219,7 +219,7 @@ UTest cases{"breakout.sim", [] {
             l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 2, 0});  // out of the way: the field is not cleared
             bo::State st = bo::start(l);
             expect(eq(st.bricks, std::int32_t{1}));  // a gate is not a brick to break
-            st.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
+            st.world.each<bo::Ball>([](meng::Entity, bo::Ball& b) {
                 b.on = 0;
                 b.at = {640, 400};
                 b.velocity = {0, -6};
@@ -227,7 +227,7 @@ UTest cases{"breakout.sim", [] {
             double highest = 1000;
             for (int f = 0; f < 40; ++f) {
                 bo::step(st, {});
-                st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { highest = std::min(highest, b.at.y); });
+                st.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { highest = std::min(highest, b.at.y); });
             }
             return highest;
         };
@@ -244,7 +244,7 @@ UTest cases{"breakout.sim", [] {
         bo::State st = bo::start(l);
         expect(eq(st.paddles[0].y, 4 * bo::field_h - 30));
         expect(eq(st.zoom, 1.0));
-        st.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
+        st.world.each<bo::Ball>([](meng::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {640, 1000};
             b.velocity = {0, -0.001};  // standing, near enough: high up the field
@@ -263,7 +263,7 @@ UTest cases{"breakout.sim", [] {
         bo::step(st, {launch(), {}});
         bo::step(st, {});
         const auto add = [&](bo::Gift g) {
-            const xengine::Entity e = st.world.create();
+            const meng::Entity e = st.world.create();
             st.world.add(e, bo::Capsule{{st.paddles[0].x, st.paddles[0].y - 12}, g, 0});
             bo::step(st, {});
         };
@@ -275,7 +275,7 @@ UTest cases{"breakout.sim", [] {
         expect(st.slow > 0) << "slow";
         add(bo::Gift::pierce);
         bool piercing = true;
-        st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { piercing = piercing && b.pierce > 0; });
+        st.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { piercing = piercing && b.pierce > 0; });
         expect(piercing) << "piercing";
         add(bo::Gift::magnet);
         expect(eq(st.paddles[0].magnet, st.rules.magnet_catches));
@@ -306,13 +306,13 @@ UTest cases{"breakout.sim", [] {
         m.rules.multi_balls = 4;
         bo::step(m, {launch(), {}});
         bo::step(m, {});
-        const xengine::Entity e = m.world.create();
+        const meng::Entity e = m.world.create();
         m.world.add(e, bo::Capsule{{m.paddles[0].x, m.paddles[0].y - 12}, bo::Gift::multi, 0});
         bo::step(m, {});
         expect(eq(balls(m), std::int32_t{5}));
         bo::State g = bo::start(l);
         bool dropped = false;
-        g.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
+        g.world.each<bo::Ball>([](meng::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {180, 300};
             b.velocity = {0, -6};

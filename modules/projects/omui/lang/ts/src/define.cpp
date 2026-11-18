@@ -246,7 +246,7 @@ export interface Style extends Tokens {
 /** `export default defineStyle({ neon: { theme: "dark", effects: { button: { effect: "neon", radius: 12 } } } })`. */
 export declare function defineStyle(styles: { [name: string]: Style }): Defined<"style">;
 
-// ── sound and music (xengine.audio) ─────────────────────────────────────
+// ── sound and music (meng.audio) ─────────────────────────────────────
 
 /** A number, or [from, to] over the layer's length. */
 export type Glide = number | [number, number];
@@ -417,7 +417,7 @@ export declare function defineTimeline(timeline: Timeline): Defined<"timeline">;
 /** A film's lines, each in both languages. */
 export declare function defineSubtitles(subtitles: { doc?: string; lines: { [id: string]: { zh: string; en: string } } }): Defined<"subtitles">;
 
-// ── videos (xengine.video) ───────────────────────────────────────────────
+// ── videos (meng.video) ───────────────────────────────────────────────
 
 /** A video: its size, rate and length, where its frames come from, its sound track. */
 export interface Video {
@@ -484,7 +484,7 @@ export declare function defineMessages(messages: Messages): Defined<"messages">;
 // ── motion recipes ───────────────────────────────────────────────────────
 
 export declare function defineMotion(motion: { [field: string]: unknown }): Defined<"motion">;
-// ── what a world is made of (xengine.matter) ─────────────────────────────
+// ── what a world is made of (meng.matter) ─────────────────────────────
 
 /** How a material is held together: what moves it, and what `phase == liquid` in a law compares. */
 export type MatterPhase = "solid" | "soft" | "granular" | "liquid" | "gas";
@@ -614,7 +614,7 @@ export interface Matter {
 /** `export default defineMatter({ materials: { wood: { ignition: 570, fuel: 15, burnt: "ash" } }, laws: [{ transfer: "temperature", by: "thermal" }] })`. */
 export declare function defineMatter(matter: Matter): Defined<"matter">;
 
-// ── what a world looks like (xengine.matter's appearance) ───────────────────
+// ── what a world looks like (meng.matter's appearance) ───────────────────
 
 /** A base look: a colour (`"#rrggbb"`, `"#rrggbbaa"`), and how uneven it is, 0 … 1 — one place lighter, the next darker. */
 export interface AppearanceBase {
@@ -655,7 +655,7 @@ export interface Appearance {
 /** `export default defineAppearance({ materials: { wood: { color: "#8a5a2b" } }, states: [{ by: "temperature", from: 800, to: 1500, color: "#ff4a0c", emits: true }] })`. */
 export declare function defineAppearance(appearance: Appearance): Defined<"appearance">;
 
-// ── a world of cells (xengine.cellular's lattice): a game's level ───────────
+// ── a world of cells (meng.cellular's lattice): a game's level ───────────
 
 /** Matter that is only shown (D-178): never in the simulation; a picture with room simulates it beside the world. */
 export interface WorldScenery {
@@ -685,11 +685,11 @@ export declare function defineWorld(world: World): Defined<"world">;
  * the framework (omui) and the engine (meng). Dependencies point down only, tests included: the lint holds it.
  */
 export type ProjectTier = "foundation" | "framework" | "engine";
-/** A part of a project that may depend on less than the whole (xengine's simulation kernels, gongfu's core). */
+/** A part of a project that may depend on less than the whole (meng's simulation kernels, gongfu's core). */
 export interface ProjectPart {
     /** Its directory, under the project's (`"kernel/matter"`); `exact`: that member alone, not what is under it. */
     path: string;
-    /** The part's name among the projects (`"xengine.sim"`). */
+    /** The part's name among the projects (`"meng.sim"`). */
     name: string;
     exact?: boolean;
     /** Its tier, when not the project's (D-231). */

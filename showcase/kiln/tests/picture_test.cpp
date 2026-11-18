@@ -12,7 +12,7 @@ import mcpplibs.mtest;
 
 // mtest by name: its `cts` is not mlibs'.
 using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::fatal, mcpplibs::mtest::operator""_test;
-namespace ca = xengine::cellular;
+namespace ca = meng::cellular;
 namespace raster = xrender::raster;
 
 namespace {
@@ -114,7 +114,7 @@ constexpr std::array<Standing, 4> standings{{{"rich", ca::Light::glow, true}, {"
 
 UTest cases{"kiln.picture", [] {
     // 140 frames: the barricade is lit at the 60th and burns for the rest.
-    mlibs::cts::against({.subject = "kiln-picture"}, [] { mlibs::cts::world::declare_presentation(KilnPicture{}, "xengine.presentation@1", {.frames = 140, .at = 70}); });
+    mlibs::cts::against({.subject = "kiln-picture"}, [] { mlibs::cts::world::declare_presentation(KilnPicture{}, "meng.presentation@1", {.frames = 140, .at = 70}); });
     "Mui lights the barricade: wherever the ladders stand the game is the same game, and the picture what they say"_test = [] {
         // The game alone.
         std::vector<std::uint64_t> expected;

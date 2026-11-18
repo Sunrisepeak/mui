@@ -15,7 +15,7 @@ const contract::Probe probe{
     .preview = R"({"op":"world.branch","steps":30})",
     .script = {R"({"op":"world.act","axis":[1]})", R"({"op":"world.step","steps":40})"},
 };
-contract::declare(probe, {.subject = "xengine.runtime"});   // mtest's cases: xengine.runtime/agent.read.pure, …
+contract::declare(probe, {.subject = "meng.runtime"});   // mtest's cases: meng.runtime/agent.read.pure, …
 expect(contract::unsupported(game.capabilities()) == std::vector<std::string>{"agent.source.chain"});   // what it lacks, pinned
 ```
 

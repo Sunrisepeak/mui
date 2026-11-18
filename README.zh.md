@@ -23,11 +23,11 @@
 | [**omui**](modules/projects/omui) | UI 框架：一棵语义树同时驱动像素、动画、无障碍、Agent 和测试；实现 [openmui](https://github.com/openlifa/openmui) 规范 | `omui`：new、dev、run、test、package，Agent 接入 | hanim、xrender |
 | [**hanim**](modules/projects/hanim) | 可组合、Agent 原生的动画引擎：UI 动画、视频、游戏动画用同一套能力 | `hanim`（文档 → 帧）、`hanim-timeline` | xrender |
 | [**xrender**](modules/projects/xrender) | CPU 与 GPU 同源、Web 优先、像素可供 Agent 审查的渲染引擎（代号） | 库 | mlibs |
-| [**xengine**](modules/projects/xengine) | 游戏引擎系统：引擎内核（物质、动力学、粒子、音频、视频）与 omui 之上的游戏层（代号） | `xengine-playtest` | 以上全部 |
-| [**gongfu**](modules/projects/gongfu) | 确定性、可回滚、角色即数据的格斗游戏框架 | — | xengine |
+| [**meng**](modules/projects/meng) | 游戏引擎系统：引擎内核（物质、动力学、粒子、音频、视频）与 omui 之上的游戏层（代号） | `meng-playtest` | 以上全部 |
+| [**gongfu**](modules/projects/gongfu) | 确定性、可回滚、角色即数据的格斗游戏框架 | — | meng |
 | [**mlibs**](modules) | 所有项目之下与领域无关的库：数学、几何、图像、文字、GPU 接口、Agent 内核 | 库 | — |
 
-依赖只向下：mlibs ← xrender ← hanim ← omui ← xengine 的游戏层 ← 作品。取走一个项目，只需要带上它下面的部分（[AGENTS.md](AGENTS.md) §2–3）。
+依赖只向下：mlibs ← xrender ← hanim ← omui ← meng 的游戏层 ← 作品。取走一个项目，只需要带上它下面的部分（[AGENTS.md](AGENTS.md) §2–3）。
 
 ## 作品
 

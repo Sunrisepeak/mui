@@ -43,10 +43,10 @@ Every metric is ours against the strongest competitor, measured on one machine i
 | omui | `agent.connect.lines` | — | webmcp | — | planned |
 | omui | `agent.build-ui.success` | — | react-vite-playwright, flutter | — | planned |
 | omui.components | `components.canvas-1000.frame_ms` | — | figma-like-dom | — | planned |
-| xengine | `physics.pyramid.step_ms` | — | box2d-v3, rapier | — | planned |
-| xengine | `world.iterate-100k.ms` | — | bevy | — | planned |
-| xengine | `cellular.4096.fps` | — | noita-like | — | needs a device |
-| xengine | `agent.game-tasks.success` | — | godot-mcp | — | planned |
+| meng | `physics.pyramid.step_ms` | — | box2d-v3, rapier | — | planned |
+| meng | `world.iterate-100k.ms` | — | bevy | — | planned |
+| meng | `cellular.4096.fps` | — | noita-like | — | needs a device |
+| meng | `agent.game-tasks.success` | — | godot-mcp | — | planned |
 | gongfu | `rollback.8-frames.ms` | — | ggrs | — | planned |
 | mlibs | `text.paragraph.ms` | — | skparagraph | — | planned |
 | mlibs | `layout.flex-grid-5000.ms` | — | taffy, yoga | — | planned |
@@ -73,9 +73,9 @@ Every metric is ours against the strongest competitor, measured on one machine i
 | xrender | B.pixels: 为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图 | evidence | ahead |
 | xrender | xrender.same-source: CPU 与 GPU 同源：CPU 参考逐位，GPU 差 ≤ 1/255 | evidence | — |
 | xrender | xrender.web-first: Web 优先：每次提交只跨一次 wasm 边界 | planned | — |
-| xengine | G: Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩 | evidence | ahead |
-| xengine | xengine.equal-play: 人与 Agent 平等游玩：同一套感知和反应约束，逐位回放 | evidence | ahead |
-| xengine | xengine.native: 原生胜过适配：场景是数据、编辑是事务、模拟确定、离屏同源 | planned | — |
+| meng | G: Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩 | evidence | ahead |
+| meng | meng.equal-play: 人与 Agent 平等游玩：同一套感知和反应约束，逐位回放 | evidence | ahead |
+| meng | meng.native: 原生胜过适配：场景是数据、编辑是事务、模拟确定、离屏同源 | planned | — |
 | gongfu | gongfu.rollback-kernel: 确定性回滚内核，可以原样拆出 | evidence | ahead |
 | gongfu | gongfu.characters-as-data: 角色即数据，由 Agent 制作，诊断带行列号 | planned | — |
 | gongfu | gongfu.sparring: Agent 陪练：人类档约束，能解释自己的选择 | planned | — |

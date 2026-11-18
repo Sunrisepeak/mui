@@ -8,9 +8,9 @@ The idea is one sentence: **a material is a set of properties, and a law reads p
 
 The standard definition has 17 materials (air, water, ice, steam, wood, ash, stone, sand, oil, lava, gunpowder, iron …) and 19 laws, ready to use. Your own is data, laid over it as a pack — even a law the world did not have, as magnetism here:
 
-<!-- code: modules/projects/xengine/kernel/matter/packs/magnetism.matter.xdef.ts -->
+<!-- code: modules/projects/meng/kernel/matter/packs/magnetism.matter.xdef.ts -->
 ```ts
-// A law the world did not have (xengine.matter; the foundation plan's §6.15, D-181, D-182): magnetism, as a pack
+// A law the world did not have (meng.matter; the foundation plan's §6.15, D-181, D-182): magnetism, as a pack
 // laid over the standard definition. A lodestone gives a field; the field spreads through everything and fades;
 // what is magnetic is drawn up its slope — filings fly to the stone, a crate of iron slides to it, a crate of
 // wood stays. No kernel, carrier or work knows the word: it is a channel, two properties and four laws.
@@ -46,7 +46,7 @@ export default defineMatter({
 
 A world is a lattice of cells 0.1 m across, with rigid bodies made of its cells and cells in flight. From the matter suite's tests (`material` there names a material of the standard definition):
 
-<!-- code: modules/projects/xengine/kernel/matter/cts/tests/cts/ladder_test.cpp#cavern -->
+<!-- code: modules/projects/meng/kernel/matter/cts/tests/cts/ladder_test.cpp#cavern -->
 ```cpp
 // A cavern with a fire of its own: a floor, a post of wood alight at its foot, a crate afloat in a pool.
 std::unique_ptr<bodies::MatterWorld> cavern() {
@@ -91,7 +91,7 @@ export default defineWorld({
 
 A world is a deterministic value; from the matter suite's tests (`make` builds a scene of bodies, water and wood alight):
 
-<!-- code: modules/projects/xengine/kernel/matter/cts/tests/cts/coupling_test.cpp#branch -->
+<!-- code: modules/projects/meng/kernel/matter/cts/tests/cts/coupling_test.cpp#branch -->
 ```cpp
 auto world = make(true);
 for (int frame = 0; frame < 60; ++frame) world->step();
@@ -119,7 +119,7 @@ Rollback, undo, "what if", and an agent's play-testing stand on this.
 
 A world drawn: a picture that reads it, then a display list drawn by the CPU reference renderer (from the ladders' test):
 
-<!-- code: modules/projects/xengine/kernel/matter/cts/tests/cts/ladder_test.cpp#shown -->
+<!-- code: modules/projects/meng/kernel/matter/cts/tests/cts/ladder_test.cpp#shown -->
 ```cpp
 struct Shown {
     xrender::ImageStore images;
@@ -155,7 +155,7 @@ matter-lab run lab            # a request a line
 
 A session the lab's tests replay, its picture kept beside it (`media/`):
 
-<!-- code: modules/projects/xengine/kernel/matter/lab/media/coal-beside-wood.jsonl -->
+<!-- code: modules/projects/meng/kernel/matter/lab/media/coal-beside-wood.jsonl -->
 ```jsonl
 {"op":"matter.place","material":"stone","region":[0,29,64,3]}
 {"op":"matter.place","material":"stone","region":[30,22,2,7]}
@@ -178,7 +178,7 @@ A session the lab's tests replay, its picture kept beside it (`media/`):
 
 `matter.explain` asks why a cell is what it is; the answer is the law that held, what it read, and who gave it its heat. A new material is one `lab.material` (coal, here), and the world is played again at once.
 
-More: [matter](../../../modules/projects/xengine/kernel/matter/README.md), [the lattice and the world](../../../modules/projects/xengine/kernel/cellular/README.md), [the lab](../../../modules/projects/xengine/kernel/matter/lab/README.md). Two dimensions only, today.
+More: [matter](../../../modules/projects/meng/kernel/matter/README.md), [the lattice and the world](../../../modules/projects/meng/kernel/cellular/README.md), [the lab](../../../modules/projects/meng/kernel/matter/lab/README.md). Two dimensions only, today.
 
 ## When something goes wrong
 

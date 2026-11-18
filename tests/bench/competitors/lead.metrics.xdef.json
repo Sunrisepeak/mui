@@ -468,35 +468,35 @@
       "status": "planned"
     },
     {
-      "project": "xengine",
+      "project": "meng",
       "id": "physics.pyramid.step_ms",
       "about": "Box2D v3's benchmark scenes (pyramid, tumbler, chains): step time",
       "better": "lower",
-      "ours": "xengine.dynamics",
+      "ours": "meng.dynamics",
       "competitors": [
         "box2d-v3",
         "rapier"
       ],
       "status": "planned",
-      "doc": "--- xengine ----------------------------------------------------------------"
+      "doc": "--- meng ----------------------------------------------------------------"
     },
     {
-      "project": "xengine",
+      "project": "meng",
       "id": "world.iterate-100k.ms",
       "about": "100,000 entities iterated",
       "better": "lower",
-      "ours": "xengine",
+      "ours": "meng",
       "competitors": [
         "bevy"
       ],
       "status": "planned"
     },
     {
-      "project": "xengine",
+      "project": "meng",
       "id": "cellular.4096.fps",
       "about": "a 4096² cellular field on a GPU",
       "better": "higher",
-      "ours": "xengine.cellular",
+      "ours": "meng.cellular",
       "competitors": [
         "noita-like"
       ],
@@ -504,11 +504,11 @@
       "needs": "a physical GPU"
     },
     {
-      "project": "xengine",
+      "project": "meng",
       "id": "agent.game-tasks.success",
-      "about": "game development tasks: native (xengine) against an adapter (Godot 4 + MCP plug-in)",
+      "about": "game development tasks: native (meng) against an adapter (Godot 4 + MCP plug-in)",
       "better": "higher",
-      "ours": "xengine",
+      "ours": "meng",
       "competitors": [
         "godot-mcp"
       ],

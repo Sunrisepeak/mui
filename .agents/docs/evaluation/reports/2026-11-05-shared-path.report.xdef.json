@@ -602,8 +602,8 @@
         "mlibs.raster",
         "mlibs.rhi",
         "mlibs.trace",
-        "xengine.render",
-        "xengine.render.vector"
+        "meng.render",
+        "meng.render.vector"
       ]
     }
   },

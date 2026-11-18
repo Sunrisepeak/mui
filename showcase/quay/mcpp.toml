@@ -1,8 +1,8 @@
 # Quay, the game on its own (D-162): a watchkeeper at a harbour at night, wardens that hear and see, the beacon to
 # light before the tide, with no window.
 #   src/sim       the simulation: deterministic, its state a value (a copy is a branch), rewound and replayed bit
-#                 for bit; wardens on xengine.nav, bodies on xengine.dynamics (rigid3), sound events as the world's.
-#   src/headless  the simulation as xengine.runtime plays it: stepped without omui, sought back and branched ahead,
+#                 for bit; wardens on meng.nav, bodies on meng.dynamics (rigid3), sound events as the world's.
+#   src/headless  the simulation as meng.runtime plays it: stepped without omui, sought back and branched ahead,
 #                 played by an agent as a person plays.
 #   src/picture   the harbour at night from the watchkeeper's eye, drawn from the state by xrender (the mesh pass and
 #                 particles on a device), the wardens skinned (hanim.skeleton); it reads the state, changes nothing.
@@ -32,11 +32,11 @@ sources  = ["src/*/*.cppm", "src/*/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-xengine.input    = { path = "../../modules/projects/xengine/game/input" }
-xengine.nav      = { path = "../../modules/projects/xengine/game/nav" }
-xengine.runtime  = { path = "../../modules/projects/xengine/game/runtime" }
-xengine.dynamics = { path = "../../modules/projects/xengine/kernel/dynamics", features = ["rigid3"] }
-xengine.audio    = { path = "../../modules/projects/xengine/kernel/audio" }
+meng.input    = { path = "../../modules/projects/meng/game/input" }
+meng.nav      = { path = "../../modules/projects/meng/game/nav" }
+meng.runtime  = { path = "../../modules/projects/meng/game/runtime" }
+meng.dynamics = { path = "../../modules/projects/meng/kernel/dynamics", features = ["rigid3"] }
+meng.audio    = { path = "../../modules/projects/meng/kernel/audio" }
 xrender.mesh     = { path = "../../modules/projects/xrender/mesh" }
 "xrender.mesh.gpu" = { path = "../../modules/projects/xrender/mesh/gpu" }
 xrender.particle = { path = "../../modules/projects/xrender/particle" }
@@ -58,5 +58,5 @@ mcpplibs.os      = "0.4.4"
 mlibs.agent      = { path = "../../modules/base/agent" }
 mlibs.json       = { path = "../../modules/base/json" }
 mlibs.image      = { path = "../../modules/base/image" }
-xengine.playtest = { path = "../../modules/projects/xengine/game/playtest" }
+meng.playtest = { path = "../../modules/projects/meng/game/playtest" }
 xrender.rhi.webgpu = { path = "../../modules/projects/xrender/rhi/webgpu" }

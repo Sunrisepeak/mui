@@ -9,23 +9,23 @@ namespace {
 using omui::Key;
 constexpr std::int32_t sound_lead = 2048;  // frames the output is kept ahead (43 ms at 48 kHz)
 
-xengine::Bindings bindings() {
-    xengine::Bindings made;
-    for (const Key left : {Key::a, Key::left}) made.key(xengine::ui::code(left), xengine::Axis{0, -1});
-    for (const Key right : {Key::d, Key::right}) made.key(xengine::ui::code(right), xengine::Axis{0, 1});
-    for (const Key up : {Key::w, Key::up, Key::space}) made.key(xengine::ui::code(up), xengine::Button{jump_button});
-    made.key(xengine::ui::code(Key::q), xengine::Button{next_spell_button});
-    made.mouse(1, xengine::Button{cast_button});
-    made.mouse(2, xengine::Button{next_spell_button});
+meng::Bindings bindings() {
+    meng::Bindings made;
+    for (const Key left : {Key::a, Key::left}) made.key(meng::ui::code(left), meng::Axis{0, -1});
+    for (const Key right : {Key::d, Key::right}) made.key(meng::ui::code(right), meng::Axis{0, 1});
+    for (const Key up : {Key::w, Key::up, Key::space}) made.key(meng::ui::code(up), meng::Button{jump_button});
+    made.key(meng::ui::code(Key::q), meng::Button{next_spell_button});
+    made.mouse(1, meng::Button{cast_button});
+    made.mouse(2, meng::Button{next_spell_button});
     // A gamepad: the left stick (or the d-pad) walks, A jumps, the right trigger or R1 casts, Y the next spell.
     using omui::GamepadAxis, omui::GamepadButton;
-    made.pad_axis(xengine::ui::pad(GamepadAxis::left_x), xengine::Axis{0, 1});
-    made.pad_button(xengine::ui::pad(GamepadButton::dpad_left), xengine::Axis{0, -1});
-    made.pad_button(xengine::ui::pad(GamepadButton::dpad_right), xengine::Axis{0, 1});
-    made.pad_button(xengine::ui::pad(GamepadButton::south), xengine::Button{jump_button});
-    made.pad_button(xengine::ui::pad(GamepadButton::right_trigger), xengine::Button{cast_button});
-    made.pad_button(xengine::ui::pad(GamepadButton::right_shoulder), xengine::Button{cast_button});
-    made.pad_button(xengine::ui::pad(GamepadButton::north), xengine::Button{next_spell_button});
+    made.pad_axis(meng::ui::pad(GamepadAxis::left_x), meng::Axis{0, 1});
+    made.pad_button(meng::ui::pad(GamepadButton::dpad_left), meng::Axis{0, -1});
+    made.pad_button(meng::ui::pad(GamepadButton::dpad_right), meng::Axis{0, 1});
+    made.pad_button(meng::ui::pad(GamepadButton::south), meng::Button{jump_button});
+    made.pad_button(meng::ui::pad(GamepadButton::right_trigger), meng::Button{cast_button});
+    made.pad_button(meng::ui::pad(GamepadButton::right_shoulder), meng::Button{cast_button});
+    made.pad_button(meng::ui::pad(GamepadButton::north), meng::Button{next_spell_button});
     return made;
 }
 
@@ -58,7 +58,7 @@ void Cavern::mount(omui::Services& services, omui::NodeId node) {
         hud()->said.set(std::format("The cavern could not be made: {}", started.error()));
         return;
     }
-    game_.emplace(std::move(*started), xengine::runtime::Options{.stepping = xengine::runtime::Stepping::owner, .seat = xengine::runtime::Seat::owner, .keep = 600, .record = true});
+    game_.emplace(std::move(*started), meng::runtime::Options{.stepping = meng::runtime::Stepping::owner, .seat = meng::runtime::Seat::owner, .keep = 600, .record = true});
     if (auto made = Picture::make(images_, level)) picture_.emplace(std::move(*made));
     const auto& shape = game_->state().world->shape();
     frame_ = xrender::raster::Surface(static_cast<int>(shape.width) * scale, static_cast<int>(shape.height) * scale);
@@ -74,9 +74,9 @@ void Cavern::mount(omui::Services& services, omui::NodeId node) {
     if (const Hearing hearing = options().hearing; hearing != Hearing::none) {
         if (auto made = Sound::make()) {
             sound_.emplace(std::move(*made));
-            feed_ = std::make_unique<xengine::audio::Feed>(sound_->mixer().rate());
+            feed_ = std::make_unique<meng::audio::Feed>(sound_->mixer().rate());
             feed_->fill(sound_->mixer(), sound_lead);
-            if (auto opened = xengine::audio::Device::open(*feed_, {.null = hearing == Hearing::silent})) output_.emplace(std::move(*opened));
+            if (auto opened = meng::audio::Device::open(*feed_, {.null = hearing == Hearing::silent})) output_.emplace(std::move(*opened));
             else std::println(std::cerr, "kiln: no sound ({})", opened.error());
         }
     }
@@ -86,7 +86,7 @@ void Cavern::mount(omui::Services& services, omui::NodeId node) {
 }
 
 bool Cavern::on_event(omui::EventContext&, const omui::InputEvent& event) {
-    return services_ && xengine::ui::feed(sampler_, event, services_->bounds(node_));
+    return services_ && meng::ui::feed(sampler_, event, services_->bounds(node_));
 }
 
 void Cavern::run(std::int32_t steps) {
@@ -149,13 +149,13 @@ omui::AppSpec app(Options given) {
 }
 
 std::string recorded(const Standalone& game) {
-    std::vector<xengine::Actions> frames;
+    std::vector<meng::Actions> frames;
     for (const Input& step : game.recorded()) frames.push_back(step.player);
-    return xengine::to_recording(std::format("level {}", options().level), frames);
+    return meng::to_recording(std::format("level {}", options().level), frames);
 }
 
 std::expected<State, std::string> replayed(std::string_view lines) {
-    const auto recording = xengine::from_recording(lines);
+    const auto recording = meng::from_recording(lines);
     if (!recording) return std::unexpected(recording.error());
     if (!recording->heading.starts_with("level ")) return std::unexpected(std::string("line 1: `level NAME`, the level it was played on"));
     const std::string_view name = std::string_view(recording->heading).substr(6);
@@ -163,7 +163,7 @@ std::expected<State, std::string> replayed(std::string_view lines) {
     if (!level) return std::unexpected(std::format("line 1: no level is named `{}` (first, flawed)", name));
     auto state = start(*level);
     if (!state) return std::unexpected(state.error());
-    for (const xengine::Actions& actions : recording->frames) step(*state, Input{actions});
+    for (const meng::Actions& actions : recording->frames) step(*state, Input{actions});
     return std::move(*state);
 }
 

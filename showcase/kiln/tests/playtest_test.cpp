@@ -1,19 +1,19 @@
 // A playtest by an agent, no interface: Kiln at the runtime, played through the agent kernel's requests a
 // person's tier allows (world.observe, world.branch, world.act, world.step). The player is the engine's
-// (`xengine.playtest`): it tries the way forward by branching and, blocked, each tool at each aim over its own
+// (`meng.playtest`): it tries the way forward by branching and, blocked, each tool at each aim over its own
 // time. What is Kiln's is the table below — how its view is read, walking and jumping as its ways forward, its
 // three spells and where to aim them, what stands in the way. It finishes the first cavern; given the same
 // cavern with a mistake planted (a second wall of stone, still one bomb), it stops and says where and why.
 import std;
 import mlibs.agent;
 import mlibs.json;
-import xengine.playtest;
+import meng.playtest;
 import omui.showcase.kiln;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
 namespace agent = mlibs::agent;
-namespace playtest = xengine::playtest;
+namespace playtest = meng::playtest;
 
 namespace {
 

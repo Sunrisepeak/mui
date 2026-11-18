@@ -29,7 +29,7 @@ $P render promo --out promo.webm --cache .omui-cache --realtime --speed 8   # ag
 - the clip it shows (its whole definition, as the timeline file writes it) and where in it, a played-back frame's own digest;
 - the lines up at it, and what the overlay draws from the whole cut.
 
-The WebM is put together from 2-second chunks (`--chunk N` frames), each begun with a key frame and encoded on its own, kept in `DIR` by their frames' digests (`xengine.video.webm`'s `encode_webm_chunked`). A chunk whose frames' inputs did not change is copied and never drawn; the rest are drawn and encoded `--workers` at a time. The file is the same bytes whichever chunks were found.
+The WebM is put together from 2-second chunks (`--chunk N` frames), each begun with a key frame and encoded on its own, kept in `DIR` by their frames' digests (`meng.video.webm`'s `encode_webm_chunked`). A chunk whose frames' inputs did not change is copied and never drawn; the rest are drawn and encoded `--workers` at a time. The file is the same bytes whichever chunks were found.
 
 ## The film
 
@@ -48,7 +48,7 @@ The data, every file carried in the program (`omui.build.embed`) and read from `
 
 - `promo.timeline.xdef.ts`, `short.timeline.xdef.ts` — the cuts (`hanim.timeline`): a picture track of `shot:<name>` and `film` clips whose keyed properties are each scene's camera and choreography; the lines' track (`line:<id>`); the music's clips; the sound cues; `chapter:` and `hit:` markers.
 - `promo.subtitles.xdef.ts` — every line in Chinese and English.
-- `music/promo.music.xdef.ts` — the score (`xengine.audio`), 120 beats a minute, a section a chapter; `sounds/promo.sound.xdef.ts` — the picture's sounds.
+- `music/promo.music.xdef.ts` — the score (`meng.audio`), 120 beats a minute, a section a chapter; `sounds/promo.sound.xdef.ts` — the picture's sounds.
 - `blueprint.style.xdef.ts` — the film's look, a style pack; `script/*.md` — the storyboard, a page a chapter, shown on the wall; `code/tally.*` — the counter's two versions.
 
 ## How it works
@@ -58,7 +58,7 @@ The data, every file carried in the program (`omui.build.embed`) and read from `
 - **Motion pinned to its moment.** A glyph motion's transition `delay` holds it until then (added for this film): a line set when the overlay mounts rises at its clip's time.
 - **The overlay** (`:overlay`) is a view of its own on a transparent host, on the cut's own time: the lines inside the title-safe area, the chapter, the cut's timeline along the bottom with its playhead and time code, and over a `film` clip the tape's look (`chromatic`, `displace`) and its speed.
 - **The rewind is data.** A `film` clip plays the cut's own frames at its speed (here −5): those frames are kept (as PNG, shared between workers) as they are drawn, and its sound is the track at those times, backwards, with the tape's whine over it.
-- **The sound** (`:sound`): the score rendered once and placed by its clips (from its `in`, through its fades) into `xengine.audio`'s mixer, every cue — the sfx track's and those each shot makes of what it does (keys typed, a style struck, an agent's touch, a brick) — on its frame's first sample, the music ducked under them, one limiter.
+- **The sound** (`:sound`): the score rendered once and placed by its clips (from its `in`, through its fades) into `meng.audio`'s mixer, every cue — the sfx track's and those each shot makes of what it does (keys typed, a style struck, an agent's touch, a brick) — on its frame's first sample, the music ducked under them, one limiter.
 
 ## Acceptance (§5.1)
 

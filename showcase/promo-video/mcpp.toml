@@ -40,9 +40,9 @@ mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk                         = { path = "../../modules/projects/omui/sdk" }
 omui.theme                     = { path = "../../modules/projects/omui/theme" }
 hanim.timeline                    = { path = "../../modules/projects/hanim/timeline" }
-xengine.video                     = { path = "../../modules/projects/xengine/kernel/video" }
-"xengine.video.webm"                = { path = "../../modules/projects/xengine/kernel/video/webm" }
-xengine.audio                       = { path = "../../modules/projects/xengine/kernel/audio" }
+meng.video                     = { path = "../../modules/projects/meng/kernel/video" }
+"meng.video.webm"                = { path = "../../modules/projects/meng/kernel/video/webm" }
+meng.audio                       = { path = "../../modules/projects/meng/kernel/audio" }
 omui.ui.canvas                 = { path = "../../modules/projects/omui/components/canvas" }
 omui.ui.timeline                 = { path = "../../modules/projects/omui/components/timeline" }
 omui.abi                         = { path = "../../modules/projects/omui/abi" }

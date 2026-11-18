@@ -4,7 +4,7 @@
 //   return omui::run(kiln::window::app({.record = "session.kiln"}), options);
 //
 // The component `Cavern` is the game's window: it holds the same `kiln::Standalone` a headless program holds,
-// steps it on the interface's clock (`xengine.ui`'s pacer, 60 steps a second) and gives each step the person's
+// steps it on the interface's clock (`meng.ui`'s pacer, 60 steps a second) and gives each step the person's
 // input — A and D (or the arrows) walk, W or Space jumps (and swims up), the left button casts toward the pointer,
 // the right button or Q chooses the next spell; or a gamepad: the left stick walks, A jumps, the right trigger
 // casts the way she faces, Y chooses the next spell. The picture is Kiln's display list drawn on the CPU each frame
@@ -14,11 +14,11 @@ export module omui.showcase.kiln.window;
 
 import std;
 export import omui;
-export import xengine.ui;
+export import meng.ui;
 export import omui.showcase.kiln;
 export import omui.showcase.kiln.picture;
 export import omui.showcase.kiln.sound;
-export import xengine.audio.device;
+export import meng.audio.device;
 export import xrender.raster;
 export import xrender.vector;
 
@@ -63,10 +63,10 @@ public:
 
     // The game as played so far (none before it is mounted, or where the level could not be made).
     [[nodiscard]] const Standalone* game() const noexcept { return game_ ? &*game_ : nullptr; }
-    [[nodiscard]] const xengine::ui::Viewport& viewport() const noexcept { return view_; }
+    [[nodiscard]] const meng::ui::Viewport& viewport() const noexcept { return view_; }
     [[nodiscard]] const xrender::raster::Surface& picture() const noexcept { return frame_; }
     [[nodiscard]] const Sound* sound() const noexcept { return sound_ ? &*sound_ : nullptr; }
-    [[nodiscard]] const xengine::audio::Device* output() const noexcept { return output_ ? &*output_ : nullptr; }
+    [[nodiscard]] const meng::audio::Device* output() const noexcept { return output_ ? &*output_ : nullptr; }
     [[nodiscard]] std::uint64_t sounds_begun() const noexcept { return sounds_begun_; }
 
 private:
@@ -75,18 +75,18 @@ private:
 
     omui::Services*                       services_ = nullptr;
     omui::NodeId                          node_{};
-    xengine::ui::Viewport                 view_;
+    meng::ui::Viewport                 view_;
     std::optional<Standalone>             game_;
-    xengine::Sampler                      sampler_;
-    xengine::ui::Pacer                    pacer_;
+    meng::Sampler                      sampler_;
+    meng::ui::Pacer                    pacer_;
     xrender::ImageStore                   images_;
     std::optional<Picture>                picture_;
     xrender::DisplayList                  list_;
     xrender::CpuRenderer                  renderer_;
     xrender::raster::Surface              frame_{1, 1};
     std::optional<Sound>                  sound_;
-    std::unique_ptr<xengine::audio::Feed> feed_;
-    std::optional<xengine::audio::Device> output_;  // after the feed it drains: it goes first
+    std::unique_ptr<meng::audio::Feed> feed_;
+    std::optional<meng::audio::Device> output_;  // after the feed it drains: it goes first
     std::uint64_t                         sounds_begun_ = 0;
 };
 
@@ -96,7 +96,7 @@ private:
 [[nodiscard]] const std::shared_ptr<Hud>& hud();
 // The options the cavern was made with (set by `app`; one window a process).
 [[nodiscard]] Options& options();
-// Each step's input of the game a window played: `level NAME`, then a line a step (xengine.input's `to_text`).
+// Each step's input of the game a window played: `level NAME`, then a line a step (meng.input's `to_text`).
 [[nodiscard]] std::string recorded(const Standalone& game);
 // Those lines played by the game with no window: its state after them, or why not.
 [[nodiscard]] std::expected<State, std::string> replayed(std::string_view lines);

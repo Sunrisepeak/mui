@@ -232,15 +232,15 @@ UTest cases{"gen", [] {
     };
 
     "every matter definition's and appearance's committed snapshot is what its data module stands for (D-139)"_test = [] {
-        // The kernel reads the JSON (xengine.matter is below the scripts): the two must not part.
+        // The kernel reads the JSON (meng.matter is below the scripts): the two must not part.
         const auto repo = spec_dir().parent_path();
         // Where a module carries a standard snapshot, that too: the file, its place, its module and name.
         struct Carried {
             std::string_view suffix, standard, place, module, name;
         };
         static constexpr std::array<Carried, 2> kinds{{
-            {".matter.xdef.ts", "standard.matter.xdef.ts", "src/json/generated/standard_snapshot.cppm", "xengine.matter.json", "standard_snapshot"},
-            {".appearance.xdef.ts", "standard.appearance.xdef.ts", "src/appearance/generated/standard_appearance_snapshot.cppm", "xengine.matter.appearance",
+            {".matter.xdef.ts", "standard.matter.xdef.ts", "src/json/generated/standard_snapshot.cppm", "meng.matter.json", "standard_snapshot"},
+            {".appearance.xdef.ts", "standard.appearance.xdef.ts", "src/appearance/generated/standard_appearance_snapshot.cppm", "meng.matter.appearance",
              "standard_appearance_snapshot"},
         }};
         std::array<std::size_t, 2> found{};
@@ -262,8 +262,8 @@ UTest cases{"gen", [] {
                                                                      path.generic_string());
                 const auto carried = path.parent_path() / kinds[kind].place;
                 if (name == kinds[kind].standard && std::filesystem::exists(carried))
-                    expect(read(carried) == mlibs::xdef::emit_embed(made->json, made->name, kinds[kind].module, "xengine::matter", kinds[kind].name, gen::embedded_by))
-                        << std::format("{} is out of date: run omui-gen embed {} --module {} --name {} --namespace xengine::matter --out {}", carried.generic_string(),
+                    expect(read(carried) == mlibs::xdef::emit_embed(made->json, made->name, kinds[kind].module, "meng::matter", kinds[kind].name, gen::embedded_by))
+                        << std::format("{} is out of date: run omui-gen embed {} --module {} --name {} --namespace meng::matter --out {}", carried.generic_string(),
                                        committed.generic_string(), kinds[kind].module, kinds[kind].name, carried.parent_path().generic_string());
             }
         }

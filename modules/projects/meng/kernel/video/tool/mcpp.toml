@@ -1,0 +1,47 @@
+# meng.video.tool — the `video` command: films on exact frame and sample counts without a GUI, for people,
+# agents and CI (convergence plan RC3.3, D-204): a description rendered to WebM, Y4M, PNG or WAV, a still, a
+# description checked, a file probed, the timing. The subject `video` behind the tool kernel's entries
+# (mlibs.agent:host, T0). Frames come from the sync card or PNG files; a view's frames are omui's, added by a
+# composition (xtools gives this subject omui's view source). Its own package: a tool's dependencies (the WebM
+# codec, the data evaluator) stay out of the library's.
+[package]
+namespace   = "meng.video"
+name        = "tool"
+version     = "0.1.0"
+description = "The video command: films rendered, stills, descriptions checked, files probed, the timing — headless"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the video command"
+kind = "tool"
+reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure; meng.video is its own family)
+agent = "tool"
+
+[targets.meng-video-tool]
+kind = "lib"
+
+[targets.video]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+
+[dependencies]
+mlibs.agent      = { path = "../../../../../base/agent" }
+mlibs.image      = { path = "../../../../../base/image" }
+mlibs.xdef.tool  = { path = "../../../../../base/xdef/tool" }
+openlifa.openas  = "0.2.1"
+meng.video    = { path = ".." }
+"meng.video.webm" = { path = "../webm" }
+meng.audio    = { path = "../../audio" }
+mcpplibs.os      = "0.4.4"
+nlohmann.json    = "3.12.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils    = { path = "../../../../../base/utils" }  # mlibs.testing's scratch directories
+mlibs.json     = { path = "../../../../../base/json" }

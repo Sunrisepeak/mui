@@ -11,9 +11,9 @@ What has been run on which platform — on real hardware, in software, or not ye
 | Interfaces and tools for the desktop and the Web | omui | stable | [Start](guide/start.md) → [Interfaces](guide/ui.md) |
 | An agent that understands and operates your application | omui's agent surface, `omui agent`, MCP | stable | [Agents](guide/agent.md) |
 | Interface motion; animation and video made by code | hanim | stable (studio: preview) | [Motion](guide/motion.md) |
-| A 2D world of matter that burns, flows and sets | xengine's matter and lattice | preview | [A world of matter](guide/world.md) |
-| A 2D game that runs with no window and that an agent can play | xengine's game runtime | preview | [Games](guide/game.md) |
-| A 3D world: bodies, a crowd, sound through walls; scenes, meshes, shadows, glTF | xengine's kernels, xrender's scene and mesh | preview | [A world in three dimensions](guide/world3d.md) → [Quay](../../showcase/quay) |
+| A 2D world of matter that burns, flows and sets | meng's matter and lattice | preview | [A world of matter](guide/world.md) |
+| A 2D game that runs with no window and that an agent can play | meng's game runtime | preview | [Games](guide/game.md) |
+| A 3D world: bodies, a crowd, sound through walls; scenes, meshes, shadows, glTF | meng's kernels, xrender's scene and mesh | preview | [A world in three dimensions](guide/world3d.md) → [Quay](../../showcase/quay) |
 
 **Stable**: every quality gate, source-compatible within 0.1.x. **Preview**: every quality gate within its stated scope; the interface will change. **Experimental**: builds and holds, short of its own target. Each package's label is on [Maturity](maturity.md). The whole project is in development and has no release yet (2026-11-17).
 

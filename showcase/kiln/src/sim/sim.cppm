@@ -4,7 +4,7 @@
 //   kiln::step(state, {.player = actions});            // a 60th of a second
 //
 // The world is the standard definition of matter on a lattice of 0.1 m cells, with rigid bodies made of its
-// cells and cells in flight (xengine.cellular.rigid's MatterWorld). Mui reads it: what is solid or a powder
+// cells and cells in flight (meng.cellular.rigid's MatterWorld). Mui reads it: what is solid or a powder
 // holds her up, a liquid is swum, heat and fire hurt, water over her head takes her breath. Her wand casts
 // fire (it heats where it lands: what burns catches by the laws), water (it pours where it lands), and bombs
 // (they blast what is there, stone too, and heat it). Every puzzle is what the laws do.
@@ -12,13 +12,13 @@
 // Coordinates are the field's, in cells: x across, y down. Mui's position is the middle of her feet.
 export module omui.showcase.kiln.sim;
 import std;
-export import xengine.input;
-export import xengine.cellular.rigid;
+export import meng.input;
+export import meng.cellular.rigid;
 export import :first_world;   // levels/first.world.xdef.ts, embedded as its JSON (kiln::level::first_world)
 export import :flawed_world;  // levels/flawed.world.xdef.ts
 
 export namespace kiln {
-namespace rigid = xengine::cellular::rigid;
+namespace rigid = meng::cellular::rigid;
 
 inline constexpr std::int32_t steps_per_second = 60;
 inline constexpr float step_seconds = 1.0f / steps_per_second;
@@ -49,13 +49,13 @@ struct State {
     mlibs::simulation::Branching<rigid::MatterWorld> world;
     Cat cat;
     std::vector<Bolt> bolts;
-    xengine::cellular::Tile exit;
+    meng::cellular::Tile exit;
     std::uint64_t frame = 0;
     Outcome outcome = Outcome::playing;
     std::uint32_t casts = 0;
 };
 struct Input {
-    xengine::Actions player;
+    meng::Actions player;
 };
 
 // A level: rows of characters, one a cell, and what each is (`legend`): a material of the definition, or a role —
@@ -67,7 +67,7 @@ struct Input {
 // picture that has room simulates it beside the world (it catches from the world's fires), one that has not
 // draws it as placed.
 struct Scenery {
-    xengine::cellular::Tile region;
+    meng::cellular::Tile region;
     std::string             material;  // a solid of the definition
 };
 struct Level {
@@ -98,6 +98,6 @@ void step(State& state, const Input& input);
 // (a screen's worth of cells, a letter each), the bodies near, what flies; `full`: every channel there too.
 [[nodiscard]] std::string observe(const State& state, bool full);
 // The standard definition of matter, loaded once (what every world of Kiln is made of).
-[[nodiscard]] const xengine::matter::Program& matter();
+[[nodiscard]] const meng::matter::Program& matter();
 
 }  // namespace kiln

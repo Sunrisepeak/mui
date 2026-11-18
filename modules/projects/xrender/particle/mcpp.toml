@@ -1,7 +1,7 @@
 # xrender.particle — particles drawn (the foundation plan's §5.1, M6.4; D-164, D-184): sparks, embers, smoke,
 # drops — many small squares facing the eye, laid over the light a mesh pass drew, faded where they near what is
 # behind them. This is the CPU reference: the same bits everywhere. A device's path is the same contract's other
-# target and is held to these pixels. What moves them is not here: a carrier steps them (xengine), this draws.
+# target and is held to these pixels. What moves them is not here: a carrier steps them (meng), this draws.
 [package]
 namespace   = "xrender"
 name        = "particle"

@@ -121,7 +121,7 @@ int embed(const mcpplibs::cmdline::ParsedArgs& args) {
     if (!asked_fully(args, "embed")) return 2;
     const auto file = mcpplibs::os::fs::from_utf8(args.positional(0));
     const std::string name = mcpplibs::os::fs::utf8(file.filename());
-    if (name.ends_with(".ts")) {
+    if (name.ends_with(".xdef.ts")) {
         // A data module is carried as what it evaluates to, with its owner's kinds: its owner's build plugin does it.
         std::println(std::cerr, "xdef embed: {} is a data module: embed its snapshot (xdef snapshot --write, then the .json), or let its owner's build plugin carry it", name);
         return 2;

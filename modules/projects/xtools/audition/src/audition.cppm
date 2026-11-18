@@ -1,5 +1,5 @@
 // xtools.audition — a timeline's gain automation heard and seen, offline, as an agent's subject `audition`: its
-// catalog's operation (audition.ops.xdef.ts), audition.automation. A composition of hanim.timeline, xengine.audio and
+// catalog's operation (audition.ops.xdef.ts), audition.automation. A composition of hanim.timeline, meng.audio and
 // an omui view (D-204), reached through xtools: `xtools audition.automation curve.timeline.xdef.ts --track music
 // --clip fade --out out/fade`.
 export module xtools.audition;

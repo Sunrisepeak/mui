@@ -1,4 +1,4 @@
-// Quay as a game the runtime plays (xengine.runtime's Playable): the simulation's own state, input and step, and
+// Quay as a game the runtime plays (meng.runtime's Playable): the simulation's own state, input and step, and
 // what a player is shown — at a person's tier, only what the watchkeeper sees and hears.
 //
 //   quay::Standalone game(quay::start(quay::level::harbour()), {.keep = 600});
@@ -10,7 +10,7 @@
 //   beacon   its lamp: bearing, elevation, distance (on its mast at the end of the breakwater, seen from anywhere);
 //            and how far across the ground its mast's foot is
 //   wardens  those in view (within the view's angle, nothing between): bearing, elevation, distance — nearest first
-//   heard    the last half second's sounds that reach the watchkeeper's ears (xengine.audio.space's `reach`, the rule
+//   heard    the last half second's sounds that reach the watchkeeper's ears (meng.audio.space's `reach`, the rule
 //            the speakers play by and the wardens hear by): what, bearing, level at the ears, walls on the way
 //   lookouts (the second night) the searchlights' lamps in view, and whether the beam is on the watchkeeper
 //   fuses    (the second night) the fuse boxes the beacon's power runs through: bearing, distance, across, whether on
@@ -19,7 +19,7 @@
 export module omui.showcase.quay;
 
 import std;
-export import xengine.runtime;
+export import meng.runtime;
 export import omui.showcase.quay.sim;
 
 export namespace quay {
@@ -38,7 +38,7 @@ struct Play {
     static constexpr std::int32_t steps_per_second = quay::steps_per_second;
     static void step(State& state, const Input& input) { quay::step(state, input); }
     [[nodiscard]] static std::uint64_t checksum(const State& state) noexcept { return quay::checksum(state); }
-    static void play(Input& input, const xengine::Actions& actions) { input.player = actions; }
+    static void play(Input& input, const meng::Actions& actions) { input.player = actions; }
     [[nodiscard]] static bool over(const State& state) noexcept { return state.outcome != Outcome::playing; }
     [[nodiscard]] static std::string observe(const State& state, bool full) { return quay::observe(state, full); }
     static constexpr std::string_view about =
@@ -50,7 +50,7 @@ struct Play {
         "and the beacon has no power until both fuse boxes are switched on (`use` within 1.6 m, half a second each). A person is shown only what "
         "the watchkeeper sees and hears: bearings to the right are positive, in degrees";
     // What the controls mean (D-186): `world.state` lists them, `find` answers "shoot".
-    static constexpr std::array<xengine::runtime::Control, 12> controls{{
+    static constexpr std::array<meng::runtime::Control, 12> controls{{
         {.name = "walk-forward", .summary = "Walk the way the watchkeeper faces", .axis = 1, .toward = 1},
         {.name = "walk-back", .summary = "Walk backward", .axis = 1, .toward = -1},
         {.name = "strafe-right", .summary = "Step sideways to the right", .axis = 0, .toward = 1},
@@ -64,14 +64,14 @@ struct Play {
         {.name = "use", .summary = "Work the beacon within 2.2 m (a second's work lights it), or a fuse box within 1.6 m (half a second switches it on)", .button = use_button},
         {.name = "run", .summary = "Run while walking: quicker, harder to hit, and heard further", .button = run_button},
     }};
-    static constexpr std::array<xengine::runtime::Move, 2> look_around{{{.hold = {"turn-right"}, .steps = 145}, {.steps = 12}}};
-    static constexpr std::array<xengine::runtime::Move, 2> walk_on{{{.hold = {"walk-forward"}, .steps = 90}, {.steps = 12}}};
-    static constexpr std::array<xengine::runtime::Task, 2> tasks{{
+    static constexpr std::array<meng::runtime::Move, 2> look_around{{{.hold = {"turn-right"}, .steps = 145}, {.steps = 12}}};
+    static constexpr std::array<meng::runtime::Move, 2> walk_on{{{.hold = {"walk-forward"}, .steps = 90}, {.steps = 12}}};
+    static constexpr std::array<meng::runtime::Task, 2> tasks{{
         {"look-around", "Turn a full circle where the watchkeeper stands and see what is in view on the way back", look_around},
         {"walk-on", "Walk on a second and a half the way the watchkeeper faces, and see what is ahead", walk_on},
     }};
 };
 
-using Standalone = xengine::runtime::Runtime<Play>;
+using Standalone = meng::runtime::Runtime<Play>;
 
 }  // namespace quay

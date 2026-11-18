@@ -9,7 +9,7 @@ namespace {
 
 namespace math = mlibs::math;
 namespace det = mlibs::math::det;
-namespace space = xengine::audio::space;
+namespace space = meng::audio::space;
 
 constexpr double degrees = 180 / 3.14159265358979323846;
 constexpr float heard_from = -60;  // dB at the ears: the faintest a person picks out of the rain

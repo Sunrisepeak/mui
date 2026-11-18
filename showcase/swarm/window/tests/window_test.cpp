@@ -45,14 +45,14 @@ UTest cases{"swarm.window", [] {
     "the picture of a state: the player, its gun, the enemies and bullets where the state has them; the same state, the same bytes"_test = [] {
         // The first wave closing in from the east, the gun aimed at it and firing (the game's own first task).
         swarm::State state = swarm::start();
-        xengine::Actions firing;
+        meng::Actions firing;
         firing.held = 1u << swarm::shoot_button;
         std::tie(firing.pointer_x, firing.pointer_y) = swarm::pointer_at({swarm::arena_width, swarm::arena_height / 2});
         for (int step = 0; step < 150; ++step) swarm::step(state, {firing});
         std::size_t enemies = 0, bullets = 0;
         swarm::Vec2 enemy_at{}, bullet_at{};
-        state.field.each<swarm::Body, swarm::Enemy>([&](xengine::Entity, const swarm::Body& body, const swarm::Enemy&) { ++enemies, enemy_at = body.at; });
-        state.field.each<swarm::Body, swarm::Bullet>([&](xengine::Entity, const swarm::Body& body, const swarm::Bullet&) { ++bullets, bullet_at = body.at; });
+        state.field.each<swarm::Body, swarm::Enemy>([&](meng::Entity, const swarm::Body& body, const swarm::Enemy&) { ++enemies, enemy_at = body.at; });
+        state.field.each<swarm::Body, swarm::Bullet>([&](meng::Entity, const swarm::Body& body, const swarm::Bullet&) { ++bullets, bullet_at = body.at; });
         expect(fatal(enemies > 0 && bullets > 0)) << std::format("{} enemies, {} bullets", enemies, bullets);
 
         const auto frame = drawn(state);

@@ -1,7 +1,7 @@
 # The breakout as a game on its own (D-162):
 #   src/sim       its deterministic simulation: swept balls with spin, circuits, capacitors and beams, kickers, cores,
 #                 chains and sparks, gifts; a pure step over plain data, rewindable.
-#   src/headless  the simulation as xengine.runtime plays it — stepped without omui, found and played by an agent
+#   src/headless  the simulation as meng.runtime plays it — stepped without omui, found and played by an agent
 #                 through the agent kernel.
 # Each keeps its module (import omui.showcase.widget_breakout.sim; …). The showcase (the package above) shows and
 # plays the same simulation in omui; nothing here knows it.
@@ -27,9 +27,9 @@ sources  = ["src/*/*.cppm", "src/*/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-xengine.runtime = { path = "../../../modules/projects/xengine/game/runtime" }
-xengine.input   = { path = "../../../modules/projects/xengine/game/input" }
-xengine.world   = { path = "../../../modules/projects/xengine/game/world" }
+meng.runtime = { path = "../../../modules/projects/meng/game/runtime" }
+meng.input   = { path = "../../../modules/projects/meng/game/input" }
+meng.world   = { path = "../../../modules/projects/meng/game/world" }
 mlibs.dynamics   = { path = "../../../modules/base/dynamics" }
 mlibs.simulation = { path = "../../../modules/base/simulation" }
 mlibs.math      = { path = "../../../modules/base/math" }

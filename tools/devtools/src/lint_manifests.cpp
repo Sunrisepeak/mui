@@ -21,8 +21,8 @@ constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".claude", 
 // so one project may span layers (hanim.core is base, hanim is gfx). A layer may depend on the layers
 // listed for it (path dependencies in [dependencies] and target dependencies).
 //
-// The independent components (mlibs, hanim, xrender, xengine's kernels below the UI) know nothing of omui
-// (D-55); omui never depends on the game layer (xengine/game, D-161); gongfu's core depends on the standard
+// The independent components (mlibs, hanim, xrender, meng's kernels below the UI) know nothing of omui
+// (D-55); omui never depends on the game layer (meng/game, D-161); gongfu's core depends on the standard
 // library alone, so that it can leave the repository unchanged, and the rest of gongfu on no UI.
 constexpr std::pair<std::string_view, std::string_view> path_layers[]{
     // mlibs: the layer groups
@@ -39,17 +39,17 @@ constexpr std::pair<std::string_view, std::string_view> path_layers[]{
     {"modules/projects/xrender", "gfx"},
     {"modules/projects/xrender/text", "content"},  // text as the renderer draws it: above mlibs.text
     {"modules/base/dynamics", "base"},  // the solver core (hanim and the engine use it, D-133, D-231)
-    {"modules/projects/xengine/kernel/dynamics", "base"},  // the engine's families on it (cellular and matter use them)
-    {"modules/projects/xengine/kernel/cellular", "base"},  // its CPU part
-    {"modules/projects/xengine/kernel/cellular/rhi", "gfx"},
-    {"modules/projects/xengine/kernel/cellular/present", "gfx"},  // cells to an xrender image
-    {"modules/projects/xengine/kernel/audio", "media"},
-    {"modules/projects/xengine/kernel/video", "media"},
-    {"modules/projects/xengine/kernel/matter", "base"},     // materials, their states and laws (D-165)
-    {"modules/projects/xengine/kernel/particles", "base"},  // things that fly in 3D, a carrier of matter (D-166)
-    {"modules/projects/xengine/kernel/field", "base"},      // the air and its wind, a carrier of matter (M6.5 T5.2)
-    {"modules/projects/xengine/kernel/matter/lab", "gfx"},  // the material lab: the lattice's presenter and the renderer's frame
-    {"modules/projects/xengine/game", "game"},              // above the interface: world, input, net, ui (the bridge), runtime
+    {"modules/projects/meng/kernel/dynamics", "base"},  // the engine's families on it (cellular and matter use them)
+    {"modules/projects/meng/kernel/cellular", "base"},  // its CPU part
+    {"modules/projects/meng/kernel/cellular/rhi", "gfx"},
+    {"modules/projects/meng/kernel/cellular/present", "gfx"},  // cells to an xrender image
+    {"modules/projects/meng/kernel/audio", "media"},
+    {"modules/projects/meng/kernel/video", "media"},
+    {"modules/projects/meng/kernel/matter", "base"},     // materials, their states and laws (D-165)
+    {"modules/projects/meng/kernel/particles", "base"},  // things that fly in 3D, a carrier of matter (D-166)
+    {"modules/projects/meng/kernel/field", "base"},      // the air and its wind, a carrier of matter (M6.5 T5.2)
+    {"modules/projects/meng/kernel/matter/lab", "gfx"},  // the material lab: the lattice's presenter and the renderer's frame
+    {"modules/projects/meng/game", "game"},              // above the interface: world, input, net, ui (the bridge), runtime
     {"modules/projects/gongfu", "gongfu"},
     {"modules/projects/omui", "ui"},
     {"modules/projects/omui/host", "host"},
@@ -118,7 +118,7 @@ const std::vector<Allowed>& layer_rules() {
 // may depend on. Test dependencies count: a project whose tests need a project above it could not be built
 // alone. mlibs (the bottom) and the specification are fixed; every project under modules/projects/ says who
 // it is in its identity (<name>.project.xdef.ts, read as its snapshot): the projects it may depend on, and
-// the parts of it that sit lower (xengine's kernels, gongfu's core). The longest path prefix that holds a
+// the parts of it that sit lower (meng's kernels, gongfu's core). The longest path prefix that holds a
 // member names its project; consumers (tools, the site, showcases, examples, tests, entries) are free.
 std::string list_of(const auto& names);
 
@@ -132,8 +132,8 @@ struct Pending {
 constexpr std::array<Pending, 0> pending_cuts{};
 
 struct ProjectPart {
-    std::string path;  // "modules/projects/xengine/kernel/matter"
-    std::string name;  // "xengine.sim"
+    std::string path;  // "modules/projects/meng/kernel/matter"
+    std::string name;  // "meng.sim"
     std::size_t tier = 0;  // its index in `tiers`
     bool exact = false;  // that member alone
     std::set<std::string> may;

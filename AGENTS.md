@@ -12,14 +12,14 @@
 | `omui` | 用一棵语义树同时驱动像素、强动画、无障碍、Agent 和测试的 UI 框架（动画由 hanim 提供） | `modules/projects/omui`（含 `components/`、`lang/`、`sdk/`、`templates/`） |
 | `hanim` | 可组合、Agent 原生的高级动画引擎，同一套能力支撑 UI 动画、视频和游戏动画；**唯一的通用动画能力归属** | `modules/projects/hanim` |
 | `xrender` | CPU 与 GPU 同源、Web 优先、像素可供 Agent 审查的渲染引擎（内部代号） | `modules/projects/xrender` |
-| `xengine`（对外名 **meng**，D-234） | 人和 Agent 地位对等地开发与游玩的 Agent 原生游戏引擎系统（`xengine` 是内部代号，对外叫 meng／meng engine，改名在实施方案的 A8 一次完成）；omui 是它的 UI 框架并可独立使用；也容纳暂时不好分类、还不够独立的领域能力 | `modules/projects/xengine`：`kernel/`（UI 之下的引擎内核：模拟、媒体）与 `game/`（UI 之上的游戏层） |
+| `meng`（D-234） | 人和 Agent 地位对等地开发与游玩的 Agent 原生游戏引擎系统（对外叫 meng／meng engine，原内部代号 xengine，实施方案 A8 一次改完）；omui 是它的 UI 框架并可独立使用；也容纳暂时不好分类、还不够独立的领域能力 | `modules/projects/meng`：`kernel/`（UI 之下的引擎内核：模拟、媒体）与 `game/`（UI 之上的游戏层） |
 | `gongfu` | 确定性、可回滚、角色即数据的格斗游戏框架 | `modules/projects/gongfu` |
 | `mlibs` | 与领域无关的通用库、**纯抽象接口**（如 `mlibs.rhi`）和通用工具链（如 `mlibs.shader`） | `modules/{base,gfx,content}` |
 | `mlibs.utils` | 还不够独立成库的小工具，按目录放在 `src/<工具>/`，复杂到一定程度再拆成独立库 | `modules/base/utils` |
 | 作品 | 官网、展示、示例：**验证线** | `site`、`showcase`、`examples` |
 
 - **`modules/` 分两类目录**，每个分组目录都有 README 说明定位和准入：层级分组（`base`／`gfx`／`content`，放 mlibs）；成熟项目（`projects/`，放成熟、复杂、可独立成项目／仓库级别的品牌，品牌内部再容纳尚未毕业的子系统）。**进入 `projects/` 必须能用一句话说清楚它是什么，并有几项明确的、业界领先或面向未来设计的标志性特性**；一句话定义写在项目 README 第一行，特性附对照证据或真实任务演示。判定：通用的放 mlibs，具体实现归所属品牌。
-- **毕业**：xengine 子系统或 mlibs 库满足“有标志性特性、至少 2 个独立消费者、API v1 冻结、有 ops／skill、CTS、文档、基准”后，可以拥有自己的品牌，成为 `modules/projects/` 下的独立项目；拿不出有证据的标志性特性的，留在 xengine 或 mlibs。
+- **毕业**：meng 子系统或 mlibs 库满足“有标志性特性、至少 2 个独立消费者、API v1 冻结、有 ops／skill、CTS、文档、基准”后，可以拥有自己的品牌，成为 `modules/projects/` 下的独立项目；拿不出有证据的标志性特性的，留在 meng 或 mlibs。
 - **包的身份就是主要模块名**（`omui.core` ↔ `import omui.core;`）；**路径就是包名**（叶子目录 = 包名最后一段，lint `layout`）；按角色命名，不按实现命名；不用裸的 `mui`。
 - **不留兼容层**：内部开发阶段，改名和 API 调整一次改完，不保留转发入口和旧别名（lint `legacy-import`）。M1 已完成命名与目录迁移：omui 的包是 `omui.*`，`openmui` 只指规范（包 `openlifa.openmui`、模块 `openmui.spec`）。**公开名按层面取**：属于规范层面的（协议与格式标识、C ABI、规范 stubs 定义的脚本 API：`import openmui`、`openmui:native/*`、规范定义的数据格式 `openmui/define`）用 `openmui`；具体实现、非规范层面的（包、C++ 模块、命令行、工具、实现层的脚本导入 `omui/define`、`omui`）用 `omui`。只依赖 `openmui` 的脚本可移植；组件都从 `openmui` 导入，可移植性按组件来源由工具检查（D-157）。
 - 保持不变的外部契约：协议字段、schema、`[package.metadata.openmui]`、`spec/include/openmui.h`、C ABI 的 `omui*`／`OMUI_*`、命令行 `omui`、数据文件后缀。
@@ -53,11 +53,11 @@
 6. **一切皆插件，管线可编排**（D-65、D-66）。核心只规定模型、数据契约和管线；插件按阶段或按批调用，不按节点或像素调用；每类插件都有 CTS、trace 和日志类别。一致性测试统一用 `mlibs.cts` 框架，套件放在契约 owner 处，结果分为通过／失败／不支持（不可用永远不算通过）。控制请求不进入逐像素或逐采样的热循环。
 7. **确定性与可观测。** 纯动画是时间的函数；有状态的部分走显式模拟、checkpoint 和重放；新子系统要有 trace、日志和基准预算（`tests/bench`）。
 8. **体系分五层，每个引擎不输本领域最好的**（D-161–D-177，[底层架构综合方案](.agents/docs/2026-11-12-foundation-omui-xengine-emergent-world-design.md)；按 M6.0–M6.5 落地）。
-   - **五层，项目之间也无环**：mlibs（含 Agent 内核）← 引擎内核（xrender、hanim、`xengine/kernel`）← omui ← `xengine/game` ← 类型框架与作品（lint `project-dag`）。omui 只是其中一层，可以独立成项目；xengine 复用它做 UI。
-   - **各有其主**：游戏归引擎，不依赖 omui，可以无头运行；全部渲染（含图层合成、呈现、离屏与截图）归 xrender，引擎和 omui 都只描述内容；窗口、输入与 UI 归 omui；同时认识引擎和 omui 的只有桥 `xengine.ui`。
+   - **五层，项目之间也无环**：mlibs（含 Agent 内核）← 引擎内核（xrender、hanim、`meng/kernel`）← omui ← `meng/game` ← 类型框架与作品（lint `project-dag`）。omui 只是其中一层，可以独立成项目；meng 复用它做 UI。
+   - **各有其主**：游戏归引擎，不依赖 omui，可以无头运行；全部渲染（含图层合成、呈现、离屏与截图）归 xrender，引擎和 omui 都只描述内容；窗口、输入与 UI 归 omui；同时认识引擎和 omui 的只有桥 `meng.ui`。
    - **Agent 原生是底层架构**：每个引擎从数据模型起提供状态、观察、控制、时间、因果、身份与授权六个原语；Agent 内核 `mlibs.agent` 在所有引擎之下；八个原生性质由契约 CTS 在每个主体上检查；新的引擎和模块先写 README 的“Agent 面”，再写实现（lint `agent-surface`）。
-   - **物理管运动，化学管状态**：`xengine.matter` 的规律只引用性质，不点名材料（lint `matter`）；同一份规则跑在格点、物体、粒子、环境场上；物体只声明材料与状态，表现由配方决定。
-   - **世界法则可以发明**（D-180–D-183）：规则系统就是 `xengine.matter`，不另起引擎；新法则是数据（性质、通道、规律，含“运动”规律与场），定义可以叠加成包；作品只放置与施加量，不直接把一种材料换成另一种；每个引擎（含 audio）随带自己的标准库，声音与外观一样由事件与性质自然发生。
+   - **物理管运动，化学管状态**：`meng.matter` 的规律只引用性质，不点名材料（lint `matter`）；同一份规则跑在格点、物体、粒子、环境场上；物体只声明材料与状态，表现由配方决定。
+   - **世界法则可以发明**（D-180–D-183）：规则系统就是 `meng.matter`，不另起引擎；新法则是数据（性质、通道、规律，含“运动”规律与场），定义可以叠加成包；作品只放置与施加量，不直接把一种材料换成另一种；每个引擎（含 audio）随带自己的标准库，声音与外观一样由事件与性质自然发生。
    - **CPU 与 GPU 是同一份契约的两条路径**（D-184）：CPU 是确定的参考，GPU 是同一份内核的另一个目标；权威状态只有逐位一致时才上 GPU；射线查询归 `mlibs.geom`、批量追踪归 `mlibs.compute`、光线追踪的渲染归 xrender，不另起引擎；有 GPU 时每个可加速特性的阶梯有明确的最高一级，给出更高的细节与质量，玩法不变。
    - **水平目标**：先求超越，持平是低线（第 10 条，D-185）；没有实测数据的不算持平。
    - **顶尖的独立中间件优先复用**（mwrap），放在唯一 owner 之下、我们的契约之下；Agent 契约与确定性是硬约束，过不了才自研，自研以它的基准为低线。
@@ -80,7 +80,7 @@
 
 ## 3. 架构与依赖
 
-- **依赖只能向下**（lint `layering`）：`base`（含 `hanim.core`：只依赖标准库和 `mlibs` 的 math、utils、memory、geom）← `gfx`（含 `hanim`、`xrender`）← `content` ← `media` ← `spec` ← `ui`（omui）← `components` ← xengine 游戏层（`xengine/game`）← 作品。UI 永远不依赖游戏层；`spec/` 只依赖标准库；除 omui 及其上层外，引擎和库都不依赖 UI；`projects/` 中的项目随时可以拆成独立仓库（D-55），所以项目之间也不成环，测试依赖也算（lint `project-dag`：xrender ← `xengine/kernel` 的模拟内核 ← hanim ← `xengine/kernel` 的媒体内核 ← omui ← `xengine/game`）。
+- **依赖只能向下**（lint `layering`）：`base`（含 `hanim.core`：只依赖标准库和 `mlibs` 的 math、utils、memory、geom）← `gfx`（含 `hanim`、`xrender`）← `content` ← `media` ← `spec` ← `ui`（omui）← `components` ← meng 游戏层（`meng/game`）← 作品。UI 永远不依赖游戏层；`spec/` 只依赖标准库；除 omui 及其上层外，引擎和库都不依赖 UI；`projects/` 中的项目随时可以拆成独立仓库（D-55），所以项目之间也不成环，测试依赖也算（lint `project-dag`：xrender ← `meng/kernel` 的模拟内核 ← hanim ← `meng/kernel` 的媒体内核 ← omui ← `meng/game`）。
 - **名字表示归属，目录表示分组，层级由 lint 的“路径 → 层”映射表判定**：一个项目的包可以跨层（例如 `hanim.core` 在 base 层，`hanim` 在 gfx 层）。
 - **动画**：组件不写动画（D-93，lint `motion`），只画状态和可选的部件名；变化怎么动由节点的 motion 槽和风格包配方决定，由 hanim 统一求值。UI 框架负责身份、语义、呈现和命中一致性。每个宿主只有一个 hanim Engine。表示与选择策略见[多表示方案](.agents/docs/2026-11-05-hanim-representations-selection-policy-design.md)。画布相机飞行这类导航运动是例外，需在行内写 `MOTION-OK:` 和理由。
 - **界面全平台自绘**（D-140）：窗口和系统集成面（边框、菜单栏、托盘、通知、文件对话框）可选原生或自绘，界面内容一律自绘；webview 只作可选的外部表面组件，不做 Web 前端模式（D-141）。
@@ -140,7 +140,7 @@
 - **够不上自己标准的模块照样进发布，标为实验**（D-199）：顶级目标保留；门槛是一级平台能构建、一条无头验证、README 的“实验”节写明目标、差距、局限与毕业条件。稳定级不依赖预览与实验级（lint `maturity`）。
 - **验证状态如实标注**（D-201）：每个平台的每项能力是 实机／软件／未验证／不支持 之一，记在 `docs/release.platforms.xdef.json`；没有实机的按契约把理论上能做的做好，标“未验证”——它不算通过、不算红、不作证据、不挡发布，标之前先查根因。
 - **开发策略**（D-200）：核心功能优先；检查点的验证放后台、只跑触及的范围；**CI 的全量通过只在阶段节点与发布候选上验证**（后台取回），节点之间红灯记入清单、按根因修、不阻塞；子 Agent 最多一个；上游构建工具的故障挡住全量时用替代跑法（成员与用例的全集不变）并写明原因与恢复条件，门不改（D-210）。一级平台：Linux x64、Web、macOS arm64、Windows x64；二级：Linux arm64、Android（D-191）。
-- **推进与记录**（D-202）：功能沿切片纵向推进（3D 世界 → 2D 世界 → 应用 → Agent → 实验模块），收口沿层次横向自下而上（mlibs → xrender → hanim → omui → xengine → 作品）；节点记九个计数器（第九个是跨层接口改动数：一次提交同时改了一层的导出接口和另一层的成员，D-231）。STATUS 按两波分节，第二波成员的失败照记照修、不计入第一波的门；一个任务在 STATUS 只有一行（≤ 600 字符，带证据指针），分几步提交时各步写在提交正文；本地领先远端不超过约 10 个检查点，一轮 CI 对账之前不开新任务，另一个 worktree 的提交在任务结束时合回（D-210）；提交主题行 ≤ 100 字符；节点记录 ≤ 12 行；对外的数字与“领先”必须在声明台账 `docs/release.claims.xdef.json` 里有证据（D-193）。
+- **推进与记录**（D-202）：功能沿切片纵向推进（3D 世界 → 2D 世界 → 应用 → Agent → 实验模块），收口沿层次横向自下而上（mlibs → xrender → hanim → omui → meng → 作品）；节点记九个计数器（第九个是跨层接口改动数：一次提交同时改了一层的导出接口和另一层的成员，D-231）。STATUS 按两波分节，第二波成员的失败照记照修、不计入第一波的门；一个任务在 STATUS 只有一行（≤ 600 字符，带证据指针），分几步提交时各步写在提交正文；本地领先远端不超过约 10 个检查点，一轮 CI 对账之前不开新任务，另一个 worktree 的提交在任务结束时合回（D-210）；提交主题行 ≤ 100 字符；节点记录 ≤ 12 行；对外的数字与“领先”必须在声明台账 `docs/release.claims.xdef.json` 里有证据（D-193）。
 - **发布分两波**（D-222–D-229）：第一波是 omui 与基础层，以品质为目标；第二波是 meng。第一波另加三条门：体积与内存的预算、并排基准没有“落后”、默认集合之外的组合各有一条冒烟。任务与依赖见[实施方案](.agents/docs/2026-11-18-omui-meng-implementation-plan.md)；依赖三层只许向下，由 lint `project-dag` 按各项目身份里的 `tier` 检查（测试依赖与 feature 也算）。
 - **状态按三类写**（D-219）：已做；确定可做、未做（写明等什么）；需要设计或有风险。没做不等于做不了。
 - **发布门**全部机械可查（方案 §8）：一级平台连续两轮全绿、lint 0、收口清单、D-187 实测、四个开发者体验数（D-195）、三个 Agent 冷启动任务（D-192）、声明重跑、模板与例子从发布物构建。

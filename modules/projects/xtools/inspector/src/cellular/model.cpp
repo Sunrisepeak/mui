@@ -3,13 +3,13 @@ import std;
 import omui;
 import mlibs.hash;
 import mlibs.simulation;
-import xengine.cellular;
-import xengine.cellular.present;
+import meng.cellular;
+import meng.cellular.present;
 
 namespace xtools::inspector::cellular {
 
 using namespace omui;  // the framework it is written in
-namespace ca = xengine::cellular;
+namespace ca = meng::cellular;
 namespace {
 constexpr std::uint32_t max_values = 16384;
 const Value missing;

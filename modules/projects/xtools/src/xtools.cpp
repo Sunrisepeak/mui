@@ -41,9 +41,9 @@ int run(std::span<const std::string> argv, std::istream& in, std::ostream& out, 
     hanim::timeline::tool::Timelines timelines;
     xrender::tool::Renderer renderer(argv.empty() ? std::filesystem::path{} : mcpplibs::os::fs::from_utf8(argv.front()));
     gongfu::studio::Studio fighters;
-    // Films are xengine.video's toolkit, with omui's sources (a view's frames, its data kinds), composed here (films.cpp).
+    // Films are meng.video's toolkit, with omui's sources (a view's frames, its data kinds), composed here (films.cpp).
     const std::unique_ptr<mlibs::agent::Subject> films = xtools::films();
-    xtools::audition::Audition audition;  // a timeline's gain heard and seen: hanim, xengine.audio and omui together
+    xtools::audition::Audition audition;  // a timeline's gain heard and seen: hanim, meng.audio and omui together
     const std::vector<std::pair<std::string_view, mlibs::agent::Subject*>> toolkits{
         {"hanim", &documents}, {"hanim-timeline", &timelines}, {"xrender", &renderer}, {"gongfu-studio", &fighters}, {"video", films.get()}, {"audition", &audition}};
     if (!given.empty()) {

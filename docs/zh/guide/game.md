@@ -8,7 +8,7 @@
 
 一个游戏是一个类型：它的状态、输入、一步、给玩家看的东西。下面是运行时自己测试里的一个小游戏，一条线上的追逐：
 
-<!-- code: modules/projects/xengine/game/runtime/tests/runtime_test.cpp#chase -->
+<!-- code: modules/projects/meng/game/runtime/tests/runtime_test.cpp#chase -->
 ```cpp
 // The player walks a line after a mark that jumps when reached; five catches end it.
 struct Chase {
@@ -18,7 +18,7 @@ struct Chase {
         std::uint64_t rng = 0x9e3779b97f4a7c15ull;
     };
     struct Input {
-        xengine::Actions player{};
+        meng::Actions player{};
     };
     static constexpr std::int32_t steps_per_second = 120;
     static void step(State& state, const Input& input) {
@@ -44,7 +44,7 @@ struct Chase {
         if (full) out += std::format(",\"rng\":\"{:016x}\"", state.rng);
         return out + "}";
     }
-    static void play(Input& input, const xengine::Actions& actions) { input.player = actions; }
+    static void play(Input& input, const meng::Actions& actions) { input.player = actions; }
     static bool over(const State& state) noexcept { return state.caught >= 5; }
     // What the game says of itself: what its controls mean, and a task to begin with.
     static constexpr std::string_view about = "A chase on a line: walk onto the mark and it jumps elsewhere; five catches end the game";
@@ -55,7 +55,7 @@ struct Chase {
 };
 ```
 
-由 `xengine::runtime::Runtime<Chase>`（`import xengine.runtime;`）运行。写成这样，下面这些就都有了，不用另做：
+由 `meng::runtime::Runtime<Chase>`（`import meng.runtime;`）运行。写成这样，下面这些就都有了，不用另做：
 
 - **回放与倒带**：每一步的输入被记下，任何一帧都能回去。
 - **分叉**：复制状态往前试，不影响正在玩的这一局。
@@ -86,7 +86,7 @@ Agent 以什么身份玩由你决定：**人的档位**只看得到人看得到�
 
 ## 有窗口的游戏
 
-窗口、输入、界面归 omui；游戏和界面在一座桥（`xengine.ui`）上相接：游戏照常走自己的步，界面读它的状态来画。HUD、菜单、设置就是普通的 omui 界面。
+窗口、输入、界面归 omui；游戏和界面在一座桥（`meng.ui`）上相接：游戏照常走自己的步，界面读它的状态来画。HUD、菜单、设置就是普通的 omui 界面。
 
 ## 出了问题怎么办
 

@@ -12,6 +12,7 @@ export namespace omui::devtools::rename {
 struct Plan {
     std::vector<std::pair<std::string, std::size_t>> edits;    // a file and how many times the name is in it
     std::vector<std::pair<std::string, std::string>> moves;    // a tracked path and where it goes
+    std::vector<std::string> kept_names;  // the record's file names that hold the name: a text naming them keeps them
 };
 
 // What renaming `from` to `to` changes (both a code name: lowercase letters and digits, a letter first), or why not.
@@ -19,6 +20,7 @@ struct Plan {
 // The plan carried out: every edit written, every path moved (git mv).
 [[nodiscard]] std::expected<void, std::string> apply(const std::filesystem::path& root, const Plan& plan, std::string_view from, std::string_view to);
 // `text` with every whole-word `from` as `to` (a word: letters, digits and '_' on neither side).
-[[nodiscard]] std::string renamed(std::string_view text, std::string_view from, std::string_view to, std::size_t* count = nullptr);
+[[nodiscard]] std::string renamed(std::string_view text, std::string_view from, std::string_view to, std::size_t* count = nullptr,
+                                  std::span<const std::string> kept_names = {});
 
 }  // namespace omui::devtools::rename

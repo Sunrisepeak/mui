@@ -11,7 +11,7 @@
 import std;
 import omui;
 import hanim.timeline;
-import xengine.audio;
+import meng.audio;
 import mlibs.testing;
 import mcpplibs.mtest;
 import omui.showcase.promo_video;
@@ -66,9 +66,9 @@ UTest cases{"showcase.promo_video", [] {
         expect(eq(short_cut.frames(), std::int64_t{900}));
         expect(main.picture >= 0 && main.subtitles >= 0 && main.sfx >= 0) << "picture, subtitles and sfx tracks";
         expect(film().subtitles.lines.size() >= 11) << std::format("{} lines", film().subtitles.lines.size());
-        auto music = xengine::audio::read_music(*film().files.read("music/promo.music.xdef.json"), "promo.music.xdef.json");
+        auto music = meng::audio::read_music(*film().files.read("music/promo.music.xdef.json"), "promo.music.xdef.json");
         expect(music.has_value() && music->tempo == 120) << "the score reads, at 120 a minute";
-        auto sounds = xengine::audio::read_sounds(*film().files.read("sounds/promo.sound.xdef.json"), "promo.sound.xdef.json");
+        auto sounds = meng::audio::read_sounds(*film().files.read("sounds/promo.sound.xdef.json"), "promo.sound.xdef.json");
         expect(sounds.has_value() && sounds->size() >= 12) << "the sounds read";
         // What every shot name and clip is: each shot made for its clip.
         promo::Player p(film(), main, {.scale = 0.25f, .fonts = &fonts(), .parallel_raster = false});
@@ -108,8 +108,8 @@ UTest cases{"showcase.promo_video", [] {
             }
             for (const auto& f : a.findings) expect(false) << std::format("{}: {} (frame {})", f.check, f.what, f.frame);
             // The sound pinned: the same samples everywhere.
-            std::println("    {:<6} sound {} ({} cues)", name, hex(xengine::audio::hash(track->samples)), track->cues.size());
-            expect(eq(hex(xengine::audio::hash(track->samples)), std::string(name == "promo" ? "f9212248a92864fb" : "2a0ac1746305206f")));
+            std::println("    {:<6} sound {} ({} cues)", name, hex(meng::audio::hash(track->samples)), track->cues.size());
+            expect(eq(hex(meng::audio::hash(track->samples)), std::string(name == "promo" ? "f9212248a92864fb" : "2a0ac1746305206f")));
         }
     };
 

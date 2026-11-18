@@ -81,7 +81,7 @@ std::expected<State, std::string> start(std::string_view left, std::string_view 
     return state;
 }
 
-gongfu::Pad pad_of(const xengine::Actions& actions) noexcept {
+gongfu::Pad pad_of(const meng::Actions& actions) noexcept {
     constexpr std::int16_t pushed = 16384;  // half way: a stick's dead middle is no direction
     gongfu::Pad pad;
     if (actions.axes[0] <= -pushed) pad.directions |= gongfu::Pad::left;

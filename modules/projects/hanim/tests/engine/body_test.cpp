@@ -1,5 +1,5 @@
 // Simulated bodies (convergence plan §6.8 ⑨ ①②): a part made soft by
-// xengine.simulation's solver, its whole geometry carried by a cage over the
+// meng.simulation's solver, its whole geometry carried by a cage over the
 // body's ring — a ball and a letter with a hole fall, flatten on the ground,
 // bounce and settle, never through it; a hand drags one; the same inputs give
 // the same frames.

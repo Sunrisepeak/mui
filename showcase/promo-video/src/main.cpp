@@ -20,9 +20,9 @@ import mlibs.hash;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import omui;
-import xengine.video;
-import xengine.video.webm;
-import xengine.audio;
+import meng.video;
+import meng.video.webm;
+import meng.audio;
 import hanim.timeline;
 import omui.showcase.promo_video;
 
@@ -30,7 +30,7 @@ namespace {
 
 namespace cmd = mcpplibs::cmdline;
 namespace promo = omui::promo;
-namespace vid = xengine::video;
+namespace vid = meng::video;
 namespace tl = hanim::timeline;
 using omui::Value;
 
@@ -426,10 +426,10 @@ int sound(const cmd::ParsedArgs& p) {
     promo::Player player(l->film, l->cut, l->options);
     auto track = promo::soundtrack(l->film, l->cut, player);
     if (!track) return failed(report, track.error());
-    const auto bytes = xengine::audio::wav(track->samples, track->rate);
+    const auto bytes = meng::audio::wav(track->samples, track->rate);
     if (auto w = mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(*target), std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())); !w)
         return failed(report, w.error().message());
-    report.set("ok", true).set("out", *target).set("cues", static_cast<std::int64_t>(track->cues.size())).set("hash", hex(xengine::audio::hash(track->samples)));
+    report.set("ok", true).set("out", *target).set("cues", static_cast<std::int64_t>(track->cues.size())).set("hash", hex(meng::audio::hash(track->samples)));
     return print(report, 0);
 }
 

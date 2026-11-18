@@ -5,10 +5,10 @@
   "base_commit": "594786929de0844925961f02f39ba90af675b7ab",
   "scope": "N2 renderer ownership, same-package compatibility, actual dependency boundaries and native/Web/source/archive regressions.",
   "migrated_packages": [
-    "xengine.render",
-    "xengine.render.vector",
-    "xengine.render.effect",
-    "xengine.render.cts"
+    "meng.render",
+    "meng.render.vector",
+    "meng.render.effect",
+    "meng.render.cts"
   ],
   "workspace_members": 123,
   "new_or_removed_manifests": 0,
@@ -1456,14 +1456,14 @@
     "ok": true,
     "target_closures": {
       "canonical": {
-        "xengine.render": [
+        "meng.render": [
           "mlibs.hash",
           "mlibs.memory",
           "mlibs.rhi",
           "mlibs.trace",
-          "xengine.render"
+          "meng.render"
         ],
-        "xengine.render.vector": [
+        "meng.render.vector": [
           "hanim.core",
           "mlibs.geom",
           "mlibs.hash",
@@ -1472,10 +1472,10 @@
           "mlibs.raster",
           "mlibs.rhi",
           "mlibs.trace",
-          "xengine.render",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.vector"
         ],
-        "xengine.render.effect": [
+        "meng.render.effect": [
           "hanim.core",
           "marzer.tomlplusplus",
           "mcpplibs.openkal",
@@ -1490,20 +1490,20 @@
           "mlibs.shader",
           "mlibs.trace",
           "nlohmann.json",
-          "xengine.render",
-          "xengine.render.effect",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.effect",
+          "meng.render.vector"
         ]
       },
       "legacy": {
-        "xengine.render": [
+        "meng.render": [
           "mlibs.hash",
           "mlibs.memory",
           "mlibs.rhi",
           "mlibs.trace",
-          "xengine.render"
+          "meng.render"
         ],
-        "xengine.render.vector": [
+        "meng.render.vector": [
           "hanim.core",
           "mlibs.geom",
           "mlibs.hash",
@@ -1512,10 +1512,10 @@
           "mlibs.raster",
           "mlibs.rhi",
           "mlibs.trace",
-          "xengine.render",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.vector"
         ],
-        "xengine.render.effect": [
+        "meng.render.effect": [
           "hanim.core",
           "marzer.tomlplusplus",
           "mcpplibs.openkal",
@@ -1530,20 +1530,20 @@
           "mlibs.shader",
           "mlibs.trace",
           "nlohmann.json",
-          "xengine.render",
-          "xengine.render.effect",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.effect",
+          "meng.render.vector"
         ]
       },
       "mixed": {
-        "xengine.render": [
+        "meng.render": [
           "mlibs.hash",
           "mlibs.memory",
           "mlibs.rhi",
           "mlibs.trace",
-          "xengine.render"
+          "meng.render"
         ],
-        "xengine.render.vector": [
+        "meng.render.vector": [
           "hanim.core",
           "mlibs.geom",
           "mlibs.hash",
@@ -1552,10 +1552,10 @@
           "mlibs.raster",
           "mlibs.rhi",
           "mlibs.trace",
-          "xengine.render",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.vector"
         ],
-        "xengine.render.effect": [
+        "meng.render.effect": [
           "hanim.core",
           "marzer.tomlplusplus",
           "mcpplibs.openkal",
@@ -1570,9 +1570,9 @@
           "mlibs.shader",
           "mlibs.trace",
           "nlohmann.json",
-          "xengine.render",
-          "xengine.render.effect",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.effect",
+          "meng.render.vector"
         ]
       }
     },
@@ -1881,7 +1881,7 @@
         ]
       },
       {
-        "name": "xengine.render",
+        "name": "meng.render",
         "archive": "/home/speak/workspace/mui/modules/gfx/render/target/dist/render-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
         "sha256": "67e51f2be6f149ccc0e067dfc90d5a99dd9b9b3b1bc57b156a526518a2a94c44",
         "archive_bytes": 80445,
@@ -1895,7 +1895,7 @@
         ]
       },
       {
-        "name": "xengine.render.vector",
+        "name": "meng.render.vector",
         "archive": "/home/speak/workspace/mui/modules/gfx/render/vector/target/dist/vector-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
         "sha256": "9e8cd6ff4a82937ece1d09db816ec4ca6310a8c7615b21292803dac9442fde9a",
         "archive_bytes": 781024,
@@ -1935,7 +1935,7 @@
         ]
       },
       {
-        "name": "xengine.render.effect",
+        "name": "meng.render.effect",
         "archive": "/home/speak/workspace/mui/modules/gfx/render/effect/target/dist/effect-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
         "sha256": "c606051cdf252af57085dbf257d5cbaea101940b1345206041caf876da4289e3",
         "archive_bytes": 272405,
@@ -1992,9 +1992,9 @@
           "mlibs.unicode",
           "mlibs.validation.namespace_consumer",
           "nlohmann.json",
-          "xengine.render",
-          "xengine.render.effect",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.effect",
+          "meng.render.vector"
         ],
         "host_only_packages": [
           "mlibs.shader.rules",
@@ -2024,83 +2024,83 @@
             "sha256": "b1b097f9d6a29f7403b49f4876874515e05fdecddaedb209642837dbc632a239"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blend_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/blend_shaders.cppm",
             "sha256": "4a7b752e1d0ec24e2a328a4907b05255b629755a515313f36689675687b226c4"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blur_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/blur_shaders.cppm",
             "sha256": "ed542c3da70cecfefd46c50669368589ba60982f208cc23fdbbc3438bc94c288"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/chromatic_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/chromatic_shaders.cppm",
             "sha256": "7ec4f6436c27b2bcf57f97d3bb3e9676ec3ce81972cae944c8bf737581d8b9d9"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/crt_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/crt_shaders.cppm",
             "sha256": "8277dc152c64c4f1b97095a82e2ecf9febee61e2d352fb3c0d66021aeeb74473"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/displace_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/displace_shaders.cppm",
             "sha256": "32dbfe1e9b526d935f0e588efabf6a333d8b783686575972f900051feb1668d6"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/dissolve_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/dissolve_shaders.cppm",
             "sha256": "6c9eca2d247b185cb8c505541ca1800553aabc63a2529661fd0c2ce5ef966569"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/liquid_glass_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/liquid_glass_shaders.cppm",
             "sha256": "59bfc0cf79440879ebd02670b5f6fe57c0e052ba523177d43832f1fb55f0d32d"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/material_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/material_shaders.cppm",
             "sha256": "026c40fe030380df6c29393a6add625c743882443827700385fe1126af396d0a"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/metaball_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/metaball_shaders.cppm",
             "sha256": "0ca05f2c4f0331cf9b9bb6acb28d71248d0e9de47fef2462f96f8a0d24c86d08"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/neon_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/neon_shaders.cppm",
             "sha256": "14082652c67f9f3e4fd52fd4fbbbdf991ff42cb311d71486c73050a1e3d11d2e"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/noise_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/noise_shaders.cppm",
             "sha256": "a776d1badf8c18c4c9d8036d2665bba1b53226febe9f44eeb1ddee81a7280280"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/paper_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/paper_shaders.cppm",
             "sha256": "7f6a173a0921000661901dd0a338a20f371f7dab1c1b47cf32ea5d2be0b57d6e"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/particles_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/particles_shaders.cppm",
             "sha256": "5d2c4ff86936c36723115575592e4b61c57fd1c4e1398f066567e32d1026a120"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/pixelate_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/pixelate_shaders.cppm",
             "sha256": "6a58d193b9c61288e6c63655b67dcee382b381c2bb7579fbaf629842be80c409"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/quad_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/quad_shaders.cppm",
             "sha256": "f6a206632f87c1b36abd20ef2f0e4096ffa8b8ae65f0e9ffdaf7c99f83b11859"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/reveal_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/reveal_shaders.cppm",
             "sha256": "40201b09ef91d5f357d51865f5bb42cb98520eda6341f259b0d587c764a80de6"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/tone_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/tone_shaders.cppm",
             "sha256": "cffae32f9fb5b021d1a4650e51d9ee3f5e1586bead7a912c40a3c88a524d8b6e"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/ui_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/ui_shaders.cppm",
             "sha256": "3afb7d2eafd8fe34303566d37116e5f72e9f0a9df0ed16c3e677a4356f2f9532"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wipe_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/wipe_shaders.cppm",
             "sha256": "cae8f3bd04142aaab1460952e6fb0425203dad38d4aa3502ef571249f7ee3199"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wobble_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/wobble_shaders.cppm",
             "sha256": "7b820786aa34f0a150539e9563068446e9d2c432837ba70946d5ecb97270cc7c"
           }
         ],
@@ -2154,9 +2154,9 @@
           "mlibs.unicode",
           "mlibs.validation.namespace_consumer",
           "nlohmann.json",
-          "xengine.render",
-          "xengine.render.effect",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.effect",
+          "meng.render.vector"
         ],
         "host_only_packages": [
           "mlibs.shader.rules",
@@ -2186,83 +2186,83 @@
             "sha256": "b1b097f9d6a29f7403b49f4876874515e05fdecddaedb209642837dbc632a239"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blend_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/blend_shaders.cppm",
             "sha256": "4a7b752e1d0ec24e2a328a4907b05255b629755a515313f36689675687b226c4"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blur_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/blur_shaders.cppm",
             "sha256": "ed542c3da70cecfefd46c50669368589ba60982f208cc23fdbbc3438bc94c288"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/chromatic_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/chromatic_shaders.cppm",
             "sha256": "7ec4f6436c27b2bcf57f97d3bb3e9676ec3ce81972cae944c8bf737581d8b9d9"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/crt_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/crt_shaders.cppm",
             "sha256": "8277dc152c64c4f1b97095a82e2ecf9febee61e2d352fb3c0d66021aeeb74473"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/displace_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/displace_shaders.cppm",
             "sha256": "32dbfe1e9b526d935f0e588efabf6a333d8b783686575972f900051feb1668d6"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/dissolve_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/dissolve_shaders.cppm",
             "sha256": "6c9eca2d247b185cb8c505541ca1800553aabc63a2529661fd0c2ce5ef966569"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/liquid_glass_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/liquid_glass_shaders.cppm",
             "sha256": "59bfc0cf79440879ebd02670b5f6fe57c0e052ba523177d43832f1fb55f0d32d"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/material_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/material_shaders.cppm",
             "sha256": "026c40fe030380df6c29393a6add625c743882443827700385fe1126af396d0a"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/metaball_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/metaball_shaders.cppm",
             "sha256": "0ca05f2c4f0331cf9b9bb6acb28d71248d0e9de47fef2462f96f8a0d24c86d08"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/neon_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/neon_shaders.cppm",
             "sha256": "14082652c67f9f3e4fd52fd4fbbbdf991ff42cb311d71486c73050a1e3d11d2e"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/noise_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/noise_shaders.cppm",
             "sha256": "a776d1badf8c18c4c9d8036d2665bba1b53226febe9f44eeb1ddee81a7280280"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/paper_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/paper_shaders.cppm",
             "sha256": "7f6a173a0921000661901dd0a338a20f371f7dab1c1b47cf32ea5d2be0b57d6e"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/particles_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/particles_shaders.cppm",
             "sha256": "5d2c4ff86936c36723115575592e4b61c57fd1c4e1398f066567e32d1026a120"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/pixelate_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/pixelate_shaders.cppm",
             "sha256": "6a58d193b9c61288e6c63655b67dcee382b381c2bb7579fbaf629842be80c409"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/quad_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/quad_shaders.cppm",
             "sha256": "f6a206632f87c1b36abd20ef2f0e4096ffa8b8ae65f0e9ffdaf7c99f83b11859"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/reveal_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/reveal_shaders.cppm",
             "sha256": "40201b09ef91d5f357d51865f5bb42cb98520eda6341f259b0d587c764a80de6"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/tone_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/tone_shaders.cppm",
             "sha256": "cffae32f9fb5b021d1a4650e51d9ee3f5e1586bead7a912c40a3c88a524d8b6e"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/ui_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/ui_shaders.cppm",
             "sha256": "3afb7d2eafd8fe34303566d37116e5f72e9f0a9df0ed16c3e677a4356f2f9532"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wipe_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/wipe_shaders.cppm",
             "sha256": "cae8f3bd04142aaab1460952e6fb0425203dad38d4aa3502ef571249f7ee3199"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wobble_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/wobble_shaders.cppm",
             "sha256": "7b820786aa34f0a150539e9563068446e9d2c432837ba70946d5ecb97270cc7c"
           }
         ],
@@ -2316,9 +2316,9 @@
           "mlibs.unicode",
           "mlibs.validation.namespace_consumer",
           "nlohmann.json",
-          "xengine.render",
-          "xengine.render.effect",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.effect",
+          "meng.render.vector"
         ],
         "host_only_packages": [
           "mlibs.shader.rules",
@@ -2348,83 +2348,83 @@
             "sha256": "b1b097f9d6a29f7403b49f4876874515e05fdecddaedb209642837dbc632a239"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blend_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/blend_shaders.cppm",
             "sha256": "4a7b752e1d0ec24e2a328a4907b05255b629755a515313f36689675687b226c4"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blur_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/blur_shaders.cppm",
             "sha256": "ed542c3da70cecfefd46c50669368589ba60982f208cc23fdbbc3438bc94c288"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/chromatic_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/chromatic_shaders.cppm",
             "sha256": "7ec4f6436c27b2bcf57f97d3bb3e9676ec3ce81972cae944c8bf737581d8b9d9"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/crt_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/crt_shaders.cppm",
             "sha256": "8277dc152c64c4f1b97095a82e2ecf9febee61e2d352fb3c0d66021aeeb74473"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/displace_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/displace_shaders.cppm",
             "sha256": "32dbfe1e9b526d935f0e588efabf6a333d8b783686575972f900051feb1668d6"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/dissolve_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/dissolve_shaders.cppm",
             "sha256": "6c9eca2d247b185cb8c505541ca1800553aabc63a2529661fd0c2ce5ef966569"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/liquid_glass_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/liquid_glass_shaders.cppm",
             "sha256": "59bfc0cf79440879ebd02670b5f6fe57c0e052ba523177d43832f1fb55f0d32d"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/material_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/material_shaders.cppm",
             "sha256": "026c40fe030380df6c29393a6add625c743882443827700385fe1126af396d0a"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/metaball_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/metaball_shaders.cppm",
             "sha256": "0ca05f2c4f0331cf9b9bb6acb28d71248d0e9de47fef2462f96f8a0d24c86d08"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/neon_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/neon_shaders.cppm",
             "sha256": "14082652c67f9f3e4fd52fd4fbbbdf991ff42cb311d71486c73050a1e3d11d2e"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/noise_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/noise_shaders.cppm",
             "sha256": "a776d1badf8c18c4c9d8036d2665bba1b53226febe9f44eeb1ddee81a7280280"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/paper_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/paper_shaders.cppm",
             "sha256": "7f6a173a0921000661901dd0a338a20f371f7dab1c1b47cf32ea5d2be0b57d6e"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/particles_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/particles_shaders.cppm",
             "sha256": "5d2c4ff86936c36723115575592e4b61c57fd1c4e1398f066567e32d1026a120"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/pixelate_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/pixelate_shaders.cppm",
             "sha256": "6a58d193b9c61288e6c63655b67dcee382b381c2bb7579fbaf629842be80c409"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/quad_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/quad_shaders.cppm",
             "sha256": "f6a206632f87c1b36abd20ef2f0e4096ffa8b8ae65f0e9ffdaf7c99f83b11859"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/reveal_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/reveal_shaders.cppm",
             "sha256": "40201b09ef91d5f357d51865f5bb42cb98520eda6341f259b0d587c764a80de6"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/tone_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/tone_shaders.cppm",
             "sha256": "cffae32f9fb5b021d1a4650e51d9ee3f5e1586bead7a912c40a3c88a524d8b6e"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/ui_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/ui_shaders.cppm",
             "sha256": "3afb7d2eafd8fe34303566d37116e5f72e9f0a9df0ed16c3e677a4356f2f9532"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wipe_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/wipe_shaders.cppm",
             "sha256": "cae8f3bd04142aaab1460952e6fb0425203dad38d4aa3502ef571249f7ee3199"
           },
           {
-            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wobble_shaders.cppm",
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/meng.render.vector/mlibs/shader/wobble_shaders.cppm",
             "sha256": "7b820786aa34f0a150539e9563068446e9d2c432837ba70946d5ecb97270cc7c"
           }
         ],
@@ -2478,9 +2478,9 @@
           "mlibs.unicode",
           "mlibs.validation.namespace_consumer",
           "nlohmann.json",
-          "xengine.render",
-          "xengine.render.effect",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.effect",
+          "meng.render.vector"
         ],
         "host_only_packages": [],
         "generated_sources": [],
@@ -2534,9 +2534,9 @@
           "mlibs.unicode",
           "mlibs.validation.namespace_consumer",
           "nlohmann.json",
-          "xengine.render",
-          "xengine.render.effect",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.effect",
+          "meng.render.vector"
         ],
         "host_only_packages": [],
         "generated_sources": [],
@@ -2590,9 +2590,9 @@
           "mlibs.unicode",
           "mlibs.validation.namespace_consumer",
           "nlohmann.json",
-          "xengine.render",
-          "xengine.render.effect",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.effect",
+          "meng.render.vector"
         ],
         "host_only_packages": [],
         "generated_sources": [],
@@ -2823,8 +2823,8 @@
           "mlibs.raster",
           "mlibs.rhi",
           "mlibs.trace",
-          "xengine.render",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.vector"
         ],
         "product_sources": [
           "modules/gfx/hanim/src/effect/effect.cpp",
@@ -2897,8 +2897,8 @@
           "mlibs.trace",
           "nlohmann.json",
           "openlifa.openas",
-          "xengine.render",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.vector"
         ]
       },
       {
@@ -2931,8 +2931,8 @@
           "mlibs.trace",
           "nlohmann.json",
           "openlifa.openas",
-          "xengine.render",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.vector"
         ]
       }
     ],

@@ -1,15 +1,15 @@
 module omui.showcase.kiln.sim;
 import std;
 import mlibs.xdef;
-import xengine.matter.json;
+import meng.matter.json;
 import mlibs.hash;
-import xengine.cellular.verbs;
+import meng.cellular.verbs;
 import mlibs.json;
 
 namespace kiln {
-namespace substance = xengine::matter;
-namespace ca = xengine::cellular;
-namespace verbs = xengine::cellular::verbs;
+namespace substance = meng::matter;
+namespace ca = meng::cellular;
+namespace verbs = meng::cellular::verbs;
 
 const substance::Program& matter() {
     // The standard definition and the engine's convection pack: in a cavern warm air rises, and what a fire
@@ -186,7 +186,7 @@ void cast(State& state, const Input& input) {
     state.bolts.push_back({from_x + dx * 2.0f, from_y + dy * 2.0f, dx * bolt_speed, dy * bolt_speed, cat.spell});
 }
 
-// What each spell is: numbers given to the world's verbs (xengine.cellular.verbs). A bomb's pressure, as the
+// What each spell is: numbers given to the world's verbs (meng.cellular.verbs). A bomb's pressure, as the
 // channel holds it, is three times what breaks stone.
 constexpr verbs::Explosion bomb{.radius = 6, .pressure = 600000, .heat_radius = 3, .kelvin = 1100};
 constexpr std::int64_t fire_radius = 2;

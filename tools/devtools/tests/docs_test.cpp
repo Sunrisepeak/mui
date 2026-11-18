@@ -46,7 +46,7 @@ UTest cases{"devtools.docs", [] {
     };
 
     "a package's project: the directory under projects, mlibs below it, the top directory otherwise"_test = [] {
-        expect(eq(docs::project_of("modules/projects/xengine/kernel/field"), std::string("xengine")));
+        expect(eq(docs::project_of("modules/projects/meng/kernel/field"), std::string("meng")));
         expect(eq(docs::project_of("modules/base/json"), std::string("mlibs")));
         expect(eq(docs::project_of("showcase/glade/headless"), std::string("showcase")));
     };

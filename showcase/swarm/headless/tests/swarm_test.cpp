@@ -10,11 +10,11 @@ import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
 namespace agent = mlibs::agent;
-namespace runtime = xengine::runtime;
+namespace runtime = meng::runtime;
 
 namespace {
 
-constexpr xengine::PlayTier assist{.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true};
+constexpr meng::PlayTier assist{.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true};
 // The game played by its owner's input: each step's actions as given, no lane between.
 constexpr runtime::Options owned{.seat = runtime::Seat::owner, .keep = 1200};
 
@@ -43,7 +43,7 @@ Answered told(agent::SubjectSession& session, std::string_view line, std::source
 // A fixed play: the player walks a slow square, the gun sweeps round, the button held four steps in five.
 swarm::Input scripted(std::int64_t frame) {
     constexpr std::array<std::array<std::int16_t, 2>, 4> ways{{{32767, 0}, {0, 32767}, {-32767, 0}, {0, -32767}}};
-    xengine::Actions actions;
+    meng::Actions actions;
     const auto way = ways[static_cast<std::size_t>(frame / 90 % 4)];
     actions.axes[0] = way[0], actions.axes[1] = way[1];
     const std::int64_t turn = frame * 7 % 400;  // round the arena's edge
@@ -61,7 +61,7 @@ swarm::Input scripted(std::int64_t frame) {
 std::optional<swarm::Vec2> nearest(const swarm::State& state) {
     std::optional<swarm::Vec2> found;
     float least = 0;
-    state.field.each<swarm::Body, swarm::Enemy>([&](xengine::Entity, const swarm::Body& body, const swarm::Enemy&) {
+    state.field.each<swarm::Body, swarm::Enemy>([&](meng::Entity, const swarm::Body& body, const swarm::Enemy&) {
         const swarm::Vec2 apart = body.at - state.player;
         if (const float squared = dot(apart, apart); !found || squared < least) found = body.at, least = squared;
     });
@@ -145,7 +145,7 @@ UTest cases{"swarm", [] {
         std::int64_t shot_at = -1;
         for (std::int64_t frame = 0; frame < 1200 && shot_at < 0; ++frame) {
             const swarm::State before = game.state();
-            xengine::Actions actions;
+            meng::Actions actions;
             if (const auto enemy = nearest(before)) {  // the gun on the nearest enemy, the button held
                 std::tie(actions.pointer_x, actions.pointer_y) = swarm::pointer_at(*enemy);
                 actions.held = 1u << swarm::shoot_button;

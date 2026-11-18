@@ -44,17 +44,17 @@ xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.math = { path = "../../modules/base/math" }
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
-# The game itself, as it runs with no interface (xengine.runtime): the window shows that same game (D-162).
+# The game itself, as it runs with no interface (meng.runtime): the window shows that same game (D-162).
 omui.showcase.widget_breakout.headless = { path = "headless" }
-xengine.input = { path = "../../modules/projects/xengine/game/input" }
-xengine.ui    = { path = "../../modules/projects/xengine/game/ui" }
+meng.input = { path = "../../modules/projects/meng/game/input" }
+meng.ui    = { path = "../../modules/projects/meng/game/ui" }
 omui.theme = { path = "../../modules/projects/omui/theme" }
 omui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
-xengine.audio = { path = "../../modules/projects/xengine/kernel/audio" }
+meng.audio = { path = "../../modules/projects/meng/kernel/audio" }
 omui.abi = { path = "../../modules/projects/omui/abi" }
 omui.lang = { path = "../../modules/projects/omui/lang" }
 "omui.lang.js" = { path = "../../modules/projects/omui/lang/js" }
-"xengine.audio.device" = { path = "../../modules/projects/xengine/kernel/audio/device" }
+"meng.audio.device" = { path = "../../modules/projects/meng/kernel/audio/device" }
 
 [build-dependencies]
 omui.build = { path = "../../mcpp/build", host-module = true }

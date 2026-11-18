@@ -17,7 +17,7 @@ struct Failure {
 };
 
 struct Member {
-    std::string path;  // the workspace member, "modules/projects/xengine/game/nav/cts"
+    std::string path;  // the workspace member, "modules/projects/meng/game/nav/cts"
     std::vector<Failure> failures;
 };
 

@@ -134,7 +134,7 @@ using ConstraintRef = mlibs::memory::Handle<ConstraintTag>;
 
 // ── Simulated bodies (plan §6.8 ⑨ ①②) ───────────────────────────────────
 // A part made soft: a ring of `points` round its outline becomes a body of
-// xengine.simulation (shared with physics: edges, area, shape matching,
+// meng.simulation (shared with physics: edges, area, shape matching,
 // gravity, colliders), stepped at its fixed rate as the engine's time
 // advances; a cage of mean value coordinates over the ring carries every
 // point of the part's geometry with it — any shape, glyph or outline. The

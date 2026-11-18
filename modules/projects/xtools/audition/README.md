@@ -8,7 +8,7 @@ xtools audition.automation curve.timeline.xdef.ts --track music --clip fade --ou
 
 It writes `out/fade.wav` (the bus's sound: 220 Hz at 0.1 gain under the curve), `out/fade.png` (eight frames as a contact sheet), `out/fade.webp` (every frame, lossless) and `out/fade.report.xdef.json` (the rate, samples, the PCM's hash, each frame's time, gain and pixel hash, the timeline as read). No window and no audio device are opened, and the view only reads: the bus's clock is checked unchanged by it.
 
-It is a composition of three projects' parts — [hanim.timeline](../../hanim/timeline)'s clip and keys, [xengine.audio](../../xengine/kernel/audio)'s mixer and gain automation, an omui view on the headless host — which no one of them owns, so it is the toolchain whole's (D-204; moved here from omui's command line, convergence plan RC3.3). The subject is `audition` (its catalog [`audition.ops.xdef.ts`](audition.ops.xdef.ts)); how an Agent uses it is [`skill.omui.md`](skill.omui.md).
+It is a composition of three projects' parts — [hanim.timeline](../../hanim/timeline)'s clip and keys, [meng.audio](../../meng/kernel/audio)'s mixer and gain automation, an omui view on the headless host — which no one of them owns, so it is the toolchain whole's (D-204; moved here from omui's command line, convergence plan RC3.3). The subject is `audition` (its catalog [`audition.ops.xdef.ts`](audition.ops.xdef.ts)); how an Agent uses it is [`skill.omui.md`](skill.omui.md).
 
 ## Experimental (release 0.1, D-199)
 

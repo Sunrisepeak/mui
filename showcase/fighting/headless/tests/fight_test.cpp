@@ -11,11 +11,11 @@ import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
 namespace agent = mlibs::agent;
-namespace runtime = xengine::runtime;
+namespace runtime = meng::runtime;
 
 namespace {
 
-constexpr xengine::PlayTier assist{.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true};
+constexpr meng::PlayTier assist{.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true};
 constexpr runtime::Options owned{.seat = runtime::Seat::owner, .keep = 1200};
 
 struct Answered {
@@ -59,7 +59,7 @@ fighting::State started(std::string_view left, std::string_view right, std::uint
 }
 // A fixed play for the seat: walk in, jab, back off, a heavy kick now and then.
 fighting::Input scripted(std::int64_t frame) {
-    xengine::Actions actions;
+    meng::Actions actions;
     const std::int64_t phase = frame % 120;
     if (phase < 50) actions.axes[0] = 32767;
     else if (phase < 54) actions.held = 1u << 0;

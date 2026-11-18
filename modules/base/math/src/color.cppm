@@ -27,7 +27,7 @@ export namespace mlibs::math::color {
 // particles, a body's parts). Its base is a row of a table by one channel's value (the key: a material), unevenly light by `grain` so that a body of one material is not one
 // flat colour; then each tint in turn moves it toward a colour by how far a channel is along a range — charred,
 // wet, hot, alight — and what a tint emits is also the item's light, for whoever draws a glow. Whole numbers
-// throughout (xengine.cellular's CONTRACT.md states it): the same pixels on every machine, and on a device.
+// throughout (meng.cellular's CONTRACT.md states it): the same pixels on every machine, and on a device.
 //
 // Colours here are straight RGBA8, red in the lowest byte (0xAABBGGRR).
 struct Tint {

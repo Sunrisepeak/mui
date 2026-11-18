@@ -1,4 +1,4 @@
-# mlibs.dynamics — the generic solver core (D-133; moved from xengine.dynamics
+# mlibs.dynamics — the generic solver core (D-133; moved from meng.dynamics
 # in the implementation plan's A5, D-231): collision and its queries, the XPBD
 # soft bodies and what a body is doing. hanim's engine and the engine's
 # dynamics both build on it. Doubles with + − × ÷ and √ only, without
@@ -16,14 +16,14 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "dependency: the solver hanim's engine and the engine's dynamics share, in the foundation (D-231)"
 kind = "module"
-agent = { library = "a solver: a body is an agent's subject in the engine's tier (xengine.dynamics' body)" }
+agent = { library = "a solver: a body is an agent's subject in the engine's tier (meng.dynamics' body)" }
 
 [targets.mlibs-dynamics]
 kind = "lib"
 
 [build]
 sources  = ["src/*.cppm", "src/collision/*.cppm", "src/collision/*.cpp", "src/xpbd/*.cppm", "src/xpbd/*.cpp", "src/inspect/*.cppm", "src/inspect/*.cpp"]
-# Optimised in every profile (the last -O wins), as it was in xengine.dynamics: a body stepped at -O0 costs several
+# Optimised in every profile (the last -O wins), as it was in meng.dynamics: a body stepped at -O0 costs several
 # times as much, which every consumer's tests would pay; without fast-math or contraction the results are the same bits.
 cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
 

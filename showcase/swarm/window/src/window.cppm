@@ -6,7 +6,7 @@
 //
 // The picture reads the state and nothing else: the arena, every enemy (its wave's colour) and bullet, the player
 // with the gun's line toward `aim` (blinking while a touch costs nothing). The window's component `Arena` holds the
-// same `swarm::Standalone` a headless program holds, steps it on the interface's clock (`xengine.ui`'s pacer, 120
+// same `swarm::Standalone` a headless program holds, steps it on the interface's clock (`meng.ui`'s pacer, 120
 // steps a second) and gives each step the person's input — W A S D (or the arrows) move, the pointer aims, the left
 // button or Space shoots; or a gamepad: the left stick moves, A shoots. The picture is drawn on the CPU each frame and
 // shown cell for cell. Every step's input is recorded: what the window played is the game with no window
@@ -15,7 +15,7 @@ export module omui.showcase.swarm.window;
 
 import std;
 export import omui;
-export import xengine.ui;
+export import meng.ui;
 export import omui.showcase.swarm.headless;
 export import xrender.raster;
 export import xrender.vector;
@@ -70,10 +70,10 @@ private:
 
     omui::Services*           services_ = nullptr;
     omui::NodeId              node_{};
-    xengine::ui::Viewport     view_;
+    meng::ui::Viewport     view_;
     std::optional<Standalone> game_;
-    xengine::Sampler          sampler_;
-    xengine::ui::Pacer        pacer_;
+    meng::Sampler          sampler_;
+    meng::ui::Pacer        pacer_;
     xrender::DisplayList      list_;
     xrender::CpuRenderer      renderer_;
     xrender::raster::Surface  frame_{1, 1};
@@ -85,7 +85,7 @@ private:
 [[nodiscard]] const std::shared_ptr<Hud>& hud();
 // The options the arena was made with (set by `app`; one window a process).
 [[nodiscard]] Options& options();
-// Each step's input of the game a window played: `seed N`, then a line a step (xengine.input's `to_text`).
+// Each step's input of the game a window played: `seed N`, then a line a step (meng.input's `to_text`).
 [[nodiscard]] std::string recorded(const Standalone& game);
 // Those lines played by the game with no window: its state after them, or why not.
 [[nodiscard]] std::expected<State, std::string> replayed(std::string_view lines);

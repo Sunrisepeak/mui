@@ -1,5 +1,5 @@
 // A shade (D-168): the base colour of an item's row, its grain, the tints in turn, and the light — in whole
-// numbers, the arithmetic xengine.cellular's CONTRACT.md states and a device's painter is held to.
+// numbers, the arithmetic meng.cellular's CONTRACT.md states and a device's painter is held to.
 module mlibs.math.api;
 
 import std;

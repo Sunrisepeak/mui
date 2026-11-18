@@ -1,5 +1,5 @@
 // The audition's operations (convergence plan RC3.3, D-204): a composition of three projects' parts — a hanim
-// timeline's keyed gain, xengine.audio's mixer and bus, an omui view that shows it — so it lives with the toolchain
+// timeline's keyed gain, meng.audio's mixer and bus, an omui view that shows it — so it lives with the toolchain
 // whole, xtools, not with any one of them. ops-gen makes the catalog (src/catalog/catalog.cppm), the listing
 // (audition.ops.json) and the reference (audition.ops.md).
 import { defineOps } from "omui/define";

@@ -10,7 +10,7 @@ namespace {
 
 namespace math = mlibs::math;
 namespace geom = mlibs::geom;
-namespace space = xengine::audio::space;
+namespace space = meng::audio::space;
 namespace det = mlibs::math::det;
 
 constexpr float turn_speed = 2.6f, look_speed = 1.8f;   // radians a second at a full axis
@@ -207,7 +207,7 @@ void step(State& state, const Input& input) {
         ++state.frame;
         return;
     }
-    const xengine::Actions& actions = input.player;
+    const meng::Actions& actions = input.player;
     Watchkeeper& keeper = state.keeper;
     const auto character = state.bodies->character(keeper.body);
     const bool on_ground = character && character->ground == rigid3::Ground::on_ground;
@@ -413,7 +413,7 @@ float angle_between(float from, float to) noexcept {
 
 Input Guide::operator()(const State& state) {
     Input input;
-    xengine::Actions& actions = input.player;
+    meng::Actions& actions = input.player;
     const Vec3 from = eye(state), look = looking(state);
     std::optional<Vec3> target;
     float nearest = 40;

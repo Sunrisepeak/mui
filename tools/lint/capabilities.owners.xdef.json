@@ -119,7 +119,7 @@
       ],
       "pattern": "\\b(weighed|patience)\\b\\s*(=|\\{)\\s*\\d+|\\*\\s*3\\s*>=\\s*\\w+\\s*\\*\\s*2\\b.*budget|budget.*\\*\\s*3\\s*>=\\s*\\w+\\s*\\*\\s*2\\b",
       "sample": {
-        "path": "modules/projects/xengine/game/runtime/src/adapt.cpp",
+        "path": "modules/projects/meng/game/runtime/src/adapt.cpp",
         "text": "constexpr std::size_t weighed = 30;   // frames weighed before lowering"
       },
       "pattern_doc": "A governor's own numbers (frames weighed before lowering, frames of patience before raising) or its two-in-three test against a budget: a second governor of frame budgets."

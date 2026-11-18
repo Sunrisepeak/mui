@@ -16,7 +16,7 @@ int main() {
     const bool stage = omui::build::components({.module = "omui.showcase.fighting", .ns = "omui::fighting"});
     // The fighters, their looks and baked hurtboxes; a stale bake fails the build.
     const bool fighters = gongfu::rules::fighters({.module = "omui.showcase.fighting", .ns = "omui::fighting::files"});
-    // What the fight sounds like (xengine.audio).
+    // What the fight sounds like (meng.audio).
     const bool sounds = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "sounds",
                                                .suffix = ".sound.xdef.ts", .tag = "sound"});
     // The stages' art (gongfu.present2d's stage files).
@@ -33,7 +33,7 @@ int main() {
     // The HUD's art: its frames, its lettering, the names' calligraphy, its fills.
     const bool hud = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "hud",
                                             .suffix = ".webp", .tag = "hud", .index = true});
-    // The stages' music (xengine.audio's pieces).
+    // The stages' music (meng.audio's pieces).
     const bool music = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "music",
                                               .suffix = ".music.xdef.ts", .tag = "music", .index = true, .left_out = !arenas});
     // The announcer's recordings (voice/*.wav, Kenney's CC0 Voiceover Pack: Fighter).

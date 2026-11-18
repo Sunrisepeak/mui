@@ -1,4 +1,4 @@
-// Glade as a game the runtime plays (xengine.runtime's Playable; M6.5 T5.8b): the valley poked by a hand a
+// Glade as a game the runtime plays (meng.runtime's Playable; M6.5 T5.8b): the valley poked by a hand a
 // person or an agent holds over it — aimed with the pointer, a verb a button — and stepped, sought back and
 // branched ahead with no interface. What a player is shown is the semantic projection (glade::observe) with the
 // goals; shown everything, it adds why each changed thing is what it became (glade::explain).
@@ -9,8 +9,8 @@
 export module omui.showcase.glade.headless;
 
 import std;
-import xengine.input;
-export import xengine.runtime;
+import meng.input;
+export import meng.runtime;
 export import omui.showcase.glade.sim;
 
 export namespace glade {
@@ -34,12 +34,12 @@ struct Play {
         std::uint32_t held = 0;  // the buttons held the step before: a press is one held now and not then
     };
     struct Input {
-        xengine::Actions hand;
+        meng::Actions hand;
     };
     static constexpr std::int32_t steps_per_second = glade::steps_per_second;
     static void step(State& state, const Input& input);
     [[nodiscard]] static std::uint64_t checksum(const State& state);
-    static void play(Input& input, const xengine::Actions& actions) { input.hand = actions; }
+    static void play(Input& input, const meng::Actions& actions) { input.hand = actions; }
     // Every goal met.
     [[nodiscard]] static bool over(const State& state);
     // What a player is shown, as JSON: the step, the weather, each thing as seen, the goals and whether each is
@@ -51,7 +51,7 @@ struct Play {
         "conducts and stands open. A hand over the valley pokes it: aim with the pointer, hold a torch, pour a bucket, push a thing, call rain, call "
         "lightning, stand an iron rod. The goals are the view's `goals`, each with the verbs it may be met with and where the hand may act; every "
         "answer can be asked why (shown everything, each changed thing says it)";
-    static constexpr std::array<xengine::runtime::Control, 15> controls{{
+    static constexpr std::array<meng::runtime::Control, 15> controls{{
         {.name = "aim", .summary = "Where the hand is: a place over the valley, [x, y], x from −10 to 12 m along it, y from −4 to 4 m across", .pointer = true},
         {.name = "torch", .summary = "Hold a torch to the thing nearest the hand (within 0.6 m) while held; let go, it is taken away", .button = torch_button},
         {.name = "pour", .summary = "Pour a bucket of water (40 drops) over the place, once a press", .button = pour_button},
@@ -69,15 +69,15 @@ struct Play {
         {.name = "wind-north", .summary = "Wind toward higher z while held", .axis = wind_z_axis, .toward = 1},
     }};
     // The campfire's middle log is at (−2.8, −3): x (−2.8 + 10) / 22, y (−3 + 4) / 8.
-    static constexpr std::array<xengine::runtime::Move, 2> torch_the_campfire{{{.hold = {"aim", "torch"}, .steps = 180, .pointer = {0.32727, 0.125}}, {.steps = 120}}};
-    static constexpr std::array<xengine::runtime::Move, 2> rain_a_while{{{.hold = {"rain"}, .steps = 1}, {.steps = 300}}};
-    static constexpr std::array<xengine::runtime::Task, 2> tasks{{
+    static constexpr std::array<meng::runtime::Move, 2> torch_the_campfire{{{.hold = {"aim", "torch"}, .steps = 180, .pointer = {0.32727, 0.125}}, {.steps = 120}}};
+    static constexpr std::array<meng::runtime::Move, 2> rain_a_while{{{.hold = {"rain"}, .steps = 1}, {.steps = 300}}};
+    static constexpr std::array<meng::runtime::Task, 2> tasks{{
         {"light-the-campfire", "Hold a torch to the campfire's logs for three seconds and see them burn", torch_the_campfire},
         {"call-the-rain", "Call the rain and see the valley wet after five seconds", rain_a_while},
     }};
 };
 
-using Standalone = xengine::runtime::Runtime<Play>;
+using Standalone = meng::runtime::Runtime<Play>;
 
 // The valley as it begins.
 [[nodiscard]] Play::State begin();

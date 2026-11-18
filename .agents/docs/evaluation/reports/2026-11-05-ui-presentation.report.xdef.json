@@ -153,8 +153,8 @@
           "openmui.ui.base",
           "openmui.view",
           "taskflow.taskflow",
-          "xengine.render",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.vector"
         ]
       },
       "release": {
@@ -227,8 +227,8 @@
           "openmui.ui.base",
           "openmui.view",
           "taskflow.taskflow",
-          "xengine.render",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.vector"
         ]
       },
       "wasm-test": {
@@ -301,8 +301,8 @@
           "openmui.ui.base",
           "openmui.view",
           "taskflow.taskflow",
-          "xengine.render",
-          "xengine.render.vector"
+          "meng.render",
+          "meng.render.vector"
         ]
       }
     },
@@ -826,9 +826,9 @@
   ],
   "reproduction": [
     "python3 tools/ci/omui-hanim-consumer/run.py --output target/omui-presentation/consumer.report.xdef.json --web",
-    "mcpp test -p openmui.view -p openmui.motion -p xengine.render.vector -p openmui.ui.base -p openmui.host.headless --locked",
-    "mcpp test -p openmui.view -p openmui.motion -p xengine.render.vector -p openmui.ui.base -p openmui.host.headless --profile release --locked",
-    "mcpp test -p openmui.view -p openmui.motion -p xengine.render.vector -p openmui.ui.base -p openmui.host.headless --target wasm32-emscripten --profile wasm-test --locked",
+    "mcpp test -p openmui.view -p openmui.motion -p meng.render.vector -p openmui.ui.base -p openmui.host.headless --locked",
+    "mcpp test -p openmui.view -p openmui.motion -p meng.render.vector -p openmui.ui.base -p openmui.host.headless --profile release --locked",
+    "mcpp test -p openmui.view -p openmui.motion -p meng.render.vector -p openmui.ui.base -p openmui.host.headless --target wasm32-emscripten --profile wasm-test --locked",
     "mcpp run -p openmui.bench --profile release --locked -- --filter ui/presentation --check tests/bench/budgets.bench.xdef.json",
     "mcpp test -p openmui.site --locked"
   ],

@@ -3,7 +3,7 @@
 // fighters' voices. Each rendered, saved as a WAV and its bits pinned.
 import std;
 import omui;
-import xengine.audio;
+import meng.audio;
 import omui.showcase.fighting;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -12,7 +12,7 @@ import gongfu;
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
 using namespace omui;
-namespace audio = xengine::audio;
+namespace audio = meng::audio;
 
 namespace {
 

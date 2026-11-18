@@ -4,7 +4,7 @@ How a 3D game is made with omui's engines, read from [Quay](../../../showcase/qu
 
 ## Bodies and a crowd
 
-The harbour is a 3D rigid world (`xengine.dynamics`' rigid3: Jolt under the engine's contract): the containers fixed, the crates moving, the watchkeeper a character. The containers' triangles also make the mesh rays and sounds meet; steel lets 0.15 of a sound by and dulls it above 800 Hz.
+The harbour is a 3D rigid world (`meng.dynamics`' rigid3: Jolt under the engine's contract): the containers fixed, the crates moving, the watchkeeper a character. The containers' triangles also make the mesh rays and sounds meet; steel lets 0.15 of a sound by and dulls it above 800 Hz.
 
 <!-- code: showcase/quay/src/sim/sim.cpp#bodies -->
 ```cpp
@@ -25,7 +25,7 @@ statics->walls.push_back({.mesh = &statics->mesh, .tree = &statics->tree, .place
 const auto keeper = bodies->add(rigid3::CharacterDef{.at = level.start});
 ```
 
-The wardens walk a navigation mesh built from the same triangles (`xengine.nav`: Detour's crowd), each given its round:
+The wardens walk a navigation mesh built from the same triangles (`meng.nav`: Detour's crowd), each given its round:
 
 <!-- code: showcase/quay/src/sim/sim.cpp#crowd -->
 ```cpp
@@ -51,7 +51,7 @@ state.ground = mlibs::simulation::Branching<nav::World>(std::move(*ground));
 
 ## What a person hears and sees
 
-The person's view (`quay::observe`) never says where anything is. Sounds reach the ears by `xengine.audio.space`'s `reach` — the rule the speakers play by — through the containers' steel; what is too quiet is not heard:
+The person's view (`quay::observe`) never says where anything is. Sounds reach the ears by `meng.audio.space`'s `reach` — the rule the speakers play by — through the containers' steel; what is too quiet is not heard:
 
 <!-- code: showcase/quay/src/headless/headless.cpp#hearing -->
 ```cpp

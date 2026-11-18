@@ -1,7 +1,7 @@
 module omui.showcase.glade.headless;
 
 import std;
-import xengine.input;
+import meng.input;
 
 namespace glade {
 
@@ -37,7 +37,7 @@ const std::vector<Task>& goals() {
     return made;
 }
 
-float axis_of(const xengine::Actions& hand, int axis) { return static_cast<float>(hand.axis(axis)); }
+float axis_of(const meng::Actions& hand, int axis) { return static_cast<float>(hand.axis(axis)); }
 
 }  // namespace
 
@@ -53,7 +53,7 @@ std::array<double, 2> pointer_at(Vec3 place) noexcept {
 Play::State begin() { return {start(valley())}; }
 
 void Play::step(State& state, const Input& input) {
-    const xengine::Actions& hand = input.hand;
+    const meng::Actions& hand = input.hand;
     const std::uint32_t pressed = hand.held & ~state.held, released = state.held & ~hand.held;
     const bool aiming = hand.pointer_x >= 0 && hand.pointer_y >= 0;
     const Vec3 at = aiming ? aimed(hand.pointer_x, hand.pointer_y) : Vec3{0, 0, 0};

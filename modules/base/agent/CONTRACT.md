@@ -34,7 +34,7 @@ Anything else is a subject's operation by its whole name (`world.observe`), deci
 
 ## 4. A subject
 
-A name, the interface its operations speak (`xengine.world@0.1`), a catalog (`<product>.ops.xdef.ts`: each operation's effect, parameters, cost, how it is undone, examples, `then`), a guide (what it is, its tasks), terms its content names, its state's hash, where its own record of changes stands, and what it can do:
+A name, the interface its operations speak (`meng.world@0.1`), a catalog (`<product>.ops.xdef.ts`: each operation's effect, parameters, cost, how it is undone, examples, `then`), a guide (what it is, its tasks), terms its content names, its state's hash, where its own record of changes stands, and what it can do:
 
 | capability | |
 |---|---|

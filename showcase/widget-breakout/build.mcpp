@@ -10,7 +10,7 @@ int main() {
     const bool field = omui::build::components({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout"});
     const bool sounds = omui::build::embed({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "sounds",
                                                .suffix = ".sound.xdef.ts", .tag = "sound"});
-    // Its theme (xengine.audio's music, adaptive: the game sets its intensity).
+    // Its theme (meng.audio's music, adaptive: the game sets its intensity).
     const bool music = omui::build::embed({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "music",
                                               .suffix = ".music.xdef.ts", .tag = "music"});
     // The contraptions' scripts, as shipped (their casings edit copies).

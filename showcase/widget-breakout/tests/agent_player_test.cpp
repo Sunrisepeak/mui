@@ -171,10 +171,10 @@ UTest cases{"breakout.agent-player", [] {
         }
         const bo::Field&    field = *session.h.runtime().component<bo::Field>(session.h.runtime().find("main/field"));
         const bo::Standalone* shown = field.game();
-        expect(fatal(shown != nullptr)) << "the window shows a game of xengine.runtime";
+        expect(fatal(shown != nullptr)) << "the window shows a game of meng.runtime";
         expect(eq(shown->timeline().earliest(), std::int64_t{0}));
         // The same game with no interface: the runtime alone, the owner's seat, each step given what the window gave it.
-        bo::Standalone alone(bo::start(field.level()), {.stepping = xengine::runtime::Stepping::owner, .seat = xengine::runtime::Seat::owner});
+        bo::Standalone alone(bo::start(field.level()), {.stepping = meng::runtime::Stepping::owner, .seat = meng::runtime::Seat::owner});
         for (std::int64_t frame = 0; frame < shown->frame(); ++frame) alone.step(shown->timeline().input(frame));
         std::println("    {} steps in the window, played again with none: score {}, state {:016x}", shown->frame(), alone.state().score, alone.state_hash());
         expect(eq(alone.frame(), shown->frame()) && eq(alone.state_hash(), shown->state_hash())) << "the same bits";

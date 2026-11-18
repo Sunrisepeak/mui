@@ -1,6 +1,6 @@
 # mlibs.dynamics
 
-The generic solver core, with no domain in it: the shapes a solver collides with and the queries on them, and the XPBD family of 2D soft bodies — deterministic, stepped on [mlibs.simulation](../simulation)'s timeline, with no renderer, no UI and no materials. It moved here from the engine's [xengine.dynamics](../../projects/xengine/kernel/dynamics) (implementation plan A5, D-231): hanim's engine steps its bodies with it, so it belongs to the foundation; the engine's dynamics builds its families, its materials and its agent face on it.
+The generic solver core, with no domain in it: the shapes a solver collides with and the queries on them, and the XPBD family of 2D soft bodies — deterministic, stepped on [mlibs.simulation](../simulation)'s timeline, with no renderer, no UI and no materials. It moved here from the engine's [meng.dynamics](../../projects/meng/kernel/dynamics) (implementation plan A5, D-231): hanim's engine steps its bodies with it, so it belongs to the foundation; the engine's dynamics builds its families, its materials and its agent face on it.
 
 ```cpp
 import mlibs.dynamics;
@@ -22,7 +22,7 @@ std::println("{}", dyn::explain(history.state()));                              
 | `xpbd` | Soft bodies: rings of particles held by edges, area and shape matching; gravity, push, walk, hop, a dragging hand; half-planes and ledges with restitution and friction; `stages()` |
 | `inspect` | `report(body)` (centre, bounds, area against rest, fastest speed, contacts by kind) and `explain(body)` in words, read between steps |
 
-What a body is made of (a material's mechanical columns) is the engine's: `xengine.dynamics.matter`'s `params_of`. The bodies as an agent's subject are the engine's too (`xengine.dynamics.agent`), and so are the conformance cases (`xengine.dynamics.cts`, contracts `mlibs.dynamics.collision@1` and `mlibs.dynamics.xpbd@1`).
+What a body is made of (a material's mechanical columns) is the engine's: `meng.dynamics.matter`'s `params_of`. The bodies as an agent's subject are the engine's too (`meng.dynamics.agent`), and so are the conformance cases (`meng.dynamics.cts`, contracts `mlibs.dynamics.collision@1` and `mlibs.dynamics.xpbd@1`).
 
 ## Collision
 
@@ -44,6 +44,6 @@ A `SoftBody` is a ring of particles held by its edges' lengths, its enclosed are
 
 ## Agent surface
 
-A library: it has no subject of its own. A soft body is an agent's subject in the engine's tier, [xengine.dynamics](../../projects/xengine/kernel/dynamics)' `body` (state, observation, control, time, preview, budgets); this package gives it `report` and `explain`.
+A library: it has no subject of its own. A soft body is an agent's subject in the engine's tier, [meng.dynamics](../../projects/meng/kernel/dynamics)' `body` (state, observation, control, time, preview, budgets); this package gives it `report` and `explain`.
 
 Run `mcpp test -p mlibs.dynamics`: swept collision to the same bits; soft bodies dropped, landed on ledges, walked, kept upright and replayed bit for bit.

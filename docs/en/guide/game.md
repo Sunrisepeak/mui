@@ -8,7 +8,7 @@ A game here is three things: a **state** (data copied whole), a **step** (a stat
 
 A game is a type with its state, its input, a step and what a player is shown. A small one from the runtime's own tests, a chase on a line:
 
-<!-- code: modules/projects/xengine/game/runtime/tests/runtime_test.cpp#chase -->
+<!-- code: modules/projects/meng/game/runtime/tests/runtime_test.cpp#chase -->
 ```cpp
 // The player walks a line after a mark that jumps when reached; five catches end it.
 struct Chase {
@@ -18,7 +18,7 @@ struct Chase {
         std::uint64_t rng = 0x9e3779b97f4a7c15ull;
     };
     struct Input {
-        xengine::Actions player{};
+        meng::Actions player{};
     };
     static constexpr std::int32_t steps_per_second = 120;
     static void step(State& state, const Input& input) {
@@ -44,7 +44,7 @@ struct Chase {
         if (full) out += std::format(",\"rng\":\"{:016x}\"", state.rng);
         return out + "}";
     }
-    static void play(Input& input, const xengine::Actions& actions) { input.player = actions; }
+    static void play(Input& input, const meng::Actions& actions) { input.player = actions; }
     static bool over(const State& state) noexcept { return state.caught >= 5; }
     // What the game says of itself: what its controls mean, and a task to begin with.
     static constexpr std::string_view about = "A chase on a line: walk onto the mark and it jumps elsewhere; five catches end the game";
@@ -55,7 +55,7 @@ struct Chase {
 };
 ```
 
-`xengine::runtime::Runtime<Chase>` (`import xengine.runtime;`) runs it. Written so, these are there with nothing more to make:
+`meng::runtime::Runtime<Chase>` (`import meng.runtime;`) runs it. Written so, these are there with nothing more to make:
 
 - **Replay and rewind**: each step's input is kept, and any frame can be returned to.
 - **Branches**: a copy of the state is played ahead, and the game being played is untouched.
@@ -86,7 +86,7 @@ The [widget breakout](../../../showcase/widget-breakout) is another: its bricks 
 
 ## A game with a window
 
-The window, input and interface are omui's; the game and the interface meet at a bridge (`xengine.ui`): the game steps as it does, and the interface reads its state to draw. A HUD, menus and settings are ordinary omui interfaces.
+The window, input and interface are omui's; the game and the interface meet at a bridge (`meng.ui`): the game steps as it does, and the interface reads its state to draw. A HUD, menus and settings are ordinary omui interfaces.
 
 ## When something goes wrong
 

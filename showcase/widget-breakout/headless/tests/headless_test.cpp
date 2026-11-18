@@ -36,7 +36,7 @@ struct Table {
 
     Table(std::string name, const std::filesystem::path& directory)
         : game(bo::start(wall_of_bricks())),
-          endpoint({.name = std::move(name), .directory = directory, .app = "org.openmui.showcase.widget-breakout", .interface_name = "xengine.world@0.1",
+          endpoint({.name = std::move(name), .directory = directory, .app = "org.openmui.showcase.widget-breakout", .interface_name = "meng.world@0.1",
                     .session = [this] { return std::make_unique<agent::SubjectSession>(std::vector<agent::Subject*>{&game}); }}) {}
 
     [[nodiscard]] bool open() {
@@ -161,7 +161,7 @@ UTest cases{"breakout.headless", [] {
         if (!table.open()) return;
         const auto found = agent::list(directory);
         expect(fatal(found.size() == 1u));
-        expect(found[0].name == "breakout" && found[0].interface_name == "xengine.world@0.1");
+        expect(found[0].name == "breakout" && found[0].interface_name == "meng.world@0.1");
 
         auto who = table.call(R"({"op":"subjects"})");
         expect(fatal(who.has_value()));

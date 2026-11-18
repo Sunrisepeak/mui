@@ -6,8 +6,8 @@
 //   glade::step(state);                       // a 60th of a second
 //   glade::explain(state, "crate");           // why it is what it is, back to where it began
 //
-// Every body is a body of xengine.dynamics' rigid3 world and an instance of matter (rigid3::Objects); the air is a
-// field (xengine.field) with its wind; water poured is particles that take room (xengine.particles); all of it one
+// Every body is a body of meng.dynamics' rigid3 world and an instance of matter (rigid3::Objects); the air is a
+// field (meng.field) with its wind; water poured is particles that take room (meng.particles); all of it one
 // step (rigid3::Scene). Nothing here names what fire, water or wind do: the standard laws do, with Glade's own
 // materials (glade.matter.xdef.ts: grass and bark, rows of properties). A verb is a quantity applied from outside
 // and kept as a cause. The state is a value — the rigid world held by `mlibs::simulation::Branching` — so a copy
@@ -18,16 +18,16 @@
 export module omui.showcase.glade.sim;
 
 import std;
-export import xengine.dynamics.scene;
-export import xengine.matter.json;
+export import meng.dynamics.scene;
+export import meng.matter.json;
 export import mlibs.simulation;
 
 export namespace glade {
 
-namespace rigid3 = xengine::dynamics::rigid3;
-namespace matter = xengine::matter;
-namespace field = xengine::field;
-namespace particles = xengine::particles;
+namespace rigid3 = meng::dynamics::rigid3;
+namespace matter = meng::matter;
+namespace field = meng::field;
+namespace particles = meng::particles;
 using mlibs::math::Vec3;
 
 inline constexpr int steps_per_second = 60;

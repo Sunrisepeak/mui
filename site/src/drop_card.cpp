@@ -102,7 +102,7 @@ void DropCard::ensure(const PaintContext& ctx) const {
     auto shown = engine.play(hanim::anim::morph(made->object, made->object));
     if (!shown) return;
     made->showing = *shown;
-    // Jelly: it gives on landing and springs back. The numbers are the standard matter table's row (xengine.matter's
+    // Jelly: it gives on landing and springs back. The numbers are the standard matter table's row (meng.matter's
     // standard.matter.xdef.ts: density over water's, compliance, shape_stiffness, restitution, friction), written
     // here so that a page with one soft body carries no table and no reader of one.
     const mlibs::dynamics::BodyParams params{.mass = 1, .gravity_y = 2200, .edge_compliance = 0.0005, .area_compliance = 0.0002, .shape_stiffness = 0.012,

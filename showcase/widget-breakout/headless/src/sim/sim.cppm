@@ -23,8 +23,8 @@
 export module omui.showcase.widget_breakout.sim;
 
 import std;
-export import xengine.world;    // its state's types are these packages' (worlds, actions, vectors)
-export import xengine.input;
+export import meng.world;    // its state's types are these packages' (worlds, actions, vectors)
+export import meng.input;
 export import mlibs.dynamics;
 export import mlibs.simulation;       // its Game is a timeline's
 
@@ -87,7 +87,7 @@ struct Capsule {
     static constexpr bool no_padding = true;
 };
 
-using World = xengine::World<512, Body, Brick, Ball, Capsule>;
+using World = meng::World<512, Body, Brick, Ball, Capsule>;
 
 // What the gifts do: numbers a room sets, or scripts (the contraptions
 // between rooms) — each bounded, all whole (ticks, pixels, percents,
@@ -181,7 +181,7 @@ static_assert(std::is_trivially_copyable_v<State>, "a state is saved and restore
 // the paddle goes. `second` is the second paddle's (an agent's).
 inline constexpr int launch_button = 0, look_button = 1;
 struct Input {
-    xengine::Actions player{}, second{};
+    meng::Actions player{}, second{};
     Rules          rules{};        // with `new_rules`: from this step on (a script reloaded)
     std::uint32_t  new_rules = 0;
     std::uint32_t  aim_set = 0;    // `aim` holds the launch's aim from this step until the launch

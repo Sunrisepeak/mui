@@ -1,0 +1,49 @@
+# meng.particles — things that fly in 3D (the foundation plan's §6.4, D-166: particles are one of matter's
+# four carriers): sparks, embers, drops, grit. Each flies under gravity and drag, meets the world's triangles and
+# bounces off them by its material's restitution and friction, and carries its material's state — the same laws
+# as a lattice's cells or a body, its neighbours those near it and the air about it. Deterministic: two clouds of
+# the same spawns are the same bits, and a copy is a branch.
+[package]
+namespace   = "meng"
+name        = "particles"
+version     = "0.1.0"
+description = "Particles in 3D as a carrier of matter: they fly, meet the world's triangles, and take part in the same laws — the same bits every run"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: particles as a carrier of matter for games and matter's suite"
+reexports = ["mlibs.geom", "mlibs.math", "meng.matter"]  # what its interface re-exports (lint module-closure)
+kind = "module"
+agent = "subject"
+
+[targets.meng-particles]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+# Optimised in every profile (the last -O wins), as cellular, xrender.mesh and xrender.particle are: a world
+# stepped at -O0 costs several times as much, which every consumer's tests would pay (emergence3d past
+# 300 s on arm, red 99); without fast-math or contraction the results are the same bits.
+cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
+
+# The cloud as an agent's subject (src/agent/, module meng.particles.agent; D-174): its operations through
+# the agent kernel, its catalog particles.ops.xdef.ts. A feature, so that the carrier alone stays the small tool;
+# its suite runs in meng.matter.cts (tests/cts/cloud_agent_test.cpp), beside the other carriers' subjects.
+[features]
+agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+
+[feature-deps.agent]
+mlibs.agent = { path = "../../../../base/agent" }
+
+[dependencies]
+meng.matter = { path = "../matter", default-features = false }
+mlibs.math     = { path = "../../../../base/math" }
+mlibs.geom     = { path = "../../../../base/geom" }
+mlibs.utils    = { path = "../../../../base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+meng.matter = { path = "../matter" }  # with its default features: the standard definition (json)

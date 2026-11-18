@@ -13,7 +13,7 @@ omui doctor                         which tools are there, which are missing, wh
 
 Every project command is an operation of its catalog ([`cli.ops.xdef.ts`](cli.ops.xdef.ts)): the subject `omui` behind the tool kernel's entries (mlibs.agent:host). `omui build --release` is the operation omui.build; words without names are its parameters in the catalog's order (`omui new hello`); the answer is records a line each — what it ran (`{"step", "command", "exit"}`) and what it read as data, an error with its ways out, and last the result with the exit code (0 done, 1 failed, 2 arguments that make no request). `omui mcp` serves the same operations as `omui_*` tools — except dev, run, connect and mcp, which hold a window or the terminal (`terminal` in the catalog): a person's command line runs them, and an agent's entry is refused with the command to type. No command has a table of its own: `omui` alone and `omui --help` list them, `omui <command> --help` describes one whole.
 
-A timeline's gain automation auditioned (a WAV, an omui view's frames, a report) is a composition of hanim, xengine.audio and omui, so it is xtools': [`xtools audition.automation`](../../../xtools/audition).
+A timeline's gain automation auditioned (a WAV, an omui view's frames, a report) is a composition of hanim, meng.audio and omui, so it is xtools': [`xtools audition.automation`](../../../xtools/audition).
 
 `omui agent <operation> <app> …` and `omui page <operation> …` are the protocol's catalogs (omui.agent: `ui.*`, and the verbs `design.*`, `generate.*`, `task.*`) through the same tool kernel: an operation's words are its parameters in the catalog's order, or `--name value` (`--dry-run` is `dry_run`; a switch alone is true, or takes the `true`/`false` after it); `--actor` says who acts (default `agent:omui-cli` for what changes something); `--out FILE` keeps a picture, its vectors or a trace the answer carries. `omui agent <operation> --help` describes one whole. A `ui.*` operation goes out as the protocol's request, a verb as `invoke`; the application decides what it admits.
 
@@ -65,7 +65,7 @@ none to make up, or not as it was after its undo). A failure exits 1.
 
 ## Films
 
-Films are the engine's: the [`video`](../../../xengine/kernel/video/tool) command renders descriptions, takes stills,
+Films are the engine's: the [`video`](../../../meng/kernel/video/tool) command renders descriptions, takes stills,
 checks, probes and shows the timing. A view's frames (a view document drawn on the headless host's clock, a step a
 frame) and the kinds of its data modules are omui's sources, given to the toolkit where both are known —
 [xtools](../../../xtools), in the engine's tier (D-231): `xtools video render hello.view.xdef.json --out shots/`.

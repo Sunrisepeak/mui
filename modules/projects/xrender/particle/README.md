@@ -1,6 +1,6 @@
 # xrender.particle
 
-Particles drawn: sparks, embers, smoke, drops — squares facing the eye laid over the light a mesh pass drew, added (fire, glints) or laid over by how much they hide (smoke, dust), faded where they near what is behind them. This is the CPU reference, the same bits everywhere; a device's path is the same contract's other target. What moves particles is not here: a carrier steps them (xengine), and this draws what it is given.
+Particles drawn: sparks, embers, smoke, drops — squares facing the eye laid over the light a mesh pass drew, added (fire, glints) or laid over by how much they hide (smoke, dust), faded where they near what is behind them. This is the CPU reference, the same bits everywhere; a device's path is the same contract's other target. What moves particles is not here: a carrier steps them (meng), and this draws what it is given.
 
 ```cpp
 import xrender.particle;

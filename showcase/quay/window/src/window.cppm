@@ -3,7 +3,7 @@
 //   return omui::run(quay::window::app({.record = "session.quay"}), options);
 //
 // The component `Harbour` is the game's window: it holds the same `quay::Standalone` a headless program holds,
-// steps it on the interface's clock (`xengine.ui`'s pacer, 60 steps a second) and gives each step the person's
+// steps it on the interface's clock (`meng.ui`'s pacer, 60 steps a second) and gives each step the person's
 // input — W A S D to walk, the mouse to look (a press keeps the pointer to the world; Escape lets it go), the left
 // button to fire, Space to jump, E to work the beacon (or a fuse box), Shift to run; or a gamepad: the left stick
 // walks, the right stick looks, the right trigger (or R1) fires, A jumps, X works, the left stick pressed runs. The picture is drawn each frame on the host's
@@ -16,11 +16,11 @@ export module omui.showcase.quay.window;
 
 import std;
 export import omui;
-export import xengine.ui;
+export import meng.ui;
 export import omui.showcase.quay;
 export import omui.showcase.quay.picture;
 export import omui.showcase.quay.sound;
-export import xengine.audio.device;
+export import meng.audio.device;
 
 export namespace quay::window {
 
@@ -63,13 +63,13 @@ public:
 
     // The game as played so far (none before it is mounted).
     [[nodiscard]] const Standalone* game() const noexcept { return game_ ? &*game_ : nullptr; }
-    [[nodiscard]] const xengine::ui::Viewport& viewport() const noexcept { return view_; }
+    [[nodiscard]] const meng::ui::Viewport& viewport() const noexcept { return view_; }
     // Whether the picture is drawn on the host's device and shown as it is (else: the reference's pixels).
     [[nodiscard]] bool drawn_on_device() const noexcept { return on_device_.has_value(); }
     // What the window hears (none: not made, or no output opened) and the output it plays through.
     [[nodiscard]] const Sound* sound() const noexcept { return sound_ ? &*sound_ : nullptr; }
-    [[nodiscard]] const xengine::audio::Device* output() const noexcept { return output_ ? &*output_ : nullptr; }
-    [[nodiscard]] const xengine::audio::Feed* feed() const noexcept { return feed_.get(); }
+    [[nodiscard]] const meng::audio::Device* output() const noexcept { return output_ ? &*output_ : nullptr; }
+    [[nodiscard]] const meng::audio::Feed* feed() const noexcept { return feed_.get(); }
     [[nodiscard]] std::uint64_t sounds_begun() const noexcept { return sounds_begun_; }
 
 private:
@@ -79,16 +79,16 @@ private:
 
     omui::Services*                          services_ = nullptr;
     omui::NodeId                             node_{};
-    xengine::ui::Viewport                    view_;
+    meng::ui::Viewport                    view_;
     std::optional<Standalone>                game_;
-    xengine::Sampler                         sampler_;
-    xengine::ui::Pacer                       pacer_;
+    meng::Sampler                         sampler_;
+    meng::ui::Pacer                       pacer_;
     std::optional<picture::Picture>          picture_;
     std::optional<picture::OnDevice>         on_device_;
     mlibs::rhi::CommandList                  list_;
     std::optional<Sound>                     sound_;
-    std::unique_ptr<xengine::audio::Feed>    feed_;
-    std::optional<xengine::audio::Device>    output_;   // after the feed it drains: it goes first
+    std::unique_ptr<meng::audio::Feed>    feed_;
+    std::optional<meng::audio::Device>    output_;   // after the feed it drains: it goes first
     std::uint64_t                            sounds_begun_ = 0;
     double                                   turning_ = 0, looking_ = 0;  // radians of mouse look not yet given to a step
 };

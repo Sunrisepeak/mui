@@ -6,18 +6,18 @@ Mature projects: branded engines, frameworks and modules that are complex enough
 |---|---|---|
 | [omui](omui) | A UI framework in which one semantic tree drives pixels, strong motion, accessibility, agents and tests (its motion is hanim's) | `openmui.*` (ui, components, lang, sdk; `omui.*` after M1's rename) |
 | [hanim](hanim) | A composable, agent-native animation engine: one set of capabilities for UI animation, video and game animation | `hanim.core` (base), `hanim` (gfx) |
-| [xengine](xengine) | An agent-native game engine system in which people and agents develop and play as equals (internal code name) | `xengine.dynamics` (base), `xengine.cellular*` (base, gfx), `xengine.{audio,video,timeline}*` (media), `xengine.{world,input,physics,net,ui}` (game) |
+| [meng](meng) | An agent-native game engine system in which people and agents develop and play as equals (internal code name) | `meng.dynamics` (base), `meng.cellular*` (base, gfx), `meng.{audio,video,timeline}*` (media), `meng.{world,input,physics,net,ui}` (game) |
 | [gongfu](gongfu) | A deterministic, rollback-ready fighting-game framework whose characters are data | `gongfu` (the standard library only), `gongfu.{data,ai,training}`, `gongfu.{present2d,studio,rules}` |
 | [xrender](xrender) | A CPU/GPU same-source, Web-first renderer whose pixels agents can review (internal code name) | `xrender.graph`, `xrender.vector`, `xrender.effect`, `xrender.raster`, `xrender.rhi.*`, `xrender.cts` (gfx) |
 | [xtools](xtools) | The toolchain whole: one command and one MCP server over every project's toolkit, each command behaving as it does on its own (internal code name; a composition, plan §4.5) | `xtools` (tools) |
 
-**Identity** (D-208): each project says who it is in `<name>/<name>.project.xdef.ts` (`defineProject`), evaluated to its snapshot `<name>.project.xdef.json` (`xdef snapshot`): its name (its directory's), display name, one sentence, whether it is a code name, its packages' prefix, programs, state directory, manifest section, the projects it may depend on and the parts of it that sit lower (xengine's kernels, gongfu's core; the bridge through which alone a part reaches a project). The lint's projects' order (`project-dag`) is read from these; a code name is renamed across the repository by one command, `omui-devtools rename FROM TO` (then lint and build what moved).
+**Identity** (D-208): each project says who it is in `<name>/<name>.project.xdef.ts` (`defineProject`), evaluated to its snapshot `<name>.project.xdef.json` (`xdef snapshot`): its name (its directory's), display name, one sentence, whether it is a code name, its packages' prefix, programs, state directory, manifest section, the projects it may depend on and the parts of it that sit lower (meng's kernels, gongfu's core; the bridge through which alone a part reaches a project). The lint's projects' order (`project-dag`) is read from these; a code name is renamed across the repository by one command, `omui-devtools rename FROM TO` (then lint and build what moved).
 
 **Admission** — a project here must:
 
 1. be describable in one sentence, written as the first line of its README and used as the first sentence anywhere it is introduced;
 2. have a few signature features that lead the industry or are designed for what comes next, each with its evidence: a benchmark against the best alternatives, or a real task only this design makes possible. Until the evidence exists a feature is a *candidate* and is not claimed outside the repository;
-3. meet the graduation criteria of [modules](../README.md) by milestone M5 (at least two independent consumers, a frozen v1 API, ops and skill files, a CTS, documentation, benchmarks) — or go back to xengine or mlibs.
+3. meet the graduation criteria of [modules](../README.md) by milestone M5 (at least two independent consumers, a frozen v1 API, ops and skill files, a CTS, documentation, benchmarks) — or go back to meng or mlibs.
 
 **What each project has** (plan §9.4): a README whose first line is the definition, then its signature features and their evidence, responsibilities, public entry points by level (L0–L4), its dependency closure and the state of the graduation criteria; `ops.omui.toml` and `skill.omui.md` (M4); a CTS, benchmark budgets and independent consumer tests. Projects reach each other only through declared package dependencies, never by relative source paths; inside, responsibilities are `src/<role>/` directories selected by features, and a sub-package exists only where isolation requires it (D-99).
 
@@ -31,7 +31,7 @@ Every package here says in its manifest how an agent reaches what it holds (lint
 [package.metadata.openmui]
 agent = "subject"                        # it serves a subject of the agent kernel
 agent = "tool"                           # a command line an agent runs, with its catalog and skill
-agent = { part = "xengine.cellular" }    # what it holds is reached through that package's subject
+agent = { part = "meng.cellular" }    # what it holds is reached through that package's subject
 agent = { library = "a function of the query and the candidates" }   # nothing an agent could reach, and why
 ```
 
@@ -56,4 +56,4 @@ A **subject**'s package has a catalog of its own (`<product>.ops.xdef.ts`; `ops-
 
 Where a package's consumers must not all link the agent kernel (a solver family, an engine's core), the subject is the package's feature `agent` (`src/agent/`, its dependencies under `[feature-deps.agent]`), and its contract test lives in a member that turns the feature on — lint `closure` keeps the package's default closure free of the kernel.
 
-What a subject cannot do it says (`capabilities()`), and its README says under "Not here": a capability is never pretended. [xengine.runtime](xengine/game/runtime) is the first written this way.
+What a subject cannot do it says (`capabilities()`), and its README says under "Not here": a capability is never pretended. [meng.runtime](meng/game/runtime) is the first written this way.

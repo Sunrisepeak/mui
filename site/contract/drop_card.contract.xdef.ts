@@ -1,5 +1,5 @@
 // A card let go over a floor (the site plan §5 ③): a soft body of jelly
-// (xengine.dynamics' physical material, hanim's Engine::simulate) under a
+// (meng.dynamics' physical material, hanim's Engine::simulate) under a
 // card and everything on it — it lands, squashes and springs back. Its
 // time is a body's own history: dragged back to any moment it played, it is
 // drawn exactly as it was then; played on again, the same steps, bit for bit.

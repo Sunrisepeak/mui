@@ -619,7 +619,7 @@ private:
             }
             camera = target;
         }
-        // The description the video toolkit reads (xengine.video): the frames, at their rate.
+        // The description the video toolkit reads (meng.video): the frames, at their rate.
         const auto description = out / "design.video.xdef.json";
         const Value video = Value(Value::Map{})
                                 .set("doc", std::format("The design of {} on {}: {} steps.", player.manifest().id, branch, steps_filmed))

@@ -22,7 +22,7 @@ Exit 0 done, 1 a request failed (the record says why and what to send instead), 
 
 ## Agent surface
 
-The subjects are the game's (`world`: `xengine.world@0.1`) and, on the `assist` tier, the matter of its world. Nothing has to be known beforehand: `{"op":"subjects"}` lists what is here, `{"op":"describe","subject":"world"}` gives the tasks to begin with (the game's own first), `{"op":"find","q":"…"}` finds a control or an operation by what is wanted.
+The subjects are the game's (`world`: `meng.world@0.1`) and, on the `assist` tier, the matter of its world. Nothing has to be known beforehand: `{"op":"subjects"}` lists what is here, `{"op":"describe","subject":"world"}` gives the tasks to begin with (the game's own first), `{"op":"find","q":"…"}` finds a control or an operation by what is wanted.
 
 ## Why apart from the game
 

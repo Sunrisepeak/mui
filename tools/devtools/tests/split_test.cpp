@@ -20,7 +20,7 @@ static UTest cases{"devtools.split", [] {
         if (!planned) return;
         const auto has = [&](std::string_view member) { return std::ranges::contains(planned->members, member); };
         expect(has("modules/projects/omui/core") && has("spec") && has("modules/base/json") && has("modules/projects/hanim"));
-        expect(!has("tools/devtools") && !has("modules/projects/xengine/game/world") && !has("modules/projects/xtools"));
+        expect(!has("tools/devtools") && !has("modules/projects/meng/game/world") && !has("modules/projects/xtools"));
         expect(!std::ranges::any_of(planned->members, [](const std::string& member) { return member.starts_with("showcase/") || member.starts_with("examples/"); }));
         expect(std::ranges::contains(planned->files, std::string("AGENTS.md")) && std::ranges::contains(planned->files, std::string(".xlings.json")));
         expect(!std::ranges::any_of(planned->files, [](const std::string& file) { return file.starts_with("tools/"); })) << "the repository's tools stay";

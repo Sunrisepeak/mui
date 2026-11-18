@@ -197,7 +197,7 @@ int browser_checks(const fs::path& root) {
     }
     // 1b. The suites of the backends' consumers, run by their owners (D-161): hanim.rhi's shape batches and the
     // cellular kernel's CPU/GPU equality, on the page's WebGPU.
-    const auto owners = built({"hanim.rhi", "xengine.cellular.rhi.cts"}, "the owners' WebGPU suites");
+    const auto owners = built({"hanim.rhi", "meng.cellular.rhi.cts"}, "the owners' WebGPU suites");
     if (!owners) return 1;
     for (const std::string_view suite : {"shape_webgpu_test", "cellular_webgpu_test"}) {
         const auto program = program_of(*owners, suite);

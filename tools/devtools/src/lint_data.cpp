@@ -416,9 +416,9 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
 
     // matter (D-165): no law names a material; no kernel source names one.
     {
-        constexpr std::string_view standard_path = "modules/projects/xengine/kernel/matter/standard.matter.xdef.json";
-        constexpr std::array kernels{"modules/projects/xengine/kernel/matter/src", "modules/projects/xengine/kernel/cellular/src",
-                                     "modules/projects/xengine/kernel/dynamics/src"};
+        constexpr std::string_view standard_path = "modules/projects/meng/kernel/matter/standard.matter.xdef.json";
+        constexpr std::array kernels{"modules/projects/meng/kernel/matter/src", "modules/projects/meng/kernel/cellular/src",
+                                     "modules/projects/meng/kernel/dynamics/src"};
         std::set<std::string> standard;
         static const std::regex token(R"([A-Za-z_]\w*)");
         for (const auto& file : files) {
@@ -871,9 +871,9 @@ std::span<const std::pair<std::string, std::string>> repository_owed() {
     // What existed before the agent-surface rule and still owes its surface, with what brings it; a package listed may not
     // also declare, so the list only shrinks.
     static const std::vector<std::pair<std::string, std::string>> owed{
-        {"modules/projects/xengine/kernel/audio", "M6.4: what is sounding, each bus's loudness, a sound back to its event (the plan's §3.4: a structured way to listen)"},
-        {"modules/projects/xengine/game/world", "M6.2: entities and scenes as the game subject's addresses and observation by region and kind (§3.4)"},
-        {"modules/projects/gongfu", "after M6.2: a match on xengine.runtime as a subject (its studio's tool is declared)"},
+        {"modules/projects/meng/kernel/audio", "M6.4: what is sounding, each bus's loudness, a sound back to its event (the plan's §3.4: a structured way to listen)"},
+        {"modules/projects/meng/game/world", "M6.2: entities and scenes as the game subject's addresses and observation by region and kind (§3.4)"},
+        {"modules/projects/gongfu", "after M6.2: a match on meng.runtime as a subject (its studio's tool is declared)"},
     };
     return owed;
 }

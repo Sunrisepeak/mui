@@ -30,7 +30,7 @@ inline constexpr std::array<std::string_view, item_count> item_names{
 inline constexpr std::array<bool, item_count> starred{true, false, false, true, false, true, false, false, false, true};
 
 struct Project {
-    std::string                    name;    // omui, hanim, xrender, xengine, gongfu, xtools, mlibs
+    std::string                    name;    // omui, hanim, xrender, meng, gongfu, xtools, mlibs
     std::string                    readme;  // from the root
     std::string                    label;   // its most mature package's
     std::array<Cell, item_count>   items;

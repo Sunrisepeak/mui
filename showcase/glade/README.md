@@ -6,8 +6,8 @@ A pocket valley — a stream with a footbridge, grass on both banks, a campfire,
 
 | Part | What |
 |---|---|
-| [headless](headless) (`src/headless`) | The valley as a game on its own (D-162; T5.8b): xengine.runtime steps, seeks and branches it; a hand over it (the pointer aims; torch, pour, push, rain, lightning, a rod; the wind) is how a person or an agent pokes it; the view is the semantic projection with the goals, and shown everything, why each changed thing is what it became |
-| [headless](headless) (`src/sim`) | The valley as carriers of matter in one step — bodies (`xengine.dynamics`' rigid3 and `Objects`), the air (`xengine.field`) and poured water (`xengine.particles`) under `rigid3::Scene` — with Glade's own materials as a pack of properties (no law); the verbs as quantities applied from outside and kept as causes; `observe`, `explain` and the task set; the state a value (a copy is a branch) |
+| [headless](headless) (`src/headless`) | The valley as a game on its own (D-162; T5.8b): meng.runtime steps, seeks and branches it; a hand over it (the pointer aims; torch, pour, push, rain, lightning, a rod; the wind) is how a person or an agent pokes it; the view is the semantic projection with the goals, and shown everything, why each changed thing is what it became |
+| [headless](headless) (`src/sim`) | The valley as carriers of matter in one step — bodies (`meng.dynamics`' rigid3 and `Objects`), the air (`meng.field`) and poured water (`meng.particles`) under `rigid3::Scene` — with Glade's own materials as a pack of properties (no law); the verbs as quantities applied from outside and kept as causes; `observe`, `explain` and the task set; the state a value (a copy is a branch) |
 
 ```sh
 mcpp test -p omui.showcase.glade.headless   # the same bits twice and on a branch; across, campfire and ice each solved, with the chain of causes; the valley at the runtime, an agent with a hand

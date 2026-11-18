@@ -32,7 +32,7 @@ struct Landing {
 Landing landing(const bo::State& s) {
     const double line = s.paddles[0].y - 16;
     Landing best;
-    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) {
+    s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) {
         if (b.on != 0) return;
         std::array<mlibs::dynamics::V2, 16> pts{};
         const std::size_t n = bo::trace(s, b.at, b.velocity, b.radius, pts, 5000);
@@ -72,7 +72,7 @@ struct Bot {
         const double x = l.any ? l.x - offset * s.paddles[0].half : s.paddles[0].x;
         m.x = std::clamp(x, 0.0, bo::field_w) / bo::field_w;
         bool waiting = false;
-        s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { waiting = waiting || b.on == 1; });
+        s.world.each<bo::Ball>([&](meng::Entity, const bo::Ball& b) { waiting = waiting || b.on == 1; });
         m.launch = waiting && s.frame % 20 == 0;
         return m;
     }

@@ -15,8 +15,8 @@ std::expected<std::unique_ptr<rigid::MatterWorld>, std::string> hearth() {
     (*world)->set(*program.channel("temperature"), {10, 19, 4, 2}, 1000 * 256);
     return world;
 }
-const xengine::matter::Look& look() {
-    static const xengine::matter::Look value = *xengine::matter::standard_look(matter());
+const meng::matter::Look& look() {
+    static const meng::matter::Look value = *meng::matter::standard_look(matter());
     return value;
 }
 // Mui, 6 × 10 pixels over her 3 × 5 cells, facing right: `#` her coat, `e` an eye, `n` her nose, `w` her chest.

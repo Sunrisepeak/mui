@@ -1,6 +1,6 @@
 // mlibs.simulation — the fixed-step simulation and its timeline: the stepping
 // substrate every simulation runs on (D-133). It holds no solver: physics is
-// xengine.dynamics, cellular rules xengine.cellular, a game its own model.
+// meng.dynamics, cellular rules meng.cellular, a game its own model.
 //
 //     mlibs::simulation::Clock clock(120);                        // steps a second
 //     for (int n = clock.advance(now); n > 0; --n) timeline.step(input);

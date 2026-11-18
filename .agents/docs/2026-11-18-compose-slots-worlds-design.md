@@ -296,6 +296,14 @@ mlibs::build::compose::report();   // 写 <out>/composition.xdef.json；必需�
 
 **效果库放到 GPU 提供者后面（2026-11-18）**：`GpuService` 多一项 `effects()`，宿主不再直接持有 `xrender::effect::Library`。例子 01 的 `lean` 15,175 KiB（上一步 15,809），`full` 18,080 KiB（18,513,569 B，超预算 13,569 B：每多一个接缝，`full` 多约 10 KB）。`lean` 里还剩与 GPU 有关的约 0.65 MB：SDL 的 2D 渲染驱动与它带入的 Vulkan 后端 306 KB、`xrender::shaders` 253 KB、`xrender::rhi` 与 `mlibs.rhi` 87 KB——后两项是 view 里画在设备上的组件引用的，还没有查到具体是谁。
 
+**Agent 总线：不需要拆包（2026-11-18，读代码后的结论，未改代码）。** 先前的判断是要把 `omui.agent` 拆成接口包与实现包、并改公开 API；核对后不必：
+
+- V1 已经说明，依赖一个包而不点名它的代码，链接器会回收。所以“接口与实现分包”只在要隔离依赖、许可或平台时才需要（无障碍桥带 AccessKit，GPU 提供者带 SDL_GPU 的后端）；`omui.agent` 没有这样的依赖要隔离。
+- 做法：槽与安装函数都放在 `omui.agent` 里（`omui::agent::install()`，表在安装时构造）。宿主对端点的七处调用（构造、析构、`start`、`stop`、`pump`、`take_input`，以及 `vector_capture`）改为经槽的表；公开的类型不变（`Desktop::endpoint()` 仍返回 `agent::Endpoint*`）。没人安装时，这些函数没有被点名，协议（1,357 行）与它带入的部分不进程序。
+- 规则相应多一条：**提供者可以与拥有者同包**，条件是没有要隔离的依赖；安装函数只由组合根调用，拥有者自己的代码不调用（lint `compose` 现在只认“提供者的包”，要加上这种情形）。
+- 范围：三个宿主（窗口、无头、Web）各自持有端点，`omui.sdk` 的 `app.cpp` 还用到 `TaskBroker`、`tree_hash`、`pixels_hash`；都要经表才省得下来。能省多少要做了才知道：`omui.agent` 自己 244 KiB，PNG 与 zlib 约 222 KiB 只为截图而在，JSON 另有别的使用者。
+- 世界：`app` 与 `full` 带 Agent（D-213：默认保留），只有 `lean` 不带。
+
 ## 11. 决策（提议）与任务
 
 | 编号 | 决策 |

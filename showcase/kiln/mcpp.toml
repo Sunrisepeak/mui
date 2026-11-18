@@ -58,6 +58,9 @@ openlifa.openas  = "0.2.1"
 [build-dependencies]
 omui.build = { path = "../../mcpp/build", host-module = true }
 
+[test]
+programs = "directory"  # tests/kiln/: one program, each file run and filtered as before
+
 [dev-dependencies]
 mcpplibs.mtest   = "0.8.4"
 mlibs.image      = { path = "../../modules/base/image" }

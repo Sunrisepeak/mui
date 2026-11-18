@@ -63,6 +63,9 @@ mcpplibs.os      = "0.4.4"
 mcpplibs.mwrap.sdl3 = "3.4.18"
 compat.sdl3 = "3.4.18"  # its build switches (mcpplibs.mwrap.sdl3 wraps this one)
 
+[test]
+programs = "directory"  # tests/sdl3/: one program, each file run and filtered as before
+
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 # A web page in the system's own view (the macOS case): the web_view component.

@@ -60,6 +60,9 @@ omui.lang = { path = "../../modules/projects/omui/lang" }
 [build-dependencies]
 omui.build = { path = "../../mcpp/build", host-module = true }
 
+[test]
+programs = "directory"  # tests/widget-breakout/: one program, each file run and filtered as before
+
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 

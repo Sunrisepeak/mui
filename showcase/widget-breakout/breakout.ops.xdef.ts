@@ -3,7 +3,7 @@
 // field's contract (contract/field.contract.xdef.ts) defines the actions;
 // this catalog says what each costs, how it is undone and which tier uses it.
 // ops-gen writes the listing (media/ops/breakout.ops.json) and its reference.
-import { defineOps } from "omui/define";
+import { defineOps } from "mlibs/define";
 
 export default defineOps({
   product: "breakout",

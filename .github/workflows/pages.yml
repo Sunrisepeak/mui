@@ -20,7 +20,7 @@ on:
       - 'modules/projects/omui/components/timeline/**'
       - 'mcpp/build/**'
       - 'modules/projects/omui/tools/gen/src/dist_toy.*'
-      - 'modules/projects/omui/tools/gen/tests/dist_toy_test.cpp'
+      - 'modules/projects/omui/tools/gen/tests/gen/dist_toy_test.cpp'
       - 'modules/projects/omui/tools/gen/src/font_subset.*'
       - 'tools/devtools/src/site.*'
       - 'tools/devtools/src/check*'

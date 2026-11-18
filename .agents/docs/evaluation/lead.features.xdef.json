@@ -234,7 +234,7 @@
       "line": "together",
       "title": "Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩",
       "status": "evidence",
-      "scene": "showcase/widget-breakout/tests/agent_player_test.cpp",
+      "scene": "showcase/widget-breakout/tests/widget-breakout/agent_player_test.cpp",
       "competitors": [
         "godot-mcp",
         "unity-ai"
@@ -247,7 +247,7 @@
       "line": "together",
       "title": "人与 Agent 平等游玩：同一套感知和反应约束，逐位回放",
       "status": "evidence",
-      "scene": "showcase/widget-breakout/tests/agent_player_test.cpp",
+      "scene": "showcase/widget-breakout/tests/widget-breakout/agent_player_test.cpp",
       "competitors": [
         "godot",
         "unity-ml-agents"

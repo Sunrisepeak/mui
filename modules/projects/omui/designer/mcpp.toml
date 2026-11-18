@@ -42,6 +42,9 @@ mcpplibs.os   = "0.4.4"
 mlibs.json    = { path = "../../../base/json" }
 mlibs.utils   = { path = "../../../base/utils" }
 
+[test]
+programs = "directory"  # tests/designer/: one program, each file run and filtered as before
+
 [dev-dependencies]
 # Tests are mtest's (D-147).
 mcpplibs.mtest     = "0.8.4"

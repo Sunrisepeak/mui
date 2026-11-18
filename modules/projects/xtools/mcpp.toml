@@ -46,6 +46,9 @@ meng.video          = { path = "../meng/kernel/video" }
 "omui.ui.markdown"     = { path = "../omui/components/markdown" }
 mcpplibs.os           = "0.4.4"
 
+[test]
+programs = "directory"  # tests/xtools/: one program, each file run and filtered as before
+
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 # workspace_test: the interface's and hanim's design adapters in one workspace (RC3.10's bar).

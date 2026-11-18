@@ -35,6 +35,9 @@ mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked f
 nlohmann.json       = "3.12.0"
 mcpplibs.cmdline    = "0.0.3"
 
+[test]
+programs = "directory"  # tests/gen/: one program, each file run and filtered as before
+
 [dev-dependencies]
 mcpplibs.os = "0.4.4"  # the test program's own image (size_test)
 mcpplibs.mtest = "0.8.4"

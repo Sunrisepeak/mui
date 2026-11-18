@@ -45,6 +45,9 @@ mcpplibs.os      = "0.4.4"
 mlibs.project = { path = "../../../../base/project" }  # omui doctor: the project's health (general rules, omui's profiles)
 marzer.tomlplusplus = "3.4.0"
 
+[test]
+programs = "directory"  # tests/cli/: one program, each file run and filtered as before
+
 [dev-dependencies]
 # Tests are mtest's (D-147).
 mcpplibs.mtest = "0.8.4"

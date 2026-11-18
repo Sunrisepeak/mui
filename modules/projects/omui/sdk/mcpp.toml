@@ -80,4 +80,4 @@ sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
 mcpplibs.mtest = "0.8.4"
 
 [test]
-discover = ["tests/*_test.cpp"]
+programs = "directory"  # tests/sdk/: one program, each file run and filtered as before

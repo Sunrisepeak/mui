@@ -119,9 +119,25 @@ const std::vector<Allowed>& layer_rules() {
 // it is in its identity (<name>.project.xdef.ts, read as its snapshot): the projects it may depend on, and
 // the parts of it that sit lower (xengine's kernels, gongfu's core). The longest path prefix that holds a
 // member names its project; consumers (tools, the site, showcases, examples, tests, entries) are free.
+std::string list_of(const auto& names);
+
+// The tiers (D-231), each a repository of its own one day: dependencies point down only, tests included.
+constexpr std::array<std::string_view, 3> tiers{"foundation", "framework", "engine"};
+// The edges up a tier that are still to be cut, each with its task (implementation plan A5, A6): the lint passes
+// them and refuses every other; an edge here that no manifest has any more is a cut done, to be struck off.
+struct Pending {
+    std::string_view from, to, task;
+};
+constexpr std::array<Pending, 3> pending_cuts{{
+    {"modules/projects/hanim", "modules/projects/xengine/kernel/dynamics", "A5: the solver hanim uses moves down to the foundation"},
+    {"modules/projects/omui/tools/cli", "modules/projects/xengine/kernel/video", "A6: `video` contributed by the engine's toolkit"},
+    {"modules/projects/omui/tools/cli", "modules/projects/xengine/kernel/video/tool", "A6: `video` contributed by the engine's toolkit"},
+}};
+
 struct ProjectPart {
     std::string path;  // "modules/projects/xengine/kernel/matter"
     std::string name;  // "xengine.sim"
+    std::size_t tier = 0;  // its index in `tiers`
     bool exact = false;  // that member alone
     std::set<std::string> may;
     std::map<std::string, std::string> through;  // a project reached only through one member (the bridge, D-162)
@@ -135,7 +151,7 @@ constexpr std::string_view projects_root = "modules/projects";
 
 Projects read_projects(const fs::path& root) {
     Projects projects;
-    projects.parts.push_back({.path = "modules", .name = "mlibs"});
+    projects.parts.push_back({.path = "modules", .name = "mlibs"});  // the foundation, as the specification
     projects.parts.push_back({.path = "spec", .name = "spec"});
     std::error_code error;
     std::vector<fs::path> directories;
@@ -175,11 +191,25 @@ Projects read_projects(const fs::path& root) {
                                                                                project["name"].text().value_or("nothing"), leaf)});
             continue;
         }
-        projects.parts.push_back({.path = place, .name = leaf, .may = names(project["dependsOn"])});
+        const auto tier_of = [&](mlibs::json::Node node, std::size_t otherwise) -> std::optional<std::size_t> {
+            if (!node) return otherwise;
+            const auto found = std::ranges::find(tiers, node.text().value_or(""));
+            if (found == tiers.end()) return std::nullopt;
+            return static_cast<std::size_t>(found - tiers.begin());
+        };
+        const auto tier = tier_of(project["tier"], tiers.size());
+        if (!tier || *tier == tiers.size()) {
+            projects.problems.push_back({"project-dag", snapshot, std::format("names no tier: `tier` is one of {} (D-231)", list_of(tiers))});
+            continue;
+        }
+        projects.parts.push_back({.path = place, .name = leaf, .tier = *tier, .may = names(project["dependsOn"])});
         for (const auto& part : project["parts"].items()) {
             const std::string under = part["path"].text().value_or(".");
+            const auto own_tier = tier_of(part["tier"], *tier);
+            if (!own_tier) projects.problems.push_back({"project-dag", snapshot, std::format("a part ({}) names no tier of {} (D-231)", under, list_of(tiers))});
             ProjectPart one{.path = under == "." ? place : std::format("{}/{}", place, under),
                             .name = part["name"].text().value_or(leaf),
+                            .tier = own_tier.value_or(*tier),
                             .exact = part["exact"].boolean().value_or(false),
                             .may = names(part["dependsOn"])};
             for (const auto& [other, member] : part["through"].members())
@@ -448,6 +478,7 @@ std::vector<Problem> check_manifests(const Workspace& workspace) {
 std::vector<Problem> check_projects(const Workspace& workspace) {
     const Projects projects = read_projects(workspace.root);
     std::vector<Problem> problems = projects.problems;
+    std::set<std::pair<std::string_view, std::string_view>> pending_seen;
     for (const auto& member : workspace.members) {
         const ProjectPart* own = project_of(projects, member.path);
         if (!own || !member.data) continue;
@@ -480,9 +511,21 @@ std::vector<Problem> check_projects(const Workspace& workspace) {
                     problems.push_back({"project-dag", member.path,
                                         std::format("depends on {} ({}){}: in {} only {} knows {} (D-162)", dependency, name, what, own->name,
                                                     bridge->second, other->name)});
+                else if (other->tier > own->tier) {
+                    const auto cut = std::ranges::find_if(pending_cuts, [&](const Pending& edge) { return edge.from == member.path && edge.to == dependency; });
+                    if (cut != pending_cuts.end()) pending_seen.insert({cut->from, cut->to});
+                    else
+                        problems.push_back({"project-dag", member.path,
+                                            std::format("depends on {} ({}){}: {} is of the {} tier, {} of the {}; dependencies point down only (D-231)", dependency,
+                                                        name, what, own->name, tiers[own->tier], other->name, tiers[other->tier])});
+                }
             }
         }
     }
+    for (const auto& edge : pending_cuts)
+        if (!pending_seen.contains({edge.from, edge.to}) && workspace.find(edge.from))
+            problems.push_back({"project-dag", std::string(edge.from),
+                                std::format("no longer depends on {}: the cut is done ({}); strike it off the pending cuts", edge.to, edge.task)});
     return problems;
 }
 

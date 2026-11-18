@@ -9,5 +9,6 @@ export default defineProject({
     packages: "xtools",
     programs: ["xtools", "xtools-inspector"],
     // A composition of every project's toolkit; nothing depends on it (plan §4.5).
+    tier: "engine",
     dependsOn: ["mlibs", "xrender", "xengine.sim", "hanim", "xengine.media", "spec", "omui", "xengine.game", "gongfu.core", "gongfu"],
 });

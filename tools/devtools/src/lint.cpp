@@ -60,7 +60,7 @@ constexpr Rule all_rules[]{
     {"manifest", "namespaced dependencies are dotted keys of [dependencies], never tables of their own"},
     {"layering", "a member depends only on the layers below it (D-82)"},
     {"modules", "an independent component (mlibs, the kernels) depends on nothing above it (D-55)"},
-    {"project-dag", "no project depends on one not below it, its tests included (D-161)"},
+    {"project-dag", "no project depends on one not below it, nor on a tier above its own, its tests included (D-161, D-231)"},
     {"layout", "a library's directory is its name; a directory with packages lists them in its README (D-80)"},
     {"licenses", "every index package is in tools/lint/licenses.toml; no GPL or AGPL; LGPL only dynamic (D-83)"},
     {"platforms", "a package on the Web depends only on packages that say they are (D-84)"},
@@ -525,8 +525,8 @@ void plant(const fs::path& root, const Planted& planted, const fs::path& owners_
         const std::string leaf = utf8_of(child.path().filename());
         const fs::path snapshot = child.path() / path_of(leaf + ".project.xdef.json");
         if (fs::exists(snapshot, error)) continue;
-        write(child.path() / path_of(leaf + ".project.xdef.ts"), std::format("import {{ defineProject }} from \"omui/define\";\nexport default defineProject({{ name: \"{}\", dependsOn: [\"mlibs\"] }});\n", leaf));
-        write(snapshot, std::format("{{\"$format\":\"project@1\",\"project\":{{\"name\":\"{}\",\"dependsOn\":[\"mlibs\"]}}}}\n", leaf));
+        write(child.path() / path_of(leaf + ".project.xdef.ts"), std::format("import {{ defineProject }} from \"omui/define\";\nexport default defineProject({{ name: \"{}\", tier: \"foundation\", dependsOn: [\"mlibs\"] }});\n", leaf));
+        write(snapshot, std::format("{{\"$format\":\"project@1\",\"project\":{{\"name\":\"{}\",\"tier\":\"foundation\",\"dependsOn\":[\"mlibs\"]}}}}\n", leaf));
     }
 }
 
@@ -554,6 +554,15 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {.rule = "layering", .dependencies = {{"spec", "[dependencies]\ncore = { path = \"../modules/ui/core\" }\n"}}, .also_unexpected = {"project-dag"}},
         {.rule = "modules", .dependencies = {{"modules/gfx/hanim", "[dependencies]\ncore = { path = \"../../ui/core\" }\n"}}},
         {.rule = "project-dag", .dependencies = {{"modules/base/hanim/core", "[dev-dependencies]\nopenlifa.openmui = { path = \"../../../../spec\" }\n"}}},
+        // a project of the foundation whose part above it is reached: allowed by the project's list, refused by the tiers (D-231)
+        {.rule = "project-dag", .dependencies = {{"modules/projects/thing", "[dependencies]\ntop = { path = \"top\" }\n"}},
+         .also_unexpected = {"agent-surface"},
+         .files = {{"modules/projects/thing/thing.project.xdef.ts", "import { defineProject } from \"omui/define\";\nexport default defineProject({ name: \"thing\", tier: \"foundation\", "
+                    "dependsOn: [\"mlibs\", \"thing.top\"], parts: [{ path: \"top\", name: \"thing.top\", tier: \"engine\", dependsOn: [\"mlibs\"] }] });\n"},
+                   {"modules/projects/thing/thing.project.xdef.json",
+                    R"({"$format":"project@1","project":{"name":"thing","tier":"foundation","dependsOn":["mlibs","thing.top"],)"
+                    R"("parts":[{"path":"top","name":"thing.top","tier":"engine","dependsOn":["mlibs"]}]}})" "\n"}},
+         .project = true},
         {.rule = "layout", .names = {{"modules/gfx/hanim", "name = \"anim\""}}},
         // what the manifests reach
         {.rule = "licenses", .dependencies = {{"modules/ui/core", "[dependencies]\nacme.copyleft = \"1.0.0\"\n"}},

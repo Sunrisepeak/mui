@@ -680,6 +680,11 @@ export interface World {
 export declare function defineWorld(world: World): Defined<"world">;
 // ── a project's identity (<project>.project.xdef.ts, D-208) ──────────────
 
+/**
+ * The three tiers (D-231), each a repository of its own one day: the foundation (libraries, rendering, animation),
+ * the framework (omui) and the engine (meng). Dependencies point down only, tests included: the lint holds it.
+ */
+export type ProjectTier = "foundation" | "framework" | "engine";
 /** A part of a project that may depend on less than the whole (xengine's simulation kernels, gongfu's core). */
 export interface ProjectPart {
     /** Its directory, under the project's (`"kernel/matter"`); `exact`: that member alone, not what is under it. */
@@ -687,6 +692,8 @@ export interface ProjectPart {
     /** The part's name among the projects (`"xengine.sim"`). */
     name: string;
     exact?: boolean;
+    /** Its tier, when not the project's (D-231). */
+    tier?: ProjectTier;
     /** The projects it may depend on, its tests included (D-161). */
     dependsOn: string[];
     /** A project reached only through one member of the part (`{ omui: "game/ui" }`: the bridge, D-162). */
@@ -712,11 +719,13 @@ export interface Project {
     stateDir?: string;
     /** The manifest's section of its own (`"package.metadata.openmui"`). */
     metadata?: string;
+    /** Its tier (D-231): it depends on no project of a tier above. */
+    tier: ProjectTier;
     /** The projects it may depend on, its tests included (D-161): only ones below it. */
     dependsOn: string[];
     parts?: ProjectPart[];
 }
-/** `export default defineProject({ name: "xrender", display: "xrender", summary: "…", packages: "xrender", dependsOn: ["mlibs"] })`. */
+/** `export default defineProject({ name: "xrender", display: "xrender", summary: "…", packages: "xrender", tier: "foundation", dependsOn: ["mlibs"] })`. */
 export declare function defineProject(project: Project): Defined<"project">;
 )ts";
 }

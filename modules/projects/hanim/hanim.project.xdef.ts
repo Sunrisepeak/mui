@@ -7,5 +7,6 @@ export default defineProject({
     summary: "A composable, agent-native animation engine: one set of capabilities for UI animation, video and game animation.",
     packages: "hanim",
     programs: ["hanim", "hanim-timeline"],
+    tier: "foundation",
     dependsOn: ["mlibs", "xrender", "xengine.sim"],
 });

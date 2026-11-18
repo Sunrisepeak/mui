@@ -12,6 +12,7 @@ export default defineProject({
     codeName: true,
     packages: "xengine",
     programs: ["matter-lab", "omui-music"],
+    tier: "engine",
     dependsOn: [],
     parts: [
         ...simulation.map((kernel) => ({ path: `kernel/${kernel}`, name: "xengine.sim", dependsOn: ["mlibs", "xrender"] })),

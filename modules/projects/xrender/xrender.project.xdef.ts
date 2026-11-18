@@ -8,5 +8,6 @@ export default defineProject({
     codeName: true,
     packages: "xrender",
     programs: ["xrender"],
+    tier: "foundation",
     dependsOn: ["mlibs"],
 });

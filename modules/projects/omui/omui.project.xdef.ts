@@ -9,5 +9,6 @@ export default defineProject({
     programs: ["omui", "omui-gen", "omui-mcp", "omui-devhost"],
     stateDir: ".omui",
     metadata: "package.metadata.openmui",
+    tier: "framework",
     dependsOn: ["mlibs", "xrender", "xengine.sim", "hanim", "xengine.media", "spec"],
 });

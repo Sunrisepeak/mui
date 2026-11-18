@@ -74,6 +74,16 @@ Exit (node N0): one CI run green on every tier-1 row (unverified cells by the pl
 | RC1.4 lint `module-closure` (ahead: no prerequisite) | done | a package's interface re-exports only what its manifest lists (`[package.metadata.openmui] reexports`); 46 packages declare theirs; at `f8f9527c` (T1.2) it reports `xpbd.cppm: re-exports xengine.matter`; self-test 39 of 39 |
 | RC1.7 design documents' status, two summaries (ahead) | done | `.agents/docs/README.md`: a status column — 8 有效, 8 已被取代 (by whom), 45 历史; one-page summaries of the foundation design (`2026-11-12-foundation-summary.md`) and the TS-first convergence (`2026-11-09-agent-era-ts-first-summary.md`) |
 
+## Stage: W1 — the foundation and omui to release quality, ready to split (since 2026-11-18)
+
+Plan and order: [implementation plan](2026-11-18-omui-meng-implementation-plan.md) (A–H, nodes M0–M4); design: [top-level design](2026-11-18-omui-meng-top-level-design.md).
+
+| Task | State | Evidence and result |
+|---|---|---|
+| A1 this run's failures; the local commits pushed | done (CI to confirm) | 1635491d (RC5.6, reds 130–132) pushed with the 19 before it; the run on it is watched in the background |
+| A3 mcpp's `--release` failure upstream | done | not mcpp's release profile: a compiler-run generation left from a build that ended unfinished (25 units, no results) made every later build of that configuration refuse ("previous compiler unit is occupied or unknown"); a SIGKILL mid-compile recovers, so the first cause is unknown. Remedy here: the configuration and its `.mcpp/compiler-runs/<hash>` removed together; markdown_wall's release builds (1m54s). mcpp#952 |
+| A4 the three tiers in the lint | done | each project's identity names its tier (`tier`: foundation, framework, engine; a part may name its own); lint `project-dag` refuses an edge up a tier, its tests and features included, but for the pending cuts named with their tasks (A5, A6), and refuses a listed cut no manifest has; without the list it reports hanim → xengine.dynamics and omui.cli → xengine.video, xengine.video.tool, nothing else; self-test 51 of 51; lint 0 |
+
 ## Node records
 
 Each node gets a block of at most 12 lines: date and head; the CI run and each row's verdict; the eight counters; labels changed; new reds and what was done; departures from the plan and why; the next stage re-estimated.
@@ -137,7 +147,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 ### Upstream issues
 
 - GCC 16.1 (not filed): a function-local using-declaration of an enum from another module inside a `constexpr` function of an interface is an ICE in `import_entity_module`; an alias declaration works.
-- mcpp#896: two packages with the same short name drop one from links (worked around: `xrender.graph`). mcpp#926: esbuild not found by tests on Windows (65). mcpp#936: a member's build rebuilds a mapped module (82). mcpp#874: target size and rebuild cascades. mcpp-index#750: `-pthread` on Android (50).
+- mcpp#896: two packages with the same short name drop one from links (worked around: `xrender.graph`). mcpp#926: esbuild not found by tests on Windows (65). mcpp#936: a member's build rebuilds a mapped module (82). mcpp#874: target size and rebuild cascades. mcpp#952: a stale compiler-run generation refuses every later build of its configuration (A3). mcpp-index#750: `-pthread` on Android (50).
 - mcpp#941 (closed 2026-11-16, in use): `[test] features` — a package's own tests built with named features. Without it a part behind a non-default feature is tested only as a default or as its own package: what holds many of RC1.5's rule-1 and rule-3 merges (e.g. `mlibs.image.ktx2` as `mlibs.image`'s feature).
 
 ## For 0.2 (found during 0.1; one line each, with the task that found it)

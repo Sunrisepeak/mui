@@ -122,7 +122,7 @@ struct Desktop::Impl final : WindowHost {
     Runtime*                                 runtime = nullptr;  // own_runtime's, or the one adopted
     std::unique_ptr<semantic::Tree>          tree;
     std::unique_ptr<xrender::text::GlyphCache>     glyphs;
-    std::unique_ptr<agent::Endpoint>         endpoint;
+    agent::Served                            endpoint;  // through the agent surface's slot (agent::endpoint_slot)
     // Assistive technology's view of the tree (D-21).
     std::unique_ptr<accessibility::Mirror>   mirror;
     std::unique_ptr<accessibility::Adapter>  access;
@@ -428,7 +428,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
 
 Desktop::~Desktop() {
     if (omui::window().host() == impl_.get()) omui::window().detach();
-    if (impl_->endpoint) impl_->endpoint->stop();
+    if (impl_->endpoint) impl_->endpoint.stop();
     // The adapter lets go of the window before the window goes.
     impl_->access.reset();
     impl_->mirror.reset();
@@ -553,14 +553,18 @@ std::expected<void, ViewFailure> Desktop::open() {
             d.runtime->set_native_surfaces(std::move(surfaces));
         }
     }
-    d.runtime->set_svg_capture([&d](Rect region) -> std::expected<std::string, ViewFailure> {
-        const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
-        auto capture = agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
-        if (!capture) return std::unexpected(capture.error());
-        return std::move(capture->svg);
-    });
+    // The agent surface is a provider's (agent::endpoint_slot): a program built without it has no captures and
+    // serves no agent, as a platform without local endpoints does not.
+    const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot);
+    if (surface)
+        d.runtime->set_svg_capture([&d, surface](Rect region) -> std::expected<std::string, ViewFailure> {
+            const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+            auto capture = surface->vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
+            if (!capture) return std::unexpected(capture.error());
+            return std::move(capture->svg);
+        });
     // The frame on screen as PNG, cut to a region: the runtime's capture_png and the agent's capture.
-    const auto shown_png = [&d](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
+    const auto shown_png = [&d, surface](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
         // The frame on screen, cut to the region (logical pixels).
         auto shown_frame = d.pixels();
         if (!shown_frame) return std::unexpected(shown_frame.error());
@@ -570,25 +574,25 @@ std::expected<void, ViewFailure> Desktop::open() {
         const int x1 = std::clamp(r.x + r.width, x0, f.width()), y1 = std::clamp(r.y + r.height, y0, f.height());
         if (x1 <= x0 || y1 <= y0) return std::unexpected(ViewFailure{ViewError::empty_region, "the region is outside the window"});
         mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, mlibs::image::Alpha::premultiplied};
-        auto png = mlibs::image::encode_png(v);
+        auto png = surface->png(v);
         if (!png) return std::unexpected(ViewFailure{ViewError::capture_failed, std::move(png.error())});
         return std::move(*png);
     };
-    d.runtime->set_png_capture(shown_png);
-    if (d.options.agent) {
+    if (surface) d.runtime->set_png_capture(shown_png);
+    if (d.options.agent && surface) {
         agent::EndpointOptions eo;
         eo.name = d.options.app;
         eo.directory = d.options.agent_directory;
         eo.protocol.app = d.options.app;
         eo.protocol.input = d.options.agent_input;
         eo.protocol.capture = shown_png;
-        eo.protocol.capture_svg = [&d](Rect region) {
+        eo.protocol.capture_svg = [&d, surface](Rect region) {
             const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
-            return agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
+            return surface->vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
         };
         eo.wake = [] { platform::wake(); };
-        d.endpoint = std::make_unique<agent::Endpoint>(*d.runtime, std::move(eo));
-        if (auto r = d.endpoint->start(); !r) {
+        d.endpoint = agent::Served(*surface, *d.runtime, std::move(eo));
+        if (auto r = d.endpoint.start(); !r) {
             warn("the agent endpoint did not start: {}", r.error());
             d.endpoint.reset();
         }
@@ -679,9 +683,9 @@ bool Desktop::step(bool wait) {
     std::optional<agent::AgentInput> given;
     const auto agent_begin = polled.events.size();
     if (d.endpoint) {
-        d.endpoint->pump();
+        d.endpoint.pump();
         // An agent's input, a frame's worth, after the person's own.
-        given = d.endpoint->take_input();
+        given = d.endpoint.take_input();
         if (given) polled.events.insert(polled.events.end(), std::make_move_iterator(given->events.begin()), std::make_move_iterator(given->events.end()));
     }
     d.reload_effects();

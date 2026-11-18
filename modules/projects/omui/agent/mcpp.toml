@@ -13,10 +13,15 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
 separate = "library: omui's agent protocol for hosts, tools and tests"
 reexports = ["omui.core", "omui.semantic", "omui.view"]  # what its interface re-exports (lint module-closure)
 kind = "runtime"
 agent = "subject"
+
+[package.metadata.openmui.compose]
+slots = ["omui.agent.endpoint"]     # the application's agent surface (src/service.cppm)
+provides = ["omui.agent.endpoint"]  # its own: no dependency to keep apart, so no package of its own
 
 [targets.openmui-agent]
 kind = "lib"
@@ -34,6 +39,7 @@ mlibs.utils    = { path = "../../../base/utils" }
 mlibs.control  = { path = "../../../base/control" }
 # The endpoint (where agents find a program and talk to it) is the agent kernel's (D-173).
 mlibs.agent    = { path = "../../../base/agent" }
+mlibs.compose  = { path = "../../../base/compose" }  # the slot its endpoint and captures are installed at (:service)
 # :subject — the interface among a process's subjects: the kernel's requests (openas actors) read and its records written.
 mlibs.json     = { path = "../../../base/json" }
 openlifa.openas = "0.2.1"

@@ -304,6 +304,8 @@ mlibs::build::compose::report();   // 写 <out>/composition.xdef.json；必需�
 - 范围：三个宿主（窗口、无头、Web）各自持有端点，`omui.sdk` 的 `app.cpp` 还用到 `TaskBroker`、`tree_hash`、`pixels_hash`；都要经表才省得下来。能省多少要做了才知道：`omui.agent` 自己 244 KiB，PNG 与 zlib 约 222 KiB 只为截图而在，JSON 另有别的使用者。
 - 世界：`app` 与 `full` 带 Agent（D-213：默认保留），只有 `lean` 不带。
 
+**Agent 总线第一步的结果（2026-11-18，本地）**：槽 `omui.agent.endpoint` 与同包的提供者（`omui::agent::install()`）已有；窗口宿主的端点与两种截图都经槽的表；`omui.sdk` 的 feature `agent`（`app`、`full`）。lint `compose` 认得“拥有者给自己的槽提供”，依赖它的库不算依赖提供者。测试：`omui.agent` 60 例、`omui.host.sdl3` 13 例、`omui.host.sdl3.gpu` 5 例通过。**字节上还没有效果**：例子 01 的 `lean` 仍是 15,178 KiB，`omui.agent` 的 255 KiB 还在，因为另有三处直接点名它——无头宿主的端点与截图，`omui.sdk` 的后台任务（`TaskBroker`）与回放的两个哈希，以及运行时生成（它用任务）。要省下来这三处都得经槽，其中运行时生成应当是它自己的一项能力。`full` 因这个接缝又多 6 KB（18,519,893 B）。
+
 ## 11. 决策（提议）与任务
 
 | 编号 | 决策 |

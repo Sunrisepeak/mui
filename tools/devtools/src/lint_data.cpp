@@ -600,6 +600,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         std::map<std::string, std::string> owner_of;          // a slot → the member that declares it
         std::set<std::string>              providers;         // members that provide
         std::set<std::string>              roots;             // members that say `root = true`
+        std::set<std::string>              installable;       // packages that say `provides`, by name
         for (const auto& member : workspace.members) {
             if (!member.data) continue;
             const auto* compose = table_at(openmui_metadata(*member.data), "compose");
@@ -619,7 +620,12 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                 if (!in_sources)
                     add("compose", member.path + "/mcpp.toml", std::format("declares the slot {}, and no source of it has that id (its `mlibs::compose::Slot`)", slot));
             }
-            if (!strings_of(compose, "provides").empty()) providers.insert(member.path);
+            // A provider's package: one that provides at a slot another package owns. An owner that provides at its
+            // own slot (no dependency to keep apart) is depended on as any owner is; only a root calls its install.
+            const std::vector<std::string> own = strings_of(compose, "slots");
+            if (std::ranges::any_of(strings_of(compose, "provides"), [&](const std::string& slot) { return !std::ranges::contains(own, slot); }))
+                providers.insert(member.path);
+            if (!strings_of(compose, "provides").empty()) installable.insert(name);
             if (compose && compose->get("root") && compose->get("root")->value_or(false)) roots.insert(member.path);
         }
         for (const auto& member : workspace.members) {
@@ -681,9 +687,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                 const std::string program = read_text(root / path_of(member.path) / "build.mcpp").value_or("");
                 for (std::sregex_iterator found(program.begin(), program.end(), named), end; found != end; ++found) {
                     const std::string name = (*found)[1].str();
-                    const bool provides = std::ranges::any_of(workspace.members, [&](const Member& other) {
-                        return other.data && providers.contains(other.path) && package_name(*other.data) == name;
-                    });
+                    const bool provides = installable.contains(name);
                     if (const auto* rows = table_at(compose, "installs"); !rows || !rows->get(name))
                         add("compose", member.path + "/build.mcpp",
                             std::format("installs {}, which the manifest's `[package.metadata.openmui.compose.installs]` does not list (a build's "

@@ -13,4 +13,5 @@ export import :tasks;
 export import :protocol;
 export import :subject;
 export import :endpoint;
+export import :service;
 export import :api;

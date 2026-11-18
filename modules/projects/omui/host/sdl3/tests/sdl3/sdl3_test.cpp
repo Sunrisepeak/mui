@@ -11,6 +11,7 @@ import mcpplibs.mwrap.sdl3;  // a virtual gamepad (the gamepad test)
 import omui.host.sdl3;
 import omui.accessibility.bridge;  // the platform's service, installed as an application's SDK installs it
 import omui.ui.base;  // web_view (the system's web view, macOS)
+import mlibs.compose;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -30,6 +31,7 @@ mlibs::text::FontCollection& fonts() {
 }
 
 DesktopOptions offscreen(std::string app = "sdl3-test") {
+    agent::install();  // the agent surface (the endpoint, the captures), installed as an application's SDK installs it
     DesktopOptions o;
     o.title = "openmui test";
     o.size = {240, 160};
@@ -74,6 +76,17 @@ static UTest cases{"host.sdl3", [] {
         auto blue = d.window_pixels();
         auto b = blue->at(static_cast<int>(40 * d.scale()), static_cast<int>(40 * d.scale()));
         expect(b.b == 255 && b.r == 0);
+    };
+
+    "an endpoint asked for with the agent surface installed is served; `Desktop::endpoint()` answers it"_test = [] {
+        DesktopOptions o = offscreen("sdl3-surface");
+        o.agent = true;
+        o.agent_directory = scratch_dir("sdl3-surface");
+        Desktop d(o);
+        if (!d.open()) return;
+        expect(mlibs::compose::process().get(agent::endpoint_slot) != nullptr) << "installed by offscreen()";
+        if (!d.endpoint()) std::println("    skipped: local endpoints are not supported here");
+        else expect(d.endpoint()->listening());
     };
 
     "without a provider of the GPU path: the CPU draws; the GPU insisted on is refused, naming the slot and the way out"_test = [] {

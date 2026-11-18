@@ -51,6 +51,7 @@ struct Shows {
 };
 
 DesktopOptions offscreen(std::string app = "sdl3-test") {
+    agent::install();  // the agent surface (the captures the cases read), installed as an application's SDK installs it
     host::sdl3::gpu::install();  // every host of these tests may draw on a device
     DesktopOptions o;
     o.title = "openmui test";

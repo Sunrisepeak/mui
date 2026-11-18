@@ -19,6 +19,7 @@ static UTest cases{"host.sdl3.agent_policy", [] {
         options.vsync = false;
         options.accessibility = false;
         options.renderer = DesktopOptions::Renderer::cpu;
+        agent::install();  // the endpoint, installed as an application's SDK installs it
         Desktop host(options);
         const auto opened = host.open();
         expect(opened.has_value()) << (opened ? "" : opened.error().text());

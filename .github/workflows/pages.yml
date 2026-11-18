@@ -4,14 +4,16 @@ name: Pages
 # pre-rendered, published to GitHub Pages (omui-devtools site build) at
 # https://sunrisepeak.github.io/mui/. A pull request that touches the site or
 # the documents it shows builds it (the built site kept as an artifact); a
-# push to main or to the design branch, or a run by hand, publishes it — where
+# push to main or a run by hand publishes it (the design branch by hand, at a
+# node or when the site changed: `gh workflow run Pages --ref openmui-design`;
+# D-248, each of its pushes cost about fifty minutes here) — where
 # the github-pages environment's deployment branches allow (§13.3 of the
 # structure design: main, and openmui-design once added); a branch it does
 # not allow leaves the run green and the site unpublished.
 
 on:
   push:
-    branches: [main, openmui-design]
+    branches: [main]
   pull_request:
     paths:
       - 'site/**'
@@ -44,7 +46,7 @@ env:
 
 jobs:
   build:
-    # The design branch's pull request is built by its pushes (once).
+    # The design branch's pull request is built when asked (D-248), not by each push.
     if: github.event_name != 'pull_request' || github.head_ref != 'openmui-design'
     runs-on: ubuntu-24.04
     timeout-minutes: 90

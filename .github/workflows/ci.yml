@@ -12,24 +12,35 @@ name: CI
 #   web       the members that say they run on the Web pass their tests on
 #             wasm32-emscripten under node, with the same pinned hashes
 
+# When it runs (D-248): a checkpoint is verified on the developer's machine
+# (`omui-devtools ci local`, the members it touches); this workflow is for
+# what that machine cannot be. A pull request's push runs the lint alone
+# (minutes). The matrix runs when asked — at a node, a release candidate, or
+# for the lanes a platform's fix needs — and nightly and on main:
+#   gh workflow run CI --ref openmui-design                    every lane but the GCC rows
+#   gh workflow run CI --ref openmui-design -f lanes="macos"   one lane
+# The matrix was about 730 runner minutes a run (macOS 161), run on every
+# push; nearly every failure it found was one Linux x64 shows locally.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      lanes:
+        description: "Lanes, separated by spaces: all (every lane but gcc), linux, arm, macos, windows, gcc, web, android, site, split"
+        default: all
   # The GCC rows (and the steps they carry: the consumers, the templates,
-  # the sweep, the benchmarks) run here, nightly and on demand; a pull
-  # request's matrix leaves them out (plan §10.1: the PR lane stays fast; they
-  # took over 150 minutes, red list 9).
+  # the sweep, the benchmarks) run nightly, on main, and when named; `all`
+  # leaves them out (they took over 150 minutes, red list 9).
   schedule:
     - cron: "30 2 * * *"
 
-# A run in progress finishes: the matrix takes about two hours and every
-# checkpoint is reconciled against its CI (plan §10.1); a newer push waits,
-# and GitHub keeps only the newest waiting run of the group.
+# A matrix in progress finishes; runs asked with different lanes do not wait
+# on one another. A pull request's lint is replaced by the next push's.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}-${{ github.event_name }}-${{ inputs.lanes }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   XLINGS_VERSION: v2026.10.26.1
@@ -76,6 +87,7 @@ jobs:
   # and the build or a test says so; a tier that reaches one above it is refused before anything builds.
   split:
     name: test the ${{ matrix.tier }} split from the repository
+    if: github.event_name != 'pull_request' && (contains(inputs.lanes || 'all', 'all') || contains(inputs.lanes, 'split'))
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     strategy:
@@ -123,6 +135,7 @@ jobs:
   # under node; their pinned hashes are the other rows' constants.
   web:
     name: test web wasm32-emscripten
+    if: github.event_name != 'pull_request' && (contains(inputs.lanes || 'all', 'all') || contains(inputs.lanes, 'web'))
     runs-on: ubuntu-24.04
     # Red 117: the members' Web build takes about an hour on a runner and their tests about forty minutes;
     # 90 cut the run short while it was still passing. A limit on the job's time, not on what it checks.
@@ -165,6 +178,7 @@ jobs:
   # then run on Android 7.0's emulator (KVM): started, a tap, Back.
   android:
     name: test android x86_64 (emulator)
+    if: github.event_name != 'pull_request' && (contains(inputs.lanes || 'all', 'all') || contains(inputs.lanes, 'android'))
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -205,37 +219,51 @@ jobs:
           path: ${{ runner.temp }}/omui-android/*.png
           if-no-files-found: ignore
 
-  # The rows a run tests: every one nightly and on demand, the GCC rows left
-  # out of a pull request's run.
+  # The rows a run tests: the ones its lanes name; the GCC rows nightly, on
+  # main, and when named.
   rows:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.rows.outputs.matrix }}
+      any: ${{ steps.rows.outputs.any }}
     steps:
       - id: rows
         shell: bash
+        env:
+          LANES: ${{ inputs.lanes || 'all' }}
+          EVENT: ${{ github.event_name }}
         run: |
           # aarch64 Linux's native glibc toolchain is LLVM (mcpp docs/20): there
           # `gcc` is the static musl toolchain, which cannot link the shared
           # X11 libraries the desktop host needs.
-          # The per-push rows build the profile `ci` (the workspace's: dev without debug information, stripped —
+          # The LLVM rows build the profile `ci` (the workspace's: dev without debug information, stripped —
           # a test program is a fifth of its size); the GCC rows keep `dev` and `release`.
-          rows='[
-            {"os": "ubuntu-24.04",     "toolchain": "llvm@23.1.3", "profile": "ci"},
-            {"os": "ubuntu-24.04-arm", "toolchain": "llvm@23.1.3", "profile": "ci"},
-            {"os": "macos-15",         "toolchain": "llvm@23.1.3", "profile": "ci"},
-            {"os": "windows-2022",     "toolchain": "llvm@23.1.3", "profile": "ci"}'
-          case "${{ github.event_name }}" in
-            schedule|workflow_dispatch|push)
-              rows="$rows"',
-            {"os": "ubuntu-24.04", "toolchain": "gcc@16.1.0", "profile": "dev"},
-            {"os": "ubuntu-24.04", "toolchain": "gcc@16.1.0", "profile": "release"}' ;;
-          esac
-          echo "matrix=$(echo "$rows]" | tr -d '\n ')" >> "$GITHUB_OUTPUT"
+          asked() {
+            for lane in $LANES; do
+              [ "$lane" = "$1" ] && return 0
+              [ "$lane" = all ] && [ "$1" != gcc ] && return 0
+            done
+            return 1
+          }
+          rows=()
+          asked linux   && rows+=('{"os":"ubuntu-24.04","toolchain":"llvm@23.1.3","profile":"ci"}')
+          asked arm     && rows+=('{"os":"ubuntu-24.04-arm","toolchain":"llvm@23.1.3","profile":"ci"}')
+          asked macos   && rows+=('{"os":"macos-15","toolchain":"llvm@23.1.3","profile":"ci"}')
+          asked windows && rows+=('{"os":"windows-2022","toolchain":"llvm@23.1.3","profile":"ci"}')
+          # Nightly and on main the GCC rows run without being named.
+          if asked gcc || [ "$EVENT" = schedule ] || [ "$EVENT" = push ]; then
+            rows+=('{"os":"ubuntu-24.04","toolchain":"gcc@16.1.0","profile":"dev"}')
+            rows+=('{"os":"ubuntu-24.04","toolchain":"gcc@16.1.0","profile":"release"}')
+          fi
+          joined="$(IFS=,; echo "${rows[*]}")"
+          echo "matrix=[$joined]" >> "$GITHUB_OUTPUT"
+          if [ "${#rows[@]}" -gt 0 ]; then echo "any=true" >> "$GITHUB_OUTPUT"; else echo "any=false" >> "$GITHUB_OUTPUT"; fi
 
   test:
     name: test ${{ matrix.os }} ${{ matrix.toolchain }} ${{ matrix.profile }}
     needs: rows
+    if: needs.rows.outputs.any == 'true'
     runs-on: ${{ matrix.os }}
     # Every member's tests, then the scripts: 2 h 06 min on Linux x64 at e1749f83, more on macOS (each member's
     # tests rebuild what it reaches: mcpp#874). 150 minutes cancelled both rows with nothing failing (red list 67).
@@ -499,6 +527,7 @@ jobs:
   # single test does not run into the default five minutes.
   site:
     name: test site (release)
+    if: github.event_name != 'pull_request' && (contains(inputs.lanes || 'all', 'all') || contains(inputs.lanes, 'site'))
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:

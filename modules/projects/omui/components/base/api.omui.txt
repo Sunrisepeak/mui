@@ -660,6 +660,7 @@ namespace omui {
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    [[nodiscard]] std::uint64_t items_revision() const;
     bool reveal(std::string_view key);
     ActResult scroll_to(ActContext& ctx, const ScrollToArgs& args);
     ActResult next(ActContext& ctx);

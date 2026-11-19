@@ -56,9 +56,11 @@ enum class Toggled : std::uint8_t { none, off, on, mixed };
 struct TextPosition {
     std::uint64_t run = 0;
     std::size_t   index = 0;
+    friend bool operator==(const TextPosition&, const TextPosition&) = default;
 };
 struct TextSelection {
     TextPosition anchor, focus;
+    friend bool operator==(const TextSelection&, const TextSelection&) = default;
 };
 enum class Live : std::uint8_t { off, polite, assertive };
 
@@ -79,7 +81,10 @@ struct Node {
     // The node's actions AccessKit has no name for (dismiss, a second of
     // activate / toggle / select): custom actions, their id the index.
     std::vector<std::string>   custom;
-    std::optional<spec::Rect>  bounds;            // logical pixels, in the window
+    // Logical pixels, in its scroll containers' content: in the window, plus the offsets of the containers above it
+    // (and its own, for one), so a scroll moves one node — the container's `scrolled` — and not what it holds.
+    std::optional<spec::Rect>  bounds;
+    std::optional<spec::Point> scrolled;          // a scroll container's offset (AccessKit: its transform moves it back)
     std::vector<std::uint64_t> children;
     // A text field's selection (its caret when empty), over its runs; a run
     // (role TextRun, a laid-out line: its words in `value`) has each
@@ -93,6 +98,7 @@ struct Node {
 
     [[nodiscard]] bool has(Action a) const noexcept { return (actions >> static_cast<unsigned>(a)) & 1u; }
     void add(Action a) noexcept { actions |= 1u << static_cast<unsigned>(a); }
+    friend bool operator==(const Node&, const Node&) = default;
 };
 
 // The 64-bit key of a node id (never 0).
@@ -162,7 +168,10 @@ private:
     // A text field's runs and selection, as the runtime has them laid out:
     // `node` gets its runs as children and its selection; the runs go to
     // `out` when they changed (or always, `force`). Under the lock.
-    void text_of(const std::string& id, Node& node, std::vector<Node>& out, bool force);
+    void text_of(const std::string& id, Node& node, std::vector<Node>& out, bool force, spec::Point shift);
+    // A node's bounds in its scroll containers' content, and its own offset if it scrolls (as the runtime last placed
+    // them); `id` a node's, or an item's under one.
+    void place(std::string_view id, Node& node, spec::Point& shift);
     struct Text {
         std::vector<Node> runs;
         std::optional<TextSelection> selection;
@@ -177,6 +186,7 @@ private:
     mutable std::mutex                                  mutex_;
     std::unordered_map<std::uint64_t, Node>             nodes_;
     std::unordered_map<std::uint64_t, std::string>      ids_;
+    std::unordered_map<std::uint64_t, spec::Point>      scrollers_;  // the scroll containers told, by key: their offset
     std::uint64_t                                       focus_ = 0;
     std::vector<Request>                                requests_;
     std::function<void()>                               wake_;

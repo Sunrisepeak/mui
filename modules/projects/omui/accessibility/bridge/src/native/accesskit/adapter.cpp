@@ -184,8 +184,13 @@ accesskit_node* make(const Node& d, float scale, bool root) {
     if (d.bounds)
         accesskit_node_set_bounds(n, accesskit_rect{d.bounds->x, d.bounds->y, d.bounds->x + d.bounds->width,
                                                     d.bounds->y + d.bounds->height});
-    // Bounds are logical pixels; AccessKit's are the window's physical ones.
-    if (root && scale != 1) accesskit_node_set_transform(n, accesskit_affine{{scale, 0, 0, scale, 0, 0}});
+    // Bounds are logical pixels; AccessKit's are the window's physical ones. A scroll container's children (and its own
+    // bounds) are in its content: its transform moves them back by its offset, so a scroll is this node alone.
+    const double s = root ? scale : 1.0;
+    if (s != 1 || d.scrolled) {
+        const double x = d.scrolled ? d.scrolled->x : 0, y = d.scrolled ? d.scrolled->y : 0;
+        accesskit_node_set_transform(n, accesskit_affine{{s, 0, 0, s, -s * x, -s * y}});
+    }
     if (!d.children.empty()) accesskit_node_set_children(n, d.children.size(), d.children.data());
     // A text field's selection over its runs; a run's characters.
     if (d.selection)

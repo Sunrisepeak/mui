@@ -423,6 +423,7 @@ namespace omui {
     Placement (*placement)(const void*) = nullptr;
     std::vector<Element> (*compose)(void*) = nullptr;
     std::vector<spec::SemanticNode> (*virtual_items)(const void*, std::string_view path) = nullptr;
+    std::uint64_t (*items_revision)(const void*) = nullptr;
     bool (*reveal)(void*, std::string_view key) = nullptr;
     std::optional<spec::SemanticNode> (*virtual_item)(const void*, std::string_view path, std::string_view key) = nullptr;
     ActResult (*act_item)(void*, ActContext&, std::string_view key, std::string_view action) = nullptr;
@@ -1237,6 +1238,8 @@ namespace omui {
     [[nodiscard]] Signal<std::optional<Element>> outlet(std::string_view name) override;
     NodeId reveal(std::string_view path) override;
     [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(NodeId node) const;
+    [[nodiscard]] std::optional<std::uint64_t> items_revision(NodeId node) const;
+    [[nodiscard]] std::optional<Point> scroll_offset(NodeId node) const;
     void request_frame() override;
     void moving(NodeId node) override;
     void scroll_into_view(NodeId node) override;

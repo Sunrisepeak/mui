@@ -35,6 +35,8 @@ public:
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const;
+    // Changes with its rows and its selection, not with its scrolling: the semantic tree reads its items again only then.
+    [[nodiscard]] std::uint64_t items_revision() const;
     bool reveal(std::string_view key);
 
     ActResult scroll_to(ActContext& ctx, const ScrollToArgs& args);
@@ -62,6 +64,8 @@ private:
     Watch                                  watch_;
     float                                  offset_ = 0;
     std::size_t                            first_ = 0, last_ = 0;  // the materialised rows [first, last)
+    mutable std::uint64_t                  items_revision_ = 0;     // 0: to be made
+    mutable std::uint64_t                  rows_seen_ = 0;          // the model's revision it is of
     std::string                            current_;  // the item Tab enters at
     std::string                            revealing_;  // kept in view while measured heights settle
     std::unordered_map<std::string, float> heights_;

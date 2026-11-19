@@ -256,6 +256,33 @@ UTest cases{"mpal.notify", [] {
                std::get<std::string>(bus->heard[1].body[0].data).contains("interface='org.freedesktop.Notifications'"));
     };
 
+    "a listener waits as long as there may be answers; stopped from another thread, its wait ends at once"_test = [] {
+        std::uint32_t serial = 100;
+        std::optional<FakeBus> bus;
+        bus.emplace(2, [&serial](const dbus::Message& read) {
+            if (read.member == "Hello") return reply_bytes(++serial, read.serial, "s", std::array{Value::of(":1.7")});
+            return reply_bytes(++serial, read.serial, "", {});  // AddMatch
+        });
+        auto connected = dbus::Bus::at(bus->dir, "bus");
+        expect(connected.has_value());
+        if (!connected) return;
+        auto listener = mpal::Notifier::listen(std::move(*connected));
+        expect(listener.has_value()) << (listener ? std::string() : listener.error().text);
+        if (!listener) return;
+        const auto began = std::chrono::steady_clock::now();
+        std::expected<std::optional<mpal::Answer>, mpal::Error> heard = std::optional<mpal::Answer>{};
+        std::jthread waiting([&] { heard = listener->next(std::chrono::hours(1)); });
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        listener->stop();
+        waiting.join();
+        const auto waited = std::chrono::steady_clock::now() - began;
+        expect(heard.has_value() && !*heard) << "none came: " << (heard ? std::string() : heard.error().text);
+        expect(waited < std::chrono::seconds(5)) << std::format("woken, not timed out ({} ms)", std::chrono::duration_cast<std::chrono::milliseconds>(waited).count());
+        const auto later = listener->next(std::chrono::hours(1));
+        expect(later.has_value() && !*later) << "and every later wait answers at once";
+        bus->end();
+    };
+
     "against a real bus (dbus-daemon): the match rule asked of it, the service's signals it routes heard"_test = [] {
         namespace os = mcpplibs::os;
         const auto daemon = os::env::find_executable("dbus-daemon");

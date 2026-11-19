@@ -53,6 +53,30 @@ struct App {
     }
 };
 
+// A holder of a thousand items no node stands for (a long list's, S-7), their revision moved only when one is renamed.
+struct Holder {
+    static constexpr std::string_view name = "test-holder";
+    static constexpr Role role = Role::list;
+    Services*        services = nullptr;
+    NodeId           node;
+    std::uint64_t    revision = 1;
+    std::string      first = "Item 0";
+    mutable int      reads = 0;
+    void mount(Services& s, NodeId n) { services = &s, node = n; }
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(std::string_view path) const {
+        ++reads;
+        std::vector<spec::SemanticNode> out(1000);
+        for (std::size_t i = 0; i < out.size(); ++i) {
+            out[i].id = std::format("{}/k{}", path, i);
+            out[i].role = Role::list_item;
+            out[i].name = i == 0 ? first : std::format("Item {}", i);
+            out[i].states.set(State::offscreen);
+        }
+        return out;
+    }
+    [[nodiscard]] std::uint64_t items_revision() const { return revision; }
+};
+
 InputEvent pointer(PointerKind kind, float x, float y) {
     PointerEvent e;
     e.kind = kind;
@@ -149,6 +173,43 @@ UTest cases{"semantic", [] {
         app.toast.set(false);
         rt.frame({seconds(1), {}});
         expect(tree.changes().removed == std::vector<std::string>{"main/toast"});
+    };
+
+    "a holder's thousand items: read once while their revision stays, and only what changed is answered"_test = [] {
+        Runtime rt(options());
+        Signal<std::string> status{std::string("Ready")};
+        Element rows;
+        rows.id = "rows";
+        rows.type = &component_type<Holder>();
+        rt.mount("main", column({}, {std::move(rows), text({.id = "status", .text = derive([status] { return status.get(); })})}));
+        expect(rt.frame().failure.empty());
+        Holder* holder = rt.component<Holder>(rt.find("main/rows"));
+        expect(holder != nullptr);
+        if (!holder) return;
+        sem::Tree tree(rt);
+        const auto first = tree.changes();
+        expect(first.added.size() > 1000 && first.updated.empty()) << std::format("{} added", first.added.size());
+        const auto snapshot = tree.snapshot({.root = "main/rows", .depth = 1});
+        expect(!snapshot.nodes.empty() && snapshot.nodes.front().children.size() == 1000 && snapshot.nodes.front().children[999] == "main/rows/k999");
+        expect(eq(holder->reads, 1));
+        // Something else changes: the items are carried as they were, not read, not answered.
+        status.set("Saved");
+        expect(rt.frame().failure.empty());
+        const auto saved = tree.changes();
+        expect(saved.added.empty() && saved.removed.empty() && saved.updated.size() == 1 && saved.updated[0].id == "main/status")
+            << std::format("{} updated", saved.updated.size());
+        expect(eq(holder->reads, 1)) << "their revision did not move";
+        // One item renamed, the revision moved: read again; that item alone is answered (the holder's children are the same).
+        holder->first = "First item";
+        holder->revision = 2;
+        holder->services->invalidate_semantics(holder->node);
+        expect(rt.frame().failure.empty());
+        const auto renamed = tree.changes();
+        expect(renamed.updated.size() == 1 && renamed.updated[0].id == "main/rows/k0" && renamed.updated[0].name == "First item")
+            << std::format("{} updated", renamed.updated.size());
+        expect(eq(holder->reads, 2));
+        expect(tree.node("main/rows/k0")->name == "First item" && tree.node("main/rows/k999")->name == "Item 999");
+        expect(tree.changes().empty()) << "nothing since";
     };
 
     "actions by id, and conditions to wait for"_test = [] {

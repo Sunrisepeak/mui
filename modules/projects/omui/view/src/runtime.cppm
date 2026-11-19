@@ -758,6 +758,11 @@ public:
     NodeId reveal(std::string_view path) override;
     // A virtualising node's items as the semantic tree states them (S-7).
     [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(NodeId node) const;
+    // What says whether they changed (a component's `items_revision`); none: read them each time.
+    [[nodiscard]] std::optional<std::uint64_t> items_revision(NodeId node) const;
+    // A scroll container's offset as its children were last placed (they are drawn moved back by it): none for a node
+    // that does not scroll. Bounds in the window are the content's less the offsets of the containers above.
+    [[nodiscard]] std::optional<Point> scroll_offset(NodeId node) const;
     void request_frame() override;
     void moving(NodeId node) override;
     void scroll_into_view(NodeId node) override;

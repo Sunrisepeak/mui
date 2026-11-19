@@ -64,6 +64,9 @@ public:
     // The next signal, waiting at most `wait`; none when none came. Signals that
     // arrived while a call waited for its reply are kept for this, in order.
     [[nodiscard]] std::expected<std::optional<Message>, Error> next_signal(std::chrono::milliseconds wait);
+    // Ends the conversation, from another thread: one waiting for a message is woken, and it and every later
+    // call fail.
+    void shutdown() { connection_.shutdown(); }
     [[nodiscard]] const std::string& name() const noexcept { return name_; }
 
 private:

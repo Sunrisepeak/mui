@@ -85,11 +85,13 @@ public:
     }
 
 private:
+    // Waits for answers as long as the host lives (no wakeups while none comes, C1): stopping it wakes the wait.
     void hear(std::stop_token stop) {
         auto listener = mpal::Notifier::listen();
         if (!listener) return;
+        const std::stop_callback woken(stop, [&listener] { listener->stop(); });
         while (!stop.stop_requested()) {
-            auto answer = listener->next(std::chrono::milliseconds(500));
+            auto answer = listener->next(std::chrono::hours(24));
             if (!answer) return;  // the bus gone
             if (!*answer) continue;
             std::function<void()> pressed;

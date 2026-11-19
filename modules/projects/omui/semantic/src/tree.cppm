@@ -1,8 +1,11 @@
 // omui.semantic:tree — the semantic tree of a running interface.
 //
 // The tree is read from the runtime when its semantic revision moves, and
-// kept: a snapshot is a copy, `changes` compares with what the last call saw
-// and answers only the difference. Compact trees lift the children of nodes
+// kept: a snapshot is a copy. A refresh reads the runtime's nodes again and a
+// virtualising node's items only when their revision moved (a long list's ten
+// thousand rows are carried as they were while it scrolls); what differs from
+// the last refresh is marked, and `changes` answers what was marked since its
+// last call — the work is the difference, not the tree. Compact trees lift the children of nodes
 // that mean nothing (role none, or a nameless generic container without
 // actions) into their parent, so an agent reads `main/save`, not five
 // wrappers deep; ids stay the full paths.
@@ -108,15 +111,37 @@ public:
     [[nodiscard]] Runtime& runtime() noexcept { return runtime_; }
 
 private:
+    // A node of the last refresh: where it is in `nodes_`, and what `changes` knows of it.
+    struct Entry {
+        std::size_t   at = 0;
+        std::uint64_t pass = 0;        // the refresh that placed it
+        bool          item = false;    // an item no node stands for, as its holder stated it
+        bool          told = false;    // `changes` has answered it
+        bool          touched = false; // changed since
+    };
+    // A virtualising node's items as last read, kept while their revision says they are the same.
+    struct Items {
+        std::uint64_t                   revision = 0;
+        std::uint64_t                   pass = 0;
+        std::vector<spec::SemanticNode> items;
+        std::vector<std::string>        skipped, others;  // what the holder's children were last made of, besides them
+    };
+
     void refresh();
+    // Marks a node changed since the last `changes`.
+    void touch(const std::string& id, Entry& entry);
 
     Runtime&                                     runtime_;
     TreeOptions                                  options_;
     std::uint64_t                                read_ = 0;   // the runtime revision the cache is of
     bool                                         fresh_ = false;
+    std::uint64_t                                pass_ = 0;   // refreshes made
     std::vector<spec::SemanticNode>              nodes_;
-    std::unordered_map<std::string, std::size_t> index_;
-    std::unordered_map<std::string, spec::SemanticNode> seen_;  // what `changes` last answered
+    std::vector<spec::SemanticNode>              spare_;      // the last but one's, emptied: room for the next
+    std::unordered_map<std::string, Entry>       index_;
+    std::unordered_map<std::string, Items>       items_;      // by holder
+    std::vector<std::string>                     touched_;    // changed since the last `changes` (their entries say so)
+    std::vector<std::string>                     gone_;       // answered by `changes`, removed since
 };
 
 }  // namespace omui::semantic

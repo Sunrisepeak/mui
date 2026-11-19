@@ -33,6 +33,7 @@ public:
     bool                                               asked = false, granted = false;
     std::string                                        refusal;
     std::deque<Answer>                                 answers;
+    bool                                               stopped = false;  // `stop`: no more waiting
     std::uint32_t                                      last = 0;
     std::map<std::string, std::uint32_t, std::less<>>  ids;         // a request's identifier → its id
     std::vector<objc::id>                              categories;  // each notification's choices, all registered
@@ -235,10 +236,19 @@ std::expected<void, Error> close(Centre& centre, std::uint32_t id) {
 
 std::expected<std::optional<Answer>, Error> next(Centre& centre, std::chrono::milliseconds wait) {
     std::unique_lock lock(centre.mutex);
-    if (!centre.changed.wait_for(lock, wait, [&] { return !centre.answers.empty(); })) return std::optional<Answer>{};
+    if (!centre.changed.wait_for(lock, wait, [&] { return centre.stopped || !centre.answers.empty(); }) || centre.stopped)
+        return std::optional<Answer>{};
     Answer answer = std::move(centre.answers.front());
     centre.answers.pop_front();
     return std::optional(std::move(answer));
+}
+
+void stop(Centre& centre) {
+    {
+        const std::scoped_lock lock(centre.mutex);
+        centre.stopped = true;
+    }
+    centre.changed.notify_all();
 }
 
 }  // namespace mpal::native

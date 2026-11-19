@@ -10,7 +10,13 @@ technology read it (spec §3 and §9, `openmui.tree@0.1`):
   protocol bounds it at 256 unless a request says otherwise, 0 for all); compact
   trees lift nameless wrappers so readers see `main/row:0/save` among its
   meaningful neighbours (ids stay full paths);
-- **changes** — what was added, removed and updated since the last call;
+- **changes** — what was added, removed and updated since the last call. The
+  work is the difference, not the tree: a refresh reads the runtime's nodes
+  again, a virtualising node's items only when its `items_revision` moved (a
+  list's change with its rows or its selection, not with its scrolling — its
+  ten thousand items are carried as they were), and marks what differs; a
+  call answers what was marked (`core/list-scroll/reading`: 10,000 rows
+  scrolled, each frame's changes told to the accessibility mirror);
 - **queries** — by id or subtree, role, name glob (`Delete*`), states present
   or absent, value, and place (`within`, `at`);
 - **transactions** — steps all taken or none, held to one rule in the preview

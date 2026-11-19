@@ -641,6 +641,10 @@ struct ComponentType {
     // in order, as the semantic tree states them (`path` is the node's), and
     // materialising one by its key.
     std::vector<spec::SemanticNode> (*virtual_items)(const void*, std::string_view path) = nullptr;
+    // Optional: a number that changes whenever `virtual_items` would answer differently, unique to the instance (a
+    // long list's items are read again only when its rows or its selection change, not each frame it scrolls).
+    // Without it the items are read each time the semantic tree is.
+    std::uint64_t (*items_revision)(const void*) = nullptr;
     bool (*reveal)(void*, std::string_view key) = nullptr;
     // A virtualising component whose items need not become nodes to be acted
     // on (a canvas's thousands): one item's semantics by key, stated or not,
@@ -681,6 +685,8 @@ template <class C>
             x.compose = [](void* p) { return static_cast<C*>(p)->compose(); };
         if constexpr (requires(const C& c, std::string_view p) { { c.virtual_items(p) } -> std::same_as<std::vector<spec::SemanticNode>>; })
             x.virtual_items = [](const void* p, std::string_view path) { return static_cast<const C*>(p)->virtual_items(path); };
+        if constexpr (requires(const C& c) { { c.items_revision() } -> std::same_as<std::uint64_t>; })
+            x.items_revision = [](const void* p) { return static_cast<const C*>(p)->items_revision(); };
         if constexpr (requires(const C& c, std::string_view p) { { c.virtual_item(p, p) } -> std::same_as<std::optional<spec::SemanticNode>>; })
             x.virtual_item = [](const void* p, std::string_view path, std::string_view key) { return static_cast<const C*>(p)->virtual_item(path, key); };
         if constexpr (requires(C& c, ActContext& ctx, std::string_view k) { { c.act_item(ctx, k, k) } -> std::same_as<ActResult>; })

@@ -17,5 +17,7 @@ namespace mpal::native {
 [[nodiscard]] std::expected<std::uint32_t, Error> show(Centre& centre, const Notification& notification);
 [[nodiscard]] std::expected<void, Error> close(Centre& centre, std::uint32_t id);
 [[nodiscard]] std::expected<std::optional<Answer>, Error> next(Centre& centre, std::chrono::milliseconds wait);
+// Wakes a `next` waiting on another thread: it, and every later one, answers none.
+void stop(Centre& centre);
 
 }  // namespace mpal::native

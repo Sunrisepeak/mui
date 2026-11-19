@@ -31,9 +31,29 @@ void List::bind_model() {
 
 void List::mounted() { bind_model(); }
 
+namespace {
+
+// Unique across lists: one mounted where another was never answers the other's.
+std::uint64_t fresh_revision() {
+    static std::atomic<std::uint64_t> next{1};
+    return next.fetch_add(1, std::memory_order_relaxed);
+}
+
+}  // namespace
+
+std::uint64_t List::items_revision() const {
+    const std::uint64_t rows_now = model_ ? untracked([this] { return model_->revision(); }) : 0;
+    if (items_revision_ == 0 || rows_now != rows_seen_) {
+        rows_seen_ = rows_now;
+        items_revision_ = fresh_revision();
+    }
+    return items_revision_;
+}
+
 void List::prop_changed(ListProp p) {
     if (!attached()) return;
     if (p == ListProp::model) bind_model();
+    if (p == ListProp::model || p == ListProp::selected) items_revision_ = 0;
     if (p == ListProp::estimate) prefix_dirty_ = true;
     if (p == ListProp::selected || p == ListProp::estimate || p == ListProp::selectable) services().recompose(node());
     services().invalidate_semantics(node());
@@ -173,9 +193,10 @@ void List::paint_over(PaintContext& ctx) const {
                              xrender::Paint::solid(ctx.theme.color("border_strong").with_alpha(0.7f)));
 }
 
+// Its rows. Which are drawn is each item's (offscreen or not): the list's own node does not change while it scrolls —
+// a scroll is not the list's ten thousand children stated again.
 void List::semantics(SemanticsContext&, spec::SemanticNode& node) const {
-    node.value = Value{}.set("rows", static_cast<std::int64_t>(rows())).set("first", static_cast<std::int64_t>(first_)).set("last",
-                                                                                                                     static_cast<std::int64_t>(last_));
+    node.value = Value{}.set("rows", static_cast<std::int64_t>(rows()));
     if (props.selectable == ListSelectable::multiple) node.states.set(State::multiselectable);
 }
 
@@ -189,7 +210,9 @@ std::vector<spec::SemanticNode> List::virtual_items(std::string_view path) const
         n.id = std::format("{}/{}", path, row.key);
         n.role = Role::list_item;
         n.name = Model::label_of(row);
-        n.states.set(State::offscreen, i < first_ || i >= last_);
+        // An item no row stands for is drawn nowhere; a row that stands for one is where the runtime places it (its
+        // own node says whether that is on screen), so this does not change as the list scrolls.
+        n.states.set(State::offscreen);
         n.states.set(State::selected, std::ranges::find(props.selected, row.key) != props.selected.end());
         n.actions.push_back({"activate", Effect::reversible, {}, {}, {}});
         n.actions.push_back({"scroll_into_view", Effect::read, {}, {}, {}});

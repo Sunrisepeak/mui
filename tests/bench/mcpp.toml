@@ -49,6 +49,8 @@ meng.matter = { path = "../../modules/projects/meng/kernel/matter" }
 "hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 omui.sdk             = { path = "../../modules/projects/omui/sdk" }
 omui.view            = { path = "../../modules/projects/omui/view", features = ["hanim"] }
+# The mirror assistive technology reads (core/list-scroll/reading).
+omui.accessibility   = { path = "../../modules/projects/omui/accessibility" }
 mlibs.utils           = { path = "../../modules/base/utils" }
 # The host's parallel-for a cellular step takes (simulation/matter-1024-*).
 mlibs.memory          = { path = "../../modules/base/memory" }

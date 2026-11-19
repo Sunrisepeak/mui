@@ -206,6 +206,36 @@ UTest cases{"accessibility", [] {
         expect(renamed);
     };
 
+    "a scroll is one node told: what a scroll view holds is placed in its content, its offset moving it back"_test = [] {
+        Runtime rt(options());
+        auto y = signal(0.0);
+        std::vector<Element> rows;
+        for (int i = 0; i < 40; ++i) rows.push_back(box({.id = std::format("r{}", i), .height = 30, .label = std::format("Row {}", i)}));
+        rt.mount("main", column({}, {scroll({.id = "view", .y = y, .height = 120}, {column({.id = "list"}, std::move(rows))})}));
+        expect(rt.frame({seconds(0), {}}).failure.empty());
+        a11y::Mirror mirror(rt);
+        const auto first = mirror.refresh();
+        const a11y::Node* view = find(first.nodes, "main/view");
+        const a11y::Node* r5 = find(first.nodes, "main/view/list/r5");
+        expect(view && view->scrolled && view->scrolled->y == 0.0f) << "the scroll view says its offset";
+        expect(r5 && r5->bounds && r5->bounds->y == 150.0f) << (r5 && r5->bounds ? std::format("{}", r5->bounds->y) : std::string("none"));
+        y.set(200.0);
+        expect(rt.frame({seconds(1), {}}).failure.empty());
+        const auto scrolled = mirror.refresh();
+        const a11y::Node* moved = find(scrolled.nodes, "main/view");
+        expect(moved && moved->scrolled && moved->scrolled->y == 200.0f) << "its offset, told";
+        expect(!find(scrolled.nodes, "main/view/list/r5") && !find(scrolled.nodes, "main/view/list/r10"))
+            << "the rows keep their place in its content: not told again";
+        expect(scrolled.nodes.size() <= 2) << std::format("{} nodes told", scrolled.nodes.size());
+        // The window's place of a row: its place in the content less the offset (AccessKit's transform does it).
+        const Rect window = rt.screen_bounds(rt.find("main/view/list/r10"));
+        bool told = false;
+        mirror.each([&](const a11y::Node& n) {
+            if (n.key == a11y::key_of("main/view/list/r10") && n.bounds) told = std::abs(n.bounds->y - 200.0f - window.y) < 0.01f;
+        });
+        expect(told) << std::format("r10 in the window at {}", window.y);
+    };
+
     "a screen reader's requests, performed as the person's input"_test = [] {
         Runtime rt(options());
         App app;

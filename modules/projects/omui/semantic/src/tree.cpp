@@ -4,6 +4,7 @@ import std;
 import omui.core;
 import omui.view;
 import mlibs.hash;
+import mlibs.trace;
 
 namespace omui::semantic {
 
@@ -41,71 +42,200 @@ Value Snapshot::to_value() const {
 
 Tree::Tree(Runtime& runtime, TreeOptions options) : runtime_(runtime), options_(options) {}
 
+void Tree::touch(const std::string& id, Entry& entry) {
+    if (entry.touched) return;
+    entry.touched = true;
+    touched_.push_back(id);
+}
+
 void Tree::refresh() {
     if (fresh_ && read_ == runtime_.semantic_revision()) return;
+    mlibs::trace::Span span("semantic.refresh", "semantic");
+    const std::uint64_t pass = ++pass_;
+    // Two buffers taking turns: the last refresh's nodes, and the room for this one's (no new array each time).
+    std::vector<spec::SemanticNode> previous = std::exchange(nodes_, std::move(spare_));
     nodes_.clear();
-    index_.clear();
+    nodes_.reserve(previous.size());
+    // The nodes read again, and where each was the last time (none: new): told apart from the last at the end, once
+    // every item has said what it adds to the node standing for it.
+    std::vector<std::pair<std::size_t, std::optional<std::size_t>>> read;
+    // Holders whose list of children was carried over from the last time (the same by construction).
+    std::vector<std::size_t> carried_children;
+    std::size_t placed = 0;  // entries of this pass
+    // A node at the end of `nodes_`; its entry, and where it was the last time.
+    auto place = [&](spec::SemanticNode&& n, bool item) -> std::pair<Entry*, std::optional<std::size_t>> {
+        auto [at, added] = index_.try_emplace(n.id);
+        Entry& entry = at->second;
+        std::optional<std::size_t> before;
+        if (!added && entry.pass == pass) {  // a second node of one id: the first keeps it
+            nodes_.push_back(std::move(n));
+            return {nullptr, std::nullopt};
+        }
+        if (!added && entry.pass == pass - 1) before = entry.at;
+        entry.at = nodes_.size();
+        entry.pass = pass;
+        entry.item = item;
+        ++placed;
+        nodes_.push_back(std::move(n));
+        return {&entry, before};
+    };
     // Pre-order; a lifted node's children are added to its nearest kept ancestor.
     auto visit = [&](auto& self, NodeId id, std::optional<std::size_t> parent) -> void {
         spec::SemanticNode n = runtime_.semantic_node(id);
         // Hidden content (a closed menu) is not read, as aria-hidden content is not.
         if (options_.compact && n.states.has(State::hidden) && n.id != "app") return;
-        std::optional<std::size_t> here = parent;
+        std::optional<std::size_t> here = parent, was;
         const bool kept = !(options_.compact && meaningless(n));
         if (kept) {
             n.children.clear();
             const std::size_t i = nodes_.size();
             if (parent) nodes_[*parent].children.push_back(n.id);
-            index_.emplace(n.id, i);
-            nodes_.push_back(std::move(n));
+            const auto [entry, before] = place(std::move(n), false);
+            if (entry) read.emplace_back(i, before);
             here = i;
+            was = before;
         }
         for (NodeId c : runtime_.children(id)) self(self, c, here);
         // A virtualising node (a list) states all its items (S-7): those not
-        // materialised join as offscreen nodes, and all keep the model's order.
-        if (kept && here) {
-            auto items = runtime_.virtual_items(id);
-            if (!items.empty()) {
-                const std::size_t holder = *here;
-                std::vector<std::string> order;
-                for (spec::SemanticNode& v : items) {
-                    order.push_back(v.id);
-                    if (auto at = index_.find(v.id); at != index_.end()) {
-                        // Materialised (a canvas's live node, a list's row):
-                        // the node is the item — what the holder says of it
-                        // fills what the node does not say itself.
-                        spec::SemanticNode& real = nodes_[at->second];
-                        // A holder of one live node that says what it is itself (a canvas's live switch in its
-                        // placing box): that node is the item to a reader — the box is not said to be one too.
-                        bool inner = false;
-                        if (real.children.size() == 1)
-                            if (auto c = index_.find(real.children.front()); c != index_.end())
-                                inner = nodes_[c->second].role != Role::generic && nodes_[c->second].role != Role::none;
-                        if (!inner && (real.role == Role::generic || real.role == Role::none)) real.role = v.role;
-                        if (!inner && real.name.empty()) real.name = v.name;
-                        if (real.description.empty()) real.description = v.description;
-                        real.states.bits |= v.states.bits;
-                        for (spec::ActionDesc& a : v.actions)
-                            if (!real.action(a.name)) real.actions.push_back(std::move(a));
-                        continue;
-                    }
-                    // Live inside a box this tree lifted (a canvas's placing box): the live node under it stands
-                    // for the item, which is not said a second time.
-                    const std::string under = v.id + "/";
-                    if (std::ranges::any_of(nodes_[holder].children, [&](const std::string& c) { return c.starts_with(under); })) continue;
-                    v.children.clear();
-                    index_.emplace(v.id, nodes_.size());
-                    nodes_.push_back(std::move(v));
-                }
-                std::erase_if(order, [&](const std::string& o) { return !index_.contains(o); });
-                // Materialised items keep any other child (headers) after them.
-                for (const std::string& c : nodes_[holder].children)
-                    if (std::ranges::find(order, c) == order.end()) order.push_back(c);
-                nodes_[holder].children = std::move(order);
+        // materialised join as nodes of their own, and all keep the model's order.
+        if (!kept || !here) return;
+        const std::size_t holder = *here;
+        // Read again only when their revision moved; else the last refresh's items, and their nodes carried over.
+        std::vector<spec::SemanticNode> fresh_items;
+        std::vector<spec::SemanticNode>* items = &fresh_items;
+        Items* cache = nullptr;
+        bool same = false;
+        if (const std::optional<std::uint64_t> revision = runtime_.items_revision(id)) {
+            auto [cached, added] = items_.try_emplace(nodes_[holder].id);
+            cache = &cached->second;
+            same = !added && cache->revision == *revision;
+            if (!same) {
+                mlibs::trace::Span items_span("semantic.items", "semantic");
+                cache->items = runtime_.virtual_items(id);
+                cache->revision = *revision;
             }
+            cache->pass = pass;
+            items = &cache->items;
+        } else {
+            mlibs::trace::Span items_span("semantic.items", "semantic");
+            fresh_items = runtime_.virtual_items(id);
         }
+        if (items->empty()) return;
+        // Items a live node under a box this tree lifted stands for (a canvas's live switch in its placing box): the
+        // item's id, then the rest of the live node's.
+        std::unordered_set<std::string> lifted;
+        for (const std::string& c : nodes_[holder].children)
+            for (std::size_t cut = c.find('/', nodes_[holder].id.size() + 1); cut != std::string::npos; cut = c.find('/', cut + 1))
+                lifted.insert(c.substr(0, cut));
+        // The holder's children: its items in order (less those a lifted live node stands for), then any other child
+        // (headers). Kept items: written out only when they differ from the last time's.
+        std::vector<std::string> order, skipped;
+        std::unordered_set<std::string> merged;
+        for (spec::SemanticNode& v : *items) {
+            const auto at = index_.find(v.id);
+            if (at != index_.end() && at->second.pass == pass) {
+                // Materialised (a canvas's live node, a list's row): the node is the item — what the holder says of
+                // it fills what the node does not say itself; whether it is on screen is the node's own.
+                spec::SemanticNode& real = nodes_[at->second.at];
+                // A holder of one live node that says what it is itself (a canvas's live switch in its placing box):
+                // that node is the item to a reader — the box is not said to be one too.
+                bool inner = false;
+                if (real.children.size() == 1)
+                    if (auto c = index_.find(real.children.front()); c != index_.end() && c->second.pass == pass)
+                        inner = nodes_[c->second.at].role != Role::generic && nodes_[c->second.at].role != Role::none;
+                if (!inner && (real.role == Role::generic || real.role == Role::none)) real.role = v.role;
+                if (!inner && real.name.empty()) real.name = v.name;
+                if (real.description.empty()) real.description = v.description;
+                spec::StateSet stated = v.states;
+                stated.set(State::offscreen, false);
+                real.states.bits |= stated.bits;
+                for (const spec::ActionDesc& a : v.actions)
+                    if (!real.action(a.name)) real.actions.push_back(a);
+                merged.insert(real.id);
+                if (!cache) order.push_back(v.id);
+                continue;
+            }
+            if (lifted.contains(v.id)) {
+                skipped.push_back(v.id);
+                continue;
+            }
+            if (!cache) order.push_back(v.id);
+            // As it was the last time (its holder's items the same, and no node stood for it then): carried over.
+            if (same && at != index_.end() && at->second.pass == pass - 1 && at->second.item && at->second.at < previous.size() &&
+                previous[at->second.at].id == v.id) {
+                const std::size_t from = at->second.at;
+                at->second.at = nodes_.size();
+                at->second.pass = pass;
+                ++placed;
+                nodes_.push_back(std::move(previous[from]));
+                continue;
+            }
+            spec::SemanticNode node = cache ? v : std::move(v);
+            node.children.clear();
+            const std::size_t i = nodes_.size();
+            const auto [entry, before] = place(std::move(node), true);
+            if (entry) read.emplace_back(i, before);
+        }
+        std::vector<std::string> others;
+        for (const std::string& c : nodes_[holder].children)
+            if (!merged.contains(c)) others.push_back(c);
+        if (!cache) {
+            for (std::string& c : others) order.push_back(std::move(c));
+            nodes_[holder].children = std::move(order);
+            return;
+        }
+        // The same items, skipping the same, the same others: the last time's list, carried over.
+        if (same && was && cache->skipped == skipped && cache->others == others && previous[*was].id == nodes_[holder].id) {
+            nodes_[holder].children = std::move(previous[*was].children);
+            previous[*was].children.clear();
+            carried_children.push_back(holder);
+            return;
+        }
+        order.reserve(items->size() - skipped.size() + others.size());
+        std::size_t next_skip = 0;
+        for (const spec::SemanticNode& v : *items) {
+            if (next_skip < skipped.size() && skipped[next_skip] == v.id) {
+                ++next_skip;
+                continue;
+            }
+            order.push_back(v.id);
+        }
+        order.insert(order.end(), others.begin(), others.end());
+        nodes_[holder].children = std::move(order);
+        cache->skipped = std::move(skipped);
+        cache->others = std::move(others);
     };
     visit(visit, runtime_.root(), std::nullopt);
+    // What differs from the last refresh: marked for `changes`. A holder whose children were carried over has the same
+    // children by construction: the rest of it is compared.
+    std::ranges::sort(carried_children);
+    for (const auto& [i, before] : read) {
+        bool same = false;
+        if (before) {
+            if (std::ranges::binary_search(carried_children, i)) {
+                std::vector<std::string> children = std::move(nodes_[i].children);
+                nodes_[i].children.clear();
+                same = previous[*before] == nodes_[i];
+                nodes_[i].children = std::move(children);
+            } else {
+                same = previous[*before] == nodes_[i];
+            }
+        }
+        if (!same) touch(nodes_[i].id, index_.find(nodes_[i].id)->second);
+    }
+    // What is gone: answered as removed if `changes` had answered it.
+    if (placed != index_.size())
+        for (auto at = index_.begin(); at != index_.end();) {
+            if (at->second.pass == pass) {
+                ++at;
+                continue;
+            }
+            if (at->second.told) gone_.push_back(at->first);
+            at = index_.erase(at);
+        }
+    std::erase_if(items_, [pass](const auto& kept) { return kept.second.pass != pass; });
+    previous.clear();
+    spare_ = std::move(previous);
     read_ = runtime_.semantic_revision();
     fresh_ = true;
 }
@@ -125,12 +255,12 @@ Snapshot Tree::snapshot(const SnapshotOptions& o) {
         order.emplace_back(i, depth);
         if (o.depth >= 0 && depth >= o.depth) return;
         for (const std::string& c : nodes_[i].children)
-            if (auto it = index_.find(c); it != index_.end()) self(self, it->second, depth + 1);
+            if (auto it = index_.find(c); it != index_.end()) self(self, it->second.at, depth + 1);
     };
     if (o.root.empty()) {
         if (!nodes_.empty()) walk(walk, 0, 0);
     } else if (auto it = index_.find(o.root); it != index_.end()) {
-        walk(walk, it->second, 0);
+        walk(walk, it->second.at, 0);
     } else {
         // A root the compact tree lifted: its kept descendants nearest to it
         // are the subtree's tops (pre-order keeps them in document order).
@@ -163,20 +293,32 @@ Snapshot Tree::snapshot(const SnapshotOptions& o) {
 
 spec::SemanticDelta Tree::changes() {
     refresh();
+    mlibs::trace::Span span("semantic.changes", "semantic");
     spec::SemanticDelta d;
     d.revision = read_;
-    std::unordered_set<std::string_view> present;
-    for (const spec::SemanticNode& n : nodes_) {
-        present.insert(n.id);
-        auto it = seen_.find(n.id);
-        if (it == seen_.end()) d.added.push_back(n);
-        else if (!(it->second == n)) d.updated.push_back(n);
-    }
-    for (const auto& [id, n] : seen_)
-        if (!present.contains(id)) d.removed.push_back(id);
+    // Answered, removed, and here again: changed, not new.
+    for (std::string& id : gone_)
+        if (auto at = index_.find(id); at != index_.end()) {
+            at->second.told = true;
+            touch(at->first, at->second);
+        } else {
+            d.removed.push_back(std::move(id));
+        }
+    gone_.clear();
     std::ranges::sort(d.removed);
-    seen_.clear();
-    for (const spec::SemanticNode& n : nodes_) seen_.emplace(n.id, n);
+    // What was marked (where it is, whether it was answered before), in the tree's order: a reader builds a parent
+    // before its children.
+    std::vector<std::pair<std::size_t, bool>> marked;
+    marked.reserve(touched_.size());
+    for (const std::string& id : touched_)
+        if (auto at = index_.find(id); at != index_.end() && at->second.touched) {
+            marked.emplace_back(at->second.at, at->second.told);
+            at->second.touched = false;
+            at->second.told = true;
+        }
+    touched_.clear();
+    std::ranges::sort(marked);
+    for (const auto& [at, told] : marked) (told ? d.updated : d.added).push_back(nodes_[at]);
     return d;
 }
 
@@ -194,7 +336,7 @@ std::vector<spec::SemanticNode> Tree::find(const Query& q) {
 std::optional<spec::SemanticNode> Tree::node(std::string_view id) {
     refresh();
     auto it = index_.find(std::string(id));
-    if (it != index_.end()) return nodes_[it->second];
+    if (it != index_.end()) return nodes_[it->second.at];
     // A lifted node (compact trees) is still addressable.
     NodeId n = runtime_.find(id);
     if (runtime_.valid(n)) return runtime_.semantic_node(n);

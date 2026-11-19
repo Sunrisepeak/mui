@@ -5,6 +5,7 @@ import omui.core;
 import omui.view;
 import omui.hanim;
 import omui.semantic;
+import omui.accessibility;
 import xrender.vector;
 import xrender.raster;
 import mlibs.text;
@@ -1215,8 +1216,10 @@ void add_framework_benchmarks() {
     add("core/tap-to-pixels/counter", "one tap on the counter: event to the frame drawn by the CPU (the in-process part of input to next frame)",
         tap(HeadlessLevel::pixels));
 
-    const auto list_scroll = [](bool on_gpu) {
-        return [on_gpu](State& s) {
+    // `reading`: assistive technology reads the window: each frame's changes are told to the platform's mirror (what
+    // the accessibility bridge does once a reader, or AT-SPI saying one may be there, has asked for the tree; C1).
+    const auto list_scroll = [](bool on_gpu, bool reading = false) {
+        return [on_gpu, reading](State& s) {
             std::optional<Gpu> gpu;
             if (on_gpu) {
                 gpu.emplace(market_size);
@@ -1240,6 +1243,8 @@ void add_framework_benchmarks() {
                                               })}));
             h.settle();
             if (!on_gpu) (void)h.pixels();
+            std::optional<accessibility::Mirror> mirror;
+            if (reading) (void)mirror.emplace(h.runtime()).refresh();
             xrender::text::GlyphCache glyphs(h.runtime().fonts());
             const Point at{market_size.width / 2, market_size.height / 2};
             float       position = 0, direction = 1;
@@ -1250,12 +1255,15 @@ void add_framework_benchmarks() {
                 h.scroll(at, {0, stride * direction});
                 if (on_gpu) gpu->draw(s, h.runtime().display_list(), {&h.runtime().images(), &glyphs}, Color::white());
                 else (void)h.pixels();
+                if (mirror && mirror->refresh().empty()) return s.fail("a scrolled list told the mirror nothing");
             }
         };
     };
     add("core/list-scroll/frame", "10,000 rows of three parts each, the wheel scrolling 60 px every frame at 1896×1030: the frame, drawn by the CPU",
         list_scroll(false));
     add("core/list-scroll/frame-gpu", "the same, the GPU drawing every frame (submitted and waited for)", list_scroll(true));
+    add("core/list-scroll/reading", "the same drawn by the CPU, with assistive technology reading: each frame's changes told to the accessibility mirror",
+        list_scroll(false, true));
 
     const auto live = [](bool on_gpu) {
         return [on_gpu](State& s) {

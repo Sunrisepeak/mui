@@ -117,13 +117,22 @@ std::expected<void, Error> Notifier::close(std::uint32_t id) {
     return {};
 }
 
+void Notifier::stop() {
+    stopped_->store(true);
+    if constexpr (os::is_macos || os::is_windows)
+        if (centre_) return native::stop(*centre_);
+    if (bus_) bus_->shutdown();
+}
+
 std::expected<std::optional<Answer>, Error> Notifier::next(std::chrono::milliseconds wait) {
+    if (stopped_->load()) return std::optional<Answer>{};
     if constexpr (os::is_macos || os::is_windows)
         if (centre_) return native::next(*centre_, wait);
     const auto until = std::chrono::steady_clock::now() + wait;
     while (true) {
         const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(until - std::chrono::steady_clock::now());
         auto signal = bus_->next_signal(std::max(left, std::chrono::milliseconds(0)));
+        if (!signal && stopped_->load()) return std::optional<Answer>{};  // the conversation ended by `stop`
         if (!signal) return std::unexpected(signal.error());
         if (!*signal) return std::optional<Answer>{};
         const dbus::Message& heard = **signal;

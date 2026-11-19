@@ -70,10 +70,14 @@ public:
     [[nodiscard]] std::expected<void, Error> close(std::uint32_t id);
     // The next answer, waiting at most `wait`; none when none came.
     [[nodiscard]] std::expected<std::optional<Answer>, Error> next(std::chrono::milliseconds wait);
+    // Stops listening, from another thread: a `next` waiting now answers none at once, and so does every later
+    // one — a listener's thread waits for answers as long as there may be any, and ends when told.
+    void stop();
 
 private:
     std::optional<dbus::Bus>         bus_;
     std::shared_ptr<native::Centre>  centre_;  // macOS, Windows
+    std::shared_ptr<std::atomic<bool>> stopped_ = std::make_shared<std::atomic<bool>>(false);
     std::set<std::uint32_t>          shown_;
     bool                             every_ = false;
 };

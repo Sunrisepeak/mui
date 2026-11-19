@@ -916,6 +916,20 @@ std::vector<spec::SemanticNode> Runtime::virtual_items(NodeId node) const {
     return n.type->virtual_items(n.instance, path(node));
 }
 
+std::optional<std::uint64_t> Runtime::items_revision(NodeId node) const {
+    if (!valid(node)) return std::nullopt;
+    const Node& n = impl_->at(node);
+    if (!n.type->items_revision) return std::nullopt;
+    return n.type->items_revision(n.instance);
+}
+
+std::optional<Point> Runtime::scroll_offset(NodeId node) const {
+    if (!valid(node)) return std::nullopt;
+    const Node& n = impl_->at(node);
+    if (!n.type->scroll_offset) return std::nullopt;
+    return n.content_offset;
+}
+
 void Runtime::recompose(NodeId node) {
     Impl& d = *impl_;
     if (!d.alive(node) || !d.at(node).composed) return;

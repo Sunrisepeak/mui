@@ -43,7 +43,13 @@ the module `mcpplibs.mwrap.accesskit`), only in `bridge/src/native/accesskit/`.
 - **The mirror** (`Mirror`) — the tree as the platform was last told it:
   `refresh` reads what changed (the nodes whose children changed too) and
   where the focus is; the window is the root, named as the window. Node keys
-  are FNV-1a of the ids, the same from one update to the next.
+  are FNV-1a of the ids, the same from one update to the next. Bounds are in
+  the content of the scroll containers above a node (a list, a scroll view):
+  the window's, plus their offsets; a container says its own offset, and its
+  AccessKit transform moves what it holds back by it — a scroll is that one
+  node told, not every row it moves (a node told as it was is not told
+  again). `core/list-scroll/reading` measures it: 10,000 rows scrolled, each
+  frame's changes read.
 - **Requests** — come from the platform's threads, wait in the mirror, and are
   performed between frames on the runtime's thread (`serve`), as the person's
   own input: what a click would answer, an assistive device's click answers.

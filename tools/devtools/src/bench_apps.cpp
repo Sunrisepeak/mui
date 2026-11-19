@@ -62,6 +62,9 @@ struct Settings {
     int screen_width = 1920, screen_height = 1080;
     milliseconds rest{5000}, idle{5000}, quiet{600}, timeout{30000};
     int clicks = 5;
+    // Where an omui side's measured launch writes its trace (`--profile`): where the time goes in the
+    // process, beside what is measured from outside. Empty: none.
+    fs::path trace;
 };
 
 // What a launch saw.
@@ -792,8 +795,12 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     }
     auto variables = environment.run;
     variables.insert(variables.end(), side.env.begin(), side.env.end());
+    std::vector<std::string> args = side.args;
+    if (whole && side.build == "omui" && !settings.trace.empty())
+        args.insert(args.end(), {"--profile", utf8(settings.trace / std::format("{}-{}.trace.json",
+                                                                               side.series, side.app))});
     process::spawn_options options{.program = side.executable,
-                                   .args = side.args,
+                                   .args = std::move(args),
                                    .cwd = side.cwd,
                                    .env = std::move(variables)};
     options.out = process::stdio::null;
@@ -1063,7 +1070,9 @@ mcpplibs::cmdline::App apps_command_line() {
         .option(Option("build-only").help("build and size every side; launch none"))
         .option(Option("no-build")
                     .help("measure what the last build made (target/bench-apps/built.json)"))
-        .option(Option("dry-run").help("print the verdicts; write the samples, not the ledger"));
+        .option(Option("dry-run").help("print the verdicts; write the samples, not the ledger"))
+        .option(Option("trace").takes_value().value_name("DIR").help(
+            "each omui side's measured run records its trace into DIR (Chrome / Perfetto JSON)"));
 }
 
 int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
@@ -1084,6 +1093,10 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
     settings.rest = milliseconds{catalogue.value("rest_ms", 5000)};
     settings.idle = milliseconds{catalogue.value("idle_ms", 5000)};
     settings.quiet = milliseconds{catalogue.value("quiet_ms", 600)};
+    if (const auto trace = given.value("trace")) {
+        settings.trace = fs::absolute(mcpplibs::os::fs::from_utf8(*trace), error);
+        fs::create_directories(settings.trace, error);
+    }
     settings.timeout = milliseconds{catalogue.value("timeout_ms", 30000)};
     settings.clicks = catalogue.value("clicks", 5);
     const int rounds = number(given.value("rounds")).value_or(10);

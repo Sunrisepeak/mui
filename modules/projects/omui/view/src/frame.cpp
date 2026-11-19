@@ -593,12 +593,12 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
         return local;
     };
     const Affine local = local_of(v[Field::translate_x], v[Field::translate_y], v[Field::scale], v[Field::rotation]);
-    auto set = [&](std::string_view k, float now) {
-        const auto it = n.props.find(k);
-        return it != n.props.end() && it->second.is_number() ? static_cast<float>(it->second.as_double()) : now;
+    // Where a transform goes, as set: its animation's target while it moves (the property's value), else as drawn.
+    auto set = [&](Field field) {
+        const auto i = static_cast<std::size_t>(field);
+        return (n.moving & (1u << i)) && anims.valid(n.channels[i]) ? static_cast<float>(anims.target(n.channels[i])) : v.f[i];
     };
-    const Affine target = parent_target * local_of(set("translate_x", v[Field::translate_x]), set("translate_y", v[Field::translate_y]),
-                                                   set("scale", v[Field::scale]), set("rotation", v[Field::rotation]));
+    const Affine target = parent_target * local_of(set(Field::translate_x), set(Field::translate_y), set(Field::scale), set(Field::rotation));
     // The layout's box (before the transforms), and where it is on the
     // window as set: a node a canvas shows under its camera (a live window,
     // scaled and moved) is where it is drawn, not where it was laid out.

@@ -48,7 +48,10 @@ the module `mcpplibs.mwrap.accesskit`), only in `bridge/src/native/accesskit/`.
   the window's, plus their offsets; a container says its own offset, and its
   AccessKit transform moves what it holds back by it — a scroll is that one
   node told, not every row it moves (a node told as it was is not told
-  again). `core/list-scroll/reading` measures it: 10,000 rows scrolled, each
+  again). A virtualising container (a list: every item its child, S-7) is
+  the exception: AccessKit's AT-SPI adapter compares a node's children
+  pairwise when it is told again, so the list moves its few materialised rows
+  and is told only when it changes. `core/list-scroll/reading` measures it: 10,000 rows scrolled, each
   frame's changes read.
 - **Requests** — come from the platform's threads, wait in the mirror, and are
   performed between frames on the runtime's thread (`serve`), as the person's

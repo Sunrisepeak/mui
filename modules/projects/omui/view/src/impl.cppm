@@ -738,7 +738,8 @@ struct Runtime::Impl {
     void   reconcile_regions();
     void   update_from(NodeId id, Element& e);
     void   flatten(NodeId id);
-    void   assign_segments(NodeId parent);
+    // Each child's segment of its path; the paths are found again when a segment changed or a child joined or left.
+    void   assign_segments(NodeId parent, bool joined_or_left = true);
     void   rebuild_paths();
     void   start_removal(NodeId id);
     void   finish_removals();

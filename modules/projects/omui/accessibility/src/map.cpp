@@ -245,8 +245,11 @@ void Mirror::place(std::string_view id, Node& node, spec::Point& shift) {
         at = rt.find(rest);
     }
     shift = {};
+    // A virtualising container (a list) states every item as its child (S-7): told again, AccessKit's AT-SPI adapter
+    // compares its children pairwise (accesskit_atspi_common 0.21, notify_children_changes), ten thousand items each
+    // frame it scrolls. It moves its rows instead — the few materialised ones — and is told only when it changes.
     for (NodeId up = at; rt.valid(up); up = rt.parent(up))
-        if (const std::optional<Point> offset = rt.scroll_offset(up)) {
+        if (const std::optional<Point> offset = rt.scroll_offset(up); offset && !rt.type(up).virtual_items) {
             shift.x += offset->x, shift.y += offset->y;
             if (up == at && own) node.scrolled = spec::Point{offset->x, offset->y};
         }

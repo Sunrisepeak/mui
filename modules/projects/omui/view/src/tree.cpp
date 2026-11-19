@@ -332,6 +332,16 @@ void Runtime::Impl::flatten(NodeId id) {
         if (alive(r) && at(r).parent == id) out.push_back(r);
     Node& n = at(id);
     if (out != n.children) {
+        // The same children in another order (rows swapped, a list sorted): their paths are what they were — unless
+        // a structural segment counts its place (assign_segments sees that).
+        const auto members = [](const std::vector<NodeId>& children) {
+            std::vector<std::uint64_t> bits;
+            bits.reserve(children.size());
+            for (const NodeId c : children) bits.push_back(c.bits());
+            std::ranges::sort(bits);
+            return bits;
+        };
+        const bool joined_or_left = out.size() != n.children.size() || members(out) != members(n.children);
         n.children = std::move(out);
         layout.clear_children(n.layout);
         // Overlays are laid out from the root, wherever they are in the tree.
@@ -340,12 +350,12 @@ void Runtime::Impl::flatten(NodeId id) {
         if (id == root)
             for (NodeId o : overlays)
                 if (alive(o) && o != id) layout.append(top, at(o).layout);
-        assign_segments(id);
+        assign_segments(id, joined_or_left);
         touch(dirty_tree | dirty_layout | dirty_paint);
     }
 }
 
-void Runtime::Impl::assign_segments(NodeId parent) {
+void Runtime::Impl::assign_segments(NodeId parent, bool joined_or_left) {
     std::unordered_map<std::string_view, std::size_t> count;
     std::unordered_set<std::string_view> explicit_ids;
     for (NodeId c : at(parent).children) {
@@ -364,7 +374,7 @@ void Runtime::Impl::assign_segments(NodeId parent) {
             paths_dirty = true;
         }
     }
-    paths_dirty = true;
+    if (joined_or_left) paths_dirty = true;
 }
 
 void Runtime::Impl::rebuild_paths() {

@@ -64,6 +64,44 @@ UTest cases{"text", [] {
         expect(f.find_family("monospace") == f.find_family("JetBrains Mono"));
     };
 
+    "a face's bytes are read when it is first needed: Latin text holds Inter's alone; a fallback asked about a character is not read whole"_test = [] {
+        text::FontCollection c;
+        expect(fatal(c.add_defaults().has_value()));
+        expect(eq(c.bytes_held(), std::size_t{0})) << "described, nothing read";
+        const auto size_of = [](std::string_view file) { return static_cast<std::size_t>(std::filesystem::file_size(text::FontCollection::default_file(file).value())); };
+        text::Paragraph latin(c, "Hello, world", style());
+        expect(eq(c.bytes_held(), size_of("Inter.ttf"))) << "Inter alone";
+        // Arabic: Inter lacks it, and the chain asks Noto Sans SC first — its character map, not its 4 MB.
+        text::Paragraph arabic(c, "مرحبا", style());
+        expect(eq(c.bytes_held(), size_of("Inter.ttf") + size_of("NotoSansArabic.ttf"))) << c.bytes_held();
+        expect(c.face(c.select(std::array<std::string, 1>{"Inter"}, U"ب")).family == "Noto Sans Arabic");
+        text::Paragraph chinese(c, "中文", style());
+        expect(eq(c.bytes_held(), size_of("Inter.ttf") + size_of("NotoSansArabic.ttf") + size_of("NotoSansSC.ttf")));
+    };
+
+    "a file's face is described from its tables as from its bytes"_test = [] {
+        for (const auto& font : text::default_fonts) {
+            const auto file = text::FontCollection::default_file(font.file).value();
+            text::FontCollection by_file, by_bytes;
+            const auto from_file = by_file.add_file(file);
+            std::ifstream in(file, std::ios::binary);
+            const auto from_bytes = by_bytes.add_data(std::vector<std::uint8_t>(std::istreambuf_iterator<char>(in), {}));
+            expect(fatal(from_file.has_value() && from_bytes.has_value())) << font.file;
+            const text::FaceInfo& a = by_file.face(*from_file);
+            const text::FaceInfo& b = by_bytes.face(*from_bytes);
+            expect(a.family == b.family && a.style == b.style && a.weight == b.weight && a.slant == b.slant && a.variable == b.variable &&
+                   a.min_weight == b.min_weight && a.max_weight == b.max_weight && a.color == b.color && a.units_per_em == b.units_per_em)
+                << std::format("{}: {} {} | {} {}", font.file, a.family, a.style, b.family, b.style);
+            expect(by_file.face_data(*from_file).size() == by_bytes.face_data(*from_bytes).size()) << "the same bytes when asked";
+        }
+        text::FontCollection none;
+        expect(!none.add_file("/no/such/font.ttf").has_value());
+        const auto not_font = scratch_dir("text") / "not-a-font.ttf";
+        std::ofstream(not_font, std::ios::binary) << "plain text, not a font";
+        const auto refused = none.add_file(not_font);
+        expect(!refused.has_value() && refused.error().contains("not a font")) << (refused ? "added" : refused.error());
+    };
+
     "a character the asked-for family lacks is told with the family, whatever face draws it; one it has is not"_test = [] {
         mlibs::text::FontCollection fonts;
         expect(fatal(fonts.add_defaults().has_value()));

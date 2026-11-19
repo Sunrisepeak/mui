@@ -38,29 +38,127 @@ bool same_family(std::string_view a, std::string_view b) noexcept {
 
 namespace {
 
-struct Face {
-    std::vector<std::uint8_t> data;
-    hb_blob_t*                blob = nullptr;
-    hb_face_t*                face = nullptr;
-    FaceInfo                  info;
+// A file's bytes, read at once (its size asked first: a byte at a time through a stream cost three times the
+// file in allocations and most of a program's start).
+std::optional<std::vector<std::uint8_t>> read_whole(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(file, ec);
+    if (!in || ec) return std::nullopt;
+    std::vector<std::uint8_t> data(static_cast<std::size_t>(size));
+    in.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size()));
+    if (static_cast<std::size_t>(in.gcount()) != data.size()) return std::nullopt;
+    return data;
+}
 
-    // The code points it has, collected when first asked: a fallback face no text reaches
-    // (a pack of 30,000 ideographs under Latin text) is never walked.
+// A face over a file's tables, each read when HarfBuzz asks for it: what describing the face needs (its names,
+// its em, its axes, its colour) without reading the whole file. A single font, not a collection.
+struct Tables {
+    std::ifstream in;
+    struct Entry {
+        std::uint32_t tag, offset, length;
+    };
+    std::vector<Entry> entries;
+
+    explicit Tables(const std::filesystem::path& file) : in(file, std::ios::binary) {
+        std::array<unsigned char, 12> header{};
+        if (!in.read(reinterpret_cast<char*>(header.data()), header.size())) return;
+        const auto u16 = [](const unsigned char* at) { return static_cast<std::uint32_t>(at[0] << 8 | at[1]); };
+        const auto u32 = [](const unsigned char* at) {
+            return static_cast<std::uint32_t>(at[0]) << 24 | static_cast<std::uint32_t>(at[1]) << 16 | static_cast<std::uint32_t>(at[2]) << 8 | at[3];
+        };
+        const std::uint32_t version = u32(header.data());
+        if (version != 0x00010000u && version != 0x4F54544Fu && version != 0x74727565u) return;  // TrueType, CFF ('OTTO'), 'true'
+        std::vector<unsigned char> records(static_cast<std::size_t>(u16(header.data() + 4)) * 16);
+        if (!in.read(reinterpret_cast<char*>(records.data()), static_cast<std::streamsize>(records.size()))) return;
+        for (std::size_t at = 0; at < records.size(); at += 16)
+            entries.push_back({u32(records.data() + at), u32(records.data() + at + 8), u32(records.data() + at + 12)});
+    }
+    static hb_blob_t* table(hb_face_t*, hb_tag_t tag, void* self) {
+        auto& t = *static_cast<Tables*>(self);
+        const auto found = std::ranges::find(t.entries, static_cast<std::uint32_t>(tag), &Entry::tag);
+        if (found == t.entries.end()) return nullptr;
+        auto* bytes = new std::vector<char>(found->length);
+        t.in.clear();
+        if (!t.in.seekg(found->offset) || !t.in.read(bytes->data(), static_cast<std::streamsize>(bytes->size()))) {
+            delete bytes;
+            return nullptr;
+        }
+        return hb_blob_create(bytes->data(), static_cast<unsigned>(bytes->size()), HB_MEMORY_MODE_READONLY, bytes,
+                              [](void* owned) { delete static_cast<std::vector<char>*>(owned); });
+    }
+};
+
+struct Face {
+    FaceInfo              info;
+    std::filesystem::path file;  // a face made from a file: its bytes read when first needed
+
+    // Made from bytes there are already.
+    void adopt(std::vector<std::uint8_t> bytes) {
+        std::call_once(loaded_, [&] {
+            data_ = std::move(bytes);
+            blob_ = hb_blob_create(reinterpret_cast<const char*>(data_.data()), static_cast<unsigned>(data_.size()), HB_MEMORY_MODE_READONLY,
+                                   nullptr, nullptr);
+            face_ = hb_face_create(blob_, 0);
+            loaded_now_.store(true, std::memory_order_release);
+        });
+    }
+    // HarfBuzz's face over its bytes, and the bytes: read when first needed — shaped with, its coverage asked, its
+    // bytes sent — so a fallback face no text reaches (a pack of 30,000 ideographs under Latin text) is never read.
+    [[nodiscard]] hb_face_t* hb() const {
+        load();
+        return face_;
+    }
+    [[nodiscard]] std::span<const std::uint8_t> bytes() const {
+        load();
+        return data_;
+    }
+    [[nodiscard]] std::size_t held() const { return loaded_now_.load(std::memory_order_acquire) ? data_.size() : 0; }
+    // The code points it has, collected when first asked — from its character map alone while its bytes are
+    // not read (a fallback asked whether it has a character is not read whole for it).
     [[nodiscard]] const hb_set_t* coverage() const {
         std::call_once(collected_, [this] {
             unicodes_ = hb_set_create();
-            if (face) hb_face_collect_unicodes(face, unicodes_);
+            if (!file.empty() && !loaded_now_.load(std::memory_order_acquire)) {
+                Tables tables(file);
+                hb_face_t* mapped = hb_face_create_for_tables(&Tables::table, &tables, nullptr);
+                hb_face_collect_unicodes(mapped, unicodes_);
+                hb_face_destroy(mapped);
+            } else {
+                hb_face_collect_unicodes(hb(), unicodes_);
+            }
         });
         return unicodes_;
     }
     ~Face() {
         if (unicodes_) hb_set_destroy(unicodes_);
+        if (face_) hb_face_destroy(face_);
+        if (blob_) hb_blob_destroy(blob_);
     }
 
 private:
-    mutable std::once_flag collected_;
-    mutable hb_set_t*      unicodes_ = nullptr;
+    void load() const {
+        std::call_once(loaded_, [this] {
+            if (auto read = read_whole(file)) {
+                data_ = std::move(*read);
+                blob_ = hb_blob_create(reinterpret_cast<const char*>(data_.data()), static_cast<unsigned>(data_.size()), HB_MEMORY_MODE_READONLY,
+                                       nullptr, nullptr);
+                face_ = hb_face_create(blob_, 0);
+            } else {
+                face_ = hb_face_reference(hb_face_get_empty());  // gone since it was described: no glyphs, nothing drawn
+            }
+            loaded_now_.store(true, std::memory_order_release);
+        });
+    }
+    mutable std::once_flag            loaded_;
+    mutable std::atomic<bool>         loaded_now_{false};
+    mutable std::vector<std::uint8_t> data_;
+    mutable hb_blob_t*                blob_ = nullptr;
+    mutable hb_face_t*                face_ = nullptr;
+    mutable std::once_flag            collected_;
+    mutable hb_set_t*                 unicodes_ = nullptr;
 };
+
 
 struct Instance {
     FaceId     face;
@@ -119,11 +217,8 @@ struct FontCollection::Impl {
     // What a collection with no faces shapes with: HarfBuzz's empty face, which
     // has no glyphs, so text takes no room and draws nothing instead of
     // reaching past the end of `faces`.
-    Face                               none;
-    Impl() {
-        none.face = hb_face_reference(hb_face_get_empty());
-        none.info.units_per_em = 1000;
-    }
+    Face                               none;  // no file: HarfBuzz's empty face when first asked
+    Impl() { none.info.units_per_em = 1000; }
 
     [[nodiscard]] const Face& at(FaceId id) const noexcept {
         std::shared_lock g(lock);
@@ -140,12 +235,7 @@ struct FontCollection::Impl {
             std::scoped_lock g(r.lock);
             r.alive.erase(id);
         }
-        hb_face_destroy(none.face);
         for (Instance& i : instances) hb_font_destroy(i.font);
-        for (auto& f : faces) {
-            hb_face_destroy(f->face);
-            hb_blob_destroy(f->blob);
-        }
     }
 };
 
@@ -229,25 +319,19 @@ std::optional<std::filesystem::path> FontCollection::default_file(std::string_vi
     return in(checkout_fonts());
 }
 
-std::expected<FaceId, std::string> FontCollection::add_data(std::vector<std::uint8_t> data) {
-    auto f = std::make_unique<Face>();
-    f->data = std::move(data);
-    f->blob = hb_blob_create(reinterpret_cast<const char*>(f->data.data()), static_cast<unsigned>(f->data.size()),
-                             HB_MEMORY_MODE_READONLY, nullptr, nullptr);
-    f->face = hb_face_create(f->blob, 0);
-    if (hb_face_get_glyph_count(f->face) == 0) {
-        hb_face_destroy(f->face);
-        hb_blob_destroy(f->blob);
-        return std::unexpected("not a font (no glyphs)");
-    }
-    FaceInfo& info = f->info;
-    info.family = name_of(f->face, HB_OT_NAME_ID_TYPOGRAPHIC_FAMILY);
-    if (info.family.empty()) info.family = name_of(f->face, HB_OT_NAME_ID_FONT_FAMILY);
-    info.style = name_of(f->face, HB_OT_NAME_ID_FONT_SUBFAMILY);
-    info.units_per_em = hb_face_get_upem(f->face);
+namespace {
+
+// What a face is (its family, style, em, weight axis, colour), read from HarfBuzz's face; none without glyphs.
+std::optional<FaceInfo> describe(hb_face_t* face) {
+    if (hb_face_get_glyph_count(face) == 0) return std::nullopt;
+    FaceInfo info;
+    info.family = name_of(face, HB_OT_NAME_ID_TYPOGRAPHIC_FAMILY);
+    if (info.family.empty()) info.family = name_of(face, HB_OT_NAME_ID_FONT_FAMILY);
+    info.style = name_of(face, HB_OT_NAME_ID_FONT_SUBFAMILY);
+    info.units_per_em = hb_face_get_upem(face);
     // A variable font without a typographic family name often names its
     // family after its default instance ("Noto Sans SC Thin"): drop the weight.
-    if (hb_ot_var_has_data(f->face) && name_of(f->face, HB_OT_NAME_ID_TYPOGRAPHIC_FAMILY).empty()) {
+    if (hb_ot_var_has_data(face) && name_of(face, HB_OT_NAME_ID_TYPOGRAPHIC_FAMILY).empty()) {
         for (std::string_view w : {" Thin", " ExtraLight", " Extra Light", " Light", " Regular", " Medium", " SemiBold",
                                    " Semi Bold", " Bold", " ExtraBold", " Extra Bold", " Black"})
             if (info.family.ends_with(w)) {
@@ -255,10 +339,10 @@ std::expected<FaceId, std::string> FontCollection::add_data(std::vector<std::uin
                 break;
             }
     }
-    info.color = hb_ot_color_has_layers(f->face) || hb_ot_color_has_paint(f->face) || hb_ot_color_has_png(f->face);
+    info.color = hb_ot_color_has_layers(face) || hb_ot_color_has_paint(face) || hb_ot_color_has_png(face);
     hb_ot_var_axis_info_t axes[8];
     unsigned count = 8;
-    hb_ot_var_get_axis_infos(f->face, 0, &count, axes);
+    hb_ot_var_get_axis_infos(face, 0, &count, axes);
     for (unsigned i = 0; i < count; ++i)
         if (axes[i].tag == HB_OT_TAG_VAR_AXIS_WEIGHT) {
             info.variable = true;
@@ -266,6 +350,17 @@ std::expected<FaceId, std::string> FontCollection::add_data(std::vector<std::uin
             info.max_weight = axes[i].max_value;
             info.weight = axes[i].default_value;
         }
+    return info;
+}
+
+}  // namespace
+
+std::expected<FaceId, std::string> FontCollection::add_data(std::vector<std::uint8_t> data) {
+    auto f = std::make_unique<Face>();
+    f->adopt(std::move(data));
+    auto info = describe(f->hb());
+    if (!info) return std::unexpected("not a font (no glyphs)");
+    f->info = std::move(*info);
     std::unique_lock g(impl_->lock);
     impl_->faces.push_back(std::move(f));
     ++impl_->revision;
@@ -294,19 +389,24 @@ std::vector<char32_t> FontCollection::uncovered_points() const {
 }
 
 std::expected<FaceId, std::string> FontCollection::add_file(const std::filesystem::path& file) {
-    std::ifstream in(file, std::ios::binary);
-    if (!in) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
-    // Its size asked first and its bytes read at once: a byte at a time through the stream cost
-    // three times the file in allocations and most of a program's start.
-    std::error_code ec;
-    const auto size = std::filesystem::file_size(file, ec);
-    if (ec) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
-    std::vector<std::uint8_t> data(static_cast<std::size_t>(size));
-    in.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(data.size()));
-    if (static_cast<std::size_t>(in.gcount()) != data.size()) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
-    auto id = add_data(std::move(data));
-    if (!id) return std::unexpected(std::format("{}: {}", generic_utf8(file), id.error()));
-    return id;
+    // Described from the few tables that say what it is; its bytes read when it is first needed (Face::hb).
+    Tables tables(file);
+    if (tables.entries.empty()) {
+        std::error_code ec;
+        if (!std::filesystem::is_regular_file(file, ec)) return std::unexpected(std::format("cannot read {}", generic_utf8(file)));
+        return std::unexpected(std::format("{}: not a font (no table directory)", generic_utf8(file)));
+    }
+    hb_face_t* described = hb_face_create_for_tables(&Tables::table, &tables, nullptr);
+    auto info = describe(described);
+    hb_face_destroy(described);
+    if (!info) return std::unexpected(std::format("{}: not a font (no glyphs)", generic_utf8(file)));
+    auto f = std::make_unique<Face>();
+    f->info = std::move(*info);
+    f->file = file;
+    std::unique_lock g(impl_->lock);
+    impl_->faces.push_back(std::move(f));
+    ++impl_->revision;
+    return static_cast<FaceId>(impl_->faces.size() - 1);
 }
 
 std::expected<void, std::string> FontCollection::add_defaults(const std::filesystem::path& directory) {
@@ -324,13 +424,20 @@ std::expected<void, std::string> FontCollection::add_defaults(const std::filesys
     return {};
 }
 
+std::size_t FontCollection::bytes_held() const {
+    std::shared_lock g(impl_->lock);
+    std::size_t held = 0;
+    for (const auto& face : impl_->faces) held += face->held();
+    return held;
+}
+
 std::size_t FontCollection::face_count() const noexcept {
     std::shared_lock g(impl_->lock);
     return impl_->faces.size();
 }
 const FaceInfo& FontCollection::face(FaceId id) const { return impl_->at(id).info; }
 
-std::span<const std::uint8_t> FontCollection::face_data(FaceId id) const { return impl_->at(id).data; }
+std::span<const std::uint8_t> FontCollection::face_data(FaceId id) const { return impl_->at(id).bytes(); }
 
 std::optional<FaceId> FontCollection::find_family(std::string_view family) const {
     {
@@ -421,7 +528,7 @@ FontRef FontCollection::font(FaceId face, float weight, Slant slant) {
         std::shared_lock g(impl_->lock);
         if (auto r = find()) return *r;
     }
-    hb_font_t* f = hb_font_create(impl_->at(face).face);
+    hb_font_t* f = hb_font_create(impl_->at(face).hb());
     hb_font_set_scale(f, static_cast<int>(info.units_per_em), static_cast<int>(info.units_per_em));
     if (info.variable) {
         hb_variation_t v{HB_OT_TAG_VAR_AXIS_WEIGHT, w};

@@ -110,8 +110,13 @@ public:
     // makes them the fallback chain, in that order.
     std::expected<void, std::string> add_defaults(const std::filesystem::path& directory = default_directory());
 
+    // A file's face is described when added (its names, em, axes, colour: the few tables that say them) and its
+    // bytes are read when it is first needed — shaped with, or its bytes asked for; whether it has a character is
+    // answered from its character map alone. A fallback no text reaches is never read.
     std::expected<FaceId, std::string> add_file(const std::filesystem::path& file);
     std::expected<FaceId, std::string> add_data(std::vector<std::uint8_t> data);
+    // The font bytes this collection holds in memory: its faces' that have been read.
+    [[nodiscard]] std::size_t bytes_held() const;
     // A font that arrives after text was first shaped (a page's later batch:
     // the Chinese font a page fetches once it is drawn): added, and tried in
     // the fallback chain at `at` (after Inter, where the defaults have it).

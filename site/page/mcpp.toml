@@ -35,3 +35,9 @@ main = { from = "omui.entry.player/player" }
 
 [dependencies]
 omui.entry.player = { path = "../../modules/projects/omui/entry/player" }
+
+# Its test drives the page without a window, as an agent does (omui doctor's app.headless-test).
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+omui.player    = { path = "../../modules/projects/omui/player" }
+omui.lang.js   = { path = "../../modules/projects/omui/lang/js" }

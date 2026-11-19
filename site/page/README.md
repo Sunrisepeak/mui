@@ -22,7 +22,7 @@ omui agent wait sitepage --settled true
 omui agent capture sitepage --out media/sketch-waiting-1280.png
 ```
 
-`page.state` is the page's verb for its four states. Later, the Live Design key and the bridge (`omui connect`) drive them instead.
+`page.state` is the page's verb for its four states. Later, the Live Design key and the bridge (`omui connect`) drive them instead. `tests/page_test.cpp` does the same without a window: it sets each state through the verb, reads what each says in the semantic tree (the mark, the sentence, the keys, the design's course at its step, the agent's chip), and checks that each state is a different picture and that returning to rest gives the first picture again.
 
 ## Drawn with
 

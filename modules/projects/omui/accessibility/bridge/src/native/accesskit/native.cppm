@@ -22,7 +22,9 @@ struct Handlers {
 [[nodiscard]] std::expected<Service*, std::string> open(void* window, const Handlers& handlers);
 void close(Service* service) noexcept;
 // Builds the update with `factory` when assistive technology listens, and
-// raises the events it makes.
+// raises the events it makes. On unix the update is built here and AccessKit's
+// work for it runs on the bridge's own thread, in order (focus and bounds too):
+// a frame does not wait for AccessKit's event thread.
 void update(Service* service, accesskit_tree_update_factory factory, void* userdata);
 void focus(Service* service, bool focused);
 void bounds(Service* service, accesskit_rect outer, accesskit_rect inner);

@@ -5,5 +5,5 @@ it hosts, and nothing depends on it.
 
 | Package | |
 |---|---|
-| [player](player) | `omui.entry.player`: runs a TypeScript application from its manifest (`[package.metadata.openmui]`), registers the official components and the script languages, and runs it with omui's options; saved files reload in place |
+| [player](player) | `omui.entry.player`: runs a TypeScript application from its manifest (`[package.metadata.openmui]`), registers the official components and the script languages, and runs it with omui's options; saved files reload in place. Its program of its own, `omui-player` (`--manifest DIR`), is what the omui tool ships (E2) |
 | [devhost](devhost) | `omui.entry.devhost`: the development host (`omui dev`, D-154): it holds the window, the application is its render target, and the designer is linked (preview: `omui.designer`) |

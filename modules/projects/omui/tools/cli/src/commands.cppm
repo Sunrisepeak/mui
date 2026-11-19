@@ -17,6 +17,12 @@ import omui.viewdoc;
 
 export namespace omui::cli {
 
+// This release's version (omui.cli's package version): the player the tool ships beside it is the same release's
+// (`omui-player --version`), and a project whose player is this version runs through it (E2).
+inline constexpr std::string_view release_version = "0.1.0";
+// Whether a project's mcpp.toml names this release's player (`omui.entry.player = "0.1.0"`): it runs through the
+// player the tool ships, with nothing built. A path (a checkout), another version, or none: no.
+[[nodiscard]] bool names_shipped_player(std::string_view manifest);
 
 // Runs a command line (argv[0] included); writes to `out` and `err`.
 int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err);

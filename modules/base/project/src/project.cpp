@@ -92,7 +92,8 @@ Profile general() {
                                "xdef migrate renames it and every text that names it"});
                 continue;
             }
-            if (!leaf.ends_with(".ts") || leaf.ends_with(".d.ts") || mlibs::xdef::parse_name(leaf)) continue;
+            // A tool's configuration (`<tool>.config.ts`: omui.config.ts) is named for its tool, not as a data file.
+            if (!leaf.ends_with(".ts") || leaf.ends_with(".d.ts") || leaf.ends_with(".config.ts") || mlibs::xdef::parse_name(leaf)) continue;
             const std::string text = text_of(package.dir / mcpplibs::os::fs::from_utf8(file));
             if (text.contains("export default define"))
                 out.push_back({"general.data-names", where(package, file), "a declared data module not named as one",

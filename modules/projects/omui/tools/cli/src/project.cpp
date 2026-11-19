@@ -261,13 +261,54 @@ bool& tools_caught() {
     return caught;
 }
 
+bool names_shipped_player(std::string_view manifest) {
+    try {
+        const toml::table project = toml::parse(manifest);
+        return project["dependencies"]["omui"]["entry"]["player"].value<std::string>() == std::optional<std::string>(std::string(release_version));
+    } catch (const toml::parse_error&) {
+        return false;
+    }
+}
+
 namespace {
 
+// The player the omui tool ships beside itself (E2): built with the designer, at this release's version. A
+// TypeScript application whose player is this release's (`omui.entry.player = "0.1.0"`) runs through it — `omui new`
+// then `omui dev` call no compiler. A checkout's paths, or another version, and nothing is found: mcpp builds the
+// project's own player, as before.
+std::optional<std::filesystem::path> shipped_player() {
+    if (!names_shipped_player(mcpplibs::os::fs::read("mcpp.toml").value_or(""))) return std::nullopt;
+    const auto found = mcpplibs::os::env::find_executable("omui-player");
+    if (!found) return std::nullopt;
+    // What it says it is: another release's on PATH is not this one's.
+    mcpplibs::os::process::spawn_options options;
+    options.program = *found;
+    options.args = {"--version"};
+    options.in = mcpplibs::os::process::stdio::null;
+    const auto said = mcpplibs::os::process::run(std::move(options), mcpplibs::os::process::bounds{.hard = std::chrono::seconds(20)});
+    if (!said || said->status.shell_code() != 0) return std::nullopt;
+    std::string version = said->out;
+    while (!version.empty() && (version.back() == '\n' || version.back() == '\r' || version.back() == ' ')) version.pop_back();
+    if (version != release_version) return std::nullopt;
+    return *found;
+}
+
 // dev, run and build: mcpp run or build, the designer linked as omui.config.ts says — in development by default,
-// left out of a release at compile time (D-149) unless the application is a design tool that ships it.
+// left out of a release at compile time (D-149) unless the application is a design tool that ships it. A
+// TypeScript application of this release runs through the player the tool ships (nothing built); a build compiles.
 int launch(std::string_view name, bool release, bool headless, std::vector<std::string> rest, bool json, std::ostream& out, std::ostream& err) {
     Ran ran;
-    if (name == "dev" && !scripted_project()) {
+    const std::optional<std::filesystem::path> player = name != "build" && scripted_project() ? shipped_player() : std::nullopt;
+    if (player) {
+        const bool development = name == "dev";
+        std::vector<std::string> args{"--manifest", "."};
+        if (development) {
+            args.push_back("--dev");
+            if (headless) args.push_back("--serve");  // headless, kept running for agents
+        }
+        std::ranges::move(rest, std::back_inserter(args));
+        ran = run_tool(mcpplibs::os::fs::utf8(*player), std::move(args), err);
+    } else if (name == "dev" && !scripted_project()) {
         // An application in C++ (W16, D-154): the development host owns the window; mcpp builds the
         // application in the background as its sources change, each build drawn in the host's window.
         std::vector<std::string> args{"--project", "."};

@@ -250,7 +250,11 @@ cmd::App app() {
                                         .option(Option("template").takes_value().value_name("NAME").help("app-ts (default) or app-cpp"))
                                         .option(Option("work").takes_value().value_name("DIR").help("default: target/release/try (emptied first)"))
                                         .option(Option("tag").takes_value().value_name("TEMPLATE").help("the release's tag (release index --tag)"))
-                                        .option(Option("index").takes_value().value_name("DIR").help("the copy of mcpp-index it starts from (default: this home's)")))
+                                        .option(Option("index").takes_value().value_name("DIR").help("the copy of mcpp-index it starts from (default: this home's)"))
+                                        .option(Option("tool").takes_value().value_name("DIR").help("with the omui tool (release tool's directory): `omui new` and `omui run` through its player, nothing built; the time from new to the first window (E2: ≤ 60 s)")))
+                        .subcommand(cmd::App("tool")
+                                        .description("The omui tool as a release ships it (E2): the command, the player built with the designer (a TypeScript application of this release runs through it, nothing built) and the development host, in one directory and its archive")
+                                        .option(Option("out").takes_value().value_name("DIR").help("default: target/release/tool (emptied first)")))
                         .subcommand(cmd::App("index")
                                         .description("The templates' closure, its mcpp-index descriptors written to a directory, and what blocks `mcpp publish`")
                                         .option(Option("out").takes_value().value_name("DIR").help("default: target/release/index"))
@@ -1149,6 +1153,85 @@ std::uintmax_t bytes_under(const fs::path& directory) {
 // index is mcpp-index with this tree's descriptors in it — their archives seeded into the home's store, as mcpp's
 // docs say a payload is used before it is published (11): nothing leaves this machine — then a project from a
 // template, built, and its first window drawn (SDL's offscreen driver). Its report: <work>/try.json.
+// The omui tool as a release ships it (E2): the command; the player built with the designer, which `omui dev` and
+// `omui run` run a TypeScript application of this release through (nothing built); the development host — each
+// packed as mcpp packs a program (dist, stripped, self-contained: its libraries and the C library with it), in one
+// directory (bin/, share/, licenses/) and its archive.
+int release_tool(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace run = omui::devtools::run;
+    const fs::path out = options.value("out") ? fs::absolute(mcpplibs::os::fs::from_utf8(*options.value("out"))) : root / "target/release/tool";
+    struct Part {
+        std::string_view program, member, features;
+    };
+    constexpr std::array<Part, 3> parts{{{"omui", "modules/projects/omui/tools/cli", ""},
+                                         {"omui-player", "modules/projects/omui/entry/player", "design"},
+                                         {"omui-devhost", "modules/projects/omui/entry/devhost", ""}}};
+    // The release's version: the command's package's (the player it ships says the same).
+    std::string version;
+    for (const auto line : std::views::split(mcpplibs::os::fs::read(root / parts[0].member / "mcpp.toml").value_or(""), '\n'))
+        if (const std::string_view text(line.begin(), line.end()); version.empty() && text.starts_with("version"))
+            if (const auto open = text.find('"'), close = text.rfind('"'); open != std::string_view::npos && close > open)
+                version = std::string(text.substr(open + 1, close - open - 1));
+    std::error_code error;
+    fs::remove_all(out, error);
+    fs::create_directories(out, error);
+    fs::path dir;
+    for (const Part& part : parts) {
+        const fs::path packed = root / part.member / "target/dist";
+        fs::remove_all(packed, error);
+        // Self-contained: the C library with it (red 142: the toolchain links glibc 2.44, a system may have 2.39), so the
+        // tool starts on any x86-64 Linux; an application's package is the vendored kind (its floor is red 142's).
+        std::vector<std::string> args{"pack",          std::string(part.program), "-p", std::string(part.member), "--profile", "dist", "--pkg-format", "dir",
+                                      "--mode",        "self-contained"};
+        if (!part.features.empty()) args.insert(args.end(), {"--features", std::string(part.features)});
+        const auto ran = run::program(root, "mcpp", std::move(args), {.cwd = root, .merged = true});
+        if (!ran || ran->status != 0) {
+            std::cerr << std::format("omui-devtools release tool: {} did not pack:\n{}\n", part.program, ran ? ran->out : ran.error());
+            return 1;
+        }
+        fs::path made;
+        for (const auto& entry : fs::directory_iterator(packed, error))
+            if (entry.is_directory(error)) made = entry.path();
+        if (made.empty() || !fs::exists(made / "bin" / std::string(part.program), error)) {
+            std::cerr << std::format("omui-devtools release tool: no bin/{} under {}\n", part.program, mcpplibs::os::fs::utf8(packed));
+            return 1;
+        }
+        if (dir.empty()) {
+            // <package>-<version>-<triple>: the triple the programs run on
+            const std::string name = mcpplibs::os::fs::utf8(made.filename()), prefix = std::format("-{}-", version);
+            const auto at = name.find(prefix);
+            dir = out / std::format("omui-{}-{}", version, at == std::string::npos ? std::string("unknown") : name.substr(at + prefix.size()));
+        }
+        fs::copy(made, dir, fs::copy_options::recursive | fs::copy_options::skip_existing, error);
+        if (error) {
+            std::cerr << std::format("omui-devtools release tool: {}: {}\n", mcpplibs::os::fs::utf8(made), error.message());
+            return 1;
+        }
+    }
+    fs::create_directories(dir / "licenses/omui", error);
+    fs::copy_file(root / "LICENSE", dir / "licenses/omui/LICENSE", fs::copy_options::overwrite_existing, error);
+    // What the player it ships says it is: this release (the command runs an application through it only then).
+    // Through its launcher, as a person starts it (self-contained: the loader it carries).
+    const auto said = run::program(root, mcpplibs::os::fs::utf8(fs::exists(dir / "omui-player", error) ? dir / "omui-player" : dir / "bin/omui-player"), {"--version"},
+                                   {.cwd = root, .merged = true});
+    std::string answered = said ? said->out : said.error();
+    while (!answered.empty() && (answered.back() == '\n' || answered.back() == '\r')) answered.pop_back();
+    if (!said || said->status != 0 || answered != version) {
+        std::cerr << std::format("omui-devtools release tool: bin/omui-player says `{}`, the release is {}\n", answered, version);
+        return 1;
+    }
+    const fs::path archive = out / std::format("{}.tar.gz", mcpplibs::os::fs::utf8(dir.filename()));
+    if (auto packed = run::output(root, "tar", {"-C", mcpplibs::os::fs::utf8(out), "-czf", mcpplibs::os::fs::utf8(archive), mcpplibs::os::fs::utf8(dir.filename())});
+        !packed) {
+        std::cerr << std::format("omui-devtools release tool: tar: {}\n", packed.error());
+        return 1;
+    }
+    for (const Part& part : parts)
+        std::println("  bin/{:13} {:>10} B", part.program, fs::file_size(dir / "bin" / std::string(part.program), error));
+    std::println("release tool: {} ({} B, archive {} B)", mcpplibs::os::fs::utf8(dir), bytes_under(dir), fs::file_size(archive, error));
+    return 0;
+}
+
 int release_try(const cmd::ParsedArgs& options, const fs::path& root) {
     namespace release = omui::devtools::release;
     namespace run = omui::devtools::run;
@@ -1244,6 +1327,54 @@ int release_try(const cmd::ParsedArgs& options, const fs::path& root) {
         std::ofstream(manifest, std::ios::binary) << *made_pinned;
     }
     passed("home", since);
+
+    // With the omui tool (E2): `omui new`, then the first window through the player it ships — nothing compiled;
+    // new to first window within a minute on this home (the downloads are the seeded store's).
+    if (const auto tool_text = options.value("tool")) {
+        // The tool and the project outside any checkout (fonts, the source tree's fallbacks: none of them here), the
+        // tool started by its launchers as a person's PATH has them.
+        const fs::path scratch = fs::temp_directory_path() / "omui-release-try-tool";
+        fs::remove_all(scratch, error);
+        fs::create_directories(scratch, error);
+        const fs::path tool = scratch / "tool";
+        fs::copy(fs::absolute(mcpplibs::os::fs::from_utf8(*tool_text)), tool, fs::copy_options::recursive, error);
+        if (error || !fs::exists(tool / "omui", error) || !fs::exists(tool / "omui-player", error))
+            return failed("tool", std::format("no omui and omui-player launchers in {} (omui-devtools release tool)", *tool_text));
+        std::vector<std::pair<std::string, std::string>> with_tool = in_home;
+        with_tool.emplace_back("PATH", std::format("{}:{}", mcpplibs::os::fs::utf8(tool), mcpplibs::os::env::get("PATH").value_or("/usr/bin:/bin")));
+        const auto omui = [&](std::vector<std::string> args, const fs::path& cwd, std::vector<std::pair<std::string, std::string>> extra = {}) {
+            run::How how{.cwd = cwd, .merged = true, .variables = with_tool};
+            how.variables.insert(how.variables.end(), extra.begin(), extra.end());
+            return run::program(root, mcpplibs::os::fs::utf8(tool / "omui"), std::move(args), how);
+        };
+        since = clock::now();
+        if (auto made = omui({"new", "hello", "--template", template_name}, scratch); !ok(made)) return failed("tool: new", said(made));
+        const fs::path picture = scratch / "first.png";
+        if (auto shown = omui({"run", "--", "--frames", "3", "--png", mcpplibs::os::fs::utf8(picture)}, scratch / "hello", {{"SDL_VIDEO_DRIVER", "offscreen"}});
+            !ok(shown))
+            return failed("tool: first window", said(shown));
+        const double seconds = std::chrono::duration<double>(clock::now() - since).count();
+        auto image = mlibs::image::load_png(picture);
+        if (!image) return failed("tool: first window", std::format("{}: {}", mcpplibs::os::fs::utf8(picture), image.error()));
+        fs::copy_file(picture, work / "first.png", fs::copy_options::overwrite_existing, error);
+        if (fs::exists(scratch / "hello/target", error))
+            return failed("tool: first window", "the project was built (hello/target is there): the player the tool ships was not used");
+        // Its words drawn: dark pixels of the title and the count (no fonts found draws none).
+        std::size_t ink = 0;
+        for (int y = 0; y < image->height; ++y) {
+            const auto line = image->row(y);
+            for (std::size_t x = 0; x + 4 <= line.size(); x += 4)
+                if (line[x] < 70 && line[x + 1] < 70 && line[x + 2] < 70 && line[x + 3] > 200) ++ink;
+        }
+        if (ink < 200) return failed("tool: first window", std::format("{} dark pixels: its text was not drawn (the fonts the tool carries not found)", ink));
+        if (seconds > 60) return failed("tool: first window", std::format("{:.1f} s from new to the first window: over the minute E2 allows", seconds));
+        passed("tool: new to first window", since, {{"width", image->width}, {"height", image->height}, {"compiled", false}, {"ink_pixels", ink}, {"limit_seconds", 60}});
+        fs::remove_all(scratch, error);
+        report["ok"] = true;
+        written();
+        std::println("release try (tool): ok — {}", mcpplibs::os::fs::utf8(work / "try.json"));
+        return 0;
+    }
 
     // A project from the template, as `omui new` makes one (mcpp new --template omui.sdk:…).
     since = clock::now();
@@ -1438,8 +1569,9 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "release") {
         const cmd::ParsedArgs& asked = parsed->subcommand()->get();
         if (asked.subcommand_name() == "try") return release_try(asked.subcommand()->get(), root);
+        if (asked.subcommand_name() == "tool") return release_tool(asked.subcommand()->get(), root);
         if (asked.subcommand_name() != "index") {
-            std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--index DIR] | try [--template T] [--work DIR]\n";
+            std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--index DIR] | try [--template T] [--work DIR] [--tool DIR] | tool [--out DIR]\n";
             return 2;
         }
         return release_index(asked.subcommand()->get(), root);

@@ -48,6 +48,7 @@ UTest cases{"mlibs.project", [] {
         write(root / "lib" / "src" / "lib_test.cpp", "int main() {}\n");
         write(root / "lib" / "tests" / "g_test.cpp", "#include <gtest/gtest.h>\n");
         write(root / "lib" / "brand.ts", "import { defineTheme } from \"omui/define\";\nexport default defineTheme({});\n");
+        write(root / "lib" / "omui.config.ts", "import { defineConfig } from \"omui/define\";\nexport default defineConfig({});\n");
         write(root / "stray" / "mcpp.toml", "[package]\nname = \"stray\"\n");
         const auto read = project::read(root);
         const std::array profiles{project::general(), project::workspace()};
@@ -57,6 +58,7 @@ UTest cases{"mlibs.project", [] {
         expect(has(findings, "general.module-name", "lib/mcpp.toml"));
         expect(has(findings, "general.tests", "lib/src/lib_test.cpp") && has(findings, "general.tests", "lib/tests/g_test.cpp"));
         expect(has(findings, "general.data-names", "lib/brand.ts"));
+        expect(!has(findings, "general.data-names", "lib/omui.config.ts")) << "a tool's configuration is named for its tool";
         expect(has(findings, "workspace.members", "stray/mcpp.toml"));
         expect(std::ranges::all_of(findings, [](const auto& finding) { return !finding.fix.empty(); })) << "every finding says what to do";
     };

@@ -5,7 +5,8 @@
 ```text
 omui new NAME [--template app-ts]   a project (app-ts, app-cpp, component, native, theme; omui templates lists them)
 omui dev [--headless] [-- ARGS]     the application in development mode: its own designer, a person and an agent designing it live (D-149)
-omui run [--release] [-- ARGS]      the application as it ships (mcpp run)
+omui run [--release] [-- ARGS]      the application as it ships (mcpp run; a TypeScript application of this release:
+                                    the player the tool ships, nothing built)
 omui build [--release]              mcpp build
 omui build --web [--lang L]         the page on the Web: the program run natively writes its first screen as static HTML
                                     (target/web/<program>.static.html, D-236), then mcpp pack --target wasm32-emscripten
@@ -14,6 +15,8 @@ omui build --web [--lang L]         the page on the Web: the program run nativel
 omui test [-- CASES]                its tests, mtest's (mcpp test)
 omui doctor                         which tools are there, which are missing, what each is for
 ```
+
+The tool as a release ships it (E2, `omui-devtools release tool`) carries the player beside `omui`, built with the designer (`omui-player`, `--version` its release). A TypeScript application whose manifest names this release's player (`omui.entry.player = "0.1.0"`, as `omui new` writes it) runs through it: `omui new` then `omui dev` or `omui run` call no compiler. A checkout's path, another version, or no player beside it, and mcpp builds the project's own, as before; `omui build` always does.
 
 Every project command is an operation of its catalog ([`cli.ops.xdef.ts`](cli.ops.xdef.ts)): the subject `omui` behind the tool kernel's entries (mlibs.agent:host). `omui build --release` is the operation omui.build; words without names are its parameters in the catalog's order (`omui new hello`); the answer is records a line each — what it ran (`{"step", "command", "exit"}`) and what it read as data, an error with its ways out, and last the result with the exit code (0 done, 1 failed, 2 arguments that make no request). `omui mcp` serves the same operations as `omui_*` tools — except dev, run, connect and mcp, which hold a window or the terminal (`terminal` in the catalog): a person's command line runs them, and an agent's entry is refused with the command to type. No command has a table of its own: `omui` alone and `omui --help` list them, `omui <command> --help` describes one whole.
 

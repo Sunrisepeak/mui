@@ -31,6 +31,14 @@ kind = "entry"
 agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
 main = "src/entry/main.cpp"
 
+# The player as a program of its own (E2): the omui tool ships it, built with the
+# designer, and `omui dev` and `omui run` run a TypeScript application of the same
+# version through it (`omui-player --manifest DIR`), with nothing built.
+[targets.omui-player]
+kind = "bin"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
+main = "src/entry/main.cpp"
+
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 

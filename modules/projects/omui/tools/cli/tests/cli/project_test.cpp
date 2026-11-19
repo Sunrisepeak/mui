@@ -44,6 +44,19 @@ std::vector<Value> records(const std::string& text) {
 }  // namespace
 
 static UTest cases{"cli.project", [] {
+    "a TypeScript application of this release runs through the player the tool ships (E2): its manifest names that version"_test = [] {
+        const std::string version(omui::cli::release_version);
+        expect(omui::cli::names_shipped_player(std::format("[dependencies]\nomui.entry.player = \"{}\"\n", version))) << "the template's line";
+        expect(!omui::cli::names_shipped_player("[dependencies]\nomui.entry.player = { path = \"../../modules/projects/omui/entry/player\" }\n"))
+            << "a checkout's path: built from it";
+        expect(!omui::cli::names_shipped_player("[dependencies]\nomui.entry.player = \"0.0.9\"\n")) << "another release's: built";
+        expect(!omui::cli::names_shipped_player("[dependencies]\nomui.sdk = \"0.1.0\"\n") && !omui::cli::names_shipped_player("not toml [")) << "none, or no manifest";
+        // The template's manifest names it, at the template package's version.
+        const auto template_manifest = mcpplibs::os::fs::read(
+            std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path() / "../../sdk/templates/app-ts/mcpp.toml.in");
+        expect(template_manifest && template_manifest->contains("omui.entry.player = \"{{self.version}}\"")) << "a new project's player is its release's";
+    };
+
     "omui doctor holds every example and showcase to its profile (D-207): the general rules, an app's, none found"_test = [] {
         const auto repository = (std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / ".." / ".." / ".." / ".." / ".." / "..").lexically_normal();
         if (!std::filesystem::exists(repository / "examples"))

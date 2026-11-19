@@ -192,11 +192,16 @@ generate::EvaluateFn generated_views(const std::filesystem::path& base) {
     };
 }
 
+// Its package's version: the omui tool ships this program (omui-player) and runs an application of the same version
+// through it (`--version` says it; E2).
+constexpr std::string_view player_version = "0.1.0";
+
 int player_main(int argc, char** argv) {
     // The player's switches beside the application's (RunOptions), on one
     // command line, parsed once (mcpplibs.cmdline, D-56).
     using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
     auto line = App("player")
+        .version(player_version)
         .description("Runs a script-first openmui application from its mcpp.toml")
         .option(Option("manifest").takes_value().value_name("FILE").help("the application's mcpp.toml, or its directory (default: ./mcpp.toml)"))
         .option(Option("dev").help("development mode: the application is its own designer (D-149)"))

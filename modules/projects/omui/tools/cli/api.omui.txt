@@ -3,6 +3,8 @@ export import :catalog;
 export import :omui_profile;
 export import mlibs.agent;
 namespace omui::cli {
+  inline constexpr std::string_view release_version = "0.1.0";
+  [[nodiscard]] bool names_shipped_player(std::string_view manifest);
   int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err);
   using Transport = std::function<std::vector<Value>(const Value& request, std::chrono::milliseconds limit)>;
   int operate_running(std::vector<std::string> words, const Transport& send, std::ostream& out, std::ostream& err);

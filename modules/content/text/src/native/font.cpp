@@ -254,6 +254,16 @@ bool FontCollection::alive(std::uint64_t id) {
 
 namespace {
 
+// The program's own directory: where a self-contained package keeps it (`mcpp pack --mode self-contained` starts it
+// through the loader it carries, so the image is that loader's: its launcher says where the package is,
+// MCPP_BUNDLE_DIR, and the program is in its bin/), else the image's.
+std::optional<std::filesystem::path> program_directory() {
+    namespace os = mcpplibs::os;
+    if (auto bundle = os::env::get("MCPP_BUNDLE_DIR"); bundle && !bundle->empty()) return os::fs::from_utf8(*bundle) / "bin";
+    if (const auto exe = os::env::image()) return exe->parent_path();
+    return std::nullopt;
+}
+
 // The source tree's fonts: a checkout of openmui above the program or the
 // working directory (any build profile in the tree, where release builds trim
 // source paths), else this file's own tree (development builds, out-of-tree
@@ -270,8 +280,8 @@ std::filesystem::path checkout_fonts() {
         }
         return std::nullopt;
     };
-    if (const auto exe = os::env::image())
-        if (auto fonts = above(exe->parent_path())) return *fonts;
+    if (const auto directory = program_directory())
+        if (auto fonts = above(*directory)) return *fonts;
     std::error_code ec;
     if (auto fonts = above(std::filesystem::current_path(ec))) return *fonts;
     return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path() / "fonts";
@@ -281,7 +291,7 @@ std::filesystem::path checkout_fonts() {
 
 std::filesystem::path FontCollection::default_directory() {
     namespace os = mcpplibs::os;
-    // 1. OMUI_FONTS; 2. `fonts/` beside the program (a packaged application);
+    // 1. OMUI_FONTS; 2. `fonts/` beside the program (a packaged application; a self-contained one's bin/);
     // 3. a checkout of openmui above the program or the working directory (any
     // build profile in the tree, where release builds trim source paths);
     // 4. this file's own tree (development builds, out-of-tree consumers).
@@ -293,8 +303,8 @@ std::filesystem::path FontCollection::default_directory() {
     // On the Web, the page's file system: the page puts the fonts in /fonts before the program starts.
     if constexpr (os::is_emscripten)
         if (has_fonts("/fonts")) return "/fonts";
-    const auto exe = os::env::image();
-    if (exe && has_fonts(exe->parent_path() / "fonts")) return exe->parent_path() / "fonts";
+    const auto directory = program_directory();
+    if (directory && has_fonts(*directory / "fonts")) return *directory / "fonts";
     return checkout_fonts();
 }
 
@@ -312,9 +322,9 @@ std::optional<std::filesystem::path> FontCollection::default_file(std::string_vi
     // A pack the program did not take, in the checkout it was built in: only for the program's own fonts/ (under
     // node too, whose file system is the machine's; a page's has no checkout).
     if (auto env = os::env::get("OMUI_FONTS"); env && !env->empty()) return std::nullopt;
-    const auto exe = os::env::image();
+    const auto program = program_directory();
     std::error_code ec;
-    if (pack == default_fonts.end() || pack->pack.empty() || !exe || !std::filesystem::equivalent(directory, exe->parent_path() / "fonts", ec))
+    if (pack == default_fonts.end() || pack->pack.empty() || !program || !std::filesystem::equivalent(directory, *program / "fonts", ec))
         return std::nullopt;
     return in(checkout_fonts());
 }

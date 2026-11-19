@@ -47,7 +47,7 @@ std::string actor_name(std::string_view shown) {
 
 constexpr std::uint16_t first_port = 47110;
 constexpr int ports = 4;
-constexpr std::string_view version = "0.1.0";
+constexpr std::string_view version = release_version;
 
 // ── HTTP: the framing is mlibs.http's ───────────────────────────────────
 

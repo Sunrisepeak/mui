@@ -288,6 +288,9 @@ void Runtime::Impl::run_motion() {
         const NodeId id = by_index[m];
         Node& n = at(id);
         const auto [b, e] = marker_ranges[m];
+        // Left out by this paint (N5: its clip shows none of it): its drawing did not change, it is only not drawn —
+        // kept as it was, nothing started (a hidden node's drawing of nothing is a change, and fades it out).
+        if (b == none && !n.exiting && left_out_by(id, paints)) continue;
         std::uint64_t h = mlibs::hash::Fnv1a::offset;
         bool by_itself = (marker_flags[m] & 2) != 0;
         // Its subtree's property writes and interaction states (which slot a change is: a state's, or an update's).
@@ -438,6 +441,15 @@ void Runtime::Impl::run_motion() {
             continue;
         }
         const bool drawn_before = m < drawn_by.size() && drawn_by[m] == id;
+        // Left out by the last paint (N5: what its clip did not show), drawn now: it was there all along — scrolled to,
+        // not come in. Shown as it is.
+        if (!drawn_before && !n.exiting && left_out_by(id, paints - 1)) {
+            n.drawn = true;
+            n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_held = held_now, n.drawn_children = n.children;
+            if (n.morph) n.morph.reset(), touch(dirty_semantics);
+            n.ghost = false;
+            continue;
+        }
         if (!n.drawn || (!drawn_before && (!n.morph || n.ghost))) {
             // New, its first drawing: its enter slot's, when it comes into a window already drawn. A node that
             // was there, hidden, drawn again (a dialog opening): its update slot's, from nothing.
@@ -539,6 +551,8 @@ void Runtime::Impl::run_motion() {
         if (!(id == by_index[m]) || !alive(id) || marker_ranges[m].first != none) continue;
         Node& n = at(id);
         if (n.ghost || n.exiting || n.state.removing || off || !update_motion(id)) continue;
+        // Left out by this paint (N5: scrolled out of what its clip shows): not hidden — there still, only not drawn.
+        if (left_out_by(id, paints)) continue;
         // Its parent drawn still (else its whole branch went) — an overlay stands alone.
         const NodeId parent = n.parent;
         if (!n.type->overlay && !(alive(parent) && at(parent).index < markers && marker_ranges[at(parent).index].first != none)) continue;

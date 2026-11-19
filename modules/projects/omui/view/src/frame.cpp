@@ -616,6 +616,81 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
         const NodeId c = at(id).children[i];
         if (!at(c).type->overlay) compute_bounds(c, inner, child_target, child_world);
     }
+    at(id).reach = reach_of(id);
+}
+
+bool Runtime::Impl::left_out_by(NodeId id, std::uint64_t paint) const {
+    if (paint == 0) return false;
+    for (NodeId at_or_above = id; alive(at_or_above); at_or_above = at(at_or_above).parent)
+        if (at(at_or_above).left_out == paint) return true;
+    return false;
+}
+
+std::optional<Rect> Runtime::Impl::reach_of(NodeId id) const {
+    const Node& n = at(id);
+    // Moved after it is drawn (a pose, a whole-drawing morph, its glyphs in flight): anywhere.
+    if (n.glyph_motion || n.morph || n.presentation.attached()) return std::nullopt;
+    // Past its box always: the focus ring (a gap and its width, 4), half a border, antialiasing, and what a component
+    // draws a little over its edge.
+    constexpr float past = 16;
+    float out = past;
+    const Visual& v = n.visual;
+    if (!v.shadow.empty()) {
+        const Theme& theme = theme_of(id);
+        if (const auto it = theme.shadows.find(v.shadow); it != theme.shadows.end()) {
+            // A blur reaches about twice its radius before it is nothing (xrender's box_shadow).
+            const auto cast = [](Point offset, float blur, float spread) {
+                return std::max(std::abs(offset.x), std::abs(offset.y)) + std::max(0.0f, spread) + 2 * std::max(0.0f, blur);
+            };
+            out = std::max(out, past + cast(it->second.offset, it->second.blur, it->second.spread));
+            if (const auto& ambient = it->second.ambient) out = std::max(out, past + cast(ambient->offset, ambient->blur, ambient->spread));
+        }
+    }
+    // An effect over its drawing: as far as the effect says it writes (xrender's output reach, else its capture reach),
+    // the effect that stands in for it below its tiers too; one moving, or that says nothing, anywhere.
+    if (n.effect_moving(now(), !reduce_motion && motion_now() == MotionLevel::full)) return std::nullopt;
+    const auto effect_reach = [&](const xrender::EffectRef effect, std::span<const float> params) -> std::optional<float> {
+        const xrender::EffectInfo* info = xrender::effects().info(effect);
+        if (!info || (info->identity && info->identity(params))) return 0.0f;
+        if (info->output_reach) return info->output_reach(params);
+        if (info->reach) return info->reach(params);
+        return std::nullopt;
+    };
+    const auto effect = [&](const Node::PixelEffectState& fx) -> std::optional<float> {
+        auto own = effect_reach(fx.effect, fx.params);
+        const xrender::EffectInfo* info = xrender::effects().info(fx.effect);
+        if (own && info && !info->degrade.empty())
+            if (const auto instead = xrender::effects().find(info->degrade)) {
+                const auto stand_in = effect_reach(*instead, xrender::effects().params(*instead, {}));
+                own = stand_in ? std::optional<float>(std::max(*own, *stand_in)) : std::nullopt;
+            }
+        return own;
+    };
+    for (const Node::PixelEffectState* fx : {n.pixel_effect ? &*n.pixel_effect : nullptr, n.styled_effect ? &*n.styled_effect : nullptr}) {
+        if (!fx) continue;
+        const auto by = effect(*fx);
+        if (!by) return std::nullopt;
+        out += *by;
+    }
+    for (const auto& fx : n.more_effects) {
+        const auto by = effect(fx);
+        if (!by) return std::nullopt;
+        out += *by;
+    }
+    Rect reach{-out, -out, n.frame.width + 2 * out, n.frame.height + 2 * out};
+    if (v.clip || n.type->clips) return reach;
+    // Its children's, where they are drawn: under its scroll offset, through their own transforms.
+    const Point off = n.content_offset;
+    for (const NodeId c : n.children) {
+        const Node& child = at(c);
+        if (child.type->overlay) continue;
+        if (!child.reach) return std::nullopt;
+        Rect drawn = child.local.map(*child.reach);
+        drawn.x -= off.x;
+        drawn.y -= off.y;
+        reach = reach.united(drawn);
+    }
+    return reach;
 }
 
 void Runtime::Impl::paint() {
@@ -631,7 +706,14 @@ void Runtime::Impl::paint() {
     list.clear();
     glyph_movers.clear();
     moving_said.clear();
-    paint_node(root);
+    culled.clear();
+    ++paints;
+    // What the window shows of the root, in its coordinates: what lies past it is not drawn (N5).
+    // Drawn ahead: what the window shows and as much again on each side, so what a scroll brings in was drawn before it
+    // arrives (a change that comes with it has a drawing to move from, D-93); past that, nothing is drawn.
+    const auto from_window = at(root).local.inverse();
+    const Rect ahead{-size.width, -size.height, 3 * size.width, 3 * size.height};
+    paint_node(root, from_window ? std::optional<Rect>(from_window->map(ahead)) : std::nullopt);
     // What was on screen before a style's change, fading out over what comes.
     if (fading) {
         const double u = reduce_motion || motion_now() == MotionLevel::off ? 1.0 : (now() - fade_start).count() / std::max(1e-6, fade_length.count());
@@ -691,7 +773,7 @@ void Runtime::Impl::paint() {
     moving_flagged = moving_said;
 }
 
-void Runtime::Impl::paint_node(NodeId id) {
+void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
     Node& n = at(id);
     // Its scope's theme: what it draws with, and what its hooks are told.
     const Theme& theme = theme_of(id);
@@ -864,9 +946,33 @@ void Runtime::Impl::paint_node(NodeId id) {
     const Point off = n.content_offset;
     const bool shifted = off.x != 0 || off.y != 0;
     if (shifted) list.push_transform(Affine::translate(-off.x, -off.y));
+    // What of its children's drawing can be seen (N5), in its coordinates: what was seen of it, within its own clip.
+    // Nothing said when its drawing is moved after it is drawn (a pose, a morph, glyph motion, an effect).
+    std::optional<Rect> sees = shown;
+    if (const Node& drawn = at(id); effected || more > 0 || drawn.glyph_motion || drawn.morph || drawn.presentation.attached()) sees.reset();
+    else if (clip) {
+        // A scroll view draws ahead as the window does (its viewport and as much again around it); a clip that does
+        // not scroll, only what it shows.
+        const Rect seen = n.type->scroll_offset ? Rect{-box.width, -box.height, 3 * box.width, 3 * box.height} : box;
+        sees = sees ? sees->intersection(seen) : seen;
+    }
     for (std::size_t i = 0; i < at(id).children.size(); ++i) {
         const NodeId c = at(id).children[i];
-        if (!at(c).type->overlay) paint_node(c);  // overlays paint in their own pass
+        if (at(c).type->overlay) continue;  // overlays paint in their own pass
+        if (!sees) {
+            paint_node(c);
+            continue;
+        }
+        // A child whose drawing cannot reach what is seen — a long list's rows outside its viewport, what lies past
+        // the window — is left out, and presented where it is, nothing of it visible.
+        const Affine placed = shifted ? Affine::translate(-off.x, -off.y) * at(c).local : at(c).local;
+        if (const auto& reach = at(c).reach; reach && !placed.map(*reach).intersects(*sees)) {
+            culled.push_back(c);
+            at(c).left_out = paints;
+            continue;
+        }
+        const auto back = placed.inverse();
+        paint_node(c, back ? std::optional<Rect>(back->map(*sees)) : std::nullopt);
     }
     if (shifted) list.pop_transform();
 
@@ -1032,6 +1138,21 @@ void Runtime::Impl::collect_presentation() {
             node.presented_world = presentation_transforms.back() * Affine::translate(frame->rect.x, frame->rect.y) * Affine::scale(sx, sy);
             node.presented_inverse = node.presented_world.inverse();
         }
+    }
+    // What paint left out under a clip (N5): where it is (its bounds pass's geometry), nothing of it visible, not hit.
+    culled_walk.assign(culled.begin(), culled.end());
+    while (!culled_walk.empty()) {
+        const NodeId id = culled_walk.back();
+        culled_walk.pop_back();
+        if (!alive(id)) continue;
+        Node& node = at(id);
+        const Rect border = node.world.map({0, 0, node.frame.width, node.frame.height});
+        changed = changed || node.presented_epoch != previous_epoch || node.presented_bounds != border || !node.presented_visible.empty();
+        node.presented_epoch = presentation_epoch; node.presented_bounds = border; node.presented_visible = {}; node.presented_clip = -1;
+        node.presented_world = node.world;
+        node.presented_inverse.reset();
+        for (const NodeId c : node.children)
+            if (!at(c).type->overlay) culled_walk.push_back(c);
     }
     for (const auto id : by_index) if (alive(id) && at(id).presented_epoch == previous_epoch) { at(id).presented_inverse.reset(); changed = true; }
     if (changed) {

@@ -599,6 +599,8 @@ struct ComponentType {
     void (*style)(const void*, const Theme&, mlibs::layout::Style&) = nullptr;
     Size (*measure)(void*, MeasureContext&, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) = nullptr;
     float (*baseline)(void*, MeasureContext&, Size) = nullptr;
+    // What it draws, recorded — nothing more: a node no one can see is not painted (N5: outside what its clip or
+    // the window shows), so what it makes, schedules or remembers belongs in laid_out or its timers.
     void (*paint)(const void*, PaintContext&) = nullptr;
     void (*paint_over)(const void*, PaintContext&) = nullptr;  // after the children (focus rings, scroll bars)
     // The surfaces it paints itself (a switch's track and thumb), for an

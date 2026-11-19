@@ -37,6 +37,19 @@ The retained and immediate view runtime (plan §3–§5):
   node markers, hit testing through transforms, pointer capture, hover,
   focus and Tab order, contract key bindings, actions under S-1/S-2 with an
   audit journal, and each node's semantics;
+- **what is drawn is what can be seen** (N5): the bounds pass gives each node
+  its reach (its box, what it draws past it — focus ring, shadow, an effect's
+  declared reach — and its children's unless it clips; none while its drawing
+  moves after it is drawn), and painting leaves out a child whose reach misses
+  what its clipping parent shows. The window and a scroll view draw ahead —
+  what they show and as much again on each side — so what a scroll brings in
+  was drawn before it arrives; a clip that does not scroll draws only what it
+  shows. What is left out is still where it is (presented `offscreen`, found
+  by readers and agents, not hit). Universal motion moves what was on screen: a
+  root left out is neither gone nor come in — taken back as it is when it is
+  drawn again. So a component's paint only records what is there: what it
+  makes, schedules or remembers (its size, a simulation) belongs in
+  `laid_out` or its timers, which run whether or not it is painted;
 - **history and transactions** (S-12, S-13): an action's implementation gives
   its inverse (`ActResult::undo_by("set_value", {value: old})`); the runtime
   keeps a history per scope (the window, or a node with `undo_scope`), whose

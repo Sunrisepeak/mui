@@ -255,6 +255,12 @@ struct Node {
     Rect                 frame;         // relative to the parent's border box (layout)
     Rect                 bounds;        // window coordinates, without visual transforms
     Rect                 screen;        // window coordinates, through the visual transforms as set (screen_bounds)
+    // What its drawing and its descendants' can cover, in its own box's coordinates (the bounds pass): the box, with
+    // what is drawn past it (a focus ring, a shadow, an effect's declared reach), and its children's unless it clips.
+    // Nothing where that cannot be said (a pose, a morph, glyph motion, an effect moving or without a declared reach):
+    // a clipping ancestor then draws it wherever it is (N5).
+    std::optional<Rect>  reach;
+    std::uint64_t        left_out = 0;  // the paint that left it out under a clip (N5; Impl::paints), 0: none
     Point                content_offset;
     Affine               local;         // parent → node: its frame and visual transforms
     Affine               world;         // node → window before whole-drawing morphs
@@ -763,7 +769,9 @@ struct Runtime::Impl {
     [[nodiscard]] NodeId topmost_modal() const;
     [[nodiscard]] bool contains(NodeId ancestor, NodeId id) const;
     void   paint();
-    void   paint_node(NodeId id);
+    // `shown`: what can be seen of the node, in its coordinates (N5: what its drawing cannot reach is left out); nothing
+    // when that is not known.
+    void   paint_node(NodeId id, std::optional<Rect> shown = std::nullopt);
     void   paint_debug();
     NodeId hit(NodeId id, Point window, std::optional<Rect> clip) const;
 
@@ -789,6 +797,13 @@ struct Runtime::Impl {
     // Styles the glyph commands recorded since `first` by the node's glyph motion.
     void restyle_glyphs(NodeId id, std::size_t first);
     std::vector<std::uint32_t> glyph_movers;  // the display-list markers of this paint's nodes with a glyph motion
+    // N5: what a node's drawing can cover (Node::reach), and the subtrees this paint left out because their clipping
+    // parent shows none of it — still presented where they are (collect_presentation), nothing of them visible.
+    [[nodiscard]] std::optional<Rect> reach_of(NodeId id) const;
+    std::vector<NodeId> culled, culled_walk;
+    std::uint64_t       paints = 0;  // paints so far: which one left a subtree out (Node::left_out)
+    // Left out by that paint, it or what it lies in (N5): not drawn then, yet there all along — neither gone nor come.
+    [[nodiscard]] bool left_out_by(NodeId id, std::uint64_t paint) const;
     // A person pressing the node itself (pointer or keyboard) is that
     // person's answer to an external action (spec S-2a); irreversible ones ask.
     [[nodiscard]] std::string own_answer(NodeId id, std::string_view action) const;

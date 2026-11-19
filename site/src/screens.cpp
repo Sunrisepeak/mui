@@ -50,6 +50,17 @@ void hold_scroll_motion(Screens& screens, Runtime& rt, NodeId shape, int tries) 
     if (const auto t = rt.motion_time(shape)) rt.seek_motion(shape, screens.at * t->first);
 }
 
+// The list made cards once it is drawn on screen (no longer offscreen), tried each frame a few times.
+void reshape_when_drawn(Screens& screens, Runtime& rt, NodeId shape, int tries) {
+    if (!screens.follow.peek() || screens.shaped.peek() || !rt.valid(shape)) return;
+    if (rt.semantic_node(shape).states.has(spec::State::offscreen)) {
+        if (tries > 0) (void)rt.after(seconds(1.0 / 60), [&screens, &rt, shape, tries] { reshape_when_drawn(screens, rt, shape, tries - 1); });
+        return;
+    }
+    screens.shaped.set(true);
+    (void)rt.after(seconds(0), [&screens, &rt, shape] { hold_scroll_motion(screens, rt, shape, 8); });
+}
+
 }  // namespace
 
 Element agent_screen(const ScreensSite& site, float room) {
@@ -203,9 +214,10 @@ void scrolled(Screens& screens, const ScreensSite& site, std::string_view place,
     };
     if (screens.held) return seek();
     if (screens.shaped.peek() || screens.at <= 0) return;
-    // The change, then its morph held to the scroll: the frame after it starts the morph, so the hold is tried until it takes.
-    screens.shaped.set(true);
-    (void)rt.after(seconds(0), [&screens, &rt, shape] { hold_scroll_motion(screens, rt, shape, 8); });
+    // The change once the list has been drawn where it is seen (a page's far parts are not drawn until scrolled near,
+    // N5: the change needs a drawing to move from), then its morph held to the scroll: the frame after it starts the
+    // morph, so the hold is tried until it takes.
+    (void)rt.after(seconds(0), [&screens, &rt, shape] { reshape_when_drawn(screens, rt, shape, 8); });
 }
 
 }  // namespace omui::site

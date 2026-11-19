@@ -174,6 +174,8 @@ struct Window {
     SDL_Renderer*           renderer = nullptr;
     SDL_Texture*            texture = nullptr;
     int                     tw = 0, th = 0;
+    bool                    framebuffer = false;  // frames copied into the window's surface (no renderer)
+    bool                    shown = false;        // a frame is there (read back from it)
     std::unordered_map<std::string, SDL_Cursor*> cursors;
     std::string             shape = "default";
     bool                    typing = false;
@@ -247,7 +249,12 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     // The software renderer draws into the window's surface and needs no GPU
     // context; saying so stops SDL on macOS from implying OpenGL for any
     // driver that has it — the offscreen driver's is EGL, which macOS lacks.
-    const bool software = !o.gpu && o.render_driver == "software";
+    // The window's own framebuffer: where the video driver keeps one in memory (else a renderer, as asked).
+    const std::string_view video = SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "";
+    constexpr std::array own_framebuffer{std::string_view("offscreen"), std::string_view("x11"), std::string_view("windows"),
+                                         std::string_view("dummy"), std::string_view("emscripten")};
+    const bool framebuffer = !o.gpu && o.framebuffer && std::ranges::contains(own_framebuffer, video);
+    const bool software = !o.gpu && (o.render_driver == "software" || framebuffer);
     const SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, o.title.c_str());
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, static_cast<Sint64>(o.size.width));
@@ -267,13 +274,14 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     // and Android have none, and there the accelerated one is the only one
     // (red 55: "Window framebuffer support not available" under cocoa).
     if (software) {
-        const std::string_view driver = SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "";
-        constexpr std::array own_framebuffer{std::string_view("offscreen"), std::string_view("x11"), std::string_view("windows"),
-                                             std::string_view("dummy"), std::string_view("emscripten")};
-        if (std::ranges::contains(own_framebuffer, driver)) SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+        if (std::ranges::contains(own_framebuffer, video)) SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
         else SDL_ResetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION);
     }
     if (o.gpu) return w;  // the GPU device claims it and presents
+    if (framebuffer) {
+        w->framebuffer = true;  // presents into its surface
+        return w;
+    }
     w->renderer = SDL_CreateRenderer(w->window, o.render_driver.empty() ? nullptr : o.render_driver.c_str());
     if (!w->renderer) return std::unexpected(std::format("SDL_CreateRenderer: {}", SDL_GetError()));
     if (o.vsync) SDL_SetRenderVSync(w->renderer, 1);
@@ -420,6 +428,8 @@ double refresh_hz(Window& w) {
     const SDL_DisplayMode* mode = display ? SDL_GetCurrentDisplayMode(display) : nullptr;
     return mode && mode->refresh_rate > 0 ? static_cast<double>(mode->refresh_rate) : 0.0;
 }
+
+bool held_to_refresh(Window& w) { return !w.framebuffer; }
 
 std::uint32_t window_id(Window& w) { return static_cast<std::uint32_t>(SDL_GetWindowID(w.window)); }
 
@@ -622,7 +632,21 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
 }
 
 void present(Window& w, const xrender::raster::Surface& frame) {
-    if (frame.width() <= 0 || frame.height() <= 0 || !w.renderer) return;
+    if (frame.width() <= 0 || frame.height() <= 0) return;
+    if (w.framebuffer) {
+        // The frame's bytes (R, G, B, A) as the window's surface keeps its pixels (X11's: B, G, R, x), then shown.
+        SDL_Surface* surface = SDL_GetWindowSurface(w.window);
+        if (!surface) return;
+        const int width = std::min(surface->w, frame.width()), height = std::min(surface->h, frame.height());
+        const bool locked = SDL_MUSTLOCK(surface) && SDL_LockSurface(surface);
+        (void)SDL_ConvertPixels(width, height, SDL_PIXELFORMAT_RGBA32, frame.row(0), frame.width() * 4, surface->format, surface->pixels,
+                                surface->pitch);
+        if (locked) SDL_UnlockSurface(surface);
+        (void)SDL_UpdateWindowSurface(w.window);
+        w.shown = true;
+        return;
+    }
+    if (!w.renderer) return;
     if (!w.texture || w.tw != frame.width() || w.th != frame.height()) {
         if (w.texture) SDL_DestroyTexture(w.texture);
         // RGBA32 is R, G, B, A in memory on every platform: the surface's bytes.
@@ -855,6 +879,18 @@ void synthesize(Window& w, std::span<const InputEvent> events) {
 }
 
 std::expected<xrender::raster::Surface, std::string> read_back(Window& w) {
+    if (w.framebuffer) {
+        // The window's surface keeps the frame shown last: its pixels back as R, G, B, A.
+        SDL_Surface* surface = w.shown ? SDL_GetWindowSurface(w.window) : nullptr;
+        if (!surface) return std::unexpected("nothing shown yet");
+        xrender::raster::Surface out(surface->w, surface->h);
+        const bool locked = SDL_MUSTLOCK(surface) && SDL_LockSurface(surface);
+        const bool converted = SDL_ConvertPixels(surface->w, surface->h, surface->format, surface->pixels, surface->pitch,
+                                                 SDL_PIXELFORMAT_RGBA32, out.row(0), surface->w * 4);
+        if (locked) SDL_UnlockSurface(surface);
+        if (!converted) return std::unexpected(std::format("SDL_ConvertPixels: {}", SDL_GetError()));
+        return out;
+    }
     if (!w.renderer || !w.texture) return std::unexpected("nothing shown yet");
     // Draw the last frame again and read it before presenting (a presented
     // back buffer may be gone).

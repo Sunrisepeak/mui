@@ -78,6 +78,27 @@ static UTest cases{"host.sdl3", [] {
         expect(b.b == 255 && b.r == 0);
     };
 
+    "the CPU's window with no renderer named: frames into its own framebuffer, read back exactly, at the rate wanted"_test = [] {
+        DesktopOptions o = offscreen("sdl3-framebuffer-cpu");
+        o.render_driver.clear();
+        o.vsync = true;  // asked; the framebuffer shows a frame at once, so the loop holds the rate
+        Desktop d(o);
+        if (!d.open()) return;
+        d.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40, .background = "#00ff00"})}));
+        expect(d.step(false));
+        const auto px = d.window_pixels();
+        expect(px.has_value()) << (px ? "" : px.error().text());
+        if (!px) return;
+        const int at = static_cast<int>(40 * d.scale());
+        expect(px->at(at, at).g == 255 && px->at(at, at).r == 0 && px->at(5, 5).r == 255) << std::format("{} {} {}", px->at(at, at).r, px->at(at, at).g, px->at(at, at).b);
+        auto lease = d.runtime().demand_frames({.min_hz = 30, .max_hz = 60, .preferred_hz = 60, .reason = "test"});
+        expect(d.step(false));
+        const auto from = std::chrono::steady_clock::now();
+        for (int i = 0; i < 30; ++i) expect(d.step(true));
+        const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - from).count();
+        expect(took > 0.45 && took < 3.0) << std::format("30 frames at 60 Hz: {:.3f} s", took);
+    };
+
     "an endpoint asked for with the agent surface installed is served; `Desktop::endpoint()` answers it"_test = [] {
         DesktopOptions o = offscreen("sdl3-surface");
         o.agent = true;

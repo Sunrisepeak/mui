@@ -9,6 +9,7 @@ import mcpplibs.mwrap.sdl3;
 import mlibs.memory;
 import mlibs.rhi;
 import mcpplibs.os;
+import mlibs.trace;
 using namespace mcpplibs::mwrap::sdl3::macros;
 
 namespace xrender::rhi::sdl { using namespace mlibs::rhi; }  // the interface it implements
@@ -979,6 +980,7 @@ Making create_async(const Options& options) {
     // graphics library of its own (the host's windows say their graphics are external), and the device claims no
     // window there — `claim` comes later, on the calling thread. Verified on Vulkan (lavapipe, an RTX 4080).
     making.made_ = std::async(std::launch::async, [options]() -> Result<std::unique_ptr<Device>> {
+        mlibs::trace::Span span("device.make", "rhi");  // its own thread's: what a start waits for, if it does
         auto made = make(options, false);
         if (!made) return std::unexpected(made.error());
         return std::unique_ptr<Device>(std::move(*made));

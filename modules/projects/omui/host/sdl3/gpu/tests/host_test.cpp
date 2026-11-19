@@ -113,6 +113,43 @@ UTest cases{"host.sdl3.gpu.host", [] {
         }
     };
 
+    "no device to be made: the CPU's frames go into the window's own framebuffer — shown, read back exactly, at the rate the loop wants"_test = [] {
+        DesktopOptions o = offscreen("sdl3-framebuffer");
+        o.renderer = DesktopOptions::Renderer::automatic;
+        o.render_driver.clear();                    // no renderer asked for by name
+        o.vulkan_library = "/no/such/libvulkan.so";  // no device made
+        o.vsync = true;                             // asked; the framebuffer shows a frame at once, so the loop holds the rate
+        Desktop d(o);
+        auto opened = d.open();
+        expect(opened.has_value()) << (opened ? "" : opened.error().text());
+        if (!opened) return;
+        if (d.gpu()) {
+            std::println("  a device made here without Vulkan (the platform's own API): the framebuffer is not used");
+            return;
+        }
+        auto color = signal(std::string("#ff0000"));
+        d.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40, .background = Prop<Fill>(Source{std::nullopt, [color] { return Value(color.get()); }, {}})})}));
+        expect(d.step(false));
+        auto px = d.window_pixels();
+        expect(px.has_value()) << (px ? "" : px.error().text());
+        if (!px) return;
+        const int at = static_cast<int>(40 * d.scale());
+        expect(px->width() == static_cast<int>(240 * d.scale()) && px->at(at, at).r == 255 && px->at(at, at).g == 0 && px->at(5, 5).b == 255)
+            << std::format("the swatch {} {} {}", px->at(at, at).r, px->at(at, at).g, px->at(at, at).b);
+        color.set("#0000ff");
+        expect(d.step(false));
+        auto blue = d.window_pixels();
+        expect(blue && blue->at(at, at).b == 255 && blue->at(at, at).r == 0) << "the next frame shown there";
+        // Thirty frames wanted at 60 a second take about half a second: none shown faster than the display's rate.
+        auto lease = d.runtime().demand_frames({.min_hz = 30, .max_hz = 60, .preferred_hz = 60, .reason = "test"});
+        expect(d.step(false));
+        const auto from = std::chrono::steady_clock::now();
+        for (int i = 0; i < 30; ++i) expect(d.step(true));
+        const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - from).count();
+        std::println("  30 frames at 60 Hz into the framebuffer: {:.3f} s", took);
+        expect(took > 0.45 && took < 3.0) << std::format("paced: {:.3f} s", took);
+    };
+
     "two hosts: one's device still being made while another opens a window and ends — SDL stays up for the first, which draws"_test = [] {
         DesktopOptions o = offscreen("sdl3-held-gpu");
         o.renderer = DesktopOptions::Renderer::gpu;

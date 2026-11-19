@@ -4,6 +4,7 @@ module omui;
 import std;
 import mcpplibs.os;
 import mlibs.error;
+import mlibs.trace;
 import omui.core;
 import omui.view;
 import omui.host.sdl3;
@@ -41,7 +42,9 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
         return 1;
     }
     desktop.runtime().set_debug(o.debug);
+    std::optional<mlibs::trace::Span> preparing{std::in_place, "start.application", "app"};  // its setup: its views, its scripts
     const auto kept = prepare(desktop.runtime());
+    preparing.reset();
     if (o.frames) {
         // --frames N: N frames stepped, as a headless run steps them, and as many more as it takes for the first to
         // be shown (within ten seconds); it says when the first was shown (RC3.6: the first frame's time).

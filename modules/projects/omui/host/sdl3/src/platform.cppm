@@ -23,6 +23,12 @@ struct WindowOptions {
     // Made hidden, shown by `show` (UI Automation's adapter is attached to
     // a window before it is first shown).
     bool        hidden = false;
+    // The CPU's frames copied into the window's own framebuffer (the video driver's: X11's shared memory, Windows',
+    // the offscreen driver's), with no renderer: no graphics library loaded for frames the CPU already drew — where
+    // there is no GPU, OpenGL would be a software one too (llvmpipe), slower to start and heavier to keep. Where the
+    // driver has no framebuffer of its own (Wayland, macOS), a renderer as asked. It shows a frame at once (no
+    // vsync): the host's loop holds itself to the rate (held_to_refresh).
+    bool        framebuffer = false;
 };
 
 struct Window;  // SDL_Window, SDL_Renderer, the frame's texture
@@ -80,6 +86,9 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
 [[nodiscard]] float pixel_scale(Window& w);
 // The refresh rate of the display the window is on (Hz; 0 when it says none).
 [[nodiscard]] double refresh_hz(Window& w);
+// Whether a present waits for the display's refresh, as a renderer's and a GPU's do when vsync is asked: a window's
+// own framebuffer shows a frame at once, and the loop holds itself to the rate.
+[[nodiscard]] bool held_to_refresh(Window& w);
 void present(Window& w, const xrender::raster::Surface& frame);
 void text_input(Window& w, std::optional<Rect> caret);
 void cursor(Window& w, std::string_view shape);

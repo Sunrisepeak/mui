@@ -240,8 +240,10 @@ struct Desktop::Impl final : WindowHost {
         o.vulkan_library = options.vulkan_library;
         o.hardware_only = options.renderer == R::automatic;
         const bool made_early = making != nullptr;
+        std::optional<mlibs::trace::Span> waited{std::in_place, made_early ? "start.device.wait" : "start.device", "host"};
         auto made = made_early ? making->get() : service->create(o);
         making.reset();
+        waited.reset();
         // Made before the window: claimed now (a software device is let go below, unclaimed, when the CPU is faster).
         if (made && made_early && !((*made)->caps().software && options.renderer == R::automatic)) {
             if (auto claimed = service->claim(**made, o.window, o.vsync); !claimed) made = std::unexpected(claimed.error());
@@ -251,7 +253,9 @@ struct Desktop::Impl final : WindowHost {
             return {};
         }
         if ((*made)->caps().software && options.renderer == R::automatic) return {};  // the CPU renderer is faster
+        std::optional<mlibs::trace::Span> renderer{std::in_place, "start.renderer", "host"};
         auto r = service->renderer(**made);
+        renderer.reset();
         if (!r) {
             if (options.renderer == R::gpu) return std::unexpected(ViewFailure{ViewError::device_failed, std::format("the GPU renderer: {}", r.error().message)});
             return {};
@@ -386,6 +390,8 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     // The GPU's device begun at once, when the GPU may draw: SDL brought up here, the device made on a thread of its
     // own while the fonts, the runtime and the window are (RC3.6: the first frame no longer waits for the driver's
     // start after them). Where SDL cannot start, the window's opening says so.
+    // The start's parts as spans (a run's --profile): where a cold start's time goes before the first frame.
+    std::optional<mlibs::trace::Span> sdl{std::in_place, "start.sdl", "host"};
     if (const GpuService* service = mlibs::compose::process().get(gpu_slot);
         service && d.options.renderer != DesktopOptions::Renderer::cpu && platform::start(d.options.video_driver)) {
         GpuDeviceOptions early;
@@ -396,6 +402,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
         early.video_driver = d.options.video_driver;
         d.making = service->begin(early);
     }
+    sdl.reset();
     // The interface answers as the platform it runs on does (D6): Command for shortcuts, a scroll's
     // edges, when a right button asks for a context menu.
     if constexpr (mcpplibs::os::is_macos) set_platform(Platform::macos);
@@ -413,10 +420,12 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     }
     mlibs::text::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
+        mlibs::trace::Span span("start.fonts", "host");
         d.own_fonts = std::make_unique<mlibs::text::FontCollection>();
         if (auto r = d.own_fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         fonts = d.own_fonts.get();
     }
+    mlibs::trace::Span made("start.runtime", "host");
     RuntimeOptions ro;
     ro.theme = d.options.theme;
     ro.fonts = fonts;
@@ -466,18 +475,33 @@ std::expected<void, ViewFailure> Desktop::open() {
     const bool try_gpu = d.options.renderer != DesktopOptions::Renderer::cpu &&
                          (mlibs::compose::process().get(gpu_slot) != nullptr || d.options.renderer == DesktopOptions::Renderer::gpu);
     d.framework = d.options.frame == DesktopOptions::Frame::framework;
-    platform::WindowOptions wo{d.options.title, d.options.size, d.options.resizable, d.options.vsync, d.options.video_driver,
-                               d.options.render_driver, try_gpu, d.framework, true};
+    platform::WindowOptions wo{.title = d.options.title,
+                               .size = d.options.size,
+                               .resizable = d.options.resizable,
+                               .vsync = d.options.vsync,
+                               .video_driver = d.options.video_driver,
+                               .render_driver = d.options.render_driver,
+                               .gpu = try_gpu,
+                               .framework = d.framework,
+                               .hidden = true,
+                               // The CPU's frames into the window's own framebuffer where its driver keeps one (X11's,
+                               // Windows', the offscreen driver's), unless a renderer is named: no graphics library is
+                               // loaded for them (C1: 46.7 → 13.1 MiB private dirty, half the cold start, where OpenGL
+                               // would be llvmpipe). A GPU's window ignores it.
+                               .framebuffer = d.options.render_driver.empty()};
     // Where the interface draws nothing, a frameless window shows what is behind it.
     if (d.framework) d.options.background = Color::transparent();
+    std::optional<mlibs::trace::Span> opening{std::in_place, "start.window", "host"};
     auto w = platform::open(wo);
+    opening.reset();
     if (!w) return std::unexpected(ViewFailure{ViewError::window_failed, w.error()});
     d.window = std::move(*w);
     if (try_gpu) {
         if (auto g = d.open_gpu(); !g) return std::unexpected(g.error());
         if (!d.gpu) {
-            // No GPU after all: the window again, with an SDL renderer for the CPU's frames.
+            // No GPU after all: the window again, for the CPU's frames (into its own framebuffer, as above).
             d.window.reset();
+            mlibs::trace::Span reopened("start.window.cpu", "host");
             wo.gpu = false;
             auto again = platform::open(wo);
             if (!again) return std::unexpected(ViewFailure{ViewError::window_failed, again.error()});
@@ -657,12 +681,13 @@ bool Desktop::step(bool wait) {
             timeout = std::chrono::milliseconds(static_cast<std::int64_t>(std::max(0.0, std::ceil(left * 1000))));
         }
     } else if (wait && interval > 0) {
-        // Slower than the display — or with no vsync to hold the loop to it:
-        // wait out the interval (an event still wakes it).
+        // Slower than the display — or with no vsync to hold the loop to it (none asked, or a window's own
+        // framebuffer, which shows a frame at once): wait out the interval (an event still wakes it).
         const double period = display > 0 ? 1.0 / display : 1.0 / 60;
         const auto due = d.last_frame + std::chrono::duration<double>(interval);
         const auto now = std::chrono::steady_clock::now();
-        if ((interval > period * 1.5 || !d.options.vsync) && due > now) {
+        const bool held = d.options.vsync && platform::held_to_refresh(*d.window);
+        if ((interval > period * 1.5 || !held) && due > now) {
             sleep = true;
             timeout = std::chrono::milliseconds(static_cast<std::int64_t>(std::ceil(std::chrono::duration<double, std::milli>(due - now).count())));
         }
@@ -702,7 +727,11 @@ bool Desktop::step(bool wait) {
     const auto start = std::chrono::steady_clock::now();
     in.present_at = start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(display > 0 ? 1.0 / display : 1.0 / 60));
     in.display_hz = display;
-    d.last_frame = start;
+    // The frame's place on its schedule: one the timer woke a little late (its millisecond) keeps the rate — the
+    // next waits that much less —; one later than a whole interval (idle, or slow) starts the schedule again.
+    const auto every = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(interval));
+    const auto slot = d.last_frame + every;
+    d.last_frame = interval > 0 && start >= slot && start - slot < every ? slot : start;
     if (d.access) {
         // What a screen reader asked, performed as the person's input before
         // the frame shows it; the window's focus, as assistive technology

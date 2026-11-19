@@ -250,6 +250,46 @@ globalThis.showFilter = () => onlyOpen.set(true);
         expect(eq(r.name_of("main/filter"), std::string("open only")));
     };
 
+    "a task to begin with: declared by the script, listed by the runtime; refused with its reason; the same again, nothing"_test = [] {
+        Runtime r;
+        Js js(r);
+        auto ran = js.run(R"js(
+import { verb, task, OmuiError } from "openmui";
+verb("settings.export", { effect: "read", summary: "The settings as JSON" }, () => ({ dark: true }));
+verb("settings.reset", { effect: "irreversible", summary: "Every setting back to its default", answer: "reset" }, () => true);
+const first = { summary: "Export the settings, then see what a reset would do", steps: [
+  { verb: "settings.export" },
+  { node: "main/dark", action: "toggle", args: { on: true } },
+  { verb: "settings.reset", dryRun: true },
+] };
+task("export-the-settings", first);
+task("export-the-settings", first);  // a script run again: the same task, nothing changes
+globalThis.refusals = [];
+for (const [name, options] of [
+  ["Export", first],
+  ["export-the-settings", { summary: "Another", steps: [{ verb: "settings.export" }] }],
+  ["no-such-verb", { summary: "A verb no one registered", steps: [{ verb: "no.such" }] }],
+  ["reset-everything", { summary: "Reset, for real", steps: [{ verb: "settings.reset" }] }],
+]) {
+  try { task(name, options); refusals.push("added " + name); } catch (e) { if (!(e instanceof OmuiError)) throw e; refusals.push(e.message); }
+}
+)js");
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        const auto tasks = omui::abi::runtime_of(r.rt)->verbs().tasks();
+        expect(fatal(eq(tasks.size(), std::size_t{1})));
+        expect(eq(tasks[0].name, std::string("export-the-settings")) && eq(tasks[0].steps.size(), std::size_t{3}));
+        expect(eq(tasks[0].steps[0].verb, std::string("settings.export")));
+        expect(eq(tasks[0].steps[1].node, std::string("main/dark")) && eq(tasks[0].steps[1].action, std::string("toggle")) &&
+               tasks[0].steps[1].args.get("on") && tasks[0].steps[1].args.get("on")->as_bool() && !tasks[0].steps[1].dry_run);
+        expect(eq(tasks[0].steps[2].verb, std::string("settings.reset")) && tasks[0].steps[2].dry_run) << "dryRun, the step a dry run";
+        // Each refusal in the runtime's words, as the script's exception.
+        auto said = js.run(R"js(
+const want = ["not a task name", "added already, with other steps", "verb `no.such` is not registered", "make the step a dry run"];
+want.forEach((words, at) => { if (!refusals[at].includes(words)) throw new Error(at + ": " + refusals[at]); });
+)js", "check.js");
+        expect(said.has_value()) << (said ? "" : said.error().text());
+    };
+
     "a handler reads the signals as its event left them (a bound field's changed)"_test = [] {
         Runtime r;
         Js js(r);

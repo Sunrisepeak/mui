@@ -48,6 +48,7 @@ OmuiResult omuiNativeCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noex
 OmuiResult omuiNativeCall(OmuiRuntime rt, OmuiString module_name, OmuiString function_name, OmuiString args_json, PFN_omuiSink sink, void* user) noexcept;
 OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, void* user) noexcept;
 OmuiResult omuiThemes(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
+OmuiResult omuiAddTask(OmuiRuntime rt, OmuiString task_json, PFN_omuiSink sink, void* user) noexcept;
 
 }  // extern "C"
 

@@ -43,7 +43,7 @@ addToLibrary({
       var ask = function (op) { return function () { return omuiScripts.ask(s, op, Array.prototype.slice.call(arguments)); }; };
       var keep = function (f) { return omuiScripts.keep(s, f); };
       var t = {};
-      ['signalCreate', 'signalGet', 'signalSet', 'catalog', 'unmount', 'document', 'invoke', 'act', 'snapshot', 'find', 'get',
+      ['signalCreate', 'signalGet', 'signalSet', 'catalog', 'unmount', 'document', 'task', 'invoke', 'act', 'snapshot', 'find', 'get',
        'set', 'rows', 'splice', 'nativeCall', 'theme', 'themes', 'keepsBuiltAt', 'log'].forEach(function (op) { t[op] = ask(op); });
       t.signalWatch = function (signal, f) { return omuiScripts.ask(s, 'signalWatch', [signal, keep(f)]); };
       t.mount = function (slot, tree, handlers) { return omuiScripts.ask(s, 'mount', [slot, tree, handlers.map(keep)]); };

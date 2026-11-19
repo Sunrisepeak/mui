@@ -724,4 +724,19 @@ Result<void> Session::verb(VerbSpec spec, std::function<Result<Json>(const Json&
     return {};
 }
 
+Result<void> Session::task(const Json& task) {
+    const std::string name = task.is_object() ? task.value("name", "") : "", text = dump(task);
+    if (const auto added = tasks_.find(name); added != tasks_.end()) {
+        if (added->second == text) return {};  // the same task again: a script run again
+        return std::unexpected(failure(abi::OMUI_ERROR_REFUSED, std::format("the task `{}` is added already, with other steps", name)));
+    }
+    std::string why;
+    const abi::OmuiResult r = host_.ui([&] {
+        return abi::omuiAddTask(host_.runtime(), str(text), [](void* user, const char* data, std::size_t size) { static_cast<std::string*>(user)->append(data, size); }, &why);
+    });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, why.empty() ? std::format("the task `{}` was refused", name) : why));
+    tasks_.emplace(name, text);
+    return {};
+}
+
 }  // namespace omui::lang

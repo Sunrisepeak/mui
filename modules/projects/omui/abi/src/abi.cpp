@@ -701,6 +701,35 @@ OmuiResult omuiThemes(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {
     return OMUI_SUCCESS;
 }
 
+// ── tasks to begin with (spec §5) ──────────────────────────────────────────
+
+OmuiResult omuiAddTask(OmuiRuntime rt, OmuiString task_json, PFN_omuiSink sink, void* user) noexcept {
+    if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
+    const auto refused = [&](std::string_view why) {
+        send(sink, user, why);
+        return OMUI_ERROR_INVALID_ARGUMENT;
+    };
+    const auto parsed = parse_json(text(task_json));
+    if (!parsed) return refused(std::format("the task is not JSON: {}", parsed.error().text()));
+    if (!parsed->map()) return refused(R"(a task is an object: {"name": …, "summary": …, "steps": [ … ]})");
+    const auto text_of = [](const Value& from, std::string_view key) {
+        const Value* found = from.get(key);
+        return found ? std::string(found->as_string()) : std::string();
+    };
+    TaskDesc task{.name = text_of(*parsed, "name"), .summary = text_of(*parsed, "summary"), .steps = {}};
+    if (const Value* steps = parsed->get("steps"); steps && !steps->list()) return refused("a task's steps are a list");
+    else if (steps)
+        for (const Value& step : *steps->list()) {
+            if (!step.map()) return refused(R"(a task's step is an object: {"verb": …} or {"node": …, "action": …})");
+            const Value* args = step.get("args");
+            const Value* dry_run = step.get("dry_run");
+            task.steps.push_back({.verb = text_of(step, "verb"), .node = text_of(step, "node"), .action = text_of(step, "action"),
+                                  .args = args ? *args : Value{}, .dry_run = dry_run && dry_run->as_bool()});
+        }
+    if (auto added = rt->rt->verbs().add_task(std::move(task)); !added) return refused(std::format("{}", added.error()));
+    return OMUI_SUCCESS;
+}
+
 // ── native modules (component-binding §8) ──────────────────────────────────
 
 OmuiResult omuiNativeCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {

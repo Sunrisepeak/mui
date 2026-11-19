@@ -37,6 +37,8 @@ public:
     [[nodiscard]] Result<void> unmount(std::string_view slot);
     [[nodiscard]] Result<std::string> document(std::string_view tree);
     [[nodiscard]] Result<void> verb(std::string_view name, std::string_view options, int function);
+    // A task to begin with (spec §5), as JSON: the runtime's reason when it is refused.
+    [[nodiscard]] Result<void> task(std::string_view task);
     [[nodiscard]] Result<std::string> invoke(std::string_view name, std::string_view arguments);
     [[nodiscard]] Result<std::string> act(std::string_view request);
     [[nodiscard]] Result<std::string> snapshot(std::string_view request);

@@ -21,7 +21,7 @@ The ES module `openmui` provides:
 - **Regions**: `when(cond, then, else)`, `each(model, (row) => element [, where])`, where `where` is an expression or a function of the row (`(row) => row.done.not()`) and `row.title` is an expression and `slot(name)`.
 - **The rest of the profile**:
   - views: `mount`, `unmount` and `document`;
-  - verbs: `verb(name, {effect, answer, summary}, fn)` (S-1, S-2) and `invoke`;
+  - verbs: `verb(name, {effect, answer, summary}, fn)` (S-1, S-2) and `invoke`; `task(name, {summary, steps})`, a task to begin with (spec §5, D-186): steps of verbs or nodes' actions (`dryRun` for one that would ask an answer), refused with the runtime's reason, the same again on a reload a no-op;
   - `model(name)`, with `push`, `splice`, `rows` and `clear`;
   - `find(path or query)` with `get` and `set`, plus `act`, `snapshot`, `tr` and `log`.
 - **Errors are exceptions** (`OmuiError`), with the message the runtime gave (`did you mean "button"?`). An exception in a handler, a verb or an unhandled promise goes to `Script::on_error`. Promise jobs run after every call, so async handlers work.

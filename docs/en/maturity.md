@@ -24,7 +24,7 @@ A capability below its package's label is marked in its project's feature table 
 | examples | 12 | 0 | 0 |
 | build plugins (mcpp) | 1 | 0 | 0 |
 | works (showcase) | 0 | 10 | 5 |
-| site | 0 | 1 | 0 |
+| site | 0 | 2 | 0 |
 | repository tests | 6 | 0 | 0 |
 | repository tools | 1 | 0 | 0 |
 
@@ -239,6 +239,7 @@ A capability below its package's label is marked in its project's feature table 
 | Package | Directory | Label |
 |---|---|---|
 | `omui.site` | [site](../../site) | preview |
+| `omui.site.page` | [site/page](../../site/page) | preview |
 
 ### repository tests
 

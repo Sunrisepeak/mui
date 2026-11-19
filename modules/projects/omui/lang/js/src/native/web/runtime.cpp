@@ -156,6 +156,7 @@ char* dispatch(int script, const char* op_text, const char* arguments_text) {
     } else if (op == "unmount") out = answer(s.natives.unmount(text(0)));
     else if (op == "document") out = answer(s.natives.document(text(0)));
     else if (op == "verb") out = answer(s.natives.verb(text(0), text(1), static_cast<int>(number(2))));
+    else if (op == "task") out = answer(s.natives.task(text(0)));
     else if (op == "invoke") out = answer(s.natives.invoke(text(0), text(1)));
     else if (op == "act") out = answer(s.natives.act(text(0)));
     else if (op == "snapshot") out = answer(s.natives.snapshot(text(0)));

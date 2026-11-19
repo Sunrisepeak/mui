@@ -9,7 +9,7 @@ The Script Binding Profile (component-binding §6) over `openmui.h`, shared by t
   - models (`splice`, `rows`);
   - nodes (`find`, `get`, `set`);
   - the bus interface (`snapshot`, `act`);
-  - verbs: `invoke`, and `verb` for one the script implements, whose effect and answer rules (S-1, S-2) hold as for any verb.
+  - verbs: `invoke`, and `verb` for one the script implements, whose effect and answer rules (S-1, S-2) hold as for any verb; `task` for a task to begin with (spec §5, `omuiAddTask`), refused with the runtime's reason, the same task again from a reload a no-op.
 
 Depends on `omui.abi` (the C ABI's declarations and implementation) and `nlohmann.json`.
 

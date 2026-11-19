@@ -138,6 +138,9 @@ public:
         bool        person = false;  // the person's own: refused over the bus (S-10)
     };
     Result<void> verb(VerbSpec spec, std::function<Result<Json>(const Json& args)> fn);
+    // A task to begin with (spec §5): {"name", "summary", "steps": [{"verb"} or {"node", "action"}, "args", "dry_run"]}.
+    // Refused with the runtime's reason; declared again by this session (a reload) as it was, nothing changes.
+    Result<void> task(const Json& task);
 
     // ── themes (omui.theme) ──
     // Composes the runtime's theme: a theme, then overlays ({"dark", "compact"}).
@@ -184,6 +187,7 @@ private:
     std::map<abi::OmuiSignal, Mirror>        signals_;
     std::map<std::string, Mounted>           mounted_;
     std::vector<std::unique_ptr<VerbBox>>    verbs_;
+    std::map<std::string, std::string>       tasks_;  // the tasks this session added, by name: their JSON
     std::vector<std::shared_ptr<void>>       watchers_;  // what signal watches call with
     std::shared_ptr<bool>                    alive_ = std::make_shared<bool>(true);
     std::shared_ptr<std::atomic<int>>        in_flight_ = std::make_shared<std::atomic<int>>(0);

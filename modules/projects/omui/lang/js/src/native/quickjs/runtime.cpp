@@ -211,6 +211,7 @@ JSValue n_verb(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     auto& s = impl(ctx);
     return answer(ctx, s.natives.verb(text(ctx, argv[0]), text(ctx, argv[1]), s.keep(argv[2])));
 }
+JSValue n_task(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.task(text(ctx, argv[0]))); }
 JSValue n_invoke(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.invoke(text(ctx, argv[0]), text(ctx, argv[1]))); }
 JSValue n_act(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.act(text(ctx, argv[0]))); }
 JSValue n_snapshot(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.snapshot(text(ctx, argv[0]))); }
@@ -355,7 +356,7 @@ Script::Script(Session& session) : impl_(std::make_shared<Impl>(session)) {
         const std::initializer_list<std::tuple<const char*, JSCFunction*, int>> natives{
             {"signalCreate", n_signal_create, 2}, {"signalGet", n_signal_get, 1}, {"signalSet", n_signal_set, 2},
             {"signalWatch", n_signal_watch, 2},   {"catalog", n_catalog, 0},       {"mount", n_mount, 3},
-            {"unmount", n_unmount, 1},            {"document", n_document, 1},     {"verb", n_verb, 3},
+            {"unmount", n_unmount, 1},            {"document", n_document, 1},     {"verb", n_verb, 3},        {"task", n_task, 1},
             {"invoke", n_invoke, 2},              {"act", n_act, 1},               {"snapshot", n_snapshot, 1},
             {"find", n_find, 1},                  {"get", n_get, 2},               {"set", n_set, 2},
             {"rows", n_rows, 1},                  {"splice", n_splice, 4},         {"log", n_log, 1},

@@ -102,6 +102,7 @@ namespace omui::lang {
       bool person = false;
     };
     Result<void> verb(VerbSpec spec, std::function<Result<Json>(const Json& args)> fn);
+    Result<void> task(const Json& task);
     Result<void> theme(const std::vector<std::string>& layers);
     [[nodiscard]] Json themes();
     [[nodiscard]] Json natives();

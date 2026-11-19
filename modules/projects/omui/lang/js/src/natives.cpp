@@ -173,6 +173,8 @@ Result<void> Natives::verb(std::string_view name, std::string_view options_text,
     return made;
 }
 
+Result<void> Natives::task(std::string_view task) { return session_.task(parsed(task)); }
+
 Result<std::string> Natives::invoke(std::string_view name, std::string_view arguments) { return records(session_.invoke(std::string(name), parsed(arguments))); }
 Result<std::string> Natives::act(std::string_view request) { return records(session_.act(parsed(request))); }
 Result<std::string> Natives::snapshot(std::string_view request) { return records(session_.snapshot(parsed(request))); }

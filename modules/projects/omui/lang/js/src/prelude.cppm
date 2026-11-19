@@ -181,6 +181,12 @@ export function verb(name, options, fn) {
   native(N.verb, String(name), json(options ?? {}), (args) => json(fn(JSON.parse(args))));
 }
 export const invoke = (name, args) => answer(native(N.invoke, String(name), json(args ?? {})));
+// A task to begin with (spec §5): its steps, each a verb or a node's action, run as written by an agent new here.
+export function task(name, options) {
+  const o = options ?? {};
+  const steps = (o.steps ?? []).map((s) => ({ verb: s.verb, node: s.node, action: s.action, args: s.args, dry_run: s.dryRun }));
+  native(N.task, json({ name: String(name), summary: o.summary, steps }));
+}
 // The runtime's theme: theme("dark", "compact") or theme(["dark", "compact"]) —
 // a theme, then overlays; themes() lists them and the current composition.
 export function theme(...layers) {

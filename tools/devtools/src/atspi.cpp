@@ -93,6 +93,16 @@ public:
         }
         return out;
     }
+    // Where a node is drawn, in the window (Component.GetExtents, ATSPI_COORD_TYPE_WINDOW): x, y, width, height.
+    std::optional<std::array<std::int64_t, 4>> extents(const Ref& ref) {
+        const auto body = call(ref, "org.a11y.atspi.Component", "GetExtents", "u", {Value{std::uint32_t{1}}});
+        if (body.empty()) return std::nullopt;
+        const auto& box = list(body.front());
+        if (box.size() != 4) return std::nullopt;
+        std::array<std::int64_t, 4> out{};
+        for (std::size_t i = 0; i < 4; ++i) out[i] = integer(box[i]).value_or(0);
+        return out;
+    }
     void walk(const Ref& ref, std::int32_t depth, std::vector<Walked>& out) {
         out.push_back({ref, {name(ref), role(ref), depth}});
         if (depth < 30)
@@ -131,7 +141,12 @@ public:
             if (!window_) std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }
         check(window_.has_value(), std::format("{}: in AT-SPI's registry, named as its window", window_name_));
-        if (window_) tree_.walk(*window_, 0, nodes_);
+        // Its tree as the application tells it once AT-SPI listens (the window may come first, alone, for a frame).
+        for (int attempt = 0; window_ && attempt < 50 && nodes_.size() < 2; ++attempt) {
+            if (attempt > 0) std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            nodes_.clear();
+            tree_.walk(*window_, 0, nodes_);
+        }
     }
     ~App() {
         if (!process_.valid()) return;
@@ -175,6 +190,26 @@ public:
         const auto body = tree_.call(node.ref, action_interface, "DoAction", "i", {of(0)});
         return !body.empty() && integer(body.front()).value_or(0) != 0;
     }
+    // Each node placed within its parent's place, as AT-SPI says them (each node's place composed through its
+    // ancestors': a node's bounds are its own, its place in its parent its transform): the nodes outside, named.
+    std::vector<std::string> outside() {
+        std::vector<std::string> out;
+        std::vector<std::pair<std::int32_t, std::optional<std::array<std::int64_t, 4>>>> above;  // depth, place
+        for (const Walked& each : nodes_) {
+            while (!above.empty() && above.back().first >= each.node.depth) above.pop_back();
+            const auto box = tree_.extents(each.ref);
+            const auto parent = std::ranges::find_if(above.rbegin(), above.rend(), [](const auto& a) { return a.second && (*a.second)[2] > 0; });
+            if (box && (*box)[2] > 0 && (*box)[3] > 0 && parent != above.rend()) {
+                const auto& [x, y, w, h] = *box;
+                const auto& [px, py, pw, ph] = *parent->second;
+                constexpr std::int64_t slack = 2;
+                if (x < px - slack || y < py - slack || x + w > px + pw + slack || y + h > py + ph + slack)
+                    out.push_back(std::format("{} ({}) at {},{} {}x{}, outside {},{} {}x{}", each.node.name, each.node.role, x, y, w, h, px, py, pw, ph));
+            }
+            above.emplace_back(each.node.depth, box);
+        }
+        return out;
+    }
     [[nodiscard]] std::vector<Node> tree() const {
         std::vector<Node> out;
         for (const Walked& each : nodes_) out.push_back(each.node);
@@ -196,6 +231,14 @@ void tally(App& app, Tree& tree, Report& report) {
     const Walked* plus = app.first("+1");
     const Walked* minus = app.first("−1");
     app.check(plus && plus->node.role == "button", "the +1 button, spoken as a button");
+    {
+        const auto outside = app.outside();
+        app.check(outside.empty(), std::format("every node placed within its parent in the window{}", outside.empty() ? std::string() : ": " + outside.front()));
+        const auto a = plus ? tree.extents(plus->ref) : std::nullopt;
+        const auto b = minus ? tree.extents(minus->ref) : std::nullopt;
+        app.check(a && b && (*a)[2] > 0 && (*b)[2] > 0 && ((*a)[0] >= (*b)[0] + (*b)[2] || (*b)[0] >= (*a)[0] + (*a)[2] || (*a)[1] >= (*b)[1] + (*b)[3] || (*b)[1] >= (*a)[1] + (*a)[3]),
+                  "+1 and −1 each at its own place in the window");
+    }
     app.check(app.first("0", "label") || app.first("0", "static"), "the count, 0, as static text");
     app.check(app.first("Towards the goal", "progress bar"), "the progress, named");
     app.check(app.first("10 to go"), "the status");
@@ -223,6 +266,8 @@ void tally(App& app, Tree& tree, Report& report) {
 
 void notes(App& app, Tree& tree, Report& report) {
     report.trees["Notes"] = app.tree();
+    const auto outside = app.outside();
+    app.check(outside.empty(), std::format("every node placed within its parent in the window{}", outside.empty() ? std::string() : ": " + outside.front()));
     const Walked* draft = app.first("New note");
     if (!app.check(draft && (draft->node.role == "entry" || draft->node.role == "text"),
                    std::format("the draft field, an entry ({})", draft ? draft->node.role : "none")))

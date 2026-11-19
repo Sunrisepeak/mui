@@ -206,19 +206,20 @@ UTest cases{"accessibility", [] {
         expect(renamed);
     };
 
-    "a scroll is one node told: what a scroll view holds is placed in its content, its offset moving it back"_test = [] {
+    "a scroll is one node told: each node placed in its parent, a scroll view's content moved back by its offset"_test = [] {
         Runtime rt(options());
         auto y = signal(0.0);
         std::vector<Element> rows;
         for (int i = 0; i < 40; ++i) rows.push_back(box({.id = std::format("r{}", i), .height = 30, .label = std::format("Row {}", i)}));
-        rt.mount("main", column({}, {scroll({.id = "view", .y = y, .height = 120}, {column({.id = "list"}, std::move(rows))})}));
+        rt.mount("main", column({.padding = 10}, {scroll({.id = "view", .y = y, .height = 120}, {column({.id = "list"}, std::move(rows))})}));
         expect(rt.frame({seconds(0), {}}).failure.empty());
         a11y::Mirror mirror(rt);
         const auto first = mirror.refresh();
         const a11y::Node* view = find(first.nodes, "main/view");
         const a11y::Node* r5 = find(first.nodes, "main/view/list/r5");
-        expect(view && view->scrolled && view->scrolled->y == 0.0f) << "the scroll view says its offset";
-        expect(r5 && r5->bounds && r5->bounds->y == 150.0f) << (r5 && r5->bounds ? std::format("{}", r5->bounds->y) : std::string("none"));
+        expect(view && view->scrolled && view->scrolled->y == 0.0f && view->origin && view->origin->y == 10.0f) << "the scroll view: its place, its offset";
+        expect(r5 && r5->origin && r5->origin->y == 150.0f && r5->bounds && r5->bounds->y == 0.0f)
+            << (r5 && r5->origin ? std::format("r5 at {} in the view's content", r5->origin->y) : std::string("none"));
         y.set(200.0);
         expect(rt.frame({seconds(1), {}}).failure.empty());
         const auto scrolled = mirror.refresh();
@@ -227,13 +228,31 @@ UTest cases{"accessibility", [] {
         expect(!find(scrolled.nodes, "main/view/list/r5") && !find(scrolled.nodes, "main/view/list/r10"))
             << "the rows keep their place in its content: not told again";
         expect(scrolled.nodes.size() <= 2) << std::format("{} nodes told", scrolled.nodes.size());
-        // The window's place of a row: its place in the content less the offset (AccessKit's transform does it).
+        // A row's place in the window, as AccessKit composes it: the view's place, less its offset, plus the row's.
         const Rect window = rt.screen_bounds(rt.find("main/view/list/r10"));
-        bool told = false;
+        float view_y = 0, offset = 0, row_y = -1;
         mirror.each([&](const a11y::Node& n) {
-            if (n.key == a11y::key_of("main/view/list/r10") && n.bounds) told = std::abs(n.bounds->y - 200.0f - window.y) < 0.01f;
+            if (n.key == a11y::key_of("main/view") && n.origin && n.scrolled) view_y = n.origin->y, offset = n.scrolled->y;
+            if (n.key == a11y::key_of("main/view/list/r10") && n.origin && n.bounds) row_y = n.origin->y + n.bounds->y;
         });
-        expect(told) << std::format("r10 in the window at {}", window.y);
+        expect(std::abs(view_y - offset + row_y - window.y) < 0.01f) << std::format("r10 at {} in the window, told {}", window.y, view_y - offset + row_y);
+    };
+
+    "a node that moves is one node told: what it holds keeps its place in it"_test = [] {
+        Runtime rt(options());
+        auto x = signal(0.0);
+        Element card = box({.id = "card", .width = 120, .height = 60, .label = "Card"}, {box({.id = "save", .width = 40, .height = 20, .label = "Save"})});
+        card.prop("translate_x", Source(derive([x] { return Value(x.get()); })));
+        rt.mount("main", column({}, {std::move(card)}));
+        expect(rt.frame({seconds(0), {}}).failure.empty());
+        a11y::Mirror mirror(rt);
+        (void)mirror.refresh();
+        x.set(50.0);
+        for (double t = 1; t < 3; t += 0.5) expect(rt.frame({seconds(t), {}}).failure.empty());
+        const auto moved = mirror.refresh();
+        const a11y::Node* told = find(moved.nodes, "main/card");
+        expect(told && told->origin && told->origin->x > 0) << "the card, at its new place";
+        expect(!find(moved.nodes, "main/card/save")) << "its button, where it was in it: not told again";
     };
 
     "a screen reader's requests, performed as the person's input"_test = [] {

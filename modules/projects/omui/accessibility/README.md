@@ -43,16 +43,19 @@ the module `mcpplibs.mwrap.accesskit`), only in `bridge/src/native/accesskit/`.
 - **The mirror** (`Mirror`) — the tree as the platform was last told it:
   `refresh` reads what changed (the nodes whose children changed too) and
   where the focus is; the window is the root, named as the window. Node keys
-  are FNV-1a of the ids, the same from one update to the next. Bounds are in
-  the content of the scroll containers above a node (a list, a scroll view):
-  the window's, plus their offsets; a container says its own offset, and its
-  AccessKit transform moves what it holds back by it — a scroll is that one
-  node told, not every row it moves (a node told as it was is not told
-  again). A virtualising container (a list: every item its child, S-7) is
-  the exception: AccessKit's AT-SPI adapter compares a node's children
-  pairwise when it is told again, so the list moves its few materialised rows
-  and is told only when it changes. `core/list-scroll/reading` measures it: 10,000 rows scrolled, each
-  frame's changes read.
+  are FNV-1a of the ids, the same from one update to the next. Each node's
+  bounds are its own, and its place in the nearest ancestor with bounds is its
+  AccessKit transform (`origin`): a node that moves is that node told, not
+  every part of it; a scroll view's children sit in its content, its offset
+  (`scrolled`) moving them back — a scroll is that one node. A node told as it
+  was is not told again. A virtualising container (a list: every item its
+  child, S-7) moves its few materialised rows instead of its content:
+  AccessKit's AT-SPI adapter compares a node's children pairwise when it is
+  told again. When a screen reader starts listening, the runtime's thread is
+  woken to tell what changed while none did (an application at rest draws no
+  frame). `core/list-scroll/reading` measures the refresh: 10,000 rows
+  scrolled, each frame's changes read; `omui-devtools check atspi` reads each
+  node's place in the window through AT-SPI.
 - **Requests** — come from the platform's threads, wait in the mirror, and are
   performed between frames on the runtime's thread (`serve`), as the person's
   own input: what a click would answer, an assistive device's click answers.

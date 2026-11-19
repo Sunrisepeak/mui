@@ -184,12 +184,13 @@ accesskit_node* make(const Node& d, float scale, bool root) {
     if (d.bounds)
         accesskit_node_set_bounds(n, accesskit_rect{d.bounds->x, d.bounds->y, d.bounds->x + d.bounds->width,
                                                     d.bounds->y + d.bounds->height});
-    // Bounds are logical pixels; AccessKit's are the window's physical ones. A scroll container's children (and its own
-    // bounds) are in its content: its transform moves them back by its offset, so a scroll is this node alone.
+    // Its place in its parent, less a scroll container's offset (its content moved back), as its transform: bounds are
+    // the node's own, so a move is this node alone. Logical pixels; the root's scale makes them the window's physical.
     const double s = root ? scale : 1.0;
-    if (s != 1 || d.scrolled) {
-        const double x = d.scrolled ? d.scrolled->x : 0, y = d.scrolled ? d.scrolled->y : 0;
-        accesskit_node_set_transform(n, accesskit_affine{{s, 0, 0, s, -s * x, -s * y}});
+    if (s != 1 || d.origin || d.scrolled) {
+        const double x = (d.origin ? d.origin->x : 0) - (d.scrolled ? d.scrolled->x : 0);
+        const double y = (d.origin ? d.origin->y : 0) - (d.scrolled ? d.scrolled->y : 0);
+        accesskit_node_set_transform(n, accesskit_affine{{s, 0, 0, s, s * x, s * y}});
     }
     if (!d.children.empty()) accesskit_node_set_children(n, d.children.size(), d.children.data());
     // A text field's selection over its runs; a run's characters.
@@ -268,6 +269,9 @@ struct AccessKitSession final : Session {
         auto* impl = static_cast<AccessKitSession*>(self);
         impl->active_now = true;
         log_.info("assistive technology asked for the tree ({})", native::name());
+        // The mirror as last refreshed (nothing was read while none listened): the runtime's thread, woken, tells what
+        // changed since at once — an application at rest draws no frame of its own.
+        impl->mirror.wake();
         return impl->full();
     }
     static accesskit_tree_update* on_update(void* self) { return static_cast<AccessKitSession*>(self)->changes(); }

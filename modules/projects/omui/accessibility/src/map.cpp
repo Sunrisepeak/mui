@@ -233,30 +233,42 @@ bool same_place(const std::optional<TextSelection>& a, const std::optional<TextS
 
 }  // namespace
 
-void Mirror::place(std::string_view id, Node& node, spec::Point& shift) {
-    Runtime& rt = tree_.runtime();
-    // The node standing for it: its own, or (an item no node stands for) its holder's.
-    NodeId at = rt.find(id);
-    const bool own = rt.valid(at);  // else an item: its holder scrolls it, it scrolls nothing
-    for (std::string_view rest = id; !rt.valid(at);) {
-        const auto cut = rest.rfind('/');
-        if (cut == std::string_view::npos) return;
-        rest = rest.substr(0, cut);
-        at = rt.find(rest);
+void Mirror::place(std::string_view id, Node& node, const std::optional<spec::Rect>& window) {
+    if (window) window_[node.key] = *window;
+    else window_.erase(node.key);
+    node.origin.reset();
+    node.scrolled.reset();
+    if (!window) {
+        node.bounds.reset();
+        return;
     }
-    shift = {};
-    // A virtualising container (a list) states every item as its child (S-7): told again, AccessKit's AT-SPI adapter
-    // compares its children pairwise (accesskit_atspi_common 0.21, notify_children_changes), ten thousand items each
-    // frame it scrolls. It moves its rows instead — the few materialised ones — and is told only when it changes.
-    for (NodeId up = at; rt.valid(up); up = rt.parent(up))
-        if (const std::optional<Point> offset = rt.scroll_offset(up); offset && !rt.type(up).virtual_items) {
-            shift.x += offset->x, shift.y += offset->y;
-            if (up == at && own) node.scrolled = spec::Point{offset->x, offset->y};
+    // Its own offset, if it scrolls what it holds. A virtualising container (a list) states every item as its child
+    // (S-7): told again, AccessKit's AT-SPI adapter compares its children pairwise (accesskit_atspi_common 0.21,
+    // notify_children_changes) — ten thousand items each frame it scrolls. It is no scroll container here: its rows
+    // move (the few materialised ones), and it is told only when it changes.
+    Runtime& rt = tree_.runtime();
+    spec::Point own;
+    if (const NodeId at = rt.find(id); rt.valid(at) && !rt.type(at).virtual_items)
+        if (const std::optional<Point> offset = rt.scroll_offset(at)) {
+            own = {offset->x, offset->y};
+            node.scrolled = own;
         }
-    if (node.bounds) node.bounds->x += shift.x, node.bounds->y += shift.y;
+    node.origin = origin_of(node.key, *window);
+    node.bounds = spec::Rect{own.x, own.y, window->width, window->height};
 }
 
-void Mirror::text_of(const std::string& id, Node& node, std::vector<Node>& out, bool force, spec::Point shift) {
+spec::Point Mirror::origin_of(std::uint64_t key, const spec::Rect& window) const {
+    spec::Point anchor, content;
+    for (auto up = parent_.find(key); up != parent_.end(); up = parent_.find(up->second))
+        if (const auto box = window_.find(up->second); box != window_.end()) {
+            anchor = {box->second.x, box->second.y};
+            if (const auto scrolled = scrollers_.find(up->second); scrolled != scrollers_.end()) content = scrolled->second;
+            break;
+        }
+    return {window.x - anchor.x + content.x, window.y - anchor.y + content.y};
+}
+
+void Mirror::text_of(const std::string& id, Node& node, std::vector<Node>& out, bool force) {
     Runtime& rt = tree_.runtime();
     const NodeId n = rt.find(id);
     const std::optional<TextLayout> layout = rt.valid(n) ? rt.text_layout(n) : std::nullopt;
@@ -274,8 +286,12 @@ void Mirror::text_of(const std::string& id, Node& node, std::vector<Node>& out, 
             run.widths = l.widths;
             run.word_starts = l.word_starts;
             run.rtl = l.rtl;
-            run.bounds = spec::Rect{l.bounds.x + shift.x, l.bounds.y + shift.y, l.bounds.width, l.bounds.height};
+            // In the field's coordinates (and its content, if it scrolls its line).
+            const spec::Rect field = window_.contains(node.key) ? window_[node.key] : spec::Rect{};
+            const spec::Point scrolled = node.scrolled.value_or(spec::Point{});
+            run.bounds = spec::Rect{l.bounds.x - field.x + scrolled.x, l.bounds.y - field.y + scrolled.y, l.bounds.width, l.bounds.height};
             run_of_[run.key] = {node.key, first};
+            parent_[run.key] = node.key;
             first += run.lengths.size();
             if (i > 0 && layout->lines[i - 1].continues) {
                 run.previous_on_line = now.runs.back().key;
@@ -306,6 +322,7 @@ void Mirror::text_of(const std::string& id, Node& node, std::vector<Node>& out, 
         if (std::ranges::none_of(now.runs, [&](const Node& r) { return r.key == w.key; })) {
             nodes_.erase(w.key);
             run_of_.erase(w.key);
+            parent_.erase(w.key);
         }
     for (const Node& r : now.runs) node.children.push_back(r.key);
     node.selection = now.selection;
@@ -322,11 +339,14 @@ Mirror::Changes Mirror::refresh() {
     const bool focused_text = texts_.contains(focus_);
     // A scroll container scrolled: its offset is its node's (what it holds keeps its place in its content).
     Runtime& rt = tree_.runtime();
-    std::vector<std::pair<std::uint64_t, spec::Point>> scrolled;  // a container's key, its offset now
-    for (const auto& [key, offset] : scrollers_)
+    // Its offset now, before what it holds is placed in its content.
+    std::vector<std::pair<std::uint64_t, spec::Point>> scrolled;  // a container's key, by how much
+    for (auto& [key, offset] : scrollers_)
         if (auto id = ids_.find(key); id != ids_.end())
-            if (const std::optional<Point> now = rt.scroll_offset(rt.find(id->second)); now && (now->x != offset.x || now->y != offset.y))
-                scrolled.emplace_back(key, spec::Point{now->x, now->y});
+            if (const std::optional<Point> now = rt.scroll_offset(rt.find(id->second)); now && (now->x != offset.x || now->y != offset.y)) {
+                scrolled.emplace_back(key, spec::Point{now->x - offset.x, now->y - offset.y});
+                offset = {now->x, now->y};
+            }
     if (delta.empty() && !focused_text && scrolled.empty()) return out;
     if (root_ == 0)
         if (const semantic::Snapshot top = tree_.snapshot({.depth = 0}); !top.nodes.empty()) {
@@ -337,17 +357,27 @@ Mirror::Changes Mirror::refresh() {
     bool          lost = false;
     std::vector<Node> runs;
     std::size_t   same = 0;
+    std::unordered_set<std::uint64_t> kept;   // placed this time
+    std::vector<std::uint64_t>        moved;  // placed this time somewhere else in the window
     auto keep = [&](const spec::SemanticNode& n) {
         Node node = n.id == app_id_ ? root_node(&n) : describe(n);
-        spec::Point shift;
-        place(n.id, node, shift);
+        if (const auto was = window_.find(node.key); was != window_.end() && n.bounds && (was->second.x != n.bounds->x || was->second.y != n.bounds->y))
+            moved.push_back(node.key);
+        kept.insert(node.key);
+        place(n.id, node, n.bounds);
         if (n.states.has(State::focused)) focused = node.key;
         else if (node.key == focus_) lost = true;
         const bool field = text_field(n.role);
-        if (field) text_of(n.id, node, runs, true, shift);
-        ids_[node.key] = n.id;
         if (node.scrolled) scrollers_[node.key] = *node.scrolled;
         else scrollers_.erase(node.key);
+        bool adopted = false;  // a child that was another's: placed again below, if the tree did not say it changed
+        for (const std::uint64_t child : node.children) {
+            auto [at, added] = parent_.try_emplace(child, node.key);
+            if (!added && at->second != node.key) at->second = node.key, adopted = true;
+        }
+        if (adopted) moved.push_back(node.key);
+        if (field) text_of(n.id, node, runs, true);
+        ids_[node.key] = n.id;
         // Told already as it is (a row its list scrolled: the same place in the list's content): not told again.
         if (const auto was = nodes_.find(node.key); !field && was != nodes_.end() && told_as(was->second, node)) {
             ++same;
@@ -358,17 +388,37 @@ Mirror::Changes Mirror::refresh() {
     };
     for (const spec::SemanticNode& n : delta.added) keep(n);
     for (const spec::SemanticNode& n : delta.updated) keep(n);
+    // What a node that moved holds and the tree did not say changed (it stayed where it was in the window): its place
+    // in the node is another now. Those without bounds are passed through to theirs.
+    const auto again = [&](this auto const& self, std::uint64_t holder) -> void {
+        const auto told = nodes_.find(holder);
+        if (told == nodes_.end()) return;
+        for (const std::uint64_t child : told->second.children) {
+            if (kept.contains(child)) continue;
+            const auto stored = nodes_.find(child);
+            const auto window = window_.find(child);
+            if (stored == nodes_.end()) continue;
+            if (window == window_.end()) {
+                self(child);
+                continue;
+            }
+            const spec::Point origin = origin_of(child, window->second);
+            if (stored->second.origin && stored->second.origin->x == origin.x && stored->second.origin->y == origin.y) continue;
+            stored->second.origin = origin;
+            kept.insert(child);
+            out.nodes.push_back(stored->second);
+        }
+    };
+    for (const std::uint64_t holder : moved) again(holder);
     // A container that only scrolled (else the tree said it changed, and it was read above): its offset, and its own
     // bounds by as much (its place in the window the same, its content moved).
-    for (const auto& [key, offset] : scrolled) {
+    for (const auto& [key, by] : scrolled) {
         if (std::ranges::any_of(out.nodes, [key](const Node& o) { return o.key == key; })) continue;
         const auto told = nodes_.find(key);
-        const auto was = scrollers_.find(key);
-        if (told == nodes_.end() || was == scrollers_.end()) continue;
+        if (told == nodes_.end()) continue;
         Node& node = told->second;
-        if (node.bounds) node.bounds->x += offset.x - was->second.x, node.bounds->y += offset.y - was->second.y;
-        node.scrolled = offset;
-        was->second = offset;
+        if (node.bounds) node.bounds->x += by.x, node.bounds->y += by.y;
+        node.scrolled = scrollers_[key];
         out.nodes.push_back(node);
     }
     for (const std::string& id : delta.removed) {
@@ -378,12 +428,15 @@ Mirror::Changes Mirror::refresh() {
             for (const Node& r : t->second.runs) {
                 nodes_.erase(r.key);
                 run_of_.erase(r.key);
+                parent_.erase(r.key);
             }
             texts_.erase(t);
         }
         nodes_.erase(k);
         ids_.erase(k);
         scrollers_.erase(k);
+        window_.erase(k);
+        parent_.erase(k);
     }
     // The focused field, unchanged in the tree: its caret or its runs may have moved.
     if (focused_text && !lost && !focused)
@@ -393,11 +446,7 @@ Mirror::Changes Mirror::refresh() {
             node.children.erase(std::remove_if(node.children.begin(), node.children.end(), [&](std::uint64_t c) { return run_of_.contains(c); }),
                                 node.children.end());
             const std::size_t sent = runs.size();
-            Node   placed;
-            placed.key = focus_;
-            spec::Point shift;
-            place(ids_[focus_], placed, shift);
-            text_of(ids_[focus_], node, runs, false, shift);
+            text_of(ids_[focus_], node, runs, false);
             if (runs.size() != sent || !same_place(before, node.selection) || node.children != n->second.children) {
                 out.nodes.push_back(node);
                 n->second = std::move(node);
@@ -441,6 +490,15 @@ void Mirror::queue(Request request) {
     {
         std::lock_guard hold(mutex_);
         requests_.push_back(std::move(request));
+        wake = wake_;
+    }
+    if (wake) wake();
+}
+
+void Mirror::wake() const {
+    std::function<void()> wake;
+    {
+        std::lock_guard hold(mutex_);
         wake = wake_;
     }
     if (wake) wake();

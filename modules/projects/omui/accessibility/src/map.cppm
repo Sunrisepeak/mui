@@ -81,10 +81,12 @@ struct Node {
     // The node's actions AccessKit has no name for (dismiss, a second of
     // activate / toggle / select): custom actions, their id the index.
     std::vector<std::string>   custom;
-    // Logical pixels, in its scroll containers' content: in the window, plus the offsets of the containers above it
-    // (and its own, for one), so a scroll moves one node — the container's `scrolled` — and not what it holds.
+    // Logical pixels, in the node's own coordinates: where it is in its parent's is `origin` (AccessKit: its transform),
+    // so a move is one node told — a row its list scrolled, not the row and every part of it. A scroll container's
+    // children are in its content, which `scrolled` moves back (its own box is there too: at its offset).
     std::optional<spec::Rect>  bounds;
-    std::optional<spec::Point> scrolled;          // a scroll container's offset (AccessKit: its transform moves it back)
+    std::optional<spec::Point> origin;            // its place in the nearest ancestor with bounds (its content)
+    std::optional<spec::Point> scrolled;          // a scroll container's offset
     std::vector<std::uint64_t> children;
     // A text field's selection (its caret when empty), over its runs; a run
     // (role TextRun, a laid-out line: its words in `value`) has each
@@ -154,6 +156,8 @@ public:
     // A request from any thread; `wake`, if set, is called after it waits.
     void queue(Request request);
     void set_wake(std::function<void()> wake);
+    // Wakes the runtime's thread (any thread): an adapter whose platform began listening has it tell what changed.
+    void wake() const;
     // The waiting requests, performed (on the runtime's thread). Answers
     // what each answered, in order.
     std::vector<Envelope> serve();
@@ -168,10 +172,12 @@ private:
     // A text field's runs and selection, as the runtime has them laid out:
     // `node` gets its runs as children and its selection; the runs go to
     // `out` when they changed (or always, `force`). Under the lock.
-    void text_of(const std::string& id, Node& node, std::vector<Node>& out, bool force, spec::Point shift);
-    // A node's bounds in its scroll containers' content, and its own offset if it scrolls (as the runtime last placed
-    // them); `id` a node's, or an item's under one.
-    void place(std::string_view id, Node& node, spec::Point& shift);
+    void text_of(const std::string& id, Node& node, std::vector<Node>& out, bool force);
+    // A node's window bounds as its place in its parent (`origin`) and its own box, and its scroll offset if it
+    // scrolls its content; `id` a node's, or an item's under one. Under the lock.
+    void place(std::string_view id, Node& node, const std::optional<spec::Rect>& window);
+    // Where a node with these window bounds is in the nearest ancestor with bounds (in its content).
+    [[nodiscard]] spec::Point origin_of(std::uint64_t key, const spec::Rect& window) const;
     struct Text {
         std::vector<Node> runs;
         std::optional<TextSelection> selection;
@@ -187,6 +193,8 @@ private:
     std::unordered_map<std::uint64_t, Node>             nodes_;
     std::unordered_map<std::uint64_t, std::string>      ids_;
     std::unordered_map<std::uint64_t, spec::Point>      scrollers_;  // the scroll containers told, by key: their offset
+    std::unordered_map<std::uint64_t, spec::Rect>       window_;     // each node's bounds in the window, as stated
+    std::unordered_map<std::uint64_t, std::uint64_t>    parent_;     // each node's parent, by key
     std::uint64_t                                       focus_ = 0;
     std::vector<Request>                                requests_;
     std::function<void()>                               wake_;

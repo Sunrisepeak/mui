@@ -351,6 +351,21 @@ for (let i = 0; i < 200; i++) verb("load.v" + (i % 4), { effect: "read" }, () =>
         }
     };
 
+    "an engine closed before its run settles: the close ends, and the run has its answer"_test = [] {
+        // On the page a run is settled by the page's import(), after this returns: the engine is closed first. The
+        // script's teardown answers the run (gone), and the answer passed on looks no more.
+        for (int round = 0; round < 4; ++round) {
+            Runtime r;
+            auto engine = lang::js::javascript().make(r.rt);
+            auto status = engine->run(R"js(import { signal } from "openmui";
+const count = signal(1);
+)js", "closing.js");
+            if (round % 2) (void)r.frame();
+            engine.reset();
+            expect(status.wait_for(std::chrono::seconds(0)) == std::future_status::ready) << "answered when the engine closed";
+        }
+    };
+
     "a reload keeps the state, the nodes, and replaces the handlers"_test = [] {
         Runtime r;
         Js js(r);

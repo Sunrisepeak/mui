@@ -116,6 +116,15 @@ jobs:
             target/site-font-delivery/
             target/dist-toy-loading.report.xdef.json
           if-no-files-found: ignore
+      - name: Keep the site the checks ran on, when they failed — its split and profiles, to run here as it ran there
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-built
+          path: |
+            target/site/
+            target/site-split/*.profile
+          if-no-files-found: ignore
       - name: Where the site's WebAssembly bytes go (W8; Q-38)
         # The release's code with its functions' names kept, by owner (module,
         # namespace, library) and its largest functions.

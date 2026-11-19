@@ -148,8 +148,8 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 Order of the [wave-1 execution plan](2026-11-19-wave1-execution-plan.md) §6 (two reviews, 2026-11-19). Features first, verified here; no run is waited for (D-248); a commit names the lanes it needs (`CI: …`, D-254).
 
-1. Pages on PR 1: the site's delivery is 19.5 KB over its 4.0 MB budget (run 44382430314) — found and cut here, the budget unchanged; then `CI: pages` publishes it, and G9's https check runs against it with a local Chromium and bridge.
+1. Pages on PR 1: its delivery is back within budget — the site's Web build without RTTI (3,936,260 bytes of 4,000,000, was 4,019,455; nothing used it) — and `CI: pages` publishes it; then G9's https check runs against it with a local Chromium and bridge.
 2. E1 and G9 as one scenario (site design, fifth version §5): a clean prefix, the `omui` built here and a local index; `omui connect <code>`; the prompt one sentence, a command tab beside it. Then G1 (the Web's script backend) and N5's second step.
 3. The subagent: C1 and N2 measured here out of process (Slint, Flutter, NSH), then C3, C2, C8.
-4. M0's node beside them: the local preflight (`ci local`, `media --check`), the matrix as lanes `elsewhere`, its record written when it returns; platform reds fixed as one batch, only their lanes run again.
+4. M0's node beside them: the full matrix at `2a9592bf` is green, all 12 jobs (run 44383015192); left: the local preflight (`ci local`, `media --check`) and the record. Platform reds, when a later run finds them, are fixed as one batch and only their lanes run again.
 5. RC rows still open carry on inside wave 1 where the plan places them (RC3.1 → E, RC3.5 → E, RC3.6 → D, RC2.17 → D); cells that need a machine stay unverified (D-201) and hold nothing.

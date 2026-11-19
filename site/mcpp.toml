@@ -41,6 +41,10 @@ sources = ["src/targets/native.cppm"]
 
 [target.'cfg(os = "emscripten")'.build]
 sources = ["src/targets/web.cppm"]
+# The page's program carries no RTTI (AGENTS §4: core code uses none; nothing here uses typeid or dynamic_cast).
+# The type names it kept were ~300 KB of the first screen's data, 23 KB gzipped. A dialect flag: a BMI records it,
+# so it reaches the import-std prebuild and every unit of the graph (mcpp docs 04, dialect flags).
+dialect_cxxflags = ["-fno-rtti"]
 
 [dependencies]
 mlibs.text.fonts = { path = "../modules/content/text/fonts" }  # every script it shows carried with it (D-214)

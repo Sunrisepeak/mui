@@ -16,7 +16,7 @@ inline omui::AppSpec spec() {
         .view = [] {
             return omui::immediate([](omui::Ui& ui) {
                 ui.column({.padding = 24, .gap = 12}, [&] {
-                    ui.text("Hello from {{project.name}}", {.style = "title"});
+                    ui.text("Hello from {{project.name}}", {.style = "title", .heading = 1});
                     ui.text(std::format("Clicked {} times", clicks));
                     if (ui.button("Click me", {.id = "click"})) ++clicks;
                 });

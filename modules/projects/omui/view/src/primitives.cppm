@@ -109,6 +109,9 @@ struct TextOptions {
     std::string       id;
     Prop<std::string> text;
     std::string       style = "body";  // display title heading body label caption code
+    // A heading of this level (1–6) in what the page states — its outline, a reader's headings, the static HTML's
+    // h1–h6 (D-236); 0: none. The style is how it looks, this what it is.
+    int               heading = 0;
     Prop<Fill>        color;
     std::string       align;           // start center end justify
     bool              wrap = true;

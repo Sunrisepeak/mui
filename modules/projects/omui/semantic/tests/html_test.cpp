@@ -58,7 +58,7 @@ static UTest cases{"html", [] {
         o.size = {320, 200};
         Runtime rt(o);
         rt.mount("main", column({.padding = 8, .gap = 4}, {
-                                    text({.id = "title", .text = "Notes", .style = "title"}),
+                                    text({.id = "title", .text = "Notes", .style = "title", .heading = 1}),
                                     text({.id = "count", .text = "3 notes"}),
                                     box({.id = "add", .width = 60, .height = 24, .label = "Add a note", .on = {{"press", [](const Value&) {}}}}),
                                 }));
@@ -74,5 +74,6 @@ static UTest cases{"html", [] {
         }
         expect(html.contains("Notes") && html.contains("3 notes") && html.contains("Add a note")) << html;
         expect(!html.contains("role=\"none\"")) << "a div says no role already";
+        expect(html.contains("<h1 data-omui-target=") && html.contains(">Notes</h1>")) << "a text stated a heading (heading = 1) is the document's h1: " << html;
     };
 }};

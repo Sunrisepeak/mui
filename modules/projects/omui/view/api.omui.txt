@@ -784,6 +784,7 @@ namespace omui {
     std::string id;
     Prop<std::string> text;
     std::string style = "body";
+    int heading = 0;
     Prop<Fill> color;
     std::string align;
     bool wrap = true;

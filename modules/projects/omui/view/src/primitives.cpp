@@ -913,6 +913,7 @@ Element text(TextOptions o, std::source_location where) {
     e.id = o.id;
     e.prop("text", o.text);
     if (o.style != "body") put(e, "style", o.style);
+    if (o.heading > 0) e.prop("role", Source{Value("heading"), {}, {}}).prop("level", Source{Value(std::clamp(o.heading, 1, 6)), {}, {}});
     e.prop("color", o.color);
     put(e, "align", o.align);
     if (!o.wrap) e.prop("wrap", Source{Value(false), {}, {}});

@@ -22,7 +22,7 @@ omui-devtools ci plan --lanes "all -android"  # what a run given these lanes tes
 omui-devtools ci request elsewhere pages      # request them on this branch: ci.yml's lanes as one run, each workflow its own
 ```
 
-A pull request's push runs the lint alone. A commit that needs more says so in its message's last paragraph — `CI: macos windows`, `CI: all -android`, `CI: pages` — and the lint job requests those as a run of their own (so a later push does not cancel them, and they follow the path of a run asked by hand); `[skip ci]` skips the lint too. In `ci.yml` the plan is the lint job's first step (`ci plan --dispatch --github-output …`): the matrix and each job follow its outputs, whether or not the rules after it pass. A name the catalogue does not have fails the plan with the names there are.
+A pull request's push runs the lint alone. A commit that needs more says so in its message's last paragraph — `CI: macos windows`, `CI: all -android`, `CI: pages` — and the lint job requests those as a run of their own, on the path of a run asked by hand; a later push cancels neither that run nor the lint that requests it. `[skip ci]` skips the lint too. In `ci.yml` the plan is the lint job's first step (`ci plan --dispatch --github-output …`): the matrix and each job follow its outputs, whether or not the rules after it pass. A name the catalogue does not have fails the plan with the names there are.
 
 ## govern
 

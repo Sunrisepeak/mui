@@ -107,11 +107,11 @@ std::optional<Rect> Mascot::box_of(std::string_view path) const {
 
 // The figure made the first time it is painted with room: at the page's
 // bottom right, sitting.
-void Mascot::ensure(const PaintContext& ctx) const {
-    if (figure_ && figure_->room == ctx.size) return;
+void Mascot::ensure(Size room, const Theme& theme) const {
+    if (figure_ && figure_->room == room) return;
     const bool had_figure = figure_ != nullptr;
     const MascotArt& art = mascot_art();
-    if (art.frames.empty() || ctx.size.width <= 0 || ctx.size.height <= 0) return;
+    if (art.frames.empty() || room.width <= 0 || room.height <= 0) return;
     // A new size (another place, a window resized): the figure made again at
     // its place on the new floor, not falling to it — a page's layout is not an event.
     std::string frame = "sit", palette = "indigo";
@@ -127,10 +127,10 @@ void Mascot::ensure(const PaintContext& ctx) const {
     }
     auto made = std::make_unique<Figure>();
     made->engine = &services().engine();
-    made->room = ctx.size;
+    made->room = room;
     const float side = static_cast<float>(props.cell) * static_cast<float>(art.size);
     // Its hull's bottom (a pixel above the grid's) on the page's bottom: standing, not falling.
-    made->spawn = {ctx.size.width - side - 32, ctx.size.height - 4 - (side - static_cast<float>(props.cell))};
+    made->spawn = {room.width - side - 32, room.height - 4 - (side - static_cast<float>(props.cell))};
     made->facing_right = facing_right;
     // The first time: from where it was told it comes from, its pixels gathering there (not with less motion).
     const bool first = !had_figure;
@@ -269,14 +269,14 @@ void Mascot::show(const std::string& frame, const std::string& palette, bool fac
 
 // Where it goes, what it stands on, which frame: from the agent's presence,
 // what it was asked, and the time.
-void Mascot::steer(const PaintContext& ctx) const {
+void Mascot::steer(Size room, const Theme& theme) const {
     Figure& f = *figure_;
     hanim::Engine& engine = *f.engine;
     const double t = services().now().count();
     const double dt = f.last < 0 ? 0 : std::clamp(t - f.last, 0.0, 0.1);
     f.last = t;
     const bool still = services().motion_reduced();
-    const bool dark = props.palette == MascotPalette::theme ? ctx.theme.dark : props.palette == MascotPalette::night;
+    const bool dark = props.palette == MascotPalette::theme ? theme.dark : props.palette == MascotPalette::night;
 
     // Whom it embodies, and what it goes to.
     const AgentPresenceState agent = agent_presence_state(services(), props.agents, 0);
@@ -309,7 +309,7 @@ void Mascot::steer(const PaintContext& ctx) const {
         if (const auto pointer = services().pointer()) {
             const Rect self = services().bounds(node());
             const Point at{pointer->x - self.x, pointer->y - self.y};
-            if (at.x >= 0 && at.y >= 0 && at.x <= ctx.size.width && at.y <= ctx.size.height) {
+            if (at.x >= 0 && at.y >= 0 && at.x <= room.width && at.y <= room.height) {
                 pointer_at = at;
                 probing_ = true;
                 over_control = static_cast<bool>(services().control_at(*pointer));
@@ -361,7 +361,7 @@ void Mascot::steer(const PaintContext& ctx) const {
         if (ledges.size() < mlibs::dynamics::max_ledges)
             ledges.push_back({r.x - f.spawn.x, r.right() - f.spawn.x, r.y - f.spawn.y});
     };
-    ledge({0, ctx.size.height - 4, ctx.size.width, 0});
+    ledge({0, room.height - 4, room.width, 0});
     if (target && std::ranges::any_of(props.surfaces.list() ? *props.surfaces.list() : Value::List{}, [&](const Value& path) { return f.target == path.as_string(); }))
         ledge(*target);
     if (const auto* list = props.surfaces.list())
@@ -481,14 +481,20 @@ void Mascot::steer(const PaintContext& ctx) const {
     }
 }
 
+// Made and steered outside paint, each bounds pass: painted or not, the same figure where it is going.
+void Mascot::laid_out() {
+    const Rect box = services().bounds(node());
+    const Size room{box.width, box.height};
+    ensure(room, services().theme());
+    if (figure_ && figure_->arrived && figure_->showing) steer(room, services().theme());
+}
+
 void Mascot::paint(PaintContext& ctx) const {
-    ensure(ctx);
     if (figure_ && !figure_->arrived) {
         arrive(ctx);
         if (!figure_->arrived) return;
     }
     if (!figure_ || !figure_->showing) return;
-    steer(ctx);
     Figure& f = *figure_;
     hanim::Engine& engine = *f.engine;
     if (!f.drawing.record(ctx, engine, *f.showing, "figure")) return;

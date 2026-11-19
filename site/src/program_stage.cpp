@@ -185,16 +185,16 @@ WorkTuning ProgramStage::tuning() const {
     return {.delay = props.delay, .bounce = props.bounce, .tuned = props.tuned, .amount = props.amount, .amount_y = props.amount_y, .duration = props.duration, .period = props.period};
 }
 
-void ProgramStage::ensure(const PaintContext& ctx) const {
+void ProgramStage::ensure(Size room, const Theme& theme) const {
     const WorkTuning tuning = this->tuning();
-    if (made_ && made_->room == ctx.size && made_->dark == ctx.theme.dark && made_->work == props.work && made_->tuning == tuning) return;
+    if (made_ && made_->room == room && made_->dark == theme.dark && made_->work == props.work && made_->tuning == tuning) return;
     release();
-    auto work = make_work(props.work, ctx.size, ctx.theme, tuning);
+    auto work = make_work(props.work, room, theme, tuning);
     if (!work) return;
     auto made = std::make_unique<Made>();
     made->engine = &services().engine();
-    made->room = ctx.size;
-    made->dark = ctx.theme.dark;
+    made->room = room;
+    made->dark = theme.dark;
     made->work = props.work;
     made->tuning = tuning;
     hanim::Engine& engine = *made->engine;
@@ -267,10 +267,15 @@ void ProgramStage::step() {
     if (playing) schedule();
 }
 
+// Made and played on outside paint (its timer): painted or not — out of view, left out — the same moment.
+void ProgramStage::laid_out() {
+    const Rect box = services().bounds(node());
+    ensure({box.width, box.height}, services().theme());
+    if (made_ && made_->playback && props.playing) schedule();
+}
+
 void ProgramStage::paint(PaintContext& ctx) const {
-    ensure(ctx);
     if (!made_ || !made_->playback) return;
-    if (props.playing) schedule();
     (void)made_->drawing.record(ctx, *made_->engine, *made_->playback, "figure");
 }
 

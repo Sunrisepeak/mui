@@ -15,6 +15,7 @@ class Timebar : public TimebarContract<Timebar> {
 public:
     void prop_changed(TimebarProp p);
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void laid_out();
     void paint(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
@@ -35,7 +36,7 @@ private:
     [[nodiscard]] double last() const;
 
     mutable std::vector<parts::Label> labels_;  // the marks' captions, reused
-    mutable Size size_{};                       // the last painted size: pointer positions map onto it
+    Size size_{};                               // its laid-out size (laid_out): pointer positions map onto it
     bool         dragging_ = false;
 };
 

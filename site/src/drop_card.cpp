@@ -54,26 +54,28 @@ Size DropCard::measure(MeasureContext&, std::optional<float> width, std::optiona
     return {w, height.value_or(std::round(w * 0.62f))};
 }
 
-// The card made the first time it is painted with room (again for another
-// room or theme): its object — the card and what is on it — shown by a
-// playback, and the soft body under the card, carrying the rest.
-void DropCard::ensure(const PaintContext& ctx) const {
-    if (card_ && card_->room == ctx.size && dark_ == ctx.theme.dark) return;
-    if (ctx.size.width <= 0 || ctx.size.height <= 0) return;
+// The card made once it is laid out with room (again for another room or
+// theme): its object — the card and what is on it — shown by a playback, and
+// the soft body under the card, carrying the rest. Made and moved on outside
+// paint (laid_out, its timer): painted or not — out of view, left out — it is
+// the same card at the same moment.
+void DropCard::ensure(Size room, const Theme& theme) const {
+    if (card_ && card_->room == room && dark_ == theme.dark) return;
+    if (room.width <= 0 || room.height <= 0) return;
     release();
-    dark_ = ctx.theme.dark;
+    dark_ = theme.dark;
     auto made = std::make_unique<Card>();
     made->engine = &services().engine();
-    made->room = ctx.size;
-    const Size card = card_size(ctx.size);
-    made->origin = {std::round((ctx.size.width - card.width) / 2), 8};
+    made->room = room;
+    const Size card = card_size(room);
+    made->origin = {std::round((room.width - card.width) / 2), 8};
     // A little turned (0.05 rad): it lands on a corner and falls flat.
     const Affine turn = Affine::translate(card.width / 2, card.height / 2) * Affine::rotation(0.99875026f, 0.04997917f) * Affine::translate(-card.width / 2, -card.height / 2);
     xrender::Path outline;
     outline.add_rounded_rect({0, 0, card.width, card.height}, CornerRadii::all(card_radius));
     std::vector<xrender::Path> paths{outline.transformed(turn)};
-    std::vector<hanim::PathPart> parts{{.id = "card", .parent = "drop", .fill = rgba(ctx.theme.color("surface")),
-                                        .stroke = hanim::PartStroke{rgba(ctx.theme.color("border")), 1.5}}};
+    std::vector<hanim::PathPart> parts{{.id = "card", .parent = "drop", .fill = rgba(theme.color("surface")),
+                                        .stroke = hanim::PartStroke{rgba(theme.color("border")), 1.5}}};
     // On it, a card's content: an avatar, a title, two lines of text, a button.
     std::vector<std::string> carried;
     const float pad = std::round(card.height * 0.16f), avatar = std::round(card.height * 0.26f);
@@ -83,14 +85,14 @@ void DropCard::ensure(const PaintContext& ctx) const {
         carried.push_back(std::move(id));
     };
     const auto bar = [](Rect r) { return xrender::Path().add_rounded_rect(r, CornerRadii::all(r.height / 2)); };
-    add("avatar", xrender::Path().add_circle({pad + avatar / 2, pad + avatar / 2}, avatar / 2), ctx.theme.color("accent"));
+    add("avatar", xrender::Path().add_circle({pad + avatar / 2, pad + avatar / 2}, avatar / 2), theme.color("accent"));
     const float text_x = pad + avatar + pad * 0.7f, text_w = card.width - text_x - pad;
-    add("title", bar({text_x, pad + avatar * 0.12f, text_w * 0.62f, avatar * 0.3f}), ctx.theme.color("text"));
-    add("subtitle", bar({text_x, pad + avatar * 0.6f, text_w * 0.4f, avatar * 0.22f}), ctx.theme.color("text_muted").with_alpha(0.7f));
+    add("title", bar({text_x, pad + avatar * 0.12f, text_w * 0.62f, avatar * 0.3f}), theme.color("text"));
+    add("subtitle", bar({text_x, pad + avatar * 0.6f, text_w * 0.4f, avatar * 0.22f}), theme.color("text_muted").with_alpha(0.7f));
     const float body_y = pad * 2 + avatar;
-    add("line_1", bar({pad, body_y, card.width - 2 * pad, avatar * 0.2f}), ctx.theme.color("text_muted").with_alpha(0.35f));
-    add("line_2", bar({pad, body_y + avatar * 0.42f, (card.width - 2 * pad) * 0.7f, avatar * 0.2f}), ctx.theme.color("text_muted").with_alpha(0.35f));
-    add("button", bar({card.width - pad - card.width * 0.3f, card.height - pad - avatar * 0.5f, card.width * 0.3f, avatar * 0.5f}), ctx.theme.color("accent"));
+    add("line_1", bar({pad, body_y, card.width - 2 * pad, avatar * 0.2f}), theme.color("text_muted").with_alpha(0.35f));
+    add("line_2", bar({pad, body_y + avatar * 0.42f, (card.width - 2 * pad) * 0.7f, avatar * 0.2f}), theme.color("text_muted").with_alpha(0.35f));
+    add("button", bar({card.width - pad - card.width * 0.3f, card.height - pad - avatar * 0.5f, card.width * 0.3f, avatar * 0.5f}), theme.color("accent"));
     for (std::size_t index = 0; index < parts.size(); ++index) parts[index].path = paths[index].view();
     auto description = hanim::object_from_paths("drop", parts);
     if (!description) return;
@@ -107,10 +109,10 @@ void DropCard::ensure(const PaintContext& ctx) const {
     // here so that a page with one soft body carries no table and no reader of one.
     const mlibs::dynamics::BodyParams params{.mass = 1, .gravity_y = 2200, .edge_compliance = 0.0005, .area_compliance = 0.0002, .shape_stiffness = 0.012,
                                                 .restitution = 0.2, .friction = 0.4, .damping = 0.4};
-    const float floor = ctx.size.height - readout_height - floor_gap;
+    const float floor = room.height - readout_height - floor_gap;
     const std::vector<mlibs::dynamics::Plane> walls{{.normal_x = 0, .normal_y = -1, .offset = -(floor - made->origin.y)},
                                                        {.normal_x = 1, .normal_y = 0, .offset = -made->origin.x},
-                                                       {.normal_x = -1, .normal_y = 0, .offset = -(ctx.size.width - made->origin.x)}};
+                                                       {.normal_x = -1, .normal_y = 0, .offset = -(room.width - made->origin.x)}};
     auto body = engine.simulate({made->object, "card"}, {.params = params, .colliders = walls, .points = 64, .carries = carried});
     if (!body) return;
     made->body = *body;
@@ -141,7 +143,7 @@ void DropCard::schedule() const {
 }
 
 void DropCard::step() const {
-    if (!card_ || !card_->body) return;  // made at its first paint, which schedules again
+    if (!card_ || !card_->body) return;  // made once it is laid out, which schedules again
     hanim::Engine& engine = *card_->engine;
     const hanim::BodyRef body = *card_->body;
     const double t = services().now().count();
@@ -207,10 +209,14 @@ void DropCard::step() const {
     if (playing_) schedule();
 }
 
-void DropCard::paint(PaintContext& ctx) const {
-    ensure(ctx);
-    if (!card_ || !card_->showing) return;
+void DropCard::laid_out() {
+    const Rect box = services().bounds(node());
+    ensure({box.width, box.height}, services().theme());
     if (playing_ || dropping_ || wanted_) schedule();
+}
+
+void DropCard::paint(PaintContext& ctx) const {
+    if (!card_ || !card_->showing) return;
     Card& card = *card_;
     hanim::Engine& engine = *card.engine;
     const Theme& theme = ctx.theme;

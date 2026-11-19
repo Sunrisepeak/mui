@@ -46,9 +46,13 @@ void Timebar::change(double t) {
     services().invalidate_semantics(node());
 }
 
+void Timebar::laid_out() {
+    const Rect box = services().bounds(node());
+    size_ = {box.width, box.height};
+}
+
 void Timebar::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
-    size_ = ctx.size;
     auto& out = ctx.list;
     const float w = ctx.size.width, h = ctx.size.height;
     const Rect strip{inset, 8, std::max(0.0f, w - 2 * inset), h - 16};

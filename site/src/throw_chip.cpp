@@ -115,8 +115,12 @@ bool ThrowChip::on_event(EventContext& ctx, const InputEvent& e) {
     }
 }
 
+void ThrowChip::laid_out() {
+    const Rect box = services().bounds(node());
+    room_ = {box.width, box.height};
+}
+
 void ThrowChip::paint(PaintContext& ctx) const {
-    room_ = ctx.size;
     const Theme& theme = ctx.theme;
     const Now here = now();
     // Home: a faint ring where it rests.

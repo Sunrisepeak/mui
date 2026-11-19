@@ -19,6 +19,7 @@ public:
     ~ThrowChip();
     void mounted();
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void laid_out();
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -40,7 +41,7 @@ private:
 
     mutable std::optional<hanim::Drive<hanim::Vec2>> drive_;
     mutable parts::Label                             label_;
-    mutable Size                                     room_;
+    Size                                             room_;  // its laid-out size (laid_out): where home is, painted or not
     bool                                             held_ = false;
     hanim::Vec2                                      grab_{};  // where on the chip it was taken
     // The last moves of a drag (when, where): the speed it is let go at.

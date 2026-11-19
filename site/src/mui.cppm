@@ -42,6 +42,7 @@ public:
     void mounted();
     void prop_changed(MascotProp p);
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void laid_out();
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     // Over the page, it takes the pointer only on itself, and not where a
@@ -102,9 +103,9 @@ private:
     };
     void arrive(PaintContext& ctx) const;
     void release_arrival() const;
-    void ensure(const PaintContext& ctx) const;
+    void ensure(Size room, const Theme& theme) const;
     void show(const std::string& frame, const std::string& palette, bool facing_right) const;
-    void steer(const PaintContext& ctx) const;
+    void steer(Size room, const Theme& theme) const;
     [[nodiscard]] std::optional<Rect> box_of(std::string_view path) const;
 
     mutable std::unique_ptr<Figure> figure_;

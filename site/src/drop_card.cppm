@@ -26,6 +26,7 @@ public:
     void mounted();
     void prop_changed(DropCardProp p);
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void laid_out();
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 
@@ -55,7 +56,7 @@ private:
         Size                                                room;
         Point                                               origin;  // the card's place in its box, before it falls
     };
-    void ensure(const PaintContext& ctx) const;
+    void ensure(Size room, const Theme& theme) const;
     void release() const;
     void schedule() const;  // a step at the next frame's start
     void step() const;

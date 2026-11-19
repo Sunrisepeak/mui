@@ -22,6 +22,8 @@ Runtime generation as an application ships (D-144, convergence plan W5): interfa
 
 A draft goes through stages, each asked for and each readable — draft → validated → prepared → previewed → committed. A commit is a version of its surface that undo takes back; versions are kept on disk and checked again when the application starts. How open it is (off, data, limited, all) is the developer's in `omui.config.ts`, narrowed by the user's settings and the session (openas). `:a2ui` reads A2UI's server messages as one input format: a stream's surfaces drafted and committed as they come.
 
+The design is shown in place too (G8, D-253): an application that ships a replay of how it was designed (`replay@1`, which `design.history.export` writes; `omui.config.ts`'s `generation.replay` names it) plays it in itself — `generate.replay` plays, pauses, goes to a step and stops; each step's scripts run as an edit runs, under the step's caption, who made it and a line of how far it has come (`Replayer`, the slot `generate.replay`), and at the end, or stopped, the application is as it ships. It is the application's own, shown whatever generation's openness.
+
 Its operations are the `generate.*` catalog, [omui.agent's generate.ops.xdef.ts](../agent/generate.ops.xdef.ts) (the catalogs an application's endpoint describes live there, beside the protocol's and Live Design's); `Generation` implements them on an application's runtime.
 
 Part of the SDK (`src/generate/`, module `omui.generate`), not of [omui.agent](../agent): generation takes view documents ([omui.viewdoc](../viewdoc)); the endpoint takes none. Held together they made the endpoint depend on documents and documents' tests on the endpoint (red list 44).

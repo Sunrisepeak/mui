@@ -29,6 +29,7 @@ import omui.viewdoc;
 import omui.agent;  // the protocol's types, background tasks
 import mlibs.compose;
 import :a2ui;
+import :replay;
 
 export namespace omui::generate {
 
@@ -95,6 +96,14 @@ struct GenerationOptions {
     // Where a draft asked for in the background runs (generate.draft
     // {background}): the application's task broker. None: drafts are made at once.
     TaskBroker* tasks = nullptr;
+    // The design shown in place (G8, D-253; generate.replay): how the application was designed — a replay
+    // (mlibs.agent's replay@1, which design.history.export writes) the developer ships — played in it, each
+    // step's texts run by `show` in place of its scripts', `restore` its own again. It is the application's own,
+    // shown whatever generation's openness. Empty: generate.replay says it ships none, and how to.
+    std::string           replay;       // the replay's text
+    std::string           replay_file;  // its name, in problems
+    ShowTextsFn           show;
+    std::function<void()> restore;
 };
 
 // Registers the generate.* verbs with the runtime for as long as it lives.

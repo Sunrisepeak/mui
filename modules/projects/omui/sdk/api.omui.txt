@@ -20,6 +20,7 @@ export import :agent_guide;
 == omui.generate
 export import :generation;
 export import :a2ui;
+export import :replay;
 == omui.generate:a2ui
 namespace omui::generate {
   class A2uiReader {
@@ -63,6 +64,10 @@ namespace omui::generate {
     std::function<std::optional<std::string>(std::string_view name)> read_kept;
     std::function<std::expected<void, std::string>(std::string_view name, std::string_view text)> write_kept;
     TaskBroker* tasks = nullptr;
+    std::string replay;
+    std::string replay_file;
+    ShowTextsFn show;
+    std::function<void()> restore;
   };
   class Generation {
     Generation(Runtime& runtime, GenerationOptions options);
@@ -93,6 +98,25 @@ namespace omui::generate {
   };
   inline constexpr mlibs::compose::Slot<GenerationService> generation_slot{…};
   void install();
+}
+== omui.generate:replay
+namespace omui::generate {
+  using ShowTextsFn = std::function<std::expected<void, std::string>(const std::map<std::string, std::string>& texts)>;
+  class Replayer {
+    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore);
+    ~Replayer();
+    Replayer(const Replayer&) = delete;
+    Replayer& operator=(const Replayer&) = delete;
+    std::expected<void, std::string> play(std::size_t from = 1, double speed = 1);
+    void pause();
+    std::expected<void, std::string> at(std::size_t step);
+    void stop();
+    [[nodiscard]] Value state() const;
+    [[nodiscard]] std::size_t step() const noexcept;
+    [[nodiscard]] bool playing() const noexcept;
+    [[nodiscard]] const mlibs::agent::Replay& replay() const noexcept;
+    static constexpr std::string_view slot = "generate.replay";
+  };
 }
 == omui:agent_guide
 namespace omui {

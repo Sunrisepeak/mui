@@ -1,0 +1,29 @@
+== omui.designer
+export import :history_verbs;
+export import :view_sources;
+== omui.designer:history_verbs
+namespace omui::designer {
+  class DesignSources {
+    virtual ~DesignSources() = default;
+    [[nodiscard]] virtual std::map<std::string, std::string> texts() = 0;
+    virtual std::expected<Value, std::string> apply(const std::map<std::string, std::string>& texts, Runtime::DesignPresentation::Kind kind) = 0;
+    [[nodiscard]] virtual std::string tree_hash() = 0;
+  };
+  [[nodiscard]] Value commit_value(const mlibs::agent::Commit& commit);
+  [[nodiscard]] Value changed_lines(std::string_view before, std::string_view after);
+  class HistoryVerbs {
+    HistoryVerbs(Runtime& runtime, mlibs::agent::History& history, DesignSources& sources) : rt(runtime), bridge(sources), operations(history, bridge, {…});
+    void add_to(const std::function<void(std::string_view, VerbFn)>& add);
+    [[nodiscard]] std::string shown_now() const;
+    void see(std::string commit = {…});
+  };
+}
+== omui.designer:view_sources
+namespace omui::designer {
+  class ViewSources final : public mlibs::agent::Sources {
+    explicit ViewSources(std::filesystem::path directory) : directory_(std::move(directory));
+    [[nodiscard]] std::map<std::string, std::string> texts() override;
+    std::expected<std::string, std::string> apply(const std::map<std::string, std::string>& texts, Reason reason) override;
+    [[nodiscard]] std::string state() override;
+  };
+}

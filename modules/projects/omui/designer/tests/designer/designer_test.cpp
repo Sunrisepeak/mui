@@ -12,6 +12,7 @@ import omui.semantic;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.image;
+import mlibs.agent;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mcpplibs.mtest;
@@ -652,6 +653,17 @@ static UTest cases{"designer", [] {
         const std::string kept = file_text(script_file);
         expect(kept.contains("\"keep\": false") && kept.contains("The end")) << "the edits kept when the script is written back";
         expect(file_text(out / "frames" / "00012.png") != file_text(out / "frames" / "00002.png")) << "the close-up differs from the whole window";
+
+        // The same script as the replay a release ships (G8): the steps it keeps, their words, times and texts.
+        const auto [exported, replay_answer] = invoke("design.history.export", Value{}.set("seconds", 0.3));
+        expect(eq(exported, 0) && replay_answer.get("steps")->as_int() == 2) << replay_answer.json();
+        const auto replay = mlibs::agent::read_replay(file_text(dir / ".omui" / "design" / "main.replay.xdef.json"), "main.replay.xdef.json");
+        expect(fatal(replay.has_value())) << (replay ? "" : replay.error());
+        expect(eq(replay->subject, std::string("org.openmui.designer-film")) && eq(replay->steps.size(), std::size_t{2}));
+        expect(replay->steps[0].caption.starts_with("1/3 · a film") && eq(replay->steps[0].seconds, 0.3) && eq(replay->steps[0].actor, std::string("agent:designer")))
+            << replay->steps[0].caption;
+        expect(eq(replay->steps[1].caption, std::string("The end")) && eq(replay->steps[1].seconds, 1.0) && replay->steps[1].texts.at("logic/side.stub").contains("\"three\""));
+        expect(replay->steps[0].texts.at("logic/side.stub").contains("\"one\"")) << "each step the texts as they were then";
     };
 
     "a motion expected and measured in a twin: how long it took, how far it sprang past — a fact against the person's words; fixed, it holds"_test = [] {

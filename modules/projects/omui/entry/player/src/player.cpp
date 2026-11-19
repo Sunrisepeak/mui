@@ -67,13 +67,15 @@ player::TwinFn twins(const player::Manifest& manifest) {
 //   agent:  { development?: mode, release?: mode }   automatic, development, dual-user
 //   record: { development?: level, release?: level } off, errors, actions, interactions, full
 //   designer: whether the designer is linked — omui dev and omui build read it (the player runs what it was built with)
-//   generation: { open?: { development?, release? }, surfaces?: { slot: doc | { doc, kind: "view" | "theme" } }, components?, verbs? }
+//   generation: { open?: { development?, release? }, surfaces?: { slot: doc | { doc, kind: "view" | "theme" } }, components?, verbs?,
+//                 replay?: the design's replay (replay@1, design.history.export), played in place by generate.replay }
 struct Config {
     std::optional<std::string> development_agent, release_agent;
     std::optional<RecordLevel> development_record, release_record;
     std::optional<generate::Openness> development_generation, release_generation;
     std::vector<generate::Surface>    surfaces;
     std::vector<std::string>       components, verbs;
+    std::filesystem::path          replay;  // from the manifest's directory
 };
 
 std::expected<Config, std::string> read_config(const std::filesystem::path& base) {
@@ -127,6 +129,12 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
                 out.surfaces.push_back({slot, doc ? std::string(doc->as_string()) : std::string(),
                                         kind_name == "theme" ? generate::Surface::Kind::theme : generate::Surface::Kind::view});
             }
+        if (const Value* replay = generation->get("replay")) {
+            if (replay->type() != Value::Type::text || replay->as_string().empty())
+                return std::unexpected(std::format("{}: generation.replay is the design's replay, a path from here (\"design/main.replay.xdef.json\")", utf8(file)));
+            const std::string_view path = replay->as_string();
+            out.replay = std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(path.data()), path.size()));
+        }
         for (const auto& [list, into] : {std::pair{"components", &out.components}, std::pair{"verbs", &out.verbs}})
             if (const Value* names = generation->get(list); names && names->list())
                 for (const Value& name : *names->list()) into->push_back(std::string(name.as_string()));
@@ -294,7 +302,7 @@ int player_main(int argc, char** argv) {
     };
     // Interface generated while it runs (D-144): where omui.config.ts lets it in, as open as it says
     // — everything in development, nothing in a release unless said.
-    if (!config->surfaces.empty()) {
+    if (!config->surfaces.empty() || !config->replay.empty()) {
         const generate::Openness open = design ? config->development_generation.value_or(generate::Openness::all)
                                             : config->release_generation.value_or(generate::Openness::off);
         app.generation = generate::GenerationOptions{.openness = open,
@@ -304,6 +312,23 @@ int player_main(int argc, char** argv) {
                                                   .evaluate = generated_views(m->base),
                                                   .theme = customized(m->theme),
                                                   .directory = m->base / ".omui" / "generation"};
+        // The design shown in place (G8): the replay it ships, each step's texts run as an edit runs; at the end, or
+        // stopped, its own scripts again.
+        if (!config->replay.empty()) {
+            const std::filesystem::path file = m->base / config->replay;
+            std::ifstream in(file, std::ios::binary);
+            if (!in) std::println(std::cerr, "{}: generation.replay names no file here (design.history.export writes one)", utf8(file));
+            app.generation->replay.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+            app.generation->replay_file = utf8(config->replay);
+            app.generation->show = [&p](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
+                if (!p) return std::unexpected(std::string("the application's scripts are not running"));
+                if (auto shown = p->show(texts); !shown) return std::unexpected(shown.error().message);
+                return {};
+            };
+            app.generation->restore = [&p] {
+                if (p) (void)p->discard_edits();
+            };
+        }
         // On the Web a page's files do not outlive it: the versions are kept in the page's storage (the host's store,
         // localStorage), so the customization is there again when the page is opened again.
         if constexpr (mcpplibs::os::is_emscripten) {

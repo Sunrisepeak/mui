@@ -4,6 +4,7 @@ export import :endpoint;
 export import :envelope;
 export import :facts;
 export import :history;
+export import :replay;
 export import :host;
 export import :subject;
 == mlibs.agent:claims
@@ -245,6 +246,24 @@ namespace mlibs::agent {
   [[nodiscard]] std::string tool_name(std::string_view operation);
   [[nodiscard]] std::string mcp_reply(Session& session, std::string_view message, const McpServer& server = {…});
   int serve_mcp(Session& session, std::istream& in, std::ostream& out, const McpServer& server = {…});
+}
+== mlibs.agent:replay
+namespace mlibs::agent {
+  struct ReplayStep {
+    std::string caption;
+    std::string actor;
+    double seconds = 1.5;
+    std::map<std::string, std::string> texts;
+  };
+  struct Replay {
+    std::string doc;
+    std::string subject;
+    std::string branch;
+    std::vector<ReplayStep> steps;
+  };
+  inline constexpr std::string_view replay_format = "replay@1";
+  [[nodiscard]] std::expected<Replay, std::string> read_replay(std::string_view text, std::string_view file = "replay");
+  [[nodiscard]] std::string write_replay(const Replay& replay);
 }
 == mlibs.agent:subject
 namespace mlibs::agent {

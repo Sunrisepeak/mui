@@ -126,10 +126,11 @@ namespace omui::agent::design {
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_diff{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_history_merge{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_tag{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_history_export{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_expect{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_save_scenario{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_replay{…};
-  inline constexpr std::array<mlibs::control::CatalogEntry, 32> catalog{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 33> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
   inline constexpr std::string_view listing = R"…";
 }
@@ -189,8 +190,9 @@ namespace omui::agent::generate {
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_generate_keep{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_forget{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_import{…};
+  inline constexpr std::array<mlibs::control::Parameter, 6> parameters_generate_replay{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_discard{…};
-  inline constexpr std::array<mlibs::control::CatalogEntry, 15> catalog{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 16> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
   inline constexpr std::string_view listing = R"…";
 }

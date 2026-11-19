@@ -76,6 +76,9 @@ export interface Generation {
     /** What "limited" lets a draft use. */
     components?: string[];
     verbs?: string[];
+    /** The design shown in place (generate.replay): how the application was designed, as the replay design.history.export
+     *  writes (`"design/main.replay.xdef.json"`, from here), each step played in it under its caption. */
+    replay?: string;
 }
 export interface Config {
     agent?: ByMode<AgentMode>;

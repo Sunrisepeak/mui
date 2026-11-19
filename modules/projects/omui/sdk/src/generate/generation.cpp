@@ -8,6 +8,7 @@ import omui.view;
 import omui.semantic;
 import omui.viewdoc;
 import omui.agent;
+import mlibs.agent;
 import mlibs.base64;
 import mlibs.control;
 import mcpplibs.os;
@@ -116,6 +117,8 @@ struct Generation::Impl {
     std::deque<Value>            actions;
     std::int64_t                 next_action = 1;
     A2uiReader                   a2ui;  // an A2UI stream's surfaces, between calls
+    std::unique_ptr<Replayer>    replayer;        // the design shown in place, when the application ships a replay
+    std::string                  replay_problem;  // why the replay it names is not there to play
 
     Impl(Runtime& rt, GenerationOptions given) : runtime(rt), options(std::move(given)) {
         for (const Surface& surface : options.surfaces) surfaces.try_emplace(surface.name);
@@ -738,6 +741,43 @@ struct Generation::Impl {
         return Value{}.set("piece", name).set("forgotten", true);
     }
 
+    // ── the design shown in place (generate.replay) ──
+    void read_replay() {
+        if (options.replay.empty()) return;
+        auto read = mlibs::agent::read_replay(options.replay, options.replay_file.empty() ? "replay" : options.replay_file);
+        if (!read) {
+            replay_problem = std::format("the replay this application ships does not read: {}", read.error());
+            return;
+        }
+        replayer = std::make_unique<Replayer>(runtime, std::move(*read), options.show, options.restore);
+    }
+
+    VerbResult replay(const Value& args) {
+        if (!replayer)
+            return std::unexpected(!replay_problem.empty() ? replay_problem
+                                                           : std::string("this application ships no replay of its design: design.history.export writes one from "
+                                                                         "the design's history, and omui.config.ts's generation.replay names it"));
+        const auto flag = [&](std::string_view key) { return args.get(key) && args.get(key)->as_bool(); };
+        const auto step_arg = [&](std::string_view key) -> std::optional<std::size_t> {
+            const Value* given = args.get(key);
+            if (!given || !given->is_number() || given->as_double() < 1) return std::nullopt;
+            return static_cast<std::size_t>(given->as_int());
+        };
+        if (flag("stop")) replayer->stop();
+        else if (flag("pause")) replayer->pause();
+        else if (args.get("at")) {
+            const auto step = step_arg("at");
+            if (!step) return std::unexpected(std::format("`at` is a step, 1 … {}", replayer->replay().steps.size()));
+            if (auto shown = replayer->at(*step); !shown) return std::unexpected(shown.error());
+        } else if (flag("play") || args.get("from")) {
+            const auto from = args.get("from") ? step_arg("from") : std::optional<std::size_t>(std::max<std::size_t>(1, replayer->step()));
+            if (!from) return std::unexpected(std::format("`from` is a step, 1 … {}", replayer->replay().steps.size()));
+            const Value* speed = args.get("speed");
+            if (auto played = replayer->play(*from, speed && speed->is_number() ? speed->as_double() : 1.0); !played) return std::unexpected(played.error());
+        }
+        return replayer->state();
+    }
+
     Value drafts_value() const {
         Value::List list;
         for (const auto& [id, draft] : drafts)
@@ -749,6 +789,7 @@ struct Generation::Impl {
 Generation::Generation(Runtime& runtime, GenerationOptions options) : impl_(std::make_shared<Impl>(runtime, std::move(options))) {
     impl_->restart(impl_);
     impl_->read_pieces();
+    impl_->read_replay();
     const auto add = [&](std::string_view name, VerbFn fn) {
         const auto entry = std::ranges::find(agent::generate::catalog, name, [](const auto& op) { return op.operation.name; });
         if (entry == agent::generate::catalog.end()) return;
@@ -769,6 +810,7 @@ Generation::Generation(Runtime& runtime, GenerationOptions options) : impl_(std:
     add("generate.forget", [this](const Value& args) { return forget(args); });
     add("generate.export", [this](const Value&) -> VerbResult { return export_layer(); });
     add("generate.import", [this](const Value& args) { return import_layer(args); });
+    add("generate.replay", [this](const Value& args) { return impl_->replay(args); });
 }
 
 Generation::~Generation() {

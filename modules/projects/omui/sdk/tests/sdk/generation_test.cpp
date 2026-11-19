@@ -7,6 +7,7 @@ import omui.agent;
 import omui.generate;
 import omui.viewdoc;
 import omui.ui.base;
+import mlibs.agent;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -221,6 +222,98 @@ static UTest cases{"generation", [] {
             expect(again.shows("Pro, 9 a month") && same(again.rt.theme().color("accent"), Color::hex(0x7c3aed))) << "the same customization";
             expect(eq(invoke(protocol, "generate.export").data.json(), layer.json())) << "exported again: the same layer";
         }
+    };
+
+    "the design shown in place (G8): the replay it ships played in it, each step under its caption and who made it, as it ships at the end"_test = [] {
+        Page page;
+        mlibs::agent::Replay replay{.doc = "How the plan page was designed", .subject = "org.example.plan", .branch = "main"};
+        replay.steps.push_back({.caption = "1/3 · the plan", .actor = "agent:designer", .seconds = 1, .texts = {{"app/main.ts", "Basic plan"}}});
+        replay.steps.push_back({.caption = "2/3 · its price", .actor = "agent:designer", .seconds = 1, .texts = {{"app/main.ts", "Basic plan · $4"}}});
+        replay.steps.push_back({.caption = "3/3 · in the person's words", .actor = "person:developer", .seconds = 1, .texts = {{"app/main.ts", "Your plan · $4"}}});
+        // A stand-in for the player: a step's script is the plan's words; the application ships the last.
+        std::vector<std::string> ran;
+        const auto words = [&](std::string_view said) { page.rt.mount("main", text({.id = "plan", .text = std::string(said)})); };
+        generate::Generation generation(page.rt, {.openness = generate::Openness::off,
+                                                  .replay = mlibs::agent::write_replay(replay),
+                                                  .replay_file = "plan.replay.xdef.json",
+                                                  .show = [&](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
+                                                      ran.push_back(texts.at("app/main.ts"));
+                                                      words(texts.at("app/main.ts"));
+                                                      return {};
+                                                  },
+                                                  .restore = [&] {
+                                                      ran.push_back("as it ships");
+                                                      words("Your plan · $4");
+                                                  }});
+        agent::Protocol protocol(page.rt, {.capture = page.capture()});
+        // What is on screen now, without time moving on.
+        const auto on_screen = [&](std::string_view name) {
+            (void)page.rt.frame({page.rt.now(), {}});
+            const semantic::Snapshot now = semantic::Tree(page.rt).snapshot({});
+            return std::ranges::any_of(now.nodes, [&](const spec::SemanticNode& node) { return node.name == name; });
+        };
+        const auto later = [&](double by) { (void)page.rt.frame({page.rt.now() + seconds(by), {}}); };
+
+        const Answer listed = invoke(protocol, "generate.replay");
+        expect(eq(listed.exit, 0) && eq(listed.data.get("steps")->list()->size(), std::size_t{3}) && eq(listed.data.get("at")->as_int(), std::int64_t{0}))
+            << listed.error << listed.data.json();
+        expect(eq(invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", card("x"))).exit, 1)) << "generation is off; the replay is the application's own";
+
+        const Answer playing = invoke(protocol, "generate.replay", Value{}.set("play", true));
+        expect(eq(playing.exit, 0) && eq(playing.data.get("at")->as_int(), std::int64_t{1}) && playing.data.get("playing")->as_bool()) << playing.error;
+        expect(on_screen("Basic plan") && on_screen("1/3 · the plan") && on_screen("designer · agent")) << "the first step, under its caption and who made it";
+        later(1.05);
+        expect(on_screen("Basic plan · $4") && on_screen("2/3 · its price")) << "the next once its time is up";
+        later(1.05);
+        expect(on_screen("Your plan · $4") && on_screen("developer · person"));
+        later(1.05);
+        const Answer ended = invoke(protocol, "generate.replay");
+        expect(eq(ended.data.get("at")->as_int(), std::int64_t{0}) && ended.data.get("ended")->as_bool() && !ended.data.get("playing")->as_bool()) << ended.data.json();
+        expect(!on_screen("3/3 · in the person's words") && on_screen("Your plan · $4")) << "as it ships, the caption gone";
+        expect(eq(ran, std::vector<std::string>{"Basic plan", "Basic plan · $4", "Your plan · $4", "as it ships"}));
+
+        // A step gone to stays; pause holds it; stop is the application as it ships.
+        const Answer second = invoke(protocol, "generate.replay", Value{}.set("at", 2));
+        expect(eq(second.exit, 0) && !second.data.get("playing")->as_bool() && on_screen("Basic plan · $4")) << second.error;
+        later(5);
+        expect(on_screen("Basic plan · $4") && on_screen("2/3 · its price")) << "it stays there";
+        const Answer out_of_range = invoke(protocol, "generate.replay", Value{}.set("at", 9));
+        expect(eq(out_of_range.exit, 1) && out_of_range.error.contains("1 … 3")) << out_of_range.error;
+        (void)invoke(protocol, "generate.replay", Value{}.set("play", true).set("speed", 4));
+        later(0.3);
+        expect(on_screen("Your plan · $4")) << "four times as fast: a quarter of a second each";
+        (void)invoke(protocol, "generate.replay", Value{}.set("stop", true));
+        expect(!on_screen("3/3 · in the person's words") && on_screen("Your plan · $4") && eq(ran.back(), std::string("as it ships")));
+    };
+
+    "a replay that does not read: said, at its place in its file"_test = [] {
+        Page page;
+        generate::Generation unread(page.rt, {.replay = R"({"$format": "replay@1", "replay": {"texts": {}, "steps": []}})", .replay_file = "plan.replay.xdef.json"});
+        agent::Protocol protocol(page.rt, {.capture = page.capture()});
+        const Answer refused = invoke(protocol, "generate.replay");
+        expect(eq(refused.exit, 1) && refused.error.contains("plan.replay.xdef.json") && refused.error.contains("/replay/steps")) << refused.error;
+    };
+
+    "a step that does not run stops the replay where it is, says why, and the application is as it ships"_test = [] {
+        Page page;
+        mlibs::agent::Replay replay{.subject = "org.example.plan"};
+        replay.steps.push_back({.caption = "1/2 · the plan", .actor = "agent:designer", .seconds = 1, .texts = {{"app/main.ts", "Basic plan"}}});
+        replay.steps.push_back({.caption = "2/2 · broken", .actor = "agent:designer", .seconds = 1, .texts = {{"app/main.ts", "broken"}}});
+        bool restored = false;
+        generate::Generation generation(page.rt, {.replay = mlibs::agent::write_replay(replay),
+                                                  .show = [&](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
+                                                      if (texts.at("app/main.ts") == "broken") return std::unexpected(std::string("app/main.ts:1:1: does not run"));
+                                                      return {};
+                                                  },
+                                                  .restore = [&] { restored = true; }});
+        agent::Protocol protocol(page.rt, {.capture = page.capture()});
+        expect(eq(invoke(protocol, "generate.replay", Value{}.set("play", true)).exit, 0));
+        (void)page.rt.frame({page.rt.now() + seconds(1.05), {}});
+        const Answer state = invoke(protocol, "generate.replay");
+        expect(eq(state.data.get("at")->as_int(), std::int64_t{0}) && restored && state.data.get("problem")->as_string().contains("step 2: app/main.ts:1:1"))
+            << state.data.json();
+        const Answer refused = invoke(protocol, "generate.replay", Value{}.set("at", 2));
+        expect(eq(refused.exit, 1) && refused.error.contains("does not run")) << refused.error;
     };
 
     "data: a view document drafted and prepared, previewed with nothing left of it, committed as versions undo takes back"_test = [] {

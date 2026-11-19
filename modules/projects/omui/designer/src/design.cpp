@@ -480,49 +480,50 @@ private:
         return made;
     }
 
-    // The design's history as a film (D-151 §2.14, 设计回放成为作品): a
-    // branch's commits from its first, each run in an unseen twin of the
-    // application as a design edit runs (its presentation: written in,
-    // unwritten, springing) under a caption saying what the step was, drawn
-    // frame by frame; the frames (PNG) and a video description beside them,
-    // which the video toolkit renders to a WebM (`omui design film`, or `video render`).
-    std::expected<Value, std::string> film(const Value& args) {
-        const std::string branch(args.get("branch") ? args.get("branch")->as_string() : history.head_branch());
-        auto commits = history.log(branch, 1000);
-        if (commits.empty()) return std::unexpected(std::format("`{}` has no commits to film (design.history.commit, or every design step, makes them)", branch));
-        std::ranges::reverse(commits);
-        const auto number = [&](const Value& from, std::string_view key, double fallback, double low, double high) {
-            const Value* given = from.get(key);
-            return std::clamp(given && given->is_number() ? given->as_double() : fallback, low, high);
-        };
-        const auto path_of = [](std::string_view text) { return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size())); };
-        const std::string out_text(args.get("out") ? args.get("out")->as_string() : std::string());
-        const std::filesystem::path out = out_text.empty() ? history.directory() / "film" / branch : path_of(out_text);
+    // A branch's steps as its film's script says them (D-151: a replay is edited — its pace, its shots, its words):
+    // what the person or an agent changed in it is followed, a step it does not name yet is added as it would be
+    // filmed, and the merged script written back, for the next edit. The film plays it frame by frame; the replay a
+    // release ships (design.history.export) plays it in place.
+    struct Shot {
+        std::string                commit;
+        std::string                caption;
+        double                     seconds = 1.5;
+        bool                       keep = true;
+        std::optional<std::string> node;  // the camera on what was built there, framed
+        std::optional<Rect>        rect;  // or on a region of the window
+    };
+    struct Script {
+        std::string                       branch;
+        std::vector<mlibs::agent::Commit> commits;  // oldest first, one a shot
+        std::vector<Shot>                 shots;
+        int                               fps = 30;
+        std::filesystem::path             file;
+    };
+    static std::filesystem::path path_of(std::string_view text) { return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size())); }
+    static double number_of(const Value& from, std::string_view key, double fallback, double low, double high) {
+        const Value* given = from.get(key);
+        return std::clamp(given && given->is_number() ? given->as_double() : fallback, low, high);
+    }
 
-        // The film's script (D-151: a replay is edited — its pace, its shots, its words): what the
-        // person or an agent changed in it is followed, a step it does not name yet is added as it
-        // would be filmed, and the merged script written back, for the next edit.
+    std::expected<Script, std::string> script_of(const Value& args) {
+        Script made;
+        made.branch = std::string(args.get("branch") ? args.get("branch")->as_string() : history.head_branch());
+        made.commits = history.log(made.branch, 1000);
+        if (made.commits.empty()) return std::unexpected(std::format("`{}` has no commits (design.history.commit, or every design step, makes them)", made.branch));
+        std::ranges::reverse(made.commits);
         const std::string script_text(args.get("script") ? args.get("script")->as_string() : std::string());
-        const std::filesystem::path script_file = script_text.empty() ? history.directory() / "film" / std::format("{}.film.xdef.json", branch) : path_of(script_text);
+        made.file = script_text.empty() ? history.directory() / "film" / std::format("{}.film.xdef.json", made.branch) : path_of(script_text);
         Value script(Value::Map{});
-        if (std::ifstream in{script_file, std::ios::binary}) {
+        if (std::ifstream in{made.file, std::ios::binary}) {
             const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
             auto read = parse_json(text);
-            if (!read) return std::unexpected(std::format("{}:{}", generic_utf8(script_file), read.error().text()));
+            if (!read) return std::unexpected(std::format("{}:{}", generic_utf8(made.file), read.error().text()));
             if (const Value* film = read->get("film")) script = *film;
         }
-        const int fps = static_cast<int>(number(script.get("fps") ? script : args, "fps", 30, 1, 60));
-        const double each = number(args, "seconds", 1.5, 0.2, 10);
-        struct Shot {
-            std::string                commit;
-            std::string                caption;
-            double                     seconds = 1.5;
-            bool                       keep = true;
-            std::optional<std::string> node;  // the camera on what was built there, framed
-            std::optional<Rect>        rect;  // or on a region of the window
-        };
-        std::vector<Shot> shots;
+        made.fps = static_cast<int>(number_of(script.get("fps") ? script : args, "fps", 30, 1, 60));
+        const double each = number_of(args, "seconds", 1.5, 0.2, 10);
         const Value::List* written = script.get("steps") ? script.get("steps")->list() : nullptr;
+        const auto& commits = made.commits;
         for (std::size_t index = 0; index < commits.size(); ++index) {
             // What the step did (the session's intent, which every step's message begins with, said once by the first).
             std::string_view said = commits[index].message;
@@ -533,7 +534,7 @@ private:
                     const std::string_view named = step.get("commit") ? step.get("commit")->as_string() : std::string_view{};
                     if (named.size() < 7 || !commits[index].id.starts_with(named)) continue;
                     if (const Value* caption = step.get("caption"); caption && caption->type() == Value::Type::text) shot.caption = caption->as_string();
-                    shot.seconds = number(step, "seconds", each, 0.1, 30);
+                    shot.seconds = number_of(step, "seconds", each, 0.1, 30);
                     if (const Value* keep = step.get("keep")) shot.keep = keep->as_bool(true);
                     if (const Value* camera = step.get("camera"); camera && camera->map()) {
                         if (const Value* node = camera->get("node")) shot.node = std::string(node->as_string());
@@ -545,27 +546,77 @@ private:
                     }
                     break;
                 }
-            shots.push_back(std::move(shot));
+            made.shots.push_back(std::move(shot));
         }
-        {
-            Value::List steps;
-            for (const Shot& shot : shots) {
-                Value camera;  // null: the whole window
-                if (shot.node) camera = Value{}.set("node", *shot.node);
-                else if (shot.rect) camera = Value{}.set("rect", Value(Value::List{Value(shot.rect->x), Value(shot.rect->y), Value(shot.rect->width), Value(shot.rect->height)}));
-                steps.push_back(Value{}.set("commit", shot.commit.substr(0, 12)).set("caption", shot.caption).set("seconds", shot.seconds).set("keep", shot.keep).set("camera", camera));
-            }
-            const Value written_back = Value(Value::Map{})
-                                           .set("doc", "The film of a design branch, one step a commit: its caption, its time on screen, whether it is kept, and a camera "
-                                                       "(null: the whole window; {node: a path}: what was built there, framed; {rect: [x, y, width, height]}). "
-                                                       "Edit it and film again (design.film).")
-                                           .set("branch", branch)
-                                           .set("fps", fps)
-                                           .set("steps", Value(std::move(steps)));
-            std::error_code made;
-            std::filesystem::create_directories(script_file.parent_path(), made);
-            std::ofstream(script_file, std::ios::binary) << indented_json(Value(Value::Map{}).set("film", written_back));
+        Value::List steps;
+        for (const Shot& shot : made.shots) {
+            Value camera;  // null: the whole window
+            if (shot.node) camera = Value{}.set("node", *shot.node);
+            else if (shot.rect) camera = Value{}.set("rect", Value(Value::List{Value(shot.rect->x), Value(shot.rect->y), Value(shot.rect->width), Value(shot.rect->height)}));
+            steps.push_back(Value{}.set("commit", shot.commit.substr(0, 12)).set("caption", shot.caption).set("seconds", shot.seconds).set("keep", shot.keep).set("camera", camera));
         }
+        const Value written_back = Value(Value::Map{})
+                                       .set("doc", "The film of a design branch, one step a commit: its caption, its time on screen, whether it is kept, and a camera "
+                                                   "(null: the whole window; {node: a path}: what was built there, framed; {rect: [x, y, width, height]}). "
+                                                   "Edit it and film again (design.film), or export the replay again (design.history.export).")
+                                       .set("branch", made.branch)
+                                       .set("fps", made.fps)
+                                       .set("steps", Value(std::move(steps)));
+        std::error_code error;
+        std::filesystem::create_directories(made.file.parent_path(), error);
+        std::ofstream(made.file, std::ios::binary) << indented_json(Value(Value::Map{}).set("film", written_back));
+        return made;
+    }
+
+    // The design's history as the replay a release ships (G8, D-253; mlibs.agent's replay@1): the steps the film's
+    // script keeps, each with every source's text then, its caption, who made it and its time on screen — what
+    // generate.replay plays in place, in the application as it ships.
+    std::expected<Value, std::string> export_replay(const Value& args) {
+        auto script = script_of(args);
+        if (!script) return std::unexpected(script.error());
+        mlibs::agent::Replay replay{.doc = std::format("How {} was designed, step by step, on {}.", player.manifest().title.empty() ? player.manifest().id : player.manifest().title,
+                                                       script->branch),
+                                    .subject = player.manifest().id,
+                                    .branch = script->branch};
+        for (std::size_t index = 0; index < script->shots.size(); ++index) {
+            const Shot& shot = script->shots[index];
+            if (!shot.keep) continue;
+            auto texts = history.texts_of(shot.commit);
+            if (!texts) return std::unexpected(texts.error());
+            replay.steps.push_back({.caption = shot.caption, .actor = script->commits[index].actor, .seconds = shot.seconds, .texts = std::move(*texts)});
+        }
+        if (replay.steps.empty()) return std::unexpected(std::format("the film's script keeps no step of `{}` ({})", script->branch, generic_utf8(script->file)));
+        const std::string out_text(args.get("out") ? args.get("out")->as_string() : std::string());
+        const std::filesystem::path out = out_text.empty() ? history.directory() / std::format("{}.replay.xdef.json", script->branch) : path_of(out_text);
+        const std::string text = mlibs::agent::write_replay(replay);
+        std::error_code error;
+        if (out.has_parent_path()) std::filesystem::create_directories(out.parent_path(), error);
+        std::ofstream(out, std::ios::binary) << text;
+        if (!std::filesystem::exists(out)) return std::unexpected(std::format("{}: not written", generic_utf8(out)));
+        return Value{}
+            .set("replay", generic_utf8(out))
+            .set("branch", script->branch)
+            .set("steps", static_cast<std::int64_t>(replay.steps.size()))
+            .set("bytes", static_cast<std::int64_t>(text.size()))
+            .set("script", generic_utf8(script->file));
+    }
+
+    // The design's history as a film (D-151 §2.14, 设计回放成为作品): a
+    // branch's commits from its first, each run in an unseen twin of the
+    // application as a design edit runs (its presentation: written in,
+    // unwritten, springing) under a caption saying what the step was, drawn
+    // frame by frame; the frames (PNG) and a video description beside them,
+    // which the video toolkit renders to a WebM (`omui design film`, or `video render`).
+    std::expected<Value, std::string> film(const Value& args) {
+        auto script = script_of(args);
+        if (!script) return std::unexpected(script.error());
+        const std::string& branch = script->branch;
+        const auto& commits = script->commits;
+        const auto& shots = script->shots;
+        const int fps = script->fps;
+        const std::filesystem::path& script_file = script->file;
+        const std::string out_text(args.get("out") ? args.get("out")->as_string() : std::string());
+        const std::filesystem::path out = out_text.empty() ? history.directory() / "film" / branch : path_of(out_text);
 
         std::error_code error;
         std::filesystem::remove_all(out / "frames", error);
@@ -900,6 +951,7 @@ private:
             return Value{}.set("intent", intent).set("branch", history.head_branch()).set("commit", start ? Value(start->id) : Value{});
         });
         add("design.film", [this](const Value& args) -> VerbResult { return film(args); });
+        add("design.history.export", [this](const Value& args) -> VerbResult { return export_replay(args); });
         add("design.timeline", [this](const Value& args) -> VerbResult {
             std::size_t pictured = 0;
             if (args.get("pictures") && args.get("pictures")->as_bool()) pictured = picture_commits(12);

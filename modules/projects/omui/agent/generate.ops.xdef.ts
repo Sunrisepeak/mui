@@ -159,6 +159,22 @@ export default defineOps({
       undo: "ui.undo, a surface at a time (the version each showed before)",
     },
     {
+      name: "generate.replay",
+      effect: "reversible",
+      summary: "The design shown in place (D-253): how the application was designed, as the replay it ships (replay@1, from the design's history), played in it — each step the scripts as they were then, run as an edit runs, under the step's caption and who made it; at the end the application as it ships again. Without arguments: the steps and where it is (`at` 0: as it ships)",
+      params: [
+        { name: "play", type: "bool", doc: "play on from the step shown (the first when none)", optional: true },
+        { name: "from", type: "integer", doc: "play from this step (1 …)", optional: true },
+        { name: "speed", type: "number", doc: "each step's time divided by this, ¼ to 4 (default 1)", optional: true },
+        { name: "pause", type: "bool", doc: "stay at the step shown", optional: true },
+        { name: "at", type: "integer", doc: "show this step (1 …) and stay there", optional: true },
+        { name: "stop", type: "bool", doc: "the application as it ships again", optional: true },
+      ],
+      result: "json",
+      cost: "instant",
+      undo: "generate.replay {stop: true}",
+    },
+    {
       name: "generate.discard",
       effect: "reversible",
       summary: "A draft let go: nothing shown changes",

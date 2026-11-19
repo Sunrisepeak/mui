@@ -292,6 +292,20 @@ export default defineOps({
       undo: "none: a tag is a name for a commit; it changes no design",
     },
     {
+      name: "design.history.export",
+      effect: "reversible",
+      summary: "The design's history as the replay a release ships (replay@1, D-253): a branch's steps the film's script keeps, each with every source's text then, its caption, who made it and its time on screen — what generate.replay plays in place in the application as it ships (omui.config.ts's generation.replay names the file)",
+      params: [
+        { name: "branch", type: "string", doc: "whose commits (the one designed on when absent)", optional: true },
+        { name: "out", type: "path", doc: "the file (.omui/design/<branch>.replay.xdef.json)", optional: true },
+        { name: "seconds", type: "number", doc: "a step's time on screen where the script does not say, 0.2 … 10 (1.5)", optional: true },
+        { name: "script", type: "path", doc: "the film's script, edited (.omui/design/film/<branch>.film.xdef.json)", optional: true },
+      ],
+      result: "json",
+      cost: "bounded",
+      undo: "delete the file it names",
+    },
+    {
       name: "design.expect",
       effect: "read",
       summary: "What the person expects, kept to check against: `say` in their words, and either `query` — the nodes it means (id, role, name, state, value …), `absent` when they must not be there — or `motion`: after an action, how a node moves (\"opens in 300–400 ms, springs at most 10%\"), measured in a twin. With neither, lists what is expected",

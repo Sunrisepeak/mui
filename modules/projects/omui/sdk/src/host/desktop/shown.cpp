@@ -57,8 +57,17 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
             return 1;
         }
         std::println(std::cerr, "first frame shown {:.1f} ms after the window was asked for", *first);
-        // --png FILE: the frame on screen, read back from the window (a headless run writes its own).
+        // --png FILE: the frame on screen, read back from the window (a headless run writes its own) — once what runs
+        // beside the runtime (scripts) is ready, as a headless run waits for it, within ten seconds; then its next
+        // frames drawn.
         if (!o.png.empty()) {
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            while (app.ready && !app.ready() && std::chrono::steady_clock::now() < until) {
+                if (!desktop.step(false)) break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            for (int settled = 0; settled < 3; ++settled)
+                if (!desktop.step(false)) break;
             auto png = desktop.runtime().capture_png();
             if (!png) {
                 error("--png: the window's frame: {}", png.error().message);

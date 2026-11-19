@@ -110,6 +110,7 @@ struct RuntimeRelease {
     bool pack = true;
     bool check = false;
     std::filesystem::path home;  // the check's xlings home (default: <out>/xlings, made with `xlings self init`)
+    std::filesystem::path omui;  // the check's `omui` command: `omui run` through the launcher (none: that step not run)
 };
 [[nodiscard]] int runtime(const std::filesystem::path& root, const RuntimeRelease& options);
 

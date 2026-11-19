@@ -261,7 +261,8 @@ cmd::App app() {
                                         .option(Option("version").takes_value().value_name("V").help("the version it ships as (default: the player's)"))
                                         .option(Option("no-pack").help("only the descriptor (and --check) from what is packed"))
                                         .option(Option("check").help("in an xlings home of its own: every version installed side by side; two applications from app-ts, one pinned to the oldest, started together each from its runtime and drawing; the way out a refusal gives, run; each package ≤ 100 KB (report: <out>/check.json)"))
-                                        .option(Option("home").takes_value().value_name("DIR").help("the check's xlings home (default: <out>/xlings, made with `xlings self init`)")))
+                                        .option(Option("home").takes_value().value_name("DIR").help("the check's xlings home (default: <out>/xlings, made with `xlings self init`)"))
+                                        .option(Option("omui").takes_value().value_name("FILE").help("the check also runs `omui run` with this omui command in the newest application, the launcher on PATH: it starts on its runtime")))
                         .subcommand(cmd::App("index")
                                         .description("The templates' closure, its mcpp-index descriptors written to a directory, and what blocks `mcpp publish`")
                                         .option(Option("out").takes_value().value_name("DIR").help("default: target/release/index"))
@@ -1578,7 +1579,8 @@ int main(int argc, char** argv) {
                                            .version = given.value("version").value_or(""),
                                            .pack = !given.is_flag_set("no-pack"),
                                            .check = given.is_flag_set("check"),
-                                           .home = mcpplibs::os::fs::from_utf8(given.value("home").value_or(""))});
+                                           .home = mcpplibs::os::fs::from_utf8(given.value("home").value_or("")),
+                                           .omui = mcpplibs::os::fs::from_utf8(given.value("omui").value_or(""))});
         }
         if (asked.subcommand_name() != "index") {
             std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--index DIR] | try [--template T] [--work DIR] [--tool DIR] | tool [--out DIR]\n";

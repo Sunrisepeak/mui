@@ -270,7 +270,41 @@ bool names_shipped_player(std::string_view manifest) {
     }
 }
 
+bool declares_runtime(std::string_view manifest) {
+    try {
+        const toml::table project = toml::parse(manifest);
+        return project["package"]["metadata"]["openmui"]["runtime"].as_table() != nullptr;
+    } catch (const toml::parse_error&) {
+        return false;
+    }
+}
+
 namespace {
+
+// The launcher an installed runtime puts on PATH (E3b), for an application of this release that declares its runtime:
+// whether one of the installed runtimes satisfies it (`omui-launch --which`), and when none does, what the launcher says
+// (why each does not, and the command that installs one).
+struct RuntimeLauncher {
+    std::filesystem::path program;
+    bool                  satisfied = false;
+    std::string           why;
+};
+
+std::optional<RuntimeLauncher> runtime_launcher() {
+    const std::string manifest = mcpplibs::os::fs::read("mcpp.toml").value_or("");
+    if (!names_shipped_player(manifest) || !declares_runtime(manifest)) return std::nullopt;
+    const auto found = mcpplibs::os::env::find_executable("omui-launch");
+    if (!found) return std::nullopt;
+    mcpplibs::os::process::spawn_options options;
+    options.program = *found;
+    options.args = {"--which", "."};
+    options.in = mcpplibs::os::process::stdio::null;
+    const auto said = mcpplibs::os::process::run(std::move(options), mcpplibs::os::process::bounds{.hard = std::chrono::seconds(20)});
+    if (!said) return std::nullopt;
+    RuntimeLauncher launcher{.program = *found, .satisfied = said->status.shell_code() == 0, .why = said->err};
+    while (!launcher.why.empty() && (launcher.why.back() == '\n' || launcher.why.back() == ' ')) launcher.why.pop_back();
+    return launcher;
+}
 
 // The player the omui tool ships beside itself (E2): built with the designer, at this release's version. A
 // TypeScript application whose player is this release's (`omui.entry.player = "0.1.0"`) runs through it — `omui new`
@@ -298,6 +332,21 @@ std::optional<std::filesystem::path> shipped_player() {
 // TypeScript application of this release runs through the player the tool ships (nothing built); a build compiles.
 int launch(std::string_view name, bool release, bool headless, std::vector<std::string> rest, bool json, std::ostream& out, std::ostream& err) {
     Ran ran;
+    // run: an application of this release that declares its runtime starts on the newest installed runtime that
+    // satisfies it, as on a user's machine (E3b); with none, on the tool's own player, saying how to install one. dev
+    // stays on the tool's player, which carries the designer.
+    if (name == "run" && scripted_project())
+        if (const auto launcher = runtime_launcher()) {
+            if (launcher->satisfied) {
+                std::vector<std::string> args{"."};
+                if (!rest.empty()) args.push_back("--");
+                std::ranges::move(rest, std::back_inserter(args));
+                ran = run_tool(mcpplibs::os::fs::utf8(launcher->program), std::move(args), err);
+                record(out, json, name, ran);
+                return ran.code;
+            }
+            err << std::format("omui run: no installed runtime satisfies this application; it runs on omui's own player.\n{}\n", launcher->why);
+        }
     const std::optional<std::filesystem::path> player = name != "build" && scripted_project() ? shipped_player() : std::nullopt;
     if (player) {
         const bool development = name == "dev";

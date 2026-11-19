@@ -384,6 +384,26 @@ int runtime(const fs::path& root, const RuntimeRelease& options) {
     }
     passed("drawn", {{"ink_pixels", drawn}});
 
+    // `omui run` (E3b): an application of this release that declares its runtime starts as on a user's machine — the
+    // omui command finds the launcher on PATH and the launcher the newest runtime that satisfies it.
+    if (!options.omui.empty()) {
+        auto with_path = session;
+        with_path.emplace_back("PATH", std::format("{}:{}", utf8(launcher.parent_path()), os::env::get("PATH").value_or("")));
+        const auto ran = run::program(root, utf8(fs::absolute(options.omui)), {"run", "--", "--runtime"},
+                                      {.cwd = apps / "second", .merged = true, .variables = with_path, .timeout = std::chrono::seconds(120)});
+        if (!ok(ran)) return failed("omui run", said(ran));
+        // The player's word (its runtime@1 line) among omui's own records.
+        fs::path directory;
+        for (const auto line : std::views::split(ran->out, '\n')) {
+            const json answer = json::parse(std::string_view(line.begin(), line.end()), nullptr, false);
+            if (!answer.is_discarded() && answer.is_object() && answer.value("$format", "") == "runtime@1")
+                directory = os::fs::from_utf8(answer["runtime"].value("directory", ""));
+        }
+        if (directory.empty() || !fs::equivalent(directory, places.at(newest), error))
+            return failed("omui run", std::format("second ran `{}`, not on {}'s runtime ({})", ran->out, newest, utf8(places.at(newest))));
+        passed("omui run", {{"second", utf8(places.at(newest))}});
+    }
+
     // The way out: the version `first` is pinned to removed, it is refused with a command; that command, run as it is
     // written, installs it again, and `first` starts.
     if (auto removed = with_xlings({"remove", std::format("{}@{}", package_name, oldest), "-y"}); !ok(removed)) return failed("way out", said(removed));

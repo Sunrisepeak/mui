@@ -57,6 +57,22 @@ static UTest cases{"cli.project", [] {
         expect(template_manifest && template_manifest->contains("omui.entry.player = \"{{self.version}}\"")) << "a new project's player is its release's";
     };
 
+    "an application that declares its runtime (E3b): omui run starts it through omui-launch when one is installed"_test = [] {
+        expect(omui::cli::declares_runtime("[package.metadata.openmui.runtime]\nopenmui = \"0.4\"\n")) << "the template's section";
+        expect(omui::cli::declares_runtime("[package]\nname = \"a\"\n[package.metadata.openmui]\nkind = \"app\"\nruntime = { openmui = \"0.4\" }\n"))
+            << "inline, the same table";
+        expect(!omui::cli::declares_runtime("[package.metadata.openmui]\nkind = \"app\"\n")) << "none declared: the tool's own player";
+        expect(!omui::cli::declares_runtime("[package.metadata.openmui]\nruntime = \"0.4\"\n")) << "not a table: not a declaration";
+        expect(!omui::cli::declares_runtime("not toml [")) << "no manifest";
+        const auto template_manifest = mcpplibs::os::fs::read(
+            std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path() / "../../sdk/templates/app-ts/mcpp.toml.in");
+        std::string made = template_manifest.value_or("");  // as `omui new` fills it
+        for (const auto& [placeholder, value] : {std::pair{std::string_view("{{project.name}}"), std::string_view("hello")},
+                                                 std::pair{std::string_view("{{self.version}}"), omui::cli::release_version}})
+            for (auto at = made.find(placeholder); at != std::string::npos; at = made.find(placeholder, at + value.size())) made.replace(at, placeholder.size(), value);
+        expect(omui::cli::declares_runtime(made) && omui::cli::names_shipped_player(made)) << "a new project declares the runtime it runs on";
+    };
+
     "omui doctor holds every example and showcase to its profile (D-207): the general rules, an app's, none found"_test = [] {
         const auto repository = (std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / ".." / ".." / ".." / ".." / ".." / "..").lexically_normal();
         if (!std::filesystem::exists(repository / "examples"))

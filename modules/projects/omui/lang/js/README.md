@@ -30,6 +30,8 @@ The ES module `openmui` provides:
 
 For the player: `javascript()` (`*.js`, `*.mjs`) and `typescript()` (`*.ts`, `*.mts`).
 
+**On the Web** (D-237) the page's own engine runs a script — no second engine in the program: `src/js/omui_script.js`, linked as an Emscripten library (`build.mcpp`), evaluates each module by the page's `import()` (its imports linked to the script's own `openmui` and `openmui:native/*`), and the program answers the same natives (`Natives`, the table QuickJS uses) as text. A run's future settles when the page's import does; the player collects it at a frame boundary, never waiting. A program that does wait (a test, a tool) calls `let_page_run()` between its looks, which lets the page run where the program is built to suspend (`-sASYNCIFY`); `reload_now` (Live Design's edits) waits so, about a millisecond a reload in headless Chromium, and is refused, with that reason, in a program that cannot suspend. A module told it changed is a module of its own on the page (the page knows a module by its text), so it is evaluated again as with QuickJS. `omui-devtools check browser` runs these cases in Chromium.
+
 **TypeScript** (D-139) runs as the JavaScript left when its types are blanked, in this process and on the Web, with no tool: [mlibs.ts](../../../../base/ts/README.md).
 
 The conformance scenarios (`spec/conformance/S`, CTS level S) run in JavaScript through `tests/cts.js`. It builds each view with the builders and the expression functions and does the steps through `act`, `invoke` and the rest. It must record the trace pinned beside each scenario.

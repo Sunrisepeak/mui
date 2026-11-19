@@ -1,0 +1,11 @@
+// On the Web, what a program with scripts needs at its link: the page's half of the script binding
+// (src/js/omui_script.js: the page's own engine runs the scripts, D-237) as an Emscripten library.
+import std;
+import mcpp;
+
+int main() {
+    mcpp::rerun_if_changed("src/js/omui_script.js");
+    if (std::string_view(mcpp::target_os()) == "emscripten")
+        mcpp::link_flag(std::format("--js-library={}/src/js/omui_script.js", mcpp::manifest_dir()).c_str());
+    return 0;
+}

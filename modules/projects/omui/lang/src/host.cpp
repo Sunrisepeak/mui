@@ -38,18 +38,22 @@ struct Host::Inbox {
         std::unique_lock lock(mutex);
         arrived.wait(lock, [&] { return !tasks.empty() || done(); });
     }
+    // Runs what is queued now, not what its tasks queue meanwhile (each has its own post): a task that looks again
+    // later (a run the page settles, one thread) waits for the next frame boundary instead of running again at once.
     void drain() {
-        while (true) {
-            std::function<void()> fn;
-            {
-                std::scoped_lock lock(mutex);
-                if (tasks.empty()) return;
-                fn = std::move(tasks.front());
-                tasks.pop_front();
-            }
+        std::deque<std::function<void()>> now;
+        {
+            std::scoped_lock lock(mutex);
+            now.swap(tasks);
+        }
+        for (std::function<void()>& fn : now) {
             fn();
             in_flight.fetch_sub(1);
         }
+    }
+    [[nodiscard]] bool empty() {
+        std::scoped_lock lock(mutex);
+        return tasks.empty();
     }
 };
 
@@ -105,7 +109,7 @@ Host::~Host() {
     thread_.request_stop();
     wake_.notify_all();
     if (thread_.joinable()) thread_.join();
-    inbox_->drain();  // nothing the script asked is left undone
+    while (!inbox_->empty()) inbox_->drain();  // nothing the script asked is left undone
     withdraw(inbox_id_);
 }
 

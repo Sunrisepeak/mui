@@ -16,6 +16,7 @@ namespace omui::lang::js {
     void on_error(std::function<void(std::string_view)> fn);
     struct Impl;
   };
+  bool let_page_run();
   [[nodiscard]] player::Language javascript();
   [[nodiscard]] player::Language typescript();
 }

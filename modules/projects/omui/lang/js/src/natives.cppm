@@ -70,4 +70,12 @@ private:
     std::vector<std::pair<std::uint64_t, int>> watches_;         // this run's watches (token, function)
 };
 
+// The `openmui` module's text, whichever engine runs it: the prelude and a builder for every component the runtime
+// has registered (its catalog; the prelude's own names win, its select being that component's builder too).
+[[nodiscard]] std::string openmui_module(Session& session);
+
+// `openmui:native/<name>`: a native module's functions, made from the catalogue (component-binding §8): `import {
+// fuzzy } from "openmui:native/fuzzy"`; nothing when the program registered no such module.
+[[nodiscard]] std::optional<std::string> native_module(Session& session, std::string_view module);
+
 }  // namespace omui::lang::js

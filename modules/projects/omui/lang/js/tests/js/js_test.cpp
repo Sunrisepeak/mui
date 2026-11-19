@@ -65,14 +65,14 @@ struct Runtime {
         for (int i = 0; i < 5000 && quiet < 3; ++i) {
             frame();
             quiet = host.idle() ? quiet + 1 : 0;
-            if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
+            (void)lang::js::let_page_run();  // the script thread's; on the Web the page's, its microtasks among them
         }
     }
     template <class T>
     T wait(const lang::Host& host, std::future<T> f) {
         while (f.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) {
             frame();
-            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            (void)lang::js::let_page_run();  // the script thread's, or the page's (the Web)
         }
         settle(host);
         return f.get();
@@ -313,7 +313,7 @@ p.then((best) => {
         for (int i = 0; i < 20000 && quiet < 3; ++i) {
             r.frame();
             quiet = js.session.idle() ? quiet + 1 : 0;
-            if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
+            (void)lang::js::let_page_run();  // the script thread's; on the Web the page's, its microtasks among them
         }
         const std::string outcome = invoke(r, "t.outcome", Json::object()).get<std::string>();
         expect(outcome.find("invalid-argument") != std::string::npos && outcome.find("`candidates[1]` is the number 3") != std::string::npos) << outcome;
@@ -553,7 +553,7 @@ mount("main", column({ gap: 8 }, [
             for (int frame = 0, quiet = 0; frame < 5000 && quiet < 3; ++frame) {
                 const bool moving = r.frame();
                 quiet = designer.idle() && !moving ? quiet + 1 : 0;
-                if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
+                (void)lang::js::let_page_run();  // the script thread's; on the Web the page's, its microtasks among them
             }
         };
         settle();
@@ -625,7 +625,7 @@ mount("main", column({ gap: 8 }, [
             const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
             while (!shown.idle() && std::chrono::steady_clock::now() < deadline) {
                 (void)twin.step();
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                (void)lang::js::let_page_run();  // the script thread's; on the Web the page's
             }
             twin.settle();
         };
@@ -710,7 +710,7 @@ verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
                         // And until what the interface shows has settled too.
                         const bool moving = r.frame();
                         quiet = js.session.idle() && !moving ? quiet + 1 : 0;
-                        if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
+                        (void)lang::js::let_page_run();  // the script thread's; on the Web the page's, its microtasks among them
                     }
                 });
             expect(js.errors.empty()) << (js.errors.empty() ? "" : scenario.name + ": " + js.errors[0]);

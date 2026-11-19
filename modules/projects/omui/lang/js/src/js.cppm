@@ -61,6 +61,12 @@ private:
     std::shared_ptr<Impl> impl_;  // shared with the runs queued for it (they find it gone, not freed)
 };
 
+// Lets the page run for a moment, where a script's JavaScript is the page's (the Web): what a program waiting for a run
+// (a test, a tool) calls between its looks at the run's future — the page's import() settles it. False where it cannot:
+// a program not built to suspend (-sASYNCIFY); the player never waits, it collects runs at its frame boundary.
+// Elsewhere a short sleep (the script thread runs it).
+bool let_page_run();
+
 // JavaScript for the player: `lang = "js"`, *.js and *.mjs.
 [[nodiscard]] player::Language javascript();
 // TypeScript for the player: `lang = "ts"`, *.ts and *.mts, its types

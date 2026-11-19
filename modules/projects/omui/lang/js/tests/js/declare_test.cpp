@@ -56,16 +56,22 @@ std::vector<fs::path> declared(const fs::path& root) {
 // a launcher may say things of its own on the other), "" when it passed;
 // nothing without tsc.
 std::optional<std::string> tsc(const fs::path& root) {
-    const auto program = mcpplibs::os::env::find_executable("tsc");
-    if (!program) return std::nullopt;
-    mcpplibs::os::process::spawn_options options;
-    options.program = *program;
-    options.args = {"-p", mcpplibs::os::fs::utf8(root / ".omui" / "types" / "tsconfig.json"), "--pretty", "false"};
-    options.cwd = root;
-    auto ran = mcpplibs::os::process::run(std::move(options));
-    if (!ran) return std::string("tsc did not start");
-    if (ran->status.shell_code() != 0 && ran->out.empty()) return std::format("tsc failed: {}", ran->err);
-    return ran->out;
+    // No program starts on the Web (no tsc there): this test program also runs in the page (check browser §1e), and
+    // the process unit is not linked into it.
+    if constexpr (mcpplibs::os::is_emscripten) {
+        return std::nullopt;
+    } else {
+        const auto program = mcpplibs::os::env::find_executable("tsc");
+        if (!program) return std::nullopt;
+        mcpplibs::os::process::spawn_options options;
+        options.program = *program;
+        options.args = {"-p", mcpplibs::os::fs::utf8(root / ".omui" / "types" / "tsconfig.json"), "--pretty", "false"};
+        options.cwd = root;
+        auto ran = mcpplibs::os::process::run(std::move(options));
+        if (!ran) return std::string("tsc did not start");
+        if (ran->status.shell_code() != 0 && ran->out.empty()) return std::format("tsc failed: {}", ran->err);
+        return ran->out;
+    }
 }
 
 }  // namespace

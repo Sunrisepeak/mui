@@ -634,8 +634,18 @@ Result<Json> Session::native(std::string_view module, std::string_view function,
 }
 
 void Session::native_async(std::string module, std::string function, Json args, std::function<void(Result<Json>)> done) {
-    if (!workers_) workers_ = std::make_unique<Workers>(std::clamp(std::thread::hardware_concurrency(), 1u, 4u));
     in_flight_->fetch_add(1);
+    if (!host_.threaded()) {
+        // No threads (the Web): the native runs where the script's posted work runs — at the next frame boundary, still
+        // after the call that asked for it has returned (a promise settles later, as it does with a worker).
+        host_.post([this, alive = std::weak_ptr<bool>(alive_), in_flight = in_flight_, module = std::move(module), function = std::move(function),
+                    args = std::move(args), done = std::move(done)]() mutable {
+            if (auto live = alive.lock(); live && *live) done(native(module, function, args));
+            in_flight->fetch_sub(1);
+        });
+        return;
+    }
+    if (!workers_) workers_ = std::make_unique<Workers>(std::clamp(std::thread::hardware_concurrency(), 1u, 4u));
     workers_->push([this, alive = std::weak_ptr<bool>(alive_), in_flight = in_flight_, module = std::move(module), function = std::move(function),
                     args = std::move(args), done = std::move(done)]() mutable {
         // The session outlives this: its destructor joins the workers.

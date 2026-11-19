@@ -33,12 +33,21 @@ private:
     std::future<player::Status> status(std::future<Result<void>> inner) {
         auto done = std::make_shared<std::promise<player::Status>>();
         auto out = done->get_future();
-        auto shared = std::make_shared<std::future<Result<void>>>(std::move(inner));
-        host_.post([done, shared] {
-            Result<void> r = shared->get();
+        pass_on(host_, done, std::make_shared<std::future<Result<void>>>(std::move(inner)));
+        return out;
+    }
+    // A run's answer passed on, on the runtime's thread. With a script thread it waits there for the run; with one
+    // thread (the page) nothing may wait — the page's import() settles the run later — so it looks again at each
+    // frame boundary until the run has an answer.
+    static void pass_on(Host& host, std::shared_ptr<std::promise<player::Status>> done, std::shared_ptr<std::future<Result<void>>> inner) {
+        host.post([&host, done, inner] {
+            if (!host.threaded() && inner->wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
+                pass_on(host, done, inner);
+                return;
+            }
+            Result<void> r = inner->get();
             done->set_value(r ? player::Status{} : player::Status(std::unexpected(r.error().text())));
         });
-        return out;
     }
 
     Host    host_;

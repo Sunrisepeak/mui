@@ -7,6 +7,7 @@ import omui.abi;
 import omui.lang;
 import omui.lang.ts;
 import :natives;
+import :prelude;
 
 namespace omui::lang::js {
 
@@ -241,6 +242,49 @@ void Natives::reload() {
         engine_.release(function);
     }
     watches_.clear();
+}
+
+std::string openmui_module(Session& session) {
+    std::string catalog;
+    session.host().ui([&] {
+        (void)abi::omuiCatalog(session.host().runtime(), [](void* u, const char* d, std::size_t k) { static_cast<std::string*>(u)->append(d, k); },
+                               &catalog);
+    });
+    std::string source(prelude);
+    const Json c = Json::parse(catalog, nullptr, false);
+    if (c.is_object() && c.contains("components"))
+        for (auto it = c["components"].begin(); it != c["components"].end(); ++it) {
+            const std::string name = ts::camel_case(it.key());
+            // The prelude's own names win (its select is the component's builder too).
+            if (source.find(std::format("export const {} ", name)) != std::string::npos ||
+                source.find(std::format("export function {}(", name)) != std::string::npos)
+                continue;
+            source += std::format("export const {} = (props, children) => element(\"{}\", props, children);\n", name, it.key());
+        }
+    return source;
+}
+
+std::optional<std::string> native_module(Session& session, std::string_view module) {
+    const Json catalog = session.natives();
+    if (!catalog.contains("modules") || !catalog["modules"].contains(std::string(module))) return std::nullopt;
+    const Json& m = catalog["modules"][std::string(module)];
+    std::string out = "import { __native } from \"openmui\";\n";
+    std::string members;
+    for (auto it = m["functions"].begin(); it != m["functions"].end(); ++it) {
+        const std::string fn = ts::camel_case(it.key());
+        const bool async = it.value().value("async", false);
+        out += std::format("export const {} = (...args) => __native({}, {}, {}, args);\n", fn, Json(std::string(module)).dump(), Json(it.key()).dump(),
+                           async ? "true" : "false");
+        members += (members.empty() ? "" : ", ") + fn;
+        if (async) {
+            // And waiting for it, where a promise cannot be awaited (a verb).
+            out += std::format("export const {}Sync = (...args) => __native({}, {}, false, args);\n", fn, Json(std::string(module)).dump(),
+                               Json(it.key()).dump());
+            members += std::format(", {}Sync", fn);
+        }
+    }
+    out += std::format("export const {0} = {{ {1} }};\nexport default {0};\n", module, members);
+    return out;
 }
 
 }  // namespace omui::lang::js

@@ -23,8 +23,9 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
-# QuickJS-ng where its wrap builds (64-bit targets); on the Web (wasm32) a
-# Script that says JavaScript is not there yet (src/native/web).
+# QuickJS-ng where its wrap builds (64-bit targets); on the Web (wasm32) the
+# page's own engine runs the scripts (src/native/web, and src/js/omui_script.js
+# linked as an Emscripten library by build.mcpp: D-237, G1).
 [target.'cfg(not(os = "emscripten"))'.build]
 sources = ["src/native/quickjs/*.cpp"]
 

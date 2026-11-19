@@ -259,31 +259,6 @@ JSValue n_log(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
 }
 
 
-// openmui:native/<name>: a native module's functions, made from the
-// catalogue (component-binding §8): `import { fuzzy } from "openmui:native/fuzzy"`.
-std::optional<std::string> native_module_source(Script::Impl& s, std::string_view module) {
-    const Json catalog = s.session.natives();
-    if (!catalog.contains("modules") || !catalog["modules"].contains(std::string(module))) return std::nullopt;
-    const Json& m = catalog["modules"][std::string(module)];
-    std::string out = "import { __native } from \"openmui\";\n";
-    std::string members;
-    for (auto it = m["functions"].begin(); it != m["functions"].end(); ++it) {
-        const std::string fn = ts::camel_case(it.key());
-        const bool async = it.value().value("async", false);
-        out += std::format("export const {} = (...args) => __native({}, {}, {}, args);\n", fn, Json(std::string(module)).dump(), Json(it.key()).dump(),
-                           async ? "true" : "false");
-        members += (members.empty() ? "" : ", ") + fn;
-        if (async) {
-            // And waiting for it, where a promise cannot be awaited (a verb).
-            out += std::format("export const {}Sync = (...args) => __native({}, {}, false, args);\n", fn, Json(std::string(module)).dump(),
-                               Json(it.key()).dump());
-            members += std::format(", {}Sync", fn);
-        }
-    }
-    out += std::format("export const {0} = {{ {1} }};\nexport default {0};\n", module, members);
-    return out;
-}
-
 // A module's name: "openmui" and "openmui:…" as they are; one by path, its
 // file — the name it is imported by, from the importing module's directory,
 // as it is, or with .ts, .mts, .js, .mjs, or its directory's index — with
@@ -314,7 +289,7 @@ JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
     std::string_view n = name;
     std::string source;
     if (n.starts_with("openmui:native/")) {
-        auto m = native_module_source(s, n.substr(15));
+        auto m = native_module(s.session, n.substr(15));
         if (!m) {
             JS_ThrowReferenceError(ctx, "no native module `%s` (the program registers its native modules before scripts run)", name + 15);
             return nullptr;
@@ -390,22 +365,7 @@ Script::Script(Session& session) : impl_(std::make_shared<Impl>(session)) {
         JS_SetPropertyStr(s->ctx, global, "__omui", n);
         JS_FreeValue(s->ctx, global);
         // The module: the prelude, and a builder for every registered component.
-        std::string catalog;
-        s->session.host().ui([&] {
-            (void)abi::omuiCatalog(s->session.host().runtime(), [](void* u, const char* d, std::size_t k) { static_cast<std::string*>(u)->append(d, k); },
-                                   &catalog);
-        });
-        s->module_source = std::string(prelude);
-        const Json c = Json::parse(catalog, nullptr, false);
-        if (c.is_object() && c.contains("components"))
-            for (auto it = c["components"].begin(); it != c["components"].end(); ++it) {
-                const std::string name = ts::camel_case(it.key());
-                // The prelude's own names win (its select is the component's builder too).
-                if (s->module_source.find(std::format("export const {} ", name)) != std::string::npos ||
-                    s->module_source.find(std::format("export function {}(", name)) != std::string::npos)
-                    continue;
-                s->module_source += std::format("export const {} = (props, children) => element(\"{}\", props, children);\n", name, it.key());
-            }
+        s->module_source = openmui_module(s->session);
     });
 }
 
@@ -424,6 +384,11 @@ Script::~Script() {
 }
 
 void Script::on_error(std::function<void(std::string_view)> fn) { impl_->errors = std::move(fn); }
+
+bool let_page_run() {
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
+    return true;
+}
 
 namespace {
 

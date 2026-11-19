@@ -218,6 +218,20 @@ int browser_checks(const fs::path& root) {
     if (const auto program = program_of(*quay, "web_frame_test"); !program || !in_page(*program, {"--require-webgpu", "--frames", "3"}, std::chrono::seconds(600)))
         return failed("Quay's frame failed on the page's WebGPU");
 
+    // 1e. A script's JavaScript on the page's own engine (D-237, G1): omui.lang.js's cases in the page — each module
+    // evaluated by the page's import(), the natives answered by the program; the test waits by letting the page run
+    // (Asyncify, let_page_run). What the cases read where the build found it — CTS level S's scenarios and runner, the
+    // default font its layouts measure with — put at the same paths in the page's file system.
+    const auto scripts = built({"omui.lang.js"}, "the script binding's tests");
+    if (!scripts) return 1;
+    std::vector<std::pair<fs::path, std::string>> read;
+    for (const char* directory : {"spec/conformance/S", "modules/projects/omui/lang/js/tests", "modules/content/text/fonts"}) {
+        const fs::path where = fs::absolute(root / directory).lexically_normal();
+        read.emplace_back(where, mcpplibs::os::fs::utf8(where));
+    }
+    if (const auto program = program_of(*scripts, "js"); !program || !in_page(*program, {}, std::chrono::seconds(300), {}, std::move(read)))
+        return failed("omui.lang.js failed on the page's own engine");
+
     // 2. host.web drawing on the page's WebGPU, then its WebGL2 (a canvas keeps the first kind of context it gives: one
     // run each). Headless Chromium's SwiftShader differs by build and machine: some lose a WebGPU device that presents
     // to a canvas unless their Vulkan is SwiftShader's too, others offer no adapter with those switches. WebGPU's run

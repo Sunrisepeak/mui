@@ -1,0 +1,51 @@
+== meng.ui
+namespace meng::ui {
+  [[nodiscard]] constexpr std::uint32_t code(omui::Key k) noexcept;
+  [[nodiscard]] constexpr std::int32_t pad(omui::GamepadButton b) noexcept;
+  [[nodiscard]] constexpr std::int32_t pad(omui::GamepadAxis a) noexcept;
+  bool feed(Sampler& in, const omui::InputEvent& e, omui::Rect area);
+  class Pacer {
+    Pacer() = default;
+    Pacer(const Pacer&) = delete;
+    Pacer& operator=(const Pacer&) = delete;
+    ~Pacer();
+    void start(omui::Services& services, double hz, std::function<void(std::int32_t)> run, std::int32_t catch_up = 8);
+    void stop();
+    [[nodiscard]] bool running() const noexcept;
+    [[nodiscard]] mlibs::simulation::Clock& clock() noexcept;
+  };
+  struct Viewport {
+    static constexpr std::string_view name = "viewport";
+    static constexpr bool focusable = true;
+    static constexpr bool gamepads = true;
+    struct Shown {
+      std::string label;
+      mlibs::agent::Subject* subject = nullptr;
+      std::function<std::optional<xrender::raster::ImageView>()> pixels;
+      std::function<std::optional<mlibs::rhi::Texture>()> texture;
+      float width = 480, height = 270;
+      bool pixels_stay = false;
+      std::function<omui::Value(float across, float down)> describe;
+      bool look = false;
+    };
+    Viewport() = default;
+    Viewport(const Viewport&) = delete;
+    Viewport& operator=(const Viewport&) = delete;
+    ~Viewport();
+    void show(Shown what);
+    void clear();
+    void changed();
+    [[nodiscard]] const Shown& shown() const noexcept;
+    [[nodiscard]] std::optional<omui::Point> within(omui::Point local) const;
+    bool hold_pointer();
+    void let_go();
+    [[nodiscard]] bool holds_pointer() const;
+    [[nodiscard]] omui::Point take_look() noexcept;
+    bool on_event(omui::EventContext& ctx, const omui::InputEvent& event);
+    [[nodiscard]] omui::Value shown_at(omui::Point local, omui::Size size) const;
+    void mount(omui::Services& services, omui::NodeId node);
+    omui::Size measure(omui::MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available across, mlibs::layout::Available down);
+    void paint(omui::PaintContext& ctx) const;
+    void semantics(omui::SemanticsContext&, omui::spec::SemanticNode& node) const;
+  };
+}

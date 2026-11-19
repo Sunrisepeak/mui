@@ -217,6 +217,11 @@ static UTest cases{"host.sdl3", [] {
                                  }})}));
         d.step();
         d.runtime().focus(d.runtime().find("main/pad"));
+        // A painter's own on_event says nothing of gamepads: the application says it takes them (the window starts
+        // its gamepads only then; an idle window polls no devices).
+        expect(!d.runtime().gamepads_wanted()) << "nothing has asked for gamepads yet";
+        d.runtime().want_gamepads();
+        d.step();
         // A device SDL makes itself (a virtual gamepad): the same path a real one's events take.
         SDL_VirtualJoystickDesc desc{};
         SDL_INIT_INTERFACE(&desc);

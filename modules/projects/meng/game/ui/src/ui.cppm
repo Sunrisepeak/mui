@@ -71,6 +71,7 @@ private:
 struct Viewport {
     static constexpr std::string_view name = "viewport";
     static constexpr bool focusable = true;
+    static constexpr bool gamepads = true;  // takes gamepad input: the window starts its gamepads
 
     struct Shown {
         std::string            label;               // what a person is told it is

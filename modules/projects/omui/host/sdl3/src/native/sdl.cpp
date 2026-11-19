@@ -20,6 +20,7 @@ namespace {
 int            windows_open = 0;
 int            holders = 0;  // hosts holding SDL for a device being made (platform::hold)
 std::uint32_t  wake_event = 0;
+bool           gamepads_started = false;
 std::atomic<bool> sdl_ready{false};
 
 constexpr std::array<std::pair<SDL_Keycode, Key>, 82> keymap{{
@@ -199,7 +200,7 @@ void WindowDeleter::operator()(Window* w) const noexcept {
     if (w->window) SDL_DestroyWindow(w->window);
     delete w;
     if (--windows_open == 0 && holders == 0) {
-        sdl_ready = false;
+        sdl_ready = gamepads_started = false;
         pads.close_all();
         SDL_Quit();
     }
@@ -217,11 +218,16 @@ std::expected<void, std::string> start(std::string_view video_driver) {
     if (!driver.empty()) SDL_ResetHint(SDL_HINT_VIDEO_DRIVER);
     if (!initialised) return std::unexpected(std::format("SDL_Init: {}", SDL_GetError()));
     wake_event = SDL_RegisterEvents(1);
-    // Gamepads, hot-plugged, through SDL's mapping database; a machine
-    // without the subsystem (or without permission) simply has none.
-    (void)SDL_InitSubSystem(SDL_INIT_GAMEPAD);
     sdl_ready = true;
     return {};
+}
+
+// Gamepads, hot-plugged, through SDL's mapping database: started when the application takes their input; the pads
+// already connected come as added events. A machine without the subsystem (or without permission) simply has none.
+void start_gamepads() {
+    if (!sdl_ready || gamepads_started) return;
+    gamepads_started = true;
+    (void)SDL_InitSubSystem(SDL_INIT_GAMEPAD);
 }
 
 void hold() { ++holders; }
@@ -233,7 +239,7 @@ void release() {
 
 void stop() {
     if (!sdl_ready || windows_open != 0 || holders != 0) return;
-    sdl_ready = false;
+    sdl_ready = gamepads_started = false;
     pads.close_all();
     SDL_Quit();
 }

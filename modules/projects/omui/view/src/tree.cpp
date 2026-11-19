@@ -67,6 +67,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
         free_indices.pop_back();
     }
     n.handlers = std::move(e.handlers);
+    note_gamepads(type, n.handlers);
     for (auto& [k, t] : e.transitions) n.transitions[k] = t;
     if (e.configure) e.configure(n.instance);
 
@@ -288,6 +289,7 @@ void Runtime::Impl::update_from(NodeId id, Element& e) {
     n.where = e.where;
     n.built_at = intern_built_at(e.built_at);  // an edit moves it
     n.handlers = std::move(e.handlers);
+    note_gamepads(*n.type, n.handlers);
     n.transitions.clear();
     for (auto& [k, t] : e.transitions) n.transitions[k] = t;
     if (e.configure) {

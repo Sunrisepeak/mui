@@ -681,6 +681,11 @@ public:
     [[nodiscard]] const Theme& theme() const override;
     [[nodiscard]] bool reduce_transparency() const override;
     // Agents may join as players (the application allows, the person agrees).
+    // Whether anything mounted takes gamepad input (a component type that says so, a `gamepad_*` handler): a
+    // window's host starts its gamepads then, not before (an idle window polls no devices). Once true, it stays.
+    [[nodiscard]] bool gamepads_wanted() const noexcept;
+    // Said outright (a component's on_event that takes GamepadEvent without saying `gamepads`, an application's own loop).
+    void want_gamepads() noexcept;
     void set_agent_players(bool allowed);
     [[nodiscard]] bool agent_players() const override;
     // The subjects this process holds beside the interface (a world shown in it, the host's frame): what the

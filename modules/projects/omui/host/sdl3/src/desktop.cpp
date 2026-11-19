@@ -697,6 +697,8 @@ bool Desktop::step(bool wait) {
         sleep = false;
         timeout.reset();
     }
+    // Gamepads once the application takes their input (an idle window polls no devices).
+    if (d.runtime->gamepads_wanted()) platform::start_gamepads();
     platform::Polled polled = platform::poll(*d.window, sleep, timeout);
     if (polled.state) omui::window().set_state(*polled.state);
     if (polled.quit || d.close_requested) {

@@ -590,6 +590,8 @@ struct ComponentType {
     // It draws its own disabled state (a button's muted text, a select's veil); else a disabled node of it is drawn,
     // children included, at the theme's `disabled_opacity`.
     bool                      draws_disabled = false;
+    // It takes gamepad input (on_event's GamepadEvent): a window's host starts its gamepads once one is mounted.
+    bool                      gamepads = false;
     std::string_view          cursor;         // the pointer's shape over it: "text", "pointer", "grab" … (empty: inherit)
     void* (*create)() = nullptr;
     void (*destroy)(void*) = nullptr;
@@ -681,6 +683,7 @@ template <class C>
         if constexpr (requires { C::cursor; }) x.cursor = C::cursor;
         if constexpr (requires { C::overlay; }) x.overlay = C::overlay;
         if constexpr (requires { C::draws_disabled; }) x.draws_disabled = C::draws_disabled;
+        if constexpr (requires { C::gamepads; }) x.gamepads = C::gamepads;
         if constexpr (requires(C& c) { { c.compose() } -> std::same_as<std::vector<Element>>; })
             x.compose = [](void* p) { return static_cast<C*>(p)->compose(); };
         if constexpr (requires(const C& c, std::string_view p) { { c.virtual_items(p) } -> std::same_as<std::vector<spec::SemanticNode>>; })

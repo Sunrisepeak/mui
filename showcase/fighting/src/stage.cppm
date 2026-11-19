@@ -21,6 +21,7 @@ class Stage : public StageContract<Stage> {
 public:
     // The keyboard reaches it: a game reads its own keys.
     static constexpr bool focusable = true;
+    static constexpr bool gamepads = true;  // takes gamepad input: the window starts its gamepads
 
     Stage() = default;
     Stage(const Stage&) = delete;

@@ -378,6 +378,12 @@ struct Runtime::Impl {
     xrender::DisplayList                   list;
     std::unordered_map<std::string, NodeId> path_index;
     bool                                  paths_dirty = true;
+    // Something takes gamepad input (a component that says so, a `gamepad_*` handler): once true, it stays.
+    bool                                  gamepads_wanted = false;
+    void note_gamepads(const ComponentType& type, const std::vector<std::pair<std::string, Handler>>& handlers) {
+        if (gamepads_wanted) return;
+        gamepads_wanted = type.gamepads || std::ranges::any_of(handlers, [](const auto& handler) { return handler.first.starts_with("gamepad_"); });
+    }
 
     std::uint8_t                          dirty = dirty_paint | dirty_layout | dirty_semantics | dirty_tree;
     bool                                  frame_requested = true;

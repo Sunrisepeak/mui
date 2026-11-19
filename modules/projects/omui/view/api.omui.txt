@@ -396,6 +396,7 @@ namespace omui {
     bool clips = false;
     bool overlay = false;
     bool draws_disabled = false;
+    bool gamepads = false;
     std::string_view cursor;
     void* (*create)() = nullptr;
     void (*destroy)(void*) = nullptr;
@@ -1185,6 +1186,8 @@ namespace omui {
     void set_reduce_transparency(bool reduce);
     [[nodiscard]] const Theme& theme() const override;
     [[nodiscard]] bool reduce_transparency() const override;
+    [[nodiscard]] bool gamepads_wanted() const noexcept;
+    void want_gamepads() noexcept;
     void set_agent_players(bool allowed);
     [[nodiscard]] bool agent_players() const override;
     void add_subject(mlibs::agent::Subject& subject) override;

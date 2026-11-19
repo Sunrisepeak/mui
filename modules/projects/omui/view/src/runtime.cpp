@@ -365,10 +365,14 @@ void Runtime::bind(NodeId node, std::string property, Source source) {
 std::uint64_t Runtime::on(NodeId node, std::string event, Handler handler) {
     Impl& d = *impl_;
     std::uint64_t token = d.next_token++;
+    if (event.starts_with("gamepad_")) d.gamepads_wanted = true;
     d.runtime_handlers.push_back({token, node, std::move(event), std::move(handler)});
     d.touch(dirty_semantics);
     return token;
 }
+
+bool Runtime::gamepads_wanted() const noexcept { return impl_->gamepads_wanted; }
+void Runtime::want_gamepads() noexcept { impl_->gamepads_wanted = true; }
 
 void Runtime::off(std::uint64_t token) {
     std::erase_if(impl_->runtime_handlers, [&](const Impl::RuntimeHandler& h) { return h.token == token; });

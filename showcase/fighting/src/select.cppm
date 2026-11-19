@@ -20,6 +20,7 @@ export namespace omui::fighting {
 class Select : public SelectContract<Select> {
 public:
     static constexpr bool focusable = true;
+    static constexpr bool gamepads = true;  // takes gamepad input: the window starts its gamepads
 
     Select() = default;
     Select(const Select&) = delete;

@@ -10,7 +10,11 @@ openmui on the desktop, through SDL3 (`compat.sdl3` from mcpp-index):
 - gamepads, plugged in and out while it runs, through SDL's mapping
   database to the spec's standard set (§6.1: south/east/west/north,
   shoulders, triggers as axes and buttons, d-pad, sticks; the dead zones by
-  `GamepadReader`; the device's events released before it goes);
+  `GamepadReader`; the device's events released before it goes), started
+  once the application takes their input (a component type that says
+  `gamepads`, a `gamepad_*` handler, `Runtime::want_gamepads`): until then
+  no devices are watched, and where the system gives SDL no notice of them
+  (no `/dev/input`) the idle loop is not woken every three seconds to look;
 - the system clipboard and cursors (an I-beam over text fields);
 - frames drawn by the GPU renderer into the window's swapchain (omui.rhi on
   SDL_GPU) when the machine has a GPU, else by the CPU renderer and streamed

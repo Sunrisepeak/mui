@@ -110,6 +110,10 @@ bool choose_files(Window& w, const Runtime::FileChoice& choice, Runtime::FilesCh
 bool tray(const std::vector<Runtime::MenuEntry>& entries, std::string_view tooltip, std::function<void(std::string_view verb)> chosen);
 // Wakes a poll that sleeps (from any thread).
 void wake();
+// Starts gamepads (SDL's subsystem, hot-plugged through its mapping database), once: only when the application
+// takes gamepad input (Runtime::gamepads_wanted) — the subsystem watches for devices, and where the system gives it
+// no notice of them (no /dev/input) it wakes the loop every three seconds to look.
+void start_gamepads();
 // The person's languages as the system states them, best first, as BCP 47
 // tags (SDL's preferred locales: the settings on Windows and macOS).
 [[nodiscard]] std::vector<std::string> preferred_locales();

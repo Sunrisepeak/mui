@@ -7,6 +7,8 @@
 //
 //   omui-bench-lottie --out DIR [--runs N]      DIR/lottie-200.json, DIR/lottie-200.hanim.rgba (frame 60); one JSON line
 //   omui-bench-lottie --compare DIR             frame 60 of each player (DIR/lottie-200.<player>.rgba) beside hanim's
+//   omui-bench-lottie --out DIR --phases        where a frame's time goes: hanim's seek and evaluation, the display
+//                                               list recorded, xrender's drawing (each part's median over the frames)
 import std;
 import mcpplibs.cmdline;
 import mlibs.math;
@@ -171,7 +173,8 @@ int main(int argc, char** argv) {
         .description("hanim playing the animation Lottie's players play")
         .option(Option("out").takes_value().value_name("DIR").help("where the animation, the document and frame 60 go"))
         .option(Option("runs").value_type<int>().help("passes over the 120 frames, after one to warm up (default 3)"))
-        .option(Option("compare").takes_value().value_name("DIR").help("frame 60 of each player beside hanim's"));
+        .option(Option("compare").takes_value().value_name("DIR").help("frame 60 of each player beside hanim's"))
+        .option(Option("phases").help("with --out: where a frame's time goes (evaluation, recording, drawing)"));
     auto parsed = line.parse(argc, argv);
     if (!parsed) {
         if (!parsed.error().is_error()) return 0;
@@ -201,16 +204,42 @@ int main(int argc, char** argv) {
     xrender::DisplayList list, staging;
     xrender::CpuRenderer renderer;
     xrender::raster::Surface surface(side, side);
-    // A frame: sought, recorded, drawn.
-    const auto draw = [&](int frame) -> bool {
+    // A frame: sought, recorded, drawn; with `parts`, each part's time in milliseconds (hanim's seek and evaluation,
+    // the display list recorded, xrender's drawing).
+    const auto draw = [&](int frame, std::array<double, 3>* parts = nullptr) -> bool {
+        using clock = std::chrono::steady_clock;
+        const auto begun = clock::now();
         if (!played->engine.seek(played->playback, hanim::seconds(static_cast<double>(frame) / rate))) return false;
         const auto now = played->engine.program_frame(played->playback);
         if (!now) return false;
+        const auto evaluated = clock::now();
         list.clear();
         if (!played->drawing.record(now->scene, list, {{&staging, world, parameters, layers}, bounds, members, order, stack})) return false;
+        const auto recorded = clock::now();
         const auto report = renderer.render(list, surface, {}, {.background = mlibs::geom::Color::white()});
+        if (parts) {
+            const auto spent = [](clock::time_point from, clock::time_point to) { return std::chrono::duration<double, std::milli>(to - from).count(); };
+            *parts = {spent(begun, evaluated), spent(evaluated, recorded), spent(recorded, clock::now())};
+        }
         return report.invalid_paints == 0 && report.effects_skipped == 0;
     };
+    if (parsed->is_flag_set("phases")) {
+        std::array<std::vector<double>, 3> parts;
+        for (int pass = 0; pass < 1 + runs; ++pass)
+            for (int visit = 0; visit < frames; ++visit) {
+                std::array<double, 3> spent{};
+                if (!draw(visit * 37 % frames, &spent)) {
+                    std::println(std::cerr, "omui-bench-lottie: frame {} was not drawn", visit * 37 % frames);
+                    return 1;
+                }
+                if (pass > 0)
+                    for (std::size_t part = 0; part < parts.size(); ++part) parts[part].push_back(spent[part]);
+            }
+        const auto median = [](std::vector<double> values) { std::ranges::sort(values); return values[values.size() / 2]; };
+        std::println(R"({{"player":"hanim","scene":"{}","evaluate_ms":{:.3f},"record_ms":{:.3f},"draw_ms":{:.3f}}})", scene, median(parts[0]),
+                     median(parts[1]), median(parts[2]));
+        return 0;
+    }
     std::vector<double> times;
     for (int pass = 0; pass < 1 + runs; ++pass)
         for (int visit = 0; visit < frames; ++visit) {

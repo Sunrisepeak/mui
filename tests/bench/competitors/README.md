@@ -36,7 +36,7 @@ What it does not say: a browser's frame (node has no page, layout or paint; both
 
 ## Lottie playback: the same animation, three players
 
-`src/lottie.cpp` ↔ `py/lottie.py`: 200 rounded rectangles, each moving through three places, turning, scaling and fading on the same cubic-bezier eases (easeInOutCubic), 2 s at 60 frames a second on a 512 × 512 stage — made from a seed and written as a Lottie file, which ThorVG and rlottie play; hanim plays the same values as its own objects and programs (the engine sought, the frame recorded as a display list, xrender's CPU renderer). Every frame is drawn whole on one thread, visited in a scrambled order (frame 37·k mod 120: a seek each time), the clock round the seek and the drawing; frame 60 of each is compared with hanim's (`omui-bench-lottie --compare`).
+`src/lottie.cpp` ↔ `py/lottie.py`: 200 rounded rectangles, each moving through three places, turning, scaling and fading on the same cubic-bezier eases (easeInOutCubic), 2 s at 60 frames a second on a 512 × 512 stage — made from a seed and written as a Lottie file, which ThorVG and rlottie play; hanim plays the same values as its own objects and programs (the engine sought, the frame recorded as a display list, xrender's CPU renderer). Every frame is drawn whole on one thread, visited in a scrambled order (frame 37·k mod 120: a seek each time), the clock round the seek and the drawing; frame 60 of each is compared with hanim's (`omui-bench-lottie --compare`). `omui-bench-lottie --out DIR --phases` says where hanim's frame goes: the seek and evaluation, the display list recorded, xrender's drawing.
 
 | 2026-11-16, one machine, 15 rounds alternating (medians of the rounds) | median frame | p95 | frame 60 against hanim's |
 |---|---:|---:|---|

@@ -2,6 +2,7 @@
 module omui;
 
 import std;
+import mcpplibs.os;
 import mlibs.error;
 import omui.core;
 import omui.view;
@@ -56,6 +57,19 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
             return 1;
         }
         std::println(std::cerr, "first frame shown {:.1f} ms after the window was asked for", *first);
+        // --png FILE: the frame on screen, read back from the window (a headless run writes its own).
+        if (!o.png.empty()) {
+            auto png = desktop.runtime().capture_png();
+            if (!png) {
+                error("--png: the window's frame: {}", png.error().message);
+                return 1;
+            }
+            std::ofstream out(o.png, std::ios::binary);
+            if (!out.write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()))) {
+                error("--png: cannot write {}", mcpplibs::os::fs::utf8(o.png));
+                return 1;
+            }
+        }
         return 0;
     }
     return desktop.run();

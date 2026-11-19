@@ -51,7 +51,7 @@ void RunOptions::declare(cmdline::App& app) {
         .option(Option("headless").help("no window: drawn offscreen, operated through the agent protocol"))
         .option(Option("serve").help("headless, and kept running for agents (level h3)"))
         .option(Option("frames").takes_value().value_name("N").help("run N frames, then end"))
-        .option(Option("png").takes_value().value_name("FILE").help("the last frame as a PNG"))
+        .option(Option("png").takes_value().value_name("FILE").help("the last frame as a PNG (in a window: the frame on screen, with --frames)"))
         .option(Option("level").takes_value().value_name("hN").help("how much a headless run keeps: h0, h1, h2 or h3"))
         .option(Option("agent-dir").takes_value().value_name("DIR").help("where the agent endpoint says where it is"))
         .option(Option("agent-name").takes_value().value_name("NAME").help("the endpoint's name (default: the application's id)"))

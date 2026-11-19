@@ -8,7 +8,9 @@
 //   omui-bench-lottie --out DIR [--runs N]      DIR/lottie-200.json, DIR/lottie-200.hanim.rgba (frame 60); one JSON line
 //   omui-bench-lottie --compare DIR             frame 60 of each player (DIR/lottie-200.<player>.rgba) beside hanim's
 //   omui-bench-lottie --out DIR --phases        where a frame's time goes: hanim's seek and evaluation, the display
-//                                               list recorded, xrender's drawing (each part's median over the frames)
+//                                               list recorded, xrender's drawing (each part's median over the frames);
+//                                               and inside the evaluation: the program's sample, the animation's, the
+//                                               source's, and the four eases an object alone
 import std;
 import mcpplibs.cmdline;
 import mlibs.math;
@@ -236,6 +238,53 @@ int main(int argc, char** argv) {
                     for (std::size_t part = 0; part < parts.size(); ++part) parts[part].push_back(spent[part]);
             }
         const auto median = [](std::vector<double> values) { std::ranges::sort(values); return values[values.size() / 2]; };
+        // Inside the evaluation, every track a frame: sampled through the program (its segment found by time, its
+        // progress, its channels' curves, its geometry, its effects), then its animation alone at the same progress
+        // (the channels' curves and the geometry), then its source alone (the geometry copied, no curve).
+        const hanim::PreparedProgram& plan = played->plan;
+        hanim::FrameRequirements most{};
+        std::size_t effect_most = 1;
+        for (const auto& segment : plan.segments()) {
+            const auto need = segment.animation.requirements();
+            most.parts = std::max(most.parts, need.parts), most.cubics = std::max(most.cubics, need.cubics), most.values = std::max(most.values, need.values);
+            effect_most = std::max(effect_most, segment.effects.parameter_count());
+        }
+        std::vector<hanim::FramePart> part_room(most.parts);
+        std::vector<hanim::ShapeCubic> cubic_room(most.cubics);
+        std::vector<double> value_room(most.values);
+        std::vector<float> effect_room(effect_most);
+        const hanim::FrameBuffer room{part_room, cubic_room, value_room};
+        std::vector<std::pair<std::size_t, double>> chosen(plan.tracks().size());
+        std::array<std::vector<double>, 4> inside;
+        const hanim::Ease ease = hanim::Ease::bezier(0.65, 0, 0.35, 1);  // the animation's, on each of an object's four changes
+        double eased = 0;
+        using clock = std::chrono::steady_clock;
+        const auto spent = [](clock::time_point from, clock::time_point to) { return std::chrono::duration<double, std::milli>(to - from).count(); };
+        for (int pass = 0; pass < 1 + runs; ++pass)
+            for (int visit = 0; visit < frames; ++visit) {
+                const hanim::seconds at(static_cast<double>(visit * 37 % frames) / rate);
+                const auto begun = clock::now();
+                for (std::size_t track = 0; track < chosen.size(); ++track) {
+                    const auto sampled = plan.sample(track, at, room, effect_room);
+                    if (!sampled) return 1;
+                    chosen[track] = {sampled->segment_index, sampled->sample_progress};
+                }
+                const auto programmed = clock::now();
+                for (const auto& [segment, progress] : chosen)
+                    if (!plan.segments()[segment].animation.sample(progress, room)) return 1;
+                const auto animated = clock::now();
+                for (const auto& [segment, progress] : chosen)
+                    if (!plan.segments()[segment].animation.sample_source(room)) return 1;
+                const auto copied = clock::now();
+                for (const auto& [segment, progress] : chosen)
+                    for (int change = 0; change < 4; ++change) eased += ease(progress);
+                const auto curved = clock::now();
+                if (pass > 0)
+                    inside[0].push_back(spent(begun, programmed)), inside[1].push_back(spent(programmed, animated)), inside[2].push_back(spent(animated, copied)),
+                        inside[3].push_back(spent(copied, curved));
+            }
+        std::println(R"({{"inside":"evaluate","program_sample_ms":{:.3f},"animation_ms":{:.3f},"source_ms":{:.3f},"four_eases_ms":{:.3f},"parts":{},"cubics":{},"values":{},"checksum":{:.1f}}})",
+                     median(inside[0]), median(inside[1]), median(inside[2]), median(inside[3]), most.parts, most.cubics, most.values, eased);
         const auto playing = played->engine.inspect(played->playback);
         std::println(R"({{"player":"hanim","scene":"{}","evaluate_ms":{:.3f},"record_ms":{:.3f},"draw_ms":{:.3f},"tracks":{},"segments":{}}})", scene,
                      median(parts[0]), median(parts[1]), median(parts[2]), playing ? playing->track_count : 0, playing ? playing->segment_count : 0);

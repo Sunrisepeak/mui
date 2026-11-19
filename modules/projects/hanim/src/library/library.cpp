@@ -846,18 +846,28 @@ std::expected<FrameView,MorphFailure> PreparedObjectAnimation::sample_at(double 
             if(progress==u || info.start.count()!=0 || info.duration!=data_->timeline_duration)return std::nullopt;
             return progress;
         };
-        if(!exact_source)for(const auto run:data_->channel_runs) {
-            const auto i=current_channel(*data_,run,time);if(i==none)continue;
+        // Every channel's value is found before the output is touched, so a failure leaves it as it was. An
+        // object's few runs keep their values here and are sampled once; a plan with more samples them again below.
+        constexpr std::size_t kept_most=16;
+        const bool keep=data_->channel_runs.size()<=kept_most;
+        std::array<detail::PropertyValue,kept_most> kept;
+        std::array<std::size_t,kept_most> kept_channel;
+        if(!exact_source)for(std::size_t run=0;run<data_->channel_runs.size();++run) {
+            const auto i=current_channel(*data_,data_->channel_runs[run],time);
+            if(keep)kept_channel[run]=i;
+            if(i==none)continue;
             const auto value=sample_channel(data_->channels[i],data_->channel_values[i],time,beyond(data_->channels[i]));
             if(!value)return std::unexpected(value.error());
+            if(keep)kept[run]=*value;
         }
         for(std::size_t i=0;i<needed.parts;++i)
             output.parts[i]={data_->parts[i],data_->states[i].from,data_->states[i].from_fill,data_->states[i].from_stroke};
         for(const auto& slot:data_->value_slots)
             std::copy_n(slot.rest.begin(),slot.id.lanes,output.values.begin()+static_cast<std::ptrdiff_t>(slot.offset));
-        if(!exact_source)for(const auto run:data_->channel_runs) {
-            const auto i=current_channel(*data_,run,time);if(i==none)continue;
-            const auto& info=data_->channels[i];auto value=sample_channel(info,data_->channel_values[i],time,beyond(info));
+        if(!exact_source)for(std::size_t run=0;run<data_->channel_runs.size();++run) {
+            const auto i=keep?kept_channel[run]:current_channel(*data_,data_->channel_runs[run],time);if(i==none)continue;
+            const auto& info=data_->channels[i];
+            auto value=keep?std::expected<detail::PropertyValue,MorphFailure>(kept[run]):sample_channel(info,data_->channel_values[i],time,beyond(info));
             if(info.channel==PropertyChannel::value) {
                 const auto& slot=data_->value_slots[info.value_slot];
                 const auto lanes=output.values.subspan(slot.offset,slot.id.lanes);

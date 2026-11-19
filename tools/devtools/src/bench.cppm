@@ -50,5 +50,7 @@ struct Memory {
 
 // The context switches a second of a process's threads (`pidstat -w -t`'s averages, voluntary and not).
 [[nodiscard]] std::optional<double> switches_of(std::string_view pidstat_output);
+// The threads that woke in it, by name, each its switches a second.
+[[nodiscard]] std::map<std::string, double> waking_of(std::string_view pidstat_output);
 
 }  // namespace omui::devtools::bench

@@ -72,6 +72,7 @@ struct Launch {
     std::optional<double> start_ms, paint_ms, mapped_ms;
     std::optional<Memory> memory;
     std::optional<double> idle_cpu_percent, idle_wakeups, idle_frames;
+    std::map<std::string, double> idle_waking;  // at rest: each thread's name, its switches a second (those that woke)
     std::vector<double> clicks;
     bool click_changed = true;
     std::vector<double> presents;  // in motion: the intervals between presented frames (ms)
@@ -906,6 +907,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         }
         (void)switches->wait();
         out.idle_wakeups = switches_of(said);
+        out.idle_waking = waking_of(said);
     }
     // The clicks: pointer onto the button, pressed, let go; from letting go to the next frame on
     // the window.
@@ -1027,6 +1029,23 @@ std::optional<Memory> memory_of(std::string_view pmap_output) {
                   .uss = value["Private_Clean"] + value["Private_Dirty"],
                   .private_dirty = value["Private_Dirty"],
                   .swap = value.contains("Swap") ? value["Swap"] : 0};
+}
+
+// Which threads woke at rest, by name (pidstat's Command, "|__" dropped): what an idle process's switches are.
+std::map<std::string, double> waking_of(std::string_view pidstat_output) {
+    std::map<std::string, double> waking;
+    for (const auto line : lines(pidstat_output)) {
+        const auto split = words(line);
+        if (split.size() < 7 || split[0] != "Average:" || split[3] == "-" || split[3] == "TID") continue;
+        double voluntary = 0, involuntary = 0;
+        if (std::from_chars(split[4].data(), split[4].data() + split[4].size(), voluntary).ec != std::errc{} ||
+            std::from_chars(split[5].data(), split[5].data() + split[5].size(), involuntary).ec != std::errc{})
+            continue;
+        std::string name(split[6]);
+        if (name.starts_with("|__")) name.erase(0, 3);
+        if (voluntary + involuntary > 0) waking[name] += voluntary + involuntary;
+    }
+    return waking;
 }
 
 std::optional<double> switches_of(std::string_view pidstat_output) {
@@ -1312,6 +1331,7 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
             if (cold.idle_wakeups)
                 sample["idle_wakeups_per_s"] = *cold.idle_wakeups,
                 mine.wakeups.push_back(*cold.idle_wakeups);
+            if (!cold.idle_waking.empty()) sample["idle_waking"] = cold.idle_waking;
             if (cold.idle_frames)
                 sample["idle_frames_per_s"] = *cold.idle_frames,
                 mine.frames.push_back(*cold.idle_frames);

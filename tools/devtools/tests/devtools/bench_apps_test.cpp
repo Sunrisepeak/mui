@@ -78,6 +78,10 @@ static UTest cases{
                 expect(fatal(switches.has_value()));
                 expect(std::abs(*switches - 3.6) < 1e-9) << *switches;
                 expect(!bench::switches_of("Linux 6.8.0\n").has_value());
+                // Which threads woke, by name: what an idle process's switches are made of.
+                const auto waking = bench::waking_of(pidstat_output);
+                expect(waking.size() == 2 && std::abs(waking.at("omui") - 2.2) < 1e-9 && std::abs(waking.at("omui-render") - 1.4) < 1e-9)
+                    << waking.size();
             };
 
         "a picture's hash ignores the unused byte; a cleared window is uniform, a drawn one is not"_test =

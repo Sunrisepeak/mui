@@ -236,8 +236,9 @@ int main(int argc, char** argv) {
                     for (std::size_t part = 0; part < parts.size(); ++part) parts[part].push_back(spent[part]);
             }
         const auto median = [](std::vector<double> values) { std::ranges::sort(values); return values[values.size() / 2]; };
-        std::println(R"({{"player":"hanim","scene":"{}","evaluate_ms":{:.3f},"record_ms":{:.3f},"draw_ms":{:.3f}}})", scene, median(parts[0]),
-                     median(parts[1]), median(parts[2]));
+        const auto playing = played->engine.inspect(played->playback);
+        std::println(R"({{"player":"hanim","scene":"{}","evaluate_ms":{:.3f},"record_ms":{:.3f},"draw_ms":{:.3f},"tracks":{},"segments":{}}})", scene,
+                     median(parts[0]), median(parts[1]), median(parts[2]), playing ? playing->track_count : 0, playing ? playing->segment_count : 0);
         return 0;
     }
     std::vector<double> times;

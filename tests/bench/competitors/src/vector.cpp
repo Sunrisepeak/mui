@@ -264,7 +264,7 @@ void record(const Scene& scene, xrender::DisplayList& list, std::vector<std::arr
 
 // Where a scene's time goes (`--phases`), drawn straight on the raster
 // canvas: making the outline (curves flattened, or the stroke's outline),
-// rasterising it to runs of coverage, and the rest of the fill — compositing
+// rasterising it as the canvas does (a row's pieces of coverage), and the rest of the fill — compositing
 // (the whole fill timed, less the two before it, measured again apart).
 void phases(const Scene& scene, int runs) {
     namespace raster = xrender::raster;
@@ -272,7 +272,7 @@ void phases(const Scene& scene, int runs) {
     raster::Canvas canvas(surface);
     raster::Polygons polygons;
     raster::Rasterizer rasterizer;
-    raster::Spans spans;
+    std::size_t pieces = 0, covered = 0;  // what the rows gave (counted, so the work is not left out)
     std::vector<raster::PathBuilder> paths(scene.items.size());
     std::vector<std::array<raster::Stop, 2>> stops(scene.items.size());
     std::vector<raster::Paint> paints(scene.items.size());
@@ -301,7 +301,7 @@ void phases(const Scene& scene, int runs) {
     std::size_t edges = 0, runs_made = 0;
     for (int run = 0; run < 3 + runs; ++run) {
         double outline = 0, rasterise = 0;
-        edges = runs_made = 0;
+        edges = runs_made = pieces = 0;
         for (std::size_t index = 0; index < scene.items.size(); ++index) {
             const Item& item = scene.items[index];
             polygons.clear();
@@ -309,12 +309,18 @@ void phases(const Scene& scene, int runs) {
             if (item.kind == Item::Kind::stroke) raster::stroke_outline(paths[index].data(), {}, stroke_of(item), polygons);
             else raster::flatten(paths[index].data(), {}, polygons);
             const auto made = std::chrono::steady_clock::now();
-            rasterizer.rasterize(polygons, raster::FillRule::nonzero, clip, spans);
+            // As the canvas does: a row's pieces of varying coverage gathered, runs of one value as runs.
+            pieces = 0;
+            rasterizer.rasterize_rows(polygons, raster::FillRule::nonzero, clip,
+                                      [&](std::int32_t, std::int32_t, std::int32_t length, std::uint8_t value, const std::uint8_t* values) {
+                                          ++pieces;
+                                          covered += values ? static_cast<std::size_t>(values[0]) + static_cast<std::size_t>(length) : value;
+                                      });
             const auto done = std::chrono::steady_clock::now();
             outline += std::chrono::duration<double, std::milli>(made - start).count();
             rasterise += std::chrono::duration<double, std::milli>(done - made).count();
             edges += polygons.points.size();
-            runs_made += spans.runs.size();
+            runs_made += pieces;
         }
         surface.clear(raster::Rgba8{255, 255, 255, 255});
         const auto start = std::chrono::steady_clock::now();
@@ -328,8 +334,8 @@ void phases(const Scene& scene, int runs) {
     }
     const auto median = [](std::vector<double> values) { std::ranges::sort(values); return values[values.size() / 2]; };
     const double outline = median(outline_ms), rasterise = median(raster_ms), total = median(total_ms);
-    std::println(R"({{"scene":"{}","total_ms":{:.3f},"outline_ms":{:.3f},"rasterise_ms":{:.3f},"composite_ms":{:.3f},"points":{},"runs":{}}})", scene.name, total,
-                 outline, rasterise, std::max(0.0, total - outline - rasterise), edges, runs_made);
+    std::println(R"({{"scene":"{}","total_ms":{:.3f},"outline_ms":{:.3f},"rasterise_ms":{:.3f},"composite_ms":{:.3f},"points":{},"pieces":{},"covered":{}}})", scene.name,
+                 total, outline, rasterise, std::max(0.0, total - outline - rasterise), edges, runs_made, covered);
 }
 
 bool write(const std::filesystem::path& file, std::string_view text) {

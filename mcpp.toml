@@ -178,6 +178,7 @@ members = [
     "showcase/swarm/headless",
     "showcase/swarm/window",
     "site",
+    "site/page",
 ]
 
 # CI's rows and a whole-workspace run (mcpp's advice, 2026-11-13): the dev build without debug information and

@@ -1,0 +1,37 @@
+# omui's site as one page (G5; the site's design, 2026-11-19): the mark, one
+# sentence, the Live Design key and the install, in four states of one
+# picture — at rest, Live Design (the page grown again step by step, the
+# progress along the mark's ring), waiting (the ring open, breathing, once
+# the prompt or the commands are copied) and connected (the ring closed, the
+# mark become Mui with the visitor's agent and its omui). Made by an agent in
+# Live Design in TypeScript; the C++ site under ../src retires when it lands.
+#
+#   omui dev                       design it (the designer linked)
+#   mcpp run                       the page in a window
+[package]
+namespace   = "omui.site"
+name        = "page"
+version     = "0.1.0"
+description = "omui's site as one page: the mark, one sentence, Live Design and the install, in four states"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the site's one page"
+kind  = "app"
+id    = "org.openmui.site"
+title = "omui"
+size  = "1280x800"
+
+[package.metadata.openmui.scripts]
+main = "app/main.ts"
+
+[package.metadata.openmui.runtime]
+openmui = "0.4"
+
+[targets.omui-site-page]
+kind = "bin"
+main = { from = "omui.entry.player/player" }
+
+[dependencies]
+omui.entry.player = { path = "../../modules/projects/omui/entry/player" }

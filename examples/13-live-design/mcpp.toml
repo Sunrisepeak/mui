@@ -29,6 +29,12 @@ size  = "480x420"
 [package.metadata.openmui.scripts]
 main = "app/main.ts"
 
+# The runtime it runs on, shipped as data (omui-launch): the specification its
+# scripts are written against, and the capability it uses: its design replayed in place (generate.replay).
+[package.metadata.openmui.runtime]
+openmui = "0.4"
+needs   = ["generate"]
+
 [targets.subscription]
 kind = "bin"
 main = { from = "omui.entry.player/player" }

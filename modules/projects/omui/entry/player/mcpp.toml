@@ -45,6 +45,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 [dependencies]
 omui.sdk           = { path = "../../sdk" }
 omui.player        = { path = "../../player" }
+omui.abi           = { path = "../../abi" }  # the specification's version a runtime says it implements (--runtime)
 omui.lang.js       = { path = "../../lang/js" }
 omui.ui.markdown   = { path = "../../components/markdown" }
 omui.native = { path = "../../native" }  # with its modules (fuzzy, store)
@@ -62,3 +63,8 @@ design  = { sources = [] }
 
 [feature-deps.design]
 omui.designer = { path = "../../designer" }
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): what a player says it is as a runtime
+# (`--runtime`, runtime@1, E3b), which a launcher reads; only the player writes it (no define module).
+[package.metadata.openmui.xdef]
+kinds = { runtime = 1 }

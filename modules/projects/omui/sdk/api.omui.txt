@@ -211,6 +211,7 @@ namespace omui {
   [[nodiscard]] std::expected<CommandLine, int> command_line(mcpplibs::cmdline::App line, int argc, char** argv);
   int run(AppSpec app, const RunOptions& options);
   int run(AppSpec app, int argc, char** argv);
+  [[nodiscard]] std::vector<std::string> capabilities();
 }
 == omui:devhost
 namespace omui {

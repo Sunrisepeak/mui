@@ -118,6 +118,16 @@ UTest cases{"mlibs.project", [] {
         write(root / "tests" / "deep" / "one_test.cpp", "int x;\n");
         const auto findings = project::check(*project::read(root), *profiles);
         expect(findings.size() == 2 && has(findings, "demo.who", "mcpp.toml") && has(findings, "demo.uses", "mcpp.toml")) << "the test is found, two hold not";
+
+        // A table's values said as dotted keys, the table itself said.
+        const auto nested = project::profiles_from(R"({"$format":"profile@1","profile":{"demo":{"doc":"d","rules":[
+            {"id":"demo.runtime","doc":"says its runtime","metadata":["runtime", "runtime.openmui"],"fix":"openmui = …"}]}}})", "demo.profile.xdef.json");
+        expect(fatal(nested.has_value())) << (nested ? "" : nested.error());
+        write(root / "mcpp.toml", "[package]\nname = \"demo\"\n[package.metadata.openmui]\nprofile = \"demo\"\n[package.metadata.openmui.runtime]\nneeds = [\"agent\"]\n");
+        expect(has(project::check(*project::read(root), *nested), "demo.runtime", "mcpp.toml")) << "no openmui in it";
+        write(root / "mcpp.toml", "[package]\nname = \"demo\"\n[package.metadata.openmui]\nprofile = \"demo\"\n[package.metadata.openmui.runtime]\nopenmui = \"0.4\"\n");
+        const auto read = project::read(root);
+        expect(project::check(*read, *nested).empty() && eq(read->packages.front().metadata.at("runtime.openmui"), std::string("0.4")));
         expect(!project::profiles_from(R"({"$format":"profile@1","profile":{"x":{"rules":[{"id":"x.y"}]}}})", "x.profile.xdef.json")) << "a rule needs a condition";
         expect(!project::profiles_from(R"({"profile":{}})", "x.profile.xdef.json")) << "its format first";
     };

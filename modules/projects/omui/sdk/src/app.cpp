@@ -554,6 +554,23 @@ std::expected<CommandLine, int> command_line(cmdline::App line, int argc, char**
     return CommandLine{std::move(*parsed), std::move(*options)};
 }
 
+std::vector<std::string> capabilities() {
+    hosting::install_services();
+    // A capability by the slot its provider is installed at (the manifest's installs, feature by feature).
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 4> named{{{"omui.agent.endpoint", "agent"},
+                                                                                           {"omui.sdk.generation", "generate"},
+                                                                                           {"omui.host.sdl3.gpu", "gpu"},
+                                                                                           {"omui.accessibility.service", "accessibility-bridge"}}};
+    std::vector<std::string> out;
+    for (const mlibs::compose::Described& slot : mlibs::compose::process().describe()) {
+        if (slot.providers.empty()) continue;
+        if (const auto found = std::ranges::find(named, slot.slot, &std::pair<std::string_view, std::string_view>::first); found != named.end())
+            out.emplace_back(found->second);
+    }
+    std::ranges::sort(out);
+    return out;
+}
+
 int run(AppSpec app, int argc, char** argv) {
     auto command = command_line(cmdline::App(app.id.empty() ? std::string("application") : app.id).description(app.title), argc, argv);
     if (!command) return command.error();

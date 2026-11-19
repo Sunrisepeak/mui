@@ -75,9 +75,16 @@ Package package_of(const toml::table& manifest, const std::filesystem::path& dir
     const auto space = manifest["package"]["namespace"].value<std::string>();
     const auto name = manifest["package"]["name"].value<std::string>().value_or("");
     package.name = space ? std::format("{}.{}", *space, name) : name;
+    // Its plain values; a table's (`[package.metadata.openmui.runtime]`) as dotted keys ("runtime.openmui"), the table
+    // itself said (its key, empty).
     if (const auto* metadata = manifest.at_path("package.metadata.openmui").as_table())
         for (const auto& [key, value] : *metadata) {
             if (const auto text = value.value<std::string>()) package.metadata[std::string(key.str())] = *text;
+            if (const auto* table = value.as_table()) {
+                package.metadata[std::string(key.str())] = "";
+                for (const auto& [inner, said] : *table)
+                    if (const auto text = said.value<std::string>()) package.metadata[std::format("{}.{}", key.str(), inner.str())] = *text;
+            }
         }
     // Its profile: what it says, or an application's kind (`kind = "app"`, as omui's templates write it).
     if (const auto found = package.metadata.find("profile"); found != package.metadata.end()) package.profile = found->second;

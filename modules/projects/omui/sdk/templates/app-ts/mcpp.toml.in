@@ -13,6 +13,14 @@ size  = "480x320"
 [package.metadata.openmui.scripts]
 main = "app/main.ts"
 
+# The runtime it runs on when it ships as data, nothing built (omui-launch):
+# the openmui specification its scripts are written against, and the
+# capabilities it uses (needs = ["agent", "generate", "gpu",
+# "accessibility-bridge"]). The newest installed runtime that satisfies it
+# starts it; with none, omui-launch says the command that installs one.
+[package.metadata.openmui.runtime]
+openmui = "0.4"
+
 # No C++ to write: the program's main is the player's (an entry target of
 # omui.entry.player); the application is app/.
 [targets.{{project.name}}]

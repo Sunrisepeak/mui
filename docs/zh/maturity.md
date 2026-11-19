@@ -14,7 +14,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 
 | 项目 | 稳定 | 预览 | 实验 |
 |---|---|---|---|
-| omui | 30 | 2 | 1 |
+| omui | 30 | 3 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
 | meng | 0 | 21 | 2 |
@@ -64,6 +64,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `omui.mcp` | [modules/projects/omui/tools/mcp](../../modules/projects/omui/tools/mcp) | 稳定 |
 | `omui.entry.player` | [modules/projects/omui/entry/player](../../modules/projects/omui/entry/player) | 稳定 |
 | `omui.entry.devhost` | [modules/projects/omui/entry/devhost](../../modules/projects/omui/entry/devhost) | 稳定 |
+| `omui.entry.launcher` | [modules/projects/omui/entry/launcher](../../modules/projects/omui/entry/launcher) | 预览 |
 | `omui.cts` | [modules/projects/omui/cts](../../modules/projects/omui/cts) | 稳定 |
 
 ### hanim

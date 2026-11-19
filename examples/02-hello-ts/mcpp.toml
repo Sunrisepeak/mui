@@ -26,6 +26,11 @@ size  = "480x320"
 [package.metadata.openmui.scripts]
 main = "logic/main.ts"
 
+# The runtime it runs on, shipped as data (omui-launch): the specification its
+# scripts are written against.
+[package.metadata.openmui.runtime]
+openmui = "0.4"
+
 [targets.text-stats]
 kind = "bin"
 main = { from = "omui.entry.player/player" }

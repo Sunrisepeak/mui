@@ -207,4 +207,9 @@ struct CommandLine {
 int run(AppSpec app, const RunOptions& options);
 int run(AppSpec app, int argc, char** argv);
 
+// The capabilities this program carries — its world's, by the providers installed (agent, generate, gpu,
+// accessibility-bridge: the features of [package.metadata.openmui.compose.installs]) — installing them first as
+// `run` does. What a runtime says it can do (`omui-player --runtime`, E3b), sorted.
+[[nodiscard]] std::vector<std::string> capabilities();
+
 }  // namespace omui

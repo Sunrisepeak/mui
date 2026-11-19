@@ -22,7 +22,7 @@ struct Package {
     std::vector<std::string> dependencies;  // every dependency's key, of every kind (dotted names as written)
     std::vector<std::string> path_dependencies;  // relative to the root, `/`-separated
     std::vector<std::string> files;      // the package's own files, from its directory, `/`-separated (not nested packages')
-    std::map<std::string, std::string> metadata;  // [package.metadata.openmui]'s plain values
+    std::map<std::string, std::string> metadata;  // [package.metadata.openmui]'s plain values; a table's as "table.key" (the table: "")
 };
 
 struct Project {

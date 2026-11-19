@@ -255,6 +255,13 @@ cmd::App app() {
                         .subcommand(cmd::App("tool")
                                         .description("The omui tool as a release ships it (E2): the command, the player built with the designer (a TypeScript application of this release runs through it, nothing built) and the development host, in one directory and its archive")
                                         .option(Option("out").takes_value().value_name("DIR").help("default: target/release/tool (emptied first)")))
+                        .subcommand(cmd::App("runtime")
+                                        .description("The shared runtime as a release ships it (E3b): the player without the designer and omui-launch, self-contained, with runtime.json, as omui-runtime-<version>-<platform>/ and its archive; the xlings descriptor of every version packed (omui-runtime.lua)")
+                                        .option(Option("out").takes_value().value_name("DIR").help("default: target/release/runtime (each version's directory and archive replaced, the others kept)"))
+                                        .option(Option("version").takes_value().value_name("V").help("the version it ships as (default: the player's)"))
+                                        .option(Option("no-pack").help("only the descriptor (and --check) from what is packed"))
+                                        .option(Option("check").help("in an xlings home of its own: every version installed side by side; two applications from app-ts, one pinned to the oldest, started together each from its runtime and drawing; the way out a refusal gives, run; each package ≤ 100 KB (report: <out>/check.json)"))
+                                        .option(Option("home").takes_value().value_name("DIR").help("the check's xlings home (default: <out>/xlings, made with `xlings self init`)")))
                         .subcommand(cmd::App("index")
                                         .description("The templates' closure, its mcpp-index descriptors written to a directory, and what blocks `mcpp publish`")
                                         .option(Option("out").takes_value().value_name("DIR").help("default: target/release/index"))
@@ -1354,21 +1361,16 @@ int release_try(const cmd::ParsedArgs& options, const fs::path& root) {
             !ok(shown))
             return failed("tool: first window", said(shown));
         const double seconds = std::chrono::duration<double>(clock::now() - since).count();
-        auto image = mlibs::image::load_png(picture);
-        if (!image) return failed("tool: first window", std::format("{}: {}", mcpplibs::os::fs::utf8(picture), image.error()));
+        const auto dark = release::ink(picture);
+        if (!dark) return failed("tool: first window", dark.error());
         fs::copy_file(picture, work / "first.png", fs::copy_options::overwrite_existing, error);
         if (fs::exists(scratch / "hello/target", error))
             return failed("tool: first window", "the project was built (hello/target is there): the player the tool ships was not used");
         // Its words drawn: dark pixels of the title and the count (no fonts found draws none).
-        std::size_t ink = 0;
-        for (int y = 0; y < image->height; ++y) {
-            const auto line = image->row(y);
-            for (std::size_t x = 0; x + 4 <= line.size(); x += 4)
-                if (line[x] < 70 && line[x + 1] < 70 && line[x + 2] < 70 && line[x + 3] > 200) ++ink;
-        }
+        const std::size_t ink = dark->dark;
         if (ink < 200) return failed("tool: first window", std::format("{} dark pixels: its text was not drawn (the fonts the tool carries not found)", ink));
         if (seconds > 60) return failed("tool: first window", std::format("{:.1f} s from new to the first window: over the minute E2 allows", seconds));
-        passed("tool: new to first window", since, {{"width", image->width}, {"height", image->height}, {"compiled", false}, {"ink_pixels", ink}, {"limit_seconds", 60}});
+        passed("tool: new to first window", since, {{"width", dark->width}, {"height", dark->height}, {"compiled", false}, {"ink_pixels", ink}, {"limit_seconds", 60}});
         fs::remove_all(scratch, error);
         report["ok"] = true;
         written();
@@ -1570,6 +1572,14 @@ int main(int argc, char** argv) {
         const cmd::ParsedArgs& asked = parsed->subcommand()->get();
         if (asked.subcommand_name() == "try") return release_try(asked.subcommand()->get(), root);
         if (asked.subcommand_name() == "tool") return release_tool(asked.subcommand()->get(), root);
+        if (asked.subcommand_name() == "runtime") {
+            const auto& given = asked.subcommand()->get();
+            return omui::devtools::release::runtime(root, {.out = mcpplibs::os::fs::from_utf8(given.value("out").value_or("")),
+                                           .version = given.value("version").value_or(""),
+                                           .pack = !given.is_flag_set("no-pack"),
+                                           .check = given.is_flag_set("check"),
+                                           .home = mcpplibs::os::fs::from_utf8(given.value("home").value_or(""))});
+        }
         if (asked.subcommand_name() != "index") {
             std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--index DIR] | try [--template T] [--work DIR] [--tool DIR] | tool [--out DIR]\n";
             return 2;

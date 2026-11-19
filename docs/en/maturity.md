@@ -14,7 +14,7 @@ A capability below its package's label is marked in its project's feature table 
 
 | Project | stable | preview | experimental |
 |---|---|---|---|
-| omui | 30 | 2 | 1 |
+| omui | 30 | 3 | 1 |
 | hanim | 5 | 4 | 0 |
 | xrender | 10 | 8 | 0 |
 | meng | 0 | 21 | 2 |
@@ -64,6 +64,7 @@ A capability below its package's label is marked in its project's feature table 
 | `omui.mcp` | [modules/projects/omui/tools/mcp](../../modules/projects/omui/tools/mcp) | stable |
 | `omui.entry.player` | [modules/projects/omui/entry/player](../../modules/projects/omui/entry/player) | stable |
 | `omui.entry.devhost` | [modules/projects/omui/entry/devhost](../../modules/projects/omui/entry/devhost) | stable |
+| `omui.entry.launcher` | [modules/projects/omui/entry/launcher](../../modules/projects/omui/entry/launcher) | preview |
 | `omui.cts` | [modules/projects/omui/cts](../../modules/projects/omui/cts) | stable |
 
 ### hanim

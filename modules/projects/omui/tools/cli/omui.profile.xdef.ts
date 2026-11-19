@@ -19,6 +19,12 @@ export default defineProfile({
         fix: "omui new makes one: an app-cpp's src/main.cpp, or an app-ts's app/main.ts with the player",
       },
       {
+        id: "app.runtime",
+        doc: "a script application says the runtime it runs on: the openmui specification its scripts are written against",
+        anyOf: [{ file: "src/main.cpp" }, { metadata: ["runtime.openmui"] }],
+        fix: "[package.metadata.openmui.runtime] openmui = \"0.4\" (and needs = [\"agent\", …], the capabilities it uses): omui-launch starts it with the newest installed runtime that satisfies it",
+      },
+      {
         id: "app.headless-test",
         doc: "a test in tests/ that drives it without a window, as an agent does",
         file: "tests/**.cpp",

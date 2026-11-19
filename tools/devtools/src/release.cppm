@@ -96,4 +96,28 @@ struct Closure {
 // The templates `mcpp new --template` offers from the SDK (their directories under templates_directory).
 inline constexpr std::array<std::string_view, 5> template_names{"app-cpp", "app-ts", "component", "native", "theme"};
 
+// `release runtime` (E3b, D-250): the shared runtime as a release ships it — the player without the designer and the
+// launcher (omui-launch), self-contained, with runtime.json (runtime@1: its version, the specification it implements,
+// its capabilities) — as omui-runtime-<version>-<platform>/ and its archive in `out`, and the xlings descriptor of
+// every version there (omui-runtime.lua). `check`: in an xlings home of its own, every version installed side by
+// side through the descriptor (the archives seeded where xlings downloads to: nothing is published); two applications
+// from the app-ts template, one pinned to the oldest version, each started by omui-launch from its own runtime at
+// the same time and drawing; the one pinned refused once its version is removed, the command it is given run, and
+// started again; each application's package measured (≤ 100 KB). Its report: <out>/check.json.
+struct RuntimeRelease {
+    std::filesystem::path out;   // default: target/release/runtime (kept: each version's directory and archive replaced)
+    std::string version;         // the version it is packed as (default: the player's)
+    bool pack = true;
+    bool check = false;
+    std::filesystem::path home;  // the check's xlings home (default: <out>/xlings, made with `xlings self init`)
+};
+[[nodiscard]] int runtime(const std::filesystem::path& root, const RuntimeRelease& options);
+
+// A picture's dark, opaque pixels (its text drawn: fonts found draw them) and its size, or why it could not be read.
+struct Ink {
+    std::size_t dark = 0;
+    int width = 0, height = 0;
+};
+[[nodiscard]] std::expected<Ink, std::string> ink(const std::filesystem::path& png);
+
 }  // namespace omui::devtools::release

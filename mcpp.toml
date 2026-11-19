@@ -142,6 +142,7 @@ members = [
     "mcpp/build",
     "modules/projects/omui/entry/player",
     "modules/projects/omui/entry/devhost",
+    "modules/projects/omui/entry/launcher",
     "tests/bench",
     "tests/bench/competitors",
     "tests/bench/competitors/apps",

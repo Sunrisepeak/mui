@@ -5,6 +5,7 @@ import mcpplibs.os;
 import mcpplibs.cmdline;
 import omui;
 import omui.player;
+import omui.abi;
 import omui.ui.markdown;
 import omui.lang.js;
 import omui.native;
@@ -196,6 +197,18 @@ generate::EvaluateFn generated_views(const std::filesystem::path& base) {
 // through it (`--version` says it; E2).
 constexpr std::string_view player_version = "0.1.0";
 
+namespace {
+
+// Where this player runs from: its package's directory (a self-contained package's launcher says it,
+// MCPP_BUNDLE_DIR), else its program's.
+std::filesystem::path runtime_directory() {
+    if (const auto bundle = mcpplibs::os::env::get("MCPP_BUNDLE_DIR"); bundle && !bundle->empty()) return mcpplibs::os::fs::from_utf8(*bundle);
+    if (const auto image = mcpplibs::os::env::image()) return image->parent_path();
+    return std::filesystem::current_path();
+}
+
+}  // namespace
+
 int player_main(int argc, char** argv) {
     // The player's switches beside the application's (RunOptions), on one
     // command line, parsed once (mcpplibs.cmdline, D-56).
@@ -209,11 +222,27 @@ int player_main(int argc, char** argv) {
         .option(Option("design-film").takes_value().value_name("DIR").help("the design's history as a film: frames and a video description into DIR, then end (omui design film; needs the designer)"))
         .option(Option("film-branch").takes_value().value_name("NAME").help("design-film: whose commits (the one designed on)"))
         .option(Option("film-fps").value_type<int>().help("design-film: frames a second (30)"))
-        .option(Option("film-seconds").value_type<double>().help("design-film: each step's time on screen (1.5)"));
+        .option(Option("film-seconds").value_type<double>().help("design-film: each step's time on screen (1.5)"))
+        .option(Option("runtime").help("say what this player is as a runtime (E3b): its version, the openmui specification it implements, the capabilities it carries, where it runs from; then end"));
     auto command = command_line(std::move(line), argc, argv);
     if (!command) return command.error();
     const cmdline::ParsedArgs& parsed = command->args;
     RunOptions& options = command->options;
+    if (parsed.is_flag_set("runtime")) {
+        // What a launcher matches an application's declaration against (runtime@1): the specification's major and
+        // minor version (its scripts' interface), the capabilities this build carries.
+        Value::List carried;
+        for (const std::string& capability : capabilities()) carried.emplace_back(capability);
+        std::println("{}", Value(Value::Map{})
+                               .set("$format", "runtime@1")
+                               .set("runtime", Value{}
+                                                   .set("version", std::string(player_version))
+                                                   .set("openmui", std::format("{}.{}", abi::OMUI_SPEC_VERSION_MAJOR, abi::OMUI_SPEC_VERSION_MINOR))
+                                                   .set("capabilities", Value(std::move(carried)))
+                                                   .set("directory", mcpplibs::os::fs::utf8(runtime_directory())))
+                               .json());
+        return 0;
+    }
     std::filesystem::path manifest = mcpplibs::os::fs::from_utf8(parsed.value("manifest").value_or("mcpp.toml"));
     if (std::filesystem::is_directory(manifest)) manifest /= "mcpp.toml";
     const bool design = parsed.is_flag_set("dev");

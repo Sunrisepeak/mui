@@ -10,9 +10,15 @@ namespace omui::build {
 
 namespace {
 
-// spec/registry in the openmui tree this plugin is part of, found by its
-// package's qualified name (a build may hold other packages called `build`).
+// openmui's registry: the one in the spec package the consumer builds against (its [build-dependencies] name
+// openlifa.openmui — a published install has no openmui tree around this plugin); else spec/registry in the
+// openmui tree this plugin is part of, found by its package's qualified name (a build may hold other packages
+// called `build`).
 std::string default_registry() {
+    if (const char* spec = mcpp::dep_dir("openlifa.openmui"); spec && *spec) {
+        const auto registry = std::filesystem::path(spec) / "registry";
+        if (std::filesystem::is_directory(registry)) return utf8(registry.lexically_normal());
+    }
     const char* self = mcpp::dep_dir("omui.build");
     const std::string dir = self && *self ? std::string(self) : std::string(mcpp::dep_dir("build"));
     return utf8((std::filesystem::path(dir) / ".." / ".." / "spec" / "registry").lexically_normal());
@@ -68,7 +74,8 @@ std::vector<edge> plan(const component_options& opt) {
     }
     const std::string registry = opt.registry.empty() ? default_registry() : opt.registry;
     if (!std::filesystem::is_directory(registry)) {
-        std::println(std::cerr, "omui.build.contracts: no registry at {} (set component_options::registry to openmui's spec/registry)", registry);
+        std::println(std::cerr, "omui.build.contracts: no registry at {} (declare openlifa.openmui in [build-dependencies], or set "
+                                "component_options::registry to openmui's registry/)", registry);
         return {};
     }
     const auto files = kind_files(std::filesystem::path(root) / opt.contracts, "contract");

@@ -441,13 +441,18 @@ return report;
 
 }  // namespace
 
-int visitor_path(const fs::path& root, const fs::path& built, const fs::path& given_omui) {
+int visitor_path(const fs::path& root, const fs::path& built, const fs::path& given_omui,
+                 std::string_view url, bool allow_local) {
     const auto chrome = browser::chromium();
     if (!chrome)
         return failed("no headless Chromium for the visitor's path");
+    // The site served here as Pages serves it, or a deployed one (`--url`): an https page reaching the bridge on
+    // the loopback is what browsers ask the person about (local network access), so that path is checked where
+    // it is deployed.
+    const bool deployed = !url.empty();
     const fs::path site_dir =
         built.empty() ? root / "target/site" : (built.is_absolute() ? built : root / built);
-    if (!fs::is_regular_file(site_dir / "index.html"))
+    if (!deployed && !fs::is_regular_file(site_dir / "index.html"))
         return failed("no target/site (omui-devtools site build first)");
     fs::path omui = given_omui;
     if (omui.empty()) {
@@ -489,9 +494,22 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
         return Answer{done->timed_out ? -1 : done->status.shell_code(), std::move(done->out),
                       std::move(done->err)};
     };
-    auto server = cdp::Server::start(cdp::pages(site_dir));
-    if (!server)
-        return failed(server.error());
+    std::optional<decltype(cdp::Server::start(cdp::pages(site_dir)))> served;
+    if (!deployed) {
+        served.emplace(cdp::Server::start(cdp::pages(site_dir)));
+        if (!*served)
+            return failed(served->error());
+    }
+    const std::string address = deployed ? std::string(url) : (**served)->url();
+    // A document's text from where the page is: the loopback server directly, a deployed site through the page's
+    // own fetch (same origin).
+    const auto fetched = [&](const std::string& from) -> std::string {
+        if (!deployed)
+            return cdp::get(from).value_or("");
+        const json got = script.value(std::format(
+            "fetch({}).then(r => r.ok ? r.text() : '').catch(() => '')", json(from).dump()));
+        return got.is_string() ? got.get<std::string>() : std::string();
+    };
     auto launched = pages::open({.root = root, .site = site_dir, .chrome = *chrome}, 1440, 900);
     if (!launched)
         return failed(launched.error());
@@ -502,7 +520,7 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
     std::string bridge_said;
     script.attempt(
         [&] {
-            script.call("Page.navigate", {{"url", (*server)->url()}});
+            script.call("Page.navigate", {{"url", address}});
             for (int index = 0; index < 300 && !script.thrown(); ++index) {
                 if (truthy(script.value("!!window.omui && "
                                         "(document.querySelector('[data-omui=mirror]')?."
@@ -543,6 +561,15 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
                 return true;
             };
             step(press("main/bar/guide_toggle"), "the person opens the agent panel");
+            if (allow_local) {
+                // The person answers the browser's question: this page may reach this machine (local network
+                // access). Without it a deployed page's requests to the bridge are the browser's to refuse.
+                const std::size_t host = address.find("://");
+                const std::string origin =
+                    address.substr(0, address.find('/', host == std::string::npos ? 0 : host + 3));
+                script.call("Browser.grantPermissions",
+                            {{"origin", origin}, {"permissions", {"localNetworkAccess"}}});
+            }
             step(press("main/body/guide/copy_prompt"), "the person presses \"Copy the prompt\"");
             const json prompt_node = node("main/body/guide/prompt");
             const std::string prompt =
@@ -559,13 +586,12 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
             step(text(at(script.value("window.omui.linkState()"), "state")) == "waiting",
                  "the page waits for its agent");
             // What the prompt points the agent at: the page's agent.md, and its twin for a program.
-            const std::string guide =
-                guide_url.empty() ? std::string() : cdp::get(guide_url).value_or("");
+            const std::string guide = guide_url.empty() ? std::string() : fetched(guide_url);
             json card;
             if (!guide_url.empty()) {
                 const std::string card_url = guide_url.substr(0, guide_url.rfind('/') + 1) +
                                              ".well-known/openmui-agent.json";
-                card = json::parse(cdp::get(card_url).value_or(""), nullptr, false);
+                card = json::parse(fetched(card_url), nullptr, false);
                 if (card.is_discarded())
                     card = nullptr;
             }
@@ -619,6 +645,11 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
             step(text(at(state, "state")) == "paired" && text(at(state, "agent")) == "CI agent",
                  "the page sees its agent, by name",
                  state.is_null() ? "undefined" : cdp::stringify(state));
+            // The page describes itself to the agent (D-186).
+            const Answer described = page_command({"describe"});
+            step(described.code == 0 && described.out.size() > 40,
+                 "the page describes itself to the agent (omui page describe)",
+                 (described.out + described.err).substr(0, 400));
 
             // 3. The self-check agent.md gives, then the person's log shows what the agent did.
             if (!card.is_object())
@@ -706,9 +737,11 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
     if (bridge_reader.joinable())
         bridge_reader.join();
     page.close();
-    (*server)->close();
+    if (served)
+        (**served)->close();
     fs::remove_all(bridge_dir, error);
-    json report = {{"steps", script.report["checks"]}, {"ok", script.all_ok()}};
+    json report = {{"steps", script.report["checks"]}, {"ok", script.all_ok()}, {"url", address},
+                   {"allowed_local", allow_local}};
     write_json(root / "target/visitor-path.json", report, 1);
     std::cout << "the visitor's path:\n";
     for (const auto& one : report["steps"]) {

@@ -118,7 +118,10 @@ struct Size {
 // The site's checks, by name.
 [[nodiscard]] const std::vector<std::string>& site_check_names();
 // The visitor's path through the built site with an agent paired by omui connect (omui: built when not given).
-[[nodiscard]] int visitor_path(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui);
+// `url`: a deployed site rather than the one built here; `allow_local`: the person allows that page to reach this
+// machine (the browser's local network access permission).
+[[nodiscard]] int visitor_path(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui,
+                               std::string_view url = {}, bool allow_local = false);
 // The generated loader against the browser's own streams, failures and retries (fixture: omui.gen's dist_toy test
 // run first and its own used, when not given).
 [[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);

@@ -34,6 +34,7 @@ hanim.timeline      = { path = "../../../hanim/timeline" }
 
 [build-dependencies]
 omui.build = { path = "../../../../../mcpp/build", host-module = true }
+openlifa.openmui = { path = "../../../../../spec" }  # its registry/: what the contracts are generated against
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

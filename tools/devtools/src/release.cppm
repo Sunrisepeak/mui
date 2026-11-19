@@ -60,4 +60,33 @@ struct Closure {
                                      const std::map<std::string, std::string>& members,
                                      std::string_view checkout);
 
+// ── Trying the release here (E1): a clean home whose index is mcpp-index with this tree's descriptors ──────────
+
+// A descriptor with its build field as the package's own manifest (`mcpp = "*/mcpp.toml"`). The inline field
+// `mcpp publish` writes (2026.11.18.1) names the archive's manifest, yet mcpp reads it as a recipe: a consumer's
+// build stops at it ("synthesised manifest missing sources") and `mcpp new --template` refuses it (mcpp#960). The
+// archive is the same; a descriptor already in that form is kept. Until mcpp reads its own descriptors, release
+// try's stand-in index carries them this way.
+[[nodiscard]] std::string as_own_manifest(std::string_view descriptor);
+
+// A descriptor's `namespace` and `name` ("omui.entry", "player"), or empty when it states neither.
+[[nodiscard]] std::pair<std::string, std::string> identity_of(std::string_view descriptor);
+
+// Where mcpp keeps a package's payload in a home's store: `xpkgs/<namespace>-x-<name>/<version>`; a package without a
+// namespace is mcpp's default namespace's, `mcpplibs-x-<name>` (mcpp docs 11: a payload seeded there is what a build
+// uses before it is published).
+[[nodiscard]] std::filesystem::path store_path(std::string_view namespace_, std::string_view name, std::string_view version);
+
+// A home's config.toml with its default index (`[index.repos."mcpplibs"]`) at `url`, read from git there; the
+// rest kept. Empty when the table is not there.
+[[nodiscard]] std::string with_default_index(std::string_view config, std::string_view url);
+
+// A published manifest with each dependency on a member that still names its `path` — the ones `mcpp publish` leaves
+// in `[feature-deps.*]` and under a key that begins with the package's own name (mcpp#962) — named by that member's
+// version instead; its other keys (features, default-features) kept. `directory` is the member's own path from the
+// root, `versions` each member's path to its version. Dev-dependencies are left: a consumer does not build them.
+// Release try's stand-in until mcpp#962 is fixed; the manifest unchanged when there is nothing to pin.
+[[nodiscard]] std::expected<std::string, std::string> pinned(std::string_view manifest, std::string_view directory,
+                                                             const std::map<std::string, std::string>& versions);
+
 }  // namespace omui::devtools::release

@@ -69,6 +69,7 @@ mcpplibs.os         = "0.4.4"
 
 [build-dependencies]
 omui.build = { path = "../mcpp/build", host-module = true }
+openlifa.openmui = { path = "../spec" }  # its registry/: what the contracts are generated against
 
 # The files of tests/site/ are one program (`site`), run a file at a time: one link of the site's closure, not
 # thirty. tests/frames_test.cpp has a beginning of its own and stays a program.

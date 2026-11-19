@@ -84,4 +84,49 @@ static UTest cases{
             expect(missing == std::vector<std::string>{"nlohmann.json@9.9.9", "mcpplibs.os@0.4.4"});
         };
 
+        "release try's stand-in: the template package as its own manifest, a payload's place, the home's default index"_test = [] {
+            constexpr std::string_view published = "package = {\n    spec = \"1\",\n    namespace = \"omui\",\n    name = \"sdk\",\n"
+                                                   "    xpm = {\n        linux = {},\n    },\n\n    mcpp = {\n        schema = \"0.1\",\n"
+                                                   "        deps = {\n            [\"omui.core\"] = \"0.1.0\",\n        },\n        manifest = \"mcpp.toml\",\n    },\n}\n";
+            const std::string payload = release::as_own_manifest(published);
+            expect(payload.contains("    mcpp = \"*/mcpp.toml\",") && !payload.contains("schema") && payload.contains("xpm = {") &&
+                   payload.ends_with("}\n"))
+                << payload;
+            expect(release::as_own_manifest(payload) == payload) << "already the manifest's: kept";
+            expect(release::identity_of(published) == std::pair<std::string, std::string>{"omui", "sdk"});
+            expect(release::identity_of("package = {\n    namespace = \"omui.entry\",\n    name = \"player\",\n}") ==
+                   std::pair<std::string, std::string>{"omui.entry", "player"});
+            expect(release::store_path("omui.entry", "player", "0.1.0") == std::filesystem::path("xpkgs/omui.entry-x-player/0.1.0"));
+            expect(release::store_path("", "mpal", "0.1.0") == std::filesystem::path("xpkgs/mcpplibs-x-mpal/0.1.0")) << "no namespace: mcpp's default one";
+            const std::string config = "[xlings]\nbinary = \"bundled\"\n\n[index.repos.\"mcpplibs\"]\nurl      = \"https://github.com/mcpplibs/mcpp-index.git\"\n"
+                                       "artifact = { GLOBAL = \"x\", CN = \"y\" }\n# a comment\n\n[cache]\nsearch_ttl_seconds = 3600\n";
+            const std::string pointed = release::with_default_index(config, "/work/index");
+            expect(pointed.contains("[index.repos.\"mcpplibs\"]\nurl    = \"/work/index\"\nsource = \"git\"\n") && !pointed.contains("artifact") &&
+                   pointed.contains("[xlings]\nbinary") && pointed.contains("[cache]\nsearch_ttl_seconds = 3600"))
+                << pointed;
+            expect(release::with_default_index("[xlings]\n", "/work/index").empty()) << "no default index table: nothing";
+        };
+
+        "release try pins what publish leaves as paths (mcpp#962): feature-deps, a key with the package's own name"_test = [] {
+            const std::map<std::string, std::string> versions{{"modules/projects/hanim/core", "0.1.0"}, {"modules/base/agent", "0.2.0"},
+                                                              {"modules/projects/hanim", "0.1.0"}};
+            const auto pinned = release::pinned("[package]\nname = \"hanim\"\n\n[dependencies]\nhanim = { core = { path = \"core\" } }\n\n"
+                                                "[dev-dependencies]\nmlibs = { json = { path = \"../../base/json\" } }\n\n"
+                                                "[feature-deps.agent]\nmlibs = { agent = { path = \"../../base/agent\" } }\n",
+                                                "modules/projects/hanim", versions);
+            expect(pinned.has_value()) << (pinned ? std::string() : pinned.error());
+            if (pinned) {
+                expect(pinned->contains("core = '0.1.0'") || pinned->contains("core = \"0.1.0\"")) << *pinned;
+                expect(pinned->contains("agent = '0.2.0'") || pinned->contains("agent = \"0.2.0\"")) << *pinned;
+                expect(pinned->contains("../../base/json")) << "dev-dependencies left as they are";
+            }
+            const auto featured = release::pinned("[feature-deps.hanim]\nhanim = { default-features = false, features = [\"engine\"], path = \"../../hanim\" }\n",
+                                                  "modules/projects/omui/view", {{"modules/projects/hanim", "0.1.0"}});
+            expect(featured && featured->contains("version") && featured->contains("0.1.0") && featured->contains("engine") && !featured->contains("path"))
+                << (featured ? *featured : featured.error());
+            constexpr std::string_view clean = "[dependencies]\nomui.core = \"0.1.0\"\n";
+            expect(release::pinned(clean, "x", {}) == std::expected<std::string, std::string>(std::string(clean))) << "nothing to pin: unchanged";
+            expect(!release::pinned("[dependencies]\nx = { path = \"../nowhere\" }\n", "a/b", {})) << "a path that is no member";
+        };
+
     }};

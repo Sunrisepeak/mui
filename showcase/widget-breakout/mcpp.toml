@@ -59,6 +59,7 @@ omui.lang = { path = "../../modules/projects/omui/lang" }
 
 [build-dependencies]
 omui.build = { path = "../../mcpp/build", host-module = true }
+openlifa.openmui = { path = "../../spec" }  # its registry/: what the contracts are generated against
 
 [test]
 programs = "directory"  # tests/widget-breakout/: one program, each file run and filtered as before

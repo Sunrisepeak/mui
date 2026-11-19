@@ -491,4 +491,98 @@ std::string pointed_at(std::string_view manifest, const std::map<std::string, st
 }
 
 
+std::string as_own_manifest(std::string_view descriptor) {
+    // The field is `    mcpp = {` … `    },` at the package table's first level (mcpp emit xpkg's layout).
+    const std::string_view opening = "\n    mcpp = {";
+    const auto start = descriptor.find(opening);
+    if (start == std::string_view::npos) return std::string(descriptor);
+    const std::string_view closing = "\n    },";
+    const auto end = descriptor.find(closing, start + opening.size());
+    if (end == std::string_view::npos) return std::string(descriptor);
+    std::string out(descriptor.substr(0, start));
+    out += "\n    -- The package's own manifest (release try: mcpp reads publish's inline field as a recipe; mcpp#960).";
+    out += "\n    mcpp = \"*/mcpp.toml\",";
+    out += descriptor.substr(end + closing.size());
+    return out;
+}
+
+std::pair<std::string, std::string> identity_of(std::string_view descriptor) {
+    const auto field = [&](std::string_view key) {
+        // `    key = "value",` at the package table's first level.
+        const std::string marker = std::format("\n    {} = \"", key);
+        const auto at = descriptor.find(marker);
+        if (at == std::string_view::npos) return std::string();
+        const auto from = at + marker.size();
+        const auto to = descriptor.find('"', from);
+        return to == std::string_view::npos ? std::string() : std::string(descriptor.substr(from, to - from));
+    };
+    return {field("namespace"), field("name")};
+}
+
+fs::path store_path(std::string_view namespace_, std::string_view name, std::string_view version) {
+    // A package without a namespace (hanim, mpal) is resolved in mcpp's default namespace, `mcpplibs` (a bare name
+    // is the deprecated fallback, mcpp 2026.11.18.1 warns), and its payload looked for there.
+    if (namespace_.empty()) return fs::path("xpkgs") / std::format("mcpplibs-x-{}", name) / std::string(version);
+    return fs::path("xpkgs") / std::format("{}-x-{}", namespace_, name) / std::string(version);
+}
+
+std::string with_default_index(std::string_view config, std::string_view url) {
+    const std::string_view header = "[index.repos.\"mcpplibs\"]";
+    const auto at = config.find(header);
+    if (at == std::string_view::npos) return {};
+    // The table ends at the next table's header.
+    auto end = config.find("\n[", at + header.size());
+    if (end == std::string_view::npos) end = config.size();
+    std::string out(config.substr(0, at));
+    out += std::format("{}\nurl    = \"{}\"\nsource = \"git\"\n", header, url);
+    out += config.substr(end);
+    return out;
+}
+
+std::expected<std::string, std::string> pinned(std::string_view manifest, std::string_view directory,
+                                               const std::map<std::string, std::string>& versions) {
+    toml::table data;
+    try {
+        data = toml::parse(manifest);
+    } catch (const toml::parse_error& failure) {
+        return std::unexpected(std::format("not TOML: {}", failure.description()));
+    }
+    int changed = 0;
+    std::string missing;
+    // A dependency table (or a group of them by namespace): every entry with a `path` becomes its member's version.
+    const std::function<void(toml::table&)> pin = [&](toml::table& table) {
+        std::vector<std::pair<std::string, std::string>> bare;  // entries that become a version alone, set after the walk
+        for (auto&& [key, node] : table) {
+            toml::table* entry = node.as_table();
+            if (!entry) continue;
+            const auto* path = entry->get_as<std::string>("path");
+            if (!path) {
+                pin(*entry);  // a namespace's members: `mlibs = { agent = { path = … } }`
+                continue;
+            }
+            const std::string target = normal(std::format("{}/{}", directory, path->get()));
+            const auto version = versions.find(target);
+            if (version == versions.end()) {
+                missing += std::format(" {}", target);
+                continue;
+            }
+            entry->erase("path");
+            if (entry->empty()) bare.emplace_back(std::string(key.str()), version->second);
+            else entry->insert_or_assign("version", version->second);
+            ++changed;
+        }
+        for (const auto& [key, version] : bare) table.insert_or_assign(key, version);
+    };
+    for (const std::string_view name : {"dependencies", "build-dependencies"})
+        if (auto* table = data.get_as<toml::table>(name)) pin(*table);
+    if (auto* features = data.get_as<toml::table>("feature-deps"))
+        for (auto&& [feature, node] : *features)
+            if (auto* table = node.as_table()) pin(*table);
+    if (!missing.empty()) return std::unexpected(std::format("a path that is no member:{}", missing));
+    if (changed == 0) return std::string(manifest);
+    std::ostringstream out;
+    out << "# Release try: dependencies on members pinned to their versions (mcpp#962).\n" << data << '\n';
+    return out.str();
+}
+
 }  // namespace omui::devtools::release

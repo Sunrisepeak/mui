@@ -78,7 +78,12 @@ The release channel (RC3.1): the packages a new project needs published — the 
 ```sh
 omui-devtools release index --list                      # the closure, by project and maturity, and its blockers
 omui-devtools release index                             # mcpp publish --dry-run: descriptors, SHA256SUMS and closure.json under target/release/index
+omui-devtools release try [--template app-cpp]          # the release as a new user meets it (E1): clean home, new project, build, first window
 ```
+
+**`release try`** (E1) takes the release on this machine the way a new user would, before anything is published: `release index` first; then a clean mcpp home (`MCPP_HOME` under `target/release/try`) whose default index is this machine's copy of mcpp-index with the closure's descriptors added (a git repository), each archive seeded into the home's store where mcpp looks for that version (mcpp docs 11); `mcpp new hello --template omui.sdk:<template>` as `omui new` runs it; `mcpp build` — the toolchain, the system libraries and every outside package fetched into the clean home; and the first window drawn with SDL's offscreen driver and read back (not one colour). Each step's time and the home's and the project's bytes are in `target/release/try/try.json`.
+
+The stand-in carries three workarounds for what mcpp 2026.11.18.1 does with a published member, each named where it is applied and each removed when mcpp fixes it: the descriptors' build field as the package's own manifest (`mcpp = "*/mcpp.toml"`; mcpp#960, mcpp#961), the paths publish leaves in `[feature-deps.*]` and under a key with the package's own name pinned to the members' versions (mcpp#962), and the packages without a namespace (`hanim`, `mpal`) seeded as mcpp's default namespace's.
 
 ## lint
 
@@ -149,10 +154,11 @@ The site's checks in a real browser (moved from `tools/ci/site-browser.sh`, the 
 ```sh
 omui-devtools check site [CHECK…] [--site DIR]   # perf a11y structure fonts catalog workspace reactions motion presentation loading font-sharing; transition when named
 omui-devtools check visitor-path [--site DIR] [--omui PATH]   # omui.cli built unless given
+omui-devtools check visitor-path --url https://sunrisepeak.github.io/mui/ [--allow-local]   # the deployed page reaching this machine's bridge
 omui-devtools check dist-toy-loading [--fixture FILE]          # omui.gen's dist_toy tests first unless a fixture is given
 ```
 
-Each check's report lands under `target/` (`site-perf.json`, `site-a11y.json`, `site-<check>.report.xdef.json`, `visitor-path.json`, `dist-toy-loading.report.xdef.json`; pictures in `target/site-<check>/`), and a line is said for each of its checks. `perf` holds the delivery to `site/delivery.budget.xdef.json`, with and without the HTTP cache. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly. `transition` is a coverage study of input on moving painted pixels, not in the default set.
+Each check's report lands under `target/` (`site-perf.json`, `site-a11y.json`, `site-<check>.report.xdef.json`, `visitor-path.json`, `dist-toy-loading.report.xdef.json`; pictures in `target/site-<check>/`), and a line is said for each of its checks. `perf` holds the delivery to `site/delivery.budget.xdef.json`, with and without the HTTP cache. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly. `transition` is a coverage study of input on moving painted pixels, not in the default set. `visitor-path --url` opens a deployed page instead of serving one (its documents fetched through the page): an https page reaching the bridge on the loopback is what a browser asks the person about (local network access); `--allow-local` grants it as the person would (2026-11-19, headless Chromium 156: the Pages site pairs either way).
 
 `omui-devtools bench material3 OUT` captures Material 3's controls in four states from their page (`tests/bench/competitors/compare/material3`, once bundled), the competitor's side of the controls' review.
 

@@ -36,6 +36,7 @@
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
+import mlibs.image;
 import nlohmann.json;
 import omui.devtools.api;
 import omui.devtools.atspi;
@@ -244,6 +245,12 @@ cmd::App app() {
                         .option(Option("list").help("only say the members and how many files")))
         .subcommand(cmd::App("release")
                         .description("The release channel (RC3.1): what a new project needs published, and its index entries (nothing is published)")
+                        .subcommand(cmd::App("try")
+                                        .description("The release tried here as a new user meets it (E1): a clean mcpp home whose index is mcpp-index with this tree's descriptors (archives seeded, nothing published), a project from a template, built, its first window")
+                                        .option(Option("template").takes_value().value_name("NAME").help("app-ts (default) or app-cpp"))
+                                        .option(Option("work").takes_value().value_name("DIR").help("default: target/release/try (emptied first)"))
+                                        .option(Option("tag").takes_value().value_name("TEMPLATE").help("the release's tag (release index --tag)"))
+                                        .option(Option("index").takes_value().value_name("DIR").help("the copy of mcpp-index it starts from (default: this home's)")))
                         .subcommand(cmd::App("index")
                                         .description("The templates' closure, its mcpp-index descriptors written to a directory, and what blocks `mcpp publish`")
                                         .option(Option("out").takes_value().value_name("DIR").help("default: target/release/index"))
@@ -332,7 +339,9 @@ cmd::App app() {
                         .subcommand(cmd::App("visitor-path")
                                         .description("The built site paired with an agent through omui connect and operated by omui page; the bridge's end seen by the page")
                                         .option(Option("site").takes_value().value_name("DIR").help("the built site (default: target/site)"))
-                                        .option(Option("omui").takes_value().value_name("PATH").help("this omui program rather than omui.cli built here")))
+                                        .option(Option("omui").takes_value().value_name("PATH").help("this omui program rather than omui.cli built here"))
+                                        .option(Option("url").takes_value().value_name("URL").help("a deployed site (GitHub Pages) rather than the one built here"))
+                                        .option(Option("allow-local").help("the person allows the page to reach this machine (the browser's local network access permission)")))
                         .subcommand(cmd::App("dist-toy-loading")
                                         .description("omui.gen's dist_toy tests, then the generated loader run against the browser's own streams, failures and retries")
                                         .option(Option("fixture").takes_value().value_name("FILE").help("this generated index.html, the tests not run")))
@@ -992,6 +1001,16 @@ int lead_command(const cmd::ParsedArgs& options, const fs::path& root) {
     return 0;
 }
 
+// The copy of mcpp-index this machine's home keeps (`--index` names another).
+fs::path mcpp_index_of(const cmd::ParsedArgs& options) {
+    if (const auto given = options.value("index")) return mcpplibs::os::fs::from_utf8(*given);
+    if (const auto home = mcpplibs::os::env::get("MCPP_HOME"); home && !home->empty())
+        return mcpplibs::os::fs::from_utf8(*home) / "indices" / "mcpplibs";
+    if (const auto user = mcpplibs::os::env::get(mcpplibs::os::env::get("HOME") ? "HOME" : "USERPROFILE"); user && !user->empty())
+        return mcpplibs::os::fs::from_utf8(*user) / ".mcpp" / "indices" / "mcpplibs";
+    return {};
+}
+
 // `release index`: the templates' closure, what blocks publishing it, and its mcpp-index descriptors.
 int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
     namespace release = omui::devtools::release;
@@ -1000,13 +1019,7 @@ int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
         std::cerr << "omui-devtools release index: " << made.error() << '\n';
         return 2;
     }
-    fs::path index;
-    if (const auto given = options.value("index"))
-        index = mcpplibs::os::fs::from_utf8(*given);
-    else if (const auto home = mcpplibs::os::env::get("MCPP_HOME"); home && !home->empty())
-        index = mcpplibs::os::fs::from_utf8(*home) / "indices" / "mcpplibs";
-    else if (const auto user = mcpplibs::os::env::get(mcpplibs::os::env::get("HOME") ? "HOME" : "USERPROFILE"); user && !user->empty())
-        index = mcpplibs::os::fs::from_utf8(*user) / ".mcpp" / "indices" / "mcpplibs";
+    const fs::path index = mcpp_index_of(options);
     const auto missing = release::missing_from(index, made->external);
 
     std::map<std::string, std::map<std::string, int>> counts;  // project → maturity → packages
@@ -1114,6 +1127,151 @@ int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
     std::println("written: {} descriptors and closure.json under {}", made->packages.size(),
                  mcpplibs::os::fs::utf8(out));
     return made->problems.empty() ? 0 : 1;
+}
+
+// What a directory holds, in bytes.
+std::uintmax_t bytes_under(const fs::path& directory) {
+    std::uintmax_t total = 0;
+    std::error_code error;
+    for (auto it = fs::recursive_directory_iterator(directory, fs::directory_options::skip_permission_denied, error);
+         !error && it != fs::recursive_directory_iterator(); it.increment(error))
+        if (it->is_regular_file(error) && !it->is_symlink(error)) total += it->file_size(error);
+    return total;
+}
+
+// `release try` (E1): the release tried on this machine as a new user meets it. A clean mcpp home whose default
+// index is mcpp-index with this tree's descriptors in it — their archives seeded into the home's store, as mcpp's
+// docs say a payload is used before it is published (11): nothing leaves this machine — then a project from a
+// template, built, and its first window drawn (SDL's offscreen driver). Its report: <work>/try.json.
+int release_try(const cmd::ParsedArgs& options, const fs::path& root) {
+    namespace release = omui::devtools::release;
+    namespace run = omui::devtools::run;
+    using clock = std::chrono::steady_clock;
+    const std::string template_name(options.value("template").value_or("app-ts"));
+    const fs::path work = options.value("work") ? fs::absolute(mcpplibs::os::fs::from_utf8(*options.value("work")))
+                                                : fs::absolute(root / "target/release/try");
+    const fs::path base = mcpp_index_of(options);
+    json report{{"commit", run::commit(root)}, {"date", run::today()}, {"template", template_name}, {"steps", json::array()}};
+    const auto written = [&] { std::ofstream(work / "try.json", std::ios::binary) << report.dump(2) << '\n'; };
+    const auto failed = [&](std::string_view step, const std::string& why) {
+        report["steps"].push_back({{"step", step}, {"ok", false}, {"why", why}});
+        written();
+        std::cerr << std::format("omui-devtools release try: {}: {}\n", step, why.substr(why.size() > 4000 ? why.size() - 4000 : 0));
+        return 1;
+    };
+    const auto passed = [&](std::string_view step, clock::time_point since, json more = json::object()) {
+        const double seconds = std::chrono::duration<double>(clock::now() - since).count();
+        more["step"] = step;
+        more["ok"] = true;
+        more["seconds"] = std::round(seconds * 10) / 10;
+        report["steps"].push_back(more);
+        std::println("ok   {} ({:.1f} s)", step, seconds);
+    };
+    std::error_code error;
+
+    // This tree's archives and descriptors: release index (a dry run of mcpp publish).
+    if (const int indexed = release_index(options, root); indexed != 0) return indexed;
+    const fs::path descriptors = root / "target/release/index", dist = root / "target/dist";
+    const auto closure = json::parse(mcpplibs::os::fs::read(descriptors / "closure.json").value_or("{}"), nullptr, false);
+    if (closure.is_discarded() || !closure.contains("packages")) return failed("index", "release index wrote no closure.json");
+    fs::remove_all(work, error);
+    fs::create_directories(work, error);
+
+    // The stand-in for the index a release will be in: this machine's copy of mcpp-index, this tree's descriptors
+    // added (each as its package's own manifest: release::as_own_manifest) — a git repository the clean home reads as
+    // its default index.
+    auto since = clock::now();
+    const fs::path index = work / "index";
+    if (base.empty() || !fs::exists(base / "pkgs", error)) return failed("index", std::format("no copy of mcpp-index at {} (--index names one)", mcpplibs::os::fs::utf8(base)));
+    fs::copy(base, index, fs::copy_options::recursive, error);
+    if (error) return failed("index", std::format("copying {}: {}", mcpplibs::os::fs::utf8(base), error.message()));
+    fs::remove_all(index / ".git", error);
+    for (const auto& package : closure["packages"]) {
+        const std::string relative = package.value("descriptor", "");
+        const std::string text = release::as_own_manifest(mcpplibs::os::fs::read(descriptors / relative).value_or(""));
+        fs::create_directories((index / relative).parent_path(), error);
+        std::ofstream(index / relative, std::ios::binary) << text;
+    }
+    const std::string index_path = mcpplibs::os::fs::utf8(index);
+    for (const std::vector<std::string>& args : {std::vector<std::string>{"-C", index_path, "init", "-q"},
+                                                 std::vector<std::string>{"-C", index_path, "add", "-A"},
+                                                 std::vector<std::string>{"-C", index_path, "-c", "user.name=omui-devtools", "-c",
+                                                                          "user.email=omui-devtools@localhost", "-c", "commit.gpgsign=false",
+                                                                          "commit", "-q", "-m", "mcpp-index with this tree's descriptors (release try)"}})
+        if (auto git = run::output(root, "git", args); !git) return failed("index", git.error());
+    passed("index", since, {{"packages", closure["packages"].size()}});
+
+    // A clean home: its own store, toolchains and index (MCPP_HOME), the stand-in as its default index.
+    since = clock::now();
+    const fs::path home = work / "home";
+    const std::vector<std::pair<std::string, std::string>> in_home{{"MCPP_HOME", mcpplibs::os::fs::utf8(home)},
+                                                                   {"MCPP_JOBS", std::to_string(run::share_of_machine())}};
+    const auto mcpp = [&](std::vector<std::string> args, const fs::path& cwd, std::vector<std::pair<std::string, std::string>> extra = {}) {
+        run::How how{.cwd = cwd, .merged = true, .variables = in_home};
+        how.variables.insert(how.variables.end(), extra.begin(), extra.end());
+        return run::program(root, "mcpp", std::move(args), how);
+    };
+    const auto ok = [](const std::expected<run::Ran, std::string>& ran) { return ran && ran->status == 0; };
+    const auto said = [](const std::expected<run::Ran, std::string>& ran) { return ran ? ran->out : ran.error(); };
+    if (auto made = mcpp({"self", "init"}, work); !ok(made)) return failed("home", said(made));
+    const std::string config = release::with_default_index(mcpplibs::os::fs::read(home / "config.toml").value_or(""), mcpplibs::os::fs::generic_utf8(index));
+    if (config.empty()) return failed("home", "the new home's config.toml has no [index.repos.\"mcpplibs\"]");
+    std::ofstream(home / "config.toml", std::ios::binary) << config;
+    if (auto updated = mcpp({"index", "update"}, work); !ok(updated)) return failed("home", said(updated));
+    // Each archive where the home's store keeps the payload of that version.
+    std::map<std::string, std::string> versions;
+    for (const auto& package : closure["packages"]) versions[package.value("path", "")] = package.value("version", "");
+    for (const auto& package : closure["packages"]) {
+        const std::string text = release::as_own_manifest(mcpplibs::os::fs::read(descriptors / package.value("descriptor", "")).value_or(""));
+        const auto [namespace_, name] = release::identity_of(text);
+        if (name.empty()) return failed("home", std::format("{}: its descriptor states no name", package.value("name", "")));
+        const fs::path into = home / release::store_path(namespace_, name, package.value("version", ""));
+        fs::create_directories(into, error);
+        const fs::path archive = dist / package.value("archive", "");
+        if (auto unpacked = run::output(root, "tar", {"-xzf", mcpplibs::os::fs::utf8(archive), "-C", mcpplibs::os::fs::utf8(into)}); !unpacked)
+            return failed("home", std::format("{}: {}", mcpplibs::os::fs::utf8(archive.filename()), unpacked.error()));
+        std::ofstream(into / ".xpkg.lua", std::ios::binary) << text;
+        // What publish left as paths, pinned to the members' versions (mcpp#962; the stand-in's alone).
+        const fs::path manifest = into / mcpplibs::os::fs::from_utf8(std::format("{}-{}", package.value("name", ""), package.value("version", ""))) / "mcpp.toml";
+        auto made_pinned = release::pinned(mcpplibs::os::fs::read(manifest).value_or(""), package.value("path", ""), versions);
+        if (!made_pinned) return failed("home", std::format("{}: {}", mcpplibs::os::fs::utf8(manifest), made_pinned.error()));
+        std::ofstream(manifest, std::ios::binary) << *made_pinned;
+    }
+    passed("home", since);
+
+    // A project from the template, as `omui new` makes one (mcpp new --template omui.sdk:…).
+    since = clock::now();
+    const std::string project_name = "hello";
+    if (auto made = mcpp({"new", project_name, "--template", std::format("{}:{}", release::template_package, template_name)}, work); !ok(made))
+        return failed("new", said(made));
+    const fs::path project = work / project_name;
+    passed("new", since);
+
+    // Built: everything it needs from the index, the toolchain too, into the clean home.
+    since = clock::now();
+    if (auto built = mcpp({"build"}, project); !ok(built)) return failed("build", said(built));
+    passed("build", since, {{"home_bytes", bytes_under(home)}, {"target_bytes", bytes_under(project / "target")}});
+
+    // Its first window, drawn and read back (SDL's offscreen driver: the window path without a display).
+    since = clock::now();
+    const fs::path picture = work / "first.png";
+    if (auto shown = mcpp({"run", "--", "--frames", "3", "--png", mcpplibs::os::fs::utf8(picture)}, project, {{"SDL_VIDEO_DRIVER", "offscreen"}});
+        !ok(shown))
+        return failed("first window", said(shown));
+    auto image = mlibs::image::load_png(picture);
+    if (!image) return failed("first window", std::format("{}: {}", mcpplibs::os::fs::utf8(picture), image.error()));
+    std::set<std::uint32_t> colours;
+    for (int y = 0; y < image->height && colours.size() < 64; y += 4) {
+        const auto line = image->row(y);
+        for (std::size_t x = 0; x + 4 <= line.size() && colours.size() < 64; x += 16)
+            colours.insert(static_cast<std::uint32_t>(line[x]) << 24 | static_cast<std::uint32_t>(line[x + 1]) << 16 | static_cast<std::uint32_t>(line[x + 2]) << 8 | line[x + 3]);
+    }
+    if (colours.size() < 2) return failed("first window", "the first frame is one colour: nothing was drawn");
+    passed("first window", since, {{"width", image->width}, {"height", image->height}, {"colours_sampled", colours.size()}});
+    report["ok"] = true;
+    written();
+    std::println("release try: ok — {}", mcpplibs::os::fs::utf8(work / "try.json"));
+    return 0;
 }
 
 int platforms(const cmd::ParsedArgs& options, const fs::path& root) {
@@ -1260,8 +1418,9 @@ int main(int argc, char** argv) {
     }
     if (parsed->subcommand_name() == "release") {
         const cmd::ParsedArgs& asked = parsed->subcommand()->get();
+        if (asked.subcommand_name() == "try") return release_try(asked.subcommand()->get(), root);
         if (asked.subcommand_name() != "index") {
-            std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--index DIR]\n";
+            std::cerr << "usage: omui-devtools release index [--out DIR] [--list] [--tag T] [--index DIR] | try [--template T] [--work DIR]\n";
             return 2;
         }
         return release_index(asked.subcommand()->get(), root);
@@ -1335,7 +1494,8 @@ int main(int argc, char** argv) {
         if (sub.subcommand_name() == "templates") return step::templates(root);
         if (sub.subcommand_name() == "browser") return step::browser_checks(root);
         if (sub.subcommand_name() == "visitor-path")
-            return step::visitor_path(root, mcpplibs::os::fs::from_utf8(given.value("site").value_or("")), mcpplibs::os::fs::from_utf8(given.value("omui").value_or("")));
+            return step::visitor_path(root, mcpplibs::os::fs::from_utf8(given.value("site").value_or("")), mcpplibs::os::fs::from_utf8(given.value("omui").value_or("")),
+                                      given.value("url").value_or(""), given.is_flag_set("allow-local"));
         if (sub.subcommand_name() == "dist-toy-loading") return step::dist_toy_loading(root, mcpplibs::os::fs::from_utf8(given.value("fixture").value_or("")));
         if (sub.subcommand_name() == "site") {
             std::vector<std::string> names;

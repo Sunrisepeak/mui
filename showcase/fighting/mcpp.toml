@@ -56,6 +56,7 @@ meng.audio  = { path = "../../modules/projects/meng/kernel/audio" }
 
 [build-dependencies]
 omui.build = { path = "../../mcpp/build", host-module = true }
+openlifa.openmui = { path = "../../spec" }  # its registry/: what the contracts are generated against
 gongfu.rules            = { path = "../../modules/projects/gongfu/rules", host-module = true }
 
 # The files of tests/fighting/ are one program, run a file at a time: one link of the closure for all of them.

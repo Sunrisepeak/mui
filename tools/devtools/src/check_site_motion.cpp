@@ -1451,9 +1451,12 @@ json presentation(const Context& context) {
                 const auto click_visible = [&](const std::string& selector) {
                     // Where the control is once it stays there: the point is the control's own (what
                     // elementFromPoint finds there is it, or inside it) — a disclosure opening just
-                    // before (a <details> still growing) moves what is below it for a few frames.
+                    // before (a <details> still growing) moves what is below it for a few frames, and a
+                    // face swapping in (the Chinese one, red 143) moves the whole page: the fonts the page
+                    // asked for first, then the point looked at until it is the control's.
+                    (void)script.value("document.fonts.ready.then(() => true)");
                     json point;
-                    for (int attempt = 0; attempt < 20 && !script.thrown(); ++attempt) {
+                    for (int attempt = 0; attempt < 60 && !script.thrown(); ++attempt) {
                         point = script.value(
                             "(() => {const n=Array.from(document.querySelectorAll(" + q(selector) +
                             ")).find(n=>n.getBoundingClientRect().width>0);if(!n)return "

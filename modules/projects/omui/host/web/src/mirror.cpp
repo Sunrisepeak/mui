@@ -9,19 +9,6 @@ namespace omui {
 
 namespace {
 
-// ARIA prohibits naming these: their name is their text.
-bool named_by_text(std::string_view aria) { return aria == "none" || aria == "generic" || aria == "paragraph" || aria == "code"; }
-
-bool ranged(Role r) {
-    return r == Role::slider || r == Role::spin_button || r == Role::progress || r == Role::meter || r == Role::scroll_bar || r == Role::timeline;
-}
-
-bool checkable(Role r) {
-    return r == Role::checkbox || r == Role::radio || r == Role::switch_ || r == Role::menu_item_checkbox || r == Role::menu_item_radio;
-}
-
-bool selectable(Role r) { return r == Role::tab || r == Role::option || r == Role::tree_item; }
-
 std::string value_text(const Value& v) {
     switch (v.type()) {
         case Value::Type::text: return std::string(v.as_string());
@@ -29,18 +16,6 @@ std::string value_text(const Value& v) {
         case Value::Type::real: return std::format("{}", v.as_double());
         default: return {};
     }
-}
-
-// The text an element holds: the name where ARIA lets it have none, and the
-// value where it is not a range's (a text box's text).
-std::string text_of(const spec::SemanticNode& n) {
-    std::string out;
-    if (n.id != "app" && named_by_text(spec::roles[static_cast<std::size_t>(n.role)].aria)) out = n.name;
-    if (!ranged(n.role)) {
-        const std::string v = value_text(n.value);
-        if (!v.empty() && v != out) out = out.empty() ? v : std::format("{} {}", out, v);
-    }
-    return out;
 }
 
 // What the live region says of a status: its name and its value.
@@ -53,50 +28,6 @@ std::string spoken(const spec::SemanticNode& n) {
 std::int64_t round(float v) { return static_cast<std::int64_t>(std::lround(v)); }
 
 }  // namespace
-
-std::vector<std::pair<std::string, std::string>> aria_attributes(const spec::SemanticNode& n) {
-    std::vector<std::pair<std::string, std::string>> a;
-    auto put = [&](std::string_view k, std::string_view v) { a.emplace_back(std::string(k), std::string(v)); };
-    const std::string_view aria = spec::roles[static_cast<std::size_t>(n.role)].aria;
-    // The root is no `application`: that role turns a screen reader's
-    // reading off for all inside it, and the nodes inside say what they are.
-    if (n.id != "app" && aria != "generic") put("role", aria);
-    if (n.id != "app" && !n.name.empty() && !named_by_text(aria)) put("aria-label", n.name);
-    if (!n.description.empty()) put("aria-description", n.description);
-    const spec::StateSet s = n.states;
-    if (s.has(State::disabled)) put("aria-disabled", "true");
-    if (checkable(n.role)) put("aria-checked", s.has(State::mixed) ? "mixed" : s.has(State::checked) ? "true" : "false");
-    if (n.role == Role::toggle_button) put("aria-pressed", s.has(State::mixed) ? "mixed" : s.has(State::checked) ? "true" : "false");
-    if (selectable(n.role)) put("aria-selected", s.has(State::selected) ? "true" : "false");
-    else if (s.has(State::selected)) put("aria-selected", "true");
-    if (s.has(State::collapsible) || s.has(State::expanded)) put("aria-expanded", s.has(State::expanded) ? "true" : "false");
-    if (s.has(State::busy)) put("aria-busy", "true");
-    if (s.has(State::invalid)) put("aria-invalid", "true");
-    if (s.has(State::required)) put("aria-required", "true");
-    if (s.has(State::readonly)) put("aria-readonly", "true");
-    if (s.has(State::multiline)) put("aria-multiline", "true");
-    if (s.has(State::multiselectable)) put("aria-multiselectable", "true");
-    if (s.has(State::modal)) put("aria-modal", "true");
-    if (ranged(n.role)) {
-        if (n.value.is_number()) put("aria-valuenow", value_text(n.value));
-        else if (n.value.map()) {
-            // A slider's value with its range ({value, min, max, step}): each its attribute.
-            for (auto [key, attr] : {std::pair{"value", "aria-valuenow"}, {"min", "aria-valuemin"}, {"max", "aria-valuemax"}})
-                if (const Value* f = n.value.get(key); f && f->is_number()) put(attr, value_text(*f));
-        } else if (const std::string v = value_text(n.value); !v.empty()) put("aria-valuetext", v);
-        if (n.role == Role::progress && n.value.is_number() && !n.value.map()) {
-            put("aria-valuemin", "0");
-            put("aria-valuemax", "1");
-        }
-    }
-    // A heading's level (its value).
-    if (n.role == Role::heading && n.value.is_number()) put("aria-level", value_text(n.value));
-    // The page's live region speaks for a status (once, not twice).
-    if (n.role == Role::status) put("aria-live", "off");
-    if (s.has(State::focusable)) put("tabindex", "-1");
-    std::ranges::sort(a);
-    return a;
-}
 
 DomMirror::DomMirror(Runtime& runtime) : tree_(runtime) {}
 
@@ -132,7 +63,8 @@ std::optional<Value> DomMirror::sync() {
 
     auto take = [&](const spec::SemanticNode& n, bool added) {
         Element& e = elements_[n.id];
-        std::vector<std::pair<std::string, std::string>> attrs = aria_attributes(n);
+        // What the element is and holds, as the static page has it (omui.semantic:html, D-236).
+        std::vector<std::pair<std::string, std::string>> attrs = semantic::aria_attributes(n);
         if (added || attrs != e.attrs) {
             Value set = Value(Value::Map{});
             for (const auto& [k, v] : attrs)
@@ -147,7 +79,7 @@ std::optional<Value> DomMirror::sync() {
         }
         if (n.role == Role::main) main_ = n.id;
         else if (main_ == n.id) main_.clear();
-        if (std::string text = text_of(n); added ? !text.empty() : text != e.text) {
+        if (std::string text = semantic::element_text(n); added ? !text.empty() : text != e.text) {
             entry(n.id).set("text", text);
             e.text = std::move(text);
         }

@@ -211,7 +211,7 @@ UTest cases{"host.web", [] {
             n.value = std::move(value);
             for (State st : states) n.states.set(st);
             std::string out;
-            for (const auto& [k, v] : aria_attributes(n)) out += std::format("{}={} ", k, v);
+            for (const auto& [k, v] : semantic::aria_attributes(n)) out += std::format("{}={} ", k, v);
             return out;
         };
         expect(eq(attrs(Role::checkbox, {State::mixed}), std::string("aria-checked=mixed aria-label=X role=checkbox ")));

@@ -104,5 +104,4 @@ namespace omui {
     [[nodiscard]] std::string_view focused_name() const noexcept;
     [[nodiscard]] std::size_t size() const noexcept;
   };
-  [[nodiscard]] std::vector<std::pair<std::string, std::string>> aria_attributes(const spec::SemanticNode& node);
 }

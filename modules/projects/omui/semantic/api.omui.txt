@@ -5,6 +5,16 @@ export import mlibs.session;
 export import :query;
 export import :tree;
 export import :session;
+export import :html;
+== omui.semantic:html
+namespace omui::semantic {
+  [[nodiscard]] std::vector<std::pair<std::string, std::string>> aria_attributes(const spec::SemanticNode& node);
+  [[nodiscard]] std::string element_text(const spec::SemanticNode& node);
+  struct HtmlOptions {
+    std::string lang;
+  };
+  [[nodiscard]] std::string static_html(const Snapshot& snapshot, const HtmlOptions& options = {…});
+}
 == omui.semantic:query
 namespace omui::semantic {
   enum class QueryError : std::uint8_t { not_an_object, unknown_field, unknown_role, unknown_state, not_a_list, bad_rect, bad_point, nothing_to_wait_for };

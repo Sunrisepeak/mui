@@ -57,6 +57,7 @@ void RunOptions::declare(cmdline::App& app) {
         .option(Option("agent-name").takes_value().value_name("NAME").help("the endpoint's name (default: the application's id)"))
         .option(Option("agent-mode").takes_value().value_name("MODE").help("how far agents may go: automatic, development or dual-user"))
         .option(Option("agent-guide").takes_value().value_name("DIR").help("write what an agent needs to operate it into DIR, then end"))
+        .option(Option("static-html").takes_value().value_name("FILE").help("write its first screen as static HTML (its semantic tree projected, D-236) into FILE, then end"))
         .option(Option("no-agent").help("no agent endpoint"))
         .option(Option("agent-input").help("agents may send input events (default: the application's)"))
         .option(Option("no-agent-input").help("agents may not send input events"))
@@ -142,6 +143,10 @@ std::expected<RunOptions, Failure> RunOptions::from(const cmdline::ParsedArgs& p
     }
     if (auto v = parsed.value("agent-guide")) {
         o.agent_guide = std::filesystem::path(*v);
+        o.headless = true;
+    }
+    if (auto v = parsed.value("static-html")) {
+        o.static_html = std::filesystem::path(*v);
         o.headless = true;
     }
     if (auto v = parsed.value("profile")) o.profile = std::filesystem::path(*v);
@@ -456,6 +461,18 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
             host.step();
             (void)mcpplibs::os::interrupt::wait(std::chrono::milliseconds(4));
         }
+    }
+    if (!o.static_html.empty()) {
+        // What a reader without JavaScript, or a search engine, reads before the program runs: the first screen's
+        // semantic tree as HTML, in the person's first language (omui.semantic:html; the page's program takes each
+        // element over by its id).
+        const std::string lang = o.languages.empty() ? std::string() : o.languages.front();
+        const std::string html = omui::semantic::static_html(host.tree().snapshot(), {.lang = lang});
+        if (auto w = mcpplibs::os::fs::write_atomic(o.static_html, html); !w) {
+            error("{}: {}", utf8(o.static_html), w.error().message());
+            return 1;
+        }
+        std::println(std::cout, "{{\"command\": \"static-html\", \"ok\": true, \"file\": \"{}\", \"bytes\": {}}}", utf8(o.static_html), html.size());
     }
     if (!o.agent_guide.empty()) {
         // What an agent needs, from the application as it is mounted.

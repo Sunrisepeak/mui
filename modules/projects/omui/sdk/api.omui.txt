@@ -163,6 +163,7 @@ namespace omui {
     std::vector<std::string> languages;
     std::string window;
     std::filesystem::path agent_guide;
+    std::filesystem::path static_html;
     std::filesystem::path present_to;
     std::filesystem::path replay;
     static void declare(mcpplibs::cmdline::App& app);

@@ -132,6 +132,7 @@ struct AppSpec {
 //   --lang TAGS               the person's languages, best first: zh-CN,en (default: the system's)
 //   --window MODE             who draws the window's frame: native, framework, switchable (default: the application's)
 //   --agent-guide DIR         write what an agent needs to operate it — agent.md, .well-known/openmui-agent.json — into DIR, and link its page there
+//   --static-html FILE        write its first screen as static HTML, its semantic tree projected (D-236): what a reader without JavaScript reads
 struct RunOptions {
     bool                  headless = false;
     bool                  serve = false;
@@ -155,6 +156,7 @@ struct RunOptions {
     std::vector<std::string> languages;  // --lang
     std::string           window;          // --window native|framework|switchable
     std::filesystem::path agent_guide;     // --agent-guide DIR (a headless run that writes it, then ends)
+    std::filesystem::path static_html;     // --static-html FILE (a headless run that writes it, then ends)
     std::filesystem::path present_to;      // --present-to SOCKET: drawn in a host's window (omui dev, W16)
     std::filesystem::path replay;          // --replay FILE: a recording (ui.record) played headless, its end checked (W12)
 

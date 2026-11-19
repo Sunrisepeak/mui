@@ -73,8 +73,5 @@ private:
     bool                                     first_ = true;
 };
 
-// The attributes a node's element has (by name): the registry's ARIA role,
-// the name, the states, the value of a range. Exposed for the tests.
-[[nodiscard]] std::vector<std::pair<std::string, std::string>> aria_attributes(const spec::SemanticNode& node);
 
 }  // namespace omui

@@ -39,6 +39,7 @@ std::expected<Replay, std::string> read_replay(std::string_view text, std::strin
         ReplayStep made;
         made.caption = step["caption"].text().value_or("");
         made.actor = step["actor"].text().value_or("");
+        made.node = step["node"].text().value_or("");
         if (const mlibs::json::Node seconds = step["seconds"]) {
             const auto value = seconds.number();
             if (!value || !(*value > 0) || *value > 60) return fail(seconds, "a step's seconds on screen are a number above 0, at most 60", "1.5");
@@ -74,8 +75,8 @@ std::string write_replay(const Replay& replay) {
                                   json_text(replay_format), json_text(replay.doc), json_text(replay.subject), json_text(replay.branch));
     for (std::size_t index = 0; index < replay.steps.size(); ++index) {
         const ReplayStep& step = replay.steps[index];
-        out += std::format("{}\n      {{\"caption\": {}, \"actor\": {}, \"seconds\": {}, \"files\": {{", index ? "," : "", json_text(step.caption),
-                           json_text(step.actor), step.seconds);
+        out += std::format("{}\n      {{\"caption\": {}, \"actor\": {}, \"seconds\": {}, {}\"files\": {{", index ? "," : "", json_text(step.caption),
+                           json_text(step.actor), step.seconds, step.node.empty() ? std::string() : std::format("\"node\": {}, ", json_text(step.node)));
         bool first = true;
         for (const auto& [path, text] : step.texts) out += std::format("{}{}: {}", first ? "" : ", ", json_text(path), json_text(keys.at(text))), first = false;
         out += "}}";

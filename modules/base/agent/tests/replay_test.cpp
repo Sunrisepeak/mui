@@ -11,7 +11,8 @@ UTest cases{"agent.replay", [] {
     "written and read back the same; a text the steps share kept once; the same replay the same bytes"_test = [] {
         const std::string page = "mount(\"main\", text({ text: \"Plans\" }));\n", styles = "{\"accent\": \"#7c3aed\"}";
         agent::Replay replay{.doc = "How the page was designed", .subject = "org.example.page", .branch = "main"};
-        replay.steps.push_back({.caption = "1/2 · the page", .actor = "agent:designer", .seconds = 1.25, .texts = {{"app/main.ts", page}, {"app/look.json", styles}}});
+        replay.steps.push_back({.caption = "1/2 · the page", .actor = "agent:designer", .seconds = 1.25, .texts = {{"app/main.ts", page}, {"app/look.json", styles}},
+                                .node = "main/plans"});
         replay.steps.push_back({.caption = "2/2 · \"Plans\" → \"Your plan\"", .actor = "person:developer", .texts = {{"app/main.ts", "mount(\"main\", text({ text: \"Your plan\" }));\n"}, {"app/look.json", styles}}});
         const std::string text = agent::write_replay(replay);
         expect(text.starts_with("{\n  \"$format\": \"replay@1\"")) << text;
@@ -24,6 +25,7 @@ UTest cases{"agent.replay", [] {
         expect(fatal(read.has_value())) << (read ? "" : read.error());
         expect(eq(read->subject, std::string("org.example.page")) && eq(read->branch, std::string("main")) && eq(read->steps.size(), std::size_t{2}));
         expect(eq(read->steps[0].texts.at("app/main.ts"), page) && eq(read->steps[0].seconds, 1.25) && eq(read->steps[0].actor, std::string("agent:designer")));
+        expect(eq(read->steps[0].node, std::string("main/plans")) && read->steps[1].node.empty()) << "where its maker is shown, when known";
         expect(eq(read->steps[1].caption, std::string("2/2 · \"Plans\" → \"Your plan\"")) && eq(read->steps[1].seconds, 1.5)) << "the default time";
         expect(eq(agent::write_replay(*read), text)) << "read and written again: the same";
     };

@@ -254,6 +254,7 @@ namespace mlibs::agent {
     std::string actor;
     double seconds = 1.5;
     std::map<std::string, std::string> texts;
+    std::string node;
   };
   struct Replay {
     std::string doc;

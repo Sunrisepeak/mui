@@ -107,6 +107,8 @@ int live_page(const fs::path& root, const fs::path& built) {
             (void)picture("replay-1");
             (void)invoke("generate.replay", {{"at", 5}});
             step(shows("Renew automatically") && !shows_now("Save"), "step 5: the renewal's details added, no Save button yet");
+            step(std::ranges::any_of(names(), [](const std::string& name) { return name == "designer: the renewal's details, opening while it is on"; }),
+                 "its maker shown at what it built: the agent's presence says the step");
             (void)picture("replay-5");
             const json playing = invoke("generate.replay", {{"from", 1}, {"speed", 4}});
             step(truthy(dig(playing, "data", "playing")), "played from the first step, four times as fast", playing);

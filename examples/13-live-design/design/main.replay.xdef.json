@@ -6,13 +6,13 @@
     "branch": "main",
     "steps": [
       {"caption": "1/9 · a subscription settings page — begun", "actor": "agent:designer", "seconds": 1.25, "files": {"app/main.ts": "0d750c9f4b44df5e"}},
-      {"caption": "2/9 · the page: its title and the three plans", "actor": "agent:designer", "seconds": 1.25, "files": {"app/main.ts": "c7a835c25e557089"}},
-      {"caption": "3/9 · yearly billing, two months free", "actor": "agent:designer", "seconds": 1.25, "files": {"app/main.ts": "40aefd81c797cd29"}},
-      {"caption": "4/9 · automatic renewal", "actor": "agent:designer", "seconds": 1.25, "files": {"app/main.ts": "8bc436d71b4ae5d0"}},
+      {"caption": "2/9 · the page: its title and the three plans", "actor": "agent:designer", "seconds": 1.25, "node": "main/title", "files": {"app/main.ts": "c7a835c25e557089"}},
+      {"caption": "3/9 · yearly billing, two months free", "actor": "agent:designer", "seconds": 1.25, "node": "main/yearly", "files": {"app/main.ts": "40aefd81c797cd29"}},
+      {"caption": "4/9 · automatic renewal", "actor": "agent:designer", "seconds": 1.25, "node": "main/renew", "files": {"app/main.ts": "8bc436d71b4ae5d0"}},
       {"caption": "5/9 · the renewal's details, opening while it is on", "actor": "agent:designer", "seconds": 1.25, "files": {"app/main.ts": "cc30c1648fac1ea4"}},
       {"caption": "6/9 · a place for what a user's agent adds", "actor": "agent:designer", "seconds": 1.25, "files": {"app/main.ts": "2462713674ea3eaa"}},
-      {"caption": "7/9 · the Save button", "actor": "agent:designer", "seconds": 1.25, "files": {"app/main.ts": "ef807c6f6ac454c8"}},
-      {"caption": "8/9 · the title, said to the person", "actor": "agent:designer", "seconds": 1.25, "files": {"app/main.ts": "940dee678b65fe69"}},
+      {"caption": "7/9 · the Save button", "actor": "agent:designer", "seconds": 1.25, "node": "main/save", "files": {"app/main.ts": "ef807c6f6ac454c8"}},
+      {"caption": "8/9 · the title, said to the person", "actor": "agent:designer", "seconds": 1.25, "node": "main/title", "files": {"app/main.ts": "940dee678b65fe69"}},
       {"caption": "9/9 · a calmer spring: the details sprang 40% past, the person allows 10%", "actor": "agent:designer", "seconds": 1.25, "files": {"app/main.ts": "8e292828054acaf0"}}
     ],
     "texts": {

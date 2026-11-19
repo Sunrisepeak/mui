@@ -354,6 +354,10 @@ AgentPresenceState presence_of(const Services& services, std::string_view actors
     for (const AgentNote& note : services.agent_notes())
         if (out.actor.empty() ? matches(note.actor) : note.actor == out.actor) out.note = note;
     if (out.actor.empty() && out.note) out.actor = out.note->actor;
+    // A note that names a node points there while its actor has not acted here (a replay's step: its maker at what
+    // the step built).
+    if (!out.now && out.note && !out.note->node.empty())
+        if (const NodeId n = services.find(out.note->node); n) out.now = PresenceStep{out.note->node, "", services.bounds(n), out.note->at};
     for (const mlibs::agent::Claim& held : services.claims())
         if (out.actor.empty() ? matches(held.actor) : held.actor == out.actor) {
             if (out.actor.empty()) out.actor = held.actor;
@@ -539,7 +543,7 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
     const Rect box{at.x - out, at.y - out, at.width + 2 * out, at.height + 2 * out};
     ctx.part({.role = "frame", .allocation = box, .kind = xrender::PartKind::box}, [&] {
         parts::agent_corners(ctx.list, box, ink, arm);
-        tag_.set_text(std::format("{} · {}", who(now.actor), now.now->action));
+        tag_.set_text(now.now->action.empty() ? std::string(who(now.actor)) : std::format("{} · {}", who(now.actor), now.now->action));
         const Size t = tag_.measure(ctx.services, th.color("on_accent", Color::white()));
         // Above the frame, or under it where the page's top leaves no room.
         const float above = box.y - t.height - 8;

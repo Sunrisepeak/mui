@@ -133,6 +133,26 @@ static UTest cases{"ui.base.agent_presence", [] {
         expect(eq(h.tree().node("main/presence")->name, std::string("guide activate …/actions/save")));
     };
 
+    "a note naming a node, its actor not having acted here (a replay's step): the frame at that node, what it says beside it"_test = [] {
+        Headless h(HeadlessOptions{.size = {420, 220}, .fonts = &fonts()});
+        h.mount("main", stack({.id = "page", .width = 420.0f, .height = 220.0f},
+                              {column({.id = "body", .padding = 24, .gap = 18}, {button({.id = "save", .text = "Save", .variant = ButtonVariant::primary})}),
+                               agent_presence({.id = "presence"})}));
+        h.settle();
+        Runtime& rt = h.runtime();
+        const std::uint64_t empty = hash_of(h.pixels());
+        rt.note({.actor = "agent:designer", .text = "the Save button", .node = "main/body/save"});
+        h.settle();
+        const AgentPresenceState now = agent_presence_state(rt, "agent:");
+        expect(fatal(now.now.has_value())) << "where it points";
+        expect(now.now->path == "main/body/save" && now.now->action.empty() && !now.now->bounds.empty() && now.actor == "agent:designer");
+        expect(eq(h.tree().node("main/presence")->name, std::string("designer: the Save button")));
+        expect(hash_of(h.pixels()) != empty) << "its frame drawn round the node";
+        rt.note({.actor = "agent:designer"});
+        h.settle();
+        expect(agent_presence_state(rt, "agent:").actor.empty()) << "withdrawn: no one shown";
+    };
+
     "several agents at once (D-160): each its own colour in the order they came, its steps and what it holds — a dashed outline with its name and what for — said in the tree"_test = [] {
         Headless h(HeadlessOptions{.size = {520, 300}, .fonts = &fonts()});
         h.mount("main", stack({.id = "page", .width = 520.0f, .height = 300.0f},

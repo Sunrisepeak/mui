@@ -7,7 +7,7 @@
 //     {"$format": "replay@1",
 //      "replay": {"doc": "…", "subject": "org.openmui.subscription", "branch": "main",
 //                 "steps": [{"caption": "1/9 · …", "actor": "agent:designer", "seconds": 1.5,
-//                            "files": {"app/main.ts": "3f2a…"}}],
+//                            "node": "main/plans", "files": {"app/main.ts": "3f2a…"}}],
 //                 "texts": {"3f2a…": "…"}}}
 //
 // A text is written once, by content; a step names its sources' texts by key.
@@ -22,6 +22,7 @@ struct ReplayStep {
     std::string actor;                          // who did it: "agent:designer", "person:developer"
     double      seconds = 1.5;                  // its time on screen
     std::map<std::string, std::string> texts;  // a source's path → its text then
+    std::string node;                           // what it built or changed, where its maker is shown ("" when not known)
 };
 
 struct Replay {

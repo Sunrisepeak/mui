@@ -227,7 +227,7 @@ static UTest cases{"generation", [] {
     "the design shown in place (G8): the replay it ships played in it, each step under its caption and who made it, as it ships at the end"_test = [] {
         Page page;
         mlibs::agent::Replay replay{.doc = "How the plan page was designed", .subject = "org.example.plan", .branch = "main"};
-        replay.steps.push_back({.caption = "1/3 · the plan", .actor = "agent:designer", .seconds = 1, .texts = {{"app/main.ts", "Basic plan"}}});
+        replay.steps.push_back({.caption = "1/3 · the plan", .actor = "agent:designer", .seconds = 1, .texts = {{"app/main.ts", "Basic plan"}}, .node = "main/plan"});
         replay.steps.push_back({.caption = "2/3 · its price", .actor = "agent:designer", .seconds = 1, .texts = {{"app/main.ts", "Basic plan · $4"}}});
         replay.steps.push_back({.caption = "3/3 · in the person's words", .actor = "person:developer", .seconds = 1, .texts = {{"app/main.ts", "Your plan · $4"}}});
         // A stand-in for the player: a step's script is the plan's words; the application ships the last.
@@ -262,15 +262,21 @@ static UTest cases{"generation", [] {
         const Answer playing = invoke(protocol, "generate.replay", Value{}.set("play", true));
         expect(eq(playing.exit, 0) && eq(playing.data.get("at")->as_int(), std::int64_t{1}) && playing.data.get("playing")->as_bool()) << playing.error;
         expect(on_screen("Basic plan") && on_screen("1/3 · the plan") && on_screen("designer · agent")) << "the first step, under its caption and who made it";
+        const auto notes = page.rt.agent_notes();
+        expect(notes.size() == 1 && notes.front().actor == "agent:designer" && notes.front().node == "main/plan" && notes.front().text == "the plan")
+            << "its maker at what it built: a note there, which the presence shows";
+        expect(on_screen("designer: the plan")) << "the presence over the page says it, the count left to the line";
         later(1.05);
         expect(on_screen("Basic plan · $4") && on_screen("2/3 · its price")) << "the next once its time is up";
         later(1.05);
         expect(on_screen("Your plan · $4") && on_screen("developer · person"));
+        expect(page.rt.agent_notes().size() == 1 && page.rt.agent_notes().front().actor == "person:developer") << "one maker's note at a time";
         later(1.05);
         const Answer ended = invoke(protocol, "generate.replay");
         expect(eq(ended.data.get("at")->as_int(), std::int64_t{0}) && ended.data.get("ended")->as_bool() && !ended.data.get("playing")->as_bool()) << ended.data.json();
         expect(!on_screen("3/3 · in the person's words") && on_screen("Your plan · $4")) << "as it ships, the caption gone";
         expect(eq(ran, std::vector<std::string>{"Basic plan", "Basic plan · $4", "Your plan · $4", "as it ships"}));
+        expect(page.rt.agent_notes().empty()) << "what the makers said, withdrawn";
 
         // A step gone to stays; pause holds it; stop is the application as it ships.
         const Answer second = invoke(protocol, "generate.replay", Value{}.set("at", 2));

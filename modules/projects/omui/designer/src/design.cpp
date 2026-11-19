@@ -586,7 +586,15 @@ private:
             if (!shot.keep) continue;
             auto texts = history.texts_of(shot.commit);
             if (!texts) return std::unexpected(texts.error());
-            replay.steps.push_back({.caption = shot.caption, .actor = script->commits[index].actor, .seconds = shot.seconds, .texts = std::move(*texts)});
+            // Where its maker is shown: the camera's node the script names, else the first node the step added, else the
+            // first it changed (what the step said it changed when it was made).
+            std::string node = shot.node.value_or("");
+            if (const auto changes = parse_json(script->commits[index].changes); changes && node.empty())
+                for (const std::string_view kind : {"added", "changed"})
+                    if (const Value* list = changes->get(kind); node.empty() && list && list->list() && !list->list()->empty())
+                        if (const Value* id = list->list()->front().get("id")) node = std::string(id->as_string());
+            replay.steps.push_back(
+                {.caption = shot.caption, .actor = script->commits[index].actor, .seconds = shot.seconds, .texts = std::move(*texts), .node = std::move(node)});
         }
         if (replay.steps.empty()) return std::unexpected(std::format("the film's script keeps no step of `{}` ({})", script->branch, generic_utf8(script->file)));
         const std::string out_text(args.get("out") ? args.get("out")->as_string() : std::string());

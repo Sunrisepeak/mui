@@ -159,6 +159,33 @@ static UTest cases{"generation", [] {
     };
 
 
+    "kept in the host's store of text by key (the Web's page storage, where a page's files do not outlive it): a new start shows it again"_test = [] {
+        std::map<std::string, std::string, std::less<>> page_storage;
+        const auto read = [&](std::string_view name) -> std::optional<std::string> {
+            const auto found = page_storage.find(name);
+            return found == page_storage.end() ? std::nullopt : std::optional(found->second);
+        };
+        const auto write = [&](std::string_view name, std::string_view text) -> std::expected<void, std::string> {
+            page_storage.insert_or_assign(std::string(name), std::string(text));
+            return {};
+        };
+        const std::vector<generate::Surface> declared{{"extras", ""}, {"look", "", generate::Surface::Kind::theme}};
+        {
+            Page page;
+            generate::Generation generation(page.rt, {.openness = generate::Openness::data, .surfaces = declared, .theme = themed, .read_kept = read, .write_kept = write});
+            agent::Protocol protocol(page.rt, {});
+            for (const auto& [surface, document] : {std::pair{"extras", card("Pro")}, std::pair{"look", parse_json(R"({"colors": {"accent": "#7c3aed"}})").value()}}) {
+                const Answer drafted = invoke(protocol, "generate.draft", Value{}.set("surface", surface).set("document", document));
+                expect(eq(invoke(protocol, "generate.commit", Value{}.set("draft", drafted.data.get("draft")->as_string())).exit, 0)) << drafted.error;
+            }
+        }
+        expect(page_storage.contains("index.json") && page_storage.contains("extras-1.view.xdef.json") && page_storage.contains("look-1.overlay.json"))
+            << page_storage.size();
+        Page again;
+        generate::Generation generation(again.rt, {.openness = generate::Openness::data, .surfaces = declared, .theme = themed, .read_kept = read, .write_kept = write});
+        expect(again.shows("Pro") && again.rt.theme().color("accent").r == Color::hex(0x7c3aed).r) << "shown again from the store";
+    };
+
     "the customization as a layer of data (customization@1): exported, put over a new start, the same; one that does not pass changes nothing"_test = [] {
         const auto same = [](Color a, Color b) { return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a; };
         const std::vector<generate::Surface> declared{{"extras", "cards under the plan"}, {"look", "the colours", generate::Surface::Kind::theme}};

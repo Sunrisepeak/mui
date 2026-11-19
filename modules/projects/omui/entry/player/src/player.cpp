@@ -9,6 +9,7 @@ import omui.ui.markdown;
 import omui.lang.js;
 import omui.native;
 import omui.native.fuzzy;
+import omui.native.store;
 import omui.theme;
 import omui.theme.default_theme;
 import omui.theme.compact;
@@ -303,6 +304,13 @@ int player_main(int argc, char** argv) {
                                                   .evaluate = generated_views(m->base),
                                                   .theme = customized(m->theme),
                                                   .directory = m->base / ".omui" / "generation"};
+        // On the Web a page's files do not outlive it: the versions are kept in the page's storage (the host's store,
+        // localStorage), so the customization is there again when the page is opened again.
+        if constexpr (mcpplibs::os::is_emscripten) {
+            const std::string prefix = std::format("omui.generation/{}/", m->id);
+            app.generation->read_kept = [prefix](std::string_view name) { return omui::store().get(prefix + std::string(name)); };
+            app.generation->write_kept = [prefix](std::string_view name, std::string_view text) { return omui::store().set(prefix + std::string(name), text); };
+        }
     }
     app.ready = [&] { return p && p->idle(); };
     app.teardown = [&](Runtime&) { p.reset(); };  // the player goes before its runtime

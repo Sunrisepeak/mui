@@ -88,6 +88,10 @@ struct GenerationOptions {
     // that no longer passes is not shown, and generate.surfaces says why.
     // Empty: kept only while it runs.
     std::filesystem::path directory;
+    // Or kept in the host's store of text by key, each a file's name ("index.json", "look-1.overlay.json") and its
+    // text: the Web host's page storage, where a page's files do not outlive it.
+    std::function<std::optional<std::string>(std::string_view name)>             read_kept;
+    std::function<std::expected<void, std::string>(std::string_view name, std::string_view text)> write_kept;
     // Where a draft asked for in the background runs (generate.draft
     // {background}): the application's task broker. None: drafts are made at once.
     TaskBroker* tasks = nullptr;

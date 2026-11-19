@@ -125,22 +125,39 @@ struct Generation::Impl {
         if (waiting) runtime.cancel(waiting);
     }
 
-    // ── kept on disk ──
-    std::filesystem::path document_file(std::string_view surface, std::size_t version) const {
+    // ── kept: in the host's store, or a directory ──
+    std::string document_file(std::string_view surface, std::size_t version) const {
         // A view surface's versions are view documents; a theme surface's, the overlays its drafts were.
-        return options.directory / std::format("{}-{}.{}.json", surface, version, themed(surface) ? "overlay" : "view.xdef");
+        return std::format("{}-{}.{}.json", surface, version, themed(surface) ? "overlay" : "view.xdef");
     }
-
-    void keep() const {
+    [[nodiscard]] bool keeping() const { return static_cast<bool>(options.read_kept) || !options.directory.empty(); }
+    [[nodiscard]] std::optional<std::string> kept_read(const std::string& name) const {
+        if (options.read_kept) return options.read_kept(name);
+        if (options.directory.empty()) return std::nullopt;
+        auto text = mcpplibs::os::fs::read(options.directory / name);
+        if (!text) return std::nullopt;
+        return std::move(*text);
+    }
+    void kept_write(const std::string& name, std::string_view text) const {
+        if (options.write_kept) {
+            if (auto written = options.write_kept(name, text); !written) mlibs::log::warn("generation: cannot keep {}: {}", name, written.error());
+            return;
+        }
         if (options.directory.empty()) return;
         std::error_code error;
         std::filesystem::create_directories(options.directory, error);
+        if (auto written = mcpplibs::os::fs::write_atomic(options.directory / name, text); !written)
+            mlibs::log::warn("generation: cannot keep the versions in {}: {}", generic_utf8(options.directory), written.error().message());
+    }
+
+    void keep() const {
+        if (!keeping()) return;
         Value index(Value::Map{});
         for (const auto& [name, shown] : surfaces) {
             Value::List versions;
             for (const Version& version : shown.versions) {
                 const auto file = document_file(name, version.number);
-                if (!std::filesystem::exists(file)) (void)mcpplibs::os::fs::write_atomic(file, version.document);
+                if (!kept_read(file)) kept_write(file, version.document);
                 versions.push_back(Value{}
                                        .set("version", static_cast<std::int64_t>(version.number))
                                        .set("actor", version.actor)
@@ -149,15 +166,14 @@ struct Generation::Impl {
             }
             index.set(name, Value{}.set("shown", static_cast<std::int64_t>(shown.current)).set("versions", Value(std::move(versions))));
         }
-        if (auto written = mcpplibs::os::fs::write_atomic(options.directory / "index.json", Value{}.set("surfaces", std::move(index)).json()); !written)
-            mlibs::log::warn("generation: cannot keep the versions in {}: {}", generic_utf8(options.directory), written.error().message());
+        kept_write("index.json", Value{}.set("surfaces", std::move(index)).json());
     }
 
     // What was kept, read again: every version checked as a draft is now; the one shown, shown
     // once its slot is on screen.
     void restart(const std::shared_ptr<Impl>& self) {
-        if (options.directory.empty()) return;
-        auto text = mcpplibs::os::fs::read(options.directory / "index.json");
+        if (!keeping()) return;
+        auto text = kept_read("index.json");
         if (!text) return;
         const auto index = parse_json(*text);
         const Value* kept = index ? index->get("surfaces") : nullptr;
@@ -167,7 +183,7 @@ struct Generation::Impl {
             if (!surface || !surface->get("versions") || !surface->get("versions")->list()) continue;
             for (const Value& entry : *surface->get("versions")->list()) {
                 const std::size_t number = static_cast<std::size_t>(entry.get("version") ? entry.get("version")->as_int() : 0);
-                auto document = mcpplibs::os::fs::read(document_file(name, number));
+                auto document = kept_read(document_file(name, number));
                 Version version{number, document ? *document : std::string(), text_arg(entry, "actor"), text_arg(entry, "draft"),
                                 entry.get("at") ? entry.get("at")->as_double() : 0, {}};
                 std::string problem = document ? std::string() : std::format("version {}'s document is gone", number);
@@ -178,7 +194,7 @@ struct Generation::Impl {
                     if (auto valid = validate(version.document, std::format("{}-{}", name, number)); !valid) problem = valid.error();
                 }
                 if (problem.empty() && !themed(name)) {
-                    auto view = viewdoc::View::load(runtime, version.document, {.file = generic_utf8(document_file(name, number)), .provide = options.provide});
+                    auto view = viewdoc::View::load(runtime, version.document, {.file = document_file(name, number), .provide = options.provide});
                     if (view) version.view = std::move(*view);
                     else problem = std::format("version {} could not be prepared again", number);
                 }
@@ -671,19 +687,17 @@ struct Generation::Impl {
 
     // ── pieces kept for reuse ──
     void keep_pieces() const {
-        if (options.directory.empty()) return;
-        std::error_code error;
-        std::filesystem::create_directories(options.directory, error);
+        if (!keeping()) return;
         Value::List list;
         for (const auto& [name, piece] : pieces)
             list.push_back(Value{}.set("name", name).set("doc", piece.doc).set("actor", piece.actor).set("from", piece.from)
                                .set("document", parse_json(piece.document).value_or(Value{})));
-        (void)mcpplibs::os::fs::write_atomic(options.directory / "pieces.json", Value{}.set("pieces", Value(std::move(list))).json());
+        kept_write("pieces.json", Value{}.set("pieces", Value(std::move(list))).json());
     }
 
     void read_pieces() {
-        if (options.directory.empty()) return;
-        auto text = mcpplibs::os::fs::read(options.directory / "pieces.json");
+        if (!keeping()) return;
+        auto text = kept_read("pieces.json");
         if (!text) return;
         const auto kept = parse_json(*text);
         const Value* list = kept ? kept->get("pieces") : nullptr;

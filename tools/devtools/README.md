@@ -14,6 +14,16 @@ omui-devtools ci --json run 43685505783   # the same as JSON
 
 Each failure lists the red rows that name it (its package, the package a `.cts` member checks, its suite's label, its case's words, its program); one no row names is marked `NEW`. A timeout shows the case that passed last before it; a member whose package did not build shows the build's errors. Exit 0 when every failure is in the red list, 1 when one is new, 2 when the run could not be read.
 
+**Which lanes a run tests** (D-248, D-254). [`.github/ci.lanes.xdef.json`](../../.github/ci.lanes.xdef.json) lists CI's lanes — a row of the matrix, a job of `ci.yml`, or a workflow of its own — with what each checks and about how many runner minutes it takes, the groups (`all`, `elsewhere`: what this machine cannot run, `desktop`), and what each event runs when given nothing. A selection is names separated by spaces or commas, read left to right: a lane or a group adds, `-name` takes away, `none` empties.
+
+```sh
+omui-devtools ci plan                         # what pushing HEAD runs: the lint alone, or what its CI: trailer names
+omui-devtools ci plan --lanes "all -android"  # what a run given these lanes tests, and its minutes
+omui-devtools ci request elsewhere pages      # request them on this branch: ci.yml's lanes as one run, each workflow its own
+```
+
+A pull request's push runs the lint alone. A commit that needs more says so in its message's last paragraph — `CI: macos windows`, `CI: all -android`, `CI: pages` — and the lint job requests those as a run of their own (so a later push does not cancel them, and they follow the path of a run asked by hand); `[skip ci]` skips the lint too. In `ci.yml` the plan is the lint job's first step (`ci plan --dispatch --github-output …`): the matrix and each job follow its outputs, whether or not the rules after it pass. A name the catalogue does not have fails the plan with the names there are.
+
 ## govern
 
 A command held within a share of the machine (AGENTS.md §5): at most `--jobs` compilers, assemblers and linkers of all its descendants run at once, whatever the command plans (mcpp builds workspace groups and host tools side by side, each with its own job count); while available memory is under `--memory-floor` (10%) of the total, fewer. The newest beyond the limit are paused and continued as the oldest finish; test programs and the build tools are never paused, since a test may measure time. Interrupting or terminating it continues what is paused and passes the request to the whole command.

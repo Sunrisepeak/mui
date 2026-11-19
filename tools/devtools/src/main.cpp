@@ -50,6 +50,7 @@ import omui.devtools.eval;
 import omui.devtools.govern;
 import omui.devtools.gpu;
 import omui.devtools.incremental;
+import omui.devtools.lanes;
 import omui.devtools.lead;
 import omui.devtools.lint;
 import omui.devtools.members;
@@ -62,6 +63,7 @@ import omui.devtools.site;
 
 namespace cmd = mcpplibs::cmdline;
 namespace rec = omui::devtools::ci;
+namespace lanes = omui::devtools::lanes;
 namespace ws = omui::devtools::members;
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -194,6 +196,19 @@ cmd::App app() {
                         .subcommand(cmd::App("local")
                                         .description("CI's matrix on this one Linux machine, for when hosted runners are unavailable (wine for the Windows row)")
                                         .arg(Arg("member").help("these members (default: the workspace)")))
+                        .subcommand(cmd::App("plan")
+                                        .description("Which of CI's lanes a run tests and which it requests (.github/ci.lanes.xdef.json, D-254); by default, what pushing HEAD to a pull request runs")
+                                        .option(Option("event").takes_value().value_name("EVENT").help("pull_request (default), workflow_dispatch, push or schedule"))
+                                        .option(Option("lanes").takes_value().value_name("SELECTION").help("the lanes the run is given: lanes and groups, -name takes one away, none"))
+                                        .option(Option("commit").takes_value().value_name("REV").help("the commit whose `CI:` trailer names a pull request's lanes (default: HEAD)"))
+                                        .option(Option("dispatch").help("request what the plan requests (gh workflow run)"))
+                                        .option(Option("ref").takes_value().value_name("BRANCH").help("the branch requested runs run on (default: the current one)"))
+                                        .option(Option("github-output").takes_value().value_name("FILE").help("append the step's outputs: matrix, rows and each job's lane"))
+                                        .option(Option("summary").takes_value().value_name("FILE").help("append the plan in Markdown")))
+                        .subcommand(cmd::App("request")
+                                        .description("Request lanes on GitHub (gh workflow run): ci.yml's as one run, each workflow its own; prints the runner minutes")
+                                        .option(Option("ref").takes_value().value_name("BRANCH").help("the branch (default: the current one)"))
+                                        .arg(Arg("selection").required().help("lanes and groups, -name takes one away (omui-devtools ci plan --lanes … says what they are)")))
                         .subcommand(cmd::App("test")
                                         .description("The workspace's tests as several `mcpp test`s, one a block of members (RC0.10, while mcpp#945 stops the whole run): the blocks are checked to be the members each once; every block runs; `workspace result ok` when all pass")
                                         .option(Option("blocks").takes_value().value_name("N").help("how many (default: 12)"))
@@ -473,12 +488,16 @@ int blocks_test(const cmd::ParsedArgs& options, const fs::path& root) {
     return 0;
 }
 
+int ci_lanes(const cmd::ParsedArgs& given, std::string_view command, const fs::path& root);
+
 int ci(const cmd::ParsedArgs& options, const fs::path& root) {
     if (!options.has_subcommand()) {
-        std::cerr << "usage: omui-devtools ci [--json] run ID | log FILE [--jobs FILE] | local [MEMBER…] | test [--blocks N] [--exclude P]… [--profile P] [--list]\n";
+        std::cerr << "usage: omui-devtools ci [--json] run ID | log FILE [--jobs FILE] | plan [--lanes S] [--commit REV] | request SELECTION… | local [MEMBER…] | test [--blocks N] [--exclude P]… [--profile P] [--list]\n";
         return 2;
     }
     if (options.subcommand_name() == "test") return blocks_test(options.subcommand()->get(), root);
+    if (options.subcommand_name() == "plan" || options.subcommand_name() == "request")
+        return ci_lanes(options.subcommand()->get(), options.subcommand_name(), root);
     if (options.subcommand_name() == "local") {
         const auto& given = options.subcommand()->get();
         std::vector<std::string> members;
@@ -534,8 +553,8 @@ int ci(const cmd::ParsedArgs& options, const fs::path& root) {
     return report.fresh > 0 ? 1 : 0;
 }
 
-// `git ARGS…` in the workspace: its output's lines.
-std::expected<std::vector<std::string>, std::string> git_lines(const fs::path& root, std::vector<std::string> args) {
+// `git ARGS…` in the workspace: its output.
+std::expected<std::string, std::string> git_text(const fs::path& root, std::vector<std::string> args) {
     const auto program = mcpplibs::os::env::find_executable("git");
     if (!program) return std::unexpected("`git` is not on PATH");
     mcpplibs::os::process::spawn_options options;
@@ -545,10 +564,89 @@ std::expected<std::vector<std::string>, std::string> git_lines(const fs::path& r
     auto ran = mcpplibs::os::process::run(std::move(options));
     if (!ran) return std::unexpected(std::format("git did not start: {}", ran.error().message()));
     if (ran->status.shell_code() != 0) return std::unexpected(std::format("git {}: {}", args.front(), ran->err));
+    return std::move(ran->out);
+}
+
+// `git ARGS…` in the workspace: its output's lines.
+std::expected<std::vector<std::string>, std::string> git_lines(const fs::path& root, std::vector<std::string> args) {
+    auto text = git_text(root, std::move(args));
+    if (!text) return std::unexpected(text.error());
     std::vector<std::string> lines;
-    for (const auto part : std::views::split(std::string_view(ran->out), '\n'))
+    for (const auto part : std::views::split(std::string_view(*text), '\n'))
         if (!std::string_view(part.begin(), part.end()).empty()) lines.emplace_back(part.begin(), part.end());
     return lines;
+}
+
+// omui-devtools ci plan | request (D-254): which of CI's lanes a run tests, from .github/ci.lanes.xdef.json.
+int ci_lanes(const cmd::ParsedArgs& given, std::string_view command, const fs::path& root) {
+    const auto text = mcpplibs::os::fs::read(root / ".github/ci.lanes.xdef.json");
+    if (!text) {
+        std::cerr << "omui-devtools ci: cannot read .github/ci.lanes.xdef.json (the lanes' catalogue)\n";
+        return 2;
+    }
+    const auto catalogue = lanes::read(*text);
+    if (!catalogue) {
+        std::cerr << std::format("omui-devtools ci: .github/ci.lanes.xdef.json: {}\n", catalogue.error());
+        return 2;
+    }
+    const bool request = command == "request";
+    std::string selection, message;
+    if (request) {
+        for (std::size_t index = 0; index < given.positional_count(); ++index) selection += std::format("{} ", given.positional(index));
+    } else {
+        selection = given.value("lanes").value_or("");
+        auto read = git_text(root, {"log", "-1", "--format=%B", given.value("commit").value_or("HEAD")});
+        if (!read) {
+            std::cerr << std::format("omui-devtools ci plan: the commit's message: {}\n", read.error());
+            return 2;
+        }
+        message = std::move(*read);
+    }
+    const std::string event = request ? "request" : given.value("event").value_or("pull_request");
+    const auto planned = lanes::plan(*catalogue, event, selection, message);
+    if (!planned) {
+        std::cerr << std::format("omui-devtools ci {}: {}\n", command, planned.error());
+        return 2;
+    }
+    const std::string described = lanes::describe(*catalogue, *planned);
+    std::cout << described;
+    const auto append = [](const std::string& path, const std::string& content) {
+        std::ofstream out(path, std::ios::app | std::ios::binary);
+        out << content;
+        return static_cast<bool>(out);
+    };
+    if (const auto output = given.value("github-output"); output && !append(std::string(*output), lanes::outputs(*catalogue, *planned))) {
+        std::cerr << "omui-devtools ci plan: cannot write the step's outputs\n";
+        return 2;
+    }
+    if (const auto summary = given.value("summary"); summary) append(std::string(*summary), described);
+    if (!request && !given.is_flag_set("dispatch")) return 0;
+    std::string ref(given.value("ref").value_or(""));
+    if (ref.empty()) {
+        const auto branch = git_lines(root, {"rev-parse", "--abbrev-ref", "HEAD"});
+        if (branch && !branch->empty() && branch->front() != "HEAD") ref = branch->front();
+    }
+    if (ref.empty() && (!planned->requested.empty() || !planned->workflows.empty())) {
+        std::cerr << "omui-devtools ci: no branch to request the runs on (--ref names it)\n";
+        return 2;
+    }
+    int failed = 0;
+    const auto run = [&](std::vector<std::string> args, std::string_view what) {
+        auto ran = gh(std::move(args));
+        if (ran) {
+            std::cout << std::format("requested {} on {}\n", what, ref);
+        } else {
+            std::cerr << std::format("omui-devtools ci: requesting {}: {}\n", what, ran.error());
+            ++failed;
+        }
+    };
+    if (!planned->requested.empty()) {
+        std::string names;
+        for (const auto& name : planned->requested) names += (names.empty() ? "" : " ") + name;
+        run({"workflow", "run", "ci.yml", "--ref", ref, "-f", "lanes=" + names}, std::format("ci.yml ({})", names));
+    }
+    for (const auto& workflow : planned->workflows) run({"workflow", "run", workflow, "--ref", ref}, workflow);
+    return failed > 0 ? 1 : 0;
 }
 
 // The LLVM CI's rows build with, as .github/workflows/ci.yml names it ("llvm@23.1.3").

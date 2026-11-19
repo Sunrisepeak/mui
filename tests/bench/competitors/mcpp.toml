@@ -41,6 +41,7 @@ mcpplibs.cmdline = "0.0.3"
 xrender.vector = { path = "../../../modules/projects/xrender/vector" }
 xrender.raster = { path = "../../../modules/projects/xrender/raster" }
 mlibs.geom = { path = "../../../modules/base/geom" }
+mlibs.utils = { path = "../../../modules/base/utils" }
 mlibs.math = { path = "../../../modules/base/math" }
 mlibs.image = { path = "../../../modules/base/image" }
 mlibs.markdown = { path = "../../../modules/content/markdown" }

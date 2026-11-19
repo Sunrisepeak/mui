@@ -22,6 +22,7 @@ import mlibs.image;
 import xrender.raster;
 import xrender.vector;
 import xrender.vector.svg;
+import mlibs.trace;
 
 namespace {
 
@@ -298,10 +299,12 @@ void phases(const Scene& scene, int runs) {
         return raster::Stroke{.width = item.width, .cap = static_cast<raster::Cap>(item.cap), .join = static_cast<raster::Join>(item.join)};
     };
     std::vector<double> outline_ms, raster_ms, total_ms;
+    double cells_ms = 0, sweep_ms = 0;  // inside the coverage: the cells made, then swept (the rasteriser's own spans)
     std::size_t edges = 0, runs_made = 0;
     for (int run = 0; run < 3 + runs; ++run) {
         double outline = 0, rasterise = 0;
         edges = runs_made = pieces = covered = uniform = 0;
+        if (run >= 3) mlibs::trace::start();  // the coverage loop of a measured run alone, not the canvas's pass below
         for (std::size_t index = 0; index < scene.items.size(); ++index) {
             const Item& item = scene.items[index];
             polygons.clear();
@@ -323,6 +326,11 @@ void phases(const Scene& scene, int runs) {
             edges += polygons.points.size();
             runs_made += pieces;
         }
+        if (run >= 3)
+            for (const auto& stat : mlibs::trace::stop().summary()) {
+                if (stat.name == "raster.cells") cells_ms += stat.total_ms / runs;
+                if (stat.name == "raster.sweep") sweep_ms += stat.total_ms / runs;
+            }
         surface.clear(raster::Rgba8{255, 255, 255, 255});
         const auto start = std::chrono::steady_clock::now();
         for (std::size_t index = 0; index < scene.items.size(); ++index) {
@@ -335,8 +343,8 @@ void phases(const Scene& scene, int runs) {
     }
     const auto median = [](std::vector<double> values) { std::ranges::sort(values); return values[values.size() / 2]; };
     const double outline = median(outline_ms), rasterise = median(raster_ms), total = median(total_ms);
-    std::println(R"({{"scene":"{}","total_ms":{:.3f},"outline_ms":{:.3f},"rasterise_ms":{:.3f},"composite_ms":{:.3f},"points":{},"pieces":{},"pixels":{},"uniform":{}}})",
-                 scene.name, total, outline, rasterise, std::max(0.0, total - outline - rasterise), edges, runs_made, covered, uniform);
+    std::println(R"({{"scene":"{}","total_ms":{:.3f},"outline_ms":{:.3f},"rasterise_ms":{:.3f},"composite_ms":{:.3f},"cells_ms":{:.3f},"sweep_ms":{:.3f},"points":{},"pieces":{},"pixels":{},"uniform":{}}})",
+                 scene.name, total, outline, rasterise, std::max(0.0, total - outline - rasterise), cells_ms, sweep_ms, edges, runs_made, covered, uniform);
 }
 
 bool write(const std::filesystem::path& file, std::string_view text) {

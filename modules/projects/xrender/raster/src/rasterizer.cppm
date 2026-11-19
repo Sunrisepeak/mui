@@ -10,6 +10,7 @@ export module xrender.raster.api:rasterizer;
 
 import std;
 import mlibs.geom;
+import mlibs.trace;
 import :surface;
 
 export namespace xrender::raster {
@@ -98,7 +99,11 @@ public:
         const std::int32_t step = band_rows();
         if (row_pieces_.size() < static_cast<std::size_t>(width_)) row_pieces_.resize(static_cast<std::size_t>(width_));
         for (std::int32_t first = 0; first < box_height_; first += step) {
-            band(polygons, first, std::min(step, box_height_ - first));
+            {
+                mlibs::trace::Span cells("raster.cells", "xrender.raster");  // the edges' cover and area into their cells
+                band(polygons, first, std::min(step, box_height_ - first));
+            }
+            mlibs::trace::Span sweep("raster.sweep", "xrender.raster");  // the cells to coverage, and what emit does with it
             sweep_rows(rule, emit);
         }
     }
@@ -188,7 +193,11 @@ private:
     void sweep_bands(const Polygons& polygons, FillRule rule, Emit&& emit) {
         const std::int32_t step = band_rows();
         for (std::int32_t first = 0; first < box_height_; first += step) {
-            band(polygons, first, std::min(step, box_height_ - first));
+            {
+                mlibs::trace::Span cells("raster.cells", "xrender.raster");
+                band(polygons, first, std::min(step, box_height_ - first));
+            }
+            mlibs::trace::Span sweeping("raster.sweep", "xrender.raster");
             sweep(rule, emit);
         }
     }

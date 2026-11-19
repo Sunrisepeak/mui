@@ -303,8 +303,25 @@ static UTest cases{"site.places", [] {
         expect(a.h.click("main/body/guide/copy_prompt"));
         a.h.settle();
         const std::string prompt = a.text("main/body/guide/prompt");
-        expect(prompt.find("K7Q4-42MX") != std::string::npos && prompt.find("https://openmui.dev/agent.md") != std::string::npos && prompt.find("port 47110") != std::string::npos) << prompt;
+        // One sentence (site design, fifth version §5): install as agent.md says, connect with the code, then the page's
+        // own description; no port (the page tries each a bridge may take).
+        expect(prompt.find("https://openmui.dev/agent.md") != std::string::npos && prompt.find("`omui connect K7Q4-42MX`") != std::string::npos &&
+               prompt.find("omui page describe") != std::string::npos && prompt.find('\n') == std::string::npos && prompt.find("47110") == std::string::npos)
+            << prompt;
         expect(eq(a.h.runtime().clipboard_text(), prompt));
+        // The command tab: the same link as two lines the person types, its last the same `omui connect <code>`.
+        Invocation picks;
+        picks.args = Value{}.set("value", "command");
+        expect(a.h.tree().act("main/body/guide/install_way", "set_value", picks).exit_code() == std::optional<int>(0));
+        a.h.settle();
+        expect(a.text("main/body/guide/copy_prompt") == "Copy the commands") << a.text("main/body/guide/copy_prompt");
+        expect(a.h.click("main/body/guide/copy_prompt"));
+        a.h.settle();
+        const std::string commands = a.text("main/body/guide/prompt");
+        expect(commands.ends_with("\nomui connect K7Q4-42MX") && std::ranges::count(commands, '\n') == 1 && eq(a.h.runtime().clipboard_text(), commands)) << commands;
+        picks.args = Value{}.set("value", "agent");
+        expect(a.h.tree().act("main/body/guide/install_way", "set_value", picks).exit_code() == std::optional<int>(0));
+        a.h.settle();
         expect(a.h.tree().node("main/body/guide/log")->value.get("link")->as_string() == "waiting") << "the log says it waits";
         a.h.runtime().agent_link_changed({"paired", "K7Q4-42MX", "claude-code", {}, 47110, "https://openmui.dev/agent.md"});
         a.h.settle();
@@ -411,7 +428,8 @@ static UTest cases{"site.places", [] {
         // Re-pinned with the lead page (Part 2 §2.3): the docs' directory lists "Lead" after the practical guide.
         // Re-pinned with D-138: the docs say C++, TypeScript and view documents (features §4, the practical
         // guide's table), the interface page compares C++ and TypeScript, the combobox sample picks how a view is written.
-        expect(eq(all.hex(), std::string("9143e6ab95b69eb7")));
+        // Re-pinned with G9: the guide's two ways to the link (Agent, Command) above its copy button.
+        expect(eq(all.hex(), std::string("e6c7c510d2e0324f")));
     };
 
     "the reference run: each sampled frame's pixels hashed as a browser hashes them, pinned (reference/ci.frames.xdef.json)"_test = [] {

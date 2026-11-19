@@ -544,7 +544,8 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
                         return found;
                 return nullptr;
             };
-            const auto press = [&](const std::string& id) {
+            // A real click at `across` of the node's width (a segmented control's option is a part of it, not a node).
+            const auto press_at = [&](const std::string& id, double across) {
                 const json found = node(id);
                 if (!truthy(at(found, "bounds")))
                     return false;
@@ -553,13 +554,14 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
                              w = number(at(bounds, 2)), h = number(at(bounds, 3));
                 for (const std::string type : {"mouseMoved", "mousePressed", "mouseReleased"})
                     script.call("Input.dispatchMouseEvent", {{"type", type},
-                                                             {"x", x + w / 2},
+                                                             {"x", x + w * across},
                                                              {"y", y + h / 2},
                                                              {"button", "left"},
                                                              {"clickCount", 1}});
                 script.sleep(600);
                 return true;
             };
+            const auto press = [&](const std::string& id) { return press_at(id, 0.5); };
             step(press("main/bar/guide_toggle"), "the person opens the agent panel");
             if (allow_local) {
                 // The person answers the browser's question: this page may reach this machine (local network
@@ -570,6 +572,15 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
                 script.call("Browser.grantPermissions",
                             {{"origin", origin}, {"permissions", {"localNetworkAccess"}}});
             }
+            // The command tab first: the same link as two lines the person types (site design, fifth version §5).
+            step(press_at("main/body/guide/install_way", 0.85) && press("main/body/guide/copy_prompt"),
+                 "the person picks the command tab and copies it");
+            const json command_node = node("main/body/guide/prompt");
+            const std::string commands =
+                at(command_node, "name").is_string() ? text(at(command_node, "name")) : std::string();
+            step(commands.contains("\nomui connect ") && commands.find('\n') == commands.rfind('\n'),
+                 "the command tab is two lines, the second omui connect <code>", commands.substr(0, 300));
+            step(press_at("main/body/guide/install_way", 0.2), "the person goes back to the agent tab");
             step(press("main/body/guide/copy_prompt"), "the person presses \"Copy the prompt\"");
             const json prompt_node = node("main/body/guide/prompt");
             const std::string prompt =
@@ -645,7 +656,10 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
             step(text(at(state, "state")) == "paired" && text(at(state, "agent")) == "CI agent",
                  "the page sees its agent, by name",
                  state.is_null() ? "undefined" : cdp::stringify(state));
-            // The page describes itself to the agent (D-186).
+            // What the prompt says next: the page describes itself to the agent (D-186), so the prompt carries no
+            // instructions of its own.
+            step(prompt.contains("omui page describe"), "the prompt is one sentence: install, connect, describe",
+                 prompt.substr(0, 300));
             const Answer described = page_command({"describe"});
             step(described.code == 0 && described.out.size() > 40,
                  "the page describes itself to the agent (omui page describe)",

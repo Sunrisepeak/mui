@@ -290,6 +290,10 @@ void Mascot::steer(const PaintContext& ctx) const {
         target = Rect{agent.now->bounds.x - self.x, agent.now->bounds.y - self.y, agent.now->bounds.width, agent.now->bounds.height};
         kind = agent.asking ? "ask" : "point";
         f.target = agent.now->path;
+    } else if (const auto kept = agent_here && !f.target.empty() ? box_of(f.target) : std::nullopt) {
+        // The agent's latest step is on no node (an undo of the window's history, a verb): it is still where it was.
+        target = kept;
+        kind = agent.asking ? "ask" : "point";
     } else if (const auto goal = box_of(goal_)) {
         target = goal;
         kind = goal_kind_;

@@ -87,8 +87,10 @@ struct Site {
     Signal<std::string> agent = signal(std::string()), test = signal(std::string()), hash = signal(std::string());
 
     Signal<bool>        panel = signal(false);     // the agent panel open
-    // The person's own agent: the prompt given to it, the self-check it presses.
+    // The person's own agent: the prompt given to it, the self-check it presses. Two ways to the same link (site
+    // design, fifth version §5): "agent", one sentence for their agent; "command", the lines they type themselves.
     Signal<std::string> prompt = signal(std::string());
+    Signal<std::string> install_way = signal(std::string("agent"));
     Signal<std::int64_t> hellos = signal(std::int64_t{0});
     Signal<bool>        settings = signal(false);  // the settings panel open
     // A narrow window (a phone): the places and the switches in a menu, a panel in the place's place.
@@ -293,24 +295,20 @@ struct Site {
         const AgentLink& l = runtime->agent_link();
         const bool zh = lang.peek() == "zh";
         const std::string guide = l.guide.empty() ? std::string("agent.md") : l.guide;
-        const int port = l.port ? l.port : 47110;
+        // No port in it: the page tries every port a bridge may take (omui_web.js LINK_PORTS).
+        // The one line that installs omui: the release's (E1, E2); until then agent.md says how (a prebuilt omui with
+        // its sum, or from source).
+        const std::string install = zh ? std::format("按 {} 装上 omui", guide) : std::format("Install omui as {} says", guide);
         std::string text;
         if (code.empty())
             text = zh ? "这里连不了本机的 agent：在浏览器里打开这一页，或者用 `omui agent` 操作桌面窗口里的它。"
                       : "Your agent links to this page in a browser; a window is operated with `omui agent`.";
+        else if (install_way.peek() == "command")
+            text = std::format("# {}{}\nomui connect {}", install, zh ? "（一行命令的安装随发布提供）" : " (a one-line install comes with the release)", code);
         else if (zh)
-            text = std::format("请连接并操作我浏览器里打开的 omui 应用。\n配对码：{}（10 分钟内有效），端口 {}。\n\n按 {} 的说明进行：\n"
-                               "1. 获取 omui（校验 sha256）或按规范自己写本地桥，用配对码运行；\n2. 用 `omui page status --wait` 确认已经配对；\n"
-                               "3. 完成说明里的自检任务；\n4. 然后按我接下来的要求操作页面，完成后告诉我结果。\n"
-                               "只通过页面的语义接口操作；需要我确认的动作，等我在页面上确认。",
-                               code, port, guide);
+            text = std::format("{}，运行 `omui connect {}`，然后运行 `omui page describe`，照它说的做。", install, code);
         else
-            text = std::format("Please connect to the omui application open in my browser and operate it.\nPairing code: {} (valid for 10 minutes), port {}.\n\n"
-                               "Follow {}:\n1. get omui (check its sha256), or write the local bridge from its specification, and run it with the code;\n"
-                               "2. confirm the pairing with `omui page status --wait`;\n3. do the self-check it describes;\n"
-                               "4. then operate the page as I ask next, and tell me the result.\n"
-                               "Only operate through the page's semantic interface; for an action that needs my answer, wait for me to answer it on the page.",
-                               code, port, guide);
+            text = std::format("{}, run `omui connect {}`, then run `omui page describe` and follow it.", install, code);
         if (!code.empty()) runtime->set_clipboard_text(text);
         prompt.set(std::move(text));
     }
@@ -965,8 +963,16 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                            "你自己的 agent（Claude Code、Codex，任何能执行命令的 agent）经本机的一个桥，按语义树操作这一页。"
                            "每个请求由 openas 决定；该你回答的，只有你能回答。"),
                .style = "caption"}),
+         segmented({.id = "install_way",
+                    .labels = computed([s] { return s->lang.get() == "zh" ? std::vector<std::string>{"Agent", "命令"} : std::vector<std::string>{"Agent", "Command"}; }),
+                    .options = std::vector<std::string>{"agent", "command"},
+                    .value = s->install_way}),
          button({.id = "copy_prompt",
-                 .text = say("Copy the prompt for your agent", "复制给 agent 的提示词"),
+                 .text = computed([s] {
+                     const bool command = s->install_way.get() == "command";
+                     if (s->lang.get() == "zh") return std::string(command ? "复制命令" : "复制给 agent 的提示词");
+                     return std::string(command ? "Copy the commands" : "Copy the prompt for your agent");
+                 }),
                  .variant = ButtonVariant::primary,
                  .on_activated = [s] { s->give_prompt(); }}),
          only_when(text({.id = "prompt", .text = s->prompt, .style = "code", .selectable = true}), [s] { return !s->prompt.get().empty(); }),

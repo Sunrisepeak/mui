@@ -42,6 +42,9 @@ full    = { forward = ["omui.sdk/full"] }
 app     = { forward = ["omui.sdk/app"] }
 lean    = { forward = ["omui.sdk/lean"] }
 minimal = { forward = ["omui.sdk/minimal"] }
+# `lean` with one of what `app` adds, to tell their costs apart.
+lean-bridge = { forward = ["omui.sdk/lean", "omui.sdk/accessibility-bridge"] }
+lean-agent  = { forward = ["omui.sdk/lean", "omui.sdk/agent"] }
 
 [dependencies]
 omui.sdk = { path = "../../../../modules/projects/omui/sdk", default-features = false }

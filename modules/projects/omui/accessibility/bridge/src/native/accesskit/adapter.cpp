@@ -303,6 +303,10 @@ struct AccessKitSession final : Session {
 
     void update() override {
         mlibs::trace::Span span("accessibility.update", "accessibility");
+        // No assistive technology listening: nothing read, nothing told. Refreshing the mirror is the work (the tree's
+        // differences, a long list's items among them: 10,000 rows scrolling fell from 60 to 32 frames a second, C1);
+        // it waits — the activation reads the whole mirror, and the first frame after it tells what changed meanwhile.
+        if (!active_now.load()) return;  // the activation's whole tree carries the scale as it is then
         pending = mirror.refresh();
         if (pending.empty() && !rescaled) return;
         native::update(service, &AccessKitSession::on_update, this);

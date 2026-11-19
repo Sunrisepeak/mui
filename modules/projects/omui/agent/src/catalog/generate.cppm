@@ -47,12 +47,15 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_generate_ke
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_forget{{
     {"name", "string", "a piece generate.pieces lists", false},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_import{{
+    {"document", "json", "a customization@1 document: {\"$format\": \"customization@1\", \"customization\": {\"surfaces\": {…}}}", false},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_discard{{
     {"draft", "string", "a draft generate.draft answered", false},
 }};
 
 // Put generated interface into a running application: drafts checked against what it registers and how open it is, prepared, previewed as real pixels, committed as versions of a surface that undo takes back.
-inline constexpr std::array<mlibs::control::CatalogEntry, 13> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 15> catalog{{
     {{"generate.surfaces", openas::Effect::read, false}, "Where generated interface may go and how far: each surface the application declares (its name, what it is for, its version now), how open generation is (off, data, limited, all), the limits a draft is held to, and in limited the components and verbs it may use", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"generate.draft", openas::Effect::reversible, false}, "A draft for a surface, taken through the stages it can reach at once: validated (a view document checked against the registered components, the limits and how open generation is — every problem at its JSON pointer) and prepared (built, nothing shown). Code (limited, all) is first evaluated, sandboxed, into its document", parameters_generate_draft, "json", mlibs::control::Cost::bounded, "generate.discard", false, false, false, {}},
     {{"generate.preview", openas::Effect::read, false}, "A prepared draft shown without being kept: mounted at its surface unseen, the window's picture before and after (PNG) and the semantic changes it would bring, then the surface as it was", parameters_generate_preview, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
@@ -65,6 +68,8 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 13> catalog{{
     {{"generate.keep", openas::Effect::reversible, false}, "A version kept as a piece to reuse: by name, its document (checked again whenever it is drafted), what it is for, who kept it", parameters_generate_keep, "json", mlibs::control::Cost::instant, "generate.forget", false, false, false, {}},
     {{"generate.pieces", openas::Effect::read, false}, "The pieces kept for reuse: each one's name, what it is for, who kept it and from where", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"generate.forget", openas::Effect::reversible, false}, "A piece no longer kept: what is shown does not change", parameters_generate_forget, "json", mlibs::control::Cost::instant, "generate.keep from the version it came from", false, false, false, {}},
+    {{"generate.export", openas::Effect::read, false}, "The customization as one layer of data (customization@1): each surface's version shown — a theme's overlay, a slot's view document — to keep, to share, or to put over the application again (generate.import)", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
+    {{"generate.import", openas::Effect::reversible, false}, "A customization layer (what generate.export answered) put over the application: every surface it names drafted as a draft is, and — all of them valid — each committed over what is there; nothing changes when one does not pass (each problem at its surface and JSON pointer)", parameters_generate_import, "json", mlibs::control::Cost::bounded, "ui.undo, a surface at a time (the version each showed before)", false, false, false, {}},
     {{"generate.discard", openas::Effect::reversible, false}, "A draft let go: nothing shown changes", parameters_generate_discard, "json", mlibs::control::Cost::instant, "generate.draft with the same document", false, false, false, {}},
 }};
 
@@ -101,6 +106,10 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "generate.forget", "description": "A piece no longer kept: what is shown does not change", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "generate.keep from the version it came from", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "a piece generate.pieces lists"}}, "required": ["name"]}},
+    {"name": "generate.export", "description": "The customization as one layer of data (customization@1): each surface's version shown — a theme's overlay, a slot's view document — to keep, to share, or to put over the application again (generate.import)", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "generate.import", "description": "A customization layer (what generate.export answered) put over the application: every surface it names drafted as a draft is, and — all of them valid — each committed over what is there; nothing changes when one does not pass (each problem at its surface and JSON pointer)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "ui.undo, a surface at a time (the version each showed before)", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"document": {"description": "a customization@1 document: {\"$format\": \"customization@1\", \"customization\": {\"surfaces\": {…}}}"}}, "required": ["document"]}},
     {"name": "generate.discard", "description": "A draft let go: nothing shown changes", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "generate.draft with the same document", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"draft": {"type": "string", "description": "a draft generate.draft answered"}}, "required": ["draft"]}}
   ],

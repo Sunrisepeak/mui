@@ -66,6 +66,8 @@ namespace omui::theme {
     [[nodiscard]] std::optional<Style> find_style(std::string_view name) const;
     [[nodiscard]] std::expected<Theme, ThemeFailure> compose_style(std::string_view name) const;
   };
+  [[nodiscard]] std::expected<Layer, Diagnostics> read_overlay(std::string_view source, std::string_view file);
+  [[nodiscard]] std::expected<Theme, ThemeFailure> overlaid(Theme base, const Layer& overlay);
   [[nodiscard]] Library& library();
   std::expected<void, ThemeFailure> apply(Runtime& rt, std::span<const std::string> layers);
   std::expected<void, ThemeFailure> apply_style(Runtime& rt, std::string_view name, bool crossfade = true);

@@ -188,8 +188,9 @@ namespace omui::agent::generate {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_actions{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_generate_keep{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_forget{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_import{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_discard{…};
-  inline constexpr std::array<mlibs::control::CatalogEntry, 13> catalog{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 15> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
   inline constexpr std::string_view listing = R"…";
 }

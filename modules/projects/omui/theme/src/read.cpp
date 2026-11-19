@@ -341,6 +341,36 @@ std::expected<std::vector<Layer>, Diagnostics> read(std::string_view source, std
     return out;
 }
 
+std::expected<Layer, Diagnostics> read_overlay(std::string_view source, std::string_view file) {
+    Diagnostics problems;
+    Reader r{source, std::string(file), problems};
+    auto parsed = parse_json(source);
+    if (!parsed) {
+        problems.push_back({std::string(file), static_cast<int>(parsed.error().line), static_cast<int>(parsed.error().column), parsed.error().message, ""});
+        return std::unexpected(std::move(problems));
+    }
+    const At root{&*parsed, ""};
+    constexpr std::array<std::string_view, 9> overlay_keys{"doc", "density", "colors", "text", "spacing", "radius", "shadows", "motion", "corner_smoothing"};
+    if (!root.map()) {
+        r.error(root, "an overlay is an object of the tokens it changes", R"({ "colors": { "accent": "#7c3aed" }, "radius": { "md": 12 } })");
+        return std::unexpected(std::move(problems));
+    }
+    r.only(root, overlay_keys, "an overlay (the tokens it changes; whether the theme is dark is its theme's)");
+    Layer l;
+    l.name = "overlay";
+    l.file = std::string(file);
+    l.overlay = true;
+    if (auto text = root["doc"].text()) l.doc = *text;
+    if (auto density = root["density"]) {
+        const auto v = density.real();
+        if (!v || *v < 0.5 || *v > 2) r.error(density, "density must be a number from 0.5 to 2", "1 is the default; 0.8 is compact");
+        else l.density = static_cast<float>(*v);
+    }
+    r.tokens(root, l);
+    if (!problems.empty()) return std::unexpected(std::move(problems));
+    return l;
+}
+
 std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view source, std::string_view file) {
     Diagnostics problems;
     Reader r{source, std::string(file), problems};

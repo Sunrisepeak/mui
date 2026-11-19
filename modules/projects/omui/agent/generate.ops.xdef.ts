@@ -143,6 +143,22 @@ export default defineOps({
       undo: "generate.keep from the version it came from",
     },
     {
+      name: "generate.export",
+      effect: "read",
+      summary: "The customization as one layer of data (customization@1): each surface's version shown — a theme's overlay, a slot's view document — to keep, to share, or to put over the application again (generate.import)",
+      result: "json",
+      cost: "instant",
+    },
+    {
+      name: "generate.import",
+      effect: "reversible",
+      summary: "A customization layer (what generate.export answered) put over the application: every surface it names drafted as a draft is, and — all of them valid — each committed over what is there; nothing changes when one does not pass (each problem at its surface and JSON pointer)",
+      params: [{ name: "document", type: "json", doc: "a customization@1 document: {\"$format\": \"customization@1\", \"customization\": {\"surfaces\": {…}}}" }],
+      result: "json",
+      cost: "bounded",
+      undo: "ui.undo, a surface at a time (the version each showed before)",
+    },
+    {
       name: "generate.discard",
       effect: "reversible",
       summary: "A draft let go: nothing shown changes",

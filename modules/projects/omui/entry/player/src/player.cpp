@@ -66,7 +66,7 @@ player::TwinFn twins(const player::Manifest& manifest) {
 //   agent:  { development?: mode, release?: mode }   automatic, development, dual-user
 //   record: { development?: level, release?: level } off, errors, actions, interactions, full
 //   designer: whether the designer is linked — omui dev and omui build read it (the player runs what it was built with)
-//   generation: { open?: { development?, release? }, surfaces?: { slot: doc }, components?, verbs? }
+//   generation: { open?: { development?, release? }, surfaces?: { slot: doc | { doc, kind: "view" | "theme" } }, components?, verbs? }
 struct Config {
     std::optional<std::string> development_agent, release_agent;
     std::optional<RecordLevel> development_record, release_record;
@@ -112,12 +112,46 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
                 (key == "development" ? out.development_generation : out.release_generation) = *openness;
             }
         if (const Value* surfaces = generation->get("surfaces"); surfaces && surfaces->map())
-            for (const auto& [slot, doc] : *surfaces->map()) out.surfaces.push_back({slot, std::string(doc.as_string())});
+            for (const auto& [slot, said] : *surfaces->map()) {
+                // A slot's doc, or { doc, kind }: "theme" is the application's theme (G8: a draft is an overlay of tokens).
+                if (said.type() == Value::Type::text) {
+                    out.surfaces.push_back({slot, std::string(said.as_string())});
+                    continue;
+                }
+                const Value* doc = said.get("doc");
+                const Value* kind = said.get("kind");
+                const std::string_view kind_name = kind ? kind->as_string() : std::string_view("view");
+                if (!said.map() || (kind_name != "view" && kind_name != "theme"))
+                    return std::unexpected(std::format("{}: generation.surfaces.{} is what it is for, or {{ doc, kind: \"view\" | \"theme\" }}", utf8(file), slot));
+                out.surfaces.push_back({slot, doc ? std::string(doc->as_string()) : std::string(),
+                                        kind_name == "theme" ? generate::Surface::Kind::theme : generate::Surface::Kind::view});
+            }
         for (const auto& [list, into] : {std::pair{"components", &out.components}, std::pair{"verbs", &out.verbs}})
             if (const Value* names = generation->get(list); names && names->list())
                 for (const Value& name : *names->list()) into->push_back(std::string(name.as_string()));
     }
     return out;
+}
+
+// A theme surface's drafts (G8): an overlay of tokens over the application's theme — its manifest's layers, else
+// light — read and composed by omui.theme, every mistake at its pointer in the overlay.
+std::function<std::expected<Theme, std::string>(std::string_view)> customized(std::vector<std::string> layers) {
+    if (layers.empty()) layers = {"light"};
+    return [layers = std::move(layers)](std::string_view overlay) -> std::expected<Theme, std::string> {
+        auto base = theme::library().compose(layers);
+        if (!base) return std::unexpected(base.error().text());
+        if (overlay.empty()) return std::move(*base);
+        auto layer = theme::read_overlay(overlay, "overlay");
+        if (!layer) {
+            std::string problems;
+            for (const theme::Diagnostic& problem : layer.error()) problems += std::format("{}{}: {}{}", problems.empty() ? "" : "\n  ", problem.at, problem.message,
+                                                                                            problem.hint.empty() ? "" : std::format(" ({})", problem.hint));
+            return std::unexpected(problems);
+        }
+        auto composed = theme::overlaid(std::move(*base), *layer);
+        if (!composed) return std::unexpected(composed.error().text());
+        return std::move(*composed);
+    };
 }
 
 // Code that makes a generated view document (generation's `limited` and `all`): a TypeScript
@@ -267,6 +301,7 @@ int player_main(int argc, char** argv) {
                                                   .components = config->components,
                                                   .verbs = config->verbs,
                                                   .evaluate = generated_views(m->base),
+                                                  .theme = customized(m->theme),
                                                   .directory = m->base / ".omui" / "generation"};
     }
     app.ready = [&] { return p && p->idle(); };

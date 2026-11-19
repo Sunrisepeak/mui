@@ -336,6 +336,11 @@ std::string write_style(const Style& st) {
     return indented_json(Value(Value::Map{}).set(std::string(mlibs::xdef::format_key), Value(std::string("style@1"))).set("style", Value(Value::Map{}).set(st.name, std::move(style))));
 }
 
+std::expected<Theme, ThemeFailure> overlaid(Theme base, const Layer& overlay) {
+    if (auto applied = layer_onto(overlay, base, true); !applied) return std::unexpected(applied.error());
+    return base;
+}
+
 Library& library() {
     static Library l;
     return l;

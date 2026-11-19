@@ -69,8 +69,10 @@ export type Openness = "off" | "data" | "limited" | "all";
 export interface Generation {
     /** In development "all" and in a release "off", unless said. */
     open?: ByMode<Openness>;
-    /** The slots generated interface may go into, each with what it is for: `{ extras: "cards under the plan" }`. */
-    surfaces?: { [slot: string]: string };
+    /** Where generated interface may go, each with what it is for: a slot (`{ extras: "cards under the plan" }`), or
+     *  the application's theme (`{ look: { kind: "theme", doc: "the colours a user's agent may change" } }`: a draft is an
+     *  overlay of the tokens it changes). */
+    surfaces?: { [slot: string]: string | { doc?: string; kind?: "view" | "theme" } };
     /** What "limited" lets a draft use. */
     components?: string[];
     verbs?: string[];

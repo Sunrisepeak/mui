@@ -177,6 +177,12 @@ private:
     std::vector<Style>         styles_;
 };
 
+// An overlay no file declares — a customization's (runtime generation's theme surface, G8): the tokens it changes,
+// as a theme file's layer writes them, `{ "colors": { "accent": "#7c3aed" }, "radius": { "md": 12 } }` — read, every
+// mistake at its JSON pointer in what was given; and a theme with it over it (only tokens the theme has may change).
+[[nodiscard]] std::expected<Layer, Diagnostics> read_overlay(std::string_view source, std::string_view file);
+[[nodiscard]] std::expected<Theme, ThemeFailure> overlaid(Theme base, const Layer& overlay);
+
 // The program's library: theme packages add theirs to it at start; the C ABI
 // (omuiTheme) composes from it.
 [[nodiscard]] Library& library();

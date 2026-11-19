@@ -43,8 +43,10 @@ namespace omui::generate {
   [[nodiscard]] std::string_view openness_name(Openness openness) noexcept;
   [[nodiscard]] std::optional<Openness> parse_openness(std::string_view text) noexcept;
   struct Surface {
+    enum class Kind : std::uint8_t { view, theme };
     std::string name;
     std::string doc;
+    Kind kind = Kind::view;
   };
   using EvaluateFn = std::function<std::expected<std::string, std::string>(std::string_view language, std::string_view code)>;
   struct GenerationOptions {
@@ -55,6 +57,7 @@ namespace omui::generate {
     std::vector<std::string> components, verbs;
     CaptureFn capture;
     EvaluateFn evaluate;
+    std::function<std::expected<Theme, std::string>(std::string_view overlay)> theme;
     std::function<std::optional<Signal<Value>>(std::string_view name)> provide;
     std::filesystem::path directory;
     TaskBroker* tasks = nullptr;
@@ -77,6 +80,8 @@ namespace omui::generate {
     VerbResult keep(const Value& args);
     VerbResult pieces() const;
     VerbResult forget(const Value& args);
+    [[nodiscard]] Value export_layer() const;
+    VerbResult import_layer(const Value& args);
     struct Impl;
   };
   struct GenerationService {

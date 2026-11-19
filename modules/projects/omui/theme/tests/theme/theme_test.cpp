@@ -121,6 +121,30 @@ static UTest cases{"theme", [] {
         expect(plain && plain->transition("motion.normal").duration > hanim::seconds(0)) << "without the overlay, motion as it was";
     };
 
+    "an overlay no file declares (a customization's): read with its mistakes where they are in it, over any theme"_test = [] {
+        auto layer = theme::read_overlay(R"({"colors": {"accent": "#7c3aed"}, "radius": {"medium": 14}})", "draft");
+        expect(layer.has_value()) << (layer ? "" : layer.error().front().text());
+        if (!layer) return;
+        auto t = theme::overlaid(Theme::light(), *layer);
+        expect(t.has_value()) << (t ? "" : t.error().text());
+        if (t) {
+            expect(same_color(t->color("accent"), Color::hex(0x7c3aed)) && t->corner("medium") == 14) << "what it names";
+            expect(same_color(t->color("background"), Theme::light().color("background")) && t->name == Theme::light().name) << "and nothing else";
+        }
+        auto wrong = theme::read_overlay(R"({"colors": {"accent": "violet"}, "dark": true})", "draft");
+        expect(!wrong && wrong.error().size() == 2) << (wrong ? "read" : std::format("{} problems", wrong.error().size()));
+        if (!wrong) {
+            expect(std::ranges::any_of(wrong.error(), [](const theme::Diagnostic& d) { return d.at == "/colors/accent" && d.line == 1; })) << "at its pointer in what was given";
+            expect(std::ranges::any_of(wrong.error(), [](const theme::Diagnostic& d) { return d.at == "/dark"; })) << "dark is its theme's";
+        }
+        auto unknown = theme::read_overlay(R"({"colors": {"acent": "#7c3aed"}})", "draft");
+        expect(unknown.has_value());
+        if (unknown) {
+            const auto refused = theme::overlaid(Theme::light(), *unknown);
+            expect(!refused && refused.error().text().contains("acent")) << "a token the theme does not have";
+        }
+    };
+
     "every mistake in a file, where it is"_test = [] {
         auto r = theme::read(R"t({"$format": "theme@1", "theme": {
   "Bright": {"doc": "x", "colour": {"text": "#000"}},

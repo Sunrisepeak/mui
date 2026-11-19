@@ -48,11 +48,14 @@ enum class Openness : std::uint8_t { off, data, limited, all };
 [[nodiscard]] std::string_view openness_name(Openness openness) noexcept;
 [[nodiscard]] std::optional<Openness> parse_openness(std::string_view text) noexcept;
 
-// A place generated interface may go: a slot the application's view shows
-// (a view document's `slot`, a script's slot()), and what it is for.
+// A place generated interface may go, and what it is for: a slot the application's view shows (a view document's
+// `slot`, a script's slot()), or its theme (G8, D-253: a draft is an overlay — the tokens it changes — over the theme
+// it shows with none; its versions, preview, commit and undo are a view surface's).
 struct Surface {
+    enum class Kind : std::uint8_t { view, theme };
     std::string name;
     std::string doc;
+    Kind        kind = Kind::view;
 };
 
 // Code that makes a view document (limited, all): its language ("ts") and
@@ -73,6 +76,10 @@ struct GenerationOptions {
     // host draws) unless given.
     CaptureFn  capture;
     EvaluateFn evaluate;
+    // A theme surface's drafts: an overlay (`{ "colors": { "accent": "#7c3aed" } }`, as a theme file's layer writes
+    // tokens) composed over the application's theme, "" its theme with none — or why not (every mistake at its JSON
+    // pointer). The application gives it (omui.theme composes); none: a theme surface takes no draft.
+    std::function<std::expected<Theme, std::string>(std::string_view overlay)> theme;
     // The host's signals a document's `"provided": true` ones bind to.
     std::function<std::optional<Signal<Value>>(std::string_view name)> provide;
     // Where the versions are kept (their documents and an index), to be
@@ -108,6 +115,10 @@ public:
     VerbResult keep(const Value& args);
     VerbResult pieces() const;
     VerbResult forget(const Value& args);
+    // The customization as a layer of data (G8, D-253: customization@1, this package's kind): each surface's version
+    // shown; and a layer put over the application again, all of it or nothing.
+    [[nodiscard]] Value export_layer() const;
+    VerbResult import_layer(const Value& args);
 
     struct Impl;
 

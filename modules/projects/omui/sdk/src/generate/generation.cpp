@@ -82,10 +82,11 @@ struct Generation::Impl {
 
     enum class Stage : std::uint8_t { validated, prepared, previewed };
     struct Draft {
-        std::string   id, surface, document, actor;
-        Stage         stage = Stage::validated;
-        viewdoc::View view;
-        std::size_t   base = 0;  // the surface's version it was made over (its read set: what a commit checks)
+        std::string          id, surface, document, actor;
+        Stage                stage = Stage::validated;
+        viewdoc::View        view;
+        std::size_t          base = 0;  // the surface's version it was made over (its read set: what a commit checks)
+        std::optional<Theme> theme;     // a theme surface's: its overlay composed
     };
     // A piece kept for reuse (generate.keep): its document, checked again whenever it is drafted.
     struct Piece {
@@ -93,10 +94,11 @@ struct Generation::Impl {
     };
     std::map<std::string, Piece, std::less<>> pieces;
     struct Version {
-        std::size_t   number = 0;
-        std::string   document, actor, draft;
-        double        at = 0;  // the runtime's time
-        viewdoc::View view;
+        std::size_t          number = 0;
+        std::string          document, actor, draft;
+        double               at = 0;  // the runtime's time
+        viewdoc::View        view;
+        std::optional<Theme> theme;  // a theme surface's
     };
     struct Shown {
         std::vector<Version> versions;
@@ -125,7 +127,8 @@ struct Generation::Impl {
 
     // ── kept on disk ──
     std::filesystem::path document_file(std::string_view surface, std::size_t version) const {
-        return options.directory / std::format("{}-{}.view.xdef.json", surface, version);
+        // A view surface's versions are view documents; a theme surface's, the overlays its drafts were.
+        return options.directory / std::format("{}-{}.{}.json", surface, version, themed(surface) ? "overlay" : "view.xdef");
     }
 
     void keep() const {
@@ -168,9 +171,13 @@ struct Generation::Impl {
                 Version version{number, document ? *document : std::string(), text_arg(entry, "actor"), text_arg(entry, "draft"),
                                 entry.get("at") ? entry.get("at")->as_double() : 0, {}};
                 std::string problem = document ? std::string() : std::format("version {}'s document is gone", number);
-                if (problem.empty())
+                if (problem.empty() && themed(name)) {
+                    if (auto composed = themed_by(version.document); composed) version.theme = std::move(*composed);
+                    else problem = composed.error();
+                } else if (problem.empty()) {
                     if (auto valid = validate(version.document, std::format("{}-{}", name, number)); !valid) problem = valid.error();
-                if (problem.empty()) {
+                }
+                if (problem.empty() && !themed(name)) {
                     auto view = viewdoc::View::load(runtime, version.document, {.file = generic_utf8(document_file(name, number)), .provide = options.provide});
                     if (view) version.view = std::move(*view);
                     else problem = std::format("version {} could not be prepared again", number);
@@ -189,11 +196,11 @@ struct Generation::Impl {
     void show_when_claimed(const std::shared_ptr<Impl>& self, int tries) {
         bool all = true;
         for (auto& [name, shown] : surfaces)
-            if (shown.current > 0 && !runtime.claimed(name)) all = false;
+            if (shown.current > 0 && !themed(name) && !runtime.claimed(name)) all = false;  // the theme is always shown
         if (all || tries > 200) {  // ten seconds: a slot not shown by then is shown by the next commit
             waiting = 0;
             for (auto& [name, shown] : surfaces)
-                if (shown.current > 0 && runtime.claimed(name)) show(name, shown.current);
+                if (shown.current > 0 && (themed(name) || runtime.claimed(name))) show(name, shown.current);
             return;
         }
         const std::weak_ptr<Impl> alive = self;
@@ -221,6 +228,20 @@ struct Generation::Impl {
         return &found->second;
     }
 
+    // Whether a surface is the application's theme (its drafts overlays, not view documents).
+    [[nodiscard]] bool themed(std::string_view name) const {
+        return std::ranges::any_of(options.surfaces, [&](const Surface& surface) { return surface.name == name && surface.kind == Surface::Kind::theme; });
+    }
+    // A theme surface's overlay composed (its draft prepared): the application's theme with it, or every mistake.
+    std::expected<Theme, std::string> themed_by(std::string_view overlay) const {
+        if (!options.theme) return std::unexpected(std::string("this application composes no theme for a draft (GenerationOptions::theme)"));
+        if (overlay.size() > options.max_bytes)
+            return std::unexpected(std::format("the overlay is {} bytes, more than the {} a draft may have", overlay.size(), options.max_bytes));
+        auto composed = options.theme(overlay);
+        if (!composed) return std::unexpected(std::format("the draft does not validate:\n  {}", composed.error()));
+        return composed;
+    }
+
     std::expected<Draft*, std::string> draft_of(const Value& args) {
         const std::string id = text_arg(args, "draft");
         const auto found = drafts.find(id);
@@ -240,8 +261,16 @@ struct Generation::Impl {
             runtime.set_design_presentation({*presented, before.pace});
             runtime.present_design();
         }
-        if (version == 0) runtime.unmount(surface);
-        else shown.versions[version - 1].view.mount(runtime, surface);
+        if (themed(surface)) {
+            // The theme: its overlay's composition, or the application's theme with none (what its restyle moves, its
+            // recipes move: the colours glide, as any change of a token does).
+            if (version > 0 && shown.versions[version - 1].theme) runtime.set_theme(*shown.versions[version - 1].theme);
+            else if (auto plain = themed_by(""); plain) runtime.set_theme(std::move(*plain));
+        } else if (version == 0) {
+            runtime.unmount(surface);
+        } else {
+            shown.versions[version - 1].view.mount(runtime, surface);
+        }
         if (presented) {
             settle_effects();  // the slot's region takes it now, while the presentation is this one
             runtime.set_design_presentation(before);
@@ -306,6 +335,7 @@ struct Generation::Impl {
         if (options.openness == Openness::off) return std::unexpected(std::string("generation is off in this application"));
         const std::string surface = text_arg(args, "surface");
         if (auto known = surface_of(surface); !known) return std::unexpected(known.error());
+        if (themed(surface)) return draft_theme(surface, args);
         std::string document;
         const std::string code = text_arg(args, "code");
         const bool background = args.get("background") && args.get("background")->as_bool();
@@ -357,6 +387,30 @@ struct Generation::Impl {
         return answer;
     }
 
+    // A theme surface's draft: an overlay of tokens (data at every openness), composed now (prepared); a preview or
+    // a commit shows it.
+    VerbResult draft_theme(const std::string& surface, const Value& args) {
+        if (!text_arg(args, "code").empty() || !text_arg(args, "piece").empty())
+            return std::unexpected(std::format("`{}` is the application's theme: its draft is an overlay of tokens (`document`), not code or a piece", surface));
+        std::string document;
+        if (const Value* given = args.get("document"); given && given->map()) document = given->json();
+        else if (given && given->type() == Value::Type::text) document = std::string(given->as_string());
+        else return std::unexpected(std::format("`{}` is the application's theme: a draft is a `document`, the tokens it changes — "
+                                                R"({{"colors": {{"accent": "#7c3aed"}}, "radius": {{"medium": 14}}}})", surface));
+        auto composed = themed_by(document);
+        if (!composed) return std::unexpected(composed.error());
+        const std::string id = std::format("d{}", next_draft++);
+        const std::size_t base = surfaces.find(surface)->second.current;
+        drafts.insert_or_assign(id, Draft{id, surface, document, actor_now(runtime), Stage::prepared, {}, base, std::move(*composed)});
+        return Value{}
+            .set("draft", id)
+            .set("surface", surface)
+            .set("stage", "prepared")
+            .set("bytes", static_cast<std::int64_t>(document.size()))
+            .set("over", static_cast<std::int64_t>(base))
+            .set("set", Value{}.set("reads", Value(Value::Map{})).set("writes", Value{}.set("surface", surface).set("theme", true)));
+    }
+
     // A draft made as a task (W8): answered at once with its handle; the code evaluated on the pool,
     // then — on the UI thread, at a frame's boundary — drafted, and committed when asked, as the
     // verbs are, in the name of who asked (decided again then). A cancelled task commits nothing.
@@ -402,7 +456,8 @@ struct Generation::Impl {
         auto found = draft_of(args);
         if (!found) return std::unexpected(found.error());
         Draft& draft = **found;
-        if (!runtime.claimed(draft.surface)) return std::unexpected(std::format("the surface `{}` is not on screen now: nothing shows it", draft.surface));
+        if (!draft.theme && !runtime.claimed(draft.surface))
+            return std::unexpected(std::format("the surface `{}` is not on screen now: nothing shows it", draft.surface));
         const Rect window{0, 0, runtime.size().width, runtime.size().height};
         const auto picture = [&]() -> Value {
             auto png = options.capture ? options.capture(window) : runtime.capture_png(window);
@@ -424,7 +479,8 @@ struct Generation::Impl {
         Shown& shown = surfaces.find(draft.surface)->second;
         const std::size_t current = shown.current;
         runtime.begin_preview();
-        draft.view.mount(runtime, draft.surface);
+        if (draft.theme) runtime.set_theme(*draft.theme);  // the theme with the overlay, still (no motion in a preview)
+        else draft.view.mount(runtime, draft.surface);
         settle();
         Value seen_after = picture();
         const semantic::Snapshot after = tree.snapshot({});
@@ -441,14 +497,15 @@ struct Generation::Impl {
         auto found = draft_of(args);
         if (!found) return std::unexpected(found.error());
         Draft& draft = **found;
-        if (!runtime.claimed(draft.surface)) return std::unexpected(std::format("the surface `{}` is not on screen now: nothing shows it", draft.surface));
+        if (!draft.theme && !runtime.claimed(draft.surface))
+            return std::unexpected(std::format("the surface `{}` is not on screen now: nothing shows it", draft.surface));
         Shown& shown = surfaces.find(draft.surface)->second;
         if (shown.current != draft.base && !(args.get("over") && args.get("over")->as_bool()))
             return std::unexpected(std::format("conflict: `{}` shows version {} now; the draft was made over version {} — draft it again over what is there, "
                                                "or commit with `over` to replace it",
                                                draft.surface, shown.current, draft.base));
         const std::size_t before = shown.current, number = shown.versions.size() + 1;
-        shown.versions.push_back({number, draft.document, actor_now(runtime), draft.id, runtime.now().count(), draft.view});
+        shown.versions.push_back({number, draft.document, actor_now(runtime), draft.id, runtime.now().count(), draft.view, draft.theme});
         const std::string surface = draft.surface, id = draft.id;
         drafts.erase(id);
         show(surface, number, Presented::edit);
@@ -485,6 +542,59 @@ struct Generation::Impl {
         return Value{}.set("surface", surface).set("shown", static_cast<std::int64_t>((*known)->current)).set("versions", Value(std::move(list)));
     }
 
+    // ── the customization as a layer of data (customization@1) ──
+    static constexpr std::string_view layer_format = "customization@1";
+
+    Value export_layer() const {
+        Value named(Value::Map{});
+        for (const Surface& surface : options.surfaces) {
+            const Shown& shown = surfaces.find(surface.name)->second;
+            if (shown.current == 0) continue;  // nothing customized there
+            named.set(surface.name, Value{}
+                                        .set("kind", surface.kind == Surface::Kind::theme ? "theme" : "view")
+                                        .set("document", parse_json(shown.versions[shown.current - 1].document).value_or(Value{})));
+        }
+        return Value{}.set("$format", std::string(layer_format)).set("customization", Value{}.set("surfaces", std::move(named)));
+    }
+
+    VerbResult import_layer(const Value& args, const std::shared_ptr<Impl>& self) {
+        const Value* given = args.get("document");
+        std::optional<Value> parsed;
+        if (given && given->type() == Value::Type::text) parsed = parse_json(given->as_string()).value_or(Value{});
+        const Value& layer = parsed ? *parsed : given ? *given : Value{};
+        const Value* format = layer.get("$format");
+        if (!format || format->as_string() != layer_format)
+            return std::unexpected(std::format("a customization layer names its format: {{\"$format\": \"{}\", \"customization\": {{\"surfaces\": {{…}}}}}} (generate.export)",
+                                               layer_format));
+        const Value* customization = layer.get("customization");
+        const Value* named = customization ? customization->get("surfaces") : nullptr;
+        if (!named || !named->map()) return std::unexpected(std::string("/customization/surfaces: an object of the surfaces it customizes"));
+        // Every one drafted first: one that does not pass changes nothing.
+        std::vector<std::pair<std::string, std::string>> drafted;  // surface, draft
+        std::string problems;
+        for (const auto& [name, entry] : *named->map()) {
+            const Value* document = entry.get("document");
+            if (!document) {
+                problems += std::format("\n  /customization/surfaces/{}: no document", name);
+                continue;
+            }
+            auto made = draft(Value{}.set("surface", name).set("document", *document), self);
+            if (!made) problems += std::format("\n  /customization/surfaces/{}/document: {}", name, made.error());
+            else drafted.emplace_back(name, std::string(made->get("draft")->as_string()));
+        }
+        if (!problems.empty()) {
+            for (const auto& [name, id] : drafted) drafts.erase(id);
+            return std::unexpected(std::format("the layer was not put over the application:{}", problems));
+        }
+        Value::List committed;
+        for (const auto& [name, id] : drafted) {
+            auto done = commit(Value{}.set("draft", id).set("over", true), self);
+            if (!done) return std::unexpected(std::format("/customization/surfaces/{}: {}", name, done.error()));
+            committed.push_back(Value{}.set("surface", name).set("version", *done->get("version")));
+        }
+        return Value{}.set("surfaces", Value(std::move(committed)));
+    }
+
     Value surfaces_value() const {
         Value::List list;
         for (const Surface& surface : options.surfaces) {
@@ -492,7 +602,8 @@ struct Generation::Impl {
             list.push_back(Value{}
                                .set("name", surface.name)
                                .set("doc", surface.doc)
-                               .set("shown", runtime.claimed(surface.name))
+                               .set("kind", surface.kind == Surface::Kind::theme ? "theme" : "view")
+                               .set("shown", surface.kind == Surface::Kind::theme || runtime.claimed(surface.name))
                                .set("version", static_cast<std::int64_t>(shown.current))
                                .set("versions", static_cast<std::int64_t>(shown.versions.size()))
                                .set("problem", shown.problem.empty() ? Value{} : Value(shown.problem)));
@@ -642,6 +753,8 @@ Generation::Generation(Runtime& runtime, GenerationOptions options) : impl_(std:
     add("generate.keep", [this](const Value& args) { return keep(args); });
     add("generate.pieces", [this](const Value&) { return pieces(); });
     add("generate.forget", [this](const Value& args) { return forget(args); });
+    add("generate.export", [this](const Value&) -> VerbResult { return export_layer(); });
+    add("generate.import", [this](const Value& args) { return import_layer(args); });
 }
 
 Generation::~Generation() {
@@ -659,6 +772,8 @@ VerbResult Generation::preview(const Value& args) { return impl_->preview(args);
 VerbResult Generation::commit(const Value& args) { return impl_->commit(args, impl_); }
 VerbResult Generation::restore(const Value& args) { return impl_->restore(args, impl_); }
 VerbResult Generation::versions(const Value& args) const { return impl_->versions(args); }
+Value Generation::export_layer() const { return impl_->export_layer(); }
+VerbResult Generation::import_layer(const Value& args) { return impl_->import_layer(args, impl_); }
 VerbResult Generation::drafts() const { return impl_->drafts_value(); }
 
 VerbResult Generation::discard(const Value& args) {

@@ -86,9 +86,116 @@ Value card(std::string_view words) {
     return parse_json(std::format(R"j({{"omui": "0.1", "view": {{"root": {{"type": "text", "id": "offer", "props": {{"text": "{}"}}}}}}}})j", words)).value();
 }
 
+// The application's theme with an overlay of colours over it (what omui.theme's read_overlay and overlaid do for
+// an application: here only `colors`, enough for the surface's steps).
+std::expected<Theme, std::string> themed(std::string_view overlay) {
+    Theme theme = Theme::light();
+    if (overlay.empty()) return theme;
+    const auto parsed = parse_json(overlay);
+    if (!parsed || !parsed->map()) return std::unexpected(std::string("an overlay is an object of tokens"));
+    if (const Value* colors = parsed->get("colors"); colors && colors->map())
+        for (const auto& [name, value] : *colors->map()) {
+            if (!theme.colors.contains(name)) return std::unexpected(std::format("/colors/{}: the theme has no colour `{}`", name, name));
+            const auto color = spec::Color::parse(value.as_string());
+            if (!color) return std::unexpected(std::format("/colors/{}: not a colour", name));
+            theme.colors[name] = Color{color->r, color->g, color->b, color->a};
+        }
+    return theme;
+}
+
 }  // namespace
 
 static UTest cases{"generation", [] {
+    "the theme as a surface (G8): an overlay of tokens drafted, previewed still, committed as versions undo takes back, kept and shown again"_test = [] {
+        const auto dir = std::filesystem::temp_directory_path() / std::format("omui-generation-theme-{}", std::random_device{}());
+        std::filesystem::remove_all(dir);
+        const Color violet = Color::hex(0x7c3aed), plain = Theme::light().color("accent");
+        const auto same = [](Color a, Color b) { return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a; };
+        {
+            Page page;
+            generate::Generation generation(page.rt, {.openness = generate::Openness::data,
+                                                      .surfaces = {{"look", "the colours a user's agent may change", generate::Surface::Kind::theme}},
+                                                      .capture = page.capture(),
+                                                      .theme = themed,
+                                                      .directory = dir});
+            agent::Protocol protocol(page.rt, {.capture = page.capture()});
+            const Answer listed = invoke(protocol, "generate.surfaces");
+            const Value& look = listed.data.get("surfaces")->list()->front();
+            expect(look.get("kind")->as_string() == "theme" && look.get("shown")->as_bool()) << look.json();
+
+            const Answer misspelt = invoke(protocol, "generate.draft", Value{}.set("surface", "look").set("document", parse_json(R"({"colors": {"acent": "#7c3aed"}})").value()));
+            expect(eq(misspelt.exit, 1) && misspelt.error.contains("/colors/acent")) << misspelt.error;
+            const Answer coded = invoke(protocol, "generate.draft", Value{}.set("surface", "look").set("code", "export default {}"));
+            expect(eq(coded.exit, 1) && coded.error.contains("overlay of tokens")) << coded.error;
+
+            const Answer drafted = invoke(protocol, "generate.draft", Value{}.set("surface", "look").set("document", parse_json(R"({"colors": {"accent": "#7c3aed"}})").value()));
+            expect(eq(drafted.exit, 0) && drafted.data.get("stage")->as_string() == "prepared") << drafted.error;
+            const std::string draft(drafted.data.get("draft")->as_string());
+            expect(same(page.rt.theme().color("accent"), plain)) << "a draft is not shown";
+            const Answer previewed = invoke(protocol, "generate.preview", Value{}.set("draft", draft));
+            expect(eq(previewed.exit, 0) && previewed.data.get("before") && previewed.data.get("after")) << previewed.error;
+            expect(same(page.rt.theme().color("accent"), plain)) << "the theme as it was after the preview";
+
+            expect(eq(invoke(protocol, "generate.commit", Value{}.set("draft", draft)).exit, 0));
+            expect(same(page.rt.theme().color("accent"), violet)) << "committed: the theme with the overlay";
+            expect(eq(talk(protocol, Value{}.set("op", "undo")).exit, 0));
+            expect(same(page.rt.theme().color("accent"), plain)) << "undo: the theme with none";
+            expect(eq(talk(protocol, Value{}.set("op", "redo")).exit, 0));
+            expect(same(page.rt.theme().color("accent"), violet)) << "redo";
+            const Answer versions = invoke(protocol, "generate.versions", Value{}.set("surface", "look"));
+            expect(eq(versions.data.get("shown")->as_int(), std::int64_t{1}) && versions.data.json().contains("#7c3aed")) << versions.data.json();
+        }
+        expect(std::filesystem::exists(dir / "look-1.overlay.json"));
+        {
+            Page again;
+            generate::Generation generation(again.rt, {.openness = generate::Openness::data,
+                                                       .surfaces = {{"look", "", generate::Surface::Kind::theme}},
+                                                       .theme = themed,
+                                                       .directory = dir});
+            (void)again.shows("Basic plan");  // the frames that show what was kept
+            expect(same(again.rt.theme().color("accent"), violet)) << "a new start shows the version shown";
+        }
+        std::filesystem::remove_all(dir);
+    };
+
+
+    "the customization as a layer of data (customization@1): exported, put over a new start, the same; one that does not pass changes nothing"_test = [] {
+        const auto same = [](Color a, Color b) { return a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a; };
+        const std::vector<generate::Surface> declared{{"extras", "cards under the plan"}, {"look", "the colours", generate::Surface::Kind::theme}};
+        Value layer;
+        {
+            Page page;
+            generate::Generation generation(page.rt, {.openness = generate::Openness::data, .surfaces = declared, .theme = themed});
+            agent::Protocol protocol(page.rt, {});
+            for (const auto& [surface, document] : {std::pair{"extras", card("Pro, 9 a month")}, std::pair{"look", parse_json(R"({"colors": {"accent": "#7c3aed"}})").value()}}) {
+                const Answer drafted = invoke(protocol, "generate.draft", Value{}.set("surface", surface).set("document", document));
+                expect(eq(invoke(protocol, "generate.commit", Value{}.set("draft", drafted.data.get("draft")->as_string())).exit, 0)) << drafted.error;
+            }
+            const Answer exported = invoke(protocol, "generate.export");
+            expect(eq(exported.exit, 0) && exported.data.get("$format")->as_string() == "customization@1") << exported.data.json();
+            layer = exported.data;
+            expect(layer.json().contains("Pro, 9 a month") && layer.json().contains("#7c3aed") && layer.json().contains(R"("kind":"theme")")) << layer.json();
+        }
+        {
+            Page again;
+            generate::Generation generation(again.rt, {.openness = generate::Openness::data, .surfaces = declared, .theme = themed});
+            agent::Protocol protocol(again.rt, {});
+            // A layer with one surface that does not pass: nothing is put over the application.
+            const Value broken = Value{}.set("$format", "customization@1").set("customization", Value{}.set("surfaces", Value{}
+                .set("extras", *layer.get("customization")->get("surfaces")->get("extras"))
+                .set("look", Value{}.set("kind", "theme").set("document", parse_json(R"({"colors": {"acent": "#000000"}})").value()))));
+            const Answer refused = invoke(protocol, "generate.import", Value{}.set("document", broken));
+            expect(eq(refused.exit, 1) && refused.error.contains("/customization/surfaces/look/document")) << refused.error;
+            expect(!again.shows("Pro, 9 a month") && same(again.rt.theme().color("accent"), Theme::light().color("accent"))) << "nothing changed";
+            expect(eq(invoke(protocol, "generate.import", Value{}.set("document", Value{}.set("customization", Value(Value::Map{})))).exit, 1)) << "no format: refused";
+
+            const Answer imported = invoke(protocol, "generate.import", Value{}.set("document", layer));
+            expect(eq(imported.exit, 0)) << imported.error;
+            expect(again.shows("Pro, 9 a month") && same(again.rt.theme().color("accent"), Color::hex(0x7c3aed))) << "the same customization";
+            expect(eq(invoke(protocol, "generate.export").data.json(), layer.json())) << "exported again: the same layer";
+        }
+    };
+
     "data: a view document drafted and prepared, previewed with nothing left of it, committed as versions undo takes back"_test = [] {
         Page page;
         generate::Generation generation(page.rt, {.openness = generate::Openness::data, .surfaces = {{"extras", "cards an agent adds under the plan"}},

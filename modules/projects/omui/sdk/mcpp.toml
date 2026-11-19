@@ -33,6 +33,11 @@ reductions = ["no-gamepad-hidapi", "software-present"]   # take away: no world i
 "omui.host.sdl3.gpu" = { feature = "gpu", targets = "desktop" }
 "omui.accessibility.bridge" = { feature = "accessibility-bridge", targets = "desktop" }
 
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): runtime generation's customization layer
+# (generate.export / generate.import, G8); only the runtime writes it (no define module).
+[package.metadata.openmui.xdef]
+kinds = { customization = 1 }
+
 [targets.openmui]
 kind = "lib"
 

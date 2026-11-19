@@ -80,6 +80,7 @@ export import :chart_contract;
 export import :carousel_contract;
 export import :file_drop_contract;
 export import :web_view_contract;
+export import :timeline_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -107,6 +108,7 @@ export import :inputs;
 export import :navigating;
 export import :showing;
 export import :external;
+export import :timeline;
 
 export namespace omui {
 

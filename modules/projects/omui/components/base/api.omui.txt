@@ -63,6 +63,7 @@ export import :chart_contract;
 export import :carousel_contract;
 export import :file_drop_contract;
 export import :web_view_contract;
+export import :timeline_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -90,6 +91,7 @@ export import :inputs;
 export import :navigating;
 export import :showing;
 export import :external;
+export import :timeline;
 namespace omui {
   void register_base_components();
 }
@@ -131,6 +133,7 @@ namespace omui {
   };
   [[nodiscard]] AgentPresenceState agent_presence_state(const Services& services, std::string_view actors, std::size_t trail = 3, std::string_view except = {…});
   [[nodiscard]] std::vector<AgentPresenceState> agent_presence_states(const Services& services, std::string_view actors, std::size_t trail = 3, std::string_view except = {…}, std::size_t limit = 6);
+  inline constexpr std::string_view agent_presence_slot = "omui.presence";
   [[nodiscard]] Color agent_ink(const Theme& theme, std::size_t hue);
   class AgentPresence : public AgentPresenceContract<AgentPresence> {
     void mounted();
@@ -1831,6 +1834,31 @@ namespace omui {
     void emit_changed(std::string text);
     void emit_submitted(std::string text);
     void write_text(std::string value);
+  };
+}
+== omui.ui.base:timeline
+namespace omui {
+  class Timeline : public TimelineContract<Timeline> {
+    static constexpr bool draws_disabled = true;
+    void mounted();
+    void prop_changed(TimelineProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    struct Course {
+      std::vector<Point> points;
+      std::vector<float> lengths;
+      bool closed = false;
+      [[nodiscard]] float total() const noexcept;
+    };
+    [[nodiscard]] const Course& course(Size size) const;
+    [[nodiscard]] Point point_at(double step, Size size) const;
+    [[nodiscard]] double step_at(Point local, Size size) const;
+    [[nodiscard]] std::int64_t count() const noexcept;
   };
 }
 == omui.ui.base:toggle

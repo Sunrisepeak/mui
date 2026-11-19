@@ -43,6 +43,7 @@ void register_base_components() {
     register_type(component_type<RangeSlider>());
     register_type(component_type<Alert>());
     register_type(component_type<Stepper>());
+    register_type(component_type<Timeline>());  // G8: a course of steps on a shape of its own
     register_type(component_type<DatePicker>());
     register_type(component_type<TimePicker>());
     register_type(component_type<ColorPicker>());

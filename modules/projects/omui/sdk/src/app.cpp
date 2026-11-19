@@ -527,6 +527,12 @@ int run(AppSpec app, const RunOptions& o) {
     const std::string mode = window_mode(app, o);
     return hosting::shown(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {
         auto prepared = prepare(rt, app, access);
+        // Other actors at work, over the application (D-160): where agents can reach it at all (its agent surface).
+        if (app.agent_presence && prepared.tasks) {
+            Element presence = agent_presence({.id = "presence", .actors = "agent:"});
+            presence.prop("pointer_events", Prop<std::string>(std::string("none")));
+            rt.mount(agent_presence_slot, std::move(presence));
+        }
         // Kept as long as the window: the frame, the tasks and generation, and the teardown before them.
         struct Kept {
             std::unique_ptr<FramedWindow> frame;

@@ -194,4 +194,61 @@ static UTest cases{"ui.base.agent_presence", [] {
         expect(both != released) << "the outline goes with the claim";
         expect(h.tree().node("main/presence")->value.get("agents")->list()->at(1).get("claims")->list()->empty());
     };
+
+    "the agent's frame comes in, then is carried from node to node by the style's motion (the default recipe, D-160); at rest, motion off's drawing"_test = [] {
+        const auto scene = [](Headless& h) {
+            h.mount("main", stack({.id = "page", .width = 420.0f, .height = 220.0f},
+                                  {column({.id = "body", .padding = 24, .gap = 60},
+                                          {button({.id = "first", .text = "First"}), button({.id = "second", .text = "Second"})}),
+                                   agent_presence({.id = "presence"})}));
+            h.settle();
+        };
+        const auto by_agent = [](Headless& h, std::string_view path) {
+            Invocation call;
+            call.actor = {"agent", "guide", {}};
+            expect(eq(h.tree().act(path, "activate", call).exit_code().value_or(-1), std::int64_t{0}));
+        };
+        const auto presence_motion = [](Headless& h) -> std::optional<MotionState> {
+            for (const MotionState& motion : h.runtime().motions())
+                if (motion.path == "main/presence") return motion;
+            return std::nullopt;
+        };
+        // On, a frame at a time, to the middle of its course (a spring's progress is not its time's).
+        const auto to_middle = [&](Headless& h) {
+            for (int frame = 0; frame < 120; ++frame) {
+                const auto now = presence_motion(h);
+                if (!now || now->progress >= 0.5) return;
+                h.advance(seconds(1.0 / 60));
+            }
+        };
+        Headless moving(HeadlessOptions{.size = {420, 220}, .fonts = &fonts(), .parallel_raster = false});
+        Headless still(HeadlessOptions{.size = {420, 220}, .fonts = &fonts(), .parallel_raster = false});
+        still.runtime().set_motion_level(MotionLevel::off);
+        scene(moving), scene(still);
+        const std::uint64_t empty = hash_of(moving.pixels());
+
+        // It comes in: the frame round First is a part that was not there.
+        by_agent(moving, "main/body/first"), by_agent(still, "main/body/first");
+        moving.step(), still.settle();
+        const auto entering = presence_motion(moving);
+        expect(fatal(entering.has_value() && entering->to_only > 0)) << "the frame, the tag: parts that come in";
+        to_middle(moving);
+        const std::uint64_t coming = hash_of(moving.pixels()), at_first = hash_of(still.pixels());
+        expect(coming != empty && coming != at_first) << "part-way in: neither nothing nor the frame at rest";
+        (void)moving.save_png(scratch_dir("agent-presence") / "entering.png");
+        moving.settle();
+        expect(hash_of(moving.pixels()) == at_first) << "in: exactly the drawing without motion";
+
+        // From First to Second: the same frame (its id the actor) carried across, not one gone and another come.
+        by_agent(moving, "main/body/second"), by_agent(still, "main/body/second");
+        moving.step(), still.settle();
+        const auto carried = presence_motion(moving);
+        expect(fatal(carried.has_value() && carried->matched > 0)) << "matched: the actor's frame, from one node to the other";
+        to_middle(moving);
+        const std::uint64_t between = hash_of(moving.pixels()), at_second = hash_of(still.pixels());
+        expect(between != at_first && between != at_second) << "on its way: neither node's drawing";
+        (void)moving.save_png(scratch_dir("agent-presence") / "carried.png");
+        moving.settle();
+        expect(hash_of(moving.pixels()) == at_second && moving.runtime().motions().empty()) << "at rest on Second, nothing left moving";
+    };
 }};

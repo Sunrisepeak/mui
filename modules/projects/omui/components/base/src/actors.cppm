@@ -86,6 +86,10 @@ struct AgentPresenceState {
 // others come and go); at most `limit`, the latest at work.
 [[nodiscard]] std::vector<AgentPresenceState> agent_presence_states(const Services& services, std::string_view actors, std::size_t trail = 3,
                                                                     std::string_view except = {}, std::size_t limit = 6);
+// Where a window's host mounts the presence over the application (omui's AppSpec::agent_presence, D-160): what
+// else shows an agent at work (a replay) leaves its own out when one is there.
+inline constexpr std::string_view agent_presence_slot = "omui.presence";
+
 // An actor's colour: the theme's `agent` for the first, then hues apart from it, each readable on light and dark.
 [[nodiscard]] Color agent_ink(const Theme& theme, std::size_t hue);
 

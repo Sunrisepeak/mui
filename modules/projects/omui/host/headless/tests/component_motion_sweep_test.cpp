@@ -1,4 +1,4 @@
-// Every one of the 37 component kinds with a typed default motion (M3): a
+// Every one of the component kinds with a typed default motion (M3), 38 of the 39 (agent_presence aside): a
 // state change that changes the drawing moves through intermediate frames
 // that are neither endpoint, comes to rest on exactly the drawing motion off
 // gives at once, and under reduced motion is a short real movement with the
@@ -95,6 +95,9 @@ UTest cases{"viewdoc.component-motion-sweep", [] {
         std::vector<std::string> moved, still, continuous;
         for (const auto& recipe : default_component_motion_recipes()) {
             const std::string type(recipe.component);
+            // Another actor's presence draws that actor's work and has no state of its own (nothing disabled): its
+            // motion is sampled with an agent at work (ui.base.agent_presence).
+            if (type == "agent_presence") continue;
             Sample full(type, MotionLevel::full), reduced(type, MotionLevel::reduced), off(type, MotionLevel::off);
             {
                 // A drawing that is itself a function of time (an indeterminate
@@ -159,7 +162,7 @@ UTest cases{"viewdoc.component-motion-sweep", [] {
         std::println("    moved ({}): {}", moved.size(), moved);
         std::println("    no visible state ({}): {}", still.size(), still);
         std::println("    drawn as a function of time ({}): {}", continuous.size(), continuous);
-        expect(eq(moved.size() + still.size() + continuous.size(), std::size_t{37}));
+        expect(eq(moved.size() + still.size() + continuous.size(), std::size_t{38}));
         // Every kind shows that it is disabled: its own way, or the framework's (the theme's disabled opacity).
         expect(still.empty()) << std::format("no disabled state drawn: {}", still);
     };

@@ -119,7 +119,7 @@ void Replayer::schedule() {
 }
 
 // Over the application: the step's maker at what it built (the agent's presence, D-160: its colour, its frame and
-// what it said), and at the bottom a card — who did the step and what it did; Pause or Play, Close; a slider of the
+// what it said), and at the bottom a card — who did the step and what it did; Pause or Play, Close; a timeline of the
 // steps the person scrubs, each step shown as it is reached. Only the card takes the pointer: the page around it is
 // used as it plays. Its colours and controls are the theme's.
 void Replayer::present() {
@@ -127,6 +127,9 @@ void Replayer::present() {
     const float width = std::clamp(window.width - 32.0f, 160.0f, 440.0f), inner = width - 28.0f;
     const auto steps = static_cast<double>(replay_.steps.size());
     const auto through = [](std::string_view way) { return Prop<std::string>(std::string(way)); };
+    // The design's course: each step's caption is what the person or a reader hears at it.
+    std::vector<std::string> captions;
+    for (const mlibs::agent::ReplayStep& step : replay_.steps) captions.push_back(step.caption);
     Element card = column({.id = "replay", .width = width, .padding = Edges(10.0f, 14.0f), .gap = 6, .background = "surface", .border_color = "border",
                            .border_width = 1, .radius = 12, .shadow = "md", .label = "The design, step by step"},
                           {row({.id = "controls", .gap = 8, .align = "center"},
@@ -138,14 +141,19 @@ void Replayer::present() {
                                             else (void)play(at_ == 0 ? 1 : at_, speed_);  // on from the step shown
                                         }}),
                                 button({.id = "close", .text = "Close", .variant = ButtonVariant::ghost, .on_activated = [this] { stop(); }})}),
-                           slider({.id = "step", .label = "Step", .max = steps, .min = 1.0, .step = 1.0, .value = shown_, .on_changed = [this](double step) {
-                                       const auto reached = static_cast<std::size_t>(std::lround(step));
-                                       if (reached != at_) (void)at(reached);
-                                   }, .width = inner})});
+                           timeline({.id = "step", .captions = captions, .label = "Step", .steps = static_cast<std::int64_t>(steps), .value = shown_,
+                                     .on_changed = [this](double step) {
+                                         const auto reached = static_cast<std::size_t>(std::lround(step));
+                                         if (reached != at_) (void)at(reached);
+                                     }, .width = inner})});
     Element bottom = column({.id = "dock", .width = window.width, .height = window.height, .padding = 14, .justify = "end", .align = "center"}, {std::move(card)});
     bottom.prop("pointer_events", through("children"));
-    Element over = stack({.width = window.width, .height = window.height},
-                         {agent_presence({.id = "presence", .actors = "agent:", .trail = 0, .width = window.width, .height = window.height}), std::move(bottom)});
+    // The step's maker: the host's presence where a window has one (its default, D-160), else its own.
+    std::vector<Element> layers;
+    if (!runtime_.valid(runtime_.find(agent_presence_slot)))
+        layers.push_back(agent_presence({.id = "presence", .actors = "agent:", .trail = 0, .width = window.width, .height = window.height}));
+    layers.push_back(std::move(bottom));
+    Element over = stack({.width = window.width, .height = window.height}, std::move(layers));
     over.prop("pointer_events", through("children"));
     runtime_.mount(slot, std::move(over));
     mounted_ = true;

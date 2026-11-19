@@ -70,6 +70,11 @@ struct AppSpec {
     // Whether agents may join as players where a game offers it (plan §8.4:
     // the application allows; --no-agent-player turns it off for a run).
     bool                     agent_players = false;
+    // Whether a window shows another actor at work over the application (D-160): an agent's frame at the node it
+    // acts on, its name and what it says, carried from node to node by the style's motion — the host's default,
+    // mounted at `agent_presence_slot` where the agent surface is built in. A headless run leaves it out (its pixels are
+    // the application's). Off: the application shows agents its own way, or not.
+    bool                     agent_presence = true;
     std::vector<std::string> grants;
     // Deployment mode is independent of the effect cap above. Automatic
     // consumes the mcpp build profile: dev is development, others dual-user.

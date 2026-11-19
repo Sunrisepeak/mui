@@ -159,6 +159,7 @@ namespace omui {
     std::string agent = "external";
     bool agent_input = true;
     bool agent_players = false;
+    bool agent_presence = true;
     std::vector<std::string> grants;
     AgentMode agent_mode = AgentMode::automatic;
     AgentRestrictions agent_developer, agent_user;

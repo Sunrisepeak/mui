@@ -496,7 +496,8 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
         const Rect at = local(services().bounds(part));
         if (at.empty()) continue;
         const Rect box{at.x - 3, at.y - 3, at.width + 6, at.height + 6};
-        ctx.part({.role = "claim", .allocation = box, .kind = xrender::PartKind::box}, [&] {
+        const std::string held_id = std::format("{}|{}", now.actor, held.part);  // each holder's outline its own (one moves, the others stay)
+        ctx.part({.role = "claim", .id = held_id, .allocation = box, .kind = xrender::PartKind::box}, [&] {
             ctx.list.fill_rect(box, xrender::Paint::solid(ink.with_alpha(0.06f)));
             constexpr float dash = 6, gap = 4, line = 1.5f;
             for (float x = box.x; x < box.right(); x += dash + gap) {
@@ -523,7 +524,7 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
     std::vector<Point> stops;
     for (const PresenceStep& step : now.trail) stops.push_back(local(step.bounds).center());
     stops.push_back(local(now.now->bounds).center());
-    ctx.part({.role = "trail", .kind = xrender::PartKind::content}, [&] {
+    ctx.part({.role = "trail", .id = now.actor, .kind = xrender::PartKind::content}, [&] {
         for (std::size_t i = 0; i + 1 < stops.size(); ++i) {
             const float age = static_cast<float>(i + 1) / static_cast<float>(stops.size());
             const Point a = stops[i], b = stops[i + 1];
@@ -541,7 +542,9 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
     const Rect at = local(now.now->bounds);
     const float out = 5, arm = std::clamp(std::min(at.width, at.height) * 0.3f, 6.0f, 14.0f);
     const Rect box{at.x - out, at.y - out, at.width + 2 * out, at.height + 2 * out};
-    ctx.part({.role = "frame", .allocation = box, .kind = xrender::PartKind::box}, [&] {
+    // Each actor's frame is its own part (its id the actor): from one node to the next the style's motion carries it
+    // across, as one thing, rather than one frame vanishing and another appearing (D-160).
+    ctx.part({.role = "frame", .id = now.actor, .allocation = box, .kind = xrender::PartKind::box}, [&] {
         parts::agent_corners(ctx.list, box, ink, arm);
         tag_.set_text(now.now->action.empty() ? std::string(who(now.actor)) : std::format("{} · {}", who(now.actor), now.now->action));
         const Size t = tag_.measure(ctx.services, th.color("on_accent", Color::white()));
@@ -576,7 +579,7 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
             if (hidden == 0) break;
         }
         placed.push_back(card);
-        ctx.part({.role = "card", .allocation = card, .kind = xrender::PartKind::box}, [&] {
+        ctx.part({.role = "card", .id = now.actor, .allocation = card, .kind = xrender::PartKind::box}, [&] {
             if (auto it = th.shadows.find("md"); it != th.shadows.end()) paint_shadow(ctx.list, card, th.radii(10), it->second);
             ctx.list.fill_round_rect(card, th.radii(10), xrender::Paint::solid(th.color("surface")));
             ctx.list.fill_round_rect({card.x, card.y + 8, 3, card.height - 16}, CornerRadii::all(1.5f), xrender::Paint::solid(ink));

@@ -290,7 +290,12 @@ std::span<const ComponentMotionRecipe> default_component_motion_recipes() {
         {"combobox", "default.selection", "default.focus", "default.panel", "default.panel"},
         {"tag_input", "default.structure", "default.focus", "default.reveal", "default.reveal"},
         {"code_editor", "none", "default.focus", "default.reveal", "default.reveal"},
-        {"actor_log", "default.structure", "default.focus", "default.reveal", "default.reveal"}
+        {"actor_log", "default.structure", "default.focus", "default.reveal", "default.reveal"},
+        // Another actor at work (D-160): its frame carried from node to node, its tag and card in and out, by the
+        // style's recipes like every part; the framework's default, for every host and style pack.
+        {"agent_presence", "default.structure", "none", "default.notice", "default.notice"},
+        // A course of steps on any shape (G8): its playhead and the part played carried to the step.
+        {"timeline", "default.value", "default.focus", "default.reveal", "default.reveal"}
     };
     return recipes;
 }

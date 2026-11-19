@@ -34,9 +34,10 @@ constexpr std::array<std::string_view, 15> visual_props{
 constexpr std::array<std::string_view, 2> motion_props{"glyph_motion", "pixel_effect"};
 
 // `undo_scope`: the node keeps its own history of what is done inside it (S-12).
-constexpr std::array<std::string_view, 14> semantic_props{
+// `level`: a heading's level (its value, when its role is heading).
+constexpr std::array<std::string_view, 15> semantic_props{
     "label", "description", "role", "origin", "focusable", "disabled", "readonly", "verb", "verb_args", "effect", "answer", "person", "undo_scope",
-    "selected",
+    "selected", "level",
 };
 
 // The theme scope a node and its subtree are drawn in (Runtime::set_scope).

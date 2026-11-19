@@ -51,6 +51,10 @@ UTest cases{"example.hello-ts", [] {
         expect(p.problems().empty()) << (p.problems().empty() ? "" : p.problems()[0]);
         expect(eq(name_of(h, "main/stats/characters"), std::string("0 characters")));
         expect(eq(name_of(h, "main/stats/words"), std::string("0 words")));
+        // Its title is a heading of level 1 (role and level): the page's h1.
+        const auto headings = h.tree().find({.role = Role::heading});
+        expect(headings.size() == 1 && headings[0].name == "Text statistics" && headings[0].value.is_number() && headings[0].value.as_int() == 1) << headings.size();
+        expect(semantic::static_html(h.tree().snapshot(), {}).contains(">Text statistics</h1>"));
 
         h.runtime().focus(h.runtime().find("main/input"));
         h.type("Hello there. How are you? 👋🏽");

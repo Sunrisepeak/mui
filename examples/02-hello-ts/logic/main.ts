@@ -17,7 +17,7 @@ input.watch((t: string) => {
 const plural = (n: Parameters<typeof call>[1], one: string, many: string) => select(eq(n, 1), one, many);
 
 mount("main", column({ padding: 16, gap: 10 }, [
-  text({ text: "Text statistics", style: "title" }),
+  text({ text: "Text statistics", style: "title", role: "heading", level: 1 }),
   textBox({ id: "input", text: input, multiline: true, placeholder: "Type or paste a text", label: "Text", height: 140 }),
   row({ id: "stats", gap: 16 }, [
     // Characters as people count them: grapheme clusters, evaluated by the runtime.

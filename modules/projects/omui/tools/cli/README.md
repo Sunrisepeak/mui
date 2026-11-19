@@ -7,6 +7,9 @@ omui new NAME [--template app-ts]   a project (app-ts, app-cpp, component, nativ
 omui dev [--headless] [-- ARGS]     the application in development mode: its own designer, a person and an agent designing it live (D-149)
 omui run [--release] [-- ARGS]      the application as it ships (mcpp run)
 omui build [--release]              mcpp build
+omui build --web [--lang L]         the page on the Web: the program run natively writes its first screen as static HTML
+                                    (target/web/<program>.static.html, D-236), then mcpp pack --target wasm32-emscripten
+                                    --release --pkg-format dist-toy puts it in the page (build.mcpp's dist_toy says how)
 omui test [-- CASES]                its tests, mtest's (mcpp test)
 omui doctor                         which tools are there, which are missing, what each is for
 ```

@@ -446,6 +446,13 @@ mcpplibs::cmdline::App command_line() {
     const auto check = Option("check").help("write nothing; exit 1 when an output differs from what is on disk (CI's proof)");
     const auto json = Option("json").help("diagnostics as JSON, for tools and agents");
     const auto out = Option("out").takes_value().value_name("DIR").help("where the outputs go");
+    // A packed page as a document before its program runs (D-236): dist-toy's and dist-toy-document's.
+    const auto static_html = Option("static-html").takes_value().value_name("FILE").help("the first screen's projection (<program> --static-html FILE)");
+    const auto lang = Option("lang").takes_value().value_name("LANG").help("the document's language (en, zh-CN)");
+    const auto description = Option("description").takes_value().value_name("TEXT").help("what a search result and a share card say");
+    const auto canonical = Option("canonical").takes_value().value_name("URL").help("the page's address");
+    const auto image = Option("image").takes_value().value_name("URL").help("a share card's picture");
+    const auto alternate = Option("alternate").takes_value().multiple().value_name("HREFLANG=URL").help("the page in another language");
     const auto registry = Option("registry").takes_value().value_name("DIR").help("spec/registry");
     const auto module = Option("module").takes_value().value_name("M").help("the package's module");
     const auto space = Option("namespace").takes_value().value_name("NS").help("its C++ namespace");
@@ -511,7 +518,8 @@ mcpplibs::cmdline::App command_line() {
                         .option(Option("font-languages").takes_value().multiple().value_name("FONT=LANG,…").help("a font's languages"))
                         .option(Option("font-initial").takes_value().multiple().value_name("FONT=TEXT").help("a font's first screen's text"))
                         .option(Option("font-initial-text").takes_value().multiple().value_name("FONT=PATH,…").help("these files' characters added to a font's first screen's"))
-                        .option(Option("font-on-demand").takes_value().multiple().value_name("FONT").help("a font with an initial cut whose full face waits until text asks for it")))
+                        .option(Option("font-on-demand").takes_value().multiple().value_name("FONT").help("a font with an initial cut whose full face waits until text asks for it"))
+                        .option(static_html).option(lang).option(description).option(canonical).option(image).option(alternate))
         .subcommand(App("dist-toy-split")
                         .description("a packed page's program cut in two by wasm-split: the first screen's half first")
                         .arg(Arg("dir").required().help("the package"))
@@ -521,12 +529,7 @@ mcpplibs::cmdline::App command_line() {
         .subcommand(App("dist-toy-document")
                         .description("a packed page as a document before its program runs: its first screen's static HTML, its description and addresses (D-236)")
                         .arg(Arg("dir").required().help("the package"))
-                        .option(Option("static-html").takes_value().value_name("FILE").help("the projection (<program> --static-html FILE)"))
-                        .option(Option("lang").takes_value().value_name("LANG").help("the document's language (en, zh-CN)"))
-                        .option(Option("description").takes_value().value_name("TEXT").help("what a search result and a share card say"))
-                        .option(Option("canonical").takes_value().value_name("URL").help("the page's address"))
-                        .option(Option("image").takes_value().value_name("URL").help("a share card's picture"))
-                        .option(Option("alternate").takes_value().multiple().value_name("HREFLANG=URL").help("the page in another language")))
+                        .option(static_html).option(lang).option(description).option(canonical).option(image).option(alternate))
         .subcommand(App("size")
                         .description("where a program's bytes go (WebAssembly or ELF): its sections, its code by owner, its largest symbols")
                         .arg(Arg("file").required().help("FILE: .wasm or an ELF program"))

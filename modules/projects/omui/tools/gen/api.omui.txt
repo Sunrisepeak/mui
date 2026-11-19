@@ -66,6 +66,17 @@ namespace omui::gen {
   [[nodiscard]] std::expected<ToyReport, std::string> adopt_split(const ToySplit& split);
   [[nodiscard]] std::vector<std::string> lazy_routes(std::string_view list);
   int dist_toy_split_main(const mcpplibs::cmdline::ParsedArgs& args);
+  struct ToyDocument {
+    std::filesystem::path dir;
+    std::filesystem::path static_html;
+    std::string lang;
+    std::string description;
+    std::string canonical;
+    std::string image;
+    std::vector<std::pair<std::string, std::string>> alternates;
+  };
+  [[nodiscard]] std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document);
+  int dist_toy_document_main(const mcpplibs::cmdline::ParsedArgs& args);
 }
 == omui.gen.emit
 namespace omui::gen {

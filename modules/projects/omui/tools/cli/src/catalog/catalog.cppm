@@ -14,8 +14,10 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_new{{
     {"name", "string", "the project's name and directory", false},
     {"template", "string", "app-ts, app-cpp, component, native or theme", true},
 }};
-inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_build{{
+inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_build{{
     {"release", "bool", "the release profile (no designer linked)", true},
+    {"web", "bool", "the page on the Web instead (D-236): the program run natively writes its first screen as static HTML (target/web/<program>.static.html), then mcpp pack --target wasm32-emscripten --release --pkg-format dist-toy packs it with the page", true},
+    {"lang", "string", "with web: the language of the first screen and the page (en, zh-CN)", true},
     {"rest", "json", "words passed on to mcpp build as they are (after --)", true},
 }};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_test{{
@@ -123,7 +125,7 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "omui.new", "description": "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in", "effect": "irreversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none: delete the directory it made", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "the project's name and directory"}, "template": {"type": "string", "description": "app-ts, app-cpp, component, native or theme"}}, "required": ["name"]}},
     {"name": "omui.build", "description": "Builds the project (mcpp build): its outputs under target/, nothing else changed", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: target/ is the build's own", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"release": {"type": "boolean", "description": "the release profile (no designer linked)"}, "rest": {"description": "words passed on to mcpp build as they are (after --)"}}, "required": []}},
+     "inputSchema": {"type": "object", "properties": {"release": {"type": "boolean", "description": "the release profile (no designer linked)"}, "web": {"type": "boolean", "description": "the page on the Web instead (D-236): the program run natively writes its first screen as static HTML (target/web/<program>.static.html), then mcpp pack --target wasm32-emscripten --release --pkg-format dist-toy packs it with the page"}, "lang": {"type": "string", "description": "with web: the language of the first screen and the page (en, zh-CN)"}, "rest": {"description": "words passed on to mcpp build as they are (after --)"}}, "required": []}},
     {"name": "omui.test", "description": "Runs the project's tests (mtest): which passed, which failed and where", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: tests change nothing they keep", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"rest": {"description": "words passed on to mcpp test as they are (after --: which cases)"}}, "required": []}},
     {"name": "omui.dev", "description": "Runs the application in development mode: it is its own designer, a person and an agent design it live (D-149); an application in C++ runs in the development host, rebuilt as its sources change (W16)", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "none needed: it ends when stopped", "undoable": false, "cancellable": false, "result": "json", "terminal": true,

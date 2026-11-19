@@ -13,6 +13,7 @@ namespace omui::cli {
     std::uint16_t port = 0;
     bool any_port = false;
     std::optional<std::filesystem::path> dir;
+    std::function<void(std::string_view page, std::string_view app)> paired;
   };
   std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, std::stop_token stop, const std::function<void(std::uint16_t)>& ready);
   [[nodiscard]] Value run_for_agent(std::string_view command, const Value& args);
@@ -21,7 +22,7 @@ namespace omui::cli {
 namespace omui::cli::ops {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_doctor{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_new{…};
-  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_build{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_build{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_test{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_dev{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_run{…};

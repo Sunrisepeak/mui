@@ -142,7 +142,7 @@ std::string static_html(const Snapshot& snapshot, const HtmlOptions& options) {
         const bool by_content = heading || tag == "a" || tag == "button" || tag == "p" || tag == "li";
         for (const auto& [key, value] : aria_attributes(n)) {
             // Before the program runs nothing is operated: no element takes the focus; a tag says its own role.
-            if (key == "tabindex" || (key == "role" && !tag.empty())) continue;
+            if (key == "tabindex" || (key == "role" && (!tag.empty() || value == "none"))) continue;  // a div is no role already
             if ((key == "aria-level" && heading) || (key == "aria-label" && by_content)) continue;
             out += std::format(" {}=\"{}\"", key, escaped(value, true));
         }

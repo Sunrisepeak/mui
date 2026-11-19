@@ -62,6 +62,15 @@ struct toy_options {
     // Fonts with an initial subset whose full face is fetched only when text asks for it (a character the
     // subset lacks, in that family or any), not once the program is drawn.
     std::vector<std::string> fonts_on_demand;
+    // The page a document before its program runs (D-236; omui-gen dist-toy-document): the first screen's
+    // projection, made beforehand by the program run natively (`<program> --static-html FILE`; `omui build --web`
+    // runs it) — absolute, or relative to the package; packed without one while the file is not there yet.
+    std::string              static_html;
+    std::string              lang;         // the document's language (en, zh-CN)
+    std::string              description;  // what a search result and a share card say
+    std::string              canonical;    // the page's address
+    std::string              image;        // a share card's picture
+    std::vector<std::pair<std::string, std::string>> alternates;  // the page in another language: hreflang, address
     std::string              out_dir = std::string(mcpp::out_dir());
 };
 

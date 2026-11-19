@@ -834,6 +834,8 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     return finish_package(p.out, p.target, p.title, index.size());
 }
 
+std::expected<ToyDocument, std::string> document_of(const mcpplibs::cmdline::ParsedArgs& args);  // below, with dist-toy-document
+
 int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
     auto usage = [](std::string_view why) {
         std::println(std::cerr, "omui-gen dist-toy: {} (omui-gen dist-toy --help)", why);
@@ -887,11 +889,22 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
         p.later.push_back({value.substr(0, bar1), value.substr(bar1 + 1, bar2 - bar1 - 1), value.substr(bar2 + 1)});
     }
     if (p.stage.empty() || p.target.empty() || p.out.empty()) return usage("a staged tree, --target and --out");
+    auto document = document_of(args);
+    if (!document) return usage(document.error());
 
     auto r = package_for_toy(p);
     if (!r) {
         std::println(std::cerr, "dist-toy: {}", r.error());
         return 1;
+    }
+    // The page a document before its program runs, when its first screen's projection is given.
+    if (!document->static_html.empty()) {
+        document->dir = p.out;
+        r = adopt_document(*document);
+        if (!r) {
+            std::println(std::cerr, "dist-toy: {}", r.error());
+            return 1;
+        }
     }
     std::println("dist-toy: {} — {} files, {} bytes (index.html {} of {})", utf8(p.out), r->files.size(), r->total, r->index, toy_index_limit);
     return 0;
@@ -1017,11 +1030,19 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
                         "border:1px solid currentColor;border-radius:8px;padding:4px 12px;margin:4px 8px 4px 0}}</style>\n",
                         colour);
     html.insert(head, meta);
-    if (!document.lang.empty()) {
+    // The document's language: as given, else as the projection's root says it (static_html's `lang`).
+    std::string lang = document.lang;
+    if (lang.empty()) {
+        const std::string_view root = std::string_view(*fragment).substr(0, fragment->find('>'));
+        constexpr std::string_view said = " lang=\"";
+        if (const auto at = root.find(said); at != std::string_view::npos)
+            lang = std::string(root.substr(at + said.size(), root.find('"', at + said.size()) - at - said.size()));
+    }
+    if (!lang.empty()) {
         constexpr std::string_view opening = "<html lang=\"";
         if (const auto at = html.find(opening); at != std::string::npos) {
             const auto end = html.find('"', at + opening.size());
-            html.replace(at + opening.size(), end - at - opening.size(), escape_html(document.lang));
+            html.replace(at + opening.size(), end - at - opening.size(), escape_html(lang));
         }
     }
     if (auto w = write(index_file, html); !w) return std::unexpected(w.error());
@@ -1035,9 +1056,9 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
     return finish_package(document.dir, target, listed_title, html.size(), html.contains("toy-sdk.js"));  // Toy's limit on Toy's pages
 }
 
-int dist_toy_document_main(const mcpplibs::cmdline::ParsedArgs& args) {
+// The document's options as dist-toy and dist-toy-document take them.
+std::expected<ToyDocument, std::string> document_of(const mcpplibs::cmdline::ParsedArgs& args) {
     ToyDocument document;
-    document.dir = args.positional(0);
     document.static_html = args.value("static-html").value_or("");
     document.lang = args.value("lang").value_or("");
     document.description = args.value("description").value_or("");
@@ -1045,12 +1066,20 @@ int dist_toy_document_main(const mcpplibs::cmdline::ParsedArgs& args) {
     document.image = args.value("image").value_or("");
     for (const std::string& value : args.option_or_empty("alternate").values) {  // <hreflang>=<address>
         const auto equals = value.find('=');
-        if (equals == std::string::npos || equals == 0) {
-            std::println(std::cerr, "omui-gen dist-toy-document: --alternate takes HREFLANG=ADDRESS, not `{}`", value);
-            return 2;
-        }
+        if (equals == std::string::npos || equals == 0) return std::unexpected(std::format("--alternate takes HREFLANG=ADDRESS, not `{}`", value));
         document.alternates.emplace_back(value.substr(0, equals), value.substr(equals + 1));
     }
+    return document;
+}
+
+int dist_toy_document_main(const mcpplibs::cmdline::ParsedArgs& args) {
+    auto read_options = document_of(args);
+    if (!read_options) {
+        std::println(std::cerr, "omui-gen dist-toy-document: {}", read_options.error());
+        return 2;
+    }
+    ToyDocument document = std::move(*read_options);
+    document.dir = args.positional(0);
     if (document.dir.empty() || document.static_html.empty()) {
         std::println(std::cerr, "omui-gen dist-toy-document: a package directory and --static-html (omui-gen dist-toy-document --help)");
         return 2;

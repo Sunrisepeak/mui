@@ -65,6 +65,21 @@ bool dist_toy(toy_options opt) {
             }
         }
     }
+    if (!opt.static_html.empty()) {
+        std::filesystem::path projection = std::filesystem::path(opt.static_html);
+        if (projection.is_relative()) projection = std::filesystem::path(mcpp::manifest_dir()) / projection;
+        std::error_code ec;
+        if (std::filesystem::is_regular_file(projection, ec)) {
+            a.arg("--static-html").arg(utf8(projection).c_str());
+            a.input(utf8(projection).c_str());
+            for (const auto& [flag, value] : {std::pair{"--lang", &opt.lang}, {"--description", &opt.description}, {"--canonical", &opt.canonical},
+                                              {"--image", &opt.image}})
+                if (!value->empty()) a.arg(flag).arg(value->c_str());
+            for (const auto& [lang, address] : opt.alternates) a.arg("--alternate").arg(std::format("{}={}", lang, address).c_str());
+        } else {
+            std::println(std::cerr, "omui.build.toy: no {} yet: the page is packed without its document (omui build --web makes it first)", utf8(projection));
+        }
+    }
     a.input(("${mcpp.target_file:" + opt.target + "}").c_str());
     a.input(gen.c_str());
     a.output((out + "/index.html").c_str());

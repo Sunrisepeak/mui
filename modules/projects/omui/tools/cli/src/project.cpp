@@ -297,6 +297,39 @@ int launch(std::string_view name, bool release, bool headless, std::vector<std::
     return ran.code;
 }
 
+// The page on the Web (D-236): the program, run natively, writes its first screen as static HTML; the pack (the
+// package's build.mcpp declares dist_toy, its static_html that file) puts it in the page as the document a reader and
+// a search engine read before the program runs.
+int build_web(const std::string& lang, std::vector<std::string> rest, std::ostream& out, std::ostream& err) {
+    const auto project = manifest(err);
+    if (!project) return 1;
+    std::string program;
+    if (const auto* targets = (*project)["targets"].as_table())
+        for (const auto& [target, declared] : *targets)
+            if (const auto* table = declared.as_table(); table && (*table)["kind"].value_or(std::string{}) == "bin") {
+                program = std::string(target.str());
+                break;
+            }
+    if (program.empty()) {
+        err << "omui build --web: mcpp.toml names no program (a [targets.<name>] of kind \"bin\")\n";
+        return 1;
+    }
+    std::error_code error;
+    std::filesystem::create_directories("target/web", error);
+    std::vector<std::string> first{"run", "--", "--static-html", std::format("target/web/{}.static.html", program)};
+    if (!lang.empty()) first.insert(first.end(), {"--lang", lang});
+    const Ran projected = run_tool("mcpp", std::move(first), err);
+    if (projected.code != 0) {
+        record(out, true, "build", projected);
+        return projected.code;
+    }
+    std::vector<std::string> pack{"pack", "--target", "wasm32-emscripten", "--release", "--pkg-format", "dist-toy"};
+    std::ranges::move(rest, std::back_inserter(pack));
+    const Ran packed = run_tool("mcpp", std::move(pack), err);
+    record(out, true, "build", packed);
+    return packed.code;
+}
+
 }  // namespace
 
 int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& err) {
@@ -391,6 +424,7 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
     if (name == "dev" || name == "run") return launch(name, a.flag("release"), a.flag("headless"), a.values("rest"), true, out, err);
     if (name == "connect") return connect(a, out, err);
     if (name == "mcp") return serve_mcp(a, err);
+    if (name == "build" && a.flag("web")) return build_web(a.value("lang").value_or(""), a.values("rest"), out, err);
     if (name == "build") return launch(name, a.flag("release"), false, a.values("rest"), true, out, err);
     if (name == "deps") return deps(true, out, err);
     if (name == "tools") return tools(true, out, err);

@@ -169,6 +169,10 @@ static UTest cases{"gen.dist_toy", [] {
         expect(gen::package_for_toy(q).has_value());
         put(t.root / "scripted.html", "<main><script>alert(1)</script></main>");
         expect(!gen::adopt_document({.dir = q.out, .static_html = t.root / "scripted.html"}).has_value()) << "no script in a projection";
+        // No language given: the projection's root says it.
+        put(t.root / "chinese.html", "<main data-omui-target=\"main\" lang=\"zh-CN\"><p data-omui-target=\"main/note\">笔记</p></main>\n");
+        expect(gen::adopt_document({.dir = q.out, .static_html = t.root / "chinese.html"}).has_value());
+        expect(read(q.out / "index.html").starts_with("<!doctype html>\n<html lang=\"zh-CN\">")) << "the root's language";
     };
 
     "--lazy's routes: the bare page is a route, an empty field too"_test = [] {

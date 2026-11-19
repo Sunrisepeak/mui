@@ -73,5 +73,6 @@ static UTest cases{"html", [] {
             if (!n.name.empty()) expect(html.contains(n.name)) << std::format("{}'s name: {}", n.id, n.name);
         }
         expect(html.contains("Notes") && html.contains("3 notes") && html.contains("Add a note")) << html;
+        expect(!html.contains("role=\"none\"")) << "a div says no role already";
     };
 }};

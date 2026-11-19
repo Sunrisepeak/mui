@@ -1,0 +1,14 @@
+// The application on the Web, a static page: `omui build --web`, or
+// `mcpp pack --target wasm32-emscripten --release --pkg-format dist-toy` (the
+// program, its fonts, and its first screen as a document a reader and a search
+// engine read before it runs, D-236: the file below, which `omui build --web`
+// writes first by running the program natively with --static-html).
+import mcpp;
+import omui.build.toy;
+
+int main() {
+    return omui::build::dist_toy({.target = "{{project.name}}", .title = "{{project.name}}", .fonts = {"Inter"}, .background = "#f8fafc",
+                                  .sdk = false, .static_html = "target/web/{{project.name}}.static.html", .description = "{{project.name}}, an openmui application"})
+               ? 0
+               : 1;
+}

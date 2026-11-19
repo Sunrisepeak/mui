@@ -272,7 +272,7 @@ void phases(const Scene& scene, int runs) {
     raster::Canvas canvas(surface);
     raster::Polygons polygons;
     raster::Rasterizer rasterizer;
-    std::size_t pieces = 0, covered = 0;  // what the rows gave (counted, so the work is not left out)
+    std::size_t pieces = 0, covered = 0, uniform = 0;  // what the rows gave: pieces, their pixels, the runs of one value among them
     std::vector<raster::PathBuilder> paths(scene.items.size());
     std::vector<std::array<raster::Stop, 2>> stops(scene.items.size());
     std::vector<raster::Paint> paints(scene.items.size());
@@ -301,7 +301,7 @@ void phases(const Scene& scene, int runs) {
     std::size_t edges = 0, runs_made = 0;
     for (int run = 0; run < 3 + runs; ++run) {
         double outline = 0, rasterise = 0;
-        edges = runs_made = pieces = 0;
+        edges = runs_made = pieces = covered = uniform = 0;
         for (std::size_t index = 0; index < scene.items.size(); ++index) {
             const Item& item = scene.items[index];
             polygons.clear();
@@ -314,7 +314,8 @@ void phases(const Scene& scene, int runs) {
             rasterizer.rasterize_rows(polygons, raster::FillRule::nonzero, clip,
                                       [&](std::int32_t, std::int32_t, std::int32_t length, std::uint8_t value, const std::uint8_t* values) {
                                           ++pieces;
-                                          covered += values ? static_cast<std::size_t>(values[0]) + static_cast<std::size_t>(length) : value;
+                                          covered += static_cast<std::size_t>(length) + (values ? values[0] : value) / 256u;
+                                          if (!values) ++uniform;
                                       });
             const auto done = std::chrono::steady_clock::now();
             outline += std::chrono::duration<double, std::milli>(made - start).count();
@@ -334,8 +335,8 @@ void phases(const Scene& scene, int runs) {
     }
     const auto median = [](std::vector<double> values) { std::ranges::sort(values); return values[values.size() / 2]; };
     const double outline = median(outline_ms), rasterise = median(raster_ms), total = median(total_ms);
-    std::println(R"({{"scene":"{}","total_ms":{:.3f},"outline_ms":{:.3f},"rasterise_ms":{:.3f},"composite_ms":{:.3f},"points":{},"pieces":{},"covered":{}}})", scene.name,
-                 total, outline, rasterise, std::max(0.0, total - outline - rasterise), edges, runs_made, covered);
+    std::println(R"({{"scene":"{}","total_ms":{:.3f},"outline_ms":{:.3f},"rasterise_ms":{:.3f},"composite_ms":{:.3f},"points":{},"pieces":{},"pixels":{},"uniform":{}}})",
+                 scene.name, total, outline, rasterise, std::max(0.0, total - outline - rasterise), edges, runs_made, covered, uniform);
 }
 
 bool write(const std::filesystem::path& file, std::string_view text) {

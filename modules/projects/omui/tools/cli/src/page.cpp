@@ -116,6 +116,7 @@ struct Bridge {
     std::uint64_t           next = 1;
     std::chrono::steady_clock::time_point seen{};        // the page last asked
     bool                    stopping = false;
+    std::function<void(std::string_view, std::string_view)> on_paired;  // BridgeStart::paired
 
     [[nodiscard]] bool paired() const { return !session.empty(); }
     [[nodiscard]] Value status() const {
@@ -181,7 +182,7 @@ void serve(Bridge& b, os::ipc::connection c) {
     }
     if (h.path == "/omui/v1/hello" && h.method == "POST") {
         auto hello = parse_json(h.body);
-        std::scoped_lock g(b.m);
+        std::unique_lock g(b.m);
         if (b.refused >= 10) {
             respond(c, 403, R"({"error":"too many wrong codes: start the bridge again"})", h.origin);
             return;
@@ -199,7 +200,11 @@ void serve(Bridge& b, os::ipc::connection c) {
         b.page = std::string(hello->get("page") ? hello->get("page")->as_string() : "");
         b.seen = std::chrono::steady_clock::now();
         b.changed.notify_all();
-        respond(c, 200, Value{}.set("session", b.session).set("agent", b.agent_name).set("bridge", std::string(version)).json(), h.origin);
+        const std::string answer = Value{}.set("session", b.session).set("agent", b.agent_name).set("bridge", std::string(version)).json();
+        const std::string page = b.page, app = b.app;
+        g.unlock();
+        if (b.on_paired) b.on_paired(page, app);  // heard before the page is answered
+        respond(c, 200, answer, h.origin);
         return;
     }
     const std::string session = mlibs::http::query_value(h.query, "session");
@@ -299,6 +304,7 @@ std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, s
     if (b.code.size() < 6) return std::unexpected("the pairing code is the page's (letters and digits)");
     b.agent_name = start.name.empty() ? std::string("local") : start.name;
     b.only_origin = start.origin;
+    b.on_paired = start.paired;
     auto token = os::random::hex(24);
     if (!token) return std::unexpected(std::format("no random source: {}", token.error().message()));
     b.token = *token;
@@ -360,6 +366,26 @@ int connect(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream& e
     BridgeStart start{.code = a.value("code").value_or(""), .name = a.value("name").value_or(""), .origin = a.value("origin").value_or("")};
     if (auto directory = a.value("dir")) start.dir = mcpplibs::os::fs::from_utf8(*directory);
     if (auto given = a.value("port")) std::from_chars(given->data(), given->data() + given->size(), start.port);
+    // Paired: said, and the page's own description after it (D-186) — what `omui page describe` gives an agent, so a
+    // person who typed the commands sees where to start too, and that any agent can take it from here.
+    std::mutex said;
+    std::vector<std::jthread> describing;
+    start.paired = [&](std::string_view address, std::string_view app) {
+        std::scoped_lock g(said);
+        out << Value{}.set("kind", "data")
+                   .set("data", Value{}.set("paired", std::string(address)).set("app", std::string(app))
+                                    .set("next", "any agent operates it from here: omui page describe, omui page snapshot, omui page act …"))
+                   .json()
+            << '\n';
+        out.flush();
+        describing.emplace_back([&, dir = start.dir] {
+            std::ostringstream told, wrong;
+            (void)page({"describe"}, dir, told, wrong);
+            std::scoped_lock again(said);
+            out << told.str();
+            out.flush();
+        });
+    };
     std::stop_source never;
     auto ran = run_bridge(start, never.get_token(), [&](std::uint16_t port) {
         out << Value{}.set("kind", "data").set("data", Value{}.set("bridge", std::format("127.0.0.1:{}", port)).set("waiting_for", "the page")).json() << '\n';

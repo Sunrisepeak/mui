@@ -37,12 +37,14 @@ int print_records(std::vector<Value> records, std::ostream& out);
 // code, who the agent is, the origin it serves (empty: any), the port
 // (0: the first free of 47110–47113; any_port: one the system chooses) and
 // where its bridge.json goes (the per-user directory unless given). `ready`
-// hears the port once it listens; answers it when stopped.
+// hears the port once it listens; answers it when stopped. `paired` hears the
+// page (its address, its application) each time one pairs with the code.
 struct BridgeStart {
     std::string                          code, name, origin;
     std::uint16_t                        port = 0;
     bool                                 any_port = false;
     std::optional<std::filesystem::path> dir;
+    std::function<void(std::string_view page, std::string_view app)> paired;
 };
 std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, std::stop_token stop, const std::function<void(std::uint16_t)>& ready);
 

@@ -324,8 +324,15 @@ static UTest cases{"cli", [] {
         auto none = omui_cmd({"--dir", omui::utf8(dir), "page", "status", "--wait", "--timeout", "0.5"});
         expect(none.code == 1 && std::chrono::steady_clock::now() - before >= std::chrono::milliseconds(400)) << none.out + none.err;
         std::atomic<std::uint16_t> port{0};
+        std::mutex heard_lock;
+        std::string heard;  // what `paired` heard (omui connect prints the page's description then)
         std::jthread bridge([&](std::stop_token stop) {
-            auto r = cli::run_bridge({.code = "ABCD-EFGH", .name = "Claude Code", .any_port = true, .dir = dir}, stop, [&](std::uint16_t p) { port = p; });
+            auto r = cli::run_bridge({.code = "ABCD-EFGH", .name = "Claude Code", .any_port = true, .dir = dir,
+                                      .paired = [&](std::string_view page, std::string_view app) {
+                                          std::scoped_lock g(heard_lock);
+                                          heard = std::format("{} {}", page, app);
+                                      }},
+                                     stop, [&](std::uint16_t p) { port = p; });
             expect(r.has_value()) << (r ? "" : r.error());
         });
         for (int i = 0; i < 500 && !port; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -343,6 +350,10 @@ static UTest cases{"cli", [] {
         auto session = parse_json(hello.second);
         const std::string s_id(session && session->get("session") ? session->get("session")->as_string() : "");
         expect(!s_id.empty()) << "a session";
+        {
+            std::scoped_lock g(heard_lock);
+            expect(eq(heard, std::string("https://example.org/app org.example.notes"))) << "the bridge says which page paired";
+        }
         status = omui_cmd({"--dir", agent_dir, "page", "status", "--wait", "--timeout", "5"});
         expect(status.code == 0 && status.out.contains("\"paired\":true") && status.out.contains("org.example.notes")) << status.out + status.err;
         // The page: takes the next request and answers it, as its window.omui would.

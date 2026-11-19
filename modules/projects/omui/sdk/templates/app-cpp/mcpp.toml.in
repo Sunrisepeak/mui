@@ -14,4 +14,4 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-"{{self.name}}" = "{{self.version}}"
+{{self.name}} = "{{self.version}}"

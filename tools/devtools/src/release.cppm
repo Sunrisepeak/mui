@@ -89,4 +89,11 @@ struct Closure {
 [[nodiscard]] std::expected<std::string, std::string> pinned(std::string_view manifest, std::string_view directory,
                                                              const std::map<std::string, std::string>& versions);
 
+// What a strict TOML reader says of a manifest (toml++, as a program reading its own mcpp.toml does): empty when it
+// reads. mcpp's own parser takes more than TOML does (mcpp#964), so a manifest mcpp wrote is checked here too.
+[[nodiscard]] std::string toml_problem(std::string_view manifest);
+
+// The templates `mcpp new --template` offers from the SDK (their directories under templates_directory).
+inline constexpr std::array<std::string_view, 5> template_names{"app-cpp", "app-ts", "component", "native", "theme"};
+
 }  // namespace omui::devtools::release

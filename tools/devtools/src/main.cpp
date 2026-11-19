@@ -1245,7 +1245,20 @@ int release_try(const cmd::ParsedArgs& options, const fs::path& root) {
     if (auto made = mcpp({"new", project_name, "--template", std::format("{}:{}", release::template_package, template_name)}, work); !ok(made))
         return failed("new", said(made));
     const fs::path project = work / project_name;
-    passed("new", since);
+    // Every template's project, made the same way: its manifest one that a strict TOML reader takes (the player reads
+    // its own; mcpp's parser takes more, mcpp#964).
+    std::string unreadable;
+    for (const std::string_view other : release::template_names) {
+        const fs::path where = work / "new" / std::string(other);
+        fs::create_directories(where, error);
+        const std::string name = std::format("t_{}", other.substr(0, other.find('-')));
+        if (auto made = mcpp({"new", name, "--template", std::format("{}:{}", release::template_package, other)}, where); !ok(made))
+            return failed("new", std::format("{}: {}", other, said(made)));
+        if (const auto problem = release::toml_problem(mcpplibs::os::fs::read(where / name / "mcpp.toml").value_or("")); !problem.empty())
+            unreadable += std::format("{}: mcpp.toml:{}\n", other, problem);
+    }
+    if (!unreadable.empty()) return failed("new", unreadable);
+    passed("new", since, {{"templates", release::template_names.size()}});
 
     // Built: everything it needs from the index, the toolchain too, into the clean home.
     since = clock::now();

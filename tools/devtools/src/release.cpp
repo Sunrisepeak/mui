@@ -539,6 +539,15 @@ std::string with_default_index(std::string_view config, std::string_view url) {
     return out;
 }
 
+std::string toml_problem(std::string_view manifest) {
+    try {
+        static_cast<void>(toml::parse(manifest));
+        return {};
+    } catch (const toml::parse_error& failure) {
+        return std::format("{}:{}: {}", failure.source().begin.line, failure.source().begin.column, failure.description());
+    }
+}
+
 std::expected<std::string, std::string> pinned(std::string_view manifest, std::string_view directory,
                                                const std::map<std::string, std::string>& versions) {
     toml::table data;

@@ -129,4 +129,10 @@ static UTest cases{
             expect(!release::pinned("[dependencies]\nx = { path = \"../nowhere\" }\n", "a/b", {})) << "a path that is no member";
         };
 
+        "release try reads a new project's manifest as strict TOML does (mcpp#964: a header after dotted keys)"_test = [] {
+            expect(release::toml_problem("[dependencies]\nomui.entry.player = \"0.1.0\"\nomui.sdk = \"0.1.0\"\n").empty());
+            const std::string problem = release::toml_problem("[dependencies]\nomui.entry.player = \"0.1.0\"\n\n[dependencies.omui]\nsdk = \"0.1.0\"\n");
+            expect(problem.starts_with("4:")) << problem;
+        };
+
     }};

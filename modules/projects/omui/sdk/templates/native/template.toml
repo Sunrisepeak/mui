@@ -1,3 +1,8 @@
 [template]
 description  = "An openmui native-module package: a contract, its functions in C++, TypeScript bindings generated at build time"
 post_message = "cd into the project: native/ is the interface, src/ the C++; `mcpp test` builds both. A program calls <module>::words::define() once, then scripts import it (\"openmui:native/words\", omui.native, omui.native)."
+
+# The package names what it builds on, at this package's version: nothing more is added for the
+# package the template comes from (the SDK's umbrella is an application's, not a package's).
+[template.inject]
+self = false

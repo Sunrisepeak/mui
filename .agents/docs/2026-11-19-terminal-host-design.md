@@ -73,3 +73,29 @@ Agent 面（先写，lint `agent-surface`）：状态是那一帧的格子与语
 2. 格子后端放在 xrender（`xrender.cells`）而不是宿主里。
 3. 图形协议（第 ② 级）0.1 只留标记、不实现。
 4. 1 MB 达不到时按 §7 降级为预览。
+
+## 9. F2 的做法（2026-11-20 补，待 review）
+
+**核对的事实**：
+- HarfBuzz 只在 `mlibs.text` 的 `src/native/`（字体 583 行、成形 384 行、字形轮廓 85 行）。
+- `FontCollection` 本身也建在 HarfBuzz 上，包括读字体、度量、轮廓与 `hb_font`。
+- `omui.view` 与组件直接用 `Paragraph` 与 `FontCollection`，约 130 处。
+- 成形之外的部分（SheenBidi 的双向、字素、词、断行、省略号）与 HarfBuzz 的类型写在同一个函数里。
+
+**排除的做法**：用 feature 在 `mlibs.text` 里二选一编译 `native/` 或 `cells/`（同 `tests/features` 的互斥来源）。
+- 工作区构建会合并 feature。只要终端宿主是成员，`--workspace` 就会两份同时编译、链接失败。
+- `check features` 正是在验证这种“两个同时被拒绝”。
+
+**提议**：按 compose 的同一条路径，把成形与字体做成槽，两个提供者都编译，由组合根安装一个。没被安装的，链接器回收。
+1. `mlibs.text` 只留与引擎无关的部分：双向、字素、词、断行、段落与行的布局、查询、编辑，以及 `FontCollection` 的接口。
+2. 槽 `mlibs.text.shaper` 的一个提供者，提供字体的读入与选择、度量、一段文字的成形、字形轮廓与彩色层。按段落调用，不进逐像素的路径（AGENTS §2 第 6 条）。
+3. 提供者 `mlibs.text.harfbuzz`：今天的 `native/` 原样移过去，默认世界安装它，像素基线不变。
+4. 提供者“格”：每个字素按东亚宽度占 1 或 2 格，一格宽 1 个单位、行高 2 个单位，与字号无关；没有轮廓。它与 `xrender.cells` 一起放在终端那边。
+5. `omui.view` 经槽取 `FontCollection`。`omui.sdk` 的 `terminal` 世界安装“格”的提供者。
+
+**分步**：
+- ① 拆出与引擎无关的部分，`mlibs.text` 与 `xrender.text` 的测试与像素基线不变。
+- ② 槽与两个提供者，加一个只装“格”的构建，量它的链接清单与体积。
+- ③ `omui.view` 对光栅、矢量、图像、设备的引用。另外要先把显示列表的类型从 `xrender.vector` 里分出来，`xrender.cells` 只依赖类型。
+
+**风险**：`mlibs.text` 是稳定级，接口的移动要一次改完（不留兼容层）。拆分后整个 UI 栈要重编，像素基线全量核对一次。

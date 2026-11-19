@@ -95,8 +95,12 @@ bool dist_toy(toy_options opt) {
         }
         std::ranges::sort(found);
         for (const std::filesystem::path& file : found) {
-            const std::string inside = "/" + std::filesystem::relative(file, package, ec).generic_string();
-            a.arg("--file").arg(std::format("{}={}", inside, utf8(file)).c_str());
+            std::string inside = "/" + std::filesystem::relative(file, package, ec).generic_string();
+            // A page reads data; it does not evaluate data modules (mlibs.ts.not-here): omui.config.ts and *.xdef.ts
+            // go as their snapshots, evaluated as the page is made (omui.config.json, *.xdef.json).
+            const bool data = inside.ends_with("/omui.config.ts") || inside.ends_with(".xdef.ts");
+            if (data) inside.replace(inside.size() - 3, 3, ".json");
+            a.arg(data ? "--data" : "--file").arg(std::format("{}={}", inside, utf8(file)).c_str());
             a.input(utf8(file).c_str());
         }
     }

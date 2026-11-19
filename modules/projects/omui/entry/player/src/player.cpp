@@ -80,14 +80,26 @@ struct Config {
 
 std::expected<Config, std::string> read_config(const std::filesystem::path& base) {
     Config out;
-    const auto file = base / "omui.config.ts";
+    auto file = base / "omui.config.ts";
     std::error_code error;
-    if (!std::filesystem::is_regular_file(file, error)) return out;
-    auto data = lang::ts::evaluate(file);
-    if (!data) return std::unexpected(data.error().text());
-    if (data->kind != "config") return std::unexpected(std::format("{}: its default export is defineConfig(…), not a {}", utf8(file), data->kind));
-    const auto value = parse_json(data->json);
-    if (!value) return std::unexpected(std::format("{}: {}", utf8(file), value.error().text()));
+    std::optional<Value> value;
+    if (std::filesystem::is_regular_file(file, error)) {
+        auto data = lang::ts::evaluate(file);
+        if (!data) return std::unexpected(data.error().text());
+        if (data->kind != "config") return std::unexpected(std::format("{}: its default export is defineConfig(…), not a {}", utf8(file), data->kind));
+        auto parsed = parse_json(data->json);
+        if (!parsed) return std::unexpected(std::format("{}: {}", utf8(file), parsed.error().text()));
+        value = std::move(*parsed);
+    } else if (file = base / "omui.config.json"; std::filesystem::is_regular_file(file, error)) {
+        // Its snapshot, where the module is not evaluated (a page: the page's build evaluated it).
+        std::ifstream in(file, std::ios::binary);
+        auto parsed = parse_json(std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()));
+        const Value* config = parsed ? parsed->get("config") : nullptr;
+        if (!config || !config->map()) return std::unexpected(std::format("{}: a config's snapshot ({{\"$format\": \"config@1\", \"config\": {{…}}}})", utf8(file)));
+        value = *config;
+    } else {
+        return out;
+    }
     const auto text_at = [&](std::string_view group, std::string_view key) -> std::optional<std::string> {
         const Value* g = value->get(group);
         const Value* v = g ? g->get(key) : nullptr;

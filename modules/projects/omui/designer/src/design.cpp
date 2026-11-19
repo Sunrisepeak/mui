@@ -172,6 +172,9 @@ private:
         semantic::Tree tree(rt);
         const auto by = rt.current_invocation();
         const Value* changes = done->get("changes");
+        // What the step does in its maker's words (`say`), else what it did, mechanically.
+        if (const Value* say = by ? by->args.get("say") : nullptr; say && say->type() == Value::Type::text && !say->as_string().empty())
+            what = std::string(say->as_string());
         auto commit = history.commit(design_texts(), intent.empty() ? std::move(what) : std::format("{} — {}", intent, what),
                                      by ? by->actor.text() : std::string("person"), agent::tree_hash(tree), std::nullopt,
                                      changes ? changes->json() : std::string());

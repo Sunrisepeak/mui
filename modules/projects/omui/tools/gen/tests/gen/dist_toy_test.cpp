@@ -246,7 +246,7 @@ static UTest cases{"gen.dist_toy", [] {
         expect(!gen::package_for_toy(p).has_value()) << "only under /later/";
     };
 
-    "the application's own files (a TS app's manifest and scripts): in the page, written into the program's file system before main"_test = [] {
+    "the application's own files (a TS app's manifest and scripts; a data module as its snapshot): in the page, written into the program's file system before main"_test = [] {
         Tree t;
         put(t.root / "app" / "mcpp.toml", "[package]\nname = \"tsdemo\"\n");
         put(t.root / "app" / "app" / "main.ts", "const greeting: string = \"</script> \\\\ \u00e9\";\nexport {};\n");
@@ -270,6 +270,22 @@ static UTest cases{"gen.dist_toy", [] {
         expect(!std::ranges::any_of(r->files, [](const gen::ToyFile& f) { return f.path.ends_with(".ts") || f.path.ends_with(".toml"); })) << "no files of their own";
         p.files = {{"app/main.ts", t.root / "app" / "app" / "main.ts"}};
         expect(!gen::package_for_toy(p).has_value()) << "a path in the program is absolute";
+        // A data module goes as its snapshot, evaluated as the page is made: a page does not evaluate data modules.
+        put(t.root / "app" / "omui.config.ts",
+            "import { defineConfig } from \"omui/define\";\nexport default defineConfig({ generation: { open: { release: \"data\" } } });\n");
+        p.files = {{"/omui.config.json", t.root / "app" / "omui.config.ts", true}};
+        const auto config = gen::package_for_toy(p);
+        expect(config.has_value()) << (config ? "" : config.error());
+        const std::string with_config = read(t.root / "out" / "game" / "index.html");
+        const auto config_at = with_config.find("var omuiFiles = "), config_end = with_config.find(";\n", config_at);
+        const auto carried = nlohmann::json::parse(with_config.substr(config_at + 16, config_end - config_at - 16), nullptr, false);
+        const auto snapshot = nlohmann::json::parse(carried.is_object() ? carried.value("/omui.config.json", "") : std::string(), nullptr, false);
+        expect(!snapshot.is_discarded() && snapshot.contains("config") && snapshot["config"]["generation"]["open"]["release"] == "data")
+            << "the snapshot, not the module: " << carried.dump();
+        put(t.root / "app" / "broken.config.ts", "export default 1 +;\n");
+        p.files = {{"/omui.config.json", t.root / "app" / "broken.config.ts", true}};
+        const auto broken = gen::package_for_toy(p);
+        expect(!broken.has_value() && broken.error().contains("broken.config.ts")) << (broken ? "packed" : broken.error());
         put(t.root / "app" / "logo.bin", std::string("\xff\xfe\x00", 3));
         p.files = {{"/logo.bin", t.root / "app" / "logo.bin"}};
         const auto binary = gen::package_for_toy(p);

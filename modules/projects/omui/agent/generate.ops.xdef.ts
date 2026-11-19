@@ -44,7 +44,7 @@ export default defineOps({
     {
       name: "generate.preview",
       effect: "read",
-      summary: "A prepared draft shown without being kept: mounted at its surface unseen, the window's picture before and after (PNG) and the semantic changes it would bring, then the surface as it was",
+      summary: "A prepared draft shown without being kept: mounted at its surface unseen, the window's picture before and after (PNG; SVG where the host keeps no pixels to read, a page) and the semantic changes it would bring, then the surface as it was",
       params: [{ name: "draft", type: "string", doc: "a draft generate.draft answered" }],
       result: "json",
       cost: "bounded",

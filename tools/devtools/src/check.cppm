@@ -72,6 +72,9 @@
 // dist-toy-loading  omui.gen's dist_toy tests, then the generated loader they wrote run against the browser's own
 //           fetch, streams and WebAssembly over real gzip HTTP: failures, retries, shared font transfers
 //           (target/dist-toy-loading.report.xdef.json).
+// live-page the design shown in place and the customization of a page as it ships (G8): a page built for the Web
+//           (example 13's) in a real browser through window.omui — the replay, a look and a view document committed,
+//           kept across a reload, exported and imported to the same picture (target/live-page.json).
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.
@@ -122,6 +125,10 @@ struct Size {
 // machine (the browser's local network access permission).
 [[nodiscard]] int visitor_path(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui,
                                std::string_view url = {}, bool allow_local = false);
+// The design shown in place and the customization of a page as it ships (G8): the page `built` (example 13's when
+// empty) in a real browser through window.omui — the replay, a look previewed, committed and undone, a view document
+// in a surface, a reload, the layer exported and imported to the same picture (target/live-page.json).
+[[nodiscard]] int live_page(const std::filesystem::path& root, const std::filesystem::path& built);
 // The generated loader against the browser's own streams, failures and retries (fixture: omui.gen's dist_toy test
 // run first and its own used, when not given).
 [[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);

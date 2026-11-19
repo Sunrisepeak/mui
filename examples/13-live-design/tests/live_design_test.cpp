@@ -6,7 +6,9 @@
 // springs too far), fixes it, keeps the person's demonstration as a test, goes
 // back through the history and out on a branch, films the design and writes it
 // to the file. Each edit within a frame (p95 ≤ 16 ms). The application starts
-// as `omui new` leaves one.
+// as `omui new` leaves one (design/start.ts); it ends as app/main.ts is, and the
+// design's replay as design/main.replay.xdef.json is (OMUI_EXAMPLE_WRITE=1
+// writes the two instead of comparing them, for a change of the design that is meant).
 import std;
 import mcpplibs.mtest;
 import omui;
@@ -15,6 +17,8 @@ import omui.entry.player;
 import omui.designer;
 import omui.lang.js;
 import omui.lang.ts;
+import mlibs.agent;
+import mcpplibs.os;
 
 using namespace mcpplibs::mtest;
 using namespace omui;
@@ -26,6 +30,28 @@ std::filesystem::path here() { return std::filesystem::path(std::source_location
 std::string file_text(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
     return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+// A file's text without the guide's region markers (`// docs: …` lines).
+std::string without_docs(std::string_view text) {
+    std::string out;
+    for (std::size_t at = 0; at < text.size();) {
+        auto end = text.find('\n', at);
+        if (end == std::string_view::npos) end = text.size();
+        const std::string_view line = text.substr(at, end - at);
+        if (!line.starts_with("// docs:")) out.append(line).append(end < text.size() ? "\n" : "");
+        at = end + 1;
+    }
+    return out;
+}
+
+// What the design came to, against the file the example keeps (or written there when asked).
+void pinned(const std::filesystem::path& kept, const std::string& made) {
+    if (mcpplibs::os::env::get("OMUI_EXAMPLE_WRITE") == "1") {
+        std::ofstream(kept, std::ios::binary) << made;
+        return;
+    }
+    expect(file_text(kept) == made) << kept.generic_string() << " is not what the design came to (OMUI_EXAMPLE_WRITE=1 writes it, for a change that is meant)";
 }
 
 std::string name_of(Headless& h, std::string_view id) {
@@ -66,14 +92,14 @@ private:
 
 // The page as the agent first writes it: what it is for, the plans.
 constexpr std::string_view first_page = R"ts(// Subscription settings: the plan, how it is paid, whether it renews.
-import { signal, select, column, row, text, button, toggle, radio, box, mount } from "openmui";
+import { signal, select, column, row, text, button, toggle, radio, box, slot, mount } from "openmui";
 
 const plan = signal("pro");
 const yearly = signal(false);
 const renew = signal(false);
 
 mount("main", column({ padding: 20, gap: 12 }, [
-  text({ id: "title", text: "Subscription", style: "title" }),
+  text({ id: "title", text: "Subscription", style: "title", role: "heading", level: 1 }),
   row({ id: "plans", gap: 10 }, [
     radio({ id: "basic", value: "basic", group: plan, label: "Basic · $4" }),
     radio({ id: "pro", value: "pro", group: plan, label: "Pro · $9" }),
@@ -88,13 +114,19 @@ UTest cases{"example.live-design", [] {
     register_base_components();
 
     "an agent designs the page live; the person tries it; the facts, a fix, a test, the history and a film"_test = [] {
-        // The application as `omui new` leaves it, in a scratch copy (the scenario and the film are written beside it).
+        // The application as `omui new` leaves it (design/start.ts is the template's text for it), in a scratch copy
+        // (the scenario, the film and the replay are written beside it).
+        const std::string start = without_docs(file_text(here() / "design" / "start.ts"));
+        std::string from_template = file_text(here().parent_path().parent_path() / "modules/projects/omui/sdk/templates/app-ts/app/main.ts.in");
+        for (std::size_t at = from_template.find("{{project.name}}"); at != std::string::npos; at = from_template.find("{{project.name}}", at))
+            from_template.replace(at, std::string_view("{{project.name}}").size(), "subscription");
+        expect(start == from_template) << "design/start.ts is what omui new writes";
         const auto dir = std::filesystem::temp_directory_path() / "omui-example-live-design";
         std::error_code error;
         std::filesystem::remove_all(dir, error);
         std::filesystem::create_directories(dir / "app", error);
         std::filesystem::copy_file(here() / "mcpp.toml", dir / "mcpp.toml", error);
-        std::filesystem::copy_file(here() / "app" / "main.ts", dir / "app" / "main.ts", error);
+        std::ofstream(dir / "app" / "main.ts", std::ios::binary) << start;
         auto manifest = read_manifest(dir / "mcpp.toml");
         expect(manifest.has_value()) << (manifest ? "" : manifest.error());
         if (!manifest) return;
@@ -135,15 +167,17 @@ UTest cases{"example.live-design", [] {
 
         // The agent designs it: the page in TypeScript, then each part where it belongs, then the title.
         (void)done("design.begin", Value{}.set("intent", "a subscription settings page"));
-        (void)done("design.edit", Value{}.set("path", "app/main.ts").set("text", first_page));
+        (void)done("design.edit", Value{}.set("path", "app/main.ts").set("text", first_page).set("say", "the page: its title and the three plans"));
         expect(eq(name_of(h, "main/title"), std::string("Subscription")));
-        for (const std::string_view part :
-             {R"(toggle({ id: "yearly", checked: yearly, label: "Pay yearly: two months free" }))",
-              R"(toggle({ id: "renew", checked: renew, label: "Renew automatically" }))",
-              R"(box({ id: "details", height: select(renew, 72, 0), background: "#e0f2fe", radius: 10, animate: { height: { spring: { stiffness: 260, damping: 9 } } } }))",
-              R"(button({ id: "save", text: "Save", variant: "primary" }))"})
-            (void)done("design.insert", Value{}.set("parent", "main").set("code", part));
-        (void)done("design.set", Value{}.set("node", "main/title").set("props", Value{}.set("text", "Your subscription")));
+        for (const auto& [part, say] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
+                 {R"(toggle({ id: "yearly", checked: yearly, label: "Pay yearly: two months free" }))", "yearly billing, two months free"},
+                 {R"(toggle({ id: "renew", checked: renew, label: "Renew automatically" }))", "automatic renewal"},
+                 {R"(box({ id: "details", height: select(renew, 72, 0), background: "#e0f2fe", radius: 10, animate: { height: { spring: { stiffness: 260, damping: 9 } } } }))",
+                  "the renewal's details, opening while it is on"},
+                 {R"(slot("extras"))", "a place for what a user's agent adds"},
+                 {R"(button({ id: "save", text: "Save", variant: "primary" }))", "the Save button"}})
+            (void)done("design.insert", Value{}.set("parent", "main").set("code", part).set("say", say));
+        (void)done("design.set", Value{}.set("node", "main/title").set("props", Value{}.set("text", "Your subscription")).set("say", "the title, said to the person"));
         expect(eq(name_of(h, "main/title"), std::string("Your subscription")));
         expect(h.tree().node("main/save").has_value() && h.tree().node("main/details").has_value());
         const std::string written = file_text(dir / "app" / "main.ts");
@@ -179,7 +213,10 @@ UTest cases{"example.live-design", [] {
         expect(sprang > 0.2) << sprang;
 
         // The fix the person agrees to: more damping. The facts again.
-        (void)done("design.set", Value{}.set("node", "main/details").set("props", Value{}.set("animate", Value{}.set("height", Value{}.set("spring", Value{}.set("stiffness", 260).set("damping", 26))))));
+        (void)done("design.set", Value{}
+                                     .set("node", "main/details")
+                                     .set("props", Value{}.set("animate", Value{}.set("height", Value{}.set("spring", Value{}.set("stiffness", 260).set("damping", 26)))))
+                                     .set("say", "a calmer spring: the details sprang 40% past, the person allows 10%"));
         const Value again = done("design.check");
         expect(again.get("held")->as_int() == 2) << again.json();
 
@@ -213,6 +250,19 @@ UTest cases{"example.live-design", [] {
         expect(final_text.contains("Your subscription") && final_text.contains("\"damping\":26") && final_text.contains("id: \"save\"")) << final_text;
         auto compiled = mlibs::ts::compile(dir / "app" / "main.ts");
         expect(compiled.has_value()) << (compiled ? "" : compiled.error().text());
+        pinned(here() / "app" / "main.ts", final_text);
+
+        // The design as the replay the application ships (design.history.export): played in it, in place, by
+        // generate.replay (omui.config.ts names it) — from the page omui new leaves to the page it is.
+        const Value exported = done("design.history.export", Value{}.set("out", (dir / "main.replay.xdef.json").generic_string()));
+        expect(exported.get("steps")->as_int() >= 9) << exported.json();
+        const std::string replay_text = file_text(dir / "main.replay.xdef.json");
+        expect(replay_text.contains("\"5/9 · the renewal's details, opening while it is on\"")) << "each step in its maker's words";
+        const auto replay = mlibs::agent::read_replay(replay_text, "main.replay.xdef.json");
+        expect(fatal(replay.has_value())) << (replay ? "" : replay.error());
+        expect(replay->steps.front().texts.at("app/main.ts") == start && replay->steps.back().texts.at("app/main.ts") == final_text)
+            << "from the page omui new leaves to the page as it ships";
+        pinned(here() / "design" / "main.replay.xdef.json", replay_text);
 
         // Each edit within a frame.
         expect(took.size() >= 7) << took.size();

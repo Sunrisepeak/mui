@@ -69,6 +69,7 @@ export default defineOps({
       params: [
         { name: "path", type: "string", doc: "a script or a module it imports, as design.sources names it" },
         { name: "text", type: "string", doc: "its whole new text" },
+        { name: "say", type: "string", doc: "what the step does, in words: its commit's message, its caption in the film and the replay (what it did, mechanically, when absent)", optional: true },
       ],
       result: "json",
       cost: "bounded",
@@ -81,6 +82,7 @@ export default defineOps({
       params: [
         { name: "node", type: "node", doc: "a node a script built" },
         { name: "props", type: "json", doc: "{name: value} as its contract names them (snapshot, design.api); null takes one out" },
+        { name: "say", type: "string", doc: "what the step does, in words: its commit's message, its caption in the film and the replay (what it did, mechanically, when absent)", optional: true },
       ],
       result: "json",
       cost: "bounded",
@@ -94,6 +96,7 @@ export default defineOps({
         { name: "parent", type: "node", doc: "the node whose builder call gets the child" },
         { name: "code", type: "string", doc: "the element: text({ id: \"help\", text: \"Help\" })" },
         { name: "index", type: "integer", doc: "before the child at this index (last when absent)", optional: true },
+        { name: "say", type: "string", doc: "what the step does, in words: its commit's message, its caption in the film and the replay (what it did, mechanically, when absent)", optional: true },
       ],
       result: "json",
       cost: "bounded",
@@ -105,6 +108,7 @@ export default defineOps({
       summary: "Takes a node's builder call out of the list of children it is in (with its comma, and its line when it had one); run as design.edit runs an edit. A node built outside a list (a function's result, a condition) is refused: edit the code around it",
       params: [
         { name: "node", type: "node", doc: "a node a script built" },
+        { name: "say", type: "string", doc: "what the step does, in words: its commit's message, its caption in the film and the replay (what it did, mechanically, when absent)", optional: true },
       ],
       result: "json",
       cost: "bounded",

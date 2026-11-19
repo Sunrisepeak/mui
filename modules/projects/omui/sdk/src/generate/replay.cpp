@@ -96,14 +96,17 @@ void Replayer::present() {
     const float width = std::clamp(window.width - 48.0f, 120.0f, 420.0f);
     track_ = width - 28.0f;
     played_.set(0.0f);
-    runtime_.mount(slot, column({.width = window.width, .height = window.height, .padding = 14, .justify = "end", .align = "center"},
+    Element over = column({.width = window.width, .height = window.height, .padding = 14, .justify = "end", .align = "center"},
                                 {column({.id = "replay", .width = width, .padding = Edges(10.0f, 14.0f), .gap = 6, .background = "tooltip", .radius = 12,
                                          .shadow = "md", .label = "The design, step by step"},
                                         {text({.id = "who", .text = who_, .style = "caption", .color = "on_tooltip", .opacity = 0.72f}),
                                          text({.id = "caption", .text = caption_, .style = "label", .color = "on_tooltip", .max_lines = 2,
                                                .max_width = track_}),
                                          box({.id = "track", .width = track_, .height = 3, .background = "track", .radius = 1.5f},
-                                             {box({.id = "played", .width = played_, .height = 3, .background = "accent", .radius = 1.5f})})})}));
+                                             {box({.id = "played", .width = played_, .height = 3, .background = "accent", .radius = 1.5f})})})});
+    // It takes no pointer: the application under it is a real interface, used as it plays.
+    over.prop("pointer_events", Prop<std::string>(std::string("none")));
+    runtime_.mount(slot, std::move(over));
 }
 
 Value Replayer::state() const {

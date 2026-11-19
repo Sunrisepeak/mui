@@ -480,7 +480,12 @@ struct Generation::Impl {
         const Rect window{0, 0, runtime.size().width, runtime.size().height};
         const auto picture = [&]() -> Value {
             auto png = options.capture ? options.capture(window) : runtime.capture_png(window);
-            if (!png && !options.capture) return Value{};  // a host that draws no pixels: the changes say it
+            if (!png && !options.capture) {
+                // A host that keeps no pixels to read now (a page draws on its canvas): the picture as vectors, drawn
+                // from what the runtime would draw (D-142); none at all, the changes say it.
+                if (auto svg = runtime.capture_svg(window)) return Value{}.set("format", "svg").set("text", std::move(*svg));
+                return Value{};
+            }
             if (!png) return Value{}.set("error", png.error().text());
             return Value{}.set("format", "png").set("base64", mlibs::base64::encode(*png));
         };

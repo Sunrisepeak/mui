@@ -37,6 +37,7 @@ namespace omui::gen {
     struct File {
       std::string path;
       std::filesystem::path source;
+      bool data = false;
     };
     std::vector<File> files;
     struct Subset {

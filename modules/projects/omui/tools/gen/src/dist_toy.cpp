@@ -4,6 +4,7 @@ import std;
 import mcpplibs.cmdline;
 import mlibs.hash;
 import nlohmann.json;
+import omui.lang.ts;
 import omui.gen.font_subset;
 
 namespace omui::gen {
@@ -842,6 +843,11 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
         if (!f.path.starts_with('/')) return std::unexpected(std::format("a file's path in the program's file system is absolute ({})", f.path));
         auto bytes = read(f.source);
         if (!bytes) return std::unexpected(bytes.error());
+        if (f.data) {
+            auto evaluated = omui::lang::ts::evaluate(f.source);
+            if (!evaluated) return std::unexpected(std::format("{}: {}", utf8(f.source), evaluated.error().text()));
+            bytes = evaluated->snapshot();
+        }
         try {
             (void)nlohmann::json(*bytes).dump();  // text the page can carry: UTF-8
         } catch (const nlohmann::json::exception&) {
@@ -909,11 +915,12 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
         if (bar1 == std::string::npos || bar2 == std::string::npos) return usage("--later is <dir>|<suffix>|<mount>");
         p.later.push_back({value.substr(0, bar1), value.substr(bar1 + 1, bar2 - bar1 - 1), value.substr(bar2 + 1)});
     }
-    for (const std::string& value : args.option_or_empty("file").values) {  // <path in the program>=<file>
-        const auto eq = value.find('=');
-        if (eq == std::string::npos) return usage("--file is <path in the program>=<file>");
-        p.files.push_back({value.substr(0, eq), fs::path(std::u8string(value.begin() + static_cast<std::ptrdiff_t>(eq) + 1, value.end()))});
-    }
+    for (const auto& [option, data] : {std::pair{"file", false}, std::pair{"data", true}})
+        for (const std::string& value : args.option_or_empty(option).values) {  // <path in the program>=<file>
+            const auto eq = value.find('=');
+            if (eq == std::string::npos) return usage(std::format("--{} is <path in the program>=<file>", option));
+            p.files.push_back({value.substr(0, eq), fs::path(std::u8string(value.begin() + static_cast<std::ptrdiff_t>(eq) + 1, value.end())), data});
+        }
     if (p.stage.empty() || p.target.empty() || p.out.empty()) return usage("a staged tree, --target and --out");
     auto document = document_of(args);
     if (!document) return usage(document.error());

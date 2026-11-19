@@ -327,6 +327,25 @@ struct Player::Impl {
         return answer;
     }
 
+    // A page cannot wait for a module's evaluation (it settles later, without -sASYNCIFY): `text` started as the
+    // script, its problems said when it settles (collect_runs). Where it can wait: run_text.
+    static constexpr bool waits = !mcpplibs::os::is_emscripten;
+    Status start_text(File& f, std::string_view text) {
+        auto code = compiled(f, text);
+        if (!code) return std::unexpected(code.error());  // nothing ran
+        if (!f.engine) return std::unexpected(Failure{mlibs::error::Kind::refused, std::format("{} is not running", name(f.path))});
+        if (options.design) rt.present_design();
+        pending.emplace_back(name(f.path), f.engine->reload(std::move(*code), generic_utf8(full(f.path))));
+        return {};
+    }
+    Status run_or_start(File& f, std::string_view text) {
+        if constexpr (waits) {
+            if (auto ran = run_text(f, text); !ran) return std::unexpected(ran.error());
+            return {};
+        }
+        return start_text(f, text);
+    }
+
     // Runs `text` as the script, waited for; the semantic changes it made.
     std::expected<Value, Failure> run_text(File& f, std::string_view text) {
         auto code = compiled(f, text);
@@ -416,7 +435,7 @@ struct Player::Impl {
         for (auto it = edited.begin(); it != edited.end();) {
             if (File* f = script_named(it->first)) {
                 if (const auto file_text = read_file(full(f->path)))
-                    if (auto ran = run_text(*f, *file_text); !ran) problem(ran.error().text());
+                    if (auto ran = run_or_start(*f, *file_text); !ran) problem(ran.error().text());
             } else if (File* owner = owner_of(it->first)) {
                 owner->engine->module_changed(full(it->first), std::nullopt);
                 if (std::ranges::find(again, owner) == again.end()) again.push_back(owner);
@@ -425,7 +444,7 @@ struct Player::Impl {
             it = edited.erase(it);
         }
         for (File* owner : again)
-            if (auto ran = run_text(*owner, running_text(*owner).value_or(std::string())); !ran) problem(ran.error().text());
+            if (auto ran = run_or_start(*owner, running_text(*owner).value_or(std::string())); !ran) problem(ran.error().text());
         return Value{}.set("discarded", Value(std::move(dropped)));
     }
 
@@ -535,10 +554,21 @@ Status Player::start() {
 }
 
 Status Player::show(const std::map<std::string, std::string>& texts) {
+    Impl& d = *impl_;
     for (const auto& [path, text] : texts) {
-        const auto now = impl_->source_text(path);
+        const auto now = d.source_text(path);
         if (now && *now == text) continue;
-        if (auto done = impl_->edit_source(path, text); !done) return std::unexpected(Failure{done.error().kind, std::format("{}: {}", path, done.error().message)});
+        if constexpr (!Impl::waits) {
+            // A page: the script started with the text, shown when its evaluation settles (a module's own edit
+            // needs its script run again, waited for: refused here as edit_source refuses it).
+            if (Impl::File* f = d.script_named(path)) {
+                if (auto started = d.start_text(*f, text); !started)
+                    return std::unexpected(Failure{started.error().kind, std::format("{}: {}", path, started.error().message)});
+                d.edited[path] = text;
+                continue;
+            }
+        }
+        if (auto done = d.edit_source(path, text); !done) return std::unexpected(Failure{done.error().kind, std::format("{}: {}", path, done.error().message)});
     }
     return {};
 }

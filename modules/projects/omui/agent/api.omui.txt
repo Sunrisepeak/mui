@@ -109,10 +109,10 @@ namespace omui::agent::design {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_begin{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_pace{…};
   inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_locate{…};
-  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_edit{…};
-  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_set{…};
-  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_insert{…};
-  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_remove{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_edit{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_set{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_insert{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_remove{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_preview{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_variants{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_variants_pick{…};

@@ -75,6 +75,9 @@ struct ToyPackage {
     struct File {
         std::string           path;    // in the program's file system: /mcpp.toml
         std::filesystem::path source;  // read when the page is made
+        // A TypeScript data module (omui.config.ts): evaluated when the page is made, its JSON snapshot at `path` —
+        // a page reads data, it does not evaluate data modules (mlibs.ts.not-here).
+        bool data = false;
     };
     std::vector<File>     files;
     // A font cut down to the characters these files hold (text: .md, .cpp,

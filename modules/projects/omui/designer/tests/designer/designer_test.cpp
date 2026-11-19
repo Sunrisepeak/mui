@@ -612,7 +612,9 @@ static UTest cases{"designer", [] {
         for (const std::string_view words : {"two", "three"}) {
             std::string text = doc;
             text.replace(text.find("\"one\""), 5, std::format("\"{}\"", words));
-            expect(eq(invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", text)).first, 0));
+            Value args = Value{}.set("path", "logic/side.stub").set("text", text);
+            if (words == "three") args.set("say", "the last word");  // the step in its maker's words
+            expect(eq(invoke("design.edit", std::move(args)).first, 0));
         }
         const auto [filmed, film] = invoke("design.film", Value{}.set("fps", 10).set("seconds", 0.3));
         expect(eq(filmed, 0)) << film.json();
@@ -632,6 +634,9 @@ static UTest cases{"designer", [] {
         Value::List steps = *script->get("film")->get("steps")->list();
         expect(fatal(steps.size() == 3));
         expect(steps[0].get("caption")->as_string().starts_with("1/3") && steps[0].get("camera")->is_null()) << steps[0].json();
+        expect(eq(std::string(steps[1].get("caption")->as_string()), std::string("2/3 · edit logic/side.stub")) &&
+               eq(std::string(steps[2].get("caption")->as_string()), std::string("3/3 · the last word")))
+            << "what a step did, or what its maker said it does";
         steps[1].set("keep", false);
         steps[2].set("caption", "The end").set("seconds", 1.0).set("camera", Value{}.set("node", "side/hello"));
         Value edited = *script->get("film");

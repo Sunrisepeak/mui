@@ -515,6 +515,7 @@ mcpplibs::cmdline::App command_line() {
                         .option(Option("no-sdk").help("a program without the SDK"))
                         .option(Option("later").takes_value().multiple().value_name("DIR|SUFFIX|MOUNT").help("files loaded after the first frame"))
                         .option(Option("file").takes_value().multiple().value_name("PATH=FILE").help("a file in the program's file system before main (written into the page)"))
+                        .option(Option("data").takes_value().multiple().value_name("PATH=FILE").help("a TypeScript data module evaluated now, its JSON snapshot at PATH (a page does not evaluate data modules)"))
                         .option(Option("subset").takes_value().multiple().value_name("FONT=PATH,…").help("a font cut to these files' text"))
                         .option(Option("font-languages").takes_value().multiple().value_name("FONT=LANG,…").help("a font's languages"))
                         .option(Option("font-initial").takes_value().multiple().value_name("FONT=TEXT").help("a font's first screen's text"))

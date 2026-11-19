@@ -36,7 +36,10 @@ Replayer::Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn sh
 Replayer::~Replayer() {
     if (timer_) runtime_.cancel(timer_);
     for (const std::string& maker : noted_) runtime_.note({.actor = maker});
+    if (mounted_) runtime_.unmount(slot);  // its controls call back here
 }
+
+void Replayer::said_playing() { toggle_.set(timer_ ? "Pause" : "Play"); }
 
 std::expected<void, std::string> Replayer::play(std::size_t from, double speed) {
     if (from == 0 || from > replay_.steps.size())
@@ -45,12 +48,14 @@ std::expected<void, std::string> Replayer::play(std::size_t from, double speed) 
     pause();
     if (auto shown = show(from); !shown) return shown;
     schedule();
+    said_playing();
     return {};
 }
 
 void Replayer::pause() {
     if (timer_) runtime_.cancel(timer_);
     timer_ = 0;
+    said_playing();
 }
 
 std::expected<void, std::string> Replayer::at(std::size_t step) {
@@ -67,7 +72,8 @@ void Replayer::stop() {
     at_ = 0;
     for (const std::string& maker : noted_) runtime_.note({.actor = maker});  // what they said withdrawn
     noted_.clear();
-    runtime_.unmount(slot);
+    if (mounted_) runtime_.unmount(slot);
+    mounted_ = false;
 }
 
 std::expected<void, std::string> Replayer::show(std::size_t step) {
@@ -84,7 +90,7 @@ std::expected<void, std::string> Replayer::show(std::size_t step) {
     caption_.set(shown.caption);
     who_.set(who_of(shown.actor));
     if (first) present();
-    played_.set(static_cast<double>(step) / static_cast<double>(replay_.steps.size()));
+    shown_.set(static_cast<double>(step));
     // Its maker at what the step built: a note there (the presence shows it); a step that names no node withdraws
     // the last one's.
     if (!shown.actor.empty()) {
@@ -102,6 +108,7 @@ void Replayer::schedule() {
         timer_ = 0;
         if (at_ < replay_.steps.size()) {
             if (show(at_ + 1)) schedule();
+            said_playing();
             return;
         }
         // The last step held its time: the application as it ships (the design's last step, when the replay is
@@ -112,22 +119,36 @@ void Replayer::schedule() {
 }
 
 // Over the application: the step's maker at what it built (the agent's presence, D-160: its colour, its frame and
-// what it said), and at the bottom who did the step and what it did, over how far the design has come. Its colours
-// are the theme's (a tooltip's ink on its pill); it takes no pointer, so the page under it is used as it plays.
+// what it said), and at the bottom a card — who did the step and what it did; Pause or Play, Close; a slider of the
+// steps the person scrubs, each step shown as it is reached. Only the card takes the pointer: the page around it is
+// used as it plays. Its colours and controls are the theme's.
 void Replayer::present() {
     const Size window = runtime_.size();
-    const float width = std::clamp(window.width - 48.0f, 120.0f, 420.0f), inner = width - 28.0f;
-    played_.set(0.0);
+    const float width = std::clamp(window.width - 32.0f, 160.0f, 440.0f), inner = width - 28.0f;
+    const auto steps = static_cast<double>(replay_.steps.size());
+    const auto through = [](std::string_view way) { return Prop<std::string>(std::string(way)); };
+    Element card = column({.id = "replay", .width = width, .padding = Edges(10.0f, 14.0f), .gap = 6, .background = "surface", .border_color = "border",
+                           .border_width = 1, .radius = 12, .shadow = "md", .label = "The design, step by step"},
+                          {row({.id = "controls", .gap = 8, .align = "center"},
+                               {column({.id = "words", .gap = 2, .grow = 1},
+                                       {text({.id = "who", .text = who_, .style = "caption", .color = "text_muted"}),
+                                        text({.id = "caption", .text = caption_, .style = "label", .max_lines = 2, .max_width = inner - 150})}),
+                                button({.id = "play", .text = toggle_, .variant = ButtonVariant::ghost, .on_activated = [this] {
+                                            if (timer_) pause();
+                                            else (void)play(at_ == 0 ? 1 : at_, speed_);  // on from the step shown
+                                        }}),
+                                button({.id = "close", .text = "Close", .variant = ButtonVariant::ghost, .on_activated = [this] { stop(); }})}),
+                           slider({.id = "step", .label = "Step", .max = steps, .min = 1.0, .step = 1.0, .value = shown_, .on_changed = [this](double step) {
+                                       const auto reached = static_cast<std::size_t>(std::lround(step));
+                                       if (reached != at_) (void)at(reached);
+                                   }, .width = inner})});
+    Element bottom = column({.id = "dock", .width = window.width, .height = window.height, .padding = 14, .justify = "end", .align = "center"}, {std::move(card)});
+    bottom.prop("pointer_events", through("children"));
     Element over = stack({.width = window.width, .height = window.height},
-                         {agent_presence({.id = "presence", .actors = "agent:", .trail = 0, .width = window.width, .height = window.height}),
-                          column({.width = window.width, .height = window.height, .padding = 14, .justify = "end", .align = "center"},
-                                 {column({.id = "replay", .width = width, .padding = Edges(10.0f, 14.0f), .gap = 6, .background = "tooltip", .radius = 12,
-                                          .shadow = "md", .label = "The design, step by step"},
-                                         {text({.id = "who", .text = who_, .style = "caption", .color = "on_tooltip", .opacity = 0.72f}),
-                                          text({.id = "caption", .text = caption_, .style = "label", .color = "on_tooltip", .max_lines = 2, .max_width = inner}),
-                                          progress({.id = "played", .label = "How far the design has come", .value = played_, .width = inner})})})});
-    over.prop("pointer_events", Prop<std::string>(std::string("none")));
+                         {agent_presence({.id = "presence", .actors = "agent:", .trail = 0, .width = window.width, .height = window.height}), std::move(bottom)});
+    over.prop("pointer_events", through("children"));
     runtime_.mount(slot, std::move(over));
+    mounted_ = true;
 }
 
 Value Replayer::state() const {

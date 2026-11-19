@@ -290,6 +290,24 @@ static UTest cases{"generation", [] {
         expect(on_screen("Your plan · $4")) << "four times as fast: a quarter of a second each";
         (void)invoke(protocol, "generate.replay", Value{}.set("stop", true));
         expect(!on_screen("3/3 · in the person's words") && on_screen("Your plan · $4") && eq(ran.back(), std::string("as it ships")));
+
+        // The person's own controls on its card: Pause, the slider they scrub, Close.
+        Invocation person;
+        person.actor = {"person", "visitor", {}};
+        const auto press = [&](std::string_view node, std::string_view action, Value args = Value{}) {
+            person.args = std::move(args);
+            const int code = semantic::Tree(page.rt).act(node, action, person).exit_code().value_or(-1);
+            (void)page.rt.frame({page.rt.now(), {}});
+            return code;
+        };
+        (void)invoke(protocol, "generate.replay", Value{}.set("play", true));
+        expect(eq(press("generate.replay/dock/replay/controls/play", "activate"), 0) && !invoke(protocol, "generate.replay").data.get("playing")->as_bool() && on_screen("Play"))
+            << "paused by its button, which now says Play";
+        expect(eq(press("generate.replay/dock/replay/step", "set_value", Value{}.set("value", 3.0)), 0)) << "the slider scrubbed to step 3";
+        expect(eq(invoke(protocol, "generate.replay").data.get("at")->as_int(), std::int64_t{3}) && on_screen("Your plan · $4"));
+        expect(eq(press("generate.replay/dock/replay/controls/close", "activate"), 0) && eq(invoke(protocol, "generate.replay").data.get("at")->as_int(), std::int64_t{0}) &&
+               !on_screen("3/3 · in the person's words"))
+            << "closed: the page as it ships";
     };
 
     "a replay that does not read: said, at its place in its file"_test = [] {

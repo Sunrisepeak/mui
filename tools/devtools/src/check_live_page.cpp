@@ -110,6 +110,27 @@ int live_page(const fs::path& root, const fs::path& built) {
             step(std::ranges::any_of(names(), [](const std::string& name) { return name == "designer: the renewal's details, opening while it is on"; }),
                  "its maker shown at what it built: the agent's presence says the step");
             (void)picture("replay-5");
+            // The person's own controls on its card, with real clicks: Pause stops it where it is, Play goes on.
+            const auto click = [&](std::string_view id) {
+                const json answer = script.value(std::format("window.omui.snapshot({{root: {}, depth: 0}}).then(r => JSON.stringify(r.data))", q(id)));
+                const json data = json::parse(answer.is_string() ? answer.get<std::string>() : std::string("{}"), nullptr, false);
+                for (const json& found : at(data, "nodes"))
+                    if (const auto bounds = cdp::box(at(found, "bounds")); bounds && text(at(found, "id")) == id) {
+                        for (const std::string type : {"mouseMoved", "mousePressed", "mouseReleased"})
+                            script.call("Input.dispatchMouseEvent", {{"type", type}, {"x", (*bounds)[0] + (*bounds)[2] / 2}, {"y", (*bounds)[1] + (*bounds)[3] / 2},
+                                                                     {"button", "left"}, {"clickCount", 1}});
+                        script.sleep(400);
+                        return true;
+                    }
+                return false;
+            };
+            (void)invoke("generate.replay", {{"from", 2}});
+            const bool paused = click("generate.replay/dock/replay/controls/play") && !truthy(dig(invoke("generate.replay", json::object()), "data", "playing"));
+            step(paused && shows("Play"), "the person pauses it with a click on its card: the button says Play");
+            const bool resumed = click("generate.replay/dock/replay/controls/play") && truthy(dig(invoke("generate.replay", json::object()), "data", "playing"));
+            step(resumed, "and plays it on with another");
+            step(click("generate.replay/dock/replay/controls/close") && cdp::number(dig(invoke("generate.replay", json::object()), "data", "at")) == 0,
+                 "Close: the page as it ships");
             const json playing = invoke("generate.replay", {{"from", 1}, {"speed", 4}});
             step(truthy(dig(playing, "data", "playing")), "played from the first step, four times as fast", playing);
             const bool moved_on = script.until_time(

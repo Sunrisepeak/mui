@@ -3,11 +3,11 @@
 // design.history.export writes from the design's history) — played in the
 // running application, not as a film: each step's script texts run in place
 // of its scripts' (as an edit runs, its changes presented as an edit's are),
-// under the step's caption and a line of how far it has come, its maker shown at
+// under the step's caption and a slider of how far it has come, its maker shown at
 // what the step built (a note at the step's node: the agent's presence, D-160);
-// at the end the application's own scripts again. A person or an agent plays,
-// pauses, goes to a step and stops (generate.replay); every step shown is a
-// real interface.
+// at the end the application's own scripts again. A person (its play button,
+// the slider they scrub, Close) or an agent (generate.replay) plays, pauses,
+// goes to a step and stops; every step shown is a real interface.
 //
 //     omui::generate::Replayer replayer(runtime, *mlibs::agent::read_replay(text),
 //         [&](const auto& texts) { return player.show(texts); }, [&] { player.discard_edits(); });
@@ -64,8 +64,11 @@ private:
     bool                     ended_ = false;
     std::string              problem_;      // why the last step could not be shown
     Signal<std::string>      caption_{std::string()}, who_{std::string()};
-    Signal<double>           played_{0.0};  // how far the design has come, 0 … 1
+    Signal<double>           shown_{0.0};   // the step shown, on the person's slider (they scrub it)
+    Signal<std::string>      toggle_{std::string("Pause")};  // its play button's word
     std::set<std::string>    noted_;        // the makers whose notes it put up (withdrawn at the end)
+    bool                     mounted_ = false;
+    void                     said_playing();
 };
 
 }  // namespace omui::generate

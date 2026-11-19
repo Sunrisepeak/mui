@@ -14,7 +14,7 @@ What it shows is Live Design (D-149, D-151), played whole by `tests/live_design_
 6. **Back through the history.** The timeline shows the design two steps back. A branch tries a tighter layout from there, and the agent switches back.
 7. **A film of the design.** `design.film` runs each step as it was presented, under its caption, frame by frame. `omui design film` renders it to WebM with the engine's video toolkit (`xtools video render`).
 8. **Written to the file** (`design.commit`). The TypeScript is the one source, and it still compiles. The edits' p95 stays within a frame (16 ms).
-9. **The design ships with the page** (`design.history.export`). Every step's TypeScript, its caption and who made it go into a replay (`replay@1`) that the page plays in itself (`generate.replay`): each step a real interface, presented as an edit is, from the counter `omui new` wrote to the page as it ships. The test checks that `app/main.ts` and the replay are what the design came to (`OMUI_EXAMPLE_WRITE=1` writes them, for a change that is meant).
+9. **The design ships with the page** (`design.history.export`). Every step's TypeScript, its caption and who made it go into a replay (`replay@1`) that the page plays in itself (`generate.replay`, or the card's Play, slider and Close): each step a real interface, presented as an edit is, its maker framed at what it built, from the counter `omui new` wrote to the page as it ships. The test checks that `app/main.ts` and the replay are what the design came to (`OMUI_EXAMPLE_WRITE=1` writes them, for a change that is meant).
 
 ## As it ships
 

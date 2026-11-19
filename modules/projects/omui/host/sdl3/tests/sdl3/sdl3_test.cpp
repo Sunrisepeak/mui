@@ -357,6 +357,9 @@ static UTest cases{"host.sdl3", [] {
                                          .on = {{"press", [pressed](const Value&) { pressed.set(pressed.peek() + 1); }}}})}));
         d.step();
         accessibility::Mirror& m = *d.accessibility_mirror();
+        // Nothing is read while no assistive technology listens (none does here): its activation reads the mirror.
+        expect(d.accessibility_adapter()->active() || !m.id_of(accessibility::key_of("main/ok")).has_value()) << "nothing read while none listens";
+        (void)m.refresh();
         expect(m.id_of(accessibility::key_of("main/ok")).has_value()) << "the frame's nodes were told";
         bool named = false;
         m.each([&](const accessibility::Node& n) { named = named || (n.key == m.root() && n.label == "openmui test"); });
@@ -367,6 +370,8 @@ static UTest cases{"host.sdl3", [] {
             m.queue({.target = accessibility::key_of("main/ok"), .action = accessibility::Action::click});
         });
         const auto start = std::chrono::steady_clock::now();
+        // A timer the loop wakes for at the latest (nothing else wakes a loop at rest): a request lost fails, not hangs.
+        (void)d.runtime().after(seconds(10), [] {});
         for (int i = 0; i < 20 && pressed.peek() == 0; ++i) d.step(true);
         at.join();
         expect(pressed.peek() == 1) << "performed";

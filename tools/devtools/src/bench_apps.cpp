@@ -459,8 +459,10 @@ std::pair<std::vector<fs::path>, std::string> mapped_files(const fs::path& root,
     std::set<std::string> paths;
     if (const auto out = run::output(root, "pmap", {"-p", std::to_string(pid)}))
         for (const auto line : lines(*out)) {
+            // A mapping's line starts with its address; the first line is "<pid>:   <command line>".
             const auto slash = line.find(" /");
-            if (slash == std::string_view::npos || line.contains("(deleted)"))
+            if (slash == std::string_view::npos || line.contains("(deleted)") ||
+                line.find(':') < slash)
                 continue;
             paths.emplace(line.substr(slash + 1));
         }

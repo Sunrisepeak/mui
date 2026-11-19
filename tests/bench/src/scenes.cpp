@@ -245,6 +245,12 @@ struct Table {
         const std::vector<Line>& all = lines.peek();
         for (std::size_t at = 0; at < all.size(); at += step) all[at].label.set(all[at].label.peek() + " !!!");
     }
+    // Those labels as they were made: each update then changes the same rows by the same text (as the benchmark's
+    // page, where a label has at most its warm-ups' few appends), not labels longer by every pass before it.
+    void restore_every(std::size_t step) {
+        const std::vector<Line>& all = lines.peek();
+        for (std::size_t at = 0; at < all.size(); at += step) all[at].label.set(line(all[at].id).label.peek());
+    }
     void select_next() {
         const std::vector<Line>& all = lines.peek();
         if (all.empty()) return;
@@ -1328,7 +1334,12 @@ void add_framework_benchmarks() {
     add("core/rows/replace-1000", "all 1000 rows replaced by new ones (replace all rows)",
         rows_scene([](Table& table) { table.fill(1000); }, [](Table& table) { table.fill(1000); }));
     add("core/rows/update-every-10th", "every tenth row's label changed (partial update)",
-        rows_scene([](Table& table) { table.keep(1000); }, [](Table& table) { table.update_every(10); }));
+        rows_scene(
+            [](Table& table) {
+                table.keep(1000);
+                table.restore_every(10);
+            },
+            [](Table& table) { table.update_every(10); }));
     add("core/rows/select", "a row chosen, the one before it let go (select row)",
         rows_scene([](Table& table) { table.keep(1000); }, [](Table& table) { table.select_next(); }));
     add("core/rows/swap", "the second row and the next to last change places (swap rows)",

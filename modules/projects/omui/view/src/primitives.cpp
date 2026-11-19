@@ -9,6 +9,7 @@ import mlibs.text;
 import mlibs.image;
 import xrender.raster;
 import xrender.text;
+import mlibs.trace;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::warn;
@@ -206,6 +207,14 @@ struct TextNode {
     NodeId    node;
     mutable std::optional<mlibs::text::Paragraph> paragraph;
     mutable float laid = -1;
+    // Its size at the widths it was last measured at: a layout asks at a few (its max-content, the width it is given,
+    // in a measuring pass and again when placed), each answered by one paragraph layout.
+    struct Measured {
+        float width = -1;
+        Size  size;
+    };
+    mutable std::array<Measured, 4> measured;
+    mutable std::uint8_t measured_next = 0;
     mutable Point drawn_at;  // where its paragraph was drawn in its box
 
     void mount(Services& s, NodeId id) { services = &s; node = id; }
@@ -238,6 +247,7 @@ struct TextNode {
 
     mlibs::text::Paragraph& shaped(Services& s) const {
         if (!paragraph || paragraph->stale()) {
+            mlibs::trace::Span span("text.shape", "view");
             const Theme& theme = s.theme();
             const TextToken& tok = theme.text_style(style_token);
             mlibs::text::ParagraphStyle ps;
@@ -251,12 +261,14 @@ struct TextNode {
             ps.wrap = wrap;
             ps.max_lines = max_lines;
             paragraph.emplace(s.fonts(), text, std::move(ps));
-            laid = -1;
+            laid = std::numeric_limits<float>::infinity();  // a paragraph is made laid out on one line
+            measured = {};
         }
         return *paragraph;
     }
     void lay(mlibs::text::Paragraph& p, float width) const {
         if (width != laid) {
+            mlibs::trace::Span span("text.layout", "view");
             p.layout(width);
             laid = width;
         }
@@ -269,8 +281,15 @@ struct TextNode {
         else if (!wrap || aw.kind == mlibs::layout::Available::Kind::max_content) width = std::numeric_limits<float>::infinity();
         else if (aw.kind == mlibs::layout::Available::Kind::min_content) width = p.min_intrinsic_width() + width_slack;
         else width = aw.value + width_slack;
-        lay(p, width);
-        Size s = p.size();
+        Size s;
+        if (const auto known = std::ranges::find(measured, width, &Measured::width); known != measured.end()) {
+            s = known->size;
+        } else {
+            lay(p, width);
+            s = p.size();
+            measured[measured_next] = {width, s};
+            measured_next = static_cast<std::uint8_t>((measured_next + 1) % measured.size());
+        }
         return {w ? *w : s.width, s.height};
     }
     float baseline(MeasureContext& m, Size content) {

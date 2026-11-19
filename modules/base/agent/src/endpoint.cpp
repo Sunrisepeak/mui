@@ -80,12 +80,12 @@ struct Endpoint::Impl {
 
     void read_loop(std::stop_token stop, std::shared_ptr<Link> link) {
         std::string buffer;
+        // Its read blocks until there is something (no wake-ups at rest): stop() and a dropped link shut it down.
         while (!stop.stop_requested() && link->open) {
-            auto got = link->conn.read_for(std::chrono::milliseconds(100));
-            if (!got) break;                  // closed or failed
-            if (!*got) continue;              // nothing yet
-            if (got->value().empty()) break;  // end of stream
-            buffer += **got;
+            auto got = link->conn.read();
+            if (!got) break;            // closed or failed
+            if (got->empty()) break;    // end of stream, or shut down
+            buffer += *got;
             for (auto nl = buffer.find('\n'); nl != std::string::npos; nl = buffer.find('\n')) {
                 std::string line = buffer.substr(0, nl);
                 buffer.erase(0, nl + 1);
@@ -128,12 +128,13 @@ struct Endpoint::Impl {
         }
     }
 
+    // Its accept blocks (no wake-ups at rest): a connection of its own wakes it to see it is asked to stop.
     void accept_loop(std::stop_token stop) {
         while (!stop.stop_requested()) {
-            auto connection = listener.accept_for(std::chrono::milliseconds(100));
+            auto connection = listener.accept();
+            if (stop.stop_requested()) break;
             if (!connection) break;
-            if (!*connection) continue;
-            take(std::move(**connection), true);
+            take(std::move(*connection), true);
         }
     }
 };
@@ -188,6 +189,7 @@ void Endpoint::stop() {
     Impl& d = *impl_;
     if (!d.running) return;
     d.acceptor.request_stop();
+    (void)ipc::connection::connect(d.directory, d.options.name);
     if (d.acceptor.joinable()) d.acceptor.join();
     if (d.loopback) {
         // Its accept blocks: a connection of its own wakes it to see it is asked to stop.
@@ -200,7 +202,10 @@ void Endpoint::stop() {
     std::vector<std::jthread> readers;
     {
         std::scoped_lock guard(d.lock);
-        for (auto& link : d.links) link->open = false;
+        for (auto& link : d.links) {
+            link->open = false;
+            link->conn.shutdown();  // a reader blocked in its read wakes with the end
+        }
         readers = std::move(d.readers);
     }
     for (auto& reader : readers) reader.request_stop();
@@ -261,6 +266,7 @@ std::size_t Endpoint::pump() {
         std::scoped_lock guard(d.lock);
         for (auto it = d.links.begin(); it != d.links.end();) {
             if (!(*it)->open && !std::ranges::any_of(d.inbox, [&](const Incoming& waiting) { return waiting.link == *it; })) {
+                (*it)->conn.shutdown();  // its reader, if still in a read, ends
                 d.sessions.erase(it->get());
                 it = d.links.erase(it);
             } else {

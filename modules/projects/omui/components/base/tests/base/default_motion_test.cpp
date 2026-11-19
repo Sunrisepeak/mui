@@ -141,11 +141,11 @@ Element card_of(int& presses) {
 static UTest cases{"ui.base.default-motion", [] {
     register_base_components();
 
-    "39 typed defaults reference existing compositions of shared primitives"_test = [] {
+    "40 typed defaults reference existing compositions of shared primitives"_test = [] {
         const auto recipes = default_component_motion_recipes();
         const auto library = default_motion_library();
         const auto rules = default_motion_rules();
-        expect(eq(recipes.size(), std::size_t{39}));
+        expect(eq(recipes.size(), std::size_t{40}));
         std::set<std::string_view> names;
         for (const auto& recipe : recipes) {
             expect(names.insert(recipe.component).second) << "one entry per component type";
@@ -171,7 +171,7 @@ static UTest cases{"ui.base.default-motion", [] {
                 }
             }
         }
-        expect(names.contains("actor_log") && names.contains("text_box") && names.contains("code_editor") && names.contains("agent_presence") && names.contains("timeline"));
+        expect(names.contains("actor_log") && names.contains("text_box") && names.contains("code_editor") && names.contains("agent_presence") && names.contains("timeline") && names.contains("path"));
         expect(std::ranges::none_of(rules, [](const MotionRule& r) { return r.target == "*"; })) << "no blanket recipe for every drawing";
     };
 

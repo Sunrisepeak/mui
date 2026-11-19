@@ -295,7 +295,10 @@ std::span<const ComponentMotionRecipe> default_component_motion_recipes() {
         // style's recipes like every part; the framework's default, for every host and style pack.
         {"agent_presence", "default.structure", "none", "default.notice", "default.notice"},
         // A course of steps on any shape (G8): its playhead and the part played carried to the step.
-        {"timeline", "default.value", "default.focus", "default.reveal", "default.reveal"}
+        {"timeline", "default.value", "default.focus", "default.reveal", "default.reveal"},
+        // A vector shape (G5): one shape becoming another (the site's mark becoming Mui) and its stroke drawn further,
+        // matched and morphed as any drawing, at the structure's gentle pace.
+        {"path", "default.structure", "default.focus", "default.reveal", "default.reveal"}
     };
     return recipes;
 }

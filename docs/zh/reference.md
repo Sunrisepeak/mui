@@ -32,7 +32,7 @@
 | [inspector.ops.xdef.ts](../../modules/projects/xtools/inspector/inspector.ops.xdef.ts) | `inspector` | 22 | Read, edit, step and replay the Inspector's cellular material field; look at, point into and tune a hanim animation document. | [inspector.ops.md](../../modules/projects/xtools/inspector/src/catalog/inspector.ops.md) |
 | [breakout.ops.xdef.ts](../../showcase/widget-breakout/breakout.ops.xdef.ts) | `breakout` | 8 | Play the component breakout as an agent: at the human tier as a person plays, or assisted with the field's direct actions. | [breakout.ops.md](../../showcase/widget-breakout/media/ops/breakout.ops.md) |
 
-## 组件契约（83 个）
+## 组件契约（84 个）
 
 | 组件 | 角色 | 属性 | 动作 | 事件 | 契约 |
 |---|---|---|---|---|---|
@@ -67,6 +67,7 @@
 | `number_input` | spin_button | `digits`, `disabled`, `label`, `max`, `min`, `step`, `suffix`, `value` | `decrement`, `increment`, `set_value` | `changed`, `committed` | [number_input.contract.xdef.ts](../../modules/projects/omui/components/base/contract/number_input.contract.xdef.ts) |
 | `otp_input` | text_box | `disabled`, `label`, `length`, `numeric`, `value` | `set_value` | `changed`, `completed` | [otp_input.contract.xdef.ts](../../modules/projects/omui/components/base/contract/otp_input.contract.xdef.ts) |
 | `pagination` | navigation | `around`, `label`, `page`, `pages` | `decrement`, `increment`, `set_value` | `changed` | [pagination.contract.xdef.ts](../../modules/projects/omui/components/base/contract/pagination.contract.xdef.ts) |
+| `path` | image | `d`, `fill`, `label`, `stroke`, `stroke_width`, `trim`, `view_box` | — | — | [path.contract.xdef.ts](../../modules/projects/omui/components/base/contract/path.contract.xdef.ts) |
 | `popover` | dialog | `arrow`, `label`, `open`, `side` | `dismiss` | `closed` | [popover.contract.xdef.ts](../../modules/projects/omui/components/base/contract/popover.contract.xdef.ts) |
 | `range_slider` | group | `disabled`, `high`, `label`, `low`, `max`, `min`, `step` | `set_range` | `changed`, `committed` | [range_slider.contract.xdef.ts](../../modules/projects/omui/components/base/contract/range_slider.contract.xdef.ts) |
 | `rating` | slider | `disabled`, `half`, `label`, `max`, `readonly`, `value` | `decrement`, `increment`, `set_value` | `changed` | [rating.contract.xdef.ts](../../modules/projects/omui/components/base/contract/rating.contract.xdef.ts) |

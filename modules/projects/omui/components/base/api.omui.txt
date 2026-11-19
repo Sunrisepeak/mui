@@ -64,6 +64,7 @@ export import :carousel_contract;
 export import :file_drop_contract;
 export import :web_view_contract;
 export import :timeline_contract;
+export import :path_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -92,6 +93,7 @@ export import :navigating;
 export import :showing;
 export import :external;
 export import :timeline;
+export import :path;
 namespace omui {
   void register_base_components();
 }
@@ -1054,6 +1056,17 @@ namespace omui::parts {
     [[nodiscard]] float min_content(Services& services, Color color);
     [[nodiscard]] float baseline(Services& services, Color color);
     void paint(PaintContext& ctx, Point origin, Color color);
+  };
+}
+== omui.ui.base:path
+namespace omui {
+  class Path : public PathContract<Path> {
+    void prop_changed(PathProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    [[nodiscard]] Rect view_box() const noexcept;
+    [[nodiscard]] bool drawable() const;
   };
 }
 == omui.ui.base:pickers

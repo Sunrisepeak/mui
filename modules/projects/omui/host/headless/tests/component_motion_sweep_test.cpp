@@ -1,4 +1,4 @@
-// Every one of the component kinds with a typed default motion (M3), 38 of the 39 (agent_presence aside): a
+// Every one of the component kinds with a typed default motion (M3), 39 of the 40 (agent_presence aside): a
 // state change that changes the drawing moves through intermediate frames
 // that are neither endpoint, comes to rest on exactly the drawing motion off
 // gives at once, and under reduced motion is a short real movement with the
@@ -47,6 +47,7 @@ std::vector<std::pair<std::string, Source>> shown(std::string_view type) {
         for (const std::string_view item : items) out.emplace_back(std::string(item));
         return Value(std::move(out));
     };
+    if (type == "path") return {{"d", constant(Value(std::string("M10 10 H90 V90 H10 Z")))}, {"stroke", constant(Value(std::string("accent")))}};
     if (type == "breadcrumb") return {{"items", constant(list({"Home", "Guides", "Motion"}))}};
     if (type == "stepper") return {{"steps", constant(list({"Cart", "Address", "Pay"}))}, {"value", constant(Value(1))}};
     if (type == "tree_view") return {{"model", constant(Value(std::string("sweep-tree")))}};
@@ -162,7 +163,7 @@ UTest cases{"viewdoc.component-motion-sweep", [] {
         std::println("    moved ({}): {}", moved.size(), moved);
         std::println("    no visible state ({}): {}", still.size(), still);
         std::println("    drawn as a function of time ({}): {}", continuous.size(), continuous);
-        expect(eq(moved.size() + still.size() + continuous.size(), std::size_t{38}));
+        expect(eq(moved.size() + still.size() + continuous.size(), std::size_t{39}));
         // Every kind shows that it is disabled: its own way, or the framework's (the theme's disabled opacity).
         expect(still.empty()) << std::format("no disabled state drawn: {}", still);
     };

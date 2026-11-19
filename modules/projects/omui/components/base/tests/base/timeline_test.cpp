@@ -44,7 +44,7 @@ std::uint64_t hash_of(const xrender::raster::Surface& pixels) {
 
 }  // namespace
 
-UTest cases{"ui.base.timeline", [] {
+static UTest cases{"ui.base.timeline", [] {
     register_base_components();
 
     "on a line: a slider's semantics, its value a step; keys and an agent move it, each step taken back; its words the step's"_test = [] {

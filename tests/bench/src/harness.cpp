@@ -3,6 +3,7 @@ module omui.bench;
 import std;
 import omui.core;
 import mcpplibs.mtest.bench;
+import mlibs.trace;
 
 namespace omui::bench {
 
@@ -116,9 +117,12 @@ std::span<const Case> cases() noexcept { return registry(); }
 
 Result run_one(const Case& c, const Options& options) {
     State state(options);
+    if (options.trace) mlibs::trace::start();
     c.body(state);
+    std::string traced = options.trace ? mlibs::trace::stop().table() : std::string();
     auto& d = Access::of(state);
     Result result;
+    result.trace = std::move(traced);
     result.name = c.name;
     result.description = c.description;
     result.notes = d.notes;

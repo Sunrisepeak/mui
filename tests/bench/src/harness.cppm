@@ -24,6 +24,8 @@ struct Options {
     std::size_t  min_iterations = 12;
     std::size_t  max_iterations = 100'000;
     std::size_t  warmup = 3;
+    // The spans of the run (the frame's stages among them), as a table in Result::trace: where the time goes.
+    bool         trace = false;
 };
 
 // The loop a benchmark's body runs: `while (state.next()) { … }`.
@@ -83,6 +85,7 @@ struct Result {
     std::string  skipped;                // why it did not run; empty when it did
     std::string  failed;                 // why what it measures went wrong; empty when it did not
     std::vector<std::pair<std::string, std::string>> notes;
+    std::string  trace;                  // with Options::trace: its spans' table (mlibs.trace)
 
     // A metric by name: min_ms mean_ms p50_ms p95_ms p99_ms max_ms ns_per_item
     // allocations max_allocations, or a counter's name.

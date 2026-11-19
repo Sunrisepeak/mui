@@ -454,6 +454,14 @@ int visitor_path(const fs::path& root, const fs::path& built, const fs::path& gi
         built.empty() ? root / "target/site" : (built.is_absolute() ? built : root / built);
     if (!deployed && !fs::is_regular_file(site_dir / "index.html"))
         return failed("no target/site (omui-devtools site build first)");
+    // The site built here is this tree's, or the path checks another program than the one asked about.
+    if (!deployed && built.empty()) {
+        const auto stamp = json::parse(mcpplibs::os::fs::read(root / "target/site.built.json").value_or("{}"), nullptr, false);
+        const std::string from = stamp.is_object() ? stamp.value("commit", std::string()) : std::string(), here = run::commit(root);
+        if (from != here)
+            return failed(std::format("target/site was built from {}, this tree is at {} (omui-devtools site build first)",
+                                      from.empty() ? std::string("an unknown tree") : from, here));
+    }
     fs::path omui = given_omui;
     if (omui.empty()) {
         const auto artifacts = run::build(root, {"-p", "omui.cli"});

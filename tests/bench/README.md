@@ -8,6 +8,7 @@ metrics, and its budgets (`budgets.bench.xdef.json`) are the case's bounds:
 OMUI_BENCH=1 mcpp test -p omui.bench --profile release budgets        # every benchmark, judged
 OMUI_BENCH=quick mcpp test -p omui.bench budgets                       # one pass of each, nothing judged
 OMUI_BENCH=1 <the built budgets_test> 'bench.budgets/wall/*-gpu*'       # run alone: a case, a group (bench.budgets/wall) or a pattern; numbers printed
+OMUI_BENCH=1 OMUI_BENCH_TRACE=core/rows/swap <the built budgets_test> 'bench.budgets/core/rows/swap'   # and its spans as a table: where the time goes
 ```
 
 The measuring is mtest's (`mcpplibs.mtest.bench`'s `laps`): each iteration

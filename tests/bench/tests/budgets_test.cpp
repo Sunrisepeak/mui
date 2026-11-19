@@ -75,6 +75,8 @@ void report(const harness::Result& result) {
 Bench budgets{"bench.budgets", resource{"machine"}, [] {
     const std::string asked = mcpplibs::os::env::get("OMUI_BENCH").value_or("");
     const bool quick = asked == "quick";
+    // OMUI_BENCH_TRACE=<part of a name>: those cases' spans as a table, where their time goes (the frame's stages).
+    const std::string traced = mcpplibs::os::env::get("OMUI_BENCH_TRACE").value_or("");
     harness::add_framework_benchmarks();
     const std::vector<harness::Budget> budgets = budgets_in_the_tree();
     expect(!budgets.empty()) << "budgets.bench.xdef.json reads";
@@ -92,9 +94,12 @@ Bench budgets{"bench.budgets", resource{"machine"}, [] {
             else conditional.push_back(budget);
         }
         test(one.name)[skip_if{asked.empty(), "a budget is of a release build on a machine nothing else uses: OMUI_BENCH=1 (or quick: one pass, nothing judged)"}][std::move(bounds)] =
-            [one, conditional, quick] {
-                const harness::Result result = harness::run_one(one, quick ? harness::Options{.min_time_ms = 0, .min_iterations = 1, .max_iterations = 1, .warmup = 0} : harness::Options{});
+            [one, conditional, quick, traced] {
+                harness::Options options = quick ? harness::Options{.min_time_ms = 0, .min_iterations = 1, .max_iterations = 1, .warmup = 0} : harness::Options{};
+                options.trace = !traced.empty() && one.name.contains(traced);
+                const harness::Result result = harness::run_one(one, options);
                 for (const auto& [name, text] : result.notes) std::println("{}: {}", name, text);
+                if (!result.trace.empty()) std::println("{}, where the time goes:\n{}", one.name, result.trace);
                 if (!result.skipped.empty()) skip(result.skipped);
                 expect(fatal(result.failed.empty())) << result.failed;
                 report(result);

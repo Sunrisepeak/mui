@@ -227,7 +227,12 @@ int build(const fs::path& root) {
     // The program cut in two by what its first screen runs (D5).
     if (const int status = split(root, out); status != 0)
         return status;
-    return verify(out);
+    if (const int status = verify(out); status != 0)
+        return status;
+    // Which tree it was built from, beside it (not in what Pages publishes): what checks that serve target/site
+    // hold against the tree they check (check visitor-path).
+    write_file(root / "target/site.built.json", json{{"commit", run::commit(root)}}.dump() + "\n");
+    return 0;
 }
 
 int split(const fs::path& root, const fs::path& given) {

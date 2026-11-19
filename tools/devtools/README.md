@@ -153,7 +153,7 @@ The site's checks in a real browser (moved from `tools/ci/site-browser.sh`, the 
 
 ```sh
 omui-devtools check site [CHECK…] [--site DIR]   # perf a11y structure fonts catalog workspace reactions motion presentation loading font-sharing; transition when named
-omui-devtools check visitor-path [--site DIR] [--omui PATH]   # omui.cli built unless given
+omui-devtools check visitor-path [--site DIR] [--omui PATH]   # omui.cli built unless given; target/site only when site build made it from this tree
 omui-devtools check visitor-path --url https://sunrisepeak.github.io/mui/ [--allow-local]   # the deployed page reaching this machine's bridge
 omui-devtools check dist-toy-loading [--fixture FILE]          # omui.gen's dist_toy tests first unless a fixture is given
 ```

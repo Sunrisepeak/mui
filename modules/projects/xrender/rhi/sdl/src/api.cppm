@@ -39,7 +39,24 @@ struct Options {
     // nothing to show: the device draws, and present() answers false.
     std::uint32_t window = 0;
     bool          vsync = true;  // the swapchain waits for the display
+    // Only the Vulkan drivers of the GPUs this machine has, never one that draws on the CPU (lavapipe, SwiftShader):
+    // for a program that chooses its renderer itself, whose own CPU renderer is the better one there. The loader
+    // otherwise loads every driver installed (on Linux each with what it links: LLVM for a software one). Not where
+    // the environment chooses the loader's drivers already (VK_LOADER_DRIVERS_SELECT or _DISABLE, VK_DRIVER_FILES,
+    // VK_ICD_FILENAMES). Linux; elsewhere the system loads the drivers of its adapters only.
+    bool          hardware_only = false;
 };
+
+// The Vulkan loader's driver choice for `hardware_only` on a Linux machine whose GPUs are of these PCI vendors (0x10de
+// NVIDIA, 0x1002 AMD, 0x8086 Intel, 0x1af4 virtio): the variable and its globs over the drivers' file names —
+// VK_LOADER_DRIVERS_SELECT naming those vendors' drivers when every vendor is one known here, else
+// VK_LOADER_DRIVERS_DISABLE naming the drivers that draw on the CPU.
+struct VulkanDriverChoice {
+    std::string variable, globs;
+};
+[[nodiscard]] VulkanDriverChoice vulkan_driver_choice(std::span<const std::uint32_t> pci_vendors);
+// The PCI vendors of this machine's display devices (/sys/class/drm/card*/device/vendor; none elsewhere).
+[[nodiscard]] std::vector<std::uint32_t> display_vendors();
 
 // A device, or why there is none (Errc::unsupported: no GPU, driver or
 // backend for those formats; the caller falls back to the CPU renderer).

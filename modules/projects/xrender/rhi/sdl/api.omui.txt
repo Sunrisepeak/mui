@@ -11,7 +11,13 @@ namespace xrender::rhi::sdl {
     std::string video_driver;
     std::uint32_t window = 0;
     bool vsync = true;
+    bool hardware_only = false;
   };
+  struct VulkanDriverChoice {
+    std::string variable, globs;
+  };
+  [[nodiscard]] VulkanDriverChoice vulkan_driver_choice(std::span<const std::uint32_t> pci_vendors);
+  [[nodiscard]] std::vector<std::uint32_t> display_vendors();
   [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {…});
   class Making {
     Making() = default;

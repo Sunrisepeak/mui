@@ -72,6 +72,7 @@ namespace omui {
     std::string video_driver;
     std::uint32_t window = 0;
     bool vsync = true;
+    bool hardware_only = false;
   };
   class GpuMaking {
     virtual ~GpuMaking() = default;

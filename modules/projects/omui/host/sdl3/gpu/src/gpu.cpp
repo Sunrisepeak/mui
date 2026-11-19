@@ -20,6 +20,7 @@ xrender::rhi::sdl::Options options_of(const GpuDeviceOptions& asked) {
     options.video_driver = asked.video_driver;
     options.window = asked.window;
     options.vsync = asked.vsync;
+    options.hardware_only = asked.hardware_only;
     return options;
 }
 

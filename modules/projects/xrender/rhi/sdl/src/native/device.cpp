@@ -8,6 +8,7 @@ import std;
 import mcpplibs.mwrap.sdl3;
 import mlibs.memory;
 import mlibs.rhi;
+import mcpplibs.os;
 using namespace mcpplibs::mwrap::sdl3::macros;
 
 namespace xrender::rhi::sdl { using namespace mlibs::rhi; }  // the interface it implements
@@ -909,8 +910,22 @@ Result<std::unique_ptr<SdlDevice>> make(const Options& options, bool release_vid
 
 }  // namespace
 
+// Options::hardware_only, before the first Vulkan instance: the loader told which drivers to load, once, unless the
+// environment has chosen already. Set on the thread that starts the making, before its thread exists.
+void choose_vulkan_drivers(const Options& options) {
+    if constexpr (!mcpplibs::os::is_linux) return;
+    static bool chosen = false;
+    if (!options.hardware_only || chosen) return;
+    chosen = true;
+    for (const char* variable : {"VK_LOADER_DRIVERS_SELECT", "VK_LOADER_DRIVERS_DISABLE", "VK_DRIVER_FILES", "VK_ICD_FILENAMES"})
+        if (mcpplibs::os::env::get(variable)) return;
+    const VulkanDriverChoice choice = vulkan_driver_choice(display_vendors());
+    (void)SDL_setenv_unsafe(choice.variable.c_str(), choice.globs.c_str(), 1);
+}
+
 Result<std::unique_ptr<Device>> create(const Options& options) {
     if (options.formats.empty()) return fail(Errc::invalid, "no shader format: say which formats the program's shaders carry");
+    choose_vulkan_drivers(options);
     if (!options.vulkan_library.empty()) SDL_SetHint(SDL_HINT_VULKAN_LIBRARY, options.vulkan_library.c_str());
     if (!video_acquire(options.video_driver)) return fail(Errc::unsupported, sdl_error("initialising SDL's video subsystem"));
     auto made = make(options, true);
@@ -952,6 +967,7 @@ Making create_async(const Options& options) {
         return making;
     }
     if (!options.vulkan_library.empty()) SDL_SetHint(SDL_HINT_VULKAN_LIBRARY, options.vulkan_library.c_str());
+    choose_vulkan_drivers(options);
     if (!video_acquire(options.video_driver)) {
         std::promise<Result<std::unique_ptr<Device>>> none;
         none.set_value(fail(Errc::unsupported, sdl_error("initialising SDL's video subsystem")));

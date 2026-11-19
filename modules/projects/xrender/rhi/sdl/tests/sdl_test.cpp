@@ -40,6 +40,19 @@ std::unique_ptr<Device> open_device() {
 
 UTest cases{"rhi.sdl", [] {
 
+    "hardware_only: the loader told to load the drivers of the machine's GPUs, or every one but those that draw on the CPU"_test = [] {
+        const auto choice = [](std::vector<std::uint32_t> vendors) { return sdl::vulkan_driver_choice(vendors); };
+        const auto nvidia = choice({0x10de});
+        expect(nvidia.variable == "VK_LOADER_DRIVERS_SELECT" && nvidia.globs == "nvidia_icd*,nouveau_icd*") << nvidia.globs;
+        const auto laptop = choice({0x8086, 0x10de, 0x8086});
+        expect(laptop.variable == "VK_LOADER_DRIVERS_SELECT" && laptop.globs == "intel_icd*,intel_hasvk_icd*,nvidia_icd*,nouveau_icd*") << laptop.globs;
+        for (const auto& unknown : {choice({}), choice({0x10de, 0x15ad})}) {
+            expect(unknown.variable == "VK_LOADER_DRIVERS_DISABLE" && unknown.globs.contains("lvp_icd*") && unknown.globs.contains("swiftshader"))
+                << "no GPU found, or one of a vendor not known here: every driver but the CPU's";
+        }
+        for (const std::uint32_t vendor : sdl::display_vendors()) expect(vendor != 0) << "this machine's display vendors read";
+    };
+
     "a device: its backend, the shader formats it takes of those asked for"_test = [] {
         auto d = open_device();
         if (!d) return;

@@ -236,6 +236,7 @@ struct Desktop::Impl final : WindowHost {
         o.window = platform::window_id(*window);
         o.vsync = options.vsync;
         o.vulkan_library = options.vulkan_library;
+        o.hardware_only = options.renderer == R::automatic;
         const bool made_early = making != nullptr;
         auto made = made_early ? making->get() : service->create(o);
         making.reset();
@@ -387,6 +388,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
         service && d.options.renderer != DesktopOptions::Renderer::cpu && platform::start(d.options.video_driver)) {
         GpuDeviceOptions early;
         early.vulkan_library = d.options.vulkan_library;
+        early.hardware_only = d.options.renderer == DesktopOptions::Renderer::automatic;
         platform::hold();  // no other host's end, and no last window closing, quits SDL under this making
         d.holds_sdl = true;
         early.video_driver = d.options.video_driver;

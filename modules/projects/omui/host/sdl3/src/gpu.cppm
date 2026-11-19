@@ -20,6 +20,9 @@ struct GpuDeviceOptions {
     std::string   video_driver;
     std::uint32_t window = 0;
     bool          vsync = true;
+    // The renderer chosen by the host (automatic): only the drivers of the machine's GPUs loaded, none that draws on
+    // the CPU — the host's CPU renderer is the better one there (xrender.rhi.sdl's hardware_only).
+    bool          hardware_only = false;
 };
 
 // A device being made on a thread of its own while the host goes on; `get` waits for it, once.

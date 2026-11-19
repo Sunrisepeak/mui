@@ -397,6 +397,7 @@ cmd::App app() {
                                         .option(Option("ledger").help("the lead ledger: rounds alternating, each metric judged, the ledger and its pages written"))
                                         .option(Option("rounds").takes_value().value_name("N").help("with --ledger: how many (default: 15)"))
                                         .option(Option("dry-run").help("with --ledger: print the verdicts, write nothing")))
+                        .subcommand(omui::devtools::bench::apps_command_line())
                         .subcommand(cmd::App("material3")
                                         .description("Material 3's controls in four states (rest, hover, pressed, focus), captured from their page as the competitor's side of the controls' review")
                                         .arg(Arg("out").required().help("OUT/<control>-<state>.png"))))
@@ -1586,6 +1587,7 @@ int main(int argc, char** argv) {
             }
             return *status;
         }
+        if (sub.subcommand_name() == "apps") return omui::devtools::bench::apps(root, sub.subcommand()->get());
         if (sub.subcommand_name() != "competitors") {
             std::cerr << "usage: omui-devtools bench competitors [--ledger [--rounds N] [--dry-run]] | material3 OUT\n";
             return 2;

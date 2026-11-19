@@ -32,7 +32,7 @@ marzer.tomlplusplus = "3.4.0"  # the lint reads every manifest
 mlibs.json       = { path = "../../modules/base/json" }  # the lint holds documents to their schemas
 "mlibs.xdef.tool" = { path = "../../modules/base/xdef/tool" }  # data-format: the container's checker
 mlibs.xdef       = { path = "../../modules/base/xdef" }  # a snapshot's format checked first (the projects' identities)
-mlibs.utils      = { path = "../../modules/base/utils" }  # mlibs.http: the test page's server
+mlibs.utils      = { path = "../../modules/base/utils" }  # mlibs.http: the test page's server; mlibs.hash: bench apps' pictures
 mlibs.image      = { path = "../../modules/base/image" }  # eval compare's sheets
 mcpplibs.cmdline = "0.0.3"
 mcpplibs.os      = "0.4.4"

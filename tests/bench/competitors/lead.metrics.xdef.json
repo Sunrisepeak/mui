@@ -486,13 +486,172 @@
     {
       "project": "omui",
       "id": "core.rest.cpu_percent",
-      "about": "a page at rest: no frame drawn, the process's CPU as a percent of one core (floor: 0-5)",
+      "about": "the smallest application at rest: its processor time over 5 s, as a percent of one core (NSH's floor: no frame drawn, 0-5 %); a round where ours is 0 gives no ratio",
       "better": "lower",
-      "ours": "omui",
+      "key": "hello",
+      "field": "idle_cpu_percent",
+      "ours": "omui-app",
       "competitors": [
-        "nsh"
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
       ],
-      "status": "planned"
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.start.hello.cold.ms",
+      "about": "the smallest application: start to its first presented frame equal to the settled picture, cold (its files and the libraries it maps dropped from the page cache) — the consensus start metric (§2a.1: TTID, Flutter's time to first frame), the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window of the harness's own X server, measured from outside the process",
+      "better": "lower",
+      "key": "hello",
+      "field": "start_cold_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.start.hello.warm.ms",
+      "about": "the same start, warm: launched again at once",
+      "better": "lower",
+      "key": "hello",
+      "field": "start_warm_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.click-to-frame.counter.ms",
+      "about": "a counter: the button let go (XTEST) to the first presented frame whose count changed — input to the next frame (§2a.1: INP, typometer), the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window of the harness's own X server, measured from outside the process",
+      "better": "lower",
+      "key": "counter",
+      "field": "click_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.memory.hello.uss.bytes",
+      "about": "the smallest application at rest: USS (private clean and dirty: its own code mapped, and what it wrote)",
+      "better": "lower",
+      "core": false,
+      "key": "hello",
+      "field": "uss_bytes",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.memory.hello.pss.bytes",
+      "about": "the smallest application at rest: PSS (its share of the shared libraries' pages added)",
+      "better": "lower",
+      "core": false,
+      "key": "hello",
+      "field": "pss_bytes",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.rest.wakeups_per_s",
+      "about": "the smallest application at rest: its threads' context switches a second (pidstat -w -t over 5 s) — the idle wakeups (§2a.1)",
+      "better": "lower",
+      "core": false,
+      "key": "hello",
+      "field": "idle_wakeups_per_s",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.live-board.present.p95_ms",
+      "about": "a live market board at 1896 × 1030 — omui: the board of tests/bench's core/live-dashboard (22 sparklines, a 40-level book, a 30-row tape, a tick every 1/120 s); NSH: its gallery's Stocks — the interval between presented frames, p95 (§2a.1: frame time by presentation), on this machine's display path (Xvfb, GL on Mesa's llvmpipe: every side draws on the CPU), measured from outside the process",
+      "better": "lower",
+      "key": "market",
+      "field": "present_p95_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.live-board.cpu-per-frame.ms",
+      "about": "the same board: the processor (all threads) per presented frame",
+      "better": "lower",
+      "key": "market",
+      "field": "cpu_ms_per_frame",
+      "ours": "omui-app",
+      "competitors": [
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.list-10k.scroll.present.p95_ms",
+      "about": "10,000 rows of three parts (a title, a state, a button), virtual, at 1896 × 1030, the wheel turned every 1/120 s: the interval between presented frames, p95, on this machine's display path (Xvfb, GL on Mesa's llvmpipe: every side draws on the CPU), measured from outside the process",
+      "better": "lower",
+      "key": "list",
+      "field": "present_p95_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.list-10k.scroll.cpu-per-frame.ms",
+      "about": "the same scroll: the processor (all threads) per presented frame",
+      "better": "lower",
+      "key": "list",
+      "field": "cpu_ms_per_frame",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-ts"
+      ],
+      "status": "measured"
     },
     {
       "project": "omui",
@@ -530,35 +689,50 @@
     {
       "project": "omui",
       "id": "core.memory.hello.private-dirty.bytes",
-      "about": "the smallest windowed application at rest: private dirty memory, and what it holds over a bare system window (floor on Linux with GL: 41.6 MiB native, 45.4 scripted; +4.9, +8.7 over the window)",
+      "about": "the smallest windowed application at rest (5 s after its first frame): private dirty memory, read with pmap from outside (the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window of the harness's own X server, measured from outside the process); NSH's published floor on Linux with GL: 41.6 MiB native, 45.4 scripted",
       "better": "lower",
-      "ours": "omui",
+      "key": "hello",
+      "field": "private_dirty_bytes",
+      "ours": "omui-app",
       "competitors": [
-        "nsh"
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
       ],
-      "status": "planned"
+      "status": "measured"
     },
     {
       "project": "omui",
       "id": "core.size.hello.executable.bytes",
-      "about": "the smallest application's executable, stripped (floor: Linux 21.5 MB native, 25.7 scripted; macOS 12.4, 19.8; Windows 25.3, 28.6)",
+      "about": "the smallest application's programs and libraries as shipped, each stripped (NSH's published floor: Linux 21.5 MB native, 25.7 scripted; macOS 12.4, 19.8; Windows 25.3, 28.6)",
       "better": "lower",
-      "ours": "omui",
+      "key": "hello",
+      "field": "executable_bytes",
+      "ours": "omui-app",
       "competitors": [
-        "nsh"
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
       ],
-      "status": "planned"
+      "status": "measured"
     },
     {
       "project": "omui",
       "id": "core.size.hello.package.bytes",
-      "about": "the smallest application's package, compressed (floor: Linux 9.7 MB native, 11.6 scripted; macOS 6.0, 9.5; Windows 10.7, 12.4)",
+      "about": "the smallest application's package, its directory as tar.gz (gzip's default level), the same archiver for every side (NSH's published floor: Linux 9.7 MB native, 11.6 scripted; macOS 6.0, 9.5; Windows 10.7, 12.4)",
       "better": "lower",
-      "ours": "omui",
+      "key": "hello",
+      "field": "package_bytes",
+      "ours": "omui-app",
       "competitors": [
-        "nsh"
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
       ],
-      "status": "planned"
+      "status": "measured"
     },
     {
       "project": "omui",

@@ -14,6 +14,11 @@ omui-devtools bench competitors --ledger --rounds 15   # the lead ledger: 15 rou
 | [src](src) | our side, package `omui.bench.competitors`: `omui-bench-motion` (hanim) and `omui-bench-vector` (xrender), programs that run natively and as WebAssembly |
 | [js](js) | their side, pinned in `package.json`: GSAP, Skia (through @napi-rs/canvas), resvg |
 | [py](py) | their side, pinned in `requirements.txt`: ThorVG and rlottie, Lottie's native players (their C libraries through ctypes) |
+| [apps](apps) | whole applications, both sides (`omui-devtools bench apps`): omui in each world beside Slint, Flutter and NSH — size, start, memory, rest, a click, a live board and a scrolled list, each in a real window and measured from outside the process (C1, N2) |
+
+## Whole applications: omui beside Slint, Flutter and NSH
+
+[apps](apps) (`omui-devtools bench apps`): the same hello, counter, live board and 10,000-row list, each built at its pin, launched in a window of the harness's own X server and measured from outside the process (2026-11-19, 10 rounds; GL is Mesa's llvmpipe here, so every side draws on the CPU). In the default world (`app`): the program and the package are level with Slint's (17.70 against 17.47 MB, 8.42 against 8.62 MB packed) and smaller than Flutter's and NSH's; the start (324 ms cold, 84 warm against Slint's 160 and 70), the memory at rest (62.1 against 49.7 MiB private dirty) and the scrolled list (49.7 against 17.3 ms p95 between frames) are behind; a click to the next frame is 2.0 ms (Slint 1.4, Flutter 16.5, NSH 21–26). `minimal` (no GL) starts in 46 ms with 14.7 MiB. What it found, the method and every number: [apps/README.md](apps/README.md).
 
 ## Interactive motion: 1000 values a frame
 

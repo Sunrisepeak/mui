@@ -144,6 +144,7 @@ members = [
     "modules/projects/omui/entry/devhost",
     "tests/bench",
     "tests/bench/competitors",
+    "tests/bench/competitors/apps",
     "modules/projects/omui/cts",
     "tests/size/yard",
     "tests/features",

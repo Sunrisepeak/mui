@@ -1,0 +1,19 @@
+# The Flutter side of the application comparisons (C1, N2): the same two apps as
+# omui's (apps/omui), Slint's (apps/slint) and NSH's — a title and a button, and
+# a counter. The Linux runner is the one `flutter create --platforms linux`
+# writes for the pinned SDK (omui-devtools bench apps makes it, outside the
+# repository), its window set to 800 × 600.
+name: bench_apps
+description: "Flutter's side of omui's application comparisons"
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

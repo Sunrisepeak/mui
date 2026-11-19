@@ -1,6 +1,6 @@
 # 领先度（lead）
 
-由 `omui-devtools lead docs` 从台账生成（2026-11-17）。判定规则见第二部分方案 §2.2。
+由 `omui-devtools lead docs` 从台账生成（2026-11-19）。判定规则见第二部分方案 §2.2。
 
 ## 指标
 
@@ -44,13 +44,23 @@
 | omui | agent.build-ui.success | — | react-vite-playwright, flutter | — | planned |
 | omui | core.live-dashboard.frame.p95_ms | — | nsh | — | planned |
 | omui | core.list-scroll.frame.p95_ms | — | nsh | — | planned |
-| omui | core.rest.cpu_percent | — | nsh | — | planned |
+| omui | core.rest.cpu_percent | omui-app 0.02567 | flutter 0 | 0.00× [0.00, 0.00] | behind |
+| omui | ui.start.hello.cold.ms | omui-app 324.222 | slint 159.645 | 0.49× [0.43, 0.61] | behind |
+| omui | ui.start.hello.warm.ms | omui-app 83.8412 | slint 69.5473 | 0.86× [0.79, 1.22] | behind |
+| omui | ui.click-to-frame.counter.ms | omui-app 2.01839 | slint 1.38729 | 0.68× [0.65, 1.18] | behind |
+| omui | core.memory.hello.uss.bytes | omui-app 1.69318e+08 | slint 8.65792e+07 | 0.51× [0.51, 0.51] | behind |
+| omui | core.memory.hello.pss.bytes | omui-app 1.71622e+08 | slint 1.02512e+08 | 0.60× [0.60, 0.60] | behind |
+| omui | core.rest.wakeups_per_s | omui-app 10.4 | flutter 0 | 0.00× [0.00, 0.00] | behind |
+| omui | ui.live-board.present.p95_ms | omui-app 18.1666 | nsh-ts 29.3501 | 1.62× [1.29, 2.64] | ahead |
+| omui | ui.live-board.cpu-per-frame.ms | omui-app 19.572 | nsh-ts 86.7743 | 4.15× [3.54, 4.92] | ahead |
+| omui | ui.list-10k.scroll.present.p95_ms | omui-app 49.6781 | slint 17.297 | 0.35× [0.30, 0.42] | behind |
+| omui | ui.list-10k.scroll.cpu-per-frame.ms | omui-app 60.7916 | nsh-ts 18.0317 | 0.30× [0.22, 0.34] | behind |
 | omui | core.engine-start.us | — | nsh | — | planned |
 | omui | core.first-frame.counter.ms | — | nsh | — | planned |
 | omui | core.tap-to-commit.ms | — | nsh | — | planned |
-| omui | core.memory.hello.private-dirty.bytes | — | nsh | — | planned |
-| omui | core.size.hello.executable.bytes | — | nsh | — | planned |
-| omui | core.size.hello.package.bytes | — | nsh | — | planned |
+| omui | core.memory.hello.private-dirty.bytes | omui-app 6.51121e+07 | slint 5.20704e+07 | 0.80× [0.80, 0.80] | behind |
+| omui | core.size.hello.executable.bytes | omui-app 1.77012e+07 | slint 1.74696e+07 | 0.99× [0.99, 0.99] | par |
+| omui | core.size.hello.package.bytes | omui-app 8.42087e+06 | slint 8.61998e+06 | 1.02× [1.02, 1.02] | par |
 | omui | core.size.hello.app-code.bytes | — | nsh | — | planned |
 | omui.components | components.canvas-1000.frame_ms | — | figma-like-dom | — | planned |
 | meng | physics.pyramid.step_ms | — | box2d-v3, rapier | — | planned |

@@ -246,6 +246,36 @@ static UTest cases{"gen.dist_toy", [] {
         expect(!gen::package_for_toy(p).has_value()) << "only under /later/";
     };
 
+    "the application's own files (a TS app's manifest and scripts): in the page, written into the program's file system before main"_test = [] {
+        Tree t;
+        put(t.root / "app" / "mcpp.toml", "[package]\nname = \"tsdemo\"\n");
+        put(t.root / "app" / "app" / "main.ts", "const greeting: string = \"</script> \\\\ \u00e9\";\nexport {};\n");
+        auto p = t.package();
+        p.files = {{"/mcpp.toml", t.root / "app" / "mcpp.toml"}, {"/app/main.ts", t.root / "app" / "app" / "main.ts"}};
+        auto r = gen::package_for_toy(p);
+        expect(r.has_value()) << (r ? "" : r.error());
+        if (!r) return;
+        const std::string index = read(t.root / "out" / "game" / "index.html");
+        const auto at = index.find("var omuiFiles = "), end = index.find(";\n", at);
+        expect(at != std::string::npos && end != std::string::npos) << "the files are in the page";
+        if (at == std::string::npos || end == std::string::npos) return;
+        const std::string listed = index.substr(at + 16, end - at - 16);
+        expect(!listed.contains("</script>") && listed.contains("\\u003c/script>")) << "never closes the page's script: " << listed;
+        const auto files = nlohmann::json::parse(listed, nullptr, false);
+        expect(!files.is_discarded() && files.value("/mcpp.toml", "") == "[package]\nname = \"tsdemo\"\n" &&
+               files.value("/app/main.ts", "") == "const greeting: string = \"</script> \\\\ \u00e9\";\nexport {};\n")
+            << "each file's text as it is, by its path in the program: " << listed;
+        expect(index.contains("FS.mkdirTree(dir); FS.writeFile(path, omuiFiles[path]);") && index.find("omuiFiles[path]") < index.find("omuiStartupFonts.forEach(function (j) { j.depend(); });"))
+            << "written in preRun, before main";
+        expect(!std::ranges::any_of(r->files, [](const gen::ToyFile& f) { return f.path.ends_with(".ts") || f.path.ends_with(".toml"); })) << "no files of their own";
+        p.files = {{"app/main.ts", t.root / "app" / "app" / "main.ts"}};
+        expect(!gen::package_for_toy(p).has_value()) << "a path in the program is absolute";
+        put(t.root / "app" / "logo.bin", std::string("\xff\xfe\x00", 3));
+        p.files = {{"/logo.bin", t.root / "app" / "logo.bin"}};
+        const auto binary = gen::package_for_toy(p);
+        expect(!binary.has_value() && binary.error().contains("not UTF-8 text")) << (binary ? "packed" : binary.error());
+    };
+
     "a font for some languages: before main only when the page opens in one, else once the program is drawn; a program that follows its route is not reloaded"_test = [] {
         Tree t;
         auto p = t.package();

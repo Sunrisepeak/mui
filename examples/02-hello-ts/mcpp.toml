@@ -33,6 +33,10 @@ main = { from = "omui.entry.player/player" }
 [dependencies]
 omui.entry.player = { path = "../../modules/projects/omui/entry/player" }
 
+# Its build program (build.mcpp): the page on the Web (omui build --web).
+[build-dependencies]
+omui.build = { path = "../../mcpp/build", host-module = true }
+
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 mlibs.utils = { path = "../../modules/base/utils" }

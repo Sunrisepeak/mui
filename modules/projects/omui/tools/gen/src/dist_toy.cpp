@@ -114,7 +114,8 @@ std::string js_string(std::string_view s) {
 // before main, its .wasm by its hashed name.
 std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm, std::span<const std::pair<std::string, std::string>> fonts,
                  std::span<const std::pair<std::string, std::string>> later, std::span<const std::pair<std::string, std::string>> initial,
-                 const std::map<std::string, std::uintmax_t>& decoded_sizes, const std::map<std::string, std::string>& coverage) {
+                 const std::map<std::string, std::uintmax_t>& decoded_sizes, const std::map<std::string, std::string>& coverage,
+                 const std::map<std::string, std::string>& files) {
     std::string font_list, later_list;
     for (const auto& [name, file] : fonts) {
         // Its languages, if it is for some: ["zh"].
@@ -147,6 +148,10 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
     html += std::format("var omuiWasm = {};\n", js_string(wasm));
     html += std::format("var omuiLauncher = {};\n", js_string(js));
     html += std::format("var omuiLater = [{}];\n", later_list);
+    // The application's files, by their paths in the program's file system ("<" escaped: never `</script>`).
+    std::string file_list = nlohmann::json(files).dump();
+    for (std::size_t at = file_list.find('<'); at != std::string::npos; at = file_list.find('<', at)) file_list.replace(at, 1, "\\u003c");
+    html += std::format("var omuiFiles = {};\n", file_list);
     html += std::format("var omuiAssetBytes = {};\n", nlohmann::json(decoded_sizes).dump());
     // The program's second half, when `omui-gen dist-toy-split` cut it in two
     // (this exact line is what it replaces): {url, bytes, lazy: [routes]}.
@@ -548,6 +553,9 @@ var Module = {
   },
   preRun: [function () {
     if (omuiPreRan) return; omuiPlanFonts(); omuiPreRan = true;
+    Object.keys(omuiFiles).forEach(function (path) {
+      var dir = path.substring(0, path.lastIndexOf('/')); if (dir) FS.mkdirTree(dir); FS.writeFile(path, omuiFiles[path]);
+    });
     if (omuiDeferred && !omuiDeferredLazy()) {
       // Not a route the first half was profiled for: main waits for the second half.
       Module.addRunDependency('omui-deferred');
@@ -828,7 +836,20 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     for (const auto& [name, file] : initial) record_size(file);
     for (const auto& [name, file] : later) record_size(file);
     if (ec) return std::unexpected(std::format("managed asset size: {}", ec.message()));
-    const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes, coverage);
+    // The application's own files, read now and written into the page.
+    std::map<std::string, std::string> files;
+    for (const ToyPackage::File& f : p.files) {
+        if (!f.path.starts_with('/')) return std::unexpected(std::format("a file's path in the program's file system is absolute ({})", f.path));
+        auto bytes = read(f.source);
+        if (!bytes) return std::unexpected(bytes.error());
+        try {
+            (void)nlohmann::json(*bytes).dump();  // text the page can carry: UTF-8
+        } catch (const nlohmann::json::exception&) {
+            return std::unexpected(std::format("{}: not UTF-8 text (the page carries the application's text files)", utf8(f.source)));
+        }
+        files[f.path] = std::move(*bytes);
+    }
+    const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes, coverage, files);
     if (auto w = write(p.out / "index.html", index); !w) return std::unexpected(w.error());
 
     return finish_package(p.out, p.target, p.title, index.size());
@@ -887,6 +908,11 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
         const auto bar1 = value.find('|'), bar2 = value.find('|', bar1 + 1);
         if (bar1 == std::string::npos || bar2 == std::string::npos) return usage("--later is <dir>|<suffix>|<mount>");
         p.later.push_back({value.substr(0, bar1), value.substr(bar1 + 1, bar2 - bar1 - 1), value.substr(bar2 + 1)});
+    }
+    for (const std::string& value : args.option_or_empty("file").values) {  // <path in the program>=<file>
+        const auto eq = value.find('=');
+        if (eq == std::string::npos) return usage("--file is <path in the program>=<file>");
+        p.files.push_back({value.substr(0, eq), fs::path(std::u8string(value.begin() + static_cast<std::ptrdiff_t>(eq) + 1, value.end()))});
     }
     if (p.stage.empty() || p.target.empty() || p.out.empty()) return usage("a staged tree, --target and --out");
     auto document = document_of(args);

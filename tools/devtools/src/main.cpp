@@ -380,7 +380,8 @@ cmd::App app() {
                                         .description("A page in a real browser in real time: left to run, a script evaluated, captured; its logs printed")
                                         .option(Option("flag").takes_value().multiple().value_name("SWITCH").help("a switch for Chromium instead of --disable-gpu"))
                                         .option(Option("click").takes_value().value_name("X,Y").help("a person's click there first"))
-                                        .arg(Arg("url").required())
+                                        .option(Option("no-script").help("the page as a reader without JavaScript has it (the script still evaluated)"))
+                                        .arg(Arg("url").required().help("an address, or a built page's directory (served as Pages serves it)"))
                                         .arg(Arg("out").required().help("the PNG"))
                                         .arg(Arg("seconds").help("default: 6"))
                                         .arg(Arg("width").help("default: 1280"))
@@ -903,6 +904,7 @@ int site_command(const cmd::ParsedArgs& options, const fs::path& root) {
         }
         asked.click = std::pair{*x, *y};
     }
+    asked.no_script = given.is_flag_set("no-script");
     return site::drive(asked);
 }
 

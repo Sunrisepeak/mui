@@ -34,6 +34,11 @@ namespace omui::gen {
       std::string suffix, mount;
     };
     std::vector<Later> later;
+    struct File {
+      std::string path;
+      std::filesystem::path source;
+    };
+    std::vector<File> files;
     struct Subset {
       std::string font;
       std::vector<std::filesystem::path> text;

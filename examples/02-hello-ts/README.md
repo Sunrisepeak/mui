@@ -9,7 +9,10 @@
 ```sh
 mcpp run -p omui.example.hello-ts                       # a window
 mcpp run -p omui.example.hello-ts -- --headless --png stats.png
+cd examples/02-hello-ts && omui build --web             # the page on the Web (build.mcpp)
 ```
+
+On the Web the same player runs it: the page carries `mcpp.toml` and `logic/` into the player's file system before it starts, and its first screen as a document (the semantic tree's static HTML, D-236) that a reader without JavaScript and a search engine read.
 
 The test (`tests/hello_test.cpp`) checks:
 - the manifest;

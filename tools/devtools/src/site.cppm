@@ -48,13 +48,14 @@ struct Profile {
 [[nodiscard]] int profile(const Profile& asked);
 
 struct Drive {
-    std::string url;
+    std::string url;  // or a built page's directory, served as Pages serves it
     std::filesystem::path out;  // the PNG
     double seconds = 6;
     int width = 1280, height = 800;
     std::string script;
     std::vector<std::string> flags;                  // none: --disable-gpu
     std::optional<std::pair<double, double>> click;  // a person's click there first
+    bool no_script = false;  // the page as a reader without JavaScript has it (the script still evaluated)
 };
 [[nodiscard]] int drive(const Drive& asked);
 

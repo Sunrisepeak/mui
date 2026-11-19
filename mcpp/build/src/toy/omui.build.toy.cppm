@@ -71,6 +71,10 @@ struct toy_options {
     std::string              canonical;    // the page's address
     std::string              image;        // a share card's picture
     std::vector<std::pair<std::string, std::string>> alternates;  // the page in another language: hreflang, address
+    // The application's own files and directories (a directory's files, recursively), relative to the package: in
+    // the program's file system before main, at the same paths under / — a TypeScript application's manifest and
+    // scripts, which the player reads from its working directory. Carried in the page itself.
+    std::vector<std::string> files;
     std::string              out_dir = std::string(mcpp::out_dir());
 };
 

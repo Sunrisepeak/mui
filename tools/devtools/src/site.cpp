@@ -475,6 +475,18 @@ int drive(const Drive& asked) {
         return 1;
     }
     auto& page = **launched;
+    // A built page's directory: served as Pages serves it.
+    std::string url = asked.url;
+    std::unique_ptr<cdp::Server> served;
+    if (std::error_code error; fs::is_directory(mcpplibs::os::fs::from_utf8(asked.url), error)) {
+        auto server = cdp::Server::start(cdp::pages(mcpplibs::os::fs::from_utf8(asked.url)));
+        if (!server) {
+            std::cerr << "omui-devtools site drive: " << server.error() << '\n';
+            return 1;
+        }
+        served = std::move(*server);
+        url = served->url() + "index.html";
+    }
     std::vector<std::string> logs;
     page.on([&](const std::string& method, const json& params) {
         if (method == "Runtime.consoleAPICalled") {
@@ -495,7 +507,8 @@ int drive(const Drive& asked) {
                                                                        {"height", asked.height},
                                                                        {"deviceScaleFactor", 1},
                                                                        {"mobile", false}}));
-    static_cast<void>(page.call("Page.navigate", {{"url", asked.url}}));
+    if (asked.no_script) static_cast<void>(page.call("Emulation.setScriptExecutionDisabled", {{"value", true}}));
+    static_cast<void>(page.call("Page.navigate", {{"url", url}}));
     page.pump(std::chrono::milliseconds(static_cast<long long>(asked.seconds * 1000)));
     // --click X,Y: a person's click there first (trusted, as DevTools gives it): what lets a page
     // start its sound.
@@ -527,6 +540,7 @@ int drive(const Drive& asked) {
         std::cout << (index ? "\n" : "") << logs[index];
     std::cout << '\n';
     page.close();
+    if (served) served->close();
     return 0;
 }
 

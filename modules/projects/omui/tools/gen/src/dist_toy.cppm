@@ -69,6 +69,14 @@ struct ToyPackage {
         std::string           suffix, mount;
     };
     std::vector<Later>    later;
+    // The application's own files, in the program's file system before main at the paths given: a script-first
+    // application's manifest and scripts, which the player reads from its working directory (/). Written into the
+    // page itself (they are small: no request of their own).
+    struct File {
+        std::string           path;    // in the program's file system: /mcpp.toml
+        std::filesystem::path source;  // read when the page is made
+    };
+    std::vector<File>     files;
     // A font cut down to the characters these files hold (text: .md, .cpp,
     // .cppm, .toml, .json, .txt, .js — a directory's, recursively), with its
     // `<stem>.common.txt` beside it (characters people type) and the

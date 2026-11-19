@@ -80,6 +80,26 @@ bool dist_toy(toy_options opt) {
             std::println(std::cerr, "omui.build.toy: no {} yet: the page is packed without its document (omui build --web makes it first)", utf8(projection));
         }
     }
+    for (const std::string& named : opt.files) {
+        const std::filesystem::path package(mcpp::manifest_dir());
+        const std::filesystem::path path = package / std::filesystem::path(named);
+        std::error_code ec;
+        std::vector<std::filesystem::path> found;
+        if (std::filesystem::is_directory(path, ec)) {
+            for (const auto& e : std::filesystem::recursive_directory_iterator(path, ec))
+                if (e.is_regular_file()) found.push_back(e.path());
+        } else if (std::filesystem::is_regular_file(path, ec)) {
+            found.push_back(path);
+        } else {
+            continue;  // an optional file (omui.config.ts) the application does not have
+        }
+        std::ranges::sort(found);
+        for (const std::filesystem::path& file : found) {
+            const std::string inside = "/" + std::filesystem::relative(file, package, ec).generic_string();
+            a.arg("--file").arg(std::format("{}={}", inside, utf8(file)).c_str());
+            a.input(utf8(file).c_str());
+        }
+    }
     a.input(("${mcpp.target_file:" + opt.target + "}").c_str());
     a.input(gen.c_str());
     a.output((out + "/index.html").c_str());

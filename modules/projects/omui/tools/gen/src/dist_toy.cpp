@@ -948,6 +948,122 @@ std::expected<ToyReport, std::string> adopt_split(const ToySplit& split) {
     return finish_package(split.dir, target, title, html.size(), false);
 }
 
+namespace {
+
+// Text readable on the page's background (the colour dist-toy's style gives it): light on a dark page, dark on a light one.
+std::string_view text_colour_on(std::string_view html) {
+    constexpr std::string_view key = "overflow:hidden;background:#";
+    const auto at = html.find(key);
+    unsigned rgb = 0;
+    if (at == std::string_view::npos || at + key.size() + 6 > html.size()) return "#16161a";
+    const char* from = html.data() + at + key.size();
+    if (std::from_chars(from, from + 6, rgb, 16).ptr != from + 6) return "#16161a";
+    const double luma = (0.2126 * ((rgb >> 16) & 0xff) + 0.7152 * ((rgb >> 8) & 0xff) + 0.0722 * (rgb & 0xff)) / 255.0;
+    return luma < 0.5 ? "#f4f4f6" : "#16161a";
+}
+
+}  // namespace
+
+std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document) {
+    const fs::path index_file = document.dir / "index.html";
+    auto page = read(index_file);
+    if (!page) return std::unexpected(page.error());
+    std::string html = std::move(*page);
+    constexpr std::string_view key = "var omuiWasm = \"";
+    const auto wasm = html.find(key);
+    const auto close = wasm == std::string::npos ? std::string::npos : html.find('"', wasm + key.size());
+    const auto canvas = html.find("<canvas id=\"canvas\"");
+    const auto head = html.find("</head>");
+    if (close == std::string::npos || canvas == std::string::npos || head == std::string::npos)
+        return std::unexpected(std::format("{}: not a page dist-toy made", utf8(index_file)));
+    if (html.contains("data-omui=\"static\"")) return std::unexpected(std::format("{}: has its document already (once a page)", utf8(index_file)));
+    if (html.contains("id=\"omui-static\"")) return std::unexpected(std::format("{}: has a static page of its own", utf8(index_file)));
+    const std::string name = html.substr(wasm + key.size(), close - wasm - key.size());
+    const std::string target = name.substr(0, name.rfind('-'));
+    auto fragment = read(document.static_html);
+    if (!fragment) return std::unexpected(fragment.error());
+    if (fragment->find_first_not_of(" \t\r\n") == std::string::npos) return std::unexpected(std::format("{}: empty", utf8(document.static_html)));
+    if (fragment->contains("<script") || fragment->contains("<SCRIPT"))
+        return std::unexpected(std::format("{}: a projection runs nothing (it holds a script)", utf8(document.static_html)));
+
+    // Body first (after the head): the inserts in the head shift nothing before them.
+    const std::string_view colour = text_colour_on(html);
+    html.insert(canvas, std::format("<div data-omui=\"static\">\n{}</div>\n"
+                                    "<script>window.addEventListener('omui-load', function (e) {{\n"
+                                    "  // Presented: the program draws the page and its mirror reads it to assistive technology; the document steps aside.\n"
+                                    "  var page = e.detail && e.detail.presented && document.querySelector('[data-omui=static]');\n"
+                                    "  if (page) page.hidden = true;\n"
+                                    "}});</script>\n",
+                                    *fragment));
+    std::string meta;
+    std::string title;
+    if (const auto from = html.find("<title>"), to = html.find("</title>"); from != std::string::npos && to != std::string::npos && from < to)
+        title = html.substr(from + 7, to - from - 7);  // escaped already
+    if (!document.description.empty()) meta += std::format("<meta name=\"description\" content=\"{}\">\n", escape_html(document.description));
+    if (!document.canonical.empty()) meta += std::format("<link rel=\"canonical\" href=\"{}\">\n", escape_html(document.canonical));
+    for (const auto& [lang, address] : document.alternates)
+        meta += std::format("<link rel=\"alternate\" hreflang=\"{}\" href=\"{}\">\n", escape_html(lang), escape_html(address));
+    meta += "<meta property=\"og:type\" content=\"website\">\n";
+    if (!title.empty()) meta += std::format("<meta property=\"og:title\" content=\"{}\">\n", title);
+    if (!document.description.empty()) meta += std::format("<meta property=\"og:description\" content=\"{}\">\n", escape_html(document.description));
+    if (!document.canonical.empty()) meta += std::format("<meta property=\"og:url\" content=\"{}\">\n", escape_html(document.canonical));
+    if (!document.image.empty()) meta += std::format("<meta property=\"og:image\" content=\"{}\">\n", escape_html(document.image));
+    meta += std::format("<meta name=\"twitter:card\" content=\"{}\">\n", document.image.empty() ? "summary" : "summary_large_image");
+    // Over the canvas's place until it steps aside; a document's own scrolling, selection and touch.
+    meta += std::format("<style>[data-omui=static]{{position:fixed;inset:0;z-index:1;overflow:auto;box-sizing:border-box;"
+                        "padding:32px max(24px,calc((100vw - 760px) / 2));color:{};background:inherit;font:16px/1.6 system-ui,sans-serif;"
+                        "touch-action:auto;-webkit-user-select:text;user-select:text}}[data-omui=static][hidden]{{display:none}}"
+                        "[data-omui=static] a{{color:inherit}}[data-omui=static] button{{font:inherit;color:inherit;background:none;"
+                        "border:1px solid currentColor;border-radius:8px;padding:4px 12px;margin:4px 8px 4px 0}}</style>\n",
+                        colour);
+    html.insert(head, meta);
+    if (!document.lang.empty()) {
+        constexpr std::string_view opening = "<html lang=\"";
+        if (const auto at = html.find(opening); at != std::string::npos) {
+            const auto end = html.find('"', at + opening.size());
+            html.replace(at + opening.size(), end - at - opening.size(), escape_html(document.lang));
+        }
+    }
+    if (auto w = write(index_file, html); !w) return std::unexpected(w.error());
+    std::string listed_title = target;
+    fs::path side = document.dir;
+    side += ".toy.xdef.json";
+    if (auto listed = read(side)) {
+        const auto json = nlohmann::json::parse(*listed, nullptr, false);
+        if (json.is_object() && json.contains("title") && json["title"].is_string()) listed_title = json["title"].get<std::string>();
+    }
+    return finish_package(document.dir, target, listed_title, html.size(), html.contains("toy-sdk.js"));  // Toy's limit on Toy's pages
+}
+
+int dist_toy_document_main(const mcpplibs::cmdline::ParsedArgs& args) {
+    ToyDocument document;
+    document.dir = args.positional(0);
+    document.static_html = args.value("static-html").value_or("");
+    document.lang = args.value("lang").value_or("");
+    document.description = args.value("description").value_or("");
+    document.canonical = args.value("canonical").value_or("");
+    document.image = args.value("image").value_or("");
+    for (const std::string& value : args.option_or_empty("alternate").values) {  // <hreflang>=<address>
+        const auto equals = value.find('=');
+        if (equals == std::string::npos || equals == 0) {
+            std::println(std::cerr, "omui-gen dist-toy-document: --alternate takes HREFLANG=ADDRESS, not `{}`", value);
+            return 2;
+        }
+        document.alternates.emplace_back(value.substr(0, equals), value.substr(equals + 1));
+    }
+    if (document.dir.empty() || document.static_html.empty()) {
+        std::println(std::cerr, "omui-gen dist-toy-document: a package directory and --static-html (omui-gen dist-toy-document --help)");
+        return 2;
+    }
+    auto r = adopt_document(document);
+    if (!r) {
+        std::println(std::cerr, "omui-gen dist-toy-document: {}", r.error());
+        return 1;
+    }
+    std::println("dist-toy-document: index.html {} bytes; {} files, {} bytes", r->index, r->files.size(), r->total);
+    return 0;
+}
+
 std::vector<std::string> lazy_routes(std::string_view list) {
     // Not views::split: over an empty list it yields no field, and the bare page would be no route.
     std::vector<std::string> routes;

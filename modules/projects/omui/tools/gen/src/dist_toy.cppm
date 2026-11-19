@@ -140,4 +140,24 @@ struct ToySplit {
 // The command line's `dist-toy-split`, as omui-gen parsed it; the exit code.
 int dist_toy_split_main(const mcpplibs::cmdline::ParsedArgs& args);
 
+// A packed page as a document before its program runs (D-236, G2): the application's first screen as static HTML —
+// its semantic tree projected (`<program> --static-html FILE`, omui.semantic's static_html) — in the page's body,
+// shown until the program presents its first frame, then hidden, the Web host's mirror speaking from then on; the
+// canvas's place kept beneath it, so nothing moves. With it what a search engine and a share card read: a
+// description, the page's address, a picture, the same page in other languages.
+struct ToyDocument {
+    std::filesystem::path dir;          // the package (its index.html)
+    std::filesystem::path static_html;  // the projection: one element, the root's
+    std::string           lang;         // the document's language ("en", "zh-CN"); empty: as the page says
+    std::string           description;
+    std::string           canonical;    // the page's address
+    std::string           image;        // a share card's picture, an absolute address
+    std::vector<std::pair<std::string, std::string>> alternates;  // the page in another language: its hreflang, its address
+};
+
+[[nodiscard]] std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document);
+
+// The command line's `dist-toy-document`, as omui-gen parsed it; the exit code.
+int dist_toy_document_main(const mcpplibs::cmdline::ParsedArgs& args);
+
 }  // namespace omui::gen

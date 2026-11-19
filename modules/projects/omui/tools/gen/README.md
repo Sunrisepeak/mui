@@ -30,6 +30,8 @@ The loader keeps `/fonts/.partial` while language fonts are pending. A full font
 
 `dist-toy-split <package> --primary <wasm> --deferred <wasm> [--lazy <route>,…]` takes a packed page's program cut in two by Binaryen's wasm-split (`omui-devtools site split` profiles the first screen in headless Chromium and cuts by it): the first half replaces the package's `.wasm`, the second lands beside it as `<target>-<hash>.deferred.wasm`, and the page's `var omuiDeferred` says where it is, its size and the routes whose first screen the first half covers. The loader adds the placeholder imports itself (no `-sSPLIT_MODULE` build): on those routes the second half is compiled after the first frame, elsewhere main waits for it; a placeholder called before it is ready fetches it synchronously, the fallback. `window.omuiDeferredState` says where it is (`none`, `waiting`, `fetching`, `compiled`, `instantiated`, `error`).
 
+`dist-toy-document <package> --static-html <file> [--lang L] [--description T] [--canonical URL] [--image URL] [--alternate HREFLANG=URL …]` makes a packed page a document before its program runs (D-236): the application's first screen, its semantic tree projected (`<program> --static-html FILE`), goes into the body before the canvas and over its place — readable text, scrolling and selection, in a colour that reads on the page's background — and steps aside (`hidden`) on the load event that says the program presented its first frame, the Web host's mirror reading the page from then on; the head gains the description, the canonical address, the page in other languages (`hreflang`) and a share card (Open Graph, `twitter:card`). Once a page; a projection holding a script is refused; a Toy page keeps Toy's 1 MiB limit.
+
 
 ## Lower parts
 

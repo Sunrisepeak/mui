@@ -32,6 +32,10 @@
 //   omui-gen dist-toy-split <package dir> --primary <wasm> --deferred <wasm> [--lazy <route>,…]
 //       a packed page's program cut in two by wasm-split (omui-devtools site split):
 //       the first screen's half first, the rest compiled after it
+//   omui-gen dist-toy-document <package dir> --static-html <file> [--lang L] [--description T] [--canonical URL]
+//       [--image URL] [--alternate HREFLANG=URL …]
+//       a packed page as a document before its program runs (D-236): its first screen's semantic tree as HTML,
+//       hidden once the program presents; what a search engine and a share card read
 //   omui-gen size <program: .wasm or ELF> [--json <out.json>] [--markdown <out.md>] [--top N]
 //       where a program's bytes go (WebAssembly or ELF): its sections, its code
 //       by owner (module, namespace, C library) and its largest symbols (W8, B3;
@@ -514,6 +518,15 @@ mcpplibs::cmdline::App command_line() {
                         .option(Option("primary").takes_value().value_name("WASM").help("wasm-split's first half"))
                         .option(Option("deferred").takes_value().value_name("WASM").help("its second"))
                         .option(Option("lazy").takes_value().value_name("ROUTE,…").help("the routes whose first screen the first half covers")))
+        .subcommand(App("dist-toy-document")
+                        .description("a packed page as a document before its program runs: its first screen's static HTML, its description and addresses (D-236)")
+                        .arg(Arg("dir").required().help("the package"))
+                        .option(Option("static-html").takes_value().value_name("FILE").help("the projection (<program> --static-html FILE)"))
+                        .option(Option("lang").takes_value().value_name("LANG").help("the document's language (en, zh-CN)"))
+                        .option(Option("description").takes_value().value_name("TEXT").help("what a search result and a share card say"))
+                        .option(Option("canonical").takes_value().value_name("URL").help("the page's address"))
+                        .option(Option("image").takes_value().value_name("URL").help("a share card's picture"))
+                        .option(Option("alternate").takes_value().multiple().value_name("HREFLANG=URL").help("the page in another language")))
         .subcommand(App("size")
                         .description("where a program's bytes go (WebAssembly or ELF): its sections, its code by owner, its largest symbols")
                         .arg(Arg("file").required().help("FILE: .wasm or an ELF program"))
@@ -537,6 +550,7 @@ int main(int argc, char** argv) {
     const mcpplibs::cmdline::ParsedArgs& args = parsed->subcommand()->get();
     if (command == "dist-toy") return dist_toy_main(args);
     if (command == "dist-toy-split") return dist_toy_split_main(args);
+    if (command == "dist-toy-document") return dist_toy_document_main(args);
     if (command == "size") return size_main(args);
     auto options = options_of(command, args);
     if (!options) return usage();

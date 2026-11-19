@@ -136,6 +136,41 @@ static UTest cases{"gen.dist_toy", [] {
         expect(!twice.has_value()) << "a page is split once";
     };
 
+    "a page as a document before its program runs (D-236): the projection over the canvas's place until presented; what a search engine and a share card read"_test = [] {
+        Tree t;
+        auto p = t.package(); p.sdk = false; p.background = "#fbfbfa";
+        auto r = gen::package_for_toy(p);
+        expect(r.has_value()) << (r ? "" : r.error());
+        if (!r) return;
+        const std::string fragment = "<main data-omui-target=\"main\" lang=\"en\">\n  <h1 data-omui-target=\"main/title\">Notes &amp; lists</h1>\n</main>\n";
+        put(t.root / "first.html", fragment);
+        auto adopted = gen::adopt_document({.dir = p.out, .static_html = t.root / "first.html", .lang = "en", .description = "Notes, \"kept\" & found",
+                                            .canonical = "https://example.org/notes/", .image = "https://example.org/notes/card.png",
+                                            .alternates = {{"zh-CN", "https://example.org/notes/zh/"}}});
+        expect(adopted.has_value()) << (adopted ? "" : adopted.error());
+        if (!adopted) return;
+        const std::string page = read(p.out / "index.html");
+        expect(adopted->index == page.size());
+        expect(page.starts_with("<!doctype html>\n<html lang=\"en\">")) << "the document's language";
+        const auto document = page.find("<div data-omui=\"static\">\n" + fragment + "</div>"), canvas = page.find("<canvas id=\"canvas\"");
+        expect(document != std::string::npos && document < canvas) << "the projection as it was written, before the canvas";
+        expect(page.contains("<meta name=\"description\" content=\"Notes, &quot;kept&quot; &amp; found\">")) << "escaped";
+        expect(page.contains("<link rel=\"canonical\" href=\"https://example.org/notes/\">"));
+        expect(page.contains("<link rel=\"alternate\" hreflang=\"zh-CN\" href=\"https://example.org/notes/zh/\">"));
+        expect(page.contains("<meta property=\"og:title\" content=\"&lt;Game&gt;\">")) << "the page's title, once escaped";
+        expect(page.contains("<meta property=\"og:image\" content=\"https://example.org/notes/card.png\">") && page.contains("summary_large_image"));
+        expect(page.contains("color:#16161a")) << "dark text on a light page";
+        expect(page.contains("e.detail.presented") && page.contains("page.hidden = true")) << "it steps aside once the program presents";
+        expect(page.find("addEventListener('omui-load'") < page.find("<script defer src=")) << "listening before the loader runs";
+        auto twice = gen::adopt_document({.dir = p.out, .static_html = t.root / "first.html"});
+        expect(!twice.has_value()) << "a page gets its document once";
+        // A projection runs nothing.
+        auto q = t.package(); q.sdk = false; q.out = t.root / "out" / "other";
+        expect(gen::package_for_toy(q).has_value());
+        put(t.root / "scripted.html", "<main><script>alert(1)</script></main>");
+        expect(!gen::adopt_document({.dir = q.out, .static_html = t.root / "scripted.html"}).has_value()) << "no script in a projection";
+    };
+
     "--lazy's routes: the bare page is a route, an empty field too"_test = [] {
         expect(gen::lazy_routes("") == std::vector<std::string>{""}) << "--lazy \"\": the bare page (the site's split)";
         expect(gen::lazy_routes("home") == std::vector<std::string>{"home"});

@@ -10,7 +10,8 @@
 //   omui-bench-lottie --out DIR --phases        where a frame's time goes: hanim's seek and evaluation, the display
 //                                               list recorded, xrender's drawing (each part's median over the frames);
 //                                               and inside the evaluation: the program's sample, the animation's, the
-//                                               source's, and the four eases an object alone
+//                                               source's, and the four eases an object alone; the drawing's
+//                                               background alone
 import std;
 import mcpplibs.cmdline;
 import mlibs.math;
@@ -285,6 +286,15 @@ int main(int argc, char** argv) {
             }
         std::println(R"({{"inside":"evaluate","program_sample_ms":{:.3f},"animation_ms":{:.3f},"source_ms":{:.3f},"four_eases_ms":{:.3f},"parts":{},"cubics":{},"values":{},"checksum":{:.1f}}})",
                      median(inside[0]), median(inside[1]), median(inside[2]), median(inside[3]), most.parts, most.cubics, most.values, eased);
+        // The drawing's floor: the stage alone, its background, with nothing on it.
+        const xrender::DisplayList nothing;
+        std::vector<double> background;
+        for (int run = 0; run < (1 + runs) * frames; ++run) {
+            const auto begun = clock::now();
+            (void)renderer.render(nothing, surface, {}, {.background = mlibs::geom::Color::white()});
+            if (run >= frames) background.push_back(spent(begun, clock::now()));
+        }
+        std::println(R"({{"inside":"draw","background_ms":{:.3f}}})", median(background));
         const auto playing = played->engine.inspect(played->playback);
         std::println(R"({{"player":"hanim","scene":"{}","evaluate_ms":{:.3f},"record_ms":{:.3f},"draw_ms":{:.3f},"tracks":{},"segments":{}}})", scene,
                      median(parts[0]), median(parts[1]), median(parts[2]), playing ? playing->track_count : 0, playing ? playing->segment_count : 0);

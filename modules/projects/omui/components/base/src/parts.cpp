@@ -32,6 +32,29 @@ void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii) {
                                xrender::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
 }
 
+std::optional<Rect> view_box(std::string_view text) noexcept {
+    std::array<float, 4> numbers{};
+    std::size_t found = 0;
+    while (found < numbers.size() && !text.empty()) {
+        const auto start = text.find_first_not_of(" ,\t");
+        if (start == std::string_view::npos) break;
+        text.remove_prefix(start);
+        const auto [end, failure] = std::from_chars(text.data(), text.data() + text.size(), numbers[found]);
+        if (failure != std::errc{}) break;
+        text.remove_prefix(static_cast<std::size_t>(end - text.data()));
+        ++found;
+    }
+    if (found != 4 || !(numbers[2] > 0) || !(numbers[3] > 0)) return std::nullopt;
+    return Rect{numbers[0], numbers[1], numbers[2], numbers[3]};
+}
+
+mlibs::geom::Affine fitted(const Rect& view_box, const Rect& into) noexcept {
+    const float scale = std::min(into.width / view_box.width, into.height / view_box.height);
+    const float left = into.x + (into.width - view_box.width * scale) / 2 - view_box.x * scale;
+    const float top = into.y + (into.height - view_box.height * scale) / 2 - view_box.y * scale;
+    return mlibs::geom::Affine::translate(left, top) * mlibs::geom::Affine::scale(scale, scale);
+}
+
 void agent_corners(xrender::DisplayList& list, const Rect& box, Color ink, float arm, float width) {
     xrender::Path corners;
     const auto corner = [&](Point p, float dx, float dy) { corners.move_to({p.x + dx * arm, p.y}).line_to(p).line_to({p.x, p.y + dy * arm}); };

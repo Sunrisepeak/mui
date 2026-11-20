@@ -754,7 +754,7 @@ struct Generation::Impl {
             replay_problem = std::format("the replay this application ships does not read: {}", read.error());
             return;
         }
-        replayer = std::make_unique<Replayer>(runtime, std::move(*read), options.show, options.restore);
+        replayer = std::make_unique<Replayer>(runtime, std::move(*read), options.show, options.restore, options.replay_course);
     }
 
     VerbResult replay(const Value& args) {

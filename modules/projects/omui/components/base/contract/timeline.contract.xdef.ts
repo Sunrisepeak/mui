@@ -4,7 +4,8 @@
 // path; the steps lie along it at equal lengths. Its track, the part played,
 // each step's mark and the playhead are its parts, carried by the style's
 // motion. Pressed or dragged, the nearest point of the shape takes the
-// nearest step; the keys and an agent move it as a slider's value.
+// nearest step; the keys and an agent move it as a slider's value. Over
+// another node (`over`), it lies on that node's own shape where it is drawn.
 import { defineContract } from "openmui/define";
 
 export default defineContract({
@@ -25,6 +26,16 @@ export default defineContract({
         type: "bool",
         default: true,
         doc: "Its track and the part played drawn; false: only the marks and the playhead, on a shape its owner draws itself (the site's O).",
+      },
+      view_box: {
+        type: "string",
+        default: "",
+        doc: "The shape's own box (x y width height), laid as a path lays it: its ratio kept, centred. Empty: a 1×1 box stretched to its own.",
+      },
+      over: {
+        type: "string",
+        default: "",
+        doc: "A node (its path) whose box the course lies in, not its own: the steps on that node's shape where it is (a replay's course on the site's O); only a press near the course is its.",
       },
       label: { type: "string", default: "Timeline", doc: "The accessible name." },
       disabled: { type: "bool", default: false },

@@ -77,8 +77,9 @@ export interface Generation {
     components?: string[];
     verbs?: string[];
     /** The design shown in place (generate.replay): how the application was designed, as the replay design.history.export
-     *  writes (`"design/main.replay.xdef.json"`, from here), each step played in it under its caption. */
-    replay?: string;
+     *  writes (`"design/main.replay.xdef.json"`, from here), each step played in it under its caption; with `course`, the
+     *  id of a path of the application's own its steps lie on where a step has it (the site's O), else the card's line. */
+    replay?: string | { file: string; course?: string };
 }
 export interface Config {
     agent?: ByMode<AgentMode>;

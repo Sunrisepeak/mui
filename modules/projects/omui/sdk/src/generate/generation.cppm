@@ -102,6 +102,7 @@ struct GenerationOptions {
     // shown whatever generation's openness. Empty: generate.replay says it ships none, and how to.
     std::string           replay;       // the replay's text
     std::string           replay_file;  // its name, in problems
+    std::string           replay_course;  // the id of a path of the application's its course lies on (else the card's line)
     ShowTextsFn           show;
     std::function<void()> restore;
 };

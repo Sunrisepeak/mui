@@ -20,6 +20,11 @@ export namespace omui::parts {
 // A node's own id: the last segment of its path.
 [[nodiscard]] std::string segment(const Services& services, NodeId node);
 
+// A view box's text ("x y width height"): none unless four numbers, the width and the height above zero.
+[[nodiscard]] std::optional<Rect> view_box(std::string_view text) noexcept;
+// A view box laid into `into` as a path lays its data: its ratio kept, centred.
+[[nodiscard]] mlibs::geom::Affine fitted(const Rect& view_box, const Rect& into) noexcept;
+
 // A small downward chevron (selects, menus), centred on `c`.
 void chevron(PaintContext& ctx, Point c, float size, Color color);
 

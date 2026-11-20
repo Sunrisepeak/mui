@@ -4,7 +4,9 @@
 // first again); pressed or dragged, the shape's nearest point takes the
 // nearest step; keys and actions move it as a slider's value. Its parts —
 // the track, the part played, each step's mark, the playhead — are drawn
-// where they are; how they move is the style's (D-93).
+// where they are; how they move is the style's (D-93). Over another node
+// (`over`), its course lies on that node's shape where it is, and only a
+// press near the course is its.
 export module omui.ui.base:timeline;
 
 import std;
@@ -25,13 +27,16 @@ public:
     void paint(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    // Over another node, only near its course: the page under it is used as it plays.
+    bool hits(Point local, Size size) const;
 
     ActResult increment(ActContext& ctx);
     ActResult decrement(ActContext& ctx);
     ActResult set_value(ActContext& ctx, const Value& value);
 
-    // Its course in its own coordinates (laid on a box of `size`): the points along its shape, each one's length from
-    // the start, and whether it closes (a ring). Empty when the shape is not a path.
+    // Its course in its own coordinates (laid on a box of `size`, or on the node it is over): the points along its
+    // shape, each one's length from the start, and whether it closes (a ring). Empty when the shape is not a path, or
+    // the node it is over is not there.
     struct Course {
         std::vector<Point> points;
         std::vector<float> lengths;  // from the start, one a point
@@ -47,11 +52,14 @@ public:
 
 private:
     bool change(double step);
+    // Where its shape is laid, in its own coordinates: the box of the node it is over, or its own with the playhead's
+    // half kept clear at every side; none when the node it is over is not there.
+    [[nodiscard]] std::optional<Rect> frame(Size size) const;
     [[nodiscard]] float fraction_of(double step) const noexcept;  // its length along, as a fraction of the course's
 
     mutable Course      course_;
-    mutable Size        course_size_{};
-    mutable std::string course_shape_;
+    mutable Rect        course_frame_{};
+    mutable std::string course_shape_, course_box_;
     mutable Size        size_{};
     bool                dragging_ = false;
     double              drag_from_ = 1;

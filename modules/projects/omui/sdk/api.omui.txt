@@ -66,6 +66,7 @@ namespace omui::generate {
     TaskBroker* tasks = nullptr;
     std::string replay;
     std::string replay_file;
+    std::string replay_course;
     ShowTextsFn show;
     std::function<void()> restore;
   };
@@ -103,7 +104,7 @@ namespace omui::generate {
 namespace omui::generate {
   using ShowTextsFn = std::function<std::expected<void, std::string>(const std::map<std::string, std::string>& texts)>;
   class Replayer {
-    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore);
+    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore, std::string course = {…});
     ~Replayer();
     Replayer(const Replayer&) = delete;
     Replayer& operator=(const Replayer&) = delete;

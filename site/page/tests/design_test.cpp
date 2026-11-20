@@ -230,6 +230,32 @@ static UTest cases{"site.page.design", [] {
         expect(replay_text.contains("the sentence, in the person's words")) << "each step in its maker's words";
         pinned(here() / "design" / "main.replay.xdef.json", replay_text);
 
+        // 8. Played in place as the Live Design key plays it, its course on the mark's O (omui.config.ts): at omui new's
+        // page, which has no O, the card's own line; once a step's page has the O, the steps lie on it where it is
+        // drawn and the card has no line.
+        generate::Generation played(h.runtime(), {.replay = replay_text, .replay_file = "main.replay.xdef.json", .replay_course = "o",
+                                                  .show = [&](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
+                                                      if (auto shown = app.show(texts); !shown) return std::unexpected(shown.error().message);
+                                                      return {};
+                                                  },
+                                                  .restore = [&] { (void)app.discard_edits(); }});
+        const auto steps_named = [&] { return h.tree().find({.role = Role::slider, .name = "Step"}); };
+        (void)done("generate.replay", Value{}.set("at", 1));
+        expect(!shown("o") && eq(steps_named().size(), std::size_t{1}) && steps_named().front().id.ends_with("/step")) << "no O yet: the card's line";
+        (void)done("generate.replay", Value{}.set("at", 3));
+        const auto on_o = steps_named();
+        expect(fatal(shown("o") && eq(on_o.size(), std::size_t{1}))) << "the O drawn: one course";
+        expect(on_o.front().id.ends_with("/course") && eq(on_o.front().value.get("value")->as_double(), 3.0)) << on_o.front().id;
+        const NodeId course_node = h.runtime().find(on_o.front().id), o_node = h.runtime().find(path_of("o"));
+        const auto* course = h.runtime().component<Timeline>(course_node);
+        expect(fatal(course != nullptr));
+        const Rect o_box = h.runtime().bounds(o_node), course_box = h.runtime().bounds(course_node);
+        const Point at = course->point_at(3, course_box.size());
+        expect(o_box.contains(Point{course_box.x + at.x, course_box.y + at.y})) << "the third step on the O, where it is drawn";
+        (void)h.save_png(std::filesystem::temp_directory_path() / "omui-site-page-course.png");
+        (void)done("generate.replay", Value{}.set("stop", true));
+        expect(steps_named().empty() && h.tree().find({.role = Role::heading}).front().name.starts_with("A UI framework")) << "stopped: the page as it ships";
+
         std::ranges::sort(took);
         if (!took.empty())
             std::println("site page design: {} steps, {} edits, p95 {:.2f} ms", exported.get("steps") ? exported.get("steps")->as_int() : 0, took.size(),

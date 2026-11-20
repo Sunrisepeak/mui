@@ -76,6 +76,7 @@ struct Config {
     std::vector<generate::Surface>    surfaces;
     std::vector<std::string>       components, verbs;
     std::filesystem::path          replay;  // from the manifest's directory
+    std::string                    replay_course;  // the id of the path its course lies on (the site's O)
 };
 
 std::expected<Config, std::string> read_config(const std::filesystem::path& base) {
@@ -142,10 +143,16 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
                                         kind_name == "theme" ? generate::Surface::Kind::theme : generate::Surface::Kind::view});
             }
         if (const Value* replay = generation->get("replay")) {
-            if (replay->type() != Value::Type::text || replay->as_string().empty())
-                return std::unexpected(std::format("{}: generation.replay is the design's replay, a path from here (\"design/main.replay.xdef.json\")", utf8(file)));
-            const std::string_view path = replay->as_string();
+            // A path from here, or { file, course }: the course on a path of the application's own (its id).
+            const Value* named = replay->type() == Value::Type::text ? replay : replay->get("file");
+            const Value* course = replay->type() == Value::Type::text ? nullptr : replay->get("course");
+            if (!named || named->type() != Value::Type::text || named->as_string().empty() || (course && course->type() != Value::Type::text))
+                return std::unexpected(std::format("{}: generation.replay is the design's replay, a path from here (\"design/main.replay.xdef.json\"), "
+                                                   "or {{ file, course }} with the id of the path its course lies on (\"o\")",
+                                                   utf8(file)));
+            const std::string_view path = named->as_string();
             out.replay = std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(path.data()), path.size()));
+            if (course) out.replay_course = std::string(course->as_string());
         }
         for (const auto& [list, into] : {std::pair{"components", &out.components}, std::pair{"verbs", &out.verbs}})
             if (const Value* names = generation->get(list); names && names->list())
@@ -371,6 +378,7 @@ int player_main(int argc, char** argv) {
             if (!in) std::println(std::cerr, "{}: generation.replay names no file here (design.history.export writes one)", utf8(file));
             app.generation->replay.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
             app.generation->replay_file = utf8(config->replay);
+            app.generation->replay_course = config->replay_course;
             app.generation->show = [&p](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
                 if (!p) return std::unexpected(std::string("the application's scripts are not running"));
                 if (auto shown = p->show(texts); !shown) return std::unexpected(shown.error().message);

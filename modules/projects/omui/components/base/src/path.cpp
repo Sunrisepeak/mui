@@ -19,22 +19,7 @@ void Path::prop_changed(PathProp p) {
     if (p == PathProp::view_box) services().invalidate_layout(node());
 }
 
-Rect Path::view_box() const noexcept {
-    std::array<float, 4> numbers{};
-    std::size_t found = 0;
-    std::string_view rest = props.view_box;
-    while (found < numbers.size() && !rest.empty()) {
-        const auto start = rest.find_first_not_of(" ,\t");
-        if (start == std::string_view::npos) break;
-        rest.remove_prefix(start);
-        const auto [end, failure] = std::from_chars(rest.data(), rest.data() + rest.size(), numbers[found]);
-        if (failure != std::errc{}) break;
-        rest.remove_prefix(static_cast<std::size_t>(end - rest.data()));
-        ++found;
-    }
-    if (found != 4 || !(numbers[2] > 0) || !(numbers[3] > 0)) return {0, 0, 100, 100};
-    return {numbers[0], numbers[1], numbers[2], numbers[3]};
-}
+Rect Path::view_box() const noexcept { return parts::view_box(props.view_box).value_or(Rect{0, 0, 100, 100}); }
 
 const xrender::Path* Path::shape() const {
     if (shape_of_ == props.d && shape_) return &*shape_;
@@ -79,11 +64,9 @@ void Path::paint(PaintContext& ctx) const {
     const xrender::Path* drawn = shape();
     if (!drawn || ctx.content.empty()) return;
     // The view box into the content box, its ratio kept, centred.
-    const Rect box = view_box();
-    const float scale = std::min(ctx.content.width / box.width, ctx.content.height / box.height);
-    const float left = ctx.content.x + (ctx.content.width - box.width * scale) / 2 - box.x * scale;
-    const float top = ctx.content.y + (ctx.content.height - box.height * scale) / 2 - box.y * scale;
-    const xrender::Path placed = drawn->transformed(mlibs::geom::Affine::translate(left, top) * mlibs::geom::Affine::scale(scale, scale));
+    const mlibs::geom::Affine into = parts::fitted(view_box(), ctx.content);
+    const float scale = into.a;
+    const xrender::Path placed = drawn->transformed(into);
     const Theme& th = ctx.theme;
     ctx.part({.role = "shape", .allocation = {0, 0, ctx.size.width, ctx.size.height}}, [&] {
         if (!props.fill.empty()) ctx.list.fill_path(placed, xrender::FillRule::nonzero, xrender::Paint::solid(th.color(props.fill)));

@@ -127,6 +127,42 @@ static UTest cases{"ui.base.timeline", [] {
         expect(near(wrong->point_at(1, {240, 28}), {10, 14}) && near(wrong->point_at(3, {240, 28}), {230, 14})) << "laid as a line";
     };
 
+    "over another node: the course on that node's shape where it is drawn, its view box laid as the path lays it; only a press near it is its"_test = [] {
+        Headless h(HeadlessOptions{.size = {300, 300}, .fonts = &fonts()});
+        auto at = signal(1.0);
+        auto over = signal(std::string("main/column:0/o"));
+        // A square in a 100-unit box, drawn 200 wide at (50, 50): its corners at 70 and 230. The course lies over it
+        // from a layer as large as the window (a replay's over the page).
+        constexpr std::string_view square = "M10 10 L90 10 L90 90 L10 90 Z";
+        h.mount("main", stack({.width = 300.0f, .height = 300.0f},
+                              {column({.padding = 50}, {path({.id = "o", .d = std::string(square), .stroke = "text", .stroke_width = 4.0, .width = 200.0f, .height = 200.0f})}),
+                               timeline({.id = "course", .line = false, .over = over, .shape = std::string(square), .steps = 4, .value = at,
+                                         .view_box = "0 0 100 100"})}));
+        h.settle();
+        Runtime& rt = h.runtime();
+        expect(fatal(rt.valid(rt.find("main/column:0/o"))));
+        const NodeId node = rt.find("main/course");
+        const auto* course = rt.component<Timeline>(node);
+        expect(fatal(course != nullptr));
+        const Size size = rt.bounds(node).size();
+        expect(near(size.width > 0 ? Point{size.width, size.height} : Point{}, {300, 300})) << "as large as it is let be";
+        expect(near(course->point_at(1, size), {70, 70}) && near(course->point_at(2, size), {230, 70}) && near(course->point_at(3, size), {230, 230}))
+            << "each step on the square where it is drawn";
+        h.click({150, 150});
+        h.settle();
+        expect(eq(at(), 1.0)) << "a press inside the square, away from its course: not the timeline's";
+        h.click({229, 228});
+        h.settle();
+        expect(eq(at(), 3.0)) << "a press on the course: the nearest step";
+        (void)h.save_png(scratch_dir("timeline") / "over.png");
+        over.set("main/nothing");
+        h.settle();
+        expect(course->course(size).points.empty()) << "the node it is over not there: no course";
+        h.click({229, 228});
+        h.settle();
+        expect(eq(at(), 3.0)) << "and nothing taken";
+    };
+
     "line false: the marks and the playhead alone, on a shape its owner draws (the site's O)"_test = [] {
         // A line of three steps, at the first: between the second mark and the third only the track is drawn.
         const auto drawn = [](bool line) {

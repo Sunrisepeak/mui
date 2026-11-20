@@ -7,7 +7,10 @@
 // what the step built (a note at the step's node: the agent's presence, D-160);
 // at the end the application's own scripts again. A person (its play button,
 // the timeline they scrub, Close) or an agent (generate.replay) plays, pauses,
-// goes to a step and stops; every step shown is a real interface.
+// goes to a step and stops; every step shown is a real interface. Its course
+// can lie on a node of the application's own (`course`: a path's id, the
+// site's O): where the step's interface has it, the steps are on that shape
+// where it is drawn, and the card has no line of its own.
 //
 //     omui::generate::Replayer replayer(runtime, *mlibs::agent::read_replay(text),
 //         [&](const auto& texts) { return player.show(texts); }, [&] { player.discard_edits(); });
@@ -26,8 +29,9 @@ using ShowTextsFn = std::function<std::expected<void, std::string>(const std::ma
 
 class Replayer {
 public:
-    // `restore`: the application's own scripts again (the player's edits dropped).
-    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore);
+    // `restore`: the application's own scripts again (the player's edits dropped). `course`: the id of a path its
+    // course lies on where a step's interface has one (omui.config.ts's generation.replay.course), else the card's.
+    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore, std::string course = {});
     ~Replayer();
     Replayer(const Replayer&) = delete;
     Replayer& operator=(const Replayer&) = delete;
@@ -53,6 +57,7 @@ private:
     std::expected<void, std::string> show(std::size_t step);
     void schedule();
     void present();
+    void place_course();  // on the course's node where the step's interface has it
 
     Runtime&                 runtime_;
     mlibs::agent::Replay     replay_;
@@ -66,6 +71,11 @@ private:
     Signal<std::string>      caption_{std::string()}, who_{std::string()};
     Signal<double>           shown_{0.0};   // the step shown, on the person's timeline (they scrub it)
     Signal<std::string>      toggle_{std::string("Pause")};  // its play button's word
+    std::string              course_;       // the id of the path its course lies on (empty: the card's line)
+    Signal<std::string>      over_{std::string()}, course_shape_{std::string()}, course_box_{std::string()};
+    Signal<bool>             on_node_{false};  // the step's interface has that path
+    std::uint64_t            looking_ = 0;     // a look for it again (a page shown when its evaluation settles)
+    int                      looks_ = 0;
     std::set<std::string>    noted_;        // the makers whose notes it put up (withdrawn at the end)
     bool                     mounted_ = false;
     void                     said_playing();

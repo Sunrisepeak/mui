@@ -21,29 +21,51 @@ void Timeline::mounted() { size_ = {}; }
 
 void Timeline::prop_changed(TimelineProp p) {
     if (!attached()) return;
-    if (p == TimelineProp::shape) course_shape_.clear();  // laid again
+    if (p == TimelineProp::shape || p == TimelineProp::view_box || p == TimelineProp::over) course_shape_.clear();  // laid again
+    if (p == TimelineProp::over) services().invalidate_layout(node());
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }
 
-Size Timeline::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available) {
+Size Timeline::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah) {
+    // Over another node: as large as it is let be (it lies over what it marks).
+    if (!props.over.empty()) return {width.value_or(aw.is_definite() ? aw.value : 0), height.value_or(ah.is_definite() ? ah.value : 0)};
     if (props.shape == "line") return {width.value_or(aw.is_definite() ? std::min(aw.value, line_width) : line_width), height.value_or(line_height)};
     return {width.value_or(shape_side), height.value_or(shape_side)};
 }
 
+std::optional<Rect> Timeline::frame(Size size) const {
+    if (!props.over.empty()) {
+        const NodeId over = services().find(props.over);
+        if (!over) return std::nullopt;
+        const Rect self = services().bounds(node()), at = services().bounds(over);
+        return Rect{at.x - self.x, at.y - self.y, at.width, at.height};
+    }
+    const float inset = playhead_diameter / 2 + 2;
+    return Rect{inset, inset, std::max(1.0f, size.width - 2 * inset), std::max(1.0f, size.height - 2 * inset)};
+}
+
 const Timeline::Course& Timeline::course(Size size) const {
-    if (course_size_ == size && course_shape_ == props.shape && !course_.points.empty()) return course_;
+    const std::optional<Rect> box = frame(size);
+    if (!box) {
+        course_ = {};
+        course_shape_.clear();
+        return course_;
+    }
+    if (course_frame_ == *box && course_shape_ == props.shape && course_box_ == props.view_box && !course_.points.empty()) return course_;
     course_ = {};
-    course_size_ = size;
+    course_frame_ = *box;
     course_shape_ = props.shape;
+    course_box_ = props.view_box;
     const std::string_view text = props.shape == "line" ? line_data : props.shape == "ring" ? ring_data : std::string_view(props.shape);
     auto data = mlibs::geom::parse_path_data(text);
     if (!data || data->verbs.empty()) data = mlibs::geom::parse_path_data(line_data);  // not a path: a line, as it is by default
-    // Laid inside its box, the playhead's half kept clear at every side.
-    const float inset = playhead_diameter / 2 + 2;
-    const Rect box{inset, inset, std::max(1.0f, size.width - 2 * inset), std::max(1.0f, size.height - 2 * inset)};
+    // A shape with its own box is laid as a path lays it; else a 1×1 box stretched to the frame.
+    const std::optional<Rect> own = props.shape == "line" || props.shape == "ring" ? std::nullopt : parts::view_box(props.view_box);
+    const mlibs::geom::Affine into = own ? parts::fitted(*own, *box)
+                                         : mlibs::geom::Affine::translate(box->x, box->y) * mlibs::geom::Affine::scale(box->width, box->height);
     mlibs::geom::PathPolylines lines;
-    mlibs::geom::flatten_path(data->view(), mlibs::geom::Affine::translate(box.x, box.y) * mlibs::geom::Affine::scale(box.width, box.height), lines, 0.25f);
+    mlibs::geom::flatten_path(data->view(), into, lines, 0.25f);
     if (lines.count() == 0) return course_;
     const auto first = lines.polygon(0);  // its first contour
     course_.points.assign(first.begin(), first.end());
@@ -82,23 +104,43 @@ Point Timeline::point_at(double step, Size size) const {
     return {from.x + (to.x - from.x) * part, from.y + (to.y - from.y) * part};
 }
 
-double Timeline::step_at(Point local, Size size) const {
-    const Course& laid = course(size);
-    if (laid.points.size() < 2 || laid.total() <= 0) return props.value;
-    // The shape's nearest point to it, and its length along.
-    float nearest = std::numeric_limits<float>::infinity(), along = 0;
+namespace {
+
+// The course's nearest point to a point: how far (squared) and its length along.
+struct Nearest {
+    float distance_squared = std::numeric_limits<float>::infinity();
+    float along = 0;
+};
+
+Nearest nearest(const Timeline::Course& laid, Point local) {
+    Nearest out;
     for (std::size_t index = 1; index < laid.points.size(); ++index) {
         const Point from = laid.points[index - 1], to = laid.points[index];
         const float dx = to.x - from.x, dy = to.y - from.y, length_squared = dx * dx + dy * dy;
         const float part = length_squared > 0 ? std::clamp(((local.x - from.x) * dx + (local.y - from.y) * dy) / length_squared, 0.0f, 1.0f) : 0.0f;
         const float x = from.x + dx * part - local.x, y = from.y + dy * part - local.y, distance = x * x + y * y;
-        if (distance < nearest) nearest = distance, along = laid.lengths[index - 1] + std::sqrt(length_squared) * part;
+        if (distance < out.distance_squared) out = {distance, laid.lengths[index - 1] + std::sqrt(length_squared) * part};
     }
+    return out;
+}
+
+}  // namespace
+
+double Timeline::step_at(Point local, Size size) const {
+    const Course& laid = course(size);
+    if (laid.points.size() < 2 || laid.total() <= 0) return props.value;
     const auto steps = static_cast<double>(count());
-    const double fraction = along / laid.total();
+    const double fraction = nearest(laid, local).along / laid.total();
     double step = 1 + std::round(fraction * (laid.closed ? steps : steps - 1));
     if (laid.closed && step > steps) step = 1;  // past the last, round to the first again
     return std::clamp(step, 1.0, steps);
+}
+
+bool Timeline::hits(Point local, Size size) const {
+    if (props.over.empty() || dragging_) return true;
+    const Course& laid = course(size);
+    // Within a playhead's width of the course.
+    return laid.points.size() >= 2 && nearest(laid, local).distance_squared <= playhead_diameter * playhead_diameter;
 }
 
 bool Timeline::change(double step) {

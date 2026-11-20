@@ -13,7 +13,7 @@ license     = "Apache-2.0"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the contributors' tool"
-lower = ["mpal", "mlibs.xdef.tool", "omui.entry.launcher"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mcpplibs.mpal", "mlibs.xdef.tool", "omui.entry.launcher"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 
 [targets.omui-devtools]
@@ -37,7 +37,7 @@ mlibs.image      = { path = "../../modules/base/image" }  # eval compare's sheet
 omui.entry.launcher = { path = "../../modules/projects/omui/entry/launcher" }  # release runtime: versions compared as the launcher does
 mcpplibs.cmdline = "0.0.3"
 mcpplibs.os      = "0.4.4"
-mpal             = { path = "../../modules/base/mpal" }  # its D-Bus: atspi speaks AT-SPI with it
+mcpplibs.mpal    = { path = "../../modules/base/mpal" }  # its D-Bus: atspi speaks AT-SPI with it
 mcpplibs.mwrap.zlib = "1.3.2"  # gzip: the site served as Pages serves it (omui.devtools.cdp)
 
 [test]

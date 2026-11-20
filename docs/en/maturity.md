@@ -72,7 +72,7 @@ A capability below its package's label is marked in its project's feature table 
 | Package | Directory | Label |
 |---|---|---|
 | `hanim.core` | [modules/projects/hanim/core](../../modules/projects/hanim/core) | stable |
-| `hanim` | [modules/projects/hanim](../../modules/projects/hanim) | stable |
+| `sunrisepeak.hanim` | [modules/projects/hanim](../../modules/projects/hanim) | stable |
 | `hanim.timeline` | [modules/projects/hanim/timeline](../../modules/projects/hanim/timeline) | stable |
 | `hanim.timeline.tool` | [modules/projects/hanim/timeline/tool](../../modules/projects/hanim/timeline/tool) | stable |
 | `hanim.visual` | [modules/projects/hanim/visual](../../modules/projects/hanim/visual) | stable |
@@ -172,7 +172,7 @@ A capability below its package's label is marked in its project's feature table 
 | `mlibs.math` | [modules/base/math](../../modules/base/math) | stable |
 | `mlibs.memory` | [modules/base/memory](../../modules/base/memory) | stable |
 | `mlibs.pipeline` | [modules/base/pipeline](../../modules/base/pipeline) | stable |
-| `mpal` | [modules/base/mpal](../../modules/base/mpal) | preview |
+| `mcpplibs.mpal` | [modules/base/mpal](../../modules/base/mpal) | preview |
 | `mlibs.simulation` | [modules/base/simulation](../../modules/base/simulation) | stable |
 | `mlibs.unicode` | [modules/base/unicode](../../modules/base/unicode) | stable |
 | `mlibs.utils` | [modules/base/utils](../../modules/base/utils) | stable |

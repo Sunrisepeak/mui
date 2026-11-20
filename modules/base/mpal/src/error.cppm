@@ -1,9 +1,9 @@
 // mpal:error — why a service was not done.
-export module mpal:error;
+export module mcpplibs.mpal:error;
 
 import std;
 
-export namespace mpal {
+export namespace mcpplibs::mpal {
 
 struct Error {
     enum class Code : std::uint8_t {
@@ -18,4 +18,4 @@ struct Error {
 
 [[nodiscard]] inline std::unexpected<Error> failure(Error::Code code, std::string text) { return std::unexpected(Error{code, std::move(text)}); }
 
-}  // namespace mpal
+}  // namespace mcpplibs::mpal

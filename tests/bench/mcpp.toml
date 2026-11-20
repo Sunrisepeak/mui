@@ -36,7 +36,7 @@ meng.dynamics = { path = "../../modules/projects/meng/kernel/dynamics", features
 meng.nav = { path = "../../modules/projects/meng/game/nav" }
 "meng.nav.cts" = { path = "../../modules/projects/meng/game/nav/cts" }
 # Skeletal animation (motion/skeleton-*): ACL's playback beside the raw channels, and a crowd's whole step.
-"hanim.skeleton" = { path = "../../modules/projects/hanim/skeleton" }
+hanim.skeleton = { path = "../../modules/projects/hanim/skeleton" }
 "hanim.skeleton.cts" = { path = "../../modules/projects/hanim/skeleton/cts" }
 # With the lattice as a carrier of matter (simulation/matter-lattice-*), and a field of it as an agent's subject
 # with its record of causes (simulation/matter-256-causes; the feature implies `matter` and `agent`); and the
@@ -45,8 +45,8 @@ meng.cellular = { path = "../../modules/projects/meng/kernel/cellular", features
 meng.matter = { path = "../../modules/projects/meng/kernel/matter" }
 # With matter's look as a shade on the lattice's presenter (simulation/matter-256-shade).
 "meng.cellular.present" = { path = "../../modules/projects/meng/kernel/cellular/present" }
-"hanim.core" = { path = "../../modules/projects/hanim/core" }
-"hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
+hanim.core = { path = "../../modules/projects/hanim/core" }
+sunrisepeak.hanim = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 omui.sdk             = { path = "../../modules/projects/omui/sdk" }
 omui.view            = { path = "../../modules/projects/omui/view", features = ["hanim"] }
 # The mirror assistive technology reads (core/list-scroll/reading).
@@ -56,7 +56,7 @@ mlibs.utils           = { path = "../../modules/base/utils" }
 mlibs.memory          = { path = "../../modules/base/memory" }
 mlibs.markdown        = { path = "../../modules/content/markdown" }
 meng.audio           = { path = "../../modules/projects/meng/kernel/audio" }
-"hanim.timeline"       = { path = "../../modules/projects/hanim/timeline" }
+hanim.timeline         = { path = "../../modules/projects/hanim/timeline" }
 "meng.audio.timeline" = { path = "../../modules/projects/meng/kernel/audio/timeline" }
 omui.ui.canvas       = { path = "../../modules/projects/omui/components/canvas" }
 omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }

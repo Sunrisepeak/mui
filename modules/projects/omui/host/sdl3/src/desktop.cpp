@@ -6,7 +6,7 @@ import omui.view;
 import omui.semantic;
 import omui.agent;
 import omui.accessibility;
-import mpal;
+import mcpplibs.mpal;
 import xrender.raster;
 import xrender.vector;
 import xrender.frame;
@@ -34,17 +34,17 @@ namespace omui {
 namespace {
 
 // A file choice as mpal asks the system for it.
-mpal::Pick pick_of(const Runtime::FileChoice& choice) {
-    mpal::Pick asked;
-    asked.kind = choice.kind == Runtime::FileChoice::Kind::save     ? mpal::Pick::Kind::save
-                 : choice.kind == Runtime::FileChoice::Kind::folder ? mpal::Pick::Kind::folder
-                                                                    : mpal::Pick::Kind::open;
+mcpplibs::mpal::Pick pick_of(const Runtime::FileChoice& choice) {
+    mcpplibs::mpal::Pick asked;
+    asked.kind = choice.kind == Runtime::FileChoice::Kind::save     ? mcpplibs::mpal::Pick::Kind::save
+                 : choice.kind == Runtime::FileChoice::Kind::folder ? mcpplibs::mpal::Pick::Kind::folder
+                                                                    : mcpplibs::mpal::Pick::Kind::open;
     asked.title = choice.title;
     asked.many = choice.many;
     asked.start = choice.start;
     asked.name = choice.name;
     for (const Runtime::FileFilter& filter : choice.filters) {
-        mpal::Filter made{.name = filter.name, .extensions = {}};
+        mcpplibs::mpal::Filter made{.name = filter.name, .extensions = {}};
         for (const auto part : std::views::split(std::string_view(filter.pattern), ';'))
             if (const std::string_view extension(part.begin(), part.end()); !extension.empty() && extension != "*") made.extensions.emplace_back(extension);
         asked.filters.push_back(std::move(made));
@@ -60,7 +60,7 @@ class NativeNotices {
 public:
     // None where the system has no notification service.
     static std::unique_ptr<NativeNotices> open() {
-        auto shower = mpal::Notifier::open();
+        auto shower = mcpplibs::mpal::Notifier::open();
         if (!shower) {
             info("desktop: system notifications: {} (drawn instead)", shower.error().text);
             return nullptr;
@@ -72,7 +72,7 @@ public:
     }
 
     bool show(std::string_view application, const Runtime::Notice& notice, std::function<void()> pressed) {
-        mpal::Notification shown{.application = std::string(application), .title = notice.title, .body = notice.body};
+        mcpplibs::mpal::Notification shown{.application = std::string(application), .title = notice.title, .body = notice.body};
         // "default": the notice itself, clicked.
         if (!notice.verb.empty()) shown.actions = {{"default", notice.title}};
         auto id = shower_->show(shown);
@@ -87,7 +87,7 @@ public:
 private:
     // Waits for answers as long as the host lives (no wakeups while none comes, C1): stopping it wakes the wait.
     void hear(std::stop_token stop) {
-        auto listener = mpal::Notifier::listen();
+        auto listener = mcpplibs::mpal::Notifier::listen();
         if (!listener) return;
         const std::stop_callback woken(stop, [&listener] { listener->stop(); });
         while (!stop.stop_requested()) {
@@ -99,7 +99,7 @@ private:
                 const std::scoped_lock lock(mutex_);
                 const auto found = pressed_.find((*answer)->id);
                 if (found == pressed_.end()) continue;  // not one of ours
-                if ((*answer)->kind == mpal::Answer::Kind::chosen) pressed = found->second;
+                if ((*answer)->kind == mcpplibs::mpal::Answer::Kind::chosen) pressed = found->second;
                 else pressed_.erase(found);
             }
             if (pressed) {
@@ -109,7 +109,7 @@ private:
         }
     }
 
-    std::optional<mpal::Notifier>                    shower_;
+    std::optional<mcpplibs::mpal::Notifier>                    shower_;
     std::mutex                                       mutex_;
     std::map<std::uint32_t, std::function<void()>>   pressed_;
     std::jthread                                     listener_;  // last: stopped first
@@ -547,9 +547,9 @@ std::expected<void, ViewFailure> Desktop::open() {
     d.runtime->set_native_surfaces({.choose_files = [&d](const Runtime::FileChoice& choice, Runtime::FilesChosen chosen) {
                                         // The system's chooser through mpal where it is here (Linux's desktop portal),
                                         // the person answering on a thread of its own; else SDL's.
-                                        if (mpal::can_pick()) {
+                                        if (mcpplibs::mpal::can_pick()) {
                                             std::thread([asked = pick_of(choice), chosen = std::move(chosen)] {
-                                                auto picked = mpal::pick(asked);
+                                                auto picked = mcpplibs::mpal::pick(asked);
                                                 if (!picked) warn("desktop: choosing files: {}", picked.error().text);
                                                 chosen(picked ? std::move(*picked) : std::vector<std::filesystem::path>{});
                                                 platform::wake();

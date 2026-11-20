@@ -4,13 +4,13 @@
 // a bundle identifier (an .app); a bare program is told so (unavailable). The
 // person is asked once whether notifications are allowed (the system
 // remembers); a refusal is said with the system's reason.
-module mpal;
+module mcpplibs.mpal;
 
 import std;
 import mcpplibs.os;
 import :native;
 
-namespace mpal::native {
+namespace mcpplibs::mpal::native {
 
 namespace objc = mcpplibs::os::macos::objc;
 
@@ -251,4 +251,4 @@ void stop(Centre& centre) {
     centre.changed.notify_all();
 }
 
-}  // namespace mpal::native
+}  // namespace mcpplibs::mpal::native

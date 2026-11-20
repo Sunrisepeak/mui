@@ -21,7 +21,7 @@ maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint
 separate = "library: timelines of clips for films, studios and interfaces"
 reexports = ["mlibs.utils"]  # what its interface re-exports (lint module-closure)
 kind = "runtime"
-agent = { part = "hanim" }
+agent = { part = "sunrisepeak.hanim" }
 
 [targets.hanim-timeline]
 kind = "lib"

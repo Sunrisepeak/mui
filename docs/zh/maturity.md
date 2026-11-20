@@ -72,7 +72,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | 包 | 目录 | 标注 |
 |---|---|---|
 | `hanim.core` | [modules/projects/hanim/core](../../modules/projects/hanim/core) | 稳定 |
-| `hanim` | [modules/projects/hanim](../../modules/projects/hanim) | 稳定 |
+| `sunrisepeak.hanim` | [modules/projects/hanim](../../modules/projects/hanim) | 稳定 |
 | `hanim.timeline` | [modules/projects/hanim/timeline](../../modules/projects/hanim/timeline) | 稳定 |
 | `hanim.timeline.tool` | [modules/projects/hanim/timeline/tool](../../modules/projects/hanim/timeline/tool) | 稳定 |
 | `hanim.visual` | [modules/projects/hanim/visual](../../modules/projects/hanim/visual) | 稳定 |
@@ -172,7 +172,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `mlibs.math` | [modules/base/math](../../modules/base/math) | 稳定 |
 | `mlibs.memory` | [modules/base/memory](../../modules/base/memory) | 稳定 |
 | `mlibs.pipeline` | [modules/base/pipeline](../../modules/base/pipeline) | 稳定 |
-| `mpal` | [modules/base/mpal](../../modules/base/mpal) | 预览 |
+| `mcpplibs.mpal` | [modules/base/mpal](../../modules/base/mpal) | 预览 |
 | `mlibs.simulation` | [modules/base/simulation](../../modules/base/simulation) | 稳定 |
 | `mlibs.unicode` | [modules/base/unicode](../../modules/base/unicode) | 稳定 |
 | `mlibs.utils` | [modules/base/utils](../../modules/base/utils) | 稳定 |

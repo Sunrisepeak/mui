@@ -16,7 +16,7 @@ maturity = "preview"  # release plan §2.1: stable, preview or experimental (lin
 separate = "dependency: the device (mlibs.rhi), kept from hanim's CPU users"
 reexports = ["mlibs.cts"]  # what its interface re-exports (lint module-closure)
 kind = "backend"
-agent = { part = "hanim" }
+agent = { part = "sunrisepeak.hanim" }
 
 [targets.hanim-rhi]
 kind = "lib"

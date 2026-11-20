@@ -2,13 +2,13 @@ module omui.devtools.atspi;
 
 import std;
 import mcpplibs.os;
-import mpal;
+import mcpplibs.mpal;
 import nlohmann.json;
 
 namespace omui::devtools::atspi {
 namespace {
 
-namespace dbus = mpal::dbus;
+namespace dbus = mcpplibs::mpal::dbus;
 using Value = dbus::Value;
 
 constexpr std::string_view accessible = "org.a11y.atspi.Accessible";

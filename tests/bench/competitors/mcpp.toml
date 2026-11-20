@@ -36,8 +36,8 @@ main = "src/markdown.cpp"
 
 [dependencies]
 mcpplibs.cmdline = "0.0.3"
-"hanim.core" = { path = "../../../modules/projects/hanim/core" }
-"hanim" = { path = "../../../modules/projects/hanim", features = ["render-vector"] }
+hanim.core = { path = "../../../modules/projects/hanim/core" }
+sunrisepeak.hanim = { path = "../../../modules/projects/hanim", features = ["render-vector"] }
 xrender.vector = { path = "../../../modules/projects/xrender/vector" }
 xrender.raster = { path = "../../../modules/projects/xrender/raster" }
 mlibs.geom = { path = "../../../modules/base/geom" }

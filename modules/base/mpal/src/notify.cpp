@@ -4,13 +4,13 @@
 // freedesktop call itself, which is protocol, not a platform's headers. A
 // native build for macOS or Windows speaks to that system's centre
 // (mpal:native), through mcpplibs.os's object models.
-module mpal;
+module mcpplibs.mpal;
 
 import std;
 import mcpplibs.os;
 import :native;
 
-namespace mpal {
+namespace mcpplibs::mpal {
 
 namespace os = mcpplibs::os;
 
@@ -154,4 +154,4 @@ std::expected<std::optional<Answer>, Error> Notifier::next(std::chrono::millisec
     }
 }
 
-}  // namespace mpal
+}  // namespace mcpplibs::mpal

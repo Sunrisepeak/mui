@@ -21,7 +21,7 @@ maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint
 separate = "library: animation values, curves and channels, below every layer that animates"
 reexports = ["mlibs.math", "mlibs.utils"]  # what its interface re-exports (lint module-closure)
 kind = "runtime"
-agent = { part = "hanim" }
+agent = { part = "sunrisepeak.hanim" }
 
 [targets.hanim-core]
 kind = "lib"

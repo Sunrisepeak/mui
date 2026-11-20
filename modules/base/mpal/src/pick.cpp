@@ -2,12 +2,12 @@
 // the session bus. A request's answer is a signal on its own object path,
 // which is known before the call (the handle_token), so the match is asked
 // first and no answer can come before it is listened for.
-module mpal;
+module mcpplibs.mpal;
 
 import std;
 import mcpplibs.os;
 
-namespace mpal {
+namespace mcpplibs::mpal {
 
 namespace os = mcpplibs::os;
 
@@ -154,4 +154,4 @@ std::expected<std::vector<std::filesystem::path>, Error> pick_on(dbus::Bus& bus,
     }
 }
 
-}  // namespace mpal
+}  // namespace mcpplibs::mpal

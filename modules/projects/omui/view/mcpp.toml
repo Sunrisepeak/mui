@@ -32,12 +32,12 @@ mlibs.utils = { path = "../../../base/utils" }
 omui.core     = { path = "../core" }
 mlibs.geom     = { path = "../../../base/geom" }
 mlibs.memory   = { path = "../../../base/memory" }
-"hanim.core"          = { path = "../../hanim/core" }
-"hanim"               = { path = "../../hanim", default-features = false, features = ["engine"] }
+hanim.core            = { path = "../../hanim/core" }
+sunrisepeak.hanim     = { path = "../../hanim", default-features = false, features = ["engine"] }
 mlibs.layout   = { path = "../../../content/layout" }
 xrender.raster   = { path = "../../xrender/raster" }
 xrender.vector   = { path = "../../xrender/vector" }
-"hanim.visual" = { path = "../../hanim/visual" }
+hanim.visual = { path = "../../hanim/visual" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.pipeline = { path = "../../../base/pipeline" }
@@ -63,4 +63,4 @@ default = []
 hanim = { sources = ["src/hanim/*.cppm", "src/hanim/*.cpp"] }
 
 [feature-deps.hanim]
-hanim = { path = "../../hanim", default-features = false, features = ["engine", "render-vector"] }
+sunrisepeak.hanim = { path = "../../hanim", default-features = false, features = ["engine", "render-vector"] }

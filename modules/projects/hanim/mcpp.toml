@@ -1,5 +1,6 @@
 # One product package; internal language modules are selected by features.
 [package]
+namespace = "sunrisepeak"  # the maintainer's namespace for the product (2026-11-20); its module keeps the name hanim
 name = "hanim"
 version = "0.1.0"
 description = "Independent composable animation engine with optional vector rendering"
@@ -8,6 +9,7 @@ platforms = ["linux", "macos", "windows", "emscripten"]
 repo = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
+primary-module = "hanim"  # `import hanim;`: the package is sunrisepeak.hanim, the product's module its own name
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: the animation engine every host and tool plays"
 lower = ["mlibs.dynamics"]  # lower-labelled parts it uses, each marked in its README

@@ -162,7 +162,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 ## Review at N0 + 86 commits (2026-11-19, head 694326a9; AGENTS §6)
 
-- Route: since N0, composition (K0–K6), size by owner (B1–B6), the tier split and meng's rename (A3–A9), the core metrics (D-247, N1, N5 step 1), the page's own engine for scripts (G0, G1 written), the visitor's agent (G9) and the release tried on a clean home (E1). The release's critical path is now outside this tree: five mcpp gaps found by E1 (#960–#964, worked round) and two names the maintainer decides (`hanim`, `mpal` have no namespace).
+- Route: since N0, composition (K0–K6), size by owner (B1–B6), the tier split and meng's rename (A3–A9), the core metrics (D-247, N1, N5 step 1), the page's own engine for scripts (G0, G1 written), the visitor's agent (G9) and the release tried on a clean home (E1). The release's critical path is now outside this tree: five mcpp gaps found by E1 (#960–#964, worked round). The two names, decided 2026-11-20: `sunrisepeak.hanim` (module `hanim`), `mcpplibs.mpal`.
 - Architecture: one table of natives serves QuickJS and the page's engine (no second binding). Found: what a node reports depends on its being painted — components keep state in paint (the recipe card's engine, the drop card, the Mui, the frame meter) and morphs compare display-list ranges — so culling (N5) cannot land until those move to frame hooks; a headless run at layout level already misses them. One semantic tree, many renderings, asks for this anyway.
 - Quality: the visitor path served a site dist older than its sources (it does not build what it serves) and passed; on Pages its sweep found a real presence bug. A check that serves a build must build it or refuse a stale one.
 - Measurement: benchmark rounds shared the machine with builds, including another session's; results must carry the machine's load when they ran.
@@ -173,7 +173,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 
 Order of the [wave-1 execution plan](2026-11-19-wave1-execution-plan.md) §6 (two reviews, 2026-11-19). Features first, verified here; no run is waited for (D-248); a commit names the lanes it needs (`CI: …`, D-254).
 
-1. E1 done (the release try at 3b2f6b23: 682 s, the C++ template's page build program included). G9 done: Pages published at 051825b8 and the visitor path on it, 22 of 22 (red 144 did not come back). Then the names `hanim` and `mpal` publish under (the maintainer's).
+1. E1 done (the release try at 3b2f6b23: 682 s, the C++ template's page build program included). G9 done: Pages published at 051825b8 and the visitor path on it, 22 of 22 (red 144 did not come back). The names: `sunrisepeak.hanim` (module `hanim`) and `mcpplibs.mpal` (done 2026-11-20).
 2. G1, G2, N5 done. G8 done: the design replayed in place, its card a `timeline`; an agent's presence the windowed hosts' default (`check live-page` 27 of 27 at 09f02d6c). E3b's first step done (`omui-launch`, two runtimes side by side); E4 waits on mcpp#975. G5's sketches drawn (the four states, offscreen), for review. C1's list and hello again on a quiet machine. Benchmark results carry the machine's load.
 3. The subagent: C1 and N2 measured here out of process (Slint, Flutter, NSH), then C3, C2, C8.
 4. M0 done (record above): the local preflight at `2c2be364`, 163 of 163 members with the GPU ones in their environment. Platform reds, when a later run finds them, are fixed as one batch and only their lanes run again.

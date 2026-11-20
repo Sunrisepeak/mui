@@ -417,19 +417,19 @@ std::span<const Closure> repository_closures() {
         {"meng.cellular", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "xrender", "mlibs.rhi", "mlibs.shader",
                                   "mlibs.agent", "mlibs.json", "mlibs.control", "meng.matter"}},
         // hanim by default is its engine: control and the stage as an agent's subject are features a consumer asks for
-        {"hanim", {}, {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender", "meng.matter", "meng.cellular"}},
+        {"sunrisepeak.hanim", {}, {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender", "meng.matter", "meng.cellular"}},
         // skeletal animation by default is its channels, ACL and the player: glTF (xrender.asset) and the subject are features
         {"hanim.skeleton", {}, {"omui", "xrender", "mlibs.agent", "mlibs.json", "mlibs.control", "meng"}},
         {"meng.cellular.rhi", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "xrender"}},
         // the field on screen: the renderer's resources (and what they reach), no UI, game, animation, effect loader or shader compiler
-        {"meng.cellular.present", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "meng.runtime", "hanim", "mlibs.shader",
+        {"meng.cellular.present", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "meng.runtime", "hanim", "sunrisepeak.hanim", "mlibs.shader",
                                           "xrender.effect"}},
         // the agent kernel: below every engine, knowing none of them (D-173)
-        {"mlibs.agent", {}, {"omui", "meng", "hanim", "xrender", "gongfu"}},
+        {"mlibs.agent", {}, {"omui", "meng", "hanim", "sunrisepeak.hanim", "xrender", "gongfu"}},
         // a game on its own: no interface, no bridge to one (D-162)
         {"meng.runtime", {}, {"omui", "meng.ui"}},
         // the frame's entry: the renderer and the agent kernel, no interface, game or animation (D-162)
-        {"xrender.frame", {}, {"omui", "meng", "hanim"}},
+        {"xrender.frame", {}, {"omui", "meng", "hanim", "sunrisepeak.hanim"}},
         // three dimensions (M6.3): geometry, numbers and the device's interface — no interface, animation, display list or shader compiler
         {"xrender.scene", {"xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
         {"xrender.mesh", {"xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},

@@ -4,13 +4,13 @@
 // packaged is named to the system by a Start menu shortcut carrying its
 // application identity (made when missing, as the shell's own API does it);
 // the person's choice and dismissal come back through the toast's events.
-module mpal;
+module mcpplibs.mpal;
 
 import std;
 import mcpplibs.os;
 import :native;
 
-namespace mpal::native {
+namespace mcpplibs::mpal::native {
 
 namespace com = mcpplibs::os::windows::com;
 namespace os = mcpplibs::os;
@@ -262,4 +262,4 @@ void stop(Centre& centre) {
     centre.changed.notify_all();
 }
 
-}  // namespace mpal::native
+}  // namespace mcpplibs::mpal::native

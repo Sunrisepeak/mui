@@ -536,9 +536,18 @@ std::vector<Problem> check_projects(const Workspace& workspace) {
 
 std::vector<Problem> check_layout(const Workspace& workspace) {
     std::vector<Problem> problems;
-    std::map<std::string, std::string> names;
+    std::map<std::string, std::string> names, families;  // each member's package, and the name the packages inside it take
     for (const auto& member : workspace.members)
-        if (member.data) names[member.path] = package_name(*member.data);
+        if (member.data) {
+            names[member.path] = families[member.path] = package_name(*member.data);
+            // A package published under another namespace keeps its module's name for its family (sunrisepeak.hanim's
+            // module is hanim: hanim.core lies inside it): its primary-module.
+            const toml::table* package = table_at(*member.data, "package");
+            const toml::table* metadata = package ? table_at(*package, "metadata") : nullptr;
+            const toml::table* openmui = metadata ? table_at(*metadata, "openmui") : nullptr;
+            const std::string module = openmui && openmui->get("primary-module") ? openmui->get("primary-module")->value_or(std::string{}) : std::string{};
+            if (!module.empty() && module != "*") families[member.path] = module;
+        }
     for (const auto& member : workspace.members) {
         if (!names.contains(member.path)) continue;
         const std::string& full = names[member.path];
@@ -552,7 +561,7 @@ std::vector<Problem> check_layout(const Workspace& workspace) {
         if (leaf != last)
             problems.push_back({"layout", member.path, std::format("the directory is `{}` but the package is {}: a library's path is its name (D-80)", directory, full)});
         const std::string parent = slash == std::string::npos ? std::string(".") : member.path.substr(0, slash);
-        if (const auto found = names.find(parent); found != names.end() && !full.starts_with(found->second + "."))
+        if (const auto found = families.find(parent); found != families.end() && !full.starts_with(found->second + "."))
             problems.push_back({"layout", member.path, std::format("{} lies in {} ({}): a package inside another is named after it ({}.{})", full, parent,
                                                                    found->second, found->second, leaf)});
     }

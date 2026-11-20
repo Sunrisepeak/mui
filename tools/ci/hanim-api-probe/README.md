@@ -75,7 +75,7 @@ umbrella, then runs dev and release with locked resolution. It audits C++23
 compilation and the package graph, rejecting UI/spec/renderer/RHI dependencies.
 The root source lock and the optional consumer lock must stay byte-identical.
 mcpp currently qualifies the pre-existing unnamespaced package as
-`mcpplibs.hanim`; the dependency key and module remain `hanim`. The audit also
+`sunrisepeak.hanim` (the dependency key too); the module remains `hanim`. The audit also
 checks the resolved umbrella source path.
 
 Checks cover real cubic geometry, transforms, effect parameter order, seek,

@@ -4,13 +4,13 @@
 // connection itself), a method call and its reply, and the signals a service
 // sends (asked for by a match rule). Enough for a service's conversation; no
 // libdbus, no sd-bus.
-export module mpal:dbus;
+export module mcpplibs.mpal:dbus;
 
 import std;
 import mcpplibs.os;
 import :error;
 
-export namespace mpal::dbus {
+export namespace mcpplibs::mpal::dbus {
 
 // A value as D-Bus carries it. A variant holds one value with its signature.
 struct Value;
@@ -80,4 +80,4 @@ private:
     std::string                   name_;  // the unique name Hello gave
 };
 
-}  // namespace mpal::dbus
+}  // namespace mcpplibs::mpal::dbus

@@ -14,4 +14,4 @@ sources = ["src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim = { path = {{hanim_path}} }
+sunrisepeak.hanim = { path = {{hanim_path}} }

@@ -520,7 +520,7 @@ std::pair<std::string, std::string> identity_of(std::string_view descriptor) {
 }
 
 fs::path store_path(std::string_view namespace_, std::string_view name, std::string_view version) {
-    // A package without a namespace (hanim, mpal) is resolved in mcpp's default namespace, `mcpplibs` (a bare name
+    // A package without a namespace is resolved in mcpp's default namespace, `mcpplibs` (a bare name
     // is the deprecated fallback, mcpp 2026.11.18.1 warns), and its payload looked for there.
     if (namespace_.empty()) return fs::path("xpkgs") / std::format("mcpplibs-x-{}", name) / std::string(version);
     return fs::path("xpkgs") / std::format("{}-x-{}", namespace_, name) / std::string(version);

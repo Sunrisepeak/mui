@@ -55,11 +55,11 @@ omui.view        = { path = "../modules/projects/omui/view", features = ["hanim"
 # The site also authors Hanim programs directly. Declared here as well because
 # mcpp does not yet apply omui.view's [feature-deps.hanim] when the view is
 # selected together with this package (the Web row: -p omui.view -p omui.site).
-hanim               = { path = "../modules/projects/hanim", default-features = false, features = ["engine", "render-vector"] }
+sunrisepeak.hanim   = { path = "../modules/projects/hanim", default-features = false, features = ["engine", "render-vector"] }
 omui.ui.markdown = { path = "../modules/projects/omui/components/markdown" }
 omui.ui.timeline = { path = "../modules/projects/omui/components/timeline" }
 omui.ui.canvas   = { path = "../modules/projects/omui/components/canvas" }  # the components page's wall
-"hanim.timeline"    = { path = "../modules/projects/hanim/timeline" }  # the monitor: what plays at the playhead
+hanim.timeline      = { path = "../modules/projects/hanim/timeline" }  # the monitor: what plays at the playhead
 omui.theme      = { path = "../modules/projects/omui/theme" }
 omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
 omui.semantic    = { path = "../modules/projects/omui/semantic" }

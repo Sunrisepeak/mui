@@ -2,27 +2,27 @@
 // (the system's notifications): Linux's freedesktop Notifications over the
 // session bus; elsewhere unsupported until its backend comes (README.md).
 //
-//     auto shown = mpal::notify({.application = "Notes", .title = "Saved", .body = "notes.md"});
-//     if (!shown) … shown.error().code == mpal::Error::Code::unsupported …
+//     auto shown = mcpplibs::mpal::notify({.application = "Notes", .title = "Saved", .body = "notes.md"});
+//     if (!shown) … shown.error().code == mcpplibs::mpal::Error::Code::unsupported …
 //
 // The person's answer (an action chosen, the notification dismissed) comes
 // back to a Notifier, which keeps the conversation open:
 //
-//     auto notes = mpal::Notifier::open();
+//     auto notes = mcpplibs::mpal::Notifier::open();
 //     auto id = notes->show({.application = "Notes", .title = "Saved", .actions = {{"open", "Open"}}});
 //     if (auto answer = notes->next(std::chrono::seconds(1)); answer && *answer && (*answer)->key == "open") …
-export module mpal:notify;
+export module mcpplibs.mpal:notify;
 
 import std;
 import :error;
 import :dbus;
 
 // A system's notification centre reached through its object model (mpal:native).
-namespace mpal::native {
+namespace mcpplibs::mpal::native {
 class Centre;
 }
 
-export namespace mpal {
+export namespace mcpplibs::mpal {
 
 struct Notification {
     std::string application;  // who tells: the application's name
@@ -82,4 +82,4 @@ private:
     bool                             every_ = false;
 };
 
-}  // namespace mpal
+}  // namespace mcpplibs::mpal

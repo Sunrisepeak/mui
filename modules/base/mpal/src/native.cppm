@@ -5,13 +5,13 @@
 // `os::is_macos` keeps — elsewhere the branch is discarded, no use, no link.
 // An ok image is no native build of either: there notifications are the
 // session bus's (Linux) or unsupported.
-module mpal:native;
+module mcpplibs.mpal:native;
 
 import std;
 import :error;
 import :notify;
 
-namespace mpal::native {
+namespace mcpplibs::mpal::native {
 
 [[nodiscard]] std::expected<std::shared_ptr<Centre>, Error> open();
 [[nodiscard]] std::expected<std::uint32_t, Error> show(Centre& centre, const Notification& notification);
@@ -20,4 +20,4 @@ namespace mpal::native {
 // Wakes a `next` waiting on another thread: it, and every later one, answers none.
 void stop(Centre& centre);
 
-}  // namespace mpal::native
+}  // namespace mcpplibs::mpal::native

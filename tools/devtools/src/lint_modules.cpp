@@ -239,7 +239,16 @@ std::vector<Problem> check_modules(const Workspace& workspace) {
         }
     }
 
-    // module-closure: the libraries under modules/
+    // module-closure: the libraries under modules/. A package's family is its primary module where it names one
+    // (sunrisepeak.hanim's is hanim: hanim.studio, inside it, re-exports it as its own family's root).
+    std::map<std::string, std::string> family;
+    for (const auto& member : workspace.members) {
+        if (!member.data) continue;
+        const std::string package = package_name(*member.data);
+        const auto* metadata = table_at(table_at(table_at(&*member.data, "package"), "metadata"), "openmui");
+        const std::string module = metadata && metadata->get("primary-module") ? metadata->get("primary-module")->value_or(std::string{}) : std::string{};
+        family[package] = module.empty() || module == "*" ? package : module;
+    }
     for (const auto& member : workspace.members) {
         if (!member.data || !member.path.starts_with("modules/")) continue;
         const std::string name = package_name(*member.data);
@@ -258,7 +267,9 @@ std::vector<Problem> check_modules(const Workspace& workspace) {
             if (std::ranges::any_of(globs, [&](const std::string& pattern) { return path_matches(within, pattern); })) continue;  // a feature's
             for (const auto& module : imported_modules(source.code, true)) {
                 const auto package = interface_owner.find(module);
-                if (package == interface_owner.end() || package->second == name || name.starts_with(package->second + ".")) continue;
+                if (package == interface_owner.end() || package->second == name || name.starts_with(package->second + ".") ||
+                    (family.contains(package->second) && name.starts_with(family[package->second] + ".")))
+                    continue;
                 found.try_emplace(package->second, source.path);
             }
         }

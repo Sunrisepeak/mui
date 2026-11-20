@@ -384,12 +384,12 @@ Outcome hanim_api(Probe& probe) {
                                                                                                          "openmui.render", "xrender"},
                                                                 [&](std::string_view prefix) { return name.starts_with(prefix); }))
                 return std::unexpected("forbidden UI/renderer dependency: " + name);
-            // mcpp's default namespace makes the unqualified package hanim mcpplibs.hanim; the module stays hanim.
+            // The product's package is sunrisepeak.hanim (its namespace, 2026-11-20); the module stays hanim.
             if (!umbrella && entry["package"].value("name", "") == "hanim") umbrella = entry["package"];
         }
         if (!umbrella || umbrella->value("source", "") != "path+" + text_of(probe.repo / "modules/projects/hanim"))
             return std::unexpected("the umbrella did not resolve to the public source package");
-        if (!std::ranges::contains(names, "mcpplibs.hanim") || !std::ranges::contains(names, "hanim.core")) return std::unexpected("the real public hanim package is missing");
+        if (!std::ranges::contains(names, "sunrisepeak.hanim") || !std::ranges::contains(names, "hanim.core")) return std::unexpected("the real public hanim package is missing");
         std::set<std::string> sources;
         json source_hashes = json::object();
         for (const auto& item : metadata->entries) {
@@ -422,7 +422,7 @@ std::expected<json, std::string> play_audit(Probe& probe, const std::string& pro
     auto metadata = newest_metadata(probe.project);
     if (!metadata) return std::unexpected(metadata.error());
     const std::set<std::string> forbidden{"omui.core", "omui.sdk", "openmui.testing", "mlibs.testing", "openlifa.openmui", "openmui.spec"};
-    const std::set<std::string> required{"mcpplibs.hanim", "hanim.core", "xrender.vector", "xrender.raster", "mlibs.image", "mlibs.control", "openlifa.openas"};
+    const std::set<std::string> required{"sunrisepeak.hanim", "hanim.core", "xrender.vector", "xrender.raster", "mlibs.image", "mlibs.control", "openlifa.openas"};
     std::vector<std::string> names;
     for (const auto& package : metadata->data["graph"]["packages"]) {
         const json& item = package["package"];
@@ -760,7 +760,7 @@ Outcome omui_hanim(Probe& probe, bool web) {
                 packages.push_back(canonical.substr(0, canonical.find('@')));
             }
         std::ranges::sort(packages);
-        if (!std::ranges::contains(packages, "omui.view") || !std::ranges::contains(packages, "mcpplibs.hanim") || std::ranges::contains(packages, "omui.sdk") ||
+        if (!std::ranges::contains(packages, "omui.view") || !std::ranges::contains(packages, "sunrisepeak.hanim") || std::ranges::contains(packages, "omui.sdk") ||
             std::ranges::contains(packages, "omui.site"))
             return std::unexpected("an unexpected application dependency closure");
         std::set<fs::path> sources;
@@ -803,7 +803,7 @@ Outcome omui_hanim(Probe& probe, bool web) {
         for (std::size_t at = unfeatured.find(feature); at != std::string::npos; at = unfeatured.find(feature)) unfeatured.erase(at, feature.size());
     for (auto part : std::views::split(std::string_view(unfeatured), '\n')) {
         const std::string_view line(part.begin(), part.end());
-        if (!line.starts_with("hanim = ")) without += std::string(line) + "\n";
+        if (!line.starts_with("sunrisepeak.hanim = ")) without += std::string(line) + "\n";
     }
     while (without.ends_with("\n\n")) without.pop_back();
     write_text(probe.project / "mcpp.toml", without);
@@ -968,7 +968,7 @@ Outcome hanim_features(Probe& probe) {
         if (item.features) selection = ", default-features = false, features = " + json(*item.features).dump();
         write_text(project / "mcpp.toml", "[package]\nnamespace=\"hanim.validation\"\nname=\"feature_consumer\"\nversion=\"0.1.0\"\n"
                                           "[targets.consumer]\nkind=\"bin\"\nmain=\"src/main.cpp\"\n[build]\nsources=[\"src/*.cpp\"]\n"
-                                          "[dependencies]\nhanim = { path = " + json(text_of(product)).dump() + selection + " }\n");
+                                          "[dependencies]\nsunrisepeak.hanim = { path = " + json(text_of(product)).dump() + selection + " }\n");
         write_text(project / "src/main.cpp", "import std;\nimport hanim;\nusing namespace hanim;\nvoid require(bool value) { if (!value) std::exit(1); }\n"
                                              "template<class T, class E> T take(std::expected<T,E> value) {\n    require(value.has_value());\n"
                                              "    if constexpr (!std::is_void_v<T>) return std::move(*value);\n}\nint main() {\n" +
@@ -1001,7 +1001,7 @@ Outcome hanim_features(Probe& probe) {
         if ((item.name == "control") != packages.contains("mlibs.control")) return std::unexpected("the control dependency did not follow the selected feature");
         // hanim.core measures its contours with mlibs.geom; the engine's solver is mlibs.dynamics (D-131, D-133, D-231).
         if (item.name == "core" &&
-            packages != std::set<std::string>{"hanim.validation.feature_consumer", "mcpplibs.hanim", "hanim.core", "mlibs.math", "mlibs.utils", "mlibs.memory", "mlibs.geom"})
+            packages != std::set<std::string>{"hanim.validation.feature_consumer", "sunrisepeak.hanim", "hanim.core", "mlibs.math", "mlibs.utils", "mlibs.memory", "mlibs.geom"})
             return std::unexpected("the core feature's closure is not minimal");
         if (!packages.contains("mlibs.geom")) return std::unexpected("the shared geometry (the measures of hanim.core and the object feature) is missing");
         // The engine's solver and its timeline come with the engine feature alone (feature-deps, kept since mcpp 2026.11.7.1, #897).
@@ -1020,7 +1020,7 @@ Outcome hanim_features(Probe& probe) {
             if (inside(source, product / "src")) actual.insert(source);
         if (actual != expected) return std::unexpected("the feature's source closure differs: " + item.name);
         const auto selected = std::ranges::find_if(metadata->data["graph"]["packages"], [](const json& package) {
-            return package["package"].value("canonical", "").starts_with("mcpplibs.hanim@");
+            return package["package"].value("canonical", "").starts_with("sunrisepeak.hanim@");
         });
         if (selected == metadata->data["graph"]["packages"].end()) return std::unexpected("no selected hanim package");
         const fs::path exports = fs::path((*selected).value("outDir", "")) / "selected.cppm";
@@ -1060,7 +1060,7 @@ Outcome hanim_features(Probe& probe) {
     if (digest(web / "mcpp.lock") != web_lock) return std::unexpected("the Web control consumer's lock changed");
     probe.report["web_control"] = {{"ok", true}, {"target", "wasm32-emscripten"}, {"source_sha256", digest(web / "src/main.cpp")}, {"manifest_sha256", digest(web / "mcpp.toml")}};
     // The packed product, linked by a consumer without its implementation sources.
-    auto packed = run(probe.repo, "pack", {"pack", "-p", "hanim", "--profile", "release", "--locked", "--message-format", "json"});
+    auto packed = run(probe.repo, "pack", {"pack", "-p", "sunrisepeak.hanim", "--profile", "release", "--locked", "--message-format", "json"});
     if (!packed) return std::unexpected(packed.error());
     std::vector<json> envelopes;
     for (const auto& value : json_objects(*packed))

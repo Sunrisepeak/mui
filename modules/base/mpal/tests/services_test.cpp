@@ -4,12 +4,12 @@
 // against a bus of the test's own (a local socket), so it runs anywhere; and
 // the person's answers coming back as the service's signals.
 import std;
-import mpal;
+import mcpplibs.mpal;
 import mcpplibs.os;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
-namespace dbus = mpal::dbus;
+namespace dbus = mcpplibs::mpal::dbus;
 
 namespace {
 
@@ -127,18 +127,18 @@ struct FakeBus {
     }
 };
 
-std::string_view code_name(mpal::Error::Code code) {
+std::string_view code_name(mcpplibs::mpal::Error::Code code) {
     switch (code) {
-        case mpal::Error::Code::unsupported: return "unsupported";
-        case mpal::Error::Code::unavailable: return "unavailable";
-        case mpal::Error::Code::refused: return "refused";
+        case mcpplibs::mpal::Error::Code::unsupported: return "unsupported";
+        case mcpplibs::mpal::Error::Code::unavailable: return "unavailable";
+        case mcpplibs::mpal::Error::Code::refused: return "refused";
         default: return "failed";
     }
 }
 
 // What the system's centre says to a program: opened and shown, or why not.
 std::string centre_says() {
-    auto notes = mpal::Notifier::open();
+    auto notes = mcpplibs::mpal::Notifier::open();
     if (!notes) return std::format("open {}: {}", code_name(notes.error().code), notes.error().text);
     auto shown = notes->show({.application = "mpal probe", .title = "mpal", .body = "a probe of the system's notifications", .actions = {{"open", "Open"}}});
     if (!shown) return std::format("show {}: {}", code_name(shown.error().code), shown.error().text);
@@ -187,7 +187,7 @@ UTest cases{"mpal.notify", [] {
         expect(connected.has_value()) << (connected ? std::string() : connected.error().text);
         if (connected) {
             expect(connected->name() == ":1.7") << "Hello's unique name";
-            const auto id = mpal::notify_on(*connected, {.application = "Notes", .title = "Saved", .body = "notes.md",
+            const auto id = mcpplibs::mpal::notify_on(*connected, {.application = "Notes", .title = "Saved", .body = "notes.md",
                                                          .actions = {{"open", "Open"}}, .shown = std::chrono::milliseconds(5000)});
             expect(id && *id == 42u) << (id ? std::string() : id.error().text);
         }
@@ -234,21 +234,21 @@ UTest cases{"mpal.notify", [] {
         auto connected = dbus::Bus::at(bus->dir, "bus");
         expect(connected.has_value());
         if (!connected) return;
-        auto notes = mpal::Notifier::on(std::move(*connected));
+        auto notes = mcpplibs::mpal::Notifier::on(std::move(*connected));
         expect(notes.has_value()) << (notes ? std::string() : notes.error().text);
         if (!notes) return;
         const auto saved = notes->show({.application = "Notes", .title = "Saved", .actions = {{"open", "Open"}}});
         expect(saved && *saved == 42u);
         const auto chosen = notes->next(std::chrono::milliseconds(2000));
-        expect(chosen && *chosen && (*chosen)->id == 42u && (*chosen)->kind == mpal::Answer::Kind::chosen && (*chosen)->key == "open")
+        expect(chosen && *chosen && (*chosen)->id == 42u && (*chosen)->kind == mcpplibs::mpal::Answer::Kind::chosen && (*chosen)->key == "open")
             << "the action chosen, by its key; another application's closing passed over";
         const auto dismissed = notes->next(std::chrono::milliseconds(2000));
-        expect(dismissed && *dismissed && (*dismissed)->id == 42u && (*dismissed)->kind == mpal::Answer::Kind::dismissed);
+        expect(dismissed && *dismissed && (*dismissed)->id == 42u && (*dismissed)->kind == mcpplibs::mpal::Answer::Kind::dismissed);
         const auto synced = notes->show({.application = "Notes", .title = "Synced"});
         expect(synced && *synced == 43u);
         expect(notes->close(43).has_value());
         const auto closed = notes->next(std::chrono::milliseconds(2000));
-        expect(closed && *closed && (*closed)->id == 43u && (*closed)->kind == mpal::Answer::Kind::closed) << "taken back";
+        expect(closed && *closed && (*closed)->id == 43u && (*closed)->kind == mcpplibs::mpal::Answer::Kind::closed) << "taken back";
         const auto quiet = notes->next(std::chrono::milliseconds(50));
         expect(quiet && !*quiet) << "nothing more";
         bus->end();
@@ -266,11 +266,11 @@ UTest cases{"mpal.notify", [] {
         auto connected = dbus::Bus::at(bus->dir, "bus");
         expect(connected.has_value());
         if (!connected) return;
-        auto listener = mpal::Notifier::listen(std::move(*connected));
+        auto listener = mcpplibs::mpal::Notifier::listen(std::move(*connected));
         expect(listener.has_value()) << (listener ? std::string() : listener.error().text);
         if (!listener) return;
         const auto began = std::chrono::steady_clock::now();
-        std::expected<std::optional<mpal::Answer>, mpal::Error> heard = std::optional<mpal::Answer>{};
+        std::expected<std::optional<mcpplibs::mpal::Answer>, mcpplibs::mpal::Error> heard = std::optional<mcpplibs::mpal::Answer>{};
         std::jthread waiting([&] { heard = listener->next(std::chrono::hours(1)); });
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         listener->stop();
@@ -312,7 +312,7 @@ UTest cases{"mpal.notify", [] {
         }
         expect(fatal(connected.has_value())) << "connected to dbus-daemon";
         expect(connected->name().starts_with(":")) << "the unique name the daemon gave";
-        auto notes = mpal::Notifier::listen(std::move(*connected));
+        auto notes = mcpplibs::mpal::Notifier::listen(std::move(*connected));
         expect(fatal(notes.has_value())) << (notes ? std::string() : notes.error().text);
         const auto send = [&](std::vector<std::string> arguments) {
             os::process::spawn_options said;
@@ -325,10 +325,10 @@ UTest cases{"mpal.notify", [] {
         };
         send({"org.freedesktop.Notifications.ActionInvoked", "uint32:42", "string:open"});
         const auto chosen = notes->next(std::chrono::milliseconds(3000));
-        expect(chosen && *chosen && (*chosen)->id == 42u && (*chosen)->kind == mpal::Answer::Kind::chosen && (*chosen)->key == "open");
+        expect(chosen && *chosen && (*chosen)->id == 42u && (*chosen)->kind == mcpplibs::mpal::Answer::Kind::chosen && (*chosen)->key == "open");
         send({"org.freedesktop.Notifications.NotificationClosed", "uint32:42", "uint32:1"});
         const auto expired = notes->next(std::chrono::milliseconds(3000));
-        expect(expired && *expired && (*expired)->kind == mpal::Answer::Kind::expired);
+        expect(expired && *expired && (*expired)->kind == mcpplibs::mpal::Answer::Kind::expired);
         send({"org.example.Other.Said", "uint32:42", "uint32:1"});
         const auto other = notes->next(std::chrono::milliseconds(300));
         expect(other && !*other) << "another interface's signal: not asked for, not routed";
@@ -341,8 +341,8 @@ UTest cases{"mpal.notify", [] {
     "macOS: a bare program told it needs a bundle; inside an .app, the notification centre answers — shown, or refused with its reason"_test = [] {
         namespace os = mcpplibs::os;
         if constexpr (os::is_macos) {
-            const auto bare = mpal::Notifier::open();
-            expect(!bare && bare.error().code == mpal::Error::Code::unavailable && bare.error().text.contains("bundle identifier"))
+            const auto bare = mcpplibs::mpal::Notifier::open();
+            expect(!bare && bare.error().code == mcpplibs::mpal::Error::Code::unavailable && bare.error().text.contains("bundle identifier"))
                 << (bare ? std::string("opened") : bare.error().text);
             const auto app = std::filesystem::temp_directory_path() / std::format("MpalProbe-{}.app", std::random_device{}());
             std::filesystem::create_directories(app / "Contents" / "MacOS");
@@ -384,7 +384,7 @@ UTest cases{"mpal.notify", [] {
 
     "where there is no session bus: unavailable, said"_test = [] {
         auto none = dbus::Bus::at(std::filesystem::temp_directory_path() / "mpal-no-bus-here", "bus");
-        expect(!none && none.error().code == mpal::Error::Code::unavailable);
+        expect(!none && none.error().code == mcpplibs::mpal::Error::Code::unavailable);
     };
 }};
 
@@ -417,8 +417,8 @@ UTest picking{"mpal.pick", [] {
         Portal portal(0, {"file:///home/ada/My%20Pictures/cat.png", "file:///home/ada/b%C3%A9.jpg"});
         auto connected = dbus::Bus::at(portal.bus->dir, "bus");
         expect(fatal(connected.has_value()));
-        const auto chosen = mpal::pick_on(*connected,
-                                          {.kind = mpal::Pick::Kind::open, .title = "Open a picture", .filters = {{"Pictures", {"png", "jpg"}}}, .many = true,
+        const auto chosen = mcpplibs::mpal::pick_on(*connected,
+                                          {.kind = mcpplibs::mpal::Pick::Kind::open, .title = "Open a picture", .filters = {{"Pictures", {"png", "jpg"}}}, .many = true,
                                            .start = "/home/ada"},
                                           std::chrono::milliseconds(3000));
         expect(chosen && chosen->size() == 2) << (chosen ? std::to_string(chosen->size()) : chosen.error().text);
@@ -445,14 +445,14 @@ UTest picking{"mpal.pick", [] {
         Portal cancelled(1, {});
         auto connected = dbus::Bus::at(cancelled.bus->dir, "bus");
         expect(fatal(connected.has_value()));
-        const auto nothing = mpal::pick_on(*connected, {.kind = mpal::Pick::Kind::open}, std::chrono::milliseconds(3000));
+        const auto nothing = mcpplibs::mpal::pick_on(*connected, {.kind = mcpplibs::mpal::Pick::Kind::open}, std::chrono::milliseconds(3000));
         expect(nothing && nothing->empty()) << "cancelled: none";
         cancelled.bus->end();
 
         Portal saving(0, {"file:///home/ada/notes.md"});
         auto again = dbus::Bus::at(saving.bus->dir, "bus");
         expect(fatal(again.has_value()));
-        const auto saved = mpal::pick_on(*again, {.kind = mpal::Pick::Kind::save, .title = "Save notes", .name = "notes.md"}, std::chrono::milliseconds(3000));
+        const auto saved = mcpplibs::mpal::pick_on(*again, {.kind = mcpplibs::mpal::Pick::Kind::save, .title = "Save notes", .name = "notes.md"}, std::chrono::milliseconds(3000));
         expect(saved && saved->size() == 1);
         saving.bus->end();
         expect(fatal(saving.bus->heard.size() == 3));
@@ -471,7 +471,7 @@ UTest picking{"mpal.pick", [] {
             });
             auto connected = dbus::Bus::at(bus->dir, "bus");
             expect(fatal(connected.has_value()));
-            expect(eq(mpal::can_pick_on(*connected), here));
+            expect(eq(mcpplibs::mpal::can_pick_on(*connected), here));
             bus->end();
             expect(bus->heard.size() == 2 && bus->heard[1].member == "NameHasOwner" &&
                    std::get<std::string>(bus->heard[1].body[0].data) == "org.freedesktop.portal.Desktop");
@@ -479,8 +479,8 @@ UTest picking{"mpal.pick", [] {
     };
 
     "a file URI's path: decoded, a host part passed over, another scheme none"_test = [] {
-        expect(mpal::path_of_uri("file:///tmp/a%20b").value_or("") == std::filesystem::path("/tmp/a b"));
-        expect(mpal::path_of_uri("file://localhost/tmp/x").value_or("") == std::filesystem::path("/tmp/x"));
-        expect(!mpal::path_of_uri("https://example.org/x").has_value());
+        expect(mcpplibs::mpal::path_of_uri("file:///tmp/a%20b").value_or("") == std::filesystem::path("/tmp/a b"));
+        expect(mcpplibs::mpal::path_of_uri("file://localhost/tmp/x").value_or("") == std::filesystem::path("/tmp/x"));
+        expect(!mcpplibs::mpal::path_of_uri("https://example.org/x").has_value());
     };
 }};

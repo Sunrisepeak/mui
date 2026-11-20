@@ -4,19 +4,19 @@
 // desktop's own dialog for every other; elsewhere unsupported until its
 // backend comes (README.md), and a host draws its own.
 //
-//     auto chosen = mpal::pick({.kind = mpal::Pick::Kind::open, .title = "Open a picture",
+//     auto chosen = mcpplibs::mpal::pick({.kind = mcpplibs::mpal::Pick::Kind::open, .title = "Open a picture",
 //                               .filters = {{"Pictures", {"png", "jpg"}}}});
 //     if (chosen && chosen->empty()) … cancelled …
 //
 // The person takes their time: pick waits for them, so a program with an
 // interface calls it on a thread of its own and posts the answer back.
-export module mpal:pick;
+export module mcpplibs.mpal:pick;
 
 import std;
 import :error;
 import :dbus;
 
-export namespace mpal {
+export namespace mcpplibs::mpal {
 
 struct Filter {
     std::string              name;        // "Pictures"
@@ -50,4 +50,4 @@ struct Pick {
 // A file:// URI's path (percent-decoded); none for another scheme.
 [[nodiscard]] std::optional<std::filesystem::path> path_of_uri(std::string_view uri);
 
-}  // namespace mpal
+}  // namespace mcpplibs::mpal

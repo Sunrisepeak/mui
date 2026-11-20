@@ -31,7 +31,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 # `agent`: the stage as an agent's subject — this package's tests hold it to the agent contract (stage_test).
-hanim          = { path = "..", features = ["render-vector", "control", "agent"] }
+sunrisepeak.hanim = { path = "..", features = ["render-vector", "control", "agent"] }
 # The hanim command writes frames as SVG (xrender.vector.svg).
 xrender.vector = { path = "../../xrender/vector" }
 xrender.raster = { path = "../../xrender/raster" }

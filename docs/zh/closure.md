@@ -18,7 +18,7 @@
 
 - **mlibs**, 9 独立消费: probe hanim-core-consumer builds from paths; from published packages once RC3.1 publishes them
 - **xrender**, 9 独立消费: probe hanim-play-consumer builds from paths; from published packages once RC3.1 publishes them
-- **hanim**, 9 独立消费: probe hanim-api-probe builds from paths; from published packages once RC3.1 publishes them
+- **hanim**, 9 独立消费: probe hanim-core-consumer builds from paths; from published packages once RC3.1 publishes them
 - **omui**, 8 并排对照: no claim in the ledger dated from 2026-11-15
 - **omui**, 9 独立消费: probe features-consumer builds from paths; from published packages once RC3.1 publishes them
 - **meng**, 8 并排对照: no claim in the ledger dated from 2026-11-15

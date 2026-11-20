@@ -2,6 +2,8 @@ mpal — the services an operating system gives an application, as one contract 
 
 # mpal
 
+The package is `mcpplibs.mpal` (`import mcpplibs.mpal;`, namespace `mcpplibs::mpal`), beside `mcpplibs.os`.
+
 The platform abstraction above [`mcpplibs.os`](https://github.com/mcpplibs/os): openkal → `mcpplibs.os` (the system's primitives: files and their watcher, processes, local connections, the environment) → **mpal** (the system's *services*, thought of from the service's side). Nothing here draws: the interface's own drawn versions, and the choice between native and drawn, are omui's (`Runtime::NativeSurfaces`, the SDK's `omui::System`).
 
 ## Services, by what they are for

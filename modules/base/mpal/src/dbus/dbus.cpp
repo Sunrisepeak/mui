@@ -1,10 +1,10 @@
 // D-Bus spoken over a local connection (mpal:dbus).
-module mpal;
+module mcpplibs.mpal;
 
 import std;
 import mcpplibs.os;
 
-namespace mpal::dbus {
+namespace mcpplibs::mpal::dbus {
 
 namespace {
 
@@ -423,4 +423,4 @@ std::expected<std::optional<Message>, Error> Bus::next_signal(std::chrono::milli
     return std::optional(std::move(next));
 }
 
-}  // namespace mpal::dbus
+}  // namespace mcpplibs::mpal::dbus

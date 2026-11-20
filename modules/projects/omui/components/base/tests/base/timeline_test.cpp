@@ -127,6 +127,27 @@ static UTest cases{"ui.base.timeline", [] {
         expect(near(wrong->point_at(1, {240, 28}), {10, 14}) && near(wrong->point_at(3, {240, 28}), {230, 14})) << "laid as a line";
     };
 
+    "line false: the marks and the playhead alone, on a shape its owner draws (the site's O)"_test = [] {
+        // A line of three steps, at the first: between the second mark and the third only the track is drawn.
+        const auto drawn = [](bool line) {
+            Headless h(HeadlessOptions{.size = {240, 40}, .fonts = &fonts(), .parallel_raster = false});
+            h.mount("main", column({}, {timeline({.id = "course", .line = line, .steps = 3, .value = 1.0, .width = 240.0f, .height = 40.0f})}));
+            h.settle();
+            return std::pair{hash_of(h.pixels()), h.pixels().row(20)[175]};
+        };
+        const auto [with_line, track] = drawn(true);
+        const auto [without, bare] = drawn(false);
+        expect(with_line != without) << "the track is gone";
+        const auto [empty, background] = [] {
+            Headless h(HeadlessOptions{.size = {240, 40}, .fonts = &fonts(), .parallel_raster = false});
+            h.mount("main", column({}, {}));
+            h.settle();
+            return std::pair{hash_of(h.pixels()), h.pixels().row(20)[175]};
+        }();
+        expect(bare == background && !(track == background)) << "between two marks: the track drawn with it, nothing without";
+        (void)empty;
+    };
+
     "its playhead carried to the step by the style's motion (default.value): part-way between, at rest the drawing motion off gives"_test = [] {
         const auto scene = [](Headless& h, Signal<double> at) {
             h.mount("main", column({.padding = 20}, {timeline({.id = "course", .shape = "ring", .steps = 5, .value = at, .width = 120.0f, .height = 120.0f})}));

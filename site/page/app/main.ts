@@ -19,12 +19,12 @@ const muted = "#64748b";
 const paper = "#faf9f6";
 const sketch = "#cbd5e1";
 
-// The mark (site/brand/marks.mark.xdef.json, today's outline): an O around the word, in a 100-unit square.
-const ring = "M50 5C73.2 5 92 25.1 92 50C92 74.9 73.2 95 50 95C26.8 95 8 74.9 8 50C8 25.1 26.8 5 50 5Z";
+// The mark (site/brand/marks.mark.xdef.json, outline A): an O with Mui's ears around the word, in a 100-unit square.
+const ring = "M50 96C26 96 8 78 8 55C8 41 12 31 18 24L21 5L36 15C40 13.5 45 13 50 13C55 13 60 13.5 64 15L79 5L82 24C88 31 92 41 92 55C92 78 74 96 50 96Z";
 const letters = "M24 64L24 44M24 50C24 41 35 41 35 50L35 64M35 50C35 41 46 41 46 50L46 64M55 44L55 56C55 66 69 66 69 56L69 44M78 44L78 64";
 const dot = "M75.5 35A2.5 2.5 0 1 0 80.5 35A2.5 2.5 0 1 0 75.5 35Z";
 // The same O in a 1×1 box: the course Live Design's steps lie along.
-const course = "M0.5 0.05C0.732 0.05 0.92 0.251 0.92 0.5C0.92 0.749 0.732 0.95 0.5 0.95C0.268 0.95 0.08 0.749 0.08 0.5C0.08 0.251 0.268 0.05 0.5 0.05Z";
+const course = "M0.5 0.96C0.26 0.96 0.08 0.78 0.08 0.55C0.08 0.41 0.12 0.31 0.18 0.24L0.21 0.05L0.36 0.15C0.4 0.135 0.45 0.13 0.5 0.13C0.55 0.13 0.6 0.135 0.64 0.15L0.79 0.05L0.82 0.24C0.88 0.31 0.92 0.41 0.92 0.55C0.92 0.78 0.74 0.96 0.5 0.96Z";
 
 // Mui's head (site/brand/mascot.sprite.xdef.json, head16 idle): every pixel a vector square, one path a colour.
 const head = [
@@ -34,10 +34,13 @@ const head = [
   ".obbbbbbbbbbbbo.", "..oobbbbbbbboo..", "....oooooooo....", "................",
 ];
 const palette: Record<string, string> = { o: "#1e1b4b", b: "#4f46e5", l: "#818cf8", w: "#ffffff", p: "#1e1b4b", k: "#f9a8d4", s: "#4338ca" };
-function cells(letter: string): string {
+// Mui's face alone (rows 6 to 10: the eyes, their light, the blush, the mouth): connected, the O with ears is Mui's
+// own outline, filled with her colour, and the face is drawn in it.
+function face(letter: string): string {
   let data = "";
   head.forEach((line, y) => {
-    for (let x = 0; x < line.length; x++) if (line[x] === letter) data += `M${x} ${y}h1v1h-1Z`;
+    if (y < 6 || y > 10) return;
+    for (let x = 2; x < 14; x++) if (line[x] === letter && (letter !== "o" || y >= 9)) data += `M${x} ${y}h1v1h-1Z`;
   });
   return data;
 }
@@ -62,21 +65,25 @@ const mark = stack({ id: "mark", width: side + 20, height: side + 20, alignItems
   path({ id: "breath", d: ring, stroke: accent, strokeWidth: 2, width: side, height: side,
          opacity: select(waiting, 0.28, 0), scale: 1.1 }),
   path({ id: "o", d: ring, stroke: select(designing, sketch, ink), strokeWidth: 6, width: side, height: side,
-        trim: select(waiting, 0.9, 1), label: "omui" }),
+        fill: select(connected, palette.b, ""), trim: select(waiting, 0.9, 1), label: select(connected, "Mui", "omui") }),
   when(designing, [
     path({ id: "o-grown", d: ring, stroke: ink, strokeWidth: 6, width: side, height: side, trim: (at - 1) / steps }),
     path({ id: "word-sketch", d: letters, stroke: sketch, strokeWidth: 6, width: side, height: side }),
     path({ id: "word-grown", d: letters, stroke: ink, strokeWidth: 6, width: side, height: side, trim: 0.55 }),
-    timeline({ id: "steps", shape: course, steps, value: at, label: "The page's design", width: side + 20, height: side + 20,
+    // The course is the O's own stroke (grown in ink as far as the design has come): the timeline adds its marks and
+    // its playhead on it, no line of its own.
+    timeline({ id: "steps", shape: course, steps, value: at, line: false, label: "The page's design", width: side + 20, height: side + 20,
                captions: ["The mark", "Its O", "The sentence", "The Live Design key", "The install", "Its two tabs", "Light", "At rest"] }),
   ], [
     when(connected, [
-      path({ id: "mui-o", d: cells("o"), fill: palette.o, viewBox: "0 0 16 16", width: side * 0.62, height: side * 0.62 }),
-      path({ id: "mui-b", d: cells("b"), fill: palette.b, viewBox: "0 0 16 16", width: side * 0.62, height: side * 0.62 }),
-      path({ id: "mui-l", d: cells("l"), fill: palette.l, viewBox: "0 0 16 16", width: side * 0.62, height: side * 0.62 }),
-      path({ id: "mui-w", d: cells("w"), fill: palette.w, viewBox: "0 0 16 16", width: side * 0.62, height: side * 0.62 }),
-      path({ id: "mui-p", d: cells("p"), fill: palette.p, viewBox: "0 0 16 16", width: side * 0.62, height: side * 0.62 }),
-      path({ id: "mui-k", d: cells("k"), fill: palette.k, viewBox: "0 0 16 16", width: side * 0.62, height: side * 0.62 }),
+      column({ id: "mui", width: side, height: side, alignItems: "center", paddingTop: side * 0.2 }, [
+        stack({ width: side * 0.6, height: side * 0.35 }, [
+          path({ id: "mui-eyes", d: face("p"), fill: palette.p, viewBox: "2 6 12 5", width: side * 0.6, height: side * 0.25 }),
+          path({ id: "mui-light", d: face("w"), fill: palette.w, viewBox: "2 6 12 5", width: side * 0.6, height: side * 0.25 }),
+          path({ id: "mui-blush", d: face("k"), fill: palette.k, viewBox: "2 6 12 5", width: side * 0.6, height: side * 0.25 }),
+          path({ id: "mui-mouth", d: face("o"), fill: palette.o, viewBox: "2 6 12 5", width: side * 0.6, height: side * 0.25 }),
+        ]),
+      ]),
     ], [
       path({ id: "word", d: letters, stroke: ink, strokeWidth: 6, width: side, height: side }),
       path({ id: "dot", d: dot, fill: ink, width: side, height: side }),

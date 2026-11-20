@@ -78,8 +78,10 @@ static UTest cases{"site.page", [] {
         expect(shows(host, Role::button, "Copied") && host.tree().find({.role = Role::slider}).empty());
         const auto waiting = picture(host);
 
-        // Connected: the visitor's agent and its omui beside the mark.
+        // Connected: the mark has become Mui (the O with ears her outline, her face in it); the visitor's agent and its
+        // omui beside it.
         expect(eq(set("connected"), 0));
+        expect(shows(host, Role::image, "Mui") && !shows(host, Role::image, "omui")) << "the O is Mui";
         expect(!host.tree().find({.name = "Claude Code · omui 0.1.0 · linux-x64"}).empty()) << "the agent's chip";
         const auto connected = picture(host);
 

@@ -123,11 +123,15 @@ void Timeline::paint(PaintContext& ctx) const {
     for (std::size_t index = 1; index < laid.points.size(); ++index) path.line_to(laid.points[index]);
     if (laid.closed) path.close();
     const Rect whole{0, 0, ctx.size.width, ctx.size.height};
-    ctx.part({.role = "track", .allocation = whole}, [&] {
-        ctx.list.stroke_path(path, {.width = track_width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, xrender::Paint::solid(th.color("track")));
-    });
+    // The track and the part played, unless the shape is its owner's to draw (`line` false: the marks and the playhead
+    // on it alone).
+    if (props.line)
+        ctx.part({.role = "track", .allocation = whole}, [&] {
+            ctx.list.stroke_path(path, {.width = track_width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round},
+                                 xrender::Paint::solid(th.color("track")));
+        });
     const float played = fraction_of(props.value);
-    if (played > 0)
+    if (props.line && played > 0)
         ctx.part({.role = "played", .allocation = whole}, [&] {
             ctx.list.stroke_path(path, {.width = track_width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round, .trim_end = played},
                                  xrender::Paint::solid(th.color("accent")));

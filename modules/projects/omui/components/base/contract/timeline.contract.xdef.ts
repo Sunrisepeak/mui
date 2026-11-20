@@ -21,6 +21,11 @@ export default defineContract({
         doc: "line, ring (from the top, clockwise), or SVG path data in a 1×1 box (M0 0.5 L1 0.5), scaled to its own.",
       },
       captions: { type: "list<string>", default: [], doc: "Each step's words, said when it is at that step (none: step n of m)." },
+      line: {
+        type: "bool",
+        default: true,
+        doc: "Its track and the part played drawn; false: only the marks and the playhead, on a shape its owner draws itself (the site's O).",
+      },
       label: { type: "string", default: "Timeline", doc: "The accessible name." },
       disabled: { type: "bool", default: false },
     },

@@ -156,6 +156,8 @@ public:
 };
 using DesignerFactory = std::unique_ptr<Designer> (*)(Player& player);
 void provide_designer(DesignerFactory factory) noexcept;
+// Whether this program links a designer (omui dev's builds; a release whose omui.config.ts says `designer.release`).
+[[nodiscard]] bool designer_linked() noexcept;
 
 struct PlayerOptions {
     // Development mode (D-149): the application is its own designer. The
@@ -178,6 +180,11 @@ public:
 
     // Components, then views, then scripts. Errors are reported together.
     Status start();
+    // The application becomes its own designer while it runs (D-149): the design.* verbs from now on, each edit
+    // presented as one. A release that links the designer (omui.config.ts `designer.release`) starts it when the
+    // person links their own agent (D-95), not before. Why not, where this program has no designer.
+    Status begin_design();
+    [[nodiscard]] bool designing() const noexcept;
     // Reloads what changed on disk since the last look; answers what it
     // reloaded (its paths). Errors go to problems().
     std::vector<std::string> poll();

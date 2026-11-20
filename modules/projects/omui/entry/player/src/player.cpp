@@ -345,6 +345,7 @@ int player_main(int argc, char** argv, void (*components)()) {
         return answer.exit_code().value_or(1) == 0 ? 0 : 1;
     }
     std::optional<player::Player> p;
+    std::optional<Watch> linking;  // a release's designer, waiting for the person's agent
     AppSpec app{.components = nullptr};  // registered above (not the default's, which would carry every component)
     app.id = m->id;
     app.title = m->title;
@@ -364,6 +365,18 @@ int player_main(int argc, char** argv, void (*components)()) {
         // A saved file shows within a frame in development mode (W2: save to screen ≤ 100 ms at p95; a
         // stat of the app's files a frame costs microseconds), within a tenth of a second otherwise.
         p->watch(design ? seconds(1.0 / 60) : seconds(0.1));
+        // A release that links the designer (omui.config.ts `designer.release`): the application becomes its own
+        // designer when the person links their own agent — their session, their agent at work on their copy (D-155).
+        if (!design && player::designer_linked())
+            linking.emplace([&rt, &p] {
+                const Value link = rt.agent_link_signal().get();
+                const Value* state = link.get("state");
+                if (!state || state->as_string() != "paired") return;
+                untracked([&] {
+                    if (p && !p->designing())
+                        if (auto began = p->begin_design(); !began) std::print(std::cerr, "{}", began.error());
+                });
+            });
     };
     // Interface generated while it runs (D-144): where omui.config.ts lets it in, as open as it says
     // — everything in development, nothing in a release unless said.

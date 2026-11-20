@@ -24,28 +24,8 @@ Rect Path::view_box() const noexcept { return parts::view_box(props.view_box).va
 const xrender::Path* Path::shape() const {
     if (shape_of_ == props.d && shape_) return &*shape_;
     shape_of_ = props.d;
-    shape_.reset();
-    const auto data = mlibs::geom::parse_path_data(props.d);
-    if (!data || data->verbs.empty()) return nullptr;
-    xrender::Path made;
-    std::size_t at = 0;
-    for (const mlibs::geom::PathVerb verb : data->verbs) {
-        switch (verb) {
-            case mlibs::geom::PathVerb::move: made.move_to(data->points[at++]); break;
-            case mlibs::geom::PathVerb::line: made.line_to(data->points[at++]); break;
-            case mlibs::geom::PathVerb::quad:
-                made.quad_to(data->points[at], data->points[at + 1]);
-                at += 2;
-                break;
-            case mlibs::geom::PathVerb::cubic:
-                made.cubic_to(data->points[at], data->points[at + 1], data->points[at + 2]);
-                at += 3;
-                break;
-            case mlibs::geom::PathVerb::close: made.close(); break;
-        }
-    }
-    shape_ = std::move(made);
-    return &*shape_;
+    shape_ = parts::shape_of(props.d);
+    return shape_ ? &*shape_ : nullptr;
 }
 
 bool Path::drawable() const { return shape() != nullptr; }

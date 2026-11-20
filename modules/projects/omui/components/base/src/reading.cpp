@@ -220,9 +220,33 @@ void Link::prop_changed(LinkProp p) {
     services().invalidate_semantics(node());
 }
 
+namespace {
+constexpr float icon_alone = 24;  // an icon with no text and no size of its own
+constexpr float icon_gap = 6;     // between an icon and its text
+}  // namespace
+
+const xrender::Path* Link::icon() const {
+    if (props.icon.empty()) return nullptr;
+    if (icon_of_ != props.icon) {
+        icon_of_ = props.icon;
+        icon_ = parts::shape_of(props.icon);
+    }
+    return icon_ ? &*icon_ : nullptr;
+}
+
+float Link::icon_side(float line, Size box) const noexcept {
+    if (props.icon.empty()) return 0;
+    return props.text.empty() ? std::min(box.width, box.height) : line;
+}
+
 Size Link::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
+    if (!props.icon.empty() && props.text.empty()) {
+        const float side = std::min(width.value_or(height.value_or(icon_alone)), height.value_or(width.value_or(icon_alone)));
+        return {width.value_or(side), height.value_or(side)};
+    }
     const Size text = label_.measure(m.services, m.services.theme().color("accent"));
-    return {width.value_or(std::ceil(text.width)), height.value_or(std::ceil(text.height) + 2)};
+    const float icon = props.icon.empty() ? 0 : std::ceil(text.height) + icon_gap;
+    return {width.value_or(icon + std::ceil(text.width)), height.value_or(std::ceil(text.height) + 2)};
 }
 
 float Link::baseline(MeasureContext& m, Size) { return label_.baseline(m.services, m.services.theme().color("accent")); }
@@ -234,12 +258,26 @@ void Link::paint(PaintContext& ctx) const {
                       : ctx.state.pressed ? ctx.theme.color("accent_pressed", ctx.theme.color("accent"))
                       : ctx.state.hovered ? ctx.theme.color("accent_hover", ctx.theme.color("accent"))
                                           : ctx.theme.color("accent");
-    const Size text = label_.measure(ctx.services, ink);
-    label_.paint(ctx, {0, 0}, ink);
+    const bool alone = props.text.empty();
+    const Size text = alone ? Size{} : label_.measure(ctx.services, ink);
+    // Its icon: the text's line high before it, or the whole box where it is alone (the 24-unit square fitted, centred).
+    const float side = icon_side(std::ceil(text.height), ctx.size);
+    if (const xrender::Path* drawn = icon(); drawn && side > 0) {
+        const Rect square = alone ? Rect{0, 0, ctx.size.width, ctx.size.height} : Rect{0, 0, side, side};
+        ctx.part({.role = "icon", .allocation = square}, [&] {
+            ctx.list.fill_path(drawn->transformed(parts::fitted({0, 0, 24, 24}, square)), xrender::FillRule::nonzero, xrender::Paint::solid(ink));
+        });
+    }
+    if (alone) {
+        if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, {-2, -2, ctx.size.width + 4, ctx.size.height + 4}, CornerRadii::all(6));
+        return;
+    }
+    const float left = side > 0 ? side + icon_gap : 0;
+    label_.paint(ctx, {left, 0}, ink);
     // The underline: under the baseline, thicker while it is hovered.
     const float under = label_.baseline(ctx.services, ink) + 2;
-    ctx.list.fill_rect({0, under, text.width, ctx.state.hovered && !off ? 1.5f : 1.0f}, ink.with_alpha(ctx.state.hovered ? 1.0f : 0.55f));
-    if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, {-2, -1, text.width + 4, ctx.size.height + 2}, CornerRadii::all(4));
+    ctx.list.fill_rect({left, under, text.width, ctx.state.hovered && !off ? 1.5f : 1.0f}, ink.with_alpha(ctx.state.hovered ? 1.0f : 0.55f));
+    if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, {-2, -1, left + text.width + 4, ctx.size.height + 2}, CornerRadii::all(4));
 }
 
 void Link::semantics(SemanticsContext&, spec::SemanticNode& node) const {

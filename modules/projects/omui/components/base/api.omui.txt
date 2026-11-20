@@ -1045,6 +1045,7 @@ namespace omui::parts {
   [[nodiscard]] std::string segment(const Services& services, NodeId node);
   [[nodiscard]] std::optional<Rect> view_box(std::string_view text) noexcept;
   [[nodiscard]] mlibs::geom::Affine fitted(const Rect& view_box, const Rect& into) noexcept;
+  [[nodiscard]] std::optional<xrender::Path> shape_of(std::string_view data);
   void chevron(PaintContext& ctx, Point c, float size, Color color);
   void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii);
   void agent_corners(xrender::DisplayList& list, const Rect& box, Color ink, float arm, float width = 2);

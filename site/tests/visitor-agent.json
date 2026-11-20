@@ -1,0 +1,31 @@
+{
+ "$comment": "What a visitor's agent does once linked (G5): the page's own source, edited live through the designer (design.sources, then design.edit with its whole new text). The page ships none of it.",
+ "say": "The project's name top left, GitHub as its mark, and Mui looking at the pointer",
+ "path": "app/main.ts",
+ "edits": [
+  {
+   "find": "  fmt, linkAgent, agentLink,\n} from \"openmui\";",
+   "replace": "  fmt, linkAgent, agentLink, snapshot,\n} from \"openmui\";"
+  },
+  {
+   "find": "        stack({ id: \"mui\", width: side * 0.6, height: side * 0.6, motion: \"none\" },\n          [\"o\", \"b\", \"l\", \"w\", \"p\", \"k\"].map((letter) =>\n            path({ id: `mui-${letter}`, d: pixels(letter), fill: palette[letter], viewBox: \"0 0 16 16\", width: side * 0.6, height: side * 0.6,\n                   motion: \"none\" }))),",
+   "replace": "        stack({ id: \"mui\", width: side * 0.6, height: side * 0.6, motion: \"none\" },\n          [\"o\", \"b\", \"l\", \"w\", \"p\", \"k\"].map((letter) => {\n            // Her eyes look about over her face: under them, her face (one path with it, no seam).\n            const eye = letter === \"w\" || letter === \"p\";\n            return path({ id: `mui-${letter}`, d: letter === \"b\" ? pixels(\"b\") + pixels(\"w\") + pixels(\"p\") : pixels(letter), fill: palette[letter],\n                          viewBox: \"0 0 16 16\", width: side * 0.6, height: side * 0.6,\n                          translateX: eye ? lookX : 0, translateY: eye ? lookY : 0, motion: \"none\" });\n          })),"
+  },
+  {
+   "find": "const resting = eq(state, \"rest\");",
+   "replace": "// Mui looks at the pointer: from the middle of her circle toward it, one of her pixels each way at most.\nconst lookX = signal(0, \"page.look-x\");\nconst lookY = signal(0, \"page.look-y\");\nconst pixel = (side * 0.6) / 16;\nlet circle = \"\";  // the O's path in the tree, found once\nconst lookAt = (event: { x: number; y: number }) => {\n  if (!circle) circle = snapshot({}).nodes.find((node: { id: string }) => node.id.endsWith(\"/o\")).id;\n  const [x, y, width, height] = snapshot({ root: circle, depth: 0 }).nodes[0].bounds;\n  const dx = event.x - (x + width / 2), dy = event.y - (y + height / 2);\n  const reach = Math.max(Math.abs(dx), Math.abs(dy), side / 2);\n  lookX.set(Math.round(dx / reach) * pixel);\n  lookY.set(Math.round(dy / reach) * pixel);\n};\nconst lookAhead = () => { lookX.set(0); lookY.set(0); };\n\nconst resting = eq(state, \"rest\");"
+  },
+  {
+   "find": "mount(\"main\", stack({ width: \"100%\", height: \"100%\", background: paper }, [",
+   "replace": "mount(\"main\", stack({ width: \"100%\", height: \"100%\", background: paper, onPointerMove: lookAt, onPointerLeave: lookAhead }, ["
+  },
+  {
+   "find": "  row({ position: \"absolute\", top: 0, right: 0, padding: 20 }, [\n    link({ id: \"github\", text: \"GitHub\", href: \"https://github.com/Sunrisepeak/mui\" }),\n  ]),",
+   "replace": "  // The project's name, top left.\n  row({ id: \"brand\", position: \"absolute\", top: 0, left: 0, padding: 20 }, [\n    text({ id: \"name\", text: \"omui\", style: \"label\", color: ink }),\n  ]),\n  // GitHub, its mark.\n  row({ position: \"absolute\", top: 0, right: 0, padding: 20 }, [\n    link({ id: \"github\", icon: githubMark, label: \"GitHub\", width: 28, height: 28, href: \"https://github.com/Sunrisepeak/mui\" }),\n  ]),"
+  },
+  {
+   "find": "// Under the mark: the Live Design key,",
+   "replace": "// GitHub's mark, in a 24-unit square.\nconst githubMark = \"M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12\";\n\n// Under the mark: the Live Design key,"
+  }
+ ]
+}

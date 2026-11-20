@@ -414,6 +414,9 @@ int build_web(const std::string& lang, std::vector<std::string> rest, std::ostre
         return projected.code;
     }
     std::vector<std::string> pack{"pack", "--target", "wasm32-emscripten", "--release", "--pkg-format", "dist-toy"};
+    // The designer, where omui.config.ts links it into a release (`designer.release`): it starts as the person's agent
+    // links (D-149, D-255), as `omui build` links it.
+    if (const auto config = read_config(); config && config->designer(false)) pack.insert(pack.end(), {"--features", "omui.entry.player/design"});
     std::ranges::move(rest, std::back_inserter(pack));
     const Ran packed = run_tool("mcpp", std::move(pack), err);
     record(out, true, "build", packed);

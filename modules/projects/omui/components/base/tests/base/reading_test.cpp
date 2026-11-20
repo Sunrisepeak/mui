@@ -126,6 +126,36 @@ static UTest cases{"ui.base.reading", [] {
         expect(h.click("main/docs") && eq(opened.size(), std::size_t{3})) << "and a click";
     };
 
+    "link with an icon: before its text, or alone and named by its label — the same link to people and agents"_test = [] {
+        Headless h(options());
+        std::vector<std::string> opened;
+        h.runtime().set_url_opener([&](std::string_view url) {
+            opened.emplace_back(url);
+            return true;
+        });
+        constexpr std::string_view square = "M4 4h16v16h-16Z";  // in the icon's 24-unit square
+        auto alone = link({.id = "code", .href = std::string("https://example.org/code"), .icon = std::string(square)});
+        alone.prop("label", Source(Value("The code")));
+        alone.prop("width", Source(Value(28.0)));
+        alone.prop("height", Source(Value(28.0)));
+        h.mount("main", column({.padding = 12, .gap = 8, .align = "start"},
+                               {std::move(alone), link({.id = "plain", .href = std::string("https://example.org"), .text = std::string("Read the docs")}),
+                                link({.id = "marked", .href = std::string("https://example.org"), .icon = std::string(square), .text = std::string("Read the docs")})}));
+        h.step();
+        const auto code = h.tree().node("main/code");
+        expect(code && code->role == Role::link && code->name == "The code" && code->value == Value("https://example.org/code")) << "alone: named by its label";
+        const Rect box = h.runtime().drawn_bounds(h.runtime().find("main/code"));
+        expect(eq(box.width, 28.0f) && eq(box.height, 28.0f)) << "alone: the size it is given";
+        const Rect plain = h.runtime().drawn_bounds(h.runtime().find("main/plain"));
+        const Rect marked = h.runtime().drawn_bounds(h.runtime().find("main/marked"));
+        expect(marked.width > plain.width + plain.height && eq(marked.height, plain.height)) << "before its text: the line's height and a gap wider";
+        // The icon is drawn: the middle of its square is the link's colour, its corner the page's.
+        const auto& pixels = h.pixels();
+        const auto at = [&](float x, float y) { return pixels.at(static_cast<int>(x), static_cast<int>(y)); };
+        expect(at(box.x + 14, box.y + 14) != at(box.x + 1, box.y + 1)) << "the icon's square filled";
+        expect(h.click("main/code") && opened == std::vector<std::string>{"https://example.org/code"}) << "a click opens its address";
+    };
+
     "description list: terms beside what they mean, each pair an item of its own — its name the term, its value the description"_test = [] {
         Headless h(options());
         h.mount("main", column({.padding = 12},

@@ -64,6 +64,7 @@ DesignerFactory& designer_factory() {
 }  // namespace
 
 void provide_designer(DesignerFactory factory) noexcept { designer_factory() = factory; }
+bool designer_linked() noexcept { return designer_factory() != nullptr; }
 
 struct Player::Impl {
     struct File {
@@ -391,6 +392,15 @@ struct Player::Impl {
             announce(path, *done);
             return done;
         }
+        if constexpr (!waits) {
+            // A page cannot wait for its evaluation (it settles later, without -sASYNCIFY): the text checked, then
+            // started as the script; what it changes shows as it settles (ui.changes, ui.wait), and a problem then is
+            // said where every run's is (collect_runs).
+            if (auto started = start_text(*f, text); !started)
+                return std::unexpected(Failure{started.error().kind, std::format("{}: {}", path, started.error().message)});
+            edited[path] = std::string(text);
+            return Value{}.set("path", path).set("settling", true).set("next", "its changes as the page settles: ui.wait, then ui.changes");
+        }
         const std::string previous = running_text(*f).value_or(std::string());
         auto done = run_text(*f, text);
         if (!done) {
@@ -552,6 +562,22 @@ Status Player::start() {
     for (const auto& p : d.problems) all += p + "\n";
     return std::unexpected(std::move(all));
 }
+
+Status Player::begin_design() {
+    Impl& d = *impl_;
+    if (d.designer) return {};
+    DesignerFactory make = designer_factory();
+    if (!make)
+        return std::unexpected(Failure{mlibs::error::Kind::not_found,
+                                       "this program has no designer (omui.designer): omui.config.ts's `designer.release: true` links it into a release"});
+    d.options.design = true;
+    for (auto& f : d.files)
+        if (f.engine) f.engine->keep_built_at(true);  // where each element was built, for design.locate, from the next run on
+    d.designer = make(*this);
+    return {};
+}
+
+bool Player::designing() const noexcept { return impl_->designer != nullptr; }
 
 Status Player::show(const std::map<std::string, std::string>& texts) {
     Impl& d = *impl_;

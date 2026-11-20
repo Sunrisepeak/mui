@@ -60,6 +60,7 @@ namespace omui::player {
   };
   using DesignerFactory = std::unique_ptr<Designer> (*)(Player& player);
   void provide_designer(DesignerFactory factory) noexcept;
+  [[nodiscard]] bool designer_linked() noexcept;
   struct PlayerOptions {
     bool design = false;
     TwinFn twin;
@@ -70,6 +71,8 @@ namespace omui::player {
     Player(const Player&) = delete;
     Player& operator=(const Player&) = delete;
     Status start();
+    Status begin_design();
+    [[nodiscard]] bool designing() const noexcept;
     std::vector<std::string> poll();
     Status show(const std::map<std::string, std::string>& texts);
     struct Source {

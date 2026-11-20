@@ -55,6 +55,29 @@ mlibs::geom::Affine fitted(const Rect& view_box, const Rect& into) noexcept {
     return mlibs::geom::Affine::translate(left, top) * mlibs::geom::Affine::scale(scale, scale);
 }
 
+std::optional<xrender::Path> shape_of(std::string_view data) {
+    const auto parsed = mlibs::geom::parse_path_data(data);
+    if (!parsed || parsed->verbs.empty()) return std::nullopt;
+    xrender::Path made;
+    std::size_t at = 0;
+    for (const mlibs::geom::PathVerb verb : parsed->verbs) {
+        switch (verb) {
+            case mlibs::geom::PathVerb::move: made.move_to(parsed->points[at++]); break;
+            case mlibs::geom::PathVerb::line: made.line_to(parsed->points[at++]); break;
+            case mlibs::geom::PathVerb::quad:
+                made.quad_to(parsed->points[at], parsed->points[at + 1]);
+                at += 2;
+                break;
+            case mlibs::geom::PathVerb::cubic:
+                made.cubic_to(parsed->points[at], parsed->points[at + 1], parsed->points[at + 2]);
+                at += 3;
+                break;
+            case mlibs::geom::PathVerb::close: made.close(); break;
+        }
+    }
+    return made;
+}
+
 void agent_corners(xrender::DisplayList& list, const Rect& box, Color ink, float arm, float width) {
     xrender::Path corners;
     const auto corner = [&](Point p, float dx, float dy) { corners.move_to({p.x + dx * arm, p.y}).line_to(p).line_to({p.x, p.y + dy * arm}); };

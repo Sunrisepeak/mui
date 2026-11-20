@@ -288,6 +288,56 @@ int site(const fs::path& root, const fs::path& built, const fs::path& given_omui
             step(read.code == 0 && read.out.contains("/copy") && read.out.contains("/live"), "the agent reads the page (omui page snapshot)",
                  read.err.substr(0, 300));
 
+            // Linked, the page is the agent's to design (Live Design, D-149): its designer, which the release links,
+            // starts as the link pairs, and the agent edits the page's own TypeScript as it runs — what
+            // site/tests/visitor-agent.json says: the project's name, GitHub as its mark, Mui looking at the pointer.
+            {
+                const json wanted = json::parse(mcpplibs::os::fs::read(root / "site/tests/visitor-agent.json").value_or("{}"), nullptr, false);
+                const std::string path = text(at(wanted, "path"));
+                const Answer listed = agent_command({"design.sources"});
+                std::string source;
+                for (const auto line : std::views::split(listed.out, '\n')) {
+                    const json record = json::parse(std::string_view(line.begin(), line.end()), nullptr, false);
+                    for (const json& script_of : dig(record, "data", "scripts").is_array() ? dig(record, "data", "scripts") : json::array())
+                        if (text(at(script_of, "path")) == path) source = text(at(script_of, "text"));
+                }
+                step(!source.empty(), "paired, the page's source is the agent's to read (omui page design.sources)", (listed.out + listed.err).substr(0, 300));
+                bool found = true;
+                for (const json& change : at(wanted, "edits").is_array() ? at(wanted, "edits") : json::array()) {
+                    const std::string find = text(at(change, "find"));
+                    if (const auto where = source.find(find); where != std::string::npos) source.replace(where, find.size(), text(at(change, "replace")));
+                    else found = false;
+                }
+                const Answer edited = agent_command({"design.edit", "--path", path, "--text", source, "--say", text(at(wanted, "say"))});
+                step(found && edited.code == 0, "the agent edits it as it runs (omui page design.edit)", (edited.out + edited.err).substr(0, 400));
+                const bool designed = script.until_time([&] { return name_of("name") == "omui" && name_of("github") == "GitHub"; }, 5000, 100);
+                const auto github = cdp::box(at(node("github"), "bounds"));
+                step(designed && github && (*github)[2] == 28 && (*github)[0] > 1100, "the project's name top left, GitHub as its mark top right",
+                     node("github"));
+                // The edit is presented as one (written in, its code beside it): looked at once it has settled.
+                std::string before = mark("settling-0");
+                for (int index = 1; index < 40; ++index) {
+                    script.sleep(250);
+                    const std::string now = mark(std::format("settling-{}", index % 2));
+                    if (now == before) break;
+                    before = now;
+                }
+                script.sleep(2500);  // the edit's code beside it goes too
+                (void)script.screenshot(pictures / "designed.png");
+                // Mui looks where the pointer is: a real mouse moved to her left, then below her right.
+                const auto look = [&](double x, double y, std::string_view name) {
+                    script.call("Input.dispatchMouseEvent", {{"type", "mouseMoved"}, {"x", x}, {"y", y}});
+                    script.sleep(300);
+                    return mark(name);
+                };
+                const auto circle = cdp::box(at(node("o"), "bounds"));
+                const double middle_x = circle ? (*circle)[0] + (*circle)[2] / 2 : 640, middle_y = circle ? (*circle)[1] + (*circle)[3] / 2 : 220;
+                const std::string left = look(middle_x - 300, middle_y, "looking-left");
+                const std::string right = look(middle_x + 300, middle_y + 300, "looking-down-right");
+                const std::string again = look(middle_x - 300, middle_y, "looking-left-again");
+                step(!left.empty() && left != right && again != right, "Mui looks at the pointer: left, below to the right, and left again");
+            }
+
             // The bridge stops: the page waits again.
             stop_bridge();
             const bool back = script.until_time([&] { return name_of("o") == "omui" && !node("who").is_object(); }, 8000, 200);

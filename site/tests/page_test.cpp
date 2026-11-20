@@ -9,6 +9,7 @@ import mlibs.testing;
 import omui;
 import omui.player;
 import omui.entry.player;
+import omui.designer;  // what a release that links it starts once the person's agent pairs (omui.config.ts)
 import omui.lang.js;
 
 using namespace mcpplibs::mtest;
@@ -181,6 +182,71 @@ static UTest cases{"site", [] {
         settle();
         expect(shows(host, Role::image, "Mui")) << "connected: the O is Mui";
         expect(!host.tree().find({.name = "Claude Code · omui 0.1.0 · linux-x86_64"}).empty()) << "the agent, its omui, its machine";
+        // Linked, the page is the agent's to design (Live Design, D-149): the designer the release links starts as the
+        // link pairs (the player's host does it), and the agent edits the page's own TypeScript as it runs — the
+        // project's name, GitHub as its mark, Mui looking at the pointer. The page ships none of it
+        // (tests/visitor-agent.json, what the agent sends).
+        expect(!host.runtime().verbs().find("design.edit")) << "before the link: no designer";
+        expect(fatal(page.begin_design().has_value()));
+        const auto agent_does = [&](std::string_view verb, Value args) {
+            Invocation call;
+            call.actor = {"agent", "Claude Code", {}};
+            call.args = std::move(args);
+            const Envelope answer = host.runtime().verbs().invoke(verb, call);
+            settle();
+            expect(eq(answer.exit_code().value_or(-1), 0)) << verb << ": " << answer.ndjson();
+            return answer.data_value() ? *answer.data_value() : Value{};
+        };
+        {
+            std::ifstream in(std::filesystem::path(std::source_location::current().file_name()).parent_path() / "visitor-agent.json", std::ios::binary);
+            const auto wanted = parse_json(std::string(std::istreambuf_iterator<char>(in), {}));
+            expect(fatal(wanted.has_value() && wanted->get("edits")));
+            const std::string path(wanted->get("path")->as_string());
+            std::string text;
+            const Value listed = agent_does("design.sources", Value(Value::Map{}));
+            if (const Value* sources = listed.get("scripts"); sources && sources->list())
+                for (const Value& source : *sources->list())
+                    if (source.get("path") && source.get("path")->as_string() == path) text = std::string(source.get("text")->as_string());
+            expect(fatal(!text.empty())) << "the page's source, as the agent reads it: " << listed.json().substr(0, 300);
+            for (const Value& change : *wanted->get("edits")->list()) {
+                const std::string find(change.get("find")->as_string());
+                const auto at = text.find(find);
+                expect(fatal(at != std::string::npos)) << "the agent's edit finds " << find.substr(0, 60);
+                text.replace(at, find.size(), change.get("replace")->as_string());
+            }
+            (void)agent_does("design.edit", Value{}.set("path", path).set("text", text).set("say", wanted->get("say")->as_string()));
+        }
+        expect(!host.tree().find({.name = "omui"}).empty() && shows(host, Role::image, "Mui")) << "the name beside Mui";
+        const NodeId name = named(host.runtime(), host.runtime().root(), "name");
+        expect(fatal(host.runtime().valid(name)));
+        expect(host.runtime().drawn_bounds(name).x < 40 && host.runtime().drawn_bounds(name).y < 40) << "top left";
+        const NodeId github = named(host.runtime(), host.runtime().root(), "github");
+        expect(fatal(host.runtime().valid(github)));
+        expect(shows(host, Role::link, "GitHub") && eq(host.runtime().drawn_bounds(github).width, 28.0f)) << "GitHub, its mark";
+        still(host, "designed");
+        // Mui looks where the pointer is: her eyes a pixel of her head toward it, back ahead when it leaves.
+        const NodeId eye = named(host.runtime(), host.runtime().root(), "mui-p");
+        expect(fatal(host.runtime().valid(eye)));
+        const Rect ahead = host.runtime().drawn_bounds(eye);
+        const Rect circle = host.runtime().drawn_bounds(named(host.runtime(), host.runtime().root(), "o"));
+        const Point middle{circle.x + circle.width / 2, circle.y + circle.height / 2};
+        const auto looking = [&](Point at) {
+            host.move(at);
+            settle();
+            const Rect now = host.runtime().drawn_bounds(eye);
+            return Point{now.x - ahead.x, now.y - ahead.y};
+        };
+        const float pixel = 240 * 0.6f / 16;
+        const Point left = looking({middle.x - 300, middle.y});
+        expect(eq(left.x, -pixel) && eq(left.y, 0.0f)) << std::format("to the left: ({}, {})", left.x, left.y);
+        const auto looked_left = picture(host);
+        const Point below = looking({middle.x + 260, middle.y + 280});
+        expect(eq(below.x, pixel) && eq(below.y, pixel)) << std::format("below to the right: ({}, {})", below.x, below.y);
+        expect(picture(host) != looked_left) << "drawn looking";
+        expect(host.save_png(scratch_dir("site-gaze") / "below-right.png").has_value());
+        const Point near = looking({middle.x + 20, middle.y - 10});
+        expect(eq(near.x, 0.0f) && eq(near.y, 0.0f)) << "at her: ahead";
+
         // The bridge goes: waiting again, the O open.
         AgentLink lost = paired;
         lost.state = "lost";

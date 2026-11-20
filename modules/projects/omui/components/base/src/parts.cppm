@@ -24,6 +24,8 @@ export namespace omui::parts {
 [[nodiscard]] std::optional<Rect> view_box(std::string_view text) noexcept;
 // A view box laid into `into` as a path lays its data: its ratio kept, centred.
 [[nodiscard]] mlibs::geom::Affine fitted(const Rect& view_box, const Rect& into) noexcept;
+// SVG path data as a path to draw (a path's shape, a link's icon); none where it does not parse or draws nothing.
+[[nodiscard]] std::optional<xrender::Path> shape_of(std::string_view data);
 
 // A small downward chevron (selects, menus), centred on `c`.
 void chevron(PaintContext& ctx, Point c, float size, Color color);

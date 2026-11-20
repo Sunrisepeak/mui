@@ -11,6 +11,8 @@ export default defineContract({
     doc: "Text that goes somewhere: an address the system opens, or a verb of the application's.",
     props: {
       text: { type: "string", default: "", bindable: true, doc: "What it says, also its name." },
+      icon: { type: "string", default: "", bindable: true,
+              doc: "An icon before its text, or alone where it has none (its name then its `label`): SVG path data in a 24-unit square, as icon sets draw them, filled in the link's colour." },
       href: { type: "string", default: "", bindable: true, doc: "The address (http, https, mailto) the system opens." },
       verb: { type: "string", default: "", doc: "Instead, the application's verb it invokes." },
       disabled: { type: "bool", default: false },
@@ -18,6 +20,6 @@ export default defineContract({
     events: { activated: { args: { href: "string" } } },
     actions: { activate: { effect: "reversible", doc: "Follow it: the address opened (external), or the verb invoked (its effect)." } },
     keys: { Enter: "activate" },
-    parts: { label: {}, underline: {}, focus_ring: {} },
+    parts: { icon: {}, label: {}, underline: {}, focus_ring: {} },
   },
 });

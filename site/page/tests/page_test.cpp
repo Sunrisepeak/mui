@@ -61,7 +61,7 @@ static UTest cases{"site.page", [] {
         expect(shows(host, Role::image, "omui")) << "the mark";
         const auto headings = host.tree().find({.role = Role::heading});
         expect(eq(headings.size(), std::size_t{1}) && headings.front().name.starts_with("A UI framework")) << "one sentence";
-        expect(shows(host, Role::button, "Live Design") && shows(host, Role::button, "Copy") && shows(host, Role::button, "GitHub"));
+        expect(shows(host, Role::button, "Live Design") && shows(host, Role::button, "Copy") && shows(host, Role::link, "GitHub"));
         const auto rest = picture(host);
 
         // Live Design: the key pauses; the design's course on the mark's O stands at its step, said in the step's words.
@@ -90,5 +90,17 @@ static UTest cases{"site.page", [] {
         // Back at rest, the first picture again.
         expect(eq(set("rest"), 0));
         expect(picture(host) == rest) << "at rest again, as it was";
+
+        // Copy, pressed as a person presses it: the Agent tab's one sentence on the clipboard (the pairing code in
+        // it), and the page waits for the agent.
+        const auto copy_key = host.tree().find({.role = Role::button, .name = "Copy"});
+        expect(fatal(eq(copy_key.size(), std::size_t{1})));
+        Invocation press;
+        press.actor = {"person", "visitor", {}};
+        expect(eq(host.tree().act(copy_key.front().id, "activate", press).exit_code().value_or(-1), 0));
+        settle();
+        const std::string copied = host.runtime().clipboard_text();
+        expect(copied.starts_with("Install omui") && copied.contains("omui connect 7KQ2-M9") && copied.contains("describe")) << copied;
+        expect(shows(host, Role::button, "Copied")) << "waiting";
     };
 }};

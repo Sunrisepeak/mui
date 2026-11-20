@@ -49,6 +49,7 @@ OmuiResult omuiNativeCall(OmuiRuntime rt, OmuiString module_name, OmuiString fun
 OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, void* user) noexcept;
 OmuiResult omuiThemes(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
 OmuiResult omuiAddTask(OmuiRuntime rt, OmuiString task_json, PFN_omuiSink sink, void* user) noexcept;
+OmuiResult omuiCopyText(OmuiRuntime rt, OmuiString text) noexcept;
 
 }  // extern "C"
 

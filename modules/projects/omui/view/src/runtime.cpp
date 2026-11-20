@@ -213,10 +213,21 @@ NodeId Runtime::mount(std::string_view slot, View view) {
         d.update_from(id, view);
         return id;
     }
-    if (it != d.mounted.end()) unmount(slot);
+    // Another kind of view: the slot's old one goes, and the new one takes its place among the others — painted over
+    // what it was over and under what it was under (an overlay mounted after it stays above it).
+    std::optional<std::size_t> painted_at, mounted_at;
+    if (it != d.mounted.end()) {
+        mounted_at = static_cast<std::size_t>(it - d.mounted.begin());
+        const auto& old_slots = d.at(d.root).slots;
+        if (auto in = std::ranges::find(old_slots, it->second, &ChildSlot::node); in != old_slots.end())
+            painted_at = static_cast<std::size_t>(in - old_slots.begin());
+        unmount(slot);
+    }
     NodeId id = d.create(view, d.root);
-    d.at(d.root).slots.push_back({id, {}});
-    d.mounted.emplace_back(std::string(slot), id);
+    auto& slots = d.at(d.root).slots;
+    slots.insert(painted_at && *painted_at <= slots.size() ? slots.begin() + static_cast<std::ptrdiff_t>(*painted_at) : slots.end(), ChildSlot{id, {}});
+    d.mounted.insert(mounted_at && *mounted_at <= d.mounted.size() ? d.mounted.begin() + static_cast<std::ptrdiff_t>(*mounted_at) : d.mounted.end(),
+                     std::pair<std::string, NodeId>{std::string(slot), id});
     if (d.slot_insets.contains(slot)) d.sync_style(id);
     d.flatten(d.root);
     return id;

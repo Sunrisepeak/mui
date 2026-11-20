@@ -701,6 +701,14 @@ OmuiResult omuiThemes(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {
     return OMUI_SUCCESS;
 }
 
+// ── the clipboard (spec §6) ────────────────────────────────────────────────
+
+OmuiResult omuiCopyText(OmuiRuntime rt, OmuiString text_given) noexcept {
+    if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
+    rt->rt->set_clipboard_text(text(text_given));  // the host's clipboard, or kept for the runtime's own reads
+    return OMUI_SUCCESS;
+}
+
 // ── tasks to begin with (spec §5) ──────────────────────────────────────────
 
 OmuiResult omuiAddTask(OmuiRuntime rt, OmuiString task_json, PFN_omuiSink sink, void* user) noexcept {

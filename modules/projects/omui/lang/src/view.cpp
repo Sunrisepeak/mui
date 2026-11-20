@@ -611,6 +611,12 @@ Json Session::themes() {
     return t.is_discarded() ? Json::object() : t;
 }
 
+Result<void> Session::copy(std::string_view text) {
+    const abi::OmuiResult r = host_.ui([&] { return abi::omuiCopyText(host_.runtime(), str(text)); });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, "the clipboard did not take the text"));
+    return {};
+}
+
 // ── native modules ────────────────────────────────────────────────────────
 
 Json Session::natives() {

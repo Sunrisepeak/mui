@@ -6,7 +6,7 @@
 // the mark become Mui, the visitor's agent and its omui beside it). How one
 // state becomes the next is the style's motion, not this page's (D-93).
 import {
-  signal, eq, or, select, when, stack, column, row, box, text, button, segmented, path, timeline, mount, verb,
+  signal, eq, or, select, when, stack, column, row, box, text, button, segmented, link, path, timeline, mount, verb, invoke, copy,
 } from "openmui";
 
 type State = "rest" | "design" | "waiting" | "connected";
@@ -91,7 +91,14 @@ const mark = stack({ id: "mark", width: side + 20, height: side + 20, alignItems
   ]),
 ]);
 
-const live = button({ id: "live", variant: "secondary", text: select(designing, "Pause", "Live Design") });
+// The design of this page, played in place (generate.replay: each step the real page as it was, from what `omui new`
+// wrote); where none ships, the sketch of it.
+const live = button({
+  id: "live", variant: "secondary", text: select(designing, "Pause", "Live Design"),
+  onPress: () => {
+    try { invoke("generate.replay", { play: true }); } catch { state.set(state.get() === "design" ? "rest" : "design"); }
+  },
+});
 
 // Under the mark: the Live Design key, and who is at work — the step and its maker in Live Design, the visitor's agent
 // once connected.
@@ -117,13 +124,15 @@ const sentence = text({
 });
 
 const install = column({
-  id: "install", gap: 12, width: "100%", maxWidth: 640, padding: 18, radius: 18, background: "#ffffff", shadow: "lg",
+  id: "install", label: "Install", gap: 12, width: "100%", maxWidth: 640, padding: 18, radius: 18, background: "#ffffff", shadow: "lg",
   borderWidth: select(or(designing, connected), 1, 0), borderColor: select(connected, accent, sketch),
   opacity: select(designing, 0.45, 1),
 }, [
   row({ justify: "space_between", alignItems: "center" }, [
     segmented({ id: "how", options: ["agent", "command"], labels: ["Agent", "Command"], value: how, label: "How to install" }),
-    button({ id: "copy", variant: "primary", text: select(or(waiting, connected), "Copied", "Copy") }),
+    // The chosen tab's words on the clipboard; the page waits for the agent (or the command) to connect.
+    button({ id: "copy", variant: "primary", text: select(or(waiting, connected), "Copied", "Copy"),
+             onPress: () => { copy(how.get() === "agent" ? prompt : commands); if (state.get() !== "connected") state.set("waiting"); } }),
   ]),
   text({ id: "words", style: "code", wrap: true, color: ink, text: select(eq(how, "agent"), prompt, commands) }),
   when(connected, [
@@ -139,7 +148,7 @@ mount("main", stack({ width: "100%", height: "100%", background: paper }, [
     install,
   ]),
   row({ position: "absolute", top: 0, right: 0, padding: 20 }, [
-    button({ id: "github", variant: "ghost", text: "GitHub" }),
+    link({ id: "github", text: "GitHub", href: "https://github.com/Sunrisepeak/mui" }),
   ]),
 ]));
 

@@ -30,13 +30,29 @@ omui agent capture sitepage --out media/sketch-waiting-1280.png
 - `timeline` (omui.ui.base) lays the design's eight steps along the O (`shape`: the O in a 1×1 box; `line: false`: the O's own stroke is the course, the timeline adds the marks and the playhead).
 - `segmented`, `button` and `text` come from the theme's defaults. The colours are the brand's (`#1e1b4b` ink, `#4f46e5` accent) on `#faf9f6` paper.
 
+## Made in Live Design
+
+`tests/design_test.cpp` designs the page through the designer's verbs, the same ones an agent reaches over MCP (`design_*`), starting from what `omui new` writes ([`design/start.ts`](design/start.ts)). Each step is a commit of the design's history (the site's design §8):
+
+1. The template.
+2. The agent's drafts: the mark, the sentence under it, the Live Design key, the install's two tabs and Copy.
+3. Mui: the four states of one picture.
+4. The person takes over: the sentence in their words, and more room around the install.
+5. The agent reads the facts back: the history says who changed what, and two expectations hold.
+6. A narrower install, tried on a branch from before the person's touch, and left.
+7. At rest: the Live Design key plays this design.
+
+The page ends as `app/main.ts` is. Its history ships as [`design/main.replay.xdef.json`](design/main.replay.xdef.json): nine steps, each in its maker's words, `agent:designer` or `person:maintainer`. [`omui.config.ts`](omui.config.ts) names that file. The Live Design key plays it in place (`generate.replay`): each step is the real page as it was, its maker framed at what it built. `OMUI_EXAMPLE_WRITE=1` writes the page and the replay instead of comparing them, for a change that is meant.
+
+Copy puts the chosen tab's words on the clipboard (`copy()`, openmui 0.4.7), and the page waits. GitHub is a `link`.
+
 ## Not in this round
 
 | What | Where it comes from |
 |---|---|
 | Material and light (the mark's halo, the install's surface) | The framework's effects (liquid glass, a theme layer), not page code |
 | The motion between states, including the O's breathing | The default recipes (`path`: `default.structure`); the sketches are at rest |
-| The real Live Design replay | `generate.replay` (G8), as in example 13 |
+| The design's course on the O while it plays | The replay draws its steps in its own card now; drawing them on a named node (the mark) is the replay's option, not page code |
 | The bridge and pairing | `omui connect` (G9) |
 | Chinese, static HTML, budgets | G2's projection; the site's budgets (§6) |
 

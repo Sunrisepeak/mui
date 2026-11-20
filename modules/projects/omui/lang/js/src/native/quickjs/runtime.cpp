@@ -224,6 +224,7 @@ JSValue n_splice(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
 }
 JSValue n_theme(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.theme(text(ctx, argv[0]))); }
 JSValue n_themes(JSContext* ctx, JSValueConst, int, JSValueConst*) { return string(ctx, impl(ctx).natives.themes()); }
+JSValue n_copy(JSContext* ctx, JSValueConst, int, JSValueConst* argv) { return answer(ctx, impl(ctx).natives.copy(text(ctx, argv[0]))); }
 // Whether the elements it builds carry where they were built (development mode).
 JSValue n_keeps_built_at(JSContext* ctx, JSValueConst, int, JSValueConst*) { return JS_NewBool(ctx, impl(ctx).natives.keep_built_at); }
 JSValue n_native_call(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
@@ -361,7 +362,7 @@ Script::Script(Session& session) : impl_(std::make_shared<Impl>(session)) {
             {"find", n_find, 1},                  {"get", n_get, 2},               {"set", n_set, 2},
             {"rows", n_rows, 1},                  {"splice", n_splice, 4},         {"log", n_log, 1},
             {"nativeCall", n_native_call, 3},     {"nativeAsync", n_native_async, 3}, {"theme", n_theme, 1},
-            {"themes", n_themes, 0},              {"keepsBuiltAt", n_keeps_built_at, 0}};
+            {"themes", n_themes, 0},              {"keepsBuiltAt", n_keeps_built_at, 0},  {"copy", n_copy, 1}};
         for (const auto& [name, fn, arity] : natives) JS_SetPropertyStr(s->ctx, n, name, JS_NewCFunction(s->ctx, fn, name, arity));
         JS_SetPropertyStr(s->ctx, global, "__omui", n);
         JS_FreeValue(s->ctx, global);

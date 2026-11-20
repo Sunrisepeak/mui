@@ -21,6 +21,10 @@ export namespace omui {
 // The manifest of an application, from its mcpp.toml.
 [[nodiscard]] std::expected<player::Manifest, std::string> read_manifest(const std::filesystem::path& mcpp_toml);
 
+// Twins of the application (D-149), as `omui dev` makes them: the application again, headless and unseen, with its own
+// runtime and player (TypeScript and JavaScript) — what the designer's previews, variants, film and motion run in.
+[[nodiscard]] player::TwinFn twins(const player::Manifest& manifest);
+
 int player_main(int argc, char** argv);
 
 }  // namespace omui

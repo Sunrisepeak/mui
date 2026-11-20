@@ -57,12 +57,11 @@ private:
     player::Player shown_;
 };
 
+}  // namespace
+
 player::TwinFn twins(const player::Manifest& manifest) {
     return [manifest](bool design) -> std::expected<std::unique_ptr<player::Twin>, std::string> { return std::make_unique<HeadlessTwin>(manifest, design); };
 }
-
-
-}  // namespace
 
 // omui.config.ts beside the manifest (defineConfig, evaluated as data):
 //   agent:  { development?: mode, release?: mode }   automatic, development, dual-user

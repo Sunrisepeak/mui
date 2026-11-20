@@ -220,6 +220,8 @@ export function find(selector) {
   };
 }
 export const log = (...a) => N.log(a.map(String).join(" "));
+// Text on the person's clipboard (spec §6), where the host has one and allows it now; nothing is read back.
+export const copy = (text) => { native(N.copy, String(text)); };
 export const nil = null;
 )js";
 

@@ -295,6 +295,14 @@ static UTest cases{"view", [] {
         rt.set_slot_insets("main", {});
         rt.frame({seconds(0.2), {}});
         expect(rt.bounds(rt.find("main")).y == 0 && rt.bounds(rt.find("main")).height == 100);
+        // Replaced by another kind of view, a slot keeps its place: an overlay mounted after it stays above it (a
+        // design played in place over an application whose script mounts again).
+        rt.mount("overlay", box({.label = "Over"}));
+        rt.mount("main", stack({}, {}));
+        rt.frame({seconds(0.3), {}});
+        const std::vector<NodeId> order = rt.children(rt.root());
+        expect(order.size() == 3 && rt.path(order[0]) == "window" && rt.path(order[1]) == "main" && rt.path(order[2]) == "overlay")
+            << "main stays under the overlay";
     };
 
     "bound properties update their node alone"_test = [] {

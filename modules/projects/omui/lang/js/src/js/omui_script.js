@@ -44,7 +44,7 @@ addToLibrary({
       var keep = function (f) { return omuiScripts.keep(s, f); };
       var t = {};
       ['signalCreate', 'signalGet', 'signalSet', 'catalog', 'unmount', 'document', 'task', 'invoke', 'act', 'snapshot', 'find', 'get',
-       'set', 'rows', 'splice', 'nativeCall', 'theme', 'themes', 'keepsBuiltAt', 'log'].forEach(function (op) { t[op] = ask(op); });
+       'set', 'rows', 'splice', 'nativeCall', 'theme', 'themes', 'keepsBuiltAt', 'log', 'copy'].forEach(function (op) { t[op] = ask(op); });
       t.signalWatch = function (signal, f) { return omuiScripts.ask(s, 'signalWatch', [signal, keep(f)]); };
       t.mount = function (slot, tree, handlers) { return omuiScripts.ask(s, 'mount', [slot, tree, handlers.map(keep)]); };
       t.verb = function (name, options, f) { return omuiScripts.ask(s, 'verb', [name, options, keep(f)]); };

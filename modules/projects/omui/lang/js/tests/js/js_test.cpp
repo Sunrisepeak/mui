@@ -290,6 +290,20 @@ want.forEach((words, at) => { if (!refusals[at].includes(words)) throw new Error
         expect(said.has_value()) << (said ? "" : said.error().text());
     };
 
+    "copy: a press puts text on the person's clipboard (spec §6); nothing is read back"_test = [] {
+        Runtime r;
+        Js js(r);
+        auto ran = js.run(R"js(
+import { mount, column, button, copy } from "openmui";
+mount("main", column({}, [button({ id: "copy", text: "Copy", onPress: () => copy("omui connect 7KQ2-M9") })]));
+)js");
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        expect(eq(r.act("main/copy", "activate"), std::int64_t{0}));
+        r.settle(js.host);
+        expect(eq(omui::abi::runtime_of(r.rt)->clipboard_text(), std::string("omui connect 7KQ2-M9")));
+        expect(js.errors.empty()) << (js.errors.empty() ? "" : js.errors[0]);
+    };
+
     "a handler reads the signals as its event left them (a bound field's changed)"_test = [] {
         Runtime r;
         Js js(r);

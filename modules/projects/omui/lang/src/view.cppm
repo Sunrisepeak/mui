@@ -149,6 +149,10 @@ public:
     // {"themes": […], "overlays": […], "current": "dark+compact", "dark": true}
     [[nodiscard]] Json themes();
 
+    // ── the clipboard (spec §6) ──
+    // Text on the person's clipboard, where the host has one and allows it now; nothing is read back.
+    Result<void> copy(std::string_view text);
+
     // ── native modules (component-binding §8) ──
     // The catalogue (omuiNativeCatalog): {"modules": {name: {types, functions}}}.
     [[nodiscard]] Json natives();

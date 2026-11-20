@@ -59,37 +59,6 @@ std::string name_of(Headless& h, std::string_view id) {
     return node ? node->name : std::string("<none>");
 }
 
-// The application again, headless and unseen, as `omui dev`'s entry makes one.
-class TypeScriptTwin final : public player::Twin {
-public:
-    TypeScriptTwin(const player::Manifest& manifest, bool design)
-        : host_(HeadlessOptions{.level = HeadlessLevel::pixels, .size = manifest.size}),
-          shown_(host_.runtime(), manifest, {lang::js::typescript()}, {.design = design}) {
-        (void)shown_.start();
-        settle();
-    }
-    player::Player& player() override { return shown_; }
-    Runtime& runtime() override { return host_.runtime(); }
-    seconds time() override { return host_.runtime().now(); }
-    void step(std::optional<seconds> at) override { (void)host_.step({}, at); }
-    void settle() override {
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-        while (!shown_.idle() && std::chrono::steady_clock::now() < deadline) {
-            (void)host_.step();
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-        host_.settle();
-    }
-    std::expected<std::vector<std::uint8_t>, omui::ViewFailure> png() override { return host_.png(); }
-    std::expected<std::vector<std::uint8_t>, omui::ViewFailure> framed_png(Rect frame, std::string_view fixed) override {
-        return host_.framed_png(frame, fixed);
-    }
-
-private:
-    Headless       host_;
-    player::Player shown_;
-};
-
 // The page as the agent first writes it: what it is for, the plans.
 constexpr std::string_view first_page = R"ts(// Subscription settings: the plan, how it is paid, whether it renews.
 import { signal, select, column, row, text, button, toggle, radio, box, slot, mount } from "openmui";
@@ -133,9 +102,7 @@ UTest cases{"example.live-design", [] {
 
         Headless h(HeadlessOptions{.level = HeadlessLevel::pixels, .size = manifest->size, .app = manifest->id});
         player::Player app(h.runtime(), *manifest, {lang::js::typescript()},
-                           {.design = true, .twin = [&](bool design) -> std::expected<std::unique_ptr<player::Twin>, std::string> {
-                                return std::make_unique<TypeScriptTwin>(*manifest, design);
-                            }});
+                           {.design = true, .twin = twins(*manifest)});  // omui dev's own twins
         expect(app.start().has_value());
         const auto settle = [&] {
             const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);

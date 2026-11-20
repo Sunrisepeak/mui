@@ -49,6 +49,8 @@ public:
     [[nodiscard]] Result<void> splice(std::string_view model, std::int64_t at, std::int64_t removed, std::string_view rows);
     [[nodiscard]] Result<void> theme(std::string_view layers);
     [[nodiscard]] std::string themes();
+    // Text on the person's clipboard (spec §6): nothing is read back.
+    [[nodiscard]] Result<void> copy(std::string_view text);
     [[nodiscard]] Result<std::string> native_call(std::string_view module, std::string_view function, std::string_view arguments);
     // An async native: `settled` gets its result (or its refusal's text) on the script's thread.
     void native_async(std::string_view module, std::string_view function, std::string_view arguments, std::function<void(Result<std::string>)> settled);

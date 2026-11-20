@@ -28,6 +28,7 @@ main = "app/main.ts"
 
 [package.metadata.openmui.runtime]
 openmui = "0.4"
+needs   = ["generate"]  # its design, played in place
 
 [targets.omui-site-page]
 kind = "bin"
@@ -36,8 +37,13 @@ main = { from = "omui.entry.player/player" }
 [dependencies]
 omui.entry.player = { path = "../../modules/projects/omui/entry/player" }
 
-# Its test drives the page without a window, as an agent does (omui doctor's app.headless-test).
+# Its tests drive the page without a window, as an agent does (omui doctor's app.headless-test), and design it
+# from what omui new writes through the designer's verbs (tests/design_test.cpp).
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+mcpplibs.os    = "0.4.4"
+mlibs.agent    = { path = "../../modules/base/agent" }
 omui.player    = { path = "../../modules/projects/omui/player" }
+omui.designer  = { path = "../../modules/projects/omui/designer" }
 omui.lang.js   = { path = "../../modules/projects/omui/lang/js" }
+omui.lang.ts   = { path = "../../modules/projects/omui/lang/ts" }

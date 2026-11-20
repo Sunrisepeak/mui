@@ -312,7 +312,7 @@ public:
     Runtime& operator=(const Runtime&) = delete;
 
     // ── mounting ──
-    // Mounts a view at a slot (a top-level id), replacing what was there.
+    // Mounts a view at a slot (a top-level id), replacing what was there, in its place among the slots.
     NodeId mount(std::string_view slot, View view);
     // Mounts a view beneath every other slot: painted first, reached by the
     // pointer last (a window's own frame, under the application).

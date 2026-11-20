@@ -81,13 +81,18 @@ const mark = stack({ id: "mark", width: side + 20, height: side + 20, alignItems
     timeline({ id: "steps", shape: course, steps, value: at, line: false, label: "The page's design", width: side + 20, height: side + 20,
                captions: ["The mark", "Its O", "The sentence", "The Live Design key", "The install", "Its two tabs", "Light", "At rest"] }),
   ], [
-    when(connected, [
-      stack({ id: "mui", width: side * 0.6, height: side * 0.6 },
-        ["o", "b", "l", "w", "p", "k"].map((letter) =>
-          path({ id: `mui-${letter}`, d: pixels(letter), fill: palette[letter], viewBox: "0 0 16 16", width: side * 0.6, height: side * 0.6 }))),
-    ], [
-      path({ id: "word", d: letters, stroke: ink, strokeWidth: 6, width: side, height: side }),
-      path({ id: "dot", d: dot, fill: ink, width: side, height: side }),
+    // The word becomes Mui, and back: her pixels gather out of its strokes (the style's `gather`, hanim.visual). The
+    // parts move with it (`motion: "none"`: not each by its own recipe).
+    stack({ id: "face", width: side, height: side, alignItems: "center", justify: "center", motion: "gather" }, [
+      when(connected, [
+        stack({ id: "mui", width: side * 0.6, height: side * 0.6, motion: "none" },
+          ["o", "b", "l", "w", "p", "k"].map((letter) =>
+            path({ id: `mui-${letter}`, d: pixels(letter), fill: palette[letter], viewBox: "0 0 16 16", width: side * 0.6, height: side * 0.6,
+                   motion: "none" }))),
+      ], [
+        path({ id: "word", d: letters, stroke: ink, strokeWidth: 6, width: side, height: side, motion: "none" }),
+        path({ id: "dot", d: dot, fill: ink, width: side, height: side, motion: "none" }),
+      ]),
     ]),
   ]),
 ]);

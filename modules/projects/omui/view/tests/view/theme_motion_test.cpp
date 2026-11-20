@@ -133,13 +133,13 @@ static UTest cases{"view.theme_motion", [] {
             if (!recipe) continue;
             // Both ways, by the specification's names: each primitive it lists is composed, and each composed one is listed
             // (a recipe that gained `write` or `arrivals` in code and not in the registry is caught).
-            constexpr std::array<std::pair<std::string_view, MotionPrimitive>, 18> named{{
+            constexpr std::array<std::pair<std::string_view, MotionPrimitive>, 19> named{{
                 {"match_drawing", MotionPrimitive::match_drawing}, {"match_glyphs", MotionPrimitive::match_glyphs}, {"fade", MotionPrimitive::fade},
                 {"lift", MotionPrimitive::lift}, {"panel_lift", MotionPrimitive::panel_lift}, {"grow", MotionPrimitive::grow},
                 {"check_grow", MotionPrimitive::check_grow}, {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger},
                 {"distance", MotionPrimitive::distance}, {"readable_text", MotionPrimitive::readable_text}, {"write", MotionPrimitive::write},
                 {"drop", MotionPrimitive::drop}, {"noise", MotionPrimitive::noise}, {"reshape", MotionPrimitive::reshape},
-                {"press", MotionPrimitive::press}, {"arrivals", MotionPrimitive::arrivals}, {"breathe", MotionPrimitive::breathe}}};
+                {"press", MotionPrimitive::press}, {"arrivals", MotionPrimitive::arrivals}, {"breathe", MotionPrimitive::breathe}, {"gather", MotionPrimitive::gather}}};
             std::uint32_t listed = 0;
             for (std::string_view primitive : recipe->primitives | std::views::split(' ') | std::views::transform([](auto r) { return std::string_view(r); })) {
                 const auto found = std::ranges::find(named, primitive, &std::pair<std::string_view, MotionPrimitive>::first);

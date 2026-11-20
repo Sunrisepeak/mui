@@ -191,7 +191,7 @@ constexpr std::pair<std::string_view, MotionPrimitive> primitive_names[]{
     {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger}, {"distance", MotionPrimitive::distance},
     {"write", MotionPrimitive::write}, {"drop", MotionPrimitive::drop}, {"noise", MotionPrimitive::noise},
     {"reshape", MotionPrimitive::reshape}, {"press", MotionPrimitive::press}, {"arrivals", MotionPrimitive::arrivals},
-    {"breathe", MotionPrimitive::breathe}
+    {"breathe", MotionPrimitive::breathe}, {"gather", MotionPrimitive::gather}
 };
 
 // A presence's name says what it became: "rise_in", "rise_in+settle_in".
@@ -233,6 +233,7 @@ void add_primitive(MotionSpec& m, MotionPrimitive part) {
         // Staggered in the document's order over what arrives only, a part's pieces as one (a tree's rows opened).
         case MotionPrimitive::arrivals: m.order = MotionSpec::Order::document; m.stagger = 0.03; m.arrivals = true; break;
         case MotionPrimitive::breathe: m.breathe = true; break;
+        case MotionPrimitive::gather: m.gather = true; break;
     }
 }
 
@@ -402,6 +403,9 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     add("press.squash", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::press}, Transition::tween(hanim::seconds(0.45), hanim::ease::linear)));
     // An ambient slot's: a breath in and out each 3.2 s while it is shown (the site's O while it waits).
     add("breathe", compose_motion({P::breathe}, Transition::tween(hanim::seconds(3.2), hanim::ease::linear)));
+    // One drawing gathering into another (the gather design, 2026-11-21): the site's word becoming Mui — her pixels
+    // out of its strokes, left to right, the strokes unwritten as they go; and back.
+    add("gather", compose_motion({P::match_drawing, P::fade, P::gather}, Transition::tween(hanim::seconds(1.2), hanim::ease::standard)));
     return lib;
 }
 

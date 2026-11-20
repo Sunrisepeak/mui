@@ -270,6 +270,111 @@ private:
     DrawProof* proof_ = nullptr;
 };
 
+// Gathering (Options::gather): a piece's path, its outlines as polylines in the range's space (curves sampled), and
+// the contours of a fill (each from its move to the next).
+std::optional<PathView> path_of_piece(const Matter& m, const Piece& pc) {
+    if (pc.cls == PieceClass::group) return std::nullopt;
+    const auto& command = m.list().commands()[pc.command];
+    if (const auto* fill = std::get_if<FillPath>(&command)) return fill->path;
+    if (const auto* stroke = std::get_if<StrokePath>(&command)) return stroke->path;
+    return std::nullopt;
+}
+
+std::size_t points_of(PathVerb verb) noexcept {
+    switch (verb) {
+        case PathVerb::move:
+        case PathVerb::line: return 1;
+        case PathVerb::quad: return 2;
+        case PathVerb::cubic: return 3;
+        case PathVerb::close: return 0;
+    }
+    return 0;
+}
+
+// The piece's outlines, a polyline a contour, in the range's space: a path's (curves in eight steps), a rectangle's.
+std::vector<std::vector<Point>> outlines_of(const Matter& m, const Piece& pc) {
+    std::vector<std::vector<Point>> out;
+    if (pc.cls == PieceClass::group) return out;
+    const auto& command = m.list().commands()[pc.command];
+    const auto rect = [&](const Rect& r) {
+        out.push_back({pc.transform.apply({r.x, r.y}), pc.transform.apply({r.right(), r.y}), pc.transform.apply({r.right(), r.bottom()}),
+                       pc.transform.apply({r.x, r.bottom()}), pc.transform.apply({r.x, r.y})});
+    };
+    if (const auto* fill = std::get_if<FillRect>(&command)) {
+        rect(fill->rect);
+        return out;
+    }
+    if (const auto* fill = std::get_if<FillRoundRect>(&command)) {
+        rect(fill->rect);
+        return out;
+    }
+    const auto path = path_of_piece(m, pc);
+    if (!path) return out;
+    std::size_t at = 0;
+    Point last{}, first{};
+    for (const PathVerb verb : path->verbs) {
+        const auto p = path->points;
+        switch (verb) {
+            case PathVerb::move:
+                first = last = p[at++];
+                out.push_back({pc.transform.apply(last)});
+                break;
+            case PathVerb::line:
+                last = p[at++];
+                if (!out.empty()) out.back().push_back(pc.transform.apply(last));
+                break;
+            case PathVerb::quad:
+            case PathVerb::cubic: {
+                const bool cubic = verb == PathVerb::cubic;
+                const Point c1 = p[at], c2 = cubic ? p[at + 1] : p[at], end = p[at + (cubic ? 2 : 1)];
+                for (int step = 1; step <= 8 && !out.empty(); ++step) {
+                    const float t = static_cast<float>(step) / 8, s = 1 - t;
+                    const Point q = cubic ? Point{s * s * s * last.x + 3 * s * s * t * c1.x + 3 * s * t * t * c2.x + t * t * t * end.x,
+                                                  s * s * s * last.y + 3 * s * s * t * c1.y + 3 * s * t * t * c2.y + t * t * t * end.y}
+                                          : Point{s * s * last.x + 2 * s * t * c1.x + t * t * end.x, s * s * last.y + 2 * s * t * c1.y + t * t * end.y};
+                    out.back().push_back(pc.transform.apply(q));
+                }
+                at += cubic ? 3 : 2;
+                last = end;
+                break;
+            }
+            case PathVerb::close:
+                if (!out.empty()) out.back().push_back(pc.transform.apply(first));
+                last = first;
+                break;
+        }
+    }
+    return out;
+}
+
+// `count` points evenly along the outlines (their lengths together), in order.
+std::vector<Point> along(const std::vector<std::vector<Point>>& outlines, std::size_t count) {
+    std::vector<Point> out;
+    if (count == 0) return out;
+    double total = 0;
+    for (const auto& line : outlines)
+        for (std::size_t i = 1; i < line.size(); ++i) total += std::hypot(line[i].x - line[i - 1].x, line[i].y - line[i - 1].y);
+    if (total <= 0) {
+        for (const auto& line : outlines)
+            if (!line.empty()) return std::vector<Point>(count, line.front());
+        return out;
+    }
+    std::size_t next = 0;
+    double walked = 0;
+    for (const auto& line : outlines)
+        for (std::size_t i = 1; i < line.size() && next < count; ++i) {
+            const double length = std::hypot(line[i].x - line[i - 1].x, line[i].y - line[i - 1].y);
+            while (next < count && (static_cast<double>(next) + 0.5) / static_cast<double>(count) * total <= walked + length) {
+                const double at = length > 0 ? ((static_cast<double>(next) + 0.5) / static_cast<double>(count) * total - walked) / length : 0;
+                out.push_back(mixp(line[i - 1], line[i], at));
+                ++next;
+            }
+            walked += length;
+        }
+    while (out.size() < count) out.push_back(out.empty() ? outlines.front().front() : out.back());
+    return out;
+}
+
 struct Emitter {
     DisplayList&      out;
     Affine            base;  // from the range's space to where the morph draws (inside its wrapper)
@@ -416,6 +521,17 @@ struct Emitter {
         if (part_open) out.end_part();
         if (marker) out.end_node();
         marker = 0; part_open = false;
+    }
+
+    // One contour of a fill piece (its verbs and points in the fill's path), under `t`, at `opacity`.
+    void contour(const Matter& m, const Piece& pc, const Affine& t, float opacity, std::size_t verb, std::size_t verbs, std::size_t point,
+                 std::size_t points) {
+        if (opacity <= 0) return;
+        const auto* fill = std::get_if<FillPath>(&m.list().commands()[pc.command]);
+        if (!fill) return;
+        const Pushes p = enter(m, pc.clip, t);
+        if (p.ok) command(FillPath{PathView{fill->path.verbs.subspan(verb, verbs), fill->path.points.subspan(point, points)}, fill->rule, fill->paint}, opacity);
+        leave(p);
     }
 
     // A piece as it is in `m`, under `t`, at `opacity`.
@@ -1299,6 +1415,7 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
             ++stats_.text_contrast_runs;
         }
     }
+    if (options_.gather) gather_particles();
     double longest = 0;
     for (const Pair& p : pairs_) longest = std::max(longest, p.delay);
     end_ = start_ + longest + options_.curve.length();
@@ -1453,6 +1570,80 @@ Matter Morph::snapshot(double t, const NestedDraw& nested, const SnapshotContext
     return Matter::extract(list, range_begin, list.size(), r);
 }
 
+void Morph::gather_particles() {
+    // The gather design (2026-11-21): the fills only one drawing has, contour by contour, each paired with a point on
+    // the other drawing's outlines — both sorted along the same direction (mostly across, a little down), so the
+    // pairing is the shortest and no two paths cross (one-dimensional optimal transport) — and started one after
+    // another in that order.
+    const auto A = from_.pieces();
+    const auto B = to_.pieces();
+    const double spread = std::clamp(static_cast<double>(options_.gather->spread), 0.0, 0.95);
+    const auto key = [](Point p) { return p.x + 0.25f * p.y; };
+    for (const bool appearing : {true, false}) {
+        const Matter& own = appearing ? to_ : from_;
+        const Matter& other = appearing ? from_ : to_;
+        const auto own_pieces = appearing ? B : A;
+        const auto other_pieces = appearing ? A : B;
+        // The other drawing's outlines: what vanishes when these appear, what appears when these vanish.
+        std::vector<std::vector<Point>> outlines;
+        for (const Pair& pair : pairs_) {
+            const int mine = appearing ? pair.b : pair.a, theirs = appearing ? pair.a : pair.b;
+            if (mine >= 0 || theirs < 0) continue;
+            for (auto& line : outlines_of(other, other_pieces[static_cast<std::size_t>(theirs)])) outlines.push_back(std::move(line));
+        }
+        std::vector<std::pair<std::size_t, Particle>> made;  // its pair, the particle
+        for (std::size_t at = 0; at < pairs_.size(); ++at) {
+            const Pair& pair = pairs_[at];
+            const int mine = appearing ? pair.b : pair.a, theirs = appearing ? pair.a : pair.b;
+            if (mine < 0 || theirs >= 0) continue;
+            const Piece& pc = own_pieces[static_cast<std::size_t>(mine)];
+            if (pc.cls == PieceClass::group) continue;
+            const auto& command = own.list().commands()[pc.command];
+            if (const auto* fill = std::get_if<FillPath>(&command)) {
+                const auto verbs = fill->path.verbs;
+                const auto points = fill->path.points;
+                std::size_t verb = 0, point = 0;
+                while (verb < verbs.size()) {
+                    const std::size_t first_verb = verb, first_point = point;
+                    std::size_t count = 0;
+                    do {
+                        count += points_of(verbs[verb]);
+                        ++verb;
+                    } while (verb < verbs.size() && verbs[verb] != PathVerb::move);
+                    if (count > 0 && first_point + count <= points.size()) {
+                        Rect box{points[first_point].x, points[first_point].y, 0, 0};
+                        for (std::size_t k = first_point; k < first_point + count; ++k) box = box.united({points[k].x, points[k].y, 0, 0});
+                        made.push_back({at, Particle{.verb = first_verb, .verbs = verb - first_verb, .point = first_point, .points = count,
+                                                     .at = pc.transform.apply(box.center())}});
+                    }
+                    point += count;
+                }
+            } else if (std::holds_alternative<FillRect>(command) || std::holds_alternative<FillRoundRect>(command)) {
+                made.push_back({at, Particle{.at = pc.bounds.center()}});
+            }
+        }
+        if (made.empty()) continue;
+        std::vector<std::size_t> order(made.size());
+        std::iota(order.begin(), order.end(), std::size_t{0});
+        std::ranges::stable_sort(order, {}, [&](std::size_t i) { return key(made[i].second.at); });
+        std::vector<Point> points = along(outlines, made.size());
+        std::ranges::stable_sort(points, {}, key);
+        for (std::size_t rank = 0; rank < order.size(); ++rank) {
+            Particle& particle = made[order[rank]].second;
+            particle.other = points.empty() ? particle.at : points[rank];
+            particle.delay = order.size() > 1 ? spread * static_cast<double>(rank) / static_cast<double>(order.size() - 1) : 0;
+        }
+        // Each pair's particles together, in the drawing's order.
+        std::ranges::stable_sort(made, {}, [](const auto& entry) { return entry.first; });
+        for (std::size_t i = 0; i < made.size();) {
+            const std::size_t pair = made[i].first;
+            pairs_[pair].particles = static_cast<std::uint32_t>(particles_.size());
+            for (; i < made.size() && made[i].first == pair; ++i) particles_.push_back(made[i].second);
+            pairs_[pair].particles_end = static_cast<std::uint32_t>(particles_.size());
+        }
+    }
+}
+
 void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snapshot, const PushLayer* live) const {
     const double since = t - start_;
     auto marker_a = [&](const Piece& pa) -> std::uint32_t { return snapshot ? (0x80000000u | pa.node) : 0; };
@@ -1497,6 +1688,20 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         moving.e = static_cast<float>(at.x);
         moving.f = static_cast<float>(at.y);
         return moving;
+    };
+    // Gathering: a particle's own part of the course (its delay, then the rest of it), eased in and out; and where it
+    // is drawn on its way — between its point on the other drawing and its place, growing as it arrives (shrinking as
+    // it goes, `leaving`).
+    const double spread = options_.gather ? std::clamp(static_cast<double>(options_.gather->spread), 0.0, 0.95) : 0;
+    const auto gathered = [&](double k, double delay) {
+        const double local = clamp01((k - delay) / (1 - spread));
+        return local * local * (3 - 2 * local);
+    };
+    const auto travelling = [&](Point at, Point other, double local, bool leaving) {
+        const double near = leaving ? 1 - local : local;
+        const Point where = mixp(other, at, near);
+        const float size = mixf(options_.gather ? options_.gather->from_scale : 1, 1, near);
+        return Affine::translate(where.x, where.y) * Affine::scale(size, size) * Affine::translate(-at.x, -at.y);
     };
     const auto A = from_.pieces();
     const auto B = to_.pieces();
@@ -1608,9 +1813,22 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         e.part_progress = u;
         if (p.b < 0) {  // only in the first: fading away where it was (vanishing, when it is asked to)
             const Piece& pa = A[static_cast<std::size_t>(p.a)];
+            if (p.particles_end > p.particles) {  // gathering: its contours going into what appears, each its own way
+                e.begin(marker_a(pa));
+                for (std::uint32_t i = p.particles; i < p.particles_end; ++i) {
+                    const Particle& particle = particles_[i];
+                    const double local = gathered(k, particle.delay);
+                    const float opacity = static_cast<float>(pa.opacity * (1 - clamp01((local - 0.85) / 0.15)));
+                    const Affine moved = travelling(particle.at, particle.other, local, true) * pa.transform;
+                    if (particle.verbs == 0) e.piece(from_, pa, moved, opacity, false);
+                    else e.contour(from_, pa, moved, opacity, particle.verb, particle.verbs, particle.point, particle.points);
+                }
+                e.end();
+                continue;
+            }
             const double gone = fade_out(u, options_.vanish.fade_to);
-            // Unwritten by its own course (a vanish that writes), and posed by it as it goes.
-            const bool unwritten = options_.vanish.writes && u > 0 && stroked(from_, pa);
+            // Unwritten by its own course (a vanish that writes, or a gather), and posed by it as it goes.
+            const bool unwritten = (options_.vanish.writes || options_.gather) && u > 0 && stroked(from_, pa);
             const double left = unwritten ? 1 - clamp01(u) : gone;
             const float o = static_cast<float>(unwritten ? (left > 0 ? pa.opacity : 0) : pa.opacity * gone);
             if (o <= 0) continue;
@@ -1625,6 +1843,18 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         // A group of a nested root is inside its own marker already.
         e.begin(pb.cls == PieceClass::group && pb.nested ? 0 : marker_b(pb));
         if (p.a < 0) {  // only in the second: appearing where it is (from below, smaller, when it is asked to)
+            if (p.particles_end > p.particles && !(k >= 1 && u == 1)) {  // gathering: its contours from what vanishes
+                for (std::uint32_t i = p.particles; i < p.particles_end; ++i) {
+                    const Particle& particle = particles_[i];
+                    const double local = gathered(k, particle.delay);
+                    const float opacity = static_cast<float>(pb.opacity * clamp01(local / 0.15));
+                    const Affine moved = travelling(particle.at, particle.other, local, false) * pb.transform;
+                    if (particle.verbs == 0) e.piece(to_, pb, moved, opacity, true);
+                    else e.contour(to_, pb, moved, opacity, particle.verb, particle.verbs, particle.point, particle.points);
+                }
+                e.end();
+                continue;
+            }
             if (options_.appear.writes && k < 1 && filled(to_, pb)) {
                 // A fill written: its outline drawn along its length first, then the fill coming in over it.
                 const Affine arrival = shaped(1 - clamp01(u), pb.bounds) * pb.transform;
@@ -1640,7 +1870,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                 e.end();
                 continue;
             }
-            const bool written = options_.appear.writes && k < 1 && stroked(to_, pb);  // settled: the stroke itself
+            const bool written = (options_.appear.writes || options_.gather) && k < 1 && stroked(to_, pb);  // settled: the stroke itself
             const bool falling = drop_of(options_) > 0;
             const Affine arrival = falling ? dropped(k) : shaped(1 - clamp01(u), pb.bounds);
             const double present = written || falling ? (k > 0 ? 1 : 0) : fade_in(u, options_.appear.fade_from);

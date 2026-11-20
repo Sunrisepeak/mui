@@ -49,7 +49,8 @@ struct ShadowToken {
 enum class MotionPrimitive : std::uint32_t {
     match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16,
     grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512, readable_text = 1024,
-    write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768, arrivals = 65536, breathe = 131072
+    write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768, arrivals = 65536, breathe = 131072,
+    gather = 262144
 };
 
 // A motion a node's slot holds (universal motion §5, D-93): none, or a morph
@@ -110,6 +111,9 @@ struct MotionSpec {
     // since it was first drawn and T the curve's length, scaled by 1 + 0.04 w about its centre, its opacity by
     // 1 − 0.4 w. Not a change: nothing moves it but the time.
     bool                  breathe = false;
+    // What appears gathers from what vanishes (hanim.visual's gather: a word's strokes becoming a picture's pixels,
+    // each from a point on them; and back).
+    bool                  gather = false;
     friend bool operator==(const MotionSpec&, const MotionSpec&);
 };
 

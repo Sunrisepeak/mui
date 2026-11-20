@@ -136,6 +136,29 @@ static UTest cases{"site", [] {
         expect(picture(host) == rest) << "at rest again, as it was";
         expect(!host.runtime().next_timer().has_value()) << "at rest: no frame asked for";
 
+        // The word becomes Mui (the style's `gather`): sampled over its course — her pixels on their way out of the
+        // word's strokes, neither picture part-way, the connected picture exactly at its end; the frames kept for a
+        // person to look at (scratch "site-gather").
+        {
+            Invocation call;
+            call.actor = {"agent", "site-test", {}};
+            call.args = Value{}.set("state", "connected");
+            expect(eq(host.runtime().verbs().invoke("page.state", call).exit_code().value_or(-1), 0));
+            const auto frames = scratch_dir("site-gather");
+            std::vector<std::vector<std::byte>> between;
+            for (int step = 1; step <= 4; ++step) {
+                (void)host.advance(seconds(0.25));
+                between.push_back(picture(host));
+                expect(host.save_png(frames / std::format("gather-{}.png", step)).has_value());
+            }
+            expect(between[0] != rest && between[0] != connected && between[1] != rest && between[1] != connected) << "part-way, neither";
+            expect(between[0] != between[1]) << "moving";
+            settle();
+            expect(picture(host) == connected) << "at its end, the connected picture exactly";
+            expect(eq(set("rest"), 0));
+            expect(picture(host) == rest) << "and back to the word";
+        }
+
         // Copy, pressed as a person presses it: the Agent tab's one sentence on the clipboard (the pairing code in
         // it), and the page waits for the agent.
         const auto copy_key = host.tree().find({.role = Role::button, .name = "Copy"});

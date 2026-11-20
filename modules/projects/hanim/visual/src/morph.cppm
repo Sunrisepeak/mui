@@ -149,6 +149,18 @@ struct Options {
     // The press's own course, seconds: it rings out over this whatever the curve (a hover's quick fade carrying a
     // press that takes its time; the morph lasts until both are done). 0: over the curve.
     double               pulse_length = 0;
+    // What appears gathers from what vanishes, and what vanishes goes into what appears (a word becoming a picture:
+    // the gather design, 2026-11-21): a fill appearing or vanishing moves contour by contour (a pixel picture's
+    // squares, a colour a path), each from — or to — a point on the other drawing's outlines: as many points evenly
+    // along them, paired with the contours across the drawing (both sorted the same way: the left ones to the left,
+    // no crossing), each growing from `from_scale` of its size, one after another over `spread` of the course.
+    // Strokes appearing are written, strokes vanishing unwritten. Unset: `appear` and `vanish` as they are.
+    struct Gather {
+        float from_scale = 0.25f;
+        float spread = 0.55f;
+        friend bool operator==(const Gather&, const Gather&) = default;
+    };
+    std::optional<Gather> gather;
 };
 
 struct MorphStats {
@@ -239,7 +251,17 @@ private:
         bool text_deferred_groups = false; // check this draw's expanded nested ranges before changing ink
         bool text_composite = false; // resolve actual uniform opaque underpaint from the output prefix
         bool text_exact_geometry = false; // actual current glyph witness replaces rough interpolated run bounds
+        std::uint32_t particles = 0, particles_end = 0;  // its contours gathering (Options::gather): [particles, end)
     };
+    // A contour of an appearing or vanishing fill gathering (Options::gather).
+    struct Particle {
+        std::size_t verb = 0, verbs = 0, point = 0, points = 0;  // its contour in its fill's path (verbs 0: the whole piece)
+        Point       at;          // its centre where it is drawn, in the range's space
+        Point       other;       // the point on the other drawing it comes from (appearing) or goes to (vanishing)
+        double      delay = 0;   // of the course: 0 … spread
+    };
+    std::vector<Particle> particles_;
+    void gather_particles();
     struct FramePair {
         int a = -1, b = -1;
         double delay = 0; // borrowed from an existing visible owner carrier

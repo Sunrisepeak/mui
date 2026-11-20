@@ -96,6 +96,39 @@ mo::Options linear(double seconds) {
     return o;
 }
 
+// A word of two strokes (node 3), or a picture of nine squares in one fill (node 4), inside node 1 — the site's
+// logo becoming Mui, small.
+xrender::DisplayList word() {
+    xrender::DisplayList l;
+    l.begin_node(1);
+    l.begin_node(3);
+    xrender::Path strokes;
+    strokes.move_to({10, 20}).line_to({90, 20}).move_to({10, 50}).line_to({90, 50});
+    l.stroke_path(strokes, {.width = 4}, xrender::Paint::solid(Color::hex(0x1e1b4b)));
+    l.end_node();
+    l.end_node();
+    return l;
+}
+xrender::DisplayList picture() {
+    xrender::DisplayList l;
+    l.begin_node(1);
+    l.begin_node(4);
+    xrender::Path squares;
+    for (int row = 0; row < 3; ++row)
+        for (int column = 0; column < 3; ++column) squares.add_rect({40.0f + 8 * column, 22.0f + 8 * row, 8, 8});
+    l.fill_path(squares, xrender::FillRule::nonzero, xrender::Paint::solid(Color::hex(0x4f46e5)));
+    l.end_node();
+    l.end_node();
+    return l;
+}
+// The fills a frame draws, and how many contours each has.
+std::vector<std::size_t> fills(const xrender::DisplayList& l) {
+    std::vector<std::size_t> out;
+    for (const auto& c : l.commands())
+        if (const auto* f = std::get_if<xrender::FillPath>(&c)) out.push_back(std::ranges::count(f->path.verbs, mlibs::geom::PathVerb::move));
+    return out;
+}
+
 }  // namespace
 
 static UTest cases{"ui.motion", [] {
@@ -314,5 +347,40 @@ static UTest cases{"ui.motion", [] {
             if(at==0)expect(pixels(frame)==pixels(a));if(at==1)expect(pixels(frame)==pixels(b));
             auto snapshot=mo::Matter::extract(frame,names.resolver());expect(!snapshot.pieces().empty());
         }
+    };
+    "gathering: a word's strokes become a picture's squares — each square from a point on the strokes, left to right, the strokes unwritten; and back"_test = [] {
+        Names names;
+        auto gather = linear(1.0);
+        gather.gather = mo::Options::Gather{};
+        mo::Morph m(mo::Matter::extract(word(), names.resolver()), mo::Matter::extract(picture(), names.resolver()), gather, 0);
+        expect(eq(m.stats().from_only, std::size_t{1}) && eq(m.stats().to_only, std::size_t{1}));
+        const auto at = [&](const mo::Morph& morph, double t) {
+            xrender::DisplayList out;
+            morph.draw(t, out);
+            expect(out.balanced());
+            return out;
+        };
+        // Its course sampled: the start the word, the end the picture exactly, and between them neither.
+        expect(same(pixels(at(m, 0)), pixels(word()))) << "at its start, the word";
+        expect(same(pixels(at(m, 1.0)), pixels(picture()))) << "at rest, the picture, byte for byte";
+        const auto middle = pixels(at(m, 0.5));
+        expect(!same(middle, pixels(word())) && !same(middle, pixels(picture()))) << "half-way, neither";
+        // Each square its own (one contour a fill), and they set out one after another: early, the leftmost few.
+        const auto early = fills(at(m, 0.2)), later = fills(at(m, 0.6));
+        expect(std::ranges::all_of(later, [](std::size_t contours) { return contours == 1; }) && eq(later.size(), std::size_t{9})) << later.size();
+        expect(early.size() >= 1 && early.size() < 9) << std::format("{} of 9 on their way at 0.2", early.size());
+        // The strokes unwritten as the squares leave them: half-way, shorter than the word's.
+        bool trimmed = false;
+        for (const auto& c : at(m, 0.5).commands())
+            if (const auto* s = std::get_if<xrender::StrokePath>(&c)) trimmed = s->style.trim_end < 1;
+        expect(trimmed) << "the word unwritten";
+        // And back: the picture's squares go into the strokes, which are written; at rest, the word.
+        mo::Morph back(mo::Matter::extract(picture(), names.resolver()), mo::Matter::extract(word(), names.resolver()), gather, 0);
+        expect(same(pixels(at(back, 1.0)), pixels(word()))) << "back at rest, the word";
+        expect(eq(fills(at(back, 0.3)).size(), std::size_t{9})) << "the squares on their way, each its own";
+        // Without it, the picture appears whole, as before.
+        mo::Morph plain(mo::Matter::extract(word(), names.resolver()), mo::Matter::extract(picture(), names.resolver()), linear(1.0), 0);
+        const auto whole = fills(at(plain, 0.6));
+        expect(eq(whole.size(), std::size_t{1}) && eq(whole.front(), std::size_t{9})) << "one fill of nine";
     };
 }};

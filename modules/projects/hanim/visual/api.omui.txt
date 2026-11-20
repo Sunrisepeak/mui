@@ -154,6 +154,12 @@ namespace hanim::visual {
     std::optional<Point> pulse_at;
     float pulse = 0;
     double pulse_length = 0;
+    struct Gather {
+      float from_scale = 0.25f;
+      float spread = 0.55f;
+      friend bool operator==(const Gather&, const Gather&) = default;
+    };
+    std::optional<Gather> gather;
   };
   struct MorphStats {
     std::size_t matched = 0, from_only = 0, to_only = 0;

@@ -1371,7 +1371,7 @@ namespace omui {
     std::optional<ShadowLayer> ambient;
     float tint = 0;
   };
-  enum class MotionPrimitive : std::uint32_t { match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16, grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512, readable_text = 1024, write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768, arrivals = 65536, breathe = 131072 };
+  enum class MotionPrimitive : std::uint32_t { match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16, grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512, readable_text = 1024, write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768, arrivals = 65536, breathe = 131072, gather = 262144 };
   struct MotionSpec {
     enum class Kind : std::uint8_t { none, morph };
     enum class Order : std::uint8_t { together, document, distance, reverse };
@@ -1411,6 +1411,7 @@ namespace omui {
     float press = 0;
     double press_length = 0;
     bool breathe = false;
+    bool gather = false;
     friend bool operator==(const MotionSpec&, const MotionSpec&);
   };
   [[nodiscard]] MotionSpec compose_motion(std::initializer_list<MotionPrimitive> parts, Transition timing = Transition::spring_with());

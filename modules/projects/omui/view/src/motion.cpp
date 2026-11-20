@@ -66,6 +66,7 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
     o.appear = spec.appear;
     o.vanish = spec.vanish;
     o.stretch = spec.stretch;
+    if (spec.gather) o.gather = hanim::visual::Options::Gather{};
     o.local_presence = spec.local_presence;
     o.vertex_path = spec.vertex_path;
     o.translation_path = spec.translation_path;

@@ -109,8 +109,8 @@ static UTest cases{"site.page", [] {
         expect(widest / narrowest > 1.035f && widest / narrowest < 1.045f) << std::format("breathing: {} to {}", narrowest, widest);
         expect(host.runtime().next_timer().has_value() && !host.runtime().next_work().has_value()) << "its frames ambient";
 
-        // Connected (its sketch: no agent has paired): the mark has become Mui (the O with ears her outline, her face in
-        // it); beside it, where the visitor's agent will be named.
+        // Connected (its sketch: no agent has paired): the mark holds Mui, her head in the circle; beside it, where
+        // the visitor's agent will be named.
         expect(eq(set("connected"), 0));
         expect(shows(host, Role::image, "Mui") && !shows(host, Role::image, "omui")) << "the O is Mui";
         expect(!host.tree().find({.name = "Your agent · omui · your machine"}).empty()) << "the agent's chip, before one pairs";

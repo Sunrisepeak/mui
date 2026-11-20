@@ -3,7 +3,7 @@
 //
 //   1. the template, as `omui new` writes it (design/start.ts);
 //   2. the agent drafts: the mark, the sentence under it, the Live Design key, the install's two tabs;
-//   3. Mui: the four states of one picture, the O become her when an agent connects;
+//   3. Mui: the four states of one picture, her head in the circle when an agent connects;
 //   4. the person takes over: the sentence in their words, the install given more room;
 //   5. the agent reads the facts back (the history says who changed what) against what the page must say;
 //   6. a narrower install tried on a branch from before the person's touch, and left;
@@ -52,8 +52,8 @@ std::string replaced(std::string text, std::string_view from, std::string_view t
     return text;
 }
 
-// The mark's paths, as the agent first writes them (the brand's outline A: an O with Mui's ears around the word).
-constexpr std::string_view mark_paths = R"ts(const ring = "M50 96C26 96 8 78 8 55C8 41 12 31 18 24L21 5L36 15C40 13.5 45 13 50 13C55 13 60 13.5 64 15L79 5L82 24C88 31 92 41 92 55C92 78 74 96 50 96Z";
+// The mark's paths, as the agent first writes them: a plain circle around the word.
+constexpr std::string_view mark_paths = R"ts(const ring = "M50 10A42 42 0 1 1 50 94A42 42 0 1 1 50 10Z";
 const letters = "M24 64L24 44M24 50C24 41 35 41 35 50L35 64M35 50C35 41 46 41 46 50L46 64M55 44L55 56C55 66 69 66 69 56L69 44M78 44L78 64";
 const dot = "M75.5 35A2.5 2.5 0 1 0 80.5 35A2.5 2.5 0 1 0 75.5 35Z";
 const ink = "#1e1b4b";
@@ -165,7 +165,7 @@ static UTest cases{"site.page.design", [] {
 
         // 2. The agent drafts the page, a part at a time.
         (void)done("design.begin", Value{}.set("intent", "omui's site: one page, the mark, one sentence, Live Design and the install"));
-        edit(drafted("stack, column, path, mount", "", mark_view), "the mark: an O with Mui's ears around the word");
+        edit(drafted("stack, column, path, mount", "", mark_view), "the mark: a circle around the word");
         expect(shown("o") && shown("word")) << "the mark";
         edit(drafted("stack, column, text, path, mount", "", std::format("{}{}", mark_view, with_sentence())), "the sentence under it, the page's one heading");
         edit(drafted("stack, column, text, button, path, mount", "", std::format("{}{}{}", mark_view, key, with_sentence())), "the Live Design key between them");
@@ -185,7 +185,7 @@ static UTest cases{"site.page.design", [] {
         std::string states = replaced(page, sentence, draft_sentence);
         states = replaced(std::move(states), R"(maxWidth: 640, padding: 18,)", R"(maxWidth: 640, padding: 16,)");
         states = replaced(std::move(states), key_plays, key_still);
-        edit(states, "Mui: four states of one picture, the O become her when an agent connects");
+        edit(states, "Mui: four states of one picture, her head in the circle when an agent connects");
         expect(h.tree().find({.role = Role::button, .name = "Copy"}).size() == 1) << "at rest";
 
         // 4. The person takes over: the sentence in their words, the install given more room.

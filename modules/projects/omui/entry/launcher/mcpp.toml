@@ -27,6 +27,9 @@ main = "src/entry/main.cpp"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+# The C++ runtime shared (red 145): released through xlings, libstdc++ is xim:gcc-runtime, one copy a machine like
+# the C library; linked into each program it brought iostream, locale and the demangler with `import std;` (528 KB).
+cxx_runtime = "toolchain-coupled"
 
 [dependencies]
 mcpplibs.os = "0.4.4"

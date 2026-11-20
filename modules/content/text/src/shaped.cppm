@@ -52,8 +52,11 @@ struct Paragraph::Shaped {
     float                      ellipsis_width = 0;
 };
 
-// Shapes `text`: bidi levels (SheenBidi), the shaper's runs, then words and line-break opportunities (shape.cpp).
+// Shapes `text`: bidi levels, the shaper's runs, then words and line-break opportunities (shape.cpp).
 void shape(Paragraph::Shaped& s);
+// Each byte's bidi level (UBA, rule L1's paragraph part applied) into `level_at`; the paragraph's base level, 0 or 1
+// (native/bidi.cpp, over SheenBidi).
+std::uint8_t bidi_levels(std::string_view text, TextDirection direction, std::vector<std::uint8_t>& level_at);
 // The shaper's part, given each byte's bidi level and `s.base_level`: the runs, their glyphs and metrics, the
 // graphemes with their advances (their words left to shape()), the ellipsis (native/shape.cpp, over HarfBuzz).
 void shape_runs(Paragraph::Shaped& s, std::span<const std::uint8_t> level_at);

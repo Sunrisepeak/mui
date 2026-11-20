@@ -41,6 +41,13 @@ namespace mlibs::ts {
     std::string text;
   };
   [[nodiscard]] std::expected<std::string, std::vector<TypeScriptProblem>> strip_types(std::string_view source);
+  struct Import {
+    std::string from;
+    std::vector<std::string> names;
+    bool everything = false;
+    std::size_t line = 0;
+  };
+  [[nodiscard]] std::expected<std::vector<Import>, std::vector<TypeScriptProblem>> imports(std::string_view source);
   [[nodiscard]] std::string to_text(const std::vector<TypeScriptProblem>& problems);
   [[nodiscard]] std::expected<std::string, TsFailure> compile(const std::filesystem::path& file);
   [[nodiscard]] std::expected<std::string, TsFailure> compile_source(std::string_view source, std::string_view name = "main.ts");

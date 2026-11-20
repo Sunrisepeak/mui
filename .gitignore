@@ -1,6 +1,7 @@
 target/
 build/
 !modules/base/build/
+!mcpp/build/
 .cache/
 compile_commands.json
 *.swp

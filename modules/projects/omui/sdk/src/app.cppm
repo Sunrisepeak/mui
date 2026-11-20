@@ -9,6 +9,7 @@ import omui.core;
 import omui.view;
 import omui.agent;
 import omui.generate;
+import omui.ui.base;
 import omui.ui.window;
 
 export namespace omui {
@@ -35,6 +36,10 @@ struct AppSpec {
     // Tasks to begin with (D-186): what an agent that has never seen the application can get done here, each
     // made of the verbs above and of nodes' actions; listed by `describe`, found by intent, run as written.
     std::vector<TaskDesc>  tasks;
+    // The base components a view document, a script or an agent may create by name, registered before the view
+    // mounts: all of them, unless the application's build derived fewer (omui.build's closure(), B7b) — then the
+    // others are not in the program.
+    void (*components)() = &register_base_components;
     Theme                  theme = Theme::light();
     // A directory of the application's own effects (*.effect.xdef.ts, or their
     // JSON): loaded with the window, loaded again when one changes

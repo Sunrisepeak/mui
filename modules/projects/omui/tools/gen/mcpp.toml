@@ -29,6 +29,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }
 omui.lang.ts = { path = "../../lang/ts" }
+mlibs.ts = { path = "../../../../base/ts" }  # closure: a script's imports, read without running it (B7b)
 mlibs.json = { path = "../../../../base/json" }
 mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked first (D-209)
 "mlibs.xdef.tool" = { path = "../../../../base/xdef/tool" }  # the embed emitters (D-73), one owner
@@ -47,4 +48,4 @@ mlibs.text    = { path = "../../../../content/text" }
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from (none: only tools write it).
 [package.metadata.openmui.xdef]
-kinds = { toy = 1 }
+kinds = { toy = 1, closure = 1 }

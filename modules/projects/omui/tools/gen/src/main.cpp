@@ -36,6 +36,9 @@
 //       [--image URL] [--alternate HREFLANG=URL …]
 //       a packed page as a document before its program runs (D-236): its first screen's semantic tree as HTML,
 //       hidden once the program presents; what a search engine and a share card read
+//   omui-gen closure <script or replay>… --out <unit.cpp> --report <closure.json> [--graph <file>] [--config <omui.config.ts>]
+//       what an application carries, derived from what it wrote (B7b): the base components its scripts and its replay's
+//       steps take by name from openmui, as the registry its program calls (omui.gen.closure; omui.build's closure())
 //   omui-gen size <program: .wasm or ELF> [--json <out.json>] [--markdown <out.md>] [--top N]
 //       where a program's bytes go (WebAssembly or ELF): its sections, its code
 //       by owner (module, namespace, C library) and its largest symbols (W8, B3;
@@ -55,6 +58,9 @@ import omui.gen.unicode;
 import omui.gen.cldr;
 import omui.gen.dist_toy;
 import omui.gen.size;
+import omui.gen.closure;
+import omui.lang.ts;
+import nlohmann.json;
 import omui.gen.data;
 import mlibs.xdef.tool;
 
@@ -410,6 +416,84 @@ int run_contracts(const Options& o, bool emit) {
 
 }  // namespace
 
+// omui-gen closure: the registry unit and closure.json, written only when they change (an unchanged unit is not
+// compiled again).
+int closure_main(const mcpplibs::cmdline::ParsedArgs& args) {
+    const auto read = [](const std::filesystem::path& file) -> std::optional<std::string> {
+        std::ifstream in(file, std::ios::binary);
+        if (!in) return std::nullopt;
+        return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    };
+    std::vector<omui::gen::ClosureSource> scripts;
+    for (std::size_t index = 0; index < args.positional_count(); ++index) {
+        const std::string name = args.positional(index);
+        const auto text = read(std::filesystem::path(name));
+        if (!text) {
+            std::println(std::cerr, "omui-gen closure: cannot read {}", name);
+            return 1;
+        }
+        if (name.ends_with(".replay.xdef.json")) {
+            auto steps = omui::gen::replay_scripts(*text, name);
+            if (!steps) {
+                std::println(std::cerr, "omui-gen closure: {}", steps.error());
+                return 1;
+            }
+            for (auto& step : *steps) scripts.push_back(std::move(step));
+        } else {
+            scripts.push_back({.name = name, .text = *text});
+        }
+    }
+    // Every component where the program may make any: the designer linked (development, D-149: an agent uses
+    // what it likes), or the application's generation open to components or surfaces (D-144).
+    std::string full_because;
+    if (const auto graph_file = args.value("graph")) {
+        const auto graph = nlohmann::json::parse(read(std::filesystem::path(*graph_file)).value_or(""), nullptr, false);
+        if (graph.is_object() && graph.contains("packages"))
+            for (const auto& package : graph["packages"]) {
+                const auto described = package.value("package", nlohmann::json::object());
+                const std::string name = described.value("namespace", std::string()) + "." + described.value("name", std::string());
+                const auto features = package.value("features", nlohmann::json::array());
+                if (name == "omui.entry.player" && std::ranges::contains(features, nlohmann::json("design")))
+                    full_because = "the designer is linked (omui.entry.player/design: development, where an agent may use any)";
+            }
+    }
+    if (const auto config_file = args.value("config"); config_file && full_because.empty()) {
+        auto config = omui::lang::ts::evaluate(std::filesystem::path(*config_file));
+        if (!config) {
+            std::println(std::cerr, "omui-gen closure: {}", config.error().text());
+            return 1;
+        }
+        const auto snapshot = nlohmann::json::parse(config->snapshot(), nullptr, false);
+        const auto generation = snapshot.is_object() ? snapshot.value("generation", nlohmann::json::object()) : nlohmann::json::object();
+        for (const char* open : {"surfaces", "components"})
+            if (generation.contains(open) && !generation[open].empty())
+                full_because = std::format("{}: generation.{} lets interface be made while it runs (D-144)", *config_file, open);
+    }
+    auto closure = omui::gen::derive_closure(scripts, full_because);
+    if (!closure) {
+        std::println(std::cerr, "omui-gen closure: {}", closure.error());
+        return 1;
+    }
+    const auto write = [&](const std::string& path, const std::string& text) {
+        if (read(std::filesystem::path(path)) == text) return true;
+        std::error_code error;
+        std::filesystem::create_directories(std::filesystem::path(path).parent_path(), error);
+        std::ofstream out(std::filesystem::path(path), std::ios::binary | std::ios::trunc);
+        out << text;
+        return static_cast<bool>(out);
+    };
+    const std::string unit = args.value("out").value_or(""), report = args.value("report").value_or("");
+    if (unit.empty() || !write(unit, omui::gen::closure_unit(*closure))) {
+        std::println(std::cerr, "omui-gen closure: cannot write the unit {}", unit);
+        return 1;
+    }
+    if (!report.empty() && !write(report, omui::gen::closure_report(*closure))) {
+        std::println(std::cerr, "omui-gen closure: cannot write {}", report);
+        return 1;
+    }
+    return 0;
+}
+
 // omui-gen size: the report on stdout (Markdown), and as files when asked.
 int size_main(const mcpplibs::cmdline::ParsedArgs& args) {
     const std::string file = args.positional(0), json = args.value("json").value_or(""), markdown = args.value("markdown").value_or("");
@@ -532,6 +616,13 @@ mcpplibs::cmdline::App command_line() {
                         .description("a packed page as a document before its program runs: its first screen's static HTML, its description and addresses (D-236)")
                         .arg(Arg("dir").required().help("the package"))
                         .option(static_html).option(lang).option(description).option(canonical).option(image).option(alternate))
+        .subcommand(App("closure")
+                        .description("what an application carries, derived from what it wrote: the base components its scripts and replay take by name (B7b)")
+                        .arg(Arg("files").help("its scripts (.ts, .js) and its design's replay (*.replay.xdef.json)"))
+                        .option(Option("out").takes_value().value_name("FILE").help("the registry unit (C++)"))
+                        .option(Option("report").takes_value().value_name("FILE").help("closure.json"))
+                        .option(Option("graph").takes_value().value_name("FILE").help("the build's resolved graph (the designer linked: every component)"))
+                        .option(Option("config").takes_value().value_name("FILE").help("omui.config.ts (generation open to components: every component)")))
         .subcommand(App("size")
                         .description("where a program's bytes go (WebAssembly or ELF): its sections, its code by owner, its largest symbols")
                         .arg(Arg("file").required().help("FILE: .wasm or an ELF program"))
@@ -557,6 +648,7 @@ int main(int argc, char** argv) {
     if (command == "dist-toy-split") return dist_toy_split_main(args);
     if (command == "dist-toy-document") return dist_toy_document_main(args);
     if (command == "size") return size_main(args);
+    if (command == "closure") return closure_main(args);
     auto options = options_of(command, args);
     if (!options) return usage();
     if (options->command == "registry") return run_registry(*options);

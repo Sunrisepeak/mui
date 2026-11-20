@@ -50,6 +50,13 @@
 | 入口 | `omui build`（代写 feature 那一行）；直接用 mcpp 时由构建程序核对并报出不一致 | 两条入口结果一致（AGENTS §5） |
 | 播放器运行的 TS 应用 | 共用运行时里是完整目录；`omui package` 打成自带运行时的时候才推导 | 与[共用运行时](2026-11-19-shared-runtime-design.md)的 `needs` 是同一份结果 |
 
+**登记表怎样进程序（B7b 第一步，2026-11-20 定）**：
+- mcpp 的入口目标与程序之间的约定是符号（mcpp 文档 04 §2.2：提供者用 `extern "C++"` 声明、程序定义）。
+- 播放器多一个入口 `omui.entry.player/closure`，它的 `main` 把 `omui_application_components` 交给 `player_main`；这个函数由应用自己的构建程序生成（`omui::build::closure()` 调 `omui-gen closure`，是应用构建里的一个源），只有根包的构建程序拿得到解析后的图，所以推导只在应用那里发生。
+- 不用静态初始化自登记（compose 的规则），也不用弱符号（Windows 上不可移植）。
+- `omui.ui.base` 的 66 种基础组件是一张类型表（`BaseComponents`）：`register_base_components()` 登记全部，`register_base_named<"button", …>()` 在编译期按契约名挑，没被点名的组件不被引用，链接器就回收掉。
+- `AppSpec::components` 与 `player_main` 的参数默认是全量；默认值在调用处求值，所以选了 `closure` 入口的程序不引用全量的那个函数。
+
 漏掉时的行为（发布构建里用到了没登记的组件）：第一次创建时报出组件的名字、推导的依据里为什么没有它、改法（加导入，或在配置里列出）。每个失败带出路（D-186）。
 
 ## 5. 最小验证（B7a 的另一半）

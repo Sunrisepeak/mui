@@ -109,7 +109,7 @@ constexpr std::string_view decorator_advice = "a decorator does not run here: ca
 
 class Stripper {
 public:
-    explicit Stripper(std::string_view source) : source_(source) {}
+    explicit Stripper(std::string_view source, std::vector<Import>* imports = nullptr) : source_(source), imports_(imports) {}
 
     std::expected<std::string, std::vector<TypeScriptProblem>> run() {
         if (source_.starts_with("#!")) position_ = std::min(source_.find('\n'), source_.size());
@@ -132,7 +132,7 @@ public:
 
 private:
     struct State {
-        std::size_t position, previous_end, blanks, writes, problems;
+        std::size_t position, previous_end, blanks, writes, problems, imports;
         Token token;
         bool stopped;
     };
@@ -409,7 +409,7 @@ private:
     }
 
     [[nodiscard]] State save() const {
-        return {position_, previous_end_, blanks_.size(), writes_.size(), problems_.size(), token_, stopped_};
+        return {position_, previous_end_, blanks_.size(), writes_.size(), problems_.size(), imports_ ? imports_->size() : 0, token_, stopped_};
     }
     void restore(const State& state) {
         position_ = state.position;
@@ -417,6 +417,7 @@ private:
         blanks_.resize(state.blanks);
         writes_.resize(state.writes);
         problems_.resize(state.problems);
+        if (imports_) imports_->resize(state.imports);
         token_ = state.token;
         stopped_ = state.stopped;
     }
@@ -962,11 +963,17 @@ private:
             member_rest(true);
             if (is("(")) arguments();
         } else if (is("import")) {
+            const std::size_t start = token_.start;
             next();
-            if (eat("."))
+            if (eat(".")) {
                 expect_name();
-            else
+            } else {
+                // import("x"): everything of x; import(computed): everything of a module not named here.
+                const Token ahead = peek();
+                const bool named = token_is(token_, "(") && ahead.kind == Kind::string;
+                record(start, named ? string_value(ahead) : std::string(), {}, true);
                 arguments();
+            }
         } else {
             next();
         }
@@ -1571,8 +1578,10 @@ private:
         }
     }
 
-    // `{ a, type B, c as d }`: a `type` specifier is blanked with its comma.
-    void specifiers() {
+    // `{ a, type B, c as d }`: a `type` specifier is blanked with its comma. The names taken (`a`, `c`), as the
+    // module they come from exports them.
+    std::vector<std::string> specifiers() {
+        std::vector<std::string> names;
         expect("{");
         while (!is("}") && !at_end()) {
             const std::size_t start = token_.start;
@@ -1582,10 +1591,12 @@ private:
                 type_only = (ahead.kind == Kind::name || ahead.kind == Kind::string) && !token_is(ahead, "as");
             }
             if (type_only) next();
-            if (token_.kind == Kind::name || token_.kind == Kind::string)
+            if (token_.kind == Kind::name || token_.kind == Kind::string) {
+                if (!type_only) names.push_back(token_.kind == Kind::string ? string_value(token_) : std::string(text_of(token_)));
                 next();
-            else
+            } else {
                 fail("a name expected");
+            }
             if (eat("as")) {
                 if (token_.kind == Kind::name || token_.kind == Kind::string)
                     next();
@@ -1601,6 +1612,19 @@ private:
             }
         }
         expect("}");
+        return names;
+    }
+
+    // A string token's value (no escapes are expected in a module's name or an export's).
+    [[nodiscard]] std::string string_value(const Token& token) const {
+        const std::string_view quoted = source_.substr(token.start, token.end - token.start);
+        return quoted.size() >= 2 ? std::string(quoted.substr(1, quoted.size() - 2)) : std::string();
+    }
+    // An import read (B7b), where it is asked for.
+    void record(std::size_t start, std::string from, std::vector<std::string> names, bool everything) {
+        if (!imports_) return;
+        const std::size_t line = 1 + static_cast<std::size_t>(std::count(source_.begin(), source_.begin() + static_cast<std::ptrdiff_t>(std::min(start, source_.size())), '\n'));
+        imports_->push_back({.from = std::move(from), .names = std::move(names), .everything = everything, .line = line});
     }
 
     void import_declaration(std::size_t start) {
@@ -1612,11 +1636,14 @@ private:
                         (ahead.kind == Kind::name && !token_is(ahead, "from") && !token_is(ahead, "="));
             if (type_only) next();
         }
-        if (token_.kind == Kind::string) {
+        if (token_.kind == Kind::string) {  // import "x": its effects, none of its names
+            record(start, string_value(token_), {}, false);
             module_specifier();
             semicolon();
             return;
         }
+        std::vector<std::string> names;
+        bool everything = false;
         if (token_.kind == Kind::name && token_is(peek(), "=")) {
             problem(start, import_equals_advice);
             next();
@@ -1626,26 +1653,30 @@ private:
             return;
         }
         if (token_.kind == Kind::name && !is("from")) {
+            names.emplace_back("default");
             next();
             if (!eat(",")) {
                 expect("from");
-                import_end(start, type_only);
+                import_end(start, type_only, std::move(names), false);
                 return;
             }
         } else if (token_.kind == Kind::name && is("from") && token_is(peek(), "from")) {
+            names.emplace_back("default");
             next();  // import from from "…"
         }
         if (eat("*")) {
+            everything = true;
             expect("as");
             expect_name();
         } else if (is("{")) {
-            specifiers();
+            for (std::string& name : specifiers()) names.push_back(std::move(name));
         }
         expect("from");
-        import_end(start, type_only);
+        import_end(start, type_only, std::move(names), everything);
     }
 
-    void import_end(std::size_t start, bool type_only) {
+    void import_end(std::size_t start, bool type_only, std::vector<std::string> names, bool everything) {
+        if (!type_only && token_.kind == Kind::string) record(start, string_value(token_), std::move(names), everything);
         module_specifier();
         if (type_only) {
             eat(";");
@@ -1721,13 +1752,17 @@ private:
                     fail("a name expected");
             }
             expect("from");
+            if (token_.kind == Kind::string) record(start, string_value(token_), {}, true);
             module_specifier();
             semicolon();
             return;
         }
         if (is("{")) {
-            specifiers();
-            if (eat("from")) module_specifier();
+            std::vector<std::string> names = specifiers();
+            if (eat("from")) {
+                if (token_.kind == Kind::string) record(start, string_value(token_), std::move(names), false);
+                module_specifier();
+            }
             semicolon();
             return;
         }
@@ -1749,12 +1784,19 @@ private:
     std::vector<std::pair<std::size_t, char>> writes_;
     std::vector<std::pair<std::size_t, std::string>> problems_;
     std::unordered_set<std::size_t> not_arrows_;  // where an arrow was tried and was not one
+    std::vector<Import>* imports_ = nullptr;     // where the imports read go, when they are asked for
 };
 
 }  // namespace
 
 std::expected<std::string, std::vector<TypeScriptProblem>> strip_types(std::string_view source) {
     return Stripper(source).run();
+}
+
+std::expected<std::vector<Import>, std::vector<TypeScriptProblem>> imports(std::string_view source) {
+    std::vector<Import> read;
+    if (auto stripped = Stripper(source, &read).run(); !stripped) return std::unexpected(std::move(stripped.error()));
+    return read;
 }
 
 std::string to_text(const std::vector<TypeScriptProblem>& problems) {

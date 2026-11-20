@@ -31,6 +31,14 @@ kind = "entry"
 agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
 main = "src/entry/main.cpp"
 
+# The same main for an application whose build program derives the components it carries from its scripts'
+# imports (B7b: `main = { from = "omui.entry.player/closure" }` and omui.build's closure() in its build.mcpp, which
+# writes the registry this main calls); the components it does not name are not in the program.
+[targets.closure]
+kind = "entry"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
+main = "src/entry/closure.cpp"
+
 # The player as a program of its own (E2): the omui tool ships it, built with the
 # designer, and `omui dev` and `omui run` run a TypeScript application of the same
 # version through it (`omui-player --manifest DIR`), with nothing built.
@@ -44,6 +52,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
 omui.sdk           = { path = "../../sdk" }
+omui.ui.base       = { path = "../../components/base", reexport = true }  # what a derived registry names (closure, B7b)
 omui.player        = { path = "../../player" }
 omui.abi           = { path = "../../abi" }  # the specification's version a runtime says it implements (--runtime)
 omui.lang.js       = { path = "../../lang/js" }

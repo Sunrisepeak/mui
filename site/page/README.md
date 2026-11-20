@@ -50,6 +50,8 @@ While the design plays, its course goes round the O: `omui.config.ts`'s `generat
 
 ## On the Web
 
+The page's program carries only the base components its scripts and its design's steps create by name. Its build program derives them from their imports (`closure()`, B7b), and its program takes the player's `closure` entry. `tests/page_test.cpp` runs the page with that set.
+
 `omui build --web` packs the page as a static site ([`build.mcpp`](build.mcpp)): the player, its fonts cut down to the page's own text (the full faces fetched only when text asks for a character the cut lacks), the page's files, and its first screen as a document before the program runs (G2's projection: the sentence is its `h1`). `omui-devtools check site-page` serves it as Pages does and opens it in headless Chromium. First it measures the delivery against [`delivery.budget.xdef.json`](delivery.budget.xdef.json) on a cold visit. Then it walks the visitor's path with real clicks: the Live Design key plays the design to its end; Copy puts the prompt with a pairing code on the clipboard and the O breathes; the command tab shows the same code; `omui connect <code>` pairs; the page turns connected, naming the agent, its omui and its platform; the agent reads the page; the bridge stops and the page waits again; with reduced motion the O does not breathe.
 
 ## Not in this round

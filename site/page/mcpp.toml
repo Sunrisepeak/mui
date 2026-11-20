@@ -33,7 +33,7 @@ needs   = ["generate"]  # its design, played in place
 
 [targets.omui-site-page]
 kind = "bin"
-main = { from = "omui.entry.player/player" }
+main = { from = "omui.entry.player/closure" }  # the components its scripts name (build.mcpp: closure(), B7b)
 
 [dependencies]
 omui.entry.player = { path = "../../modules/projects/omui/entry/player" }

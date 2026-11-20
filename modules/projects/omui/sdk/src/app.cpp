@@ -499,7 +499,7 @@ int run(AppSpec app, const RunOptions& o) {
     // generated unit: build.mcpp; a second run in one process installs nothing more).
     hosting::install_services();
     if (o.no_agent_player) app.agent_players = false;  // the person's word for this run
-    register_base_components();
+    if (app.components) app.components();
     register_window_components();
     if (const std::string mode = window_mode(app, o); mode != "native" && mode != "framework" && mode != "switchable") {
         error("AppSpec::window `{}` is native, framework or switchable", mode);

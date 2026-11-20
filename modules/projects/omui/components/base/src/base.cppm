@@ -114,8 +114,63 @@ export import :path;
 
 export namespace omui {
 
+// The base components, one list: what `register_base_components()` registers, and what an application's derived
+// registry picks from by name (B7b).
+template <class... Component>
+struct ComponentList {};
+using BaseComponents = ComponentList<Button, Toggle, Checkbox, Slider, TextBox, Progress,
+                                     Radio, Select, SelectPopup, SelectOption, Tabs, Tab,
+                                     Menu, MenuItem, Dialog, Tooltip, List, ListItem,
+                                     Badge, Avatar, Skeleton, Card, Accordion, Toast,
+                                     Popover, Breadcrumb, Pagination, NumberInput, ActorLog, AgentPresence,
+                                     Segmented, Chip, RangeSlider, Alert, Stepper, Timeline,
+                                     Path, DatePicker, TimePicker, ColorPicker, SplitView, Drawer,
+                                     TreeView, DataGrid, Combobox, TagInput, CodeEditor, Kbd,
+                                     Separator, Link, DescriptionList, Spinner, Rating, OtpInput,
+                                     FormField, SearchBox, ToggleGroup, ContextMenu, HoverCard, CommandPalette,
+                                     Sidebar, Toolbar, Chart, Carousel, WebView, FileDrop>;
+
+// A component's name as its contract has it (`button`, `text_box`), a template argument.
+template <std::size_t Size>
+struct ComponentName {
+    char text[Size]{};
+    consteval ComponentName(const char (&name)[Size]) { std::copy_n(name, Size, text); }
+    [[nodiscard]] constexpr std::string_view view() const { return {text, Size - 1}; }
+};
+
 // Registers the components' types with the runtime's registry, so view
 // documents and immediate mode (`ui.button`) find them by contract name.
+template <class... Component>
+void register_components(ComponentList<Component...>) {
+    (register_type(component_type<Component>()), ...);
+}
 void register_base_components();
+
+}  // namespace omui
+
+// The registry's helpers, the module's own: reachable where register_base_named is instantiated, not named outside.
+namespace omui {
+
+template <class Component, ComponentName... Names>
+void register_if_named() {
+    // compare(), a member: found where the registry is instantiated (a unit of the application's that need not import std).
+    if constexpr (((Component::name.compare(Names.view()) == 0) || ...)) register_type(component_type<Component>());
+}
+template <ComponentName... Names, class... Component>
+void register_named(ComponentList<Component...>) {
+    (register_if_named<Component, Names...>(), ...);
+}
+
+}  // namespace omui
+
+export namespace omui {
+
+// Registers, of the base components, only those named (the contract's names; a name that is no base component —
+// a layout's, a function's — names none): what an application's build writes from its scripts' imports (omui.build's
+// closure(), B7b). The others are not referred to, so a program that registers this way does not carry them.
+template <ComponentName... Names>
+void register_base_named() {
+    register_named<Names...>(BaseComponents{});
+}
 
 }  // namespace omui

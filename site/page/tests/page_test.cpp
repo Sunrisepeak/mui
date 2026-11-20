@@ -39,8 +39,12 @@ NodeId named(const Runtime& runtime, NodeId at, std::string_view id) {
 
 }  // namespace
 
+// The components the page's build derived from its scripts (build.mcpp: closure(), B7b): it is tested with what its
+// program carries, not with every base component.
+extern "C++" void omui_application_components();
+
 static UTest cases{"site.page", [] {
-    register_base_components();
+    omui_application_components();
 
     "four states set through its verb, each said in the tree and drawn as a picture of its own"_test = [] {
         auto manifest = read_manifest(std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "mcpp.toml");

@@ -1,0 +1,106 @@
+== omui.build.closure
+export import omui.build.plan;
+namespace omui::build {
+  struct closure_options {
+    std::vector<std::string> files = {…};
+    std::string config = "omui.config.ts";
+    std::string out_dir = std::string(mcpp::out_dir());
+  };
+  bool closure(closure_options opt = {…});
+}
+== omui.build.contracts
+export import omui.build.plan;
+namespace omui::build {
+  struct component_options {
+    std::string module;
+    std::string ns = "omui::ui";
+    std::string contracts = "contract";
+    std::string registry;
+    std::string out_dir = std::string(mcpp::out_dir());
+    bool stubs = true;
+  };
+  [[nodiscard]] std::vector<std::string> contract_names(const std::filesystem::path& file);
+  [[nodiscard]] std::vector<mlibs::build::edge> plan(const component_options& opt);
+  bool components(component_options opt);
+  struct native_options {
+    std::string module;
+    std::string ns;
+    std::string natives = "native";
+    std::string registry;
+    std::string out_dir = std::string(mcpp::out_dir());
+    bool stubs = true;
+  };
+  [[nodiscard]] std::vector<std::string> native_names(const std::filesystem::path& file);
+  [[nodiscard]] std::vector<mlibs::build::edge> plan_natives(const native_options& opt);
+  bool natives(native_options opt);
+}
+== omui.build.embed
+export import omui.build.plan;
+namespace omui::build {
+  struct embed_options {
+    std::string module;
+    std::string ns;
+    std::string dir;
+    std::string suffix;
+    std::string tag;
+    bool index = false;
+    bool left_out = false;
+    std::string out_dir = std::string(mcpp::out_dir());
+  };
+  [[nodiscard]] std::vector<mlibs::build::edge> plan_embed(const embed_options& opt);
+  bool embed(embed_options opt);
+  struct theme_options {
+    std::string module;
+    std::string ns;
+    std::string themes = "themes";
+    std::string out_dir = std::string(mcpp::out_dir());
+  };
+  bool themes(theme_options opt);
+  struct behavior_options {
+    std::string module;
+    std::string ns;
+    std::string behaviors = "behaviors";
+    std::string out_dir = std::string(mcpp::out_dir());
+  };
+  bool behaviors(behavior_options opt);
+}
+== omui.build.plan
+export import mlibs.build.plan;
+namespace omui::build {
+  [[nodiscard]] std::string generator();
+}
+== omui.build.toy
+export import omui.build.plan;
+namespace omui::build {
+  struct later_files {
+    std::string dir;
+    std::string suffix;
+    std::string mount;
+  };
+  struct font_subset {
+    std::string font;
+    std::vector<std::string> text;
+  };
+  struct toy_options {
+    std::string target;
+    std::string title;
+    std::vector<std::string> fonts;
+    std::string background = "#000000";
+    bool sdk = true;
+    std::vector<later_files> later;
+    std::vector<font_subset> subsets;
+    std::vector<std::pair<std::string, std::vector<std::string>>> font_languages;
+    std::vector<std::pair<std::string, std::string>> font_initial;
+    std::vector<font_subset> font_initial_text;
+    std::vector<std::string> fonts_on_demand;
+    std::string static_html;
+    std::string lang;
+    std::string description;
+    std::string canonical;
+    std::string image;
+    std::vector<std::pair<std::string, std::string>> alternates;
+    std::vector<std::string> files;
+    std::string out_dir = std::string(mcpp::out_dir());
+  };
+  bool dist_toy(toy_options opt);
+}

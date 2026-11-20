@@ -148,6 +148,7 @@ namespace omui {
     std::function<View()> view;
     std::vector<VerbSpec> verbs;
     std::vector<TaskDesc> tasks;
+    void (*components)() = &register_base_components;
     Theme theme = Theme::light();
     std::filesystem::path effects;
     std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;

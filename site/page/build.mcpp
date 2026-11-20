@@ -6,6 +6,7 @@
 import std;
 import mcpp;
 import omui.build.toy;
+import omui.build.closure;
 
 int main() {
     // Its fonts cut down to what it draws before their full faces are asked for: the page's own text (app/), ASCII
@@ -15,15 +16,16 @@ int main() {
     std::string ascii;
     for (int c = 32; c < 127; ++c) ascii += static_cast<char>(c);
     const std::string latin = ascii + " áéíóúàèìòùäëïöüÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÑñçÇß°·×−–—‘’“”…→←✓";
-    return omui::build::dist_toy({.target = "omui-site-page", .title = "omui", .fonts = {"Inter", "JetBrainsMono"}, .background = "#faf9f6",
-                                  .sdk = false,
-                                  .font_initial = {{"Inter", latin}, {"JetBrainsMono", ascii + "·…"}},
-                                  .font_initial_text = {{.font = "Inter", .text = {here + "/app"}}, {.font = "JetBrainsMono", .text = {here + "/app"}}},
-                                  .fonts_on_demand = {"Inter", "JetBrainsMono"},
-                                  .static_html = "target/web/omui-site-page.static.html", .lang = "en",
-                                  .description = "A UI framework where one semantic tree drives the pixels, the motion, accessibility, agents and tests. "
-                                                 "An agent made this page in Live Design; press the key to watch it.",
-                                  .files = {"mcpp.toml", "omui.config.ts", "app", "design/main.replay.xdef.json"}})
-               ? 0
-               : 1;
+    // The components it carries are the ones its scripts and its design's steps create by name (B7b).
+    const bool components = omui::build::closure({.files = {"app", "design/main.replay.xdef.json"}});
+    const bool page = omui::build::dist_toy({.target = "omui-site-page", .title = "omui", .fonts = {"Inter", "JetBrainsMono"}, .background = "#faf9f6",
+                                             .sdk = false,
+                                             .font_initial = {{"Inter", latin}, {"JetBrainsMono", ascii + "·…"}},
+                                             .font_initial_text = {{.font = "Inter", .text = {here + "/app"}}, {.font = "JetBrainsMono", .text = {here + "/app"}}},
+                                             .fonts_on_demand = {"Inter", "JetBrainsMono"},
+                                             .static_html = "target/web/omui-site-page.static.html", .lang = "en",
+                                             .description = "A UI framework where one semantic tree drives the pixels, the motion, accessibility, agents and tests. "
+                                                            "An agent made this page in Live Design; press the key to watch it.",
+                                             .files = {"mcpp.toml", "omui.config.ts", "app", "design/main.replay.xdef.json"}});
+    return components && page ? 0 : 1;
 }

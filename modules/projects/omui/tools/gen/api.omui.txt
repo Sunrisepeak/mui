@@ -6,6 +6,29 @@ namespace omui::gen {
   };
   [[nodiscard]] std::expected<std::vector<CldrPack>, std::string> emit_cldr_packs(const std::filesystem::path& cldr, std::span<const std::string> locales, std::string_view version);
 }
+== omui.gen.closure
+namespace omui::gen {
+  struct ClosureSource {
+    std::string name;
+    std::string text;
+  };
+  struct ClosureTaken {
+    std::string file;
+    std::size_t line = 0;
+    std::vector<std::string> names;
+  };
+  struct Closure {
+    bool full = false;
+    std::string why;
+    std::vector<std::string> components;
+    std::vector<ClosureTaken> taken;
+  };
+  [[nodiscard]] std::string contract_name(std::string_view builder);
+  [[nodiscard]] std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource> scripts, std::string_view full_because = {…});
+  [[nodiscard]] std::expected<std::vector<ClosureSource>, std::string> replay_scripts(std::string_view replay, std::string_view name);
+  [[nodiscard]] std::string closure_unit(const Closure& closure);
+  [[nodiscard]] std::string closure_report(const Closure& closure);
+}
 == omui.gen.data
 namespace omui::gen {
   [[nodiscard]] bool is_data_module(const std::filesystem::path& file);

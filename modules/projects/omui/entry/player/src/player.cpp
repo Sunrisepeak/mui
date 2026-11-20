@@ -221,7 +221,9 @@ std::filesystem::path runtime_directory() {
 
 }  // namespace
 
-int player_main(int argc, char** argv) {
+int player_main(int argc, char** argv) { return player_main(argc, argv, &register_base_components); }
+
+int player_main(int argc, char** argv, void (*components)()) {
     // The player's switches beside the application's (RunOptions), on one
     // command line, parsed once (mcpplibs.cmdline, D-56).
     using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
@@ -293,7 +295,7 @@ int player_main(int argc, char** argv) {
         // components (its component documents too, so it starts, headless),
         // native modules and the define functions, a file a line. The
         // official components first, as run() registers them.
-        register_base_components();
+        components();
         register_window_components();
         Headless headless(HeadlessOptions{.size = m->size});
         player::Player declaring(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()});
@@ -317,7 +319,7 @@ int player_main(int argc, char** argv) {
     if (auto film = parsed.value("design-film")) {
         // The design's history as a film (design.film, the designer's): the application started
         // headless in development mode, the verb asked, its answer printed.
-        register_base_components();
+        components();
         register_window_components();
         Headless headless(HeadlessOptions{.size = m->size, .app = m->id});
         player::Player designing(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()}, {.design = true, .twin = twins(*m)});
@@ -338,7 +340,7 @@ int player_main(int argc, char** argv) {
         return answer.exit_code().value_or(1) == 0 ? 0 : 1;
     }
     std::optional<player::Player> p;
-    AppSpec app;
+    AppSpec app{.components = components};  // not the default's: a derived registry leaves the others out
     app.id = m->id;
     app.title = m->title;
     app.size = m->size;

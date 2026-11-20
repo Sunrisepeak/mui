@@ -95,7 +95,19 @@ export import :external;
 export import :timeline;
 export import :path;
 namespace omui {
+  template <class... Component> struct ComponentList {
+  };
+  using BaseComponents = ComponentList<Button, Toggle, Checkbox, Slider, TextBox, Progress, Radio, Select, SelectPopup, SelectOption, Tabs, Tab, Menu, MenuItem, Dialog, Tooltip, List, ListItem, Badge, Avatar, Skeleton, Card, Accordion, Toast, Popover, Breadcrumb, Pagination, NumberInput, ActorLog, AgentPresence, Segmented, Chip, RangeSlider, Alert, Stepper, Timeline, Path, DatePicker, TimePicker, ColorPicker, SplitView, Drawer, TreeView, DataGrid, Combobox, TagInput, CodeEditor, Kbd, Separator, Link, DescriptionList, Spinner, Rating, OtpInput, FormField, SearchBox, ToggleGroup, ContextMenu, HoverCard, CommandPalette, Sidebar, Toolbar, Chart, Carousel, WebView, FileDrop>;
+  template <std::size_t Size> struct ComponentName {
+    char text[Size]{…};
+    consteval ComponentName(const char (&name)[Size]);
+    [[nodiscard]] constexpr std::string_view view() const;
+  };
+  template <class... Component> void register_components(ComponentList<Component...>);
   void register_base_components();
+}
+namespace omui {
+  template <ComponentName... Names> void register_base_named();
 }
 == omui.ui.base:actors
 namespace omui {

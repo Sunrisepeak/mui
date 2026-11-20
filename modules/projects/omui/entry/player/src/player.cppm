@@ -25,6 +25,11 @@ export namespace omui {
 // runtime and player (TypeScript and JavaScript) — what the designer's previews, variants, film and motion run in.
 [[nodiscard]] player::TwinFn twins(const player::Manifest& manifest);
 
+// The player over the application's manifest, every base component registered for its scripts and view documents
+// to create by name (the `player` entry; an application's own main).
 int player_main(int argc, char** argv);
+// The same with only the base components `components` registers: what the application's build derived from its
+// scripts (the `closure` entry: omui.build's closure(), B7b). A program that calls only this does not carry the others.
+int player_main(int argc, char** argv, void (*components)());
 
 }  // namespace omui

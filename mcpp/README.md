@@ -11,6 +11,7 @@ omui.build = { path = "…/mcpp/build", host-module = true }
 |---|---|---|
 | [`omui.build.contracts`](build/src/contracts) | Your package writes its interface as contracts: components (`contract/*.contract.xdef.ts`) or native modules (`native/*.native.xdef.ts`) | `components()`, `natives()`: C++ partitions and builders, script stubs, the view-document schema |
 | [`omui.build.embed`](build/src/embed) | Your program carries data files instead of reading them: themes, canvas behaviours, styles, locales, sounds, documents | `embed()`, `themes()`, `behaviors()`: each file as a partition holding its text, and optionally a table of them all |
+| [`omui.build.closure`](build/src/closure) | Your TypeScript application carries only the components its scripts create by name | `closure()`: the registry the player's `closure` entry calls, derived from the scripts' imports and the replay's steps (B7b) |
 | [`omui.build.toy`](build/src/toy) | Your program ships as a Bilibili Toy package, or as a static page | `dist_toy()`: the `dist-toy` pack format |
 | [`omui.build.plan`](build/src/plan) | You write a plugin of your own | What the plugins share: a planned `edge`, `submit()`, `generator()`, UTF-8 path text, the files a plugin reads (each plugin re-exports it) |
 

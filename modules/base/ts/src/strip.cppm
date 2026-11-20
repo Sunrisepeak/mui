@@ -26,6 +26,22 @@ struct TypeScriptProblem {
 // problem found (the source is not erasable, or does not scan).
 [[nodiscard]] std::expected<std::string, std::vector<TypeScriptProblem>> strip_types(std::string_view source);
 
+// What a module imports from another, read without running it (the closure an application is built with is
+// derived from these, B7b): the names it takes, as the other module exports them (`b` of `b as c`, `default` of a
+// default import); a type-only name is not taken. `everything`: it may use any of the module's names — `import *
+// as x`, `export * from`, or an `import()` of it — so a reader keeps all of that module. An `import()` of a
+// specifier that is not a string is a module of unknown name (`from` empty), everything of it.
+struct Import {
+    std::string              from;
+    std::vector<std::string> names;
+    bool                     everything = false;
+    std::size_t              line = 0;  // 1-based, where its statement or call begins
+};
+
+// Every import of `source` (statements, `export … from`, and `import()` calls), in order; or its problems, as
+// strip_types would say them.
+[[nodiscard]] std::expected<std::vector<Import>, std::vector<TypeScriptProblem>> imports(std::string_view source);
+
 // Each problem as `line:column: text`, one a line.
 [[nodiscard]] std::string to_text(const std::vector<TypeScriptProblem>& problems);
 

@@ -206,7 +206,26 @@ std::string owner_of(std::string_view s, int depth) {
     return scope.empty() ? std::string("(unknown)") : scope;
 }
 
+std::map<std::size_t, std::string> symbol_map(std::string_view text) {
+    std::map<std::size_t, std::string> names;
+    for (const auto line : std::views::split(text, '\n')) {
+        const std::string_view entry(line.begin(), line.end());
+        const auto colon = entry.find(':');
+        std::size_t index = 0;
+        if (colon == std::string_view::npos || std::from_chars(entry.data(), entry.data() + colon, index).ptr != entry.data() + colon) continue;
+        std::string_view name = entry.substr(colon + 1);
+        if (name.ends_with('\r')) name.remove_suffix(1);
+        names[index] = std::string(name);
+    }
+    return names;
+}
+
 std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top) {
+    return wasm_size(wasm, WasmSizeAsked{.top = top});
+}
+
+std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, const WasmSizeAsked& asked) {
+    const std::size_t top = asked.top;
     if (wasm.size() < 8 || !std::equal(wasm.begin(), wasm.begin() + 4, std::array<std::uint8_t, 4>{0x00, 0x61, 0x73, 0x6d}.begin()))
         return std::unexpected("not a WebAssembly binary (no \\0asm)");
     SizeReport r;
@@ -215,7 +234,7 @@ std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> w
     Reader in{wasm, 8};
     std::size_t imported_functions = 0;
     std::vector<std::size_t> bodies;  // each defined function's body size
-    std::map<std::size_t, std::string> names;  // by function index (imports first)
+    std::map<std::size_t, std::string> names = asked.names;  // by function index (imports first); the name section's win
     while (!in.done()) {
         const std::size_t begin = in.at;
         const std::uint8_t id = in.byte();
@@ -276,9 +295,15 @@ std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> w
         in.at = start + size;
     }
     r.functions = bodies.size();
+    if (asked.only) r.functions = r.code = 0;  // the ones counted
     std::map<std::string, SizeEntry> owners;
     std::vector<SizeEntry> each;
     for (std::size_t k = 0; k < bodies.size(); ++k) {
+        if (asked.only) {
+            if (!asked.only->contains(k)) continue;
+            ++r.functions;
+            r.code += bodies[k];
+        }
         const auto it = names.find(imported_functions + k);
         const std::string name = it == names.end() ? std::format("(function {})", imported_functions + k) : it->second;
         if (it != names.end()) ++r.named;

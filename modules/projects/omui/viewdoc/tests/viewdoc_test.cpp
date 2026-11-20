@@ -247,6 +247,9 @@ UTest cases{"viewdoc", [] {
         diagnoses("{\"omui\": \"0.1\",\n \"view\": {\"root\": {\"type\": \"buton\"}}}", "unknown-type", "no component is named `buton`", 2, 28,
                   "did you mean `button`?");
         diagnoses(view_of(R"j({"type": "TextBox"})j"), "unknown-type", "`TextBox`", 0, 0, "component names are lower case: `text_box`");
+        // One the application's closure left out (B7b): why, and how to carry it.
+        omui::leave_out("stock_ticker");
+        diagnoses(view_of(R"j({"type": "stock_ticker"})j"), "unknown-type", "`stock_ticker`", 0, 0, "import { stockTicker } from \"openmui\"");
         diagnoses(view_of(R"j({"type": "button", "id": "b", "props": {"txt": "x"}})j"), "unknown-property", "no property `txt`", 0, 0,
                   "did you mean `text`?");
         diagnoses(view_of(R"j({"type": "button", "id": "b", "props": {"disabled": "yes"}})j"), "type", "`disabled` is a bool");

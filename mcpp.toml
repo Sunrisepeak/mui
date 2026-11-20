@@ -214,8 +214,12 @@ exceptions = true
 # -lpthread) reach the emscripten row too, and -pthread would make the
 # program's memory shared — which these objects, built without atomics,
 # cannot link into. USE_PTHREADS=0 (applied after the flags) undoes it.
+#
+# A symbol map beside each program (<program>.js.symbols: a function's index, its
+# name): a release's stack named, and a split page's first half said by owner
+# (omui-devtools site split --names). The program itself is unchanged.
 [workspace.target.'cfg(os = "emscripten")'.build]
-ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0"]
+ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0", "--emit-symbol-map"]
 
 # The test programs on the Web row run under node and read their fixtures
 # beside their sources, as on every other row: node's file system, not the

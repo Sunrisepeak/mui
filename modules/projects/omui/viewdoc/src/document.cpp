@@ -688,9 +688,10 @@ private:
         n.type = type.type() == Value::Type::text ? std::string(type.as_string()) : "";
         n.component = type_named(n.type);
         if (!n.component) {
-            std::string hint;
-            if (const std::string s = snake(n.type); s != n.type && type_named(s)) hint = std::format("component names are lower case: `{}`", s);
-            else {
+            const std::string lower = snake(n.type);
+            std::string hint = left_out(lower);  // one the application's closure did not carry: how to carry it (B7b)
+            if (hint.empty() && lower != n.type && type_named(lower)) hint = std::format("component names are lower case: `{}`", lower);
+            if (hint.empty()) {
                 std::vector<std::string> names;
                 for (const ComponentType* t : registered_types()) names.emplace_back(t->name);
                 hint = nearest(n.type, names);

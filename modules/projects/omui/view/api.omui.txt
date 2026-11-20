@@ -836,6 +836,8 @@ namespace omui {
   [[nodiscard]] const ComponentType& root_type();
   [[nodiscard]] const ComponentType* find_type(std::string_view name);
   void register_type(const ComponentType& type);
+  void leave_out(std::string_view name);
+  [[nodiscard]] std::string left_out(std::string_view name);
   [[nodiscard]] std::vector<const ComponentType*> registered_types();
   [[nodiscard]] Value component_catalog();
   [[nodiscard]] std::span<const std::string_view> runtime_properties() noexcept;

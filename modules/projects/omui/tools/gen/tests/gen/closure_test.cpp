@@ -74,6 +74,22 @@ import type { Signal } from "openmui";
         expect(plain.has_value() && !gen::closure_unit(*plain).contains("markdown") && !gen::closure_unit(*plain).contains("fuzzy"));
     };
 
+    "the components generation lists are kept with the scripts' own, and say where they are listed"_test = [] {
+        const std::array page{gen::ClosureSource{"app/main.ts", "import { column, text } from \"openmui\";\n"}};
+        const std::array listed{gen::ClosureTaken{.file = "omui.config.ts#generation.components", .names = {"card", "dataGrid", "text"}}};
+        const auto closure = gen::derive_closure(page, {}, listed);
+        expect(closure.has_value() && !closure->full &&
+               eq(closure->components, std::vector<std::string>{"card", "column", "data_grid", "text"}));
+        if (closure) expect(gen::closure_report(*closure).contains("omui.config.ts#generation.components"));
+        // Read from the config's value: a list is kept; surfaces without one keep every component; neither, nothing.
+        const auto listing = gen::closure_config(R"({"generation": {"surfaces": {"extras": "cards"}, "components": ["card"]}})", "omui.config.ts");
+        expect(listing.full_because.empty() && listing.kept.size() == 1 && eq(listing.kept[0].names, std::vector<std::string>{"card"}));
+        const auto open = gen::closure_config(R"({"generation": {"surfaces": {"extras": "cards"}}})", "omui.config.ts");
+        expect(open.full_because.contains("generation.surfaces") && open.kept.empty());
+        const auto closed = gen::closure_config(R"({"agent": {"release": "dual-user"}, "generation": {"replay": "design/main.replay.xdef.json"}})", "omui.config.ts");
+        expect(closed.full_because.empty() && closed.kept.empty());
+    };
+
     "a script that does not read: the error says where"_test = [] {
         const std::array broken{gen::ClosureSource{"app/main.ts", "enum E { A }\n"}};
         const auto closure = gen::derive_closure(broken);

@@ -155,6 +155,7 @@ template <class Component, ComponentName... Names>
 void register_if_named() {
     // compare(), a member: found where the registry is instantiated (a unit of the application's that need not import std).
     if constexpr (((Component::name.compare(Names.view()) == 0) || ...)) register_type(component_type<Component>());
+    else leave_out(Component::name);  // its name kept, so asking for it says how to carry it
 }
 template <ComponentName... Names, class... Component>
 void register_named(ComponentList<Component...>) {

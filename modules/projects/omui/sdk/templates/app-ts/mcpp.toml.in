@@ -22,10 +22,11 @@ main = "app/main.ts"
 openmui = "0.4"
 
 # No C++ to write: the program's main is the player's (an entry target of
-# omui.entry.player); the application is app/.
+# omui.entry.player); the application is app/. The `closure` entry carries the
+# components app/ takes by name from openmui, no others (build.mcpp: closure()).
 [targets.{{project.name}}]
 kind = "bin"
-main = { from = "omui.entry.player/player" }
+main = { from = "omui.entry.player/closure" }
 
 [dependencies]
 omui.entry.player = "{{self.version}}"

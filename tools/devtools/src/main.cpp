@@ -391,7 +391,8 @@ cmd::App app() {
                         .subcommand(cmd::App("split")
                                         .description("The program cut in two by what its first screen runs (wasm-split, a profile in each language, omui-gen dist-toy-split)")
                                         .arg(Arg("dir").help("default: target/site"))
-                                        .option(Option("routes").takes_value().value_name("R,…").help("the first screens profiled, by route (default: the site's two languages, \"\" and /zh; a page of one language: \"\")")))
+                                        .option(Option("routes").takes_value().value_name("R,…").help("the first screens profiled, by route (default: the site's two languages, \"\" and /zh; a page of one language: \"\")"))
+                                        .option(Option("names").takes_value().value_name("FILE").help("the program's symbol map (<program>.js.symbols beside the build's program): the first half by owner, target/site-split/first.owners.md")))
                         .subcommand(cmd::App("profile")
                                         .description("A page with wasm-split's instrumented program used at its first screen; the functions that ran written")
                                         .option(Option("route").takes_value().value_name("R").help("the route, e.g. /zh"))
@@ -895,7 +896,7 @@ int site_command(const cmd::ParsedArgs& options, const fs::path& root) {
             for (auto part : std::views::split(std::string_view(*asked), ',')) routes.emplace_back(part.begin(), part.end());
             if (routes.empty()) routes.emplace_back();  // "": the page's own first screen
         }
-        return site::split(root, directory(), routes);
+        return site::split(root, directory(), routes, mcpplibs::os::fs::from_utf8(given.value("names").value_or("")));
     }
     if (options.subcommand_name() == "profile") {
         site::Profile asked{.site = mcpplibs::os::fs::from_utf8(given.positional(0)), .out = mcpplibs::os::fs::from_utf8(given.positional(1)),

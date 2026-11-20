@@ -19,4 +19,6 @@ main = { from = "omui.entry.player/closure" }
 Everything official stays (`omui::register_official()`) in three cases, and `closure.json` says why:
 - a script takes everything of `openmui` (`import *`, `export *`, `import()`);
 - the designer is linked (`omui.entry.player/design`, development);
-- `omui.config.ts` opens generation to components or surfaces.
+- `omui.config.ts` opens generation to surfaces without naming the components it may use.
+
+The components `generation.components` lists are kept besides the scripts' own. A program asked for a base component its closure left out (a view document an agent writes, say) is told so, with the way to carry it: name it in a script, or list it in `generation.components`.

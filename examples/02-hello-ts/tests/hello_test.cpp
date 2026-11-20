@@ -13,6 +13,9 @@ using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
 using namespace omui;
 
+// The components the program carries: those logic/ names (build.mcpp's closure(), B7b).
+extern "C++" void omui_application_components();
+
 namespace {
 
 std::filesystem::path here() { return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path(); }
@@ -33,7 +36,7 @@ void settle(Headless& h, player::Player& p) {
 }  // namespace
 
 UTest cases{"example.hello-ts", [] {
-    register_base_components();
+    omui_application_components();
 
     "the manifest names the script; the player runs it"_test = [] {
         auto m = read_manifest(here() / "mcpp.toml");

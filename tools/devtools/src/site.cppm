@@ -38,8 +38,11 @@ export namespace omui::devtools::site {
 
 [[nodiscard]] int build(const std::filesystem::path& root);
 [[nodiscard]] int verify(const std::filesystem::path& site);
-// routes: the first screens profiled ("" the page's own, "/zh" …), their profiles merged.
-[[nodiscard]] int split(const std::filesystem::path& root, const std::filesystem::path& site, const std::vector<std::string>& routes = {"", "/zh"});
+// routes: the first screens profiled ("" the page's own, "/zh" …), their profiles merged. names: the program's symbol
+// map (Emscripten's --emit-symbol-map, beside the build's program), when given the first half said by owner
+// (target/site-split/first.owners.{md,json}: what its first frame waits for, B3).
+[[nodiscard]] int split(const std::filesystem::path& root, const std::filesystem::path& site, const std::vector<std::string>& routes = {"", "/zh"},
+                        const std::filesystem::path& names = {});
 
 struct Profile {
     std::filesystem::path site, out;

@@ -1,4 +1,5 @@
-// The application without a window: the player runs the script; find the
+// The application without a window, with the components it carries (the ones
+// app/ names, build.mcpp's closure()): the player runs the script; find the
 // button as an agent would, press it, read what it says.
 import std;
 import omui;
@@ -6,9 +7,11 @@ import omui.player;
 import omui.entry.player;
 import omui.lang.js;
 
+extern "C++" void omui_application_components();
+
 int main() {
     using namespace omui;
-    register_base_components();
+    omui_application_components();
     auto m = read_manifest(std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "mcpp.toml");
     if (!m) {
         std::println(std::cerr, "{}", m.error());

@@ -169,6 +169,11 @@ struct PaintOptions {
 [[nodiscard]] const ComponentType& root_type();
 [[nodiscard]] const ComponentType* find_type(std::string_view name);
 void register_type(const ComponentType& type);
+// A component this program does not carry, by its contract's name: an application's closure leaves out the components
+// its scripts do not name (B7b, D-251). An unknown name among them says why and how to carry it.
+void leave_out(std::string_view name);
+// Why `name` is no component here, with the way out, when this program's closure left it out (empty when it did not).
+[[nodiscard]] std::string left_out(std::string_view name);
 // Every registered type (view documents and their schema, `omui check`), by name.
 [[nodiscard]] std::vector<const ComponentType*> registered_types();
 // Them as data (omuiCatalog, the agent protocol's `describe`, an application's

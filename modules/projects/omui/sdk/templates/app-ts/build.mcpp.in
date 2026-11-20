@@ -5,13 +5,17 @@
 // screen as a document a reader and a search engine read before it runs,
 // D-236: the file below, which `omui build --web` writes first by running the
 // application natively with --static-html).
+//
+// Every build: the components the program carries, those app/ takes by name
+// from openmui (closure.json beside the build's outputs says which and where).
 import mcpp;
 import omui.build.toy;
+import omui.build.closure;
 
 int main() {
-    return omui::build::dist_toy({.target = "{{project.name}}", .title = "{{project.name}}", .fonts = {"Inter"}, .background = "#f8fafc",
-                                  .sdk = false, .static_html = "target/web/{{project.name}}.static.html",
-                                  .description = "{{project.name}}, an openmui application", .files = {"mcpp.toml", "omui.config.ts", "app"}})
-               ? 0
-               : 1;
+    const bool components = omui::build::closure({.files = {"app"}});
+    const bool page = omui::build::dist_toy({.target = "{{project.name}}", .title = "{{project.name}}", .fonts = {"Inter"}, .background = "#f8fafc",
+                                             .sdk = false, .static_html = "target/web/{{project.name}}.static.html",
+                                             .description = "{{project.name}}, an openmui application", .files = {"mcpp.toml", "omui.config.ts", "app"}});
+    return components && page ? 0 : 1;
 }

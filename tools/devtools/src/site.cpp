@@ -235,7 +235,7 @@ int build(const fs::path& root) {
     return 0;
 }
 
-int split(const fs::path& root, const fs::path& given, const std::vector<std::string>& routes) {
+int split(const fs::path& root, const fs::path& given, const std::vector<std::string>& routes, const fs::path& names) {
     const fs::path site = given.is_absolute() ? given : root / given;
     const fs::path work = root / "target/site-split";
     const bool require = os::env::get("OMUI_REQUIRE_BROWSER") == "1";
@@ -342,6 +342,27 @@ int split(const fs::path& root, const fs::path& given, const std::vector<std::st
         const std::string data = mcpplibs::os::fs::read(work / name).value_or("");
         std::cout << std::format("site-split: {:<14} {:6.2f} MiB, gzip {:5.2f} MiB\n", name,
                                  mib(data.size()), mib(cdp::gzip(data, 9).size()));
+    }
+    // The first half by owner: the functions the first screen ran (the profile, by their index among the program's
+    // own functions) named by the release's symbol map — the same program, so its bytes, not an analysis build's.
+    if (!names.empty()) {
+        std::vector<std::string> printing = features;
+        printing.insert(printing.end(), {"--print-profile=" + os::fs::utf8(work / "first-screen.profile"), whole});
+        const auto printed = run::program(root, wasm_split, printing, {.merged = false});
+        if (!printed || printed->status != 0) return failed("site-split: wasm-split could not print the profile");
+        std::string kept;
+        bool keeping = false;
+        for (const auto line : std::views::split(std::string_view(printed->out), '\n')) {
+            const std::string_view text(line.begin(), line.end());
+            if (text.starts_with("Keeping functions")) keeping = true;
+            else if (text.starts_with("Splitting out functions")) keeping = false;
+            else if (keeping && text.starts_with("+ ")) kept += std::format("{}\n", text.substr(2));
+        }
+        write_file(work / "first.functions", kept);
+        if (!mcpp_shown(root, {"run", "omui-gen", "-p", "omui.gen", "--", "size", whole, "--names", os::fs::utf8(names), "--only",
+                               os::fs::utf8(work / "first.functions"), "--markdown", os::fs::utf8(work / "first.owners.md"), "--json",
+                               os::fs::utf8(work / "first.owners.json")}))
+            return 1;
     }
     fs::remove_all(work / "page", error);
     return 0;

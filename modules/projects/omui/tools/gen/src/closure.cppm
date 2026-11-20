@@ -35,9 +35,19 @@ struct Closure {
 // The contract name a script's builder stands for: `textBox` → `text_box`.
 [[nodiscard]] std::string contract_name(std::string_view builder);
 
-// The closure of these scripts; `full_because`: a reason to keep every component whatever they take (empty: none).
-// A script that does not read is the error, with where.
-[[nodiscard]] std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource> scripts, std::string_view full_because = {});
+// The closure of these scripts; `full_because`: a reason to keep every component whatever they take (empty: none);
+// `kept`: names kept besides, by where they are listed (omui.config.ts's generation.components: what interface made
+// while it runs may use). A script that does not read is the error, with where.
+[[nodiscard]] std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource> scripts, std::string_view full_because = {},
+                                                                 std::span<const ClosureTaken> kept = {});
+
+// What an application's config (omui.config.ts's value, as JSON; `file` names it) asks of its closure: the components
+// generation lists (generation.components), or — surfaces open without such a list — every component, and why.
+struct ClosureConfig {
+    std::string                 full_because;
+    std::vector<ClosureTaken>   kept;
+};
+[[nodiscard]] ClosureConfig closure_config(std::string_view config, std::string_view file);
 
 // The scripts a replay (`replay@1`) runs: each step's texts that are scripts (.ts, .js), named `<replay>#<step>:<path>`.
 [[nodiscard]] std::expected<std::vector<ClosureSource>, std::string> replay_scripts(std::string_view replay, std::string_view name);

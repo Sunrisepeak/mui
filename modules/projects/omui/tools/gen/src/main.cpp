@@ -416,14 +416,16 @@ int run_contracts(const Options& o, bool emit) {
 
 }  // namespace
 
+// A file's bytes, or nothing when it cannot be read.
+std::optional<std::string> read(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return std::nullopt;
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
 // omui-gen closure: the registry unit and closure.json, written only when they change (an unchanged unit is not
 // compiled again).
 int closure_main(const mcpplibs::cmdline::ParsedArgs& args) {
-    const auto read = [](const std::filesystem::path& file) -> std::optional<std::string> {
-        std::ifstream in(file, std::ios::binary);
-        if (!in) return std::nullopt;
-        return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-    };
     std::vector<omui::gen::ClosureSource> scripts;
     for (std::size_t index = 0; index < args.positional_count(); ++index) {
         const std::string name = args.positional(index);
@@ -444,8 +446,10 @@ int closure_main(const mcpplibs::cmdline::ParsedArgs& args) {
         }
     }
     // Every component where the program may make any: the designer linked (development, D-149: an agent uses
-    // what it likes), or the application's generation open to components or surfaces (D-144).
+    // what it likes), or the application's generation open to surfaces with any component (D-144); the ones its
+    // generation lists (generation.components) where it lists them.
     std::string full_because;
+    std::vector<omui::gen::ClosureTaken> generation_kept;
     if (const auto graph_file = args.value("graph")) {
         const auto graph = nlohmann::json::parse(read(std::filesystem::path(*graph_file)).value_or(""), nullptr, false);
         if (graph.is_object() && graph.contains("packages"))
@@ -463,13 +467,15 @@ int closure_main(const mcpplibs::cmdline::ParsedArgs& args) {
             std::println(std::cerr, "omui-gen closure: {}", config.error().text());
             return 1;
         }
-        const auto snapshot = nlohmann::json::parse(config->snapshot(), nullptr, false);
-        const auto generation = snapshot.is_object() ? snapshot.value("generation", nlohmann::json::object()) : nlohmann::json::object();
-        for (const char* open : {"surfaces", "components"})
-            if (generation.contains(open) && !generation[open].empty())
-                full_because = std::format("{}: generation.{} lets interface be made while it runs (D-144)", *config_file, open);
+        if (config->kind != "config") {
+            std::println(std::cerr, "omui-gen closure: {}: its default export is defineConfig(…), not a {}", *config_file, config->kind);
+            return 1;
+        }
+        auto asked = omui::gen::closure_config(config->json, *config_file);  // the config itself (snapshot() wraps it: config@1)
+        full_because = std::move(asked.full_because);
+        generation_kept = std::move(asked.kept);
     }
-    auto closure = omui::gen::derive_closure(scripts, full_because);
+    auto closure = omui::gen::derive_closure(scripts, full_because, generation_kept);
     if (!closure) {
         std::println(std::cerr, "omui-gen closure: {}", closure.error());
         return 1;
@@ -504,7 +510,30 @@ int size_main(const mcpplibs::cmdline::ParsedArgs& args) {
         return 1;
     }
     const std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    auto r = omui::gen::program_size(bytes, top);
+    // A release's functions named by its symbol map, and some of them only (a split program's first half).
+    omui::gen::WasmSizeAsked asked{.top = top};
+    if (const auto map = args.value("names")) {
+        const auto text = read(std::filesystem::path(*map));
+        if (!text) {
+            std::println(std::cerr, "omui-gen size: cannot read {}", *map);
+            return 1;
+        }
+        asked.names = omui::gen::symbol_map(*text);
+    }
+    if (const auto listed = args.value("only")) {
+        const auto text = read(std::filesystem::path(*listed));
+        if (!text) {
+            std::println(std::cerr, "omui-gen size: cannot read {}", *listed);
+            return 1;
+        }
+        asked.only.emplace();
+        for (const auto line : std::views::split(std::string_view(*text), '\n')) {
+            std::size_t index = 0;
+            const std::string_view entry(line.begin(), line.end());
+            if (std::from_chars(entry.data(), entry.data() + entry.size(), index).ec == std::errc{}) asked.only->insert(index);
+        }
+    }
+    auto r = asked.names.empty() && !asked.only ? omui::gen::program_size(bytes, top) : omui::gen::wasm_size(bytes, asked);
     if (!r) {
         std::println(std::cerr, "omui-gen size: {}: {}", file, r.error());
         return 1;
@@ -622,12 +651,14 @@ mcpplibs::cmdline::App command_line() {
                         .option(Option("out").takes_value().value_name("FILE").help("the registry unit (C++)"))
                         .option(Option("report").takes_value().value_name("FILE").help("closure.json"))
                         .option(Option("graph").takes_value().value_name("FILE").help("the build's resolved graph (the designer linked: every component)"))
-                        .option(Option("config").takes_value().value_name("FILE").help("omui.config.ts (generation open to components: every component)")))
+                        .option(Option("config").takes_value().value_name("FILE").help("omui.config.ts (generation.components kept; surfaces open to any component: every one)")))
         .subcommand(App("size")
                         .description("where a program's bytes go (WebAssembly or ELF): its sections, its code by owner, its largest symbols")
                         .arg(Arg("file").required().help("FILE: .wasm or an ELF program"))
                         .option(Option("json").takes_value().value_name("FILE").help("also as JSON"))
                         .option(Option("markdown").takes_value().value_name("FILE").help("also as Markdown"))
+                        .option(Option("names").takes_value().value_name("FILE").help("a WebAssembly release's symbol map (Emscripten's --emit-symbol-map): its functions named"))
+                        .option(Option("only").takes_value().value_name("FILE").help("the functions counted, an index a line among those it defines (wasm-split --print-profile's kept: a first half)"))
                         .option(Option("top").value_type<std::size_t>().help("the largest N functions (default 40)")));
 }
 

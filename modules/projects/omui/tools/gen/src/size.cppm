@@ -33,6 +33,17 @@ struct SizeReport {
 // Reads a WebAssembly binary. `top`: how many of the largest functions to list.
 [[nodiscard]] std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top = 40);
 
+struct WasmSizeAsked {
+    std::size_t                          top = 40;
+    std::map<std::size_t, std::string>   names;  // by function index (imports first), where the binary has none: its symbol map's
+    std::optional<std::set<std::size_t>> only;   // the functions counted, by their index among those it defines (as
+                                                 // wasm-split's profile lists them): the code and its owners are theirs
+};
+[[nodiscard]] std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, const WasmSizeAsked& asked);
+
+// A symbol map as Emscripten writes it (--emit-symbol-map: `<index>:<name>` a line): the names by function index.
+[[nodiscard]] std::map<std::size_t, std::string> symbol_map(std::string_view text);
+
 // Reads an ELF program (64-bit, little-endian): `shipped` is what it loads
 // (the allocated sections), `code` its executable sections, `data` the rest
 // loaded; its functions and objects by owner from the symbol table.

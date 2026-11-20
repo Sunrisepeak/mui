@@ -25,7 +25,12 @@ namespace omui::gen {
     std::vector<ClosureTaken> taken;
   };
   [[nodiscard]] std::string contract_name(std::string_view builder);
-  [[nodiscard]] std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource> scripts, std::string_view full_because = {…});
+  [[nodiscard]] std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource> scripts, std::string_view full_because = {…}, std::span<const ClosureTaken> kept = {…});
+  struct ClosureConfig {
+    std::string full_because;
+    std::vector<ClosureTaken> kept;
+  };
+  [[nodiscard]] ClosureConfig closure_config(std::string_view config, std::string_view file);
   [[nodiscard]] std::expected<std::vector<ClosureSource>, std::string> replay_scripts(std::string_view replay, std::string_view name);
   [[nodiscard]] std::string closure_unit(const Closure& closure);
   [[nodiscard]] std::string closure_report(const Closure& closure);
@@ -383,6 +388,13 @@ namespace omui::gen {
     std::vector<SizeEntry> largest;
   };
   [[nodiscard]] std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top = 40);
+  struct WasmSizeAsked {
+    std::size_t top = 40;
+    std::map<std::size_t, std::string> names;
+    std::optional<std::set<std::size_t>> only;
+  };
+  [[nodiscard]] std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, const WasmSizeAsked& asked);
+  [[nodiscard]] std::map<std::size_t, std::string> symbol_map(std::string_view text);
   [[nodiscard]] std::expected<SizeReport, std::string> elf_size(std::span<const std::uint8_t> elf, std::size_t top = 40);
   [[nodiscard]] std::expected<SizeReport, std::string> program_size(std::span<const std::uint8_t> program, std::size_t top = 40);
   [[nodiscard]] std::string owner_of(std::string_view symbol, int depth = 2);

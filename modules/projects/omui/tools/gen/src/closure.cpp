@@ -25,7 +25,8 @@ std::string contract_name(std::string_view builder) {
     return out;
 }
 
-std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource> scripts, std::string_view full_because) {
+std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource> scripts, std::string_view full_because,
+                                                   std::span<const ClosureTaken> kept) {
     Closure closure;
     if (!full_because.empty()) {
         closure.full = true;
@@ -49,9 +50,32 @@ std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource
             for (const std::string& name : one.names) names.insert(contract_name(name));
         }
     }
+    for (const ClosureTaken& listed : kept) {
+        closure.taken.push_back(listed);
+        for (const std::string& name : listed.names) names.insert(contract_name(name));
+    }
     closure.components.assign(names.begin(), names.end());
     closure.natives.assign(natives.begin(), natives.end());
     return closure;
+}
+
+ClosureConfig closure_config(std::string_view config, std::string_view file) {
+    ClosureConfig out;
+    const auto value = nlohmann::json::parse(config, nullptr, false);
+    const auto generation = value.is_object() ? value.value("generation", nlohmann::json::object()) : nlohmann::json::object();
+    if (!generation.is_object()) return out;
+    const auto listed = generation.value("components", nlohmann::json::array());
+    if (listed.is_array() && !listed.empty()) {
+        ClosureTaken kept{.file = std::format("{}#generation.components", file)};
+        for (const auto& name : listed)
+            if (name.is_string()) kept.names.push_back(name.get<std::string>());
+        out.kept.push_back(std::move(kept));
+    } else if (generation.contains("surfaces") && !generation["surfaces"].empty()) {
+        out.full_because = std::format("{}: generation.surfaces lets interface of any component be made while it runs (D-144; "
+                                       "generation.components names the ones it may use)",
+                                       file);
+    }
+    return out;
 }
 
 std::expected<std::vector<ClosureSource>, std::string> replay_scripts(std::string_view replay, std::string_view name) {

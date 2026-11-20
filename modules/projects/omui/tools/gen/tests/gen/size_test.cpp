@@ -31,8 +31,8 @@ void section(std::vector<std::uint8_t>& out, std::uint8_t id, const std::vector<
     out.insert(out.end(), body.begin(), body.end());
 }
 
-// An imported function, then three of its own (bodies of 100, 30 and 7 bytes), named.
-std::vector<std::uint8_t> program() {
+// An imported function, then three of its own (bodies of 100, 30 and 7 bytes), named (or, as a release, not).
+std::vector<std::uint8_t> program(bool named = true) {
     std::vector<std::uint8_t> w{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00};
     section(w, 1, {0x01, 0x60, 0x00, 0x00});  // one type: () -> ()
     std::vector<std::uint8_t> imports{0x01};
@@ -46,6 +46,7 @@ std::vector<std::uint8_t> program() {
     }
     section(w, 10, code);
     section(w, 11, std::vector<std::uint8_t>(50, 0));
+    if (!named) return w;
     std::vector<std::uint8_t> names;
     name(names, "name");
     std::vector<std::uint8_t> functions;
@@ -112,6 +113,18 @@ static UTest cases{"gen.size", [] {
         auto cut = w;
         cut.resize(cut.size() - 10);
         expect(!gen::wasm_size(cut).has_value()) << "cut short";
+    };
+
+    "a release named by its symbol map; a split program's first half by the functions its profile kept"_test = [] {
+        const auto names = gen::symbol_map("0:now\n1:omui::Runtime@omui.view::frame()\r\n2:hb_shape_plan_execute\n3:void std::__2::vector<int>::push_back(int&&)\nnot a line\n");
+        expect(eq(names.size(), std::size_t{4}) && eq(names.at(2), std::string("hb_shape_plan_execute")));
+        const auto release = program(false);
+        auto named = gen::wasm_size(release, gen::WasmSizeAsked{.names = names});
+        expect(named.has_value() && eq(named->named, std::size_t{3}) && named->owners[0].name == "omui.view") << (named ? gen::to_json(*named) : named.error());
+        // The first half: its own functions 1 and 2 (hb_ and std), by their index among those it defines.
+        auto first = gen::wasm_size(release, gen::WasmSizeAsked{.names = names, .only = std::set<std::size_t>{1, 2}});
+        expect(first.has_value() && eq(first->functions, std::size_t{2}) && eq(first->code, std::size_t{37})) << (first ? gen::to_json(*first) : first.error());
+        if (first) expect(first->owners.size() == 2 && first->owners[0].name == "harfbuzz" && first->owners[1].name == "std") << gen::to_json(*first);
     };
 
     "an ELF program: what it loads, by owner from its symbol table (this test itself, where it is ELF)"_test = [] {

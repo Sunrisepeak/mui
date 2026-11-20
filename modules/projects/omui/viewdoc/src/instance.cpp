@@ -749,7 +749,10 @@ Element make(std::string_view type, std::vector<std::pair<std::string, Source>> 
              std::string id) {
     Element e;
     e.type = find_type(type);
-    if (!e.type) log.warn("no component is named `{}`", type);
+    if (!e.type) {
+        if (const std::string why = left_out(type); !why.empty()) log.warn("no component is named `{}`: {}", type, why);
+        else log.warn("no component is named `{}`", type);
+    }
     e.id = std::move(id);
     for (auto& [k, s] : props) e.prop(std::move(k), std::move(s));
     for (auto& [k, h] : handlers) e.on(std::move(k), std::move(h));

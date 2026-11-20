@@ -103,8 +103,9 @@ jobs:
           (cd site/page && mcpp run -p omui.cli -- build --web)
           rm -rf target/site/page
           cp -r "$(dirname "$(ls -t target/.build-mcpp/out/*/omui.site.page/toy/omui-site-page/index.html | head -1)")" target/site/page
-      - name: The page's program cut in two by what its first screen runs (D5, as the site's)
-        run: mcpp run omui-devtools -p tools/devtools --profile ci -- site split target/site/page --routes ""
+          cp "$(ls -t target/wasm32-emscripten/*/bin/*/omui-site-page.js.symbols | head -1)" target/site-page.symbols
+      - name: The page's program cut in two by what its first screen runs (D5, as the site's), its first half by owner
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- site split target/site/page --routes "" --names target/site-page.symbols
         env:
           OMUI_REQUIRE_BROWSER: '1'
       - name: The page's path — Live Design, Copy, the visitor's agent connected through omui connect, the bridge gone
@@ -125,6 +126,7 @@ jobs:
             target/site-perf.json
             target/site-page-perf.json
             target/site-page.json
+            target/site-split/first.owners.md
             target/site-page/
             target/site-a11y.json
             target/site-*.report.xdef.json

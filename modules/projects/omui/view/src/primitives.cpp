@@ -782,6 +782,7 @@ struct PainterNode {
 struct Registry {
     std::shared_mutex                                        lock;
     std::map<std::string, const ComponentType*, std::less<>> types;
+    std::set<std::string, std::less<>>                       left_out;  // by the application's closure
     Registry() {
         for (const ComponentType* t :
              {&component_type<RootNode>(), &component_type<BoxNode>(), &component_type<ColumnNode>(),
@@ -849,6 +850,29 @@ void register_type(const ComponentType& type) {
     auto& r = registry();
     std::unique_lock g(r.lock);
     r.types.insert_or_assign(std::string(type.name), &type);
+    if (const auto out = r.left_out.find(type.name); out != r.left_out.end()) r.left_out.erase(out);
+}
+
+void leave_out(std::string_view name) {
+    auto& r = registry();
+    std::unique_lock g(r.lock);
+    if (!r.types.contains(name)) r.left_out.emplace(name);
+}
+
+std::string left_out(std::string_view name) {
+    {
+        auto& r = registry();
+        std::shared_lock g(r.lock);
+        if (!r.left_out.contains(name)) return {};
+    }
+    std::string builder;  // the script's name for it: `date_picker` → `datePicker`
+    for (std::size_t at = 0; at < name.size(); ++at)
+        if (name[at] == '_' && at + 1 < name.size()) builder += static_cast<char>(std::toupper(static_cast<unsigned char>(name[++at])));
+        else builder += name[at];
+    return std::format("`{}` is a component this program does not carry: its build keeps the components its scripts name "
+                       "(closure.json beside the build's outputs says which, and from where). Name it in a script — "
+                       "import {{ {} }} from \"openmui\" — and build again, or list it in omui.config.ts's generation.components",
+                       name, builder);
 }
 
 std::vector<const ComponentType*> registered_types() {

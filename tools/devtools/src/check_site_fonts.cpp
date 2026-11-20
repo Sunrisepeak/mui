@@ -110,7 +110,10 @@ json fonts(const Context& context) {
     const fs::path output = context.root / "target/site-fonts";
     std::error_code error;
     fs::create_directories(output, error);
-    std::string switched_body;
+    // The direct Chinese visit's heading, which a person's switch to Chinese after the full face arrives must draw
+    // alike. The switch is a real click in a visit no agent acted in: an agent's acts leave its presence (the trail
+    // of where it acted, D-160) over the page, which is no part of the glyphs compared.
+    std::string direct_body;
     struct Case {
         std::string name, route;
         int width;
@@ -204,10 +207,7 @@ json fonts(const Context& context) {
                       "initial download",
                       timing);
                 script.sleep(500);
-                const std::string direct = capture_heading("body");
-                check(!direct.empty() && direct == switched_body,
-                      "switching to Chinese after the full face arrives matches a direct Chinese "
-                      "visit");
+                direct_body = capture_heading("body");
                 return;
             }
             check(text(at(timing, "language")) == "en" && number(at(timing, "initial")) > 0 &&
@@ -327,9 +327,14 @@ json fonts(const Context& context) {
                             "reference-mismatch");
                 act("main/foot/ci_check");
                 act("main/foot/tools_toggle");
-                script.value("window.omui.act('main/bar/lang','activate')");
+            }
+            if (visit.name == "english-chinese-browser") {
+                click_at(script, (*bounds)[0] + (*bounds)[2] / 2, (*bounds)[1] + (*bounds)[3] / 2);
                 script.sleep(1500);
-                switched_body = capture_heading("chinese-body");
+                const std::string switched = capture_heading("chinese-body");
+                check(!switched.empty() && !direct_body.empty() && switched == direct_body,
+                      "switching to Chinese after the full face arrives matches a direct Chinese "
+                      "visit");
             }
         });
         page.close();

@@ -28,6 +28,7 @@ struct Closure {
     bool                      full = false;
     std::string               why;         // why every base component, when full
     std::vector<std::string>  components;  // the contract names (snake_case) taken, sorted, each once
+    std::vector<std::string>  natives;     // the official native modules imported (`openmui:native/<name>`), sorted
     std::vector<ClosureTaken> taken;       // where they were taken
 };
 
@@ -41,7 +42,8 @@ struct Closure {
 // The scripts a replay (`replay@1`) runs: each step's texts that are scripts (.ts, .js), named `<replay>#<step>:<path>`.
 [[nodiscard]] std::expected<std::vector<ClosureSource>, std::string> replay_scripts(std::string_view replay, std::string_view name);
 
-// The C++ unit: `omui_application_components()`, registering the base components named (or all of them).
+// The C++ unit: `omui_application_components()`, registering the base components named, markdown when named, and the
+// official native modules imported (fuzzy) — or everything official (omui::register_official()).
 [[nodiscard]] std::string closure_unit(const Closure& closure);
 // closure.json (`closure@1`): what was derived and from where.
 [[nodiscard]] std::string closure_report(const Closure& closure);

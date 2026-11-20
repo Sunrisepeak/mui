@@ -221,7 +221,16 @@ std::filesystem::path runtime_directory() {
 
 }  // namespace
 
-int player_main(int argc, char** argv) { return player_main(argc, argv, &register_base_components); }
+void register_official() {
+    register_base_components();
+    register_markdown_component();
+    // The official native modules (an application's own are registered by its main, before this):
+    // `import { fuzzy } from "openmui:native/fuzzy"`.
+    if (!native::find("fuzzy"))
+        if (auto r = natives::fuzzy::define(); !r) warn("the native module fuzzy: {}", r.error());
+}
+
+int player_main(int argc, char** argv) { return player_main(argc, argv, &register_official); }
 
 int player_main(int argc, char** argv, void (*components)()) {
     // The player's switches beside the application's (RunOptions), on one
@@ -281,11 +290,9 @@ int player_main(int argc, char** argv, void (*components)()) {
     const std::string mode = design ? config->development_agent.value_or("development") : config->release_agent.value_or("");
     if (!mode.empty() && !options.agent_mode) options.agent_mode = parse_agent_mode(mode);
     const auto record = design ? config->development_record.value_or(RecordLevel::full) : config->release_record;
-    register_markdown_component();
-    // The official native modules (an application's own are registered by
-    // its main, before this): `import { fuzzy } from "openmui:native/fuzzy"`.
-    if (!native::find("fuzzy"))
-        if (auto r = natives::fuzzy::define(); !r) warn("the native module fuzzy: {}", r.error());
+    // The components and native modules (register_official, or what the application's build derived): before the
+    // scripts run, which a twin and the types below run too.
+    components();
     // The official themes (light, dark, compact, reduced_motion); an
     // application's own come from its manifest (`themes`).
     for (auto add : {themes::add_default, themes::add_compact})
@@ -295,7 +302,6 @@ int player_main(int argc, char** argv, void (*components)()) {
         // components (its component documents too, so it starts, headless),
         // native modules and the define functions, a file a line. The
         // official components first, as run() registers them.
-        components();
         register_window_components();
         Headless headless(HeadlessOptions{.size = m->size});
         player::Player declaring(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()});
@@ -319,7 +325,6 @@ int player_main(int argc, char** argv, void (*components)()) {
     if (auto film = parsed.value("design-film")) {
         // The design's history as a film (design.film, the designer's): the application started
         // headless in development mode, the verb asked, its answer printed.
-        components();
         register_window_components();
         Headless headless(HeadlessOptions{.size = m->size, .app = m->id});
         player::Player designing(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()}, {.design = true, .twin = twins(*m)});
@@ -340,7 +345,7 @@ int player_main(int argc, char** argv, void (*components)()) {
         return answer.exit_code().value_or(1) == 0 ? 0 : 1;
     }
     std::optional<player::Player> p;
-    AppSpec app{.components = components};  // not the default's: a derived registry leaves the others out
+    AppSpec app{.components = nullptr};  // registered above (not the default's, which would carry every component)
     app.id = m->id;
     app.title = m->title;
     app.size = m->size;

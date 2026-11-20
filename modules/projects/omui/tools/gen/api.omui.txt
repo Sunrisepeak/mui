@@ -21,6 +21,7 @@ namespace omui::gen {
     bool full = false;
     std::string why;
     std::vector<std::string> components;
+    std::vector<std::string> natives;
     std::vector<ClosureTaken> taken;
   };
   [[nodiscard]] std::string contract_name(std::string_view builder);

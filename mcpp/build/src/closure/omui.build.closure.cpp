@@ -48,7 +48,9 @@ bool closure(closure_options opt) {
         e.inputs.push_back(config);
     }
     e.outputs = {unit};
-    e.imports = {"omui.ui.base"};
+    // What the unit may import (it cannot be scanned before it exists): the base components, markdown and the official
+    // native modules when named, the player's register_official() when everything stays.
+    e.imports = {"std", "omui.ui.base", "omui.ui.markdown", "omui.native.fuzzy", "omui.entry.player"};
     mcpp::rerun_if_changed(graph.c_str());
     return submit(std::array{e});
 }

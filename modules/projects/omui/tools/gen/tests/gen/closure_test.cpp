@@ -54,10 +54,24 @@ import type { Signal } from "openmui";
         const std::array star{gen::ClosureSource{"app/main.ts", "import { row } from \"openmui\";\nimport * as ui from \"openmui\";\n"}};
         const auto closure = gen::derive_closure(star);
         expect(closure.has_value() && closure->full && closure->why.contains("app/main.ts:2")) << (closure ? closure->why : closure.error());
-        if (closure) expect(gen::closure_unit(*closure).contains("omui::register_base_components();"));
+        if (closure) expect(gen::closure_unit(*closure).contains("omui::register_official();"));
         const std::array plain{gen::ClosureSource{"app/main.ts", "import { row } from \"openmui\";\n"}};
         const auto designing = gen::derive_closure(plain, "the designer is linked");
         expect(designing.has_value() && designing->full && eq(designing->why, std::string("the designer is linked")));
+    };
+
+    "markdown when named, a native module when imported; neither otherwise"_test = [] {
+        const std::array with{gen::ClosureSource{"app/main.ts", "import { markdown, column } from \"openmui\";\nimport { fuzzy } from \"openmui:native/fuzzy\";\n"}};
+        const auto closure = gen::derive_closure(with);
+        expect(closure.has_value() && eq(closure->natives, std::vector<std::string>{"fuzzy"}));
+        if (!closure) return;
+        const std::string unit = gen::closure_unit(*closure);
+        expect(unit.contains("import omui.ui.markdown;") && unit.contains("omui::register_markdown_component();") &&
+               unit.contains("import omui.native.fuzzy;") && unit.contains("(void)omui::natives::fuzzy::define();"))
+            << unit;
+        const std::array without{gen::ClosureSource{"app/main.ts", "import { column } from \"openmui\";\n"}};
+        const auto plain = gen::derive_closure(without);
+        expect(plain.has_value() && !gen::closure_unit(*plain).contains("markdown") && !gen::closure_unit(*plain).contains("fuzzy"));
     };
 
     "a script that does not read: the error says where"_test = [] {

@@ -413,7 +413,24 @@ int build_web(const std::string& lang, std::vector<std::string> rest, std::ostre
         record(out, true, "build", projected);
         return projected.code;
     }
-    std::vector<std::string> pack{"pack", "--target", "wasm32-emscripten", "--release", "--pkg-format", "dist-toy"};
+    // The Web's release profile where the project or its workspace defines one (`web`: the smallest code, a page is
+    // downloaded before it runs), else the release.
+    const bool web_profile = [] {
+        std::error_code error;
+        for (auto dir = std::filesystem::current_path(error); !dir.empty(); dir = dir.parent_path()) {
+            if (const auto file = dir / "mcpp.toml"; std::filesystem::is_regular_file(file, error)) {
+                try {
+                    const toml::table table = toml::parse_file(utf8(file));
+                    if (table["profile"]["web"].is_table() || table["workspace"]["profile"]["web"].is_table()) return true;
+                } catch (const toml::parse_error&) {
+                    return false;  // the build says what is wrong with it
+                }
+            }
+            if (dir == dir.parent_path()) break;
+        }
+        return false;
+    }();
+    std::vector<std::string> pack{"pack", "--target", "wasm32-emscripten", "--profile", web_profile ? "web" : "release", "--pkg-format", "dist-toy"};
     // The designer, where omui.config.ts links it into a release (`designer.release`): it starts as the person's agent
     // links (D-149, D-255), as `omui build` links it.
     if (const auto config = read_config(); config && config->designer(false)) pack.insert(pack.end(), {"--features", "omui.entry.player/design"});

@@ -31,6 +31,14 @@ struct Incoming {
     std::string           line;
 };
 
+// The listener, shared with its accept thread. Once a stop is asked for, that thread touches nothing but this: a
+// listener whose name was removed while it ran can be reached by no connection, so its accept never returns, and
+// stop() lets the thread go holding it (red 146) instead of waiting for it forever.
+struct Accepting {
+    ipc::listener listener;
+    std::mutex    handing;  // held while an accepted connection is handed over
+};
+
 }  // namespace
 
 std::filesystem::path default_directory() {
@@ -64,7 +72,7 @@ std::vector<EndpointInfo> list(const std::filesystem::path& directory) {
 struct Endpoint::Impl {
     EndpointOptions                                     options;
     std::filesystem::path                               directory;
-    ipc::listener                                       listener;
+    std::shared_ptr<Accepting>                          accepting;
     std::jthread                                        acceptor;
     std::optional<mcpplibs::os::net::loopback_listener> loopback;
     std::jthread                                        loopback_acceptor;
@@ -128,10 +136,12 @@ struct Endpoint::Impl {
         }
     }
 
-    // Its accept blocks (no wake-ups at rest): a connection of its own wakes it to see it is asked to stop.
-    void accept_loop(std::stop_token stop) {
+    // Its accept blocks (no wake-ups at rest): a connection of its own wakes it to see it is asked to stop. A stop
+    // asked for is seen under `handing` before anything of this endpoint is touched.
+    void accept_loop(std::stop_token stop, std::shared_ptr<Accepting> held) {
         while (!stop.stop_requested()) {
-            auto connection = listener.accept();
+            auto connection = held->listener.accept();
+            std::scoped_lock guard(held->handing);
             if (stop.stop_requested()) break;
             if (!connection) break;
             take(std::move(*connection), true);
@@ -162,7 +172,8 @@ std::expected<void, std::string> Endpoint::start() {
                                                  : std::string();
         return std::unexpected(std::format("listening as '{}' in {}: {}{}", d.options.name, utf8(d.directory), listening.error().message(), why));
     }
-    d.listener = std::move(*listening);
+    d.accepting = std::make_shared<Accepting>();
+    d.accepting->listener = std::move(*listening);
     std::string descriptor = std::format("{{\"name\":{},\"app\":{},\"interface\":{},\"spec\":{}", json_text(d.options.name), json_text(d.options.app),
                                          json_text(d.options.interface_name), json_text(d.options.spec));
     if (d.options.loopback) {
@@ -180,7 +191,7 @@ std::expected<void, std::string> Endpoint::start() {
     descriptor += '}';
     if (auto written = mcpplibs::os::fs::write_atomic(d.directory / (d.options.name + std::string(descriptor_suffix)), descriptor); !written)
         mlibs::log::warn("the endpoint descriptor was not written: {}", written.error().message());
-    d.acceptor = std::jthread([&d](std::stop_token stop) { d.accept_loop(stop); });
+    d.acceptor = std::jthread([&d, held = d.accepting](std::stop_token stop) { d.accept_loop(stop, held); });
     d.running = true;
     return {};
 }
@@ -189,8 +200,17 @@ void Endpoint::stop() {
     Impl& d = *impl_;
     if (!d.running) return;
     d.acceptor.request_stop();
-    (void)ipc::connection::connect(d.directory, d.options.name);
-    if (d.acceptor.joinable()) d.acceptor.join();
+    if (ipc::connection::connect(d.directory, d.options.name)) {
+        if (d.acceptor.joinable()) d.acceptor.join();
+        d.accepting->listener.close();
+    } else {
+        // Its name is gone (the directory removed while it ran): no connection can wake the accept. Once `handing`
+        // is passed the thread can touch nothing of this endpoint, so it is let go with the listener it holds.
+        { std::scoped_lock guard(d.accepting->handing); }
+        d.acceptor.detach();
+        mlibs::log::warn("the endpoint '{}' in {} was no longer reachable by its name: its listener is let go", d.options.name, utf8(d.directory));
+    }
+    d.accepting.reset();
     if (d.loopback) {
         // Its accept blocks: a connection of its own wakes it to see it is asked to stop.
         d.loopback_acceptor.request_stop();
@@ -214,7 +234,6 @@ void Endpoint::stop() {
     d.links.clear();
     d.sessions.clear();
     d.inbox.clear();
-    d.listener.close();
     std::error_code ec;
     std::filesystem::remove(d.directory / (d.options.name + std::string(descriptor_suffix)), ec);
     std::filesystem::remove(d.directory / (d.options.name + ".secret"), ec);

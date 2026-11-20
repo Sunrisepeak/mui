@@ -224,8 +224,12 @@ struct FontCollection::Impl {
         std::shared_lock g(lock);
         return id < faces.size() ? *faces[id] : none;
     }
+    // A reference this collection never made — none (0), or one another process named that was never mapped here —
+    // is the empty face's: HarfBuzz's inert font, no glyphs, nothing drawn (not a read past the end of `instances`).
     [[nodiscard]] Instance instance(FontRef font) const noexcept {
         std::shared_lock g(lock);
+        if (font.id == 0 || font.id > instances.size())
+            return {.face = std::numeric_limits<FaceId>::max(), .weight = 400, .slant = Slant::normal, .font = hb_font_get_empty()};
         return instances[font.id - 1];
     }
 

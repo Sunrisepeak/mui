@@ -212,7 +212,7 @@ cmd::App app() {
                                         .option(Option("ref").takes_value().value_name("BRANCH").help("the branch (default: the current one)"))
                                         .arg(Arg("selection").required().help("lanes and groups, -name takes one away (omui-devtools ci plan --lanes … says what they are)")))
                         .subcommand(cmd::App("test")
-                                        .description("The workspace's tests as several `mcpp test`s, one a block of members (RC0.10, while mcpp#945 stops the whole run): the blocks are checked to be the members each once; every block runs; `workspace result ok` when all pass")
+                                        .description("The workspace's tests as several `mcpp test`s, one a block of members (RC0.10: a failure's report and the disk a build takes held to a block; mcpp#945, which stopped the whole run, fixed in 2026.11.17.2): the blocks are checked to be the members each once; every block runs; `workspace result ok` when all pass")
                                         .option(Option("blocks").takes_value().value_name("N").help("how many (default: 12)"))
                                         .option(Option("exclude").takes_value().multiple().value_name("PACKAGE").help("a member left out, by its package's name or path"))
                                         .option(Option("profile").takes_value().value_name("P").help("the build profile (default: dev)"))
@@ -1126,9 +1126,9 @@ int release_index(const cmd::ParsedArgs& options, const fs::path& root) {
     for (const auto& package : made->packages) {
         const fs::path file = out / mcpplibs::os::fs::from_utf8(release::descriptor_path(package));
         fs::create_directories(file.parent_path(), error);
-        fs::copy_file(dist / (package.name + ".lua"), file, fs::copy_options::overwrite_existing, error);
+        fs::copy_file(dist / (release::descriptor_name(package.name) + ".lua"), file, fs::copy_options::overwrite_existing, error);
         if (error) {
-            std::cerr << std::format("omui-devtools release index: {}.lua from mcpp publish: {}\n", package.name, error.message());
+            std::cerr << std::format("omui-devtools release index: {}.lua from mcpp publish: {}\n", release::descriptor_name(package.name), error.message());
             return 1;
         }
     }
@@ -1299,8 +1299,7 @@ int release_try(const cmd::ParsedArgs& options, const fs::path& root) {
     fs::create_directories(work, error);
 
     // The stand-in for the index a release will be in: this machine's copy of mcpp-index, this tree's descriptors
-    // added (each as its package's own manifest: release::as_own_manifest) — a git repository the clean home reads as
-    // its default index.
+    // added as mcpp publish wrote them — a git repository the clean home reads as its default index.
     auto since = clock::now();
     const fs::path index = work / "index";
     if (base.empty() || !fs::exists(base / "pkgs", error)) return failed("index", std::format("no copy of mcpp-index at {} (--index names one)", mcpplibs::os::fs::utf8(base)));
@@ -1309,9 +1308,9 @@ int release_try(const cmd::ParsedArgs& options, const fs::path& root) {
     fs::remove_all(index / ".git", error);
     for (const auto& package : closure["packages"]) {
         const std::string relative = package.value("descriptor", "");
-        const std::string text = release::as_own_manifest(mcpplibs::os::fs::read(descriptors / relative).value_or(""));
         fs::create_directories((index / relative).parent_path(), error);
-        std::ofstream(index / relative, std::ios::binary) << text;
+        fs::copy_file(descriptors / relative, index / relative, fs::copy_options::overwrite_existing, error);
+        if (error) return failed("index", std::format("{}: {}", relative, error.message()));
     }
     const std::string index_path = mcpplibs::os::fs::utf8(index);
     for (const std::vector<std::string>& args : {std::vector<std::string>{"-C", index_path, "init", "-q"},
@@ -1343,7 +1342,7 @@ int release_try(const cmd::ParsedArgs& options, const fs::path& root) {
     std::map<std::string, std::string> versions;
     for (const auto& package : closure["packages"]) versions[package.value("path", "")] = package.value("version", "");
     for (const auto& package : closure["packages"]) {
-        const std::string text = release::as_own_manifest(mcpplibs::os::fs::read(descriptors / package.value("descriptor", "")).value_or(""));
+        const std::string text = mcpplibs::os::fs::read(descriptors / package.value("descriptor", "")).value_or("");
         const auto [namespace_, name] = release::identity_of(text);
         if (name.empty()) return failed("home", std::format("{}: its descriptor states no name", package.value("name", "")));
         const fs::path into = home / release::store_path(namespace_, name, package.value("version", ""));

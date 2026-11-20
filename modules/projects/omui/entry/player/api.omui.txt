@@ -1,5 +1,6 @@
 == omui.entry.player
 namespace omui {
   [[nodiscard]] std::expected<player::Manifest, std::string> read_manifest(const std::filesystem::path& mcpp_toml);
+  [[nodiscard]] player::TwinFn twins(const player::Manifest& manifest);
   int player_main(int argc, char** argv);
 }

@@ -250,7 +250,7 @@ void resolve_glyphs(const DisplayList& list, GlyphSource& glyphs, const Affine& 
             continue;
         }
         const auto* c = std::get_if<DrawGlyphs>(&command);
-        if (!c) continue;
+        if (!c || !c->font.id) continue;  // no font (one another process named and never described): nothing drawn
         const Affine& m = transforms.back();
         const auto b = device_bounds(command, m, nullptr);
         if (!b || std::ranges::none_of(tasks, [&](RowSpan r) { return b->bottom() > static_cast<float>(r.top) && b->y < static_cast<float>(r.bottom); }))
@@ -689,6 +689,7 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, xrender::raster::Su
                     }
                     canvas.draw_image(img->view(), c.source, c.dest, static_cast<xrender::raster::Sampling>(c.sampling), c.opacity, m());
                 } else if constexpr (std::same_as<T, DrawGlyphs>) {
+                    if (!c.font.id) return;  // no font: nothing drawn
                     if (!res.glyphs) {
                         report.missing_glyphs += c.glyphs.size();
                         return;

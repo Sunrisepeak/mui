@@ -94,6 +94,17 @@ static UTest cases{"render.blank-glyph", [] {
             }
         }
     };
+    "a run with no font (one another process named and never described) asks for no glyph and draws nothing"_test = [] {
+        Glyphs glyphs(Kind::bitmap);
+        render::DisplayList list;
+        const std::array<render::Glyph, 1> run{{{1, {0, 0}}}};
+        list.draw_glyphs({0}, 12, {12, 20}, run, render::Paint::solid(geom::Color::black()), {});
+        raster::Surface surface(64, 64);
+        render::CpuRenderer cpu;
+        (void)cpu.render(list, surface, {nullptr, &glyphs}, {.background = geom::Color::white()});
+        expect(eq(glyphs.mask_calls, 0) && eq(glyphs.outline_calls, 0)) << "its glyphs are not asked for";
+        expect(eq(surface.hash(), untouched()));
+    };
     "color image fallback still paints with no missing-glyph diagnostic under every placement"_test = [] {
         for (const auto placement : placements) {
             const auto result = draw(Kind::color, placement);

@@ -7,7 +7,7 @@
 // problem is pinned beside the element built nearest above its line. The design's history is the
 // host's: a commit, a change, a revert written back to the source and built — the history going on
 // across the builds. It runs `mcpp build` in this
-// workspace, so it runs outside `mcpp test` (built with --no-run; mcpp#915).
+// workspace, inside `mcpp test` (which lets go of the build directory before its tests run, mcpp#915).
 import std;
 import omui.agent;
 import mcpplibs.os;

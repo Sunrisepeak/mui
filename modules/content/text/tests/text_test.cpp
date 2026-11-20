@@ -51,6 +51,16 @@ UTest cases{"text", [] {
         expect(geom::inspect_path(glyphs[0].outline.view()).has_value()) << "a valid mlibs.geom path";
     };
 
+    "a reference the collection never made (none, or another process's) is the empty face's: no glyphs, no read past its fonts"_test = [] {
+        auto& f = fonts();
+        for (const text::FontRef stranger : {text::FontRef{0}, text::FontRef{1u << 20}}) {
+            expect(f.hb_font(stranger) != nullptr) << "HarfBuzz's empty font";
+            expect(f.face_of(stranger) >= f.face_count()) << "no face of its own";
+            const auto metrics = f.metrics(stranger, 16);
+            expect(std::isfinite(metrics.ascent) && std::isfinite(metrics.descent));
+        }
+    };
+
     "the default fonts load, with fallback per cluster"_test = [] {
         auto& f = fonts();
         expect(f.face_count() == 5);

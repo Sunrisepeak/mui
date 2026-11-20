@@ -45,9 +45,13 @@ static UTest cases{
                     << "the native template's own";
             };
 
-        "a descriptor's place in mcpp-index: by the full name's initial (the descriptor is mcpp publish's)"_test = [] {
+        "a descriptor's place in mcpp-index: by its name's initial, the default namespace's by their own name (the descriptor is mcpp publish's)"_test = [] {
             const release::Package package{.name = "omui.core", .path = "modules/projects/omui/core", .version = "0.1.0"};
             expect(release::descriptor_path(package) == "pkgs/o/omui.core.lua");
+            const release::Package mpal{.name = "mcpplibs.mpal", .path = "modules/mpal", .version = "0.1.0"};
+            expect(release::descriptor_path(mpal) == "pkgs/m/mpal.lua") << "as mcpp-index files mcpplibs.os: pkgs/o/os.lua";
+            expect(release::descriptor_name("mcpplibs.mtest.gtest") == "mcpplibs.mtest.gtest") << "a namespace under it keeps the full name";
+            expect(release::descriptor_name("sunrisepeak.hanim") == "sunrisepeak.hanim");
         };
 
         "a template's versions point at the checkout where they name a member, and nowhere else"_test =
@@ -84,15 +88,9 @@ static UTest cases{
             expect(missing == std::vector<std::string>{"nlohmann.json@9.9.9", "mcpplibs.os@0.4.4"});
         };
 
-        "release try's stand-in: the template package as its own manifest, a payload's place, the home's default index"_test = [] {
+        "release try's stand-in: a descriptor's identity, a payload's place, the home's default index"_test = [] {
             constexpr std::string_view published = "package = {\n    spec = \"1\",\n    namespace = \"omui\",\n    name = \"sdk\",\n"
-                                                   "    xpm = {\n        linux = {},\n    },\n\n    mcpp = {\n        schema = \"0.1\",\n"
-                                                   "        deps = {\n            [\"omui.core\"] = \"0.1.0\",\n        },\n        manifest = \"mcpp.toml\",\n    },\n}\n";
-            const std::string payload = release::as_own_manifest(published);
-            expect(payload.contains("    mcpp = \"*/mcpp.toml\",") && !payload.contains("schema") && payload.contains("xpm = {") &&
-                   payload.ends_with("}\n"))
-                << payload;
-            expect(release::as_own_manifest(payload) == payload) << "already the manifest's: kept";
+                                                   "    xpm = {\n        linux = {},\n    },\n\n    mcpp = \"*/mcpp.toml\",\n}\n";
             expect(release::identity_of(published) == std::pair<std::string, std::string>{"omui", "sdk"});
             expect(release::identity_of("package = {\n    namespace = \"omui.entry\",\n    name = \"player\",\n}") ==
                    std::pair<std::string, std::string>{"omui.entry", "player"});

@@ -108,6 +108,31 @@ UTest cases{"agent.endpoint", [] {
         expect(!std::filesystem::exists(directory / "world-loopback.secret")) << "the secret goes with the endpoint";
     };
 
+    "its directory removed while it ran: stop() still returns (red 146)"_test = [] {
+        const auto directory = scratch_dir("agent-kernel-removed");
+        int polls = 0;
+        auto endpoint = std::make_unique<agent::Endpoint>(
+            agent::EndpointOptions{.name = "world-removed", .directory = directory, .session = [&] { return std::make_unique<Echo>(polls); }});
+        auto started = endpoint->start();
+        if (unsupported(started)) return;
+        expect(fatal(started.has_value())) << (started ? "" : started.error());
+        std::filesystem::remove_all(directory);
+        // Beside the case, so that a stop that never returns fails it rather than holding the program.
+        std::promise<void> stopped;
+        auto returned = stopped.get_future();
+        std::thread([held = endpoint.get(), stopped = std::move(stopped)] mutable {
+            held->stop();
+            stopped.set_value();
+        }).detach();
+        const bool ended = returned.wait_for(std::chrono::seconds(10)) == std::future_status::ready;
+        expect(ended) << "stop() returned with its name gone";
+        if (!ended) {
+            (void)endpoint.release();  // still stopping: left to that thread
+            return;
+        }
+        expect(!endpoint->listening());
+    };
+
     "a name of its own: the application's id, else a default"_test = [] {
         agent::Endpoint named({.app = "org.example.notes"});
         expect(named.name() == "org.example.notes");

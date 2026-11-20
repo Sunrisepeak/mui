@@ -38,7 +38,10 @@ struct Closure {
 // The closure of the templates under `root` (a checkout of the repository).
 [[nodiscard]] std::expected<Closure, std::string> closure(const std::filesystem::path& root);
 
-// The descriptor's place in mcpp-index: pkgs/<initial of the full name>/<full name>.lua. The descriptor itself, the
+// The name mcpp publish and mcpp-index give a package's descriptor: its full name, but a package of mcpp's default
+// namespace (`mcpplibs`) is its own name alone (mcpp-index's pkgs/o/os.lua, pkgs/m/mtest.lua; publish's mpal.lua).
+[[nodiscard]] std::string descriptor_name(std::string_view full_name);
+// The descriptor's place in mcpp-index: pkgs/<its name's initial>/<its name>.lua. The descriptor itself, the
 // archive and its sum are `mcpp publish`'s (2026.11.17.2: a member's archive by its identity, siblings at their own
 // versions, mcpp#947).
 [[nodiscard]] std::string descriptor_path(const Package& package);
@@ -61,13 +64,6 @@ struct Closure {
                                      std::string_view checkout);
 
 // ── Trying the release here (E1): a clean home whose index is mcpp-index with this tree's descriptors ──────────
-
-// A descriptor with its build field as the package's own manifest (`mcpp = "*/mcpp.toml"`). The inline field
-// `mcpp publish` writes (2026.11.18.1) names the archive's manifest, yet mcpp reads it as a recipe: a consumer's
-// build stops at it ("synthesised manifest missing sources") and `mcpp new --template` refuses it (mcpp#960). The
-// archive is the same; a descriptor already in that form is kept. Until mcpp reads its own descriptors, release
-// try's stand-in index carries them this way.
-[[nodiscard]] std::string as_own_manifest(std::string_view descriptor);
 
 // A descriptor's `namespace` and `name` ("omui.entry", "player"), or empty when it states neither.
 [[nodiscard]] std::pair<std::string, std::string> identity_of(std::string_view descriptor);

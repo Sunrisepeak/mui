@@ -28,7 +28,7 @@ std::string owner_of(std::string_view file, std::span<const Member> all);
 std::vector<std::string> with_consumers(std::span<const std::string> chosen, std::span<const Member> all);
 
 // The members split into `count` blocks in the workspace's order, their sizes differing by at most one (RC0.10:
-// a workspace's tests run as several `mcpp test`s while mcpp#945 stops the whole run); none empty.
+// a workspace's tests run as several `mcpp test`s, a failure's report and a build's disk held to a block); none empty.
 std::vector<std::vector<std::string>> blocks(std::span<const std::string> members, std::size_t count);
 
 // Why the blocks are not the members each exactly once (one missing, one twice, one not a member), or empty.

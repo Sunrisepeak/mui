@@ -369,8 +369,15 @@ std::expected<Closure, std::string> closure(const fs::path& root) {
     return out;
 }
 
+std::string descriptor_name(std::string_view full_name) {
+    constexpr std::string_view home = "mcpplibs.";
+    const std::string_view own = full_name.substr(full_name.starts_with(home) ? home.size() : 0);
+    return std::string(full_name.starts_with(home) && !own.contains('.') ? own : full_name);
+}
+
 std::string descriptor_path(const Package& package) {
-    return std::format("pkgs/{}/{}.lua", package.name.front(), package.name);
+    const std::string name = descriptor_name(package.name);
+    return std::format("pkgs/{}/{}.lua", name.front(), name);
 }
 
 std::vector<std::string> missing_from(const fs::path& index,
@@ -490,21 +497,6 @@ std::string pointed_at(std::string_view manifest, const std::map<std::string, st
     return out;
 }
 
-
-std::string as_own_manifest(std::string_view descriptor) {
-    // The field is `    mcpp = {` … `    },` at the package table's first level (mcpp emit xpkg's layout).
-    const std::string_view opening = "\n    mcpp = {";
-    const auto start = descriptor.find(opening);
-    if (start == std::string_view::npos) return std::string(descriptor);
-    const std::string_view closing = "\n    },";
-    const auto end = descriptor.find(closing, start + opening.size());
-    if (end == std::string_view::npos) return std::string(descriptor);
-    std::string out(descriptor.substr(0, start));
-    out += "\n    -- The package's own manifest (release try: mcpp reads publish's inline field as a recipe; mcpp#960).";
-    out += "\n    mcpp = \"*/mcpp.toml\",";
-    out += descriptor.substr(end + closing.size());
-    return out;
-}
 
 std::pair<std::string, std::string> identity_of(std::string_view descriptor) {
     const auto field = [&](std::string_view key) {

@@ -117,7 +117,11 @@ static UTest cases{"cli", [] {
                verb.get("args") && eq(text(*verb.get("args"), "node"), std::string(R"("main/title")")) && eq(text(*verb.get("args"), "props"), std::string(R"({"text":"Hi"})")))
             << verb.json();
         // What the catalog needs, asked for before anything is sent; a name it has not, said so.
-        expect(request({"act", "main/dark"}).get("op") == nullptr) << "act needs its action";
+        expect(request({"transaction"}).get("op") == nullptr) << "a transaction needs its steps";
+        // Several actions in one act (C7): its steps instead of a node and an action.
+        const Value in_order = request({"act", "--steps", R"([{"node":"main/a","action":"toggle"},{"node":"main/b","action":"toggle"}])"});
+        expect(eq(text(in_order, "op"), std::string(R"("act")")) && in_order.get("steps") && in_order.get("steps")->list() && in_order.get("steps")->list()->size() == 2)
+            << in_order.json();
         expect(request({"frobnicate"}).get("op") == nullptr);
         expect(omui_cmd({"agent", "find", "nobody-listens", R"({"role":"button"})", "--dir", "/nonexistent/openmui"}).code == 1);
         expect(omui_cmd({"agent", "snapshot"}).code == 2) << "which application?";

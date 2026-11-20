@@ -1,0 +1,78 @@
+# omui.accessibility
+
+The semantic tree served to the platform's assistive technology (D-21): a
+screen reader, a magnifier or voice control reads the same tree agents and
+tests read, and asks for its actions.
+
+| Platform | Service | Through |
+|---|---|---|
+| Windows x86_64 | UI Automation | AccessKit's subclassing adapter on the window's HWND |
+| macOS arm64 | NSAccessibility | AccessKit's subclassing adapter on the NSWindow's content view |
+| Linux x86_64 | AT-SPI (D-Bus) | AccessKit's unix adapter |
+| elsewhere | none | the mapping alone; `available()` is false |
+
+This package is the mapping and the seam a service is installed at (`Service`,
+`install`, `Adapter`); the services are a package of their own, [`bridge`](bridge)
+(`omui.accessibility.bridge`), which `omui.sdk` installs before a window is
+made. A program that installs none carries no AccessKit: `available()` is
+false and `Adapter::attach` is refused, as on a platform without a service.
+The seam is a slot of `mlibs.compose` (`service_slot`,
+`omui.accessibility.service`; a preview, `lower` in the manifest): the
+refusal names the slot and the way out, and the slot contract's cases
+(`mlibs.cts:slots`) run on it in `tests/slot_test.cpp`.
+
+AccessKit's C bindings come from mcpp-index (`compat.accesskit`, imported as
+the module `mcpplibs.mwrap.accesskit`), only in `bridge/src/native/accesskit/`.
+
+- **The mapping** (`describe`) — a node becomes AccessKit's: its role by the
+  spec's own column (`roles.toml`'s `accesskit`); its name, or for static
+  text its words as its value; a slider's number and range; whether a
+  checkbox, switch or radio is on (or mixed); a heading's level; a link's
+  address; a scroll view's offsets; disabled, read-only, required, invalid,
+  busy, hidden, modal, selected, expanded; status and timer as live regions.
+  Actions keep AccessKit's names where it has them (click is the node's
+  activate, else toggle, else select); the others with no arguments
+  (dismiss, deselect…) are custom actions a screen reader lists by name.
+- **Text** — a text field (text box, search box, combo box) says its text as
+  laid out (`TextLayout`, the component's `text_layout()`): each line a run
+  (AccessKit's TextRun) with its characters' bytes, places, advances and word
+  starts, and the field's selection over them. The focused field's caret is
+  read again each frame, so a screen reader follows the cursor; it moves the
+  caret and the selection (`set_text_selection` → `set_selection`), writes the
+  text (`set_value`), and reads characters, words and lines.
+- **The mirror** (`Mirror`) — the tree as the platform was last told it:
+  `refresh` reads what changed (the nodes whose children changed too) and
+  where the focus is; the window is the root, named as the window. Node keys
+  are FNV-1a of the ids, the same from one update to the next. Each node's
+  bounds are its own, and its place in the nearest ancestor with bounds is its
+  AccessKit transform (`origin`): a node that moves is that node told, not
+  every part of it; a scroll view's children sit in its content, its offset
+  (`scrolled`) moving them back — a scroll is that one node. A node told as it
+  was is not told again. A virtualising container (a list: every item its
+  child, S-7) moves its few materialised rows instead of its content:
+  AccessKit's AT-SPI adapter compares a node's children pairwise when it is
+  told again. When a screen reader starts listening, the runtime's thread is
+  woken to tell what changed while none did (an application at rest draws no
+  frame). `core/list-scroll/reading` measures the refresh: 10,000 rows
+  scrolled, each frame's changes read; `omui-devtools check atspi` reads each
+  node's place in the window through AT-SPI.
+- **Requests** — come from the platform's threads, wait in the mirror, and are
+  performed between frames on the runtime's thread (`serve`), as the person's
+  own input: what a click would answer, an assistive device's click answers.
+  A request for an action the node does not have is refused, not guessed.
+- **The adapter** (`Adapter::attach`) — answers the system's first question
+  from the mirror and is told, after each frame, what changed.
+  `omui.host.sdl3` attaches it before the window is first shown
+  (`DesktopOptions::accessibility`, `AppSpec::accessibility`,
+  `--no-accessibility`).
+
+Tested: the mapping and the mirror on every platform; AccessKit's own reading
+of the update where it has a library; on Linux x86_64 CI, `omui-devtools check atspi`
+— an AT-SPI client over D-Bus, as Orca speaks it, reads example 03's tree
+(names, roles, states, the slider's value), presses its button and sets its
+slider; and in example 07 reads, writes and selects in the draft field
+through Text and EditableText (the caret, a selection, the word at an
+offset) and adds the note. Trace category and log category `accessibility`.
+
+Depends on `omui.core`, `omui.view`, `omui.semantic`, `openmui.hash`
+and `openmui.trace`.

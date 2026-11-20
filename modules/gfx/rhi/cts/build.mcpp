@@ -1,0 +1,7 @@
+// The suite's shaders (shaders/*.slang) become the partitions
+// mlibs.rhi.cts.api:<stem>_shaders, for the formats this build's target takes.
+import std;
+import mcpp;
+import mlibs.shader.rules;
+
+int main() { return mlibs::shader::rules::shaders({.module = "mlibs.rhi.cts.api", .ns = "mlibs::rhi::cts::shaders"}) ? 0 : 1; }

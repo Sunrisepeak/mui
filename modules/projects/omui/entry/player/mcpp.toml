@@ -1,0 +1,79 @@
+# omui.entry.player — the player's main (component-binding §10.2): what a
+# script-first application's one-line src/main.cpp calls. It reads the
+# application's [package.metadata.openmui], registers the official components
+# and the script languages (TypeScript, and JavaScript), and runs
+# the player with openmui's options; saved files reload in place.
+#
+# A package of its own rather than a feature of the umbrella: a workspace
+# builds each package once, so a feature one member enables would reach every
+# member that depends on the umbrella, without the feature's dependencies.
+[package]
+namespace   = "omui.entry"
+name        = "player"
+version     = "0.1.0"
+description = "The player's main for script-first openmui applications (entry-player)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the player program"
+kind = "entry"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
+
+[targets.openmui-entry-player]
+kind = "lib"
+
+# The program's main for a TypeScript application (D-156: it writes no C++):
+# `main = { from = "omui.entry.player/player" }` in its manifest.
+[targets.player]
+kind = "entry"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
+main = "src/entry/main.cpp"
+
+# The same main for an application whose build program derives the components it carries from its scripts'
+# imports (B7b: `main = { from = "omui.entry.player/closure" }` and omui.build's closure() in its build.mcpp, which
+# writes the registry this main calls); the components it does not name are not in the program.
+[targets.closure]
+kind = "entry"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
+main = "src/entry/closure.cpp"
+
+# The player as a program of its own (E2): the omui tool ships it, built with the
+# designer, and `omui dev` and `omui run` run a TypeScript application of the same
+# version through it (`omui-player --manifest DIR`), with nothing built.
+[targets.omui-player]
+kind = "bin"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
+main = "src/entry/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+omui.sdk           = { path = "../../sdk" }
+omui.ui.base       = { path = "../../components/base", reexport = true }  # what a derived registry names (closure, B7b)
+omui.player        = { path = "../../player" }
+omui.abi           = { path = "../../abi" }  # the specification's version a runtime says it implements (--runtime)
+omui.lang.js       = { path = "../../lang/js" }
+omui.ui.markdown   = { path = "../../components/markdown", reexport = true }  # a derived registry may name it (B7b)
+omui.native = { path = "../../native", reexport = true }  # with its modules (fuzzy, store); a derived registry may name them
+omui.theme = { path = "../../theme" }  # with its packs
+marzer.tomlplusplus = "3.4.0"
+mcpplibs.os = "0.4.4"
+mcpplibs.cmdline = "0.0.3"
+
+# Live Design's designer (D-149): linked by `omui dev`
+# (`mcpp run --features omui.entry.player/design -- --dev`), left out of a
+# release. It says it is there as the program starts; nothing here names it.
+[features]
+default = []
+design  = { sources = [] }
+
+[feature-deps.design]
+omui.designer = { path = "../../designer" }
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): what a player says it is as a runtime
+# (`--runtime`, runtime@1, E3b), which a launcher reads; only the player writes it (no define module).
+[package.metadata.openmui.xdef]
+kinds = { runtime = 1 }

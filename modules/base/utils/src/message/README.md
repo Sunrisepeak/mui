@@ -1,0 +1,5 @@
+# mlibs.message
+
+A message's words with values in them, without a locale: `format("{} normals for {} positions", normals, count)`. Each `{}` takes the next value in order, and `{{` and `}}` write the braces themselves. The pattern is checked as it is compiled, as `std::format_string` is: the `{}` count must match the values, and a specification (`{:x}`, `{0}`) is refused. Numbers come out as `std::to_chars` writes them (an integer in decimal, a real as the shortest text that reads back the same), which is what `std::format`'s `{}` writes too. It takes numbers, truth, characters and text.
+
+Why not `std::format`: on the Web, a program's first `std::format` or `std::println` brings in `std::locale` and every facet of the standard library, for the `L` option no message asks for. Measured on `tests/size/yard` (2026-11-16): taking the page's lines and `mlibs.rhi`'s and `mlibs.geom`'s messages off `std::format` took the page from 726,071 B to 358,273 B of Wasm (`std` 166,288 → 12,109 B of code; the locale's tables out of the data). Libraries a page links say their errors with this. A program that already pays for `std::format` loses nothing by it.

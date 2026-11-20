@@ -1,0 +1,51 @@
+# mlibs.text — fonts, shaping, bidi, line breaking, paragraphs, glyphs as
+# geometry (outlines, colour layers) and the editing model, over HarfBuzz and
+# SheenBidi as C++ modules (mcpp-index's mwrap) and mlibs.unicode. It knows no
+# renderer: xrender.text rasterises and draws its glyphs (plan §5.3).
+[package]
+namespace   = "mlibs"
+name        = "text"
+version     = "0.1.0"
+description = "Text engine: font fallback, HarfBuzz shaping, bidi, UAX #14 line breaking, paragraphs, carets, glyph outlines, editing"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: text editing and its model for every input"
+kind = "runtime"
+
+[targets.mlibs-text]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# The default UI font goes with a packed application: `fonts/` beside the
+# program (default_directory's second place), and an APK's assets/fonts, which
+# the Android host unpacks into the application's own directory — with its
+# licence. Every other default font is a pack of its own (fonts/<pack>,
+# D-214): an application carries the scripts it depends on.
+[runtime]
+deploy = [
+    { from = "fonts/Inter.ttf", to = "fonts" },
+    { from = "fonts/OFL-inter.txt", to = "licenses/fonts" },
+]
+
+[dependencies]
+mlibs.geom    = { path = "../../base/geom" }
+mlibs.unicode = { path = "../../base/unicode" }
+mcpplibs.os     = "0.4.4"
+mcpplibs.mwrap.harfbuzz = "14.3.0"
+# HarfBuzz without its FreeType backend (mcpp-index#860): shaping reads its fonts through HarfBuzz's own `ot`
+# functions, and with FreeType built in, every program that makes a font would link all of FreeType (red 149).
+compat.harfbuzz = { version = "14.3.0", features = ["no-freetype"] }
+mcpplibs.mwrap.sheenbidi = "3.0.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.utils = { path = "../../base/utils" }
+mlibs.image   = { path = "../../base/image" }
+mlibs.text.fonts = { path = "fonts" }  # the fixed set the tests draw with (D-214)
+

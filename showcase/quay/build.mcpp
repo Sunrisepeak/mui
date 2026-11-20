@@ -1,0 +1,8 @@
+// What the harbour sounds like is carried in the program (omui.build.embed): sounds/quay.sound.xdef.ts.
+import std;
+import mcpp;
+import omui.build.embed;
+
+int main() {
+    return omui::build::embed({.module = "omui.showcase.quay.sound", .ns = "quay::files", .dir = "sounds", .suffix = ".sound.xdef.ts", .tag = "sound"}) ? 0 : 1;
+}

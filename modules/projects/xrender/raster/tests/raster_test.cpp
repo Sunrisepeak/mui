@@ -1,0 +1,397 @@
+// The rasterizer's coverage is exact where geometry is exact, compositing is
+// exact 8-bit arithmetic, and a scene's bytes are pinned for every platform.
+import std;
+import mlibs.geom;
+import xrender.raster;
+import mlibs.math;
+import mcpplibs.mtest;
+
+using namespace mcpplibs::mtest;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
+
+namespace {
+
+raster::Coverage fill(const raster::PathBuilder& pb, raster::FillRule rule = raster::FillRule::nonzero,
+                      mlibs::geom::PixelRect clip = {0, 0, 64, 64}) {
+    raster::Coverage c;
+    raster::fill_coverage(pb.data(), {}, rule, clip, c);
+    return c;
+}
+
+std::uint64_t total(const raster::Coverage& c) {
+    std::uint64_t t = 0;
+    for (auto v : c.values) t += v;
+    return t;
+}
+
+int at(const raster::Coverage& c, int x, int y) {
+    if (x < c.bounds.x || y < c.bounds.y || x >= c.bounds.x + c.bounds.width || y >= c.bounds.y + c.bounds.height) return 0;
+    return c.at(x, y);
+}
+
+}  // namespace
+
+UTest cases{"raster", [] {
+
+    "a run composited on the widest path is the scalar reference's bytes: every channel against every alpha, and runs of every length"_test = [] {
+        // Every destination byte against every source alpha (the channel's own value at most the alpha: premultiplied).
+        std::vector<raster::Rgba8> wide, reference;
+        for (int alpha = 0; alpha < 255; ++alpha) {
+            const raster::Rgba8 source{static_cast<std::uint8_t>(alpha / 3), static_cast<std::uint8_t>(alpha / 2), static_cast<std::uint8_t>(alpha),
+                                       static_cast<std::uint8_t>(alpha)};
+            wide.clear();
+            for (int value = 0; value < 256; ++value)
+                wide.push_back({static_cast<std::uint8_t>(value), static_cast<std::uint8_t>(255 - value), static_cast<std::uint8_t>(value / 2),
+                                static_cast<std::uint8_t>(value)});
+            reference = wide;
+            raster::over_run(wide.data(), static_cast<std::int32_t>(wide.size()), source);
+            raster::over_run_reference(reference.data(), static_cast<std::int32_t>(reference.size()), source);
+            if (wide != reference) {
+                expect(false) << std::format("alpha {} on the {} path", alpha, raster::blend_path());
+                break;
+            }
+        }
+        // Runs of every length from 0 to 40 (the wide loop's body and its tail), on random pixels.
+        std::mt19937 random(7);
+        for (std::int32_t length = 0; length <= 40; ++length) {
+            std::vector<raster::Rgba8> row(static_cast<std::size_t>(length) + 2);
+            for (auto& pixel : row) pixel = {static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()),
+                                             static_cast<std::uint8_t>(random())};
+            auto expected_row = row;
+            const raster::Rgba8 source{40, 20, 90, 120};
+            raster::over_run(row.data() + 1, length, source);
+            raster::over_run_reference(expected_row.data() + 1, length, source);
+            expect(row == expected_row) << std::format("a run of {} on the {} path", length, raster::blend_path());
+        }
+        // Varying coverage: every coverage against a few colours, on random pixels, runs of every length to 40.
+        for (const raster::Rgba8 source : {raster::Rgba8{200, 10, 90, 255}, raster::Rgba8{40, 20, 90, 120}, raster::Rgba8{0, 0, 0, 1}, raster::Rgba8{3, 2, 1, 4}}) {
+            std::vector<std::uint8_t> coverage(256);
+            for (int value = 0; value < 256; ++value) coverage[static_cast<std::size_t>(value)] = static_cast<std::uint8_t>(value);
+            std::vector<raster::Rgba8> row(256);
+            for (auto& pixel : row) pixel = {static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()),
+                                             static_cast<std::uint8_t>(random())};
+            auto expected_row = row;
+            raster::over_coverage(row.data(), 256, source, coverage.data());
+            raster::over_coverage_reference(expected_row.data(), 256, source, coverage.data());
+            expect(row == expected_row) << std::format("coverage 0…255 of ({}, {}, {}, {})", source.r, source.g, source.b, source.a);
+            for (std::int32_t length = 0; length <= 40; ++length) {
+                std::vector<raster::Rgba8> run(static_cast<std::size_t>(length));
+                std::vector<std::uint8_t> covered(static_cast<std::size_t>(length));
+                for (auto& pixel : run) pixel = {static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()),
+                                                 static_cast<std::uint8_t>(random())};
+                for (auto& value : covered) value = static_cast<std::uint8_t>(random());
+                auto expected_run = run;
+                raster::over_coverage(run.data(), length, source, covered.data());
+                raster::over_coverage_reference(expected_run.data(), length, source, covered.data());
+                expect(run == expected_run) << std::format("coverage, a run of {}", length);
+            }
+        }
+        std::println("blend path here: {}", raster::blend_path());
+    };
+
+    "an integer square covers exactly its pixels"_test = [] {
+        raster::PathBuilder pb;
+        pb.rect({4, 4, 10, 10});
+        auto c = fill(pb);
+        expect(eq(at(c, 4, 4), 255));
+        expect(eq(at(c, 13, 13), 255));
+        expect(eq(at(c, 14, 13), 0));
+        expect(eq(at(c, 3, 8), 0));
+        expect(eq(total(c), std::uint64_t{100 * 255}));
+    };
+
+    "half-pixel edges are half covered"_test = [] {
+        raster::PathBuilder pb;
+        pb.rect({4.5f, 4, 10, 10});
+        auto c = fill(pb);
+        expect(eq(at(c, 4, 8), 128));
+        expect(eq(at(c, 14, 8), 128));
+        expect(eq(at(c, 9, 8), 255));
+    };
+
+    "orientation does not matter; the fill rule does"_test = [] {
+        raster::PathBuilder cw, ccw;
+        cw.move_to({2, 2}).line_to({30, 5}).line_to({10, 28}).close();
+        ccw.move_to({2, 2}).line_to({10, 28}).line_to({30, 5}).close();
+        expect(fill(cw).values == fill(ccw).values);
+        raster::PathBuilder rings;
+        rings.rect({0, 0, 20, 20}).rect({5, 5, 10, 10});  // same direction
+        auto nz = fill(rings, raster::FillRule::nonzero);
+        auto eo = fill(rings, raster::FillRule::even_odd);
+        expect(eq(at(nz, 10, 10), 255));
+        expect(eq(at(eo, 10, 10), 0));
+        expect(eq(at(eo, 2, 2), 255));
+    };
+
+    "a circle's coverage is its area"_test = [] {
+        raster::PathBuilder pb;
+        float r = 20, k = 0.5522847498307936f * r, cx = 32, cy = 32;
+        pb.move_to({cx + r, cy})
+            .cubic_to({cx + r, cy + k}, {cx + k, cy + r}, {cx, cy + r})
+            .cubic_to({cx - k, cy + r}, {cx - r, cy + k}, {cx - r, cy})
+            .cubic_to({cx - r, cy - k}, {cx - k, cy - r}, {cx, cy - r})
+            .cubic_to({cx + k, cy - r}, {cx + r, cy - k}, {cx + r, cy})
+            .close();
+        double area = static_cast<double>(total(fill(pb))) / 255.0;
+        expect(near(area, 3.14159265 * r * r, 3.14159265 * r * r * 0.002));
+    };
+
+    "a shape crossing the clip keeps its winding"_test = [] {
+        raster::PathBuilder pb;
+        pb.rect({-50, 10, 80, 10});
+        auto c = fill(pb, raster::FillRule::nonzero, {0, 0, 64, 64});
+        expect(eq(at(c, 0, 15), 255));
+        expect(eq(at(c, 29, 15), 255));
+        expect(eq(at(c, 30, 15), 0));
+        expect(eq(c.bounds.x, 0));
+        // A fractional edge left of the clip still covers the first column whole.
+        raster::PathBuilder off_left;
+        off_left.rect({-10.5f, 10, 13, 10});
+        auto cut = fill(off_left, raster::FillRule::nonzero, {0, 0, 64, 64});
+        expect(eq(at(cut, 0, 15), 255));
+        expect(eq(at(cut, 2, 15), 128));
+    };
+
+    "a slanted edge running out of the clip, either side, is the same edge inside it"_test = [] {
+        raster::PathBuilder pb;  // a long thin triangle across the clip's both sides
+        pb.move_to({-40, 50}).line_to({110, 10}).line_to({100, 40}).close();
+        const auto whole = fill(pb, raster::FillRule::nonzero, {-64, 0, 256, 64});
+        const auto cut = fill(pb, raster::FillRule::nonzero, {0, 0, 64, 64});
+        int differ = 0;
+        for (int y = 0; y < 64; ++y)
+            for (int x = 0; x < 64; ++x) differ += std::abs(at(whole, x, y) - at(cut, x, y)) > 1;
+        expect(eq(differ, 0));
+    };
+
+    "source-over is exact"_test = [] {
+        raster::Surface surf(4, 4);
+        surf.clear({0, 0, 255, 255});
+        raster::Canvas canvas(surf);
+        canvas.fill_rect({0, 0, 4, 4}, raster::Paint::solid({1, 0, 0, 0.5f}));
+        // red 50% over blue: r = 128, b = 255·(1 − 128/255) rounded
+        auto p = surf.at(1, 1);
+        expect(eq(int(p.r), 128));
+        expect(eq(int(p.g), 0));
+        expect(eq(int(p.b), 127));
+        expect(eq(int(p.a), 255));
+    };
+
+    "gradients"_test = [] {
+        raster::Surface surf(256, 1);
+        raster::Canvas canvas(surf);
+        std::array<raster::Stop, 2> stops{{{0, mlibs::geom::Color::black()}, {1, mlibs::geom::Color::white()}}};
+        raster::Paint p;
+        p.kind = raster::Paint::Kind::gradient;
+        p.start = {0, 0};
+        p.end = {256, 0};
+        p.stops = stops;
+        canvas.fill_rect({0, 0, 256, 1}, p);
+        expect(eq(int(surf.at(0, 0).r), 0));
+        expect(eq(int(surf.at(128, 0).r), 128));
+        expect(eq(int(surf.at(255, 0).r), 255));  // sampled at the pixel centre, 255.5 / 256
+        for (int x = 1; x < 256; ++x) expect(surf.at(x, 0).r >= surf.at(x - 1, 0).r);
+        p.spread = raster::Spread::reflect;
+        p.end = {64, 0};
+        surf.clear();
+        canvas.fill_rect({0, 0, 256, 1}, p);
+        expect(eq(int(surf.at(32, 0).r), int(surf.at(95, 0).r)));  // centres 32.5 and 95.5 mirror around 64
+    };
+
+    "strokes: width, caps, joins without seams"_test = [] {
+        raster::PathBuilder line;
+        line.move_to({10, 10}).line_to({30, 10});
+        raster::Polygons polys;
+        raster::stroke_outline(line.data(), {}, {.width = 2, .cap = raster::Cap::butt}, polys);
+        raster::Coverage c;
+        raster::Rasterizer r;
+        r.rasterize(polys, raster::FillRule::nonzero, {0, 0, 64, 64}, c);
+        expect(eq(at(c, 15, 9), 255));
+        expect(eq(at(c, 15, 10), 255));
+        expect(eq(at(c, 15, 11), 0));
+        expect(eq(at(c, 9, 10), 0));
+        polys.clear();
+        raster::stroke_outline(line.data(), {}, {.width = 2, .cap = raster::Cap::square}, polys);
+        r.rasterize(polys, raster::FillRule::nonzero, {0, 0, 64, 64}, c);
+        expect(eq(at(c, 9, 10), 255));
+        expect(eq(total(c), std::uint64_t{22 * 2 * 255}));
+        // A closed square: the outline's coverage equals ring area exactly.
+        raster::PathBuilder sq;
+        sq.rect({10, 10, 20, 20});
+        polys.clear();
+        raster::stroke_outline(sq.data(), {}, {.width = 2, .join = raster::Join::miter}, polys);
+        r.rasterize(polys, raster::FillRule::nonzero, {0, 0, 64, 64}, c);
+        expect(eq(total(c), std::uint64_t{(22 * 22 - 18 * 18) * 255}));
+        // A path turning back on itself: the round join is the half disc
+        // beyond the turn, on whichever side the offsets meet.
+        raster::PathBuilder back;
+        back.move_to({10, 10}).line_to({30, 10}).line_to({20, 10});
+        polys.clear();
+        raster::stroke_outline(back.data(), {}, {.width = 4, .cap = raster::Cap::butt, .join = raster::Join::round}, polys);
+        r.rasterize(polys, raster::FillRule::nonzero, {0, 0, 64, 64}, c);
+        expect(eq(at(c, 30, 9), 255));
+        expect(eq(at(c, 30, 10), 255));
+        expect(eq(at(c, 32, 10), 0));
+        // One outline a contour: a long curve is a loop, not a piece a segment.
+        raster::PathBuilder curve;
+        curve.move_to({4, 40}).cubic_to({20, 0}, {44, 80}, {60, 40});
+        polys.clear();
+        raster::stroke_outline(curve.data(), {}, {.width = 6, .cap = raster::Cap::round, .join = raster::Join::round}, polys);
+        expect(eq(polys.count(), std::size_t{1}));
+        // Dashes: on 4, off 4 along 20 points: three dashes.
+        raster::PathBuilder dl;
+        dl.move_to({0, 5}).line_to({20, 5});
+        std::array<float, 2> dash{4, 4};
+        polys.clear();
+        raster::stroke_outline(dl.data(), {}, {.width = 2, .dashes = dash}, polys);
+        r.rasterize(polys, raster::FillRule::nonzero, {0, 0, 64, 64}, c);
+        expect(eq(total(c), std::uint64_t{12 * 2 * 255}));
+    };
+
+    "clips"_test = [] {
+        raster::Surface surf(20, 20);
+        raster::Canvas canvas(surf);
+        canvas.push_clip_rect({5, 5, 10, 10});
+        canvas.push_clip_rect({0, 0, 8, 20});
+        canvas.fill_rect({0, 0, 20, 20}, raster::Paint::solid(mlibs::geom::Color::white()));
+        canvas.pop_clip();
+        canvas.pop_clip();
+        expect(eq(int(surf.at(6, 6).a), 255));
+        expect(eq(int(surf.at(8, 6).a), 0));
+        expect(eq(int(surf.at(4, 6).a), 0));
+        surf.clear();
+        canvas.push_clip_rect({5.5f, 0, 10, 20});
+        canvas.fill_rect({0, 0, 20, 20}, raster::Paint::solid(mlibs::geom::Color::white()));
+        canvas.pop_clip();
+        expect(eq(int(surf.at(5, 3).a), 128));
+        expect(canvas.depth() == 1);
+    };
+
+    "layers: opacity and blend modes"_test = [] {
+        raster::Surface surf(2, 2);
+        surf.clear({255, 255, 255, 255});
+        raster::Canvas canvas(surf);
+        canvas.push_layer(0.5f);
+        canvas.fill_rect({0, 0, 2, 2}, raster::Paint::solid({1, 0, 0, 1}));
+        canvas.fill_rect({0, 0, 1, 2}, raster::Paint::solid({0, 0, 1, 1}));
+        canvas.pop_layer();
+        expect(surf.at(1, 0) == raster::Rgba8{255, 127, 127, 255});
+        expect(surf.at(0, 0) == raster::Rgba8{127, 127, 255, 255});
+        surf.clear({128, 128, 128, 255});
+        canvas.push_layer(1, raster::Blend::multiply);
+        canvas.fill_rect({0, 0, 2, 2}, raster::Paint::solid({0.5f, 1, 0, 1}));
+        canvas.pop_layer();
+        auto p = surf.at(0, 0);
+        expect(eq(int(p.r), 64));
+        expect(eq(int(p.g), 128));
+        expect(eq(int(p.b), 0));
+    };
+
+    "box shadows"_test = [] {
+        raster::Surface surf(80, 80);
+        raster::Canvas canvas(surf);
+        canvas.box_shadow({20, 20, 40, 40}, mlibs::geom::CornerRadii::all(6), {0, 0}, 12, 0, mlibs::geom::Color::black(), false);
+        expect(eq(int(surf.at(40, 40).a), 0));   // inside the box: not drawn
+        int left = surf.at(15, 40).a, right = surf.at(64, 40).a;
+        expect(eq(left, right));
+        expect(left > 20 && left < 200) << std::format("edge alpha {}", left);
+        expect(surf.at(2, 40).a < surf.at(15, 40).a);
+        surf.clear();
+        canvas.box_shadow({20, 20, 40, 40}, {}, {0, 0}, 8, 0, mlibs::geom::Color::black(), true);
+        expect(surf.at(21, 40).a > surf.at(30, 40).a);
+        expect(eq(int(surf.at(10, 40).a), 0));
+    };
+
+    "images and object ids"_test = [] {
+        std::array<raster::Rgba8, 4> pixels{{{255, 0, 0, 255}, {0, 255, 0, 255}, {0, 0, 255, 255}, {255, 255, 255, 255}}};
+        raster::ImageView img{pixels.data(), 2, 2, 2};
+        raster::Surface surf(4, 4);
+        raster::Canvas canvas(surf);
+        canvas.enable_object_ids();
+        canvas.set_object_id(7);
+        canvas.draw_image(img, {0, 0, 2, 2}, {0, 0, 4, 4}, raster::Sampling::nearest, 1);
+        expect(surf.at(0, 0) == pixels[0]);
+        expect(surf.at(3, 0) == pixels[1]);
+        expect(surf.at(0, 3) == pixels[2]);
+        expect(surf.at(3, 3) == pixels[3]);
+        expect(eq(canvas.object_ids()[5], std::uint32_t{7}));
+    };
+
+    "an image as a mask; a lit image: shading by a normal turned with the paint, the light in device space"_test = [] {
+        // A mask: the image's alpha as coverage of the colour.
+        std::array<raster::Rgba8, 2> alphas{{{0, 0, 0, 255}, {10, 20, 30, 128}}};
+        raster::Surface surf(2, 1);
+        raster::Canvas canvas(surf);
+        raster::Paint mask;
+        mask.kind = raster::Paint::Kind::image_mask;
+        mask.image = {alphas.data(), 2, 1, 2};
+        mask.sampling = raster::Sampling::nearest;
+        mask.color = mlibs::geom::Color{1, 0.5f, 0, 1};
+        canvas.fill_rect({0, 0, 2, 1}, mask);
+        expect(surf.at(0, 0) == raster::Rgba8{255, 128, 0, 255});
+        expect(surf.at(1, 0) == raster::Rgba8{128, 64, 0, 128});
+        // The orthogonal part of a map: a rotation, a mirror, a scale ignored.
+        const auto turn = raster::orthogonal_part(mlibs::geom::Affine::rotation(0, 1) * mlibs::geom::Affine::scale(3, 3));
+        expect(turn == std::array<float, 4>{0, -1, 1, 0});
+        const auto flip = raster::orthogonal_part(mlibs::geom::Affine::scale(-2, 1));
+        expect(flip == std::array<float, 4>{-1, 0, 0, 1});
+        // Lighting one colour: light from the right, two hard bands, a full-strength shadow of black.
+        raster::Material m{.light_x = 1, .light_y = 0, .light_z = 0, .shadow = mlibs::geom::Color{0, 0, 0, 1}, .shadow_strength = 1, .bands = 2,
+                           .softness = 0, .rim_strength = 0};
+        const raster::Rgba8 c{200, 100, 50, 255};
+        const raster::Rgba8 right{255, 128, 128, 255}, left{1, 128, 128, 255}, out{128, 128, 255, 255};  // normals: +x, −x, out of the picture
+        const auto setup = raster::material_setup(m, {});
+        expect(raster::Shader::lit(c, right, setup) == c) << "facing the light: the colour";
+        expect(raster::Shader::lit(c, left, setup) == raster::Rgba8{0, 0, 0, 255}) << "facing away: the shadow";
+        expect(raster::Shader::lit(c, out, setup) == raster::Rgba8{0, 0, 0, 255}) << "facing the viewer, the light from the side: unlit";
+        // Mirrored, the normal's x flips: the part facing right in the picture faces left on screen.
+        const auto mirrored = raster::material_setup(m, mlibs::geom::Affine::scale(-1, 1));
+        expect(raster::Shader::lit(c, right, mirrored) == raster::Rgba8{0, 0, 0, 255});
+        expect(raster::Shader::lit(c, left, mirrored) == c);
+        // A rim where the normal grazes toward the light adds its colour, never past the alpha.
+        m.rim = mlibs::geom::Color{1, 1, 1, 1};
+        m.rim_strength = 1;
+        m.rim_width = 0.5f;
+        const auto rimmed = raster::material_setup(m, {});
+        expect(raster::Shader::lit(c, right, rimmed) == raster::Rgba8{255, 255, 255, 255});
+        expect(raster::Shader::lit({100, 50, 25, 128}, right, rimmed) == raster::Rgba8{128, 128, 128, 128}) << "premultiplied: no channel past the alpha";
+        expect(raster::Shader::lit({0, 0, 0, 0}, right, rimmed) == raster::Rgba8{}) << "clear stays clear";
+    };
+
+    "pinned scene"_test = [] {
+        raster::Surface surf(256, 256);
+        surf.clear({250, 250, 252, 255});
+        raster::Canvas canvas(surf);
+        canvas.box_shadow({40, 40, 176, 120}, mlibs::geom::CornerRadii::all(16), {0, 6}, 24, 2, {0, 0, 0, 0.3f}, false);
+        canvas.fill_round_rect({40, 40, 176, 120}, mlibs::geom::CornerRadii::all(16), raster::Paint::solid(mlibs::geom::Color::white()));
+        std::array<raster::Stop, 3> stops{{{0, mlibs::geom::Color::hex(0x4f46e5)}, {0.5f, mlibs::geom::Color::hex(0x06b6d4)}, {1, mlibs::geom::Color::hex(0x22c55e)}}};
+        raster::Paint g;
+        g.kind = raster::Paint::Kind::gradient;
+        g.gradient = raster::GradientKind::radial;
+        g.start = {128, 100};
+        g.radius = 60;
+        g.stops = stops;
+        canvas.push_clip_round_rect({56, 56, 144, 88}, mlibs::geom::CornerRadii::all(10));
+        canvas.fill_rect({0, 0, 256, 256}, g);
+        canvas.pop_clip();
+        raster::PathBuilder wave;
+        wave.move_to({48, 200}).cubic_to({90, 160}, {150, 240}, {208, 196});
+        canvas.stroke_path(wave.data(), {.width = 6, .cap = raster::Cap::round, .join = raster::Join::round},
+                           raster::Paint::solid(mlibs::geom::Color::hex(0xf97316)));
+        raster::PathBuilder star;
+        for (int i = 0; i < 10; ++i) {
+            double a = i * 3.14159265358979 / 5 - 3.14159265358979 / 2;
+            float rad = i % 2 ? 8.0f : 20.0f;
+            mlibs::geom::Point p{static_cast<float>(220 + rad * mlibs::math::det::cos(a)), static_cast<float>(36 + rad * mlibs::math::det::sin(a))};
+            if (i == 0) star.move_to(p);
+            else star.line_to(p);
+        }
+        star.close();
+        canvas.push_layer(0.8f, raster::Blend::multiply);
+        canvas.fill_path(star.data(), raster::FillRule::even_odd, raster::Paint::solid(mlibs::geom::Color::hex(0xeab308)),
+                         mlibs::geom::Affine::translate(-4, 2));
+        canvas.pop_layer();
+        std::println("    scene {:016x}", surf.hash());
+        expect(eq(std::format("{:016x}", surf.hash()), std::string("ada91a0b498e3390")));
+    };
+}};

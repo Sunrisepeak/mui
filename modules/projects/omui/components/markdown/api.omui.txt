@@ -1,0 +1,30 @@
+== omui.ui.markdown
+export import omui.core;
+export import omui.view;
+export import mlibs.markdown;
+export import :markdown_contract;
+export import :document;
+== omui.ui.markdown:document
+namespace omui {
+  class Markdown : public MarkdownContract<Markdown> {
+    Markdown();
+    ~Markdown();
+    void mounted();
+    void prop_changed(MarkdownProp p);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void restyle();
+    std::vector<Element> compose();
+    void laid_out();
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult append(ActContext& ctx, const Value& chunk);
+    ActResult scroll_to_anchor(ActContext& ctx, const Value& anchor);
+    ActResult open_link(ActContext& ctx, const Value& href);
+    ActResult toggle_task(ActContext& ctx, const Value& index);
+    ActResult copy(ActContext& ctx);
+    ActResult find(ActContext& ctx, const Value& query);
+    [[nodiscard]] const mlibs::markdown::Document& document() const noexcept;
+    [[nodiscard]] std::string_view source() const noexcept;
+    [[nodiscard]] std::size_t last_parsed() const noexcept;
+  };
+  void register_markdown_component();
+}

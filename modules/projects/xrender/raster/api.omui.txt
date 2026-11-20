@@ -1,0 +1,245 @@
+== xrender.raster
+export import xrender.raster.api;
+== xrender.raster.api
+export import :surface;
+export import :rasterizer;
+export import :paint;
+export import :stroke;
+export import :blend;
+export import :canvas;
+== xrender.raster.api:blend
+namespace xrender::raster {
+  [[nodiscard, gnu::always_inline]] inline Rgba8 over_scalar(Rgba8 d, Rgba8 s) noexcept;
+  [[nodiscard, gnu::always_inline]] inline Rgba8 scaled_scalar(Rgba8 s, std::uint32_t k) noexcept;
+  void over_run(Rgba8* out, std::int32_t count, Rgba8 source) noexcept;
+  void over_coverage(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
+  void over_coverage_reference(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
+  [[nodiscard]] std::string_view blend_path() noexcept;
+  void over_run_reference(Rgba8* out, std::int32_t count, Rgba8 source) noexcept;
+}
+== xrender.raster.api:canvas
+namespace xrender::raster {
+  using mlibs::geom::CornerRadii;
+  enum class Blend : std::uint8_t { normal, multiply, screen, overlay, darken, lighten, color_dodge, color_burn, hard_light, soft_light, difference, exclusion, plus, erase, };
+  class Canvas {
+    explicit Canvas(Surface& target);
+    Canvas(const Canvas&) = delete;
+    Canvas& operator=(const Canvas&) = delete;
+    void reset(Surface& target);
+    void restrict_rows(std::int32_t top, std::int32_t bottom);
+    void fill_path(PathData path, FillRule rule, const Paint& paint, const Affine& m = {…});
+    void stroke_path(PathData path, const Stroke& stroke, const Paint& paint, const Affine& m = {…});
+    void fill_rect(const Rect& r, const Paint& paint, const Affine& m = {…});
+    void fill_round_rect(const Rect& r, const CornerRadii& radii, const Paint& paint, const Affine& m = {…});
+    void fill_coverage(const Coverage& coverage, const Paint& paint, int dx = 0, int dy = 0);
+    void draw_image(const ImageView& image, const Rect& source, const Rect& dest, Sampling sampling, float opacity, const Affine& m = {…});
+    void box_shadow(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, Color color, bool inset, const Affine& m = {…});
+    void push_clip_rect(const Rect& r, const Affine& m = {…});
+    void push_clip_round_rect(const Rect& r, const CornerRadii& radii, const Affine& m = {…});
+    void push_clip_path(PathData path, FillRule rule, const Affine& m = {…});
+    void pop_clip();
+    void push_layer(float opacity, Blend blend = Blend::normal);
+    void pop_layer();
+    void set_object_id(std::uint32_t id) noexcept;
+    void enable_object_ids();
+    void use_object_ids(std::span<std::uint32_t> ids) noexcept;
+    void clear_object_ids(std::int32_t top, std::int32_t bottom) noexcept;
+    [[nodiscard]] inline std::span<const std::uint32_t> object_ids() const noexcept;
+    [[nodiscard]] inline PixelRect bounds() const noexcept;
+    [[nodiscard]] inline std::size_t depth() const noexcept;
+  };
+  void blur(Coverage& coverage, float sigma);
+  void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii);
+  void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, bool inset, const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons, Rasterizer& rasterizer);
+}
+== xrender.raster.api:paint
+namespace xrender::raster {
+  struct Stop {
+    float offset = 0;
+    Color color;
+  };
+  enum class GradientKind : std::uint8_t { linear, radial, conic };
+  enum class Spread : std::uint8_t { pad, repeat, reflect };
+  enum class Sampling : std::uint8_t { nearest, linear };
+  struct Material {
+    ImageView normal;
+    float light_x = -0.6f, light_y = -0.6f, light_z = 0.5f;
+    Color shadow{…};
+    float shadow_strength = 0.6f;
+    int bands = 2;
+    float softness = 0.08f;
+    Color rim{…};
+    float rim_strength = 0.6f;
+    float rim_width = 0.35f;
+    Color key{…};
+  };
+  struct MaterialSetup {
+    float lx = 0, ly = 0, lz = 1;
+    float fx = 0, fy = 0;
+    float r00 = 1, r01 = 0, r10 = 0, r11 = 1;
+    float shadow_r = 1, shadow_g = 1, shadow_b = 1, shadow_strength = 0;
+    float rim_r = 0, rim_g = 0, rim_b = 0, rim_strength = 0;
+    float rim_width = 0;
+    float inv_softness = 0;
+    int bands = 0;
+    float inv_levels = 0, inv_steps = 0;
+    float key_r = 1, key_g = 1, key_b = 1;
+  };
+  [[nodiscard]] MaterialSetup material_setup(const Material& m, const Affine& transform) noexcept;
+  [[nodiscard]] std::array<float, 4> orthogonal_part(const Affine& m) noexcept;
+  struct WeightedPaint;
+  inline constexpr std::size_t max_paint_mix_terms = 16;
+  struct Paint {
+    enum class Kind : std::uint8_t { solid, gradient, image, image_mask, mix };
+    Kind kind = Kind::solid;
+    Color color;
+    GradientKind gradient = GradientKind::linear;
+    Point start, end;
+    float radius = 0;
+    Spread spread = Spread::pad;
+    std::span<const Stop> stops;
+    ImageView image;
+    Sampling sampling = Sampling::linear;
+    const Material* material = nullptr;
+    Affine transform;
+    float opacity = 1;
+    mlibs::memory::View<const WeightedPaint> mix;
+    [[nodiscard]] static Paint solid(Color c) noexcept;
+  };
+  struct WeightedPaint {
+    Paint paint;
+    float weight = 0;
+  };
+  class Shader {
+    explicit Shader(const Paint& paint);
+    [[nodiscard]] inline bool opaque_solid() const noexcept;
+    [[nodiscard]] inline bool solid() const noexcept;
+    [[nodiscard]] inline Rgba8 solid_color() const noexcept;
+    [[nodiscard]] inline bool opaque() const noexcept;
+    void shade(int x, int y, int count, Rgba8* out) const;
+    [[nodiscard]] inline std::span<const Rgba8, 256> table() const noexcept;
+    [[nodiscard]] inline std::span<const std::uint8_t, 256> hard() const noexcept;
+    [[nodiscard]] Rgba8 ramp_colour(float t) const noexcept;
+    [[nodiscard]] static Rgba8 lit(Rgba8 color, Rgba8 normal, const MaterialSetup& m) noexcept;
+  };
+  class MixShader {
+    [[nodiscard]] bool reset(const Paint& paint);
+    [[nodiscard]] inline bool solid() const noexcept;
+    [[nodiscard]] inline Rgba8 solid_color() const noexcept;
+    [[nodiscard]] inline bool opaque() const noexcept;
+    void shade(int x, int y, int count, Rgba8* output) const;
+  };
+}
+== xrender.raster.api:rasterizer
+namespace xrender::raster {
+  using Verb = mlibs::geom::PathVerb;
+  using FillRule = mlibs::geom::FillRule;
+  using PathData = mlibs::geom::PathView;
+  class PathBuilder {
+    PathBuilder& move_to(Point p);
+    PathBuilder& line_to(Point p);
+    PathBuilder& quad_to(Point c, Point p);
+    PathBuilder& cubic_to(Point c1, Point c2, Point p);
+    PathBuilder& close();
+    PathBuilder& rect(const Rect& r);
+    [[nodiscard]] inline PathData data() const noexcept;
+    [[nodiscard]] inline bool empty() const noexcept;
+    void clear() noexcept;
+  };
+  using Polygons = mlibs::geom::PathPolylines;
+  void flatten(PathData path, const Affine& m, Polygons& out, float tolerance = 1.0f / 32.0f);
+  struct Span {
+    std::int32_t y = 0;
+    std::int32_t x = 0;
+    std::int32_t length = 0;
+    std::uint8_t value = 0;
+  };
+  struct Spans {
+    PixelRect bounds;
+    std::vector<Span> runs;
+    [[nodiscard]] inline bool empty() const noexcept;
+  };
+  class Rasterizer {
+    void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Coverage& out);
+    void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Spans& out);
+    template <class Emit> void rasterize_runs(const Polygons& polygons, FillRule rule, PixelRect clip, Emit&& emit);
+    template <class Emit> void rasterize_rows(const Polygons& polygons, FillRule rule, PixelRect clip, Emit&& emit);
+  };
+  template <class Emit> void Rasterizer::sweep(FillRule rule, Emit&& emit);
+  void fill_coverage(PathData path, const Affine& m, FillRule rule, PixelRect clip, Coverage& out);
+}
+== xrender.raster.api:stroke
+namespace xrender::raster {
+  enum class Cap : std::uint8_t { butt, round, square };
+  enum class Join : std::uint8_t { miter, round, bevel };
+  struct Stroke {
+    float width = 1;
+    Cap cap = Cap::butt;
+    Join join = Join::miter;
+    float miter_limit = 4;
+    std::span<const float> dashes;
+    float dash_offset = 0;
+    float trim_start = 0;
+    float trim_end = 1;
+    float trim_offset = 0;
+  };
+  void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygons& out);
+  void stroke_coverage(PathData path, const Stroke& stroke, const Affine& m, PixelRect clip, Coverage& out);
+}
+== xrender.raster.api:surface
+namespace xrender::raster {
+  using mlibs::geom::Affine;
+  using mlibs::geom::Color;
+  using mlibs::geom::PixelRect;
+  using mlibs::geom::Point;
+  using mlibs::geom::Rect;
+  struct Rgba8 {
+    std::uint8_t r = 0, g = 0, b = 0, a = 0;
+    friend constexpr bool operator==(Rgba8 x, Rgba8 y) noexcept;
+  };
+  [[nodiscard]] constexpr Rgba8 premultiply(const Color& c) noexcept;
+  [[nodiscard]] constexpr std::uint32_t mul255(std::uint32_t x, std::uint32_t y) noexcept;
+  struct ImageView {
+    const Rgba8* pixels = nullptr;
+    int width = 0;
+    int height = 0;
+    int stride = 0;
+    [[nodiscard]] inline const Rgba8& at(int x, int y) const noexcept;
+  };
+  class Surface {
+    Surface() = default;
+    Surface(int width, int height);
+    [[nodiscard]] inline int width() const noexcept;
+    [[nodiscard]] inline int height() const noexcept;
+    [[nodiscard]] inline Rgba8* row(int y) noexcept;
+    [[nodiscard]] inline const Rgba8* row(int y) const noexcept;
+    [[nodiscard]] inline Rgba8& at(int x, int y) noexcept;
+    [[nodiscard]] inline const Rgba8& at(int x, int y) const noexcept;
+    [[nodiscard]] inline std::span<Rgba8> pixels() noexcept;
+    [[nodiscard]] inline std::span<const Rgba8> pixels() const noexcept;
+    [[nodiscard]] std::span<const std::uint8_t> bytes() const noexcept;
+    [[nodiscard]] inline ImageView view() const noexcept;
+    void clear(Rgba8 value = {…});
+    void resize(int width, int height);
+    [[nodiscard]] std::uint64_t hash() const noexcept;
+  };
+  class Mask {
+    Mask() = default;
+    Mask(int width, int height, std::uint8_t fill = 0);
+    [[nodiscard]] inline int width() const noexcept;
+    [[nodiscard]] inline int height() const noexcept;
+    [[nodiscard]] inline std::uint8_t* row(int y) noexcept;
+    [[nodiscard]] inline const std::uint8_t* row(int y) const noexcept;
+    [[nodiscard]] inline std::uint8_t at(int x, int y) const noexcept;
+    [[nodiscard]] inline std::span<std::uint8_t> data() noexcept;
+    [[nodiscard]] inline std::span<const std::uint8_t> data() const noexcept;
+    void fill(std::uint8_t v);
+    void resize(int width, int height, std::uint8_t fill = 0);
+  };
+  struct Coverage {
+    PixelRect bounds;
+    std::vector<std::uint8_t> values;
+    [[nodiscard]] std::uint8_t at(int x, int y) const noexcept;
+    [[nodiscard]] inline bool empty() const noexcept;
+  };
+}

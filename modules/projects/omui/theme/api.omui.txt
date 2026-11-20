@@ -1,0 +1,106 @@
+== omui.theme
+namespace omui::theme {
+  struct Diagnostic {
+    std::string file;
+    int line = 0;
+    int column = 0;
+    std::string message;
+    std::string hint;
+    std::string at;
+    [[nodiscard]] std::string text() const;
+  };
+  using Diagnostics = std::vector<Diagnostic>;
+  struct TextPatch {
+    std::optional<float> size;
+    std::optional<float> weight;
+    std::optional<float> line_height;
+    std::optional<float> letter_spacing;
+    std::optional<std::vector<std::string>> families;
+  };
+  struct Layer {
+    std::string name;
+    std::string doc;
+    std::string file;
+    std::string extends;
+    bool overlay = false;
+    std::optional<bool> dark;
+    std::optional<float> density;
+    std::optional<float> corner_smoothing;
+    std::map<std::string, Color, std::less<>> colors;
+    std::map<std::string, TextPatch, std::less<>> text;
+    std::map<std::string, float, std::less<>> spacing;
+    std::map<std::string, float, std::less<>> radius;
+    std::map<std::string, ShadowToken, std::less<>> shadows;
+    std::map<std::string, Transition, std::less<>> motion;
+  };
+  [[nodiscard]] std::expected<std::vector<Layer>, Diagnostics> read(std::string_view source, std::string_view file);
+  struct StyleMotion {
+    std::string target;
+    std::string slot;
+    Value motion;
+  };
+  struct Style {
+    std::string name;
+    std::string doc;
+    std::string file;
+    std::vector<std::string> layers;
+    Layer tokens;
+    std::vector<EffectRule> effects;
+    std::vector<StyleMotion> motions;
+    double crossfade = 0.35;
+  };
+  [[nodiscard]] std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view source, std::string_view file);
+  [[nodiscard]] std::string write_style(const Style& style);
+  enum class ThemeError : std::uint8_t { no_layers, unknown_theme, overlay_first, cycle, unknown_base, extends_overlay, unknown_overlay, not_an_overlay, unknown_token, unknown_style, style_base, bad_motion };
+  [[nodiscard]] constexpr mlibs::error::Description describe(ThemeError error) noexcept;
+  using ThemeFailure = mlibs::error::Error<ThemeError>;
+  class Library {
+    std::expected<void, Diagnostics> add(std::string_view source, std::string_view file);
+    std::expected<void, Diagnostics> add_file(const std::filesystem::path& file);
+    [[nodiscard]] std::vector<std::string> themes() const;
+    [[nodiscard]] std::vector<std::string> overlays() const;
+    [[nodiscard]] std::optional<Layer> find(std::string_view name) const;
+    [[nodiscard]] std::expected<Theme, ThemeFailure> compose(std::span<const std::string> layers) const;
+    std::expected<void, Diagnostics> add_styles(std::string_view source, std::string_view file);
+    [[nodiscard]] std::vector<std::string> styles() const;
+    [[nodiscard]] std::optional<Style> find_style(std::string_view name) const;
+    [[nodiscard]] std::expected<Theme, ThemeFailure> compose_style(std::string_view name) const;
+  };
+  [[nodiscard]] std::expected<Layer, Diagnostics> read_overlay(std::string_view source, std::string_view file);
+  [[nodiscard]] std::expected<Theme, ThemeFailure> overlaid(Theme base, const Layer& overlay);
+  [[nodiscard]] Library& library();
+  std::expected<void, ThemeFailure> apply(Runtime& rt, std::span<const std::string> layers);
+  std::expected<void, ThemeFailure> apply_style(Runtime& rt, std::string_view name, bool crossfade = true);
+  std::expected<void, ThemeFailure> apply_style(Runtime& rt, std::string_view name, std::string_view scope, bool crossfade = true);
+}
+== omui.theme.compact
+export import :compact_theme;
+namespace omui::themes {
+  std::expected<void, theme::Diagnostics> add_compact();
+}
+== omui.theme.compact:compact_theme
+namespace omui::themes {
+  inline constexpr std::string_view compact_theme = R"…";
+}
+== omui.theme.default_theme
+export import :default_theme;
+namespace omui::themes {
+  std::expected<void, theme::Diagnostics> add_default();
+}
+== omui.theme.default_theme:default_theme
+namespace omui::themes {
+  inline constexpr std::string_view default_theme = R"…";
+}
+== omui.theme.styles
+export import :glass_style;
+export import :neon_style;
+export import :retro_style;
+export import :ink_style;
+export import :liquid_style;
+export import :fluent_style;
+export import :cupertino_style;
+export import :material_style;
+namespace omui::themes {
+  inline constexpr std::array<std::string_view, 8> style_names{…};
+  std::expected<void, theme::Diagnostics> add_styles();
+}

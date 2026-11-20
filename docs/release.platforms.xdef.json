@@ -1,0 +1,212 @@
+{
+  "doc": "Verification status of each capability on each platform (release plan §2.5, D-201). status: real (run on real hardware or a real system service), software (run on a software implementation or a virtual device: correctness, not performance), unverified (implemented to the contract, its own tests and the CPU reference pass, but no environment to run this path here: neither a pass nor a red, not evidence), unsupported (the capability query says no). real and software name their evidence (a case, a script, a run); unverified says what is missing; a tier-1 stable cell that is unverified says what graduates it. omui-devtools platforms writes docs/{en,zh}/platforms.md from this file.",
+  "platforms": [
+    {"id": "linux-x64", "name": "Linux x64", "tier": 1},
+    {"id": "web", "name": "Web (wasm32)", "tier": 1},
+    {"id": "macos-arm64", "name": "macOS arm64", "tier": 1},
+    {"id": "windows-x64", "name": "Windows x64", "tier": 1},
+    {"id": "linux-arm64", "name": "Linux arm64", "tier": 2},
+    {"id": "android", "name": "Android", "tier": 2}
+  ],
+  "capability": [
+    {
+      "id": "cpu-reference",
+      "name": "CPU reference rendering, simulation and the semantic tree",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04 (mcpp test --workspace --profile ci)"},
+        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node (omui-devtools check web)"},
+        "macos-arm64": {"status": "real", "evidence": "CI row macos-15"},
+        "windows-x64": {"status": "real", "evidence": "CI row windows-2022"},
+        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm"},
+        "android": {"status": "software", "evidence": "CI row android x86_64 (emulator; omui-devtools check android)"}
+      }
+    },
+    {
+      "id": "device-2d",
+      "name": "2D on a GPU device (xrender, mlibs.rhi)",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (omui-devtools gpu --real); lavapipe on CI (omui-devtools gpu)"},
+        "web": {"status": "unverified", "needs": "which WebGPU adapter omui-devtools check browser's headless Chromium runs on is not recorded; a real browser on a real GPU"},
+        "macos-arm64": {"status": "software", "evidence": "CI row macos-15: the runner's Apple Paravirtual Metal device (omui-devtools gpu, cocoa)"},
+        "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe through SDL_GPU's Vulkan backend"},
+        "linux-arm64": {"status": "software", "evidence": "CI row ubuntu-24.04-arm: lavapipe"},
+        "android": {"status": "unverified", "needs": "a device run; CI builds and runs the emulator without a GPU device case"}
+      }
+    },
+    {
+      "id": "device-3d",
+      "name": "3D mesh pass on a device (xrender.mesh.gpu)",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (omui-devtools gpu --real): quay.picture.device; lavapipe on CI"},
+        "web": {"status": "software", "evidence": "Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance)", "needs": "a real browser on a real GPU: web_frame_test through omui-devtools browser --headed under gpu --real where a display is (headless Chromium has no Vulkan on NVIDIA's driver)"},
+        "macos-arm64": {"status": "software", "evidence": "quay.picture.device on CI's Apple Paravirtual device (offscreen)"},
+        "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe"},
+        "linux-arm64": {"status": "software", "evidence": "CI row ubuntu-24.04-arm: lavapipe"},
+        "android": {"status": "unverified", "needs": "a device run"}
+      }
+    },
+    {
+      "id": "device-blocks",
+      "name": "Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "mesh.blocks on an RTX 4080 (omui-devtools gpu --real): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light"},
+        "web": {"status": "software", "evidence": "rhi.blocks on headless Chromium's WebGPU and WebGL2, all three kinds (omui-devtools check browser)", "needs": "mesh.blocks in the page's suite at the node; a real browser on a real GPU"},
+        "macos-arm64": {"status": "unverified", "needs": "a CI run of mesh.blocks on the runner's Apple Paravirtual device"},
+        "windows-x64": {"status": "unverified", "needs": "a CI run of mesh.blocks on lavapipe (BC7)"},
+        "linux-arm64": {"status": "unverified", "needs": "a CI run of mesh.blocks on lavapipe (BC7)"},
+        "android": {"status": "unverified", "needs": "a device run (ASTC or ETC2)"}
+      }
+    },
+    {
+      "id": "window-device-3d",
+      "name": "A window drawn by a device (quay.desktop)",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "software", "evidence": "quay.desktop with lavapipe (SDL offscreen video driver)"},
+        "web": {"status": "unverified", "needs": "a real browser's WebGPU canvas"},
+        "macos-arm64": {"status": "unverified", "needs": "a CI run with RC0.3's fix (the case under cocoa, as the device tests run; red 98)"},
+        "windows-x64": {"status": "software", "evidence": "quay.desktop on CI with lavapipe (windows video driver)"},
+        "linux-arm64": {"status": "software", "evidence": "quay.desktop on CI with lavapipe"},
+        "android": {"status": "unverified", "needs": "a device run"}
+      }
+    },
+    {
+      "id": "direct3d12",
+      "name": "The Direct3D 12 device backend",
+      "label": "preview",
+      "cells": {
+        "windows-x64": {"status": "unverified", "needs": "a Direct3D 12 run of the device suites (CI runs Vulkan). Red 11 (the cellular kernel off the CPU on WARP) has a likely root cause fixed: the wrap edge took a remainder of a negative number, undefined on Vulkan and emulated on DXBC; the same fault failed every wrap case on an RTX 4080 (Vulkan), which now passes"}
+      }
+    },
+    {
+      "id": "accessibility-bridge",
+      "name": "The accessibility bridge to the system's screen reader",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "AT-SPI on CI (omui-devtools check atspi)"},
+        "macos-arm64": {"status": "unverified", "needs": "NSAccessibility read by VoiceOver on a runner that runs it"},
+        "windows-x64": {"status": "unverified", "needs": "UI Automation read by a screen reader on a runner that runs it"},
+        "web": {"status": "unverified", "needs": "the page's accessibility tree read by a screen reader"}
+      }
+    },
+    {
+      "id": "input-method",
+      "name": "Input methods (composition, candidates)",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "software", "evidence": "synthetic preedit events (omui.core input, omui.ui.base, omui.host.sdl3 tests)"},
+        "macos-arm64": {"status": "software", "evidence": "synthetic preedit events (the same tests on CI row macos-15)"},
+        "windows-x64": {"status": "software", "evidence": "synthetic preedit events (the same tests on CI row windows-2022)"},
+        "web": {"status": "software", "evidence": "page_test: an input method composing in the hidden textarea, headless Chromium (omui-devtools check browser)", "needs": "a real IME in a browser"}
+      }
+    },
+    {
+      "id": "gamepad",
+      "name": "Gamepads (Quay, widget breakout)",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "software", "evidence": "synthetic gamepad events (meng.ui ui_test, omui.core input_test, widget-breakout gamepad_test, quay.window's second night with a gamepad)"},
+        "macos-arm64": {"status": "software", "evidence": "the same tests on CI row macos-15"},
+        "windows-x64": {"status": "software", "evidence": "the same tests on CI row windows-2022"},
+        "web": {"status": "unverified", "needs": "the Gamepad API in a real browser with a pad"}
+      }
+    },
+    {
+      "id": "frame-budget-weak",
+      "name": "D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "unverified", "needs": "an integrated-GPU machine; only the RTX 4080 is measured"},
+        "web": {"status": "unverified", "needs": "Quay's frame in a real browser on a real GPU (web_frame_test, omui-devtools browser --headed under gpu --real, where a display is): RC2.1"},
+        "android": {"status": "unverified", "needs": "a mobile device"}
+      }
+    },
+    {
+      "id": "app-first-frame",
+      "name": "An application's first frame: process start to the window's first pixels (RC3.6)",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "example 01, release, `--frames 1` (the window asked for to its first frame shown), RTX 4080 under SDL's offscreen driver, 2026-11-17: the CPU renderer 41–53 ms warm (185 ms cold; the whole process 150–270 ms); the GPU renderer 207–334 ms warm (784 ms cold), its device and pipelines made before the first frame. Since then the device is made on a thread of its own from the host's start, beside its fonts, runtime and window: the same dev build interleaved A/B under the same load, 209–328 ms against 403–596 ms before. Not yet held by a CI row"},
+        "web": {"status": "unverified", "needs": "the page's first frame timed in a real browser (RC2.9 splits what loads before it)"},
+        "macos-arm64": {"status": "unverified", "needs": "the same timing on a Mac"},
+        "windows-x64": {"status": "unverified", "needs": "the same timing on Windows"}
+      }
+    },
+    {
+      "id": "keyboard-reach",
+      "name": "Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6)",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "unverified", "needs": "a Tab walk over every base component in omui.ui.base's tests (the C++ site's wall walk, site.wall, retired with that site on 2026-11-21); the library's own Tab cases run here"},
+        "web": {"status": "unverified", "needs": "the same walk in a real browser"},
+        "macos-arm64": {"status": "unverified", "needs": "the walk on a macOS row; the library's own Tab cases (omui.ui.base) run there"},
+        "windows-x64": {"status": "unverified", "needs": "the walk on a Windows row; the library's own Tab cases (omui.ui.base) run there"}
+      }
+    },
+    {
+      "id": "display-scale",
+      "name": "High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6)",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "software", "evidence": "omui.host.headless: a ResizeEvent of scale 2 gives the pixels of a window opened at 2x, layout unchanged; the SDL host turns a display-scale change into that event", "needs": "two real displays of different scales"},
+        "web": {"status": "unverified", "needs": "a devicePixelRatio change in a real browser"},
+        "macos-arm64": {"status": "software", "evidence": "the same test on CI row macos-15", "needs": "a Retina and a non-Retina display"},
+        "windows-x64": {"status": "software", "evidence": "the same test on CI row windows-2022", "needs": "two displays of different scales"}
+      }
+    },
+    {
+      "id": "lifecycle",
+      "name": "Closed, slept and resumed: no crash, nothing left blank (RC3.6)",
+      "label": "stable",
+      "cells": {
+        "linux-x64": {"status": "unverified", "needs": "a machine slept and resumed under test; a device lost on resume ends the application with a message (exit code 3) rather than draw with it — no CI row can provoke a loss — and making it again waits for the runtime to hand components the new device"},
+        "web": {"status": "unverified", "needs": "a page hidden and shown, its WebGPU device lost, in a real browser"},
+        "macos-arm64": {"status": "unverified", "needs": "a Mac slept and resumed under test"},
+        "windows-x64": {"status": "unverified", "needs": "a Windows machine slept and resumed under test"}
+      }
+    },
+    {
+      "id": "rigid3",
+      "name": "3D rigid bodies (meng.dynamics.rigid3, Jolt): stepping, contacts, the agent subject",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "macos-arm64": {"status": "real", "evidence": "CI row macos-15, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "windows-x64": {"status": "real", "evidence": "CI row windows-2022, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm, run 44168311060: meng.dynamics rigid3_test, rigid3_parts_test, rigid3_agent_test"},
+        "android": {"status": "unverified", "needs": "the member's tests on the emulator row (it runs example 01 only)"}
+      }
+    },
+    {
+      "id": "nav",
+      "name": "Navigation and crowds (meng.nav)",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
+        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
+        "macos-arm64": {"status": "real", "evidence": "CI row macos-15, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
+        "windows-x64": {"status": "real", "evidence": "CI row windows-2022, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
+        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm, run 44168311060: meng.nav.cts nav_test, nav_agent_test"},
+        "android": {"status": "unverified", "needs": "the member's tests on the emulator row (it runs example 01 only)"}
+      }
+    },
+    {
+      "id": "audio-space",
+      "name": "Sound in a place (meng.audio.space), rendered on the CPU",
+      "label": "preview",
+      "cells": {
+        "linux-x64": {"status": "real", "evidence": "CI row ubuntu-24.04, run 44168311060: meng.audio space_test"},
+        "web": {"status": "real", "evidence": "CI row wasm32-emscripten under node, run 44168311060: meng.audio space_test"},
+        "macos-arm64": {"status": "real", "evidence": "CI row macos-15, run 44168311060: meng.audio space_test"},
+        "windows-x64": {"status": "real", "evidence": "CI row windows-2022, run 44168311060: meng.audio space_test"},
+        "linux-arm64": {"status": "real", "evidence": "CI row ubuntu-24.04-arm, run 44168311060: meng.audio space_test"},
+        "android": {"status": "unverified", "needs": "the member's tests on the emulator row (it runs example 01 only)"}
+      }
+    }
+  ]
+}

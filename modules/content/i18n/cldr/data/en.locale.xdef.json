@@ -1,0 +1,1002 @@
+{
+ "format": "openmui.locale@0.1",
+ "locale": "en",
+ "cldr": "49.0.0",
+ "plural": {
+  "cardinal": {
+   "one": "i = 1 and v = 0"
+  },
+  "ordinal": {
+   "few": "n % 10 = 3 and n % 100 != 13",
+   "one": "n % 10 = 1 and n % 100 != 11",
+   "two": "n % 10 = 2 and n % 100 != 12"
+  }
+ },
+ "number": {
+  "symbols": {
+   "decimal": ".",
+   "group": ",",
+   "minus": "-",
+   "plus": "+",
+   "percent": "%",
+   "exponential": "E",
+   "infinity": "∞",
+   "nan": "NaN"
+  },
+  "decimal": "#,##0.###",
+  "percent": "#,##0%",
+  "minimumGrouping": 1,
+  "compactShort": [
+   {
+    "magnitude": 3,
+    "count": "one",
+    "pattern": "0K"
+   },
+   {
+    "magnitude": 3,
+    "count": "other",
+    "pattern": "0K"
+   },
+   {
+    "magnitude": 4,
+    "count": "one",
+    "pattern": "00K"
+   },
+   {
+    "magnitude": 4,
+    "count": "other",
+    "pattern": "00K"
+   },
+   {
+    "magnitude": 5,
+    "count": "one",
+    "pattern": "000K"
+   },
+   {
+    "magnitude": 5,
+    "count": "other",
+    "pattern": "000K"
+   },
+   {
+    "magnitude": 6,
+    "count": "one",
+    "pattern": "0M"
+   },
+   {
+    "magnitude": 6,
+    "count": "other",
+    "pattern": "0M"
+   },
+   {
+    "magnitude": 7,
+    "count": "one",
+    "pattern": "00M"
+   },
+   {
+    "magnitude": 7,
+    "count": "other",
+    "pattern": "00M"
+   },
+   {
+    "magnitude": 8,
+    "count": "one",
+    "pattern": "000M"
+   },
+   {
+    "magnitude": 8,
+    "count": "other",
+    "pattern": "000M"
+   },
+   {
+    "magnitude": 9,
+    "count": "one",
+    "pattern": "0B"
+   },
+   {
+    "magnitude": 9,
+    "count": "other",
+    "pattern": "0B"
+   },
+   {
+    "magnitude": 10,
+    "count": "one",
+    "pattern": "00B"
+   },
+   {
+    "magnitude": 10,
+    "count": "other",
+    "pattern": "00B"
+   },
+   {
+    "magnitude": 11,
+    "count": "one",
+    "pattern": "000B"
+   },
+   {
+    "magnitude": 11,
+    "count": "other",
+    "pattern": "000B"
+   },
+   {
+    "magnitude": 12,
+    "count": "one",
+    "pattern": "0T"
+   },
+   {
+    "magnitude": 12,
+    "count": "other",
+    "pattern": "0T"
+   },
+   {
+    "magnitude": 13,
+    "count": "one",
+    "pattern": "00T"
+   },
+   {
+    "magnitude": 13,
+    "count": "other",
+    "pattern": "00T"
+   },
+   {
+    "magnitude": 14,
+    "count": "one",
+    "pattern": "000T"
+   },
+   {
+    "magnitude": 14,
+    "count": "other",
+    "pattern": "000T"
+   }
+  ],
+  "compactLong": [
+   {
+    "magnitude": 3,
+    "count": "one",
+    "pattern": "0 thousand"
+   },
+   {
+    "magnitude": 3,
+    "count": "other",
+    "pattern": "0 thousand"
+   },
+   {
+    "magnitude": 4,
+    "count": "one",
+    "pattern": "00 thousand"
+   },
+   {
+    "magnitude": 4,
+    "count": "other",
+    "pattern": "00 thousand"
+   },
+   {
+    "magnitude": 5,
+    "count": "one",
+    "pattern": "000 thousand"
+   },
+   {
+    "magnitude": 5,
+    "count": "other",
+    "pattern": "000 thousand"
+   },
+   {
+    "magnitude": 6,
+    "count": "one",
+    "pattern": "0 million"
+   },
+   {
+    "magnitude": 6,
+    "count": "other",
+    "pattern": "0 million"
+   },
+   {
+    "magnitude": 7,
+    "count": "one",
+    "pattern": "00 million"
+   },
+   {
+    "magnitude": 7,
+    "count": "other",
+    "pattern": "00 million"
+   },
+   {
+    "magnitude": 8,
+    "count": "one",
+    "pattern": "000 million"
+   },
+   {
+    "magnitude": 8,
+    "count": "other",
+    "pattern": "000 million"
+   },
+   {
+    "magnitude": 9,
+    "count": "one",
+    "pattern": "0 billion"
+   },
+   {
+    "magnitude": 9,
+    "count": "other",
+    "pattern": "0 billion"
+   },
+   {
+    "magnitude": 10,
+    "count": "one",
+    "pattern": "00 billion"
+   },
+   {
+    "magnitude": 10,
+    "count": "other",
+    "pattern": "00 billion"
+   },
+   {
+    "magnitude": 11,
+    "count": "one",
+    "pattern": "000 billion"
+   },
+   {
+    "magnitude": 11,
+    "count": "other",
+    "pattern": "000 billion"
+   },
+   {
+    "magnitude": 12,
+    "count": "one",
+    "pattern": "0 trillion"
+   },
+   {
+    "magnitude": 12,
+    "count": "other",
+    "pattern": "0 trillion"
+   },
+   {
+    "magnitude": 13,
+    "count": "one",
+    "pattern": "00 trillion"
+   },
+   {
+    "magnitude": 13,
+    "count": "other",
+    "pattern": "00 trillion"
+   },
+   {
+    "magnitude": 14,
+    "count": "one",
+    "pattern": "000 trillion"
+   },
+   {
+    "magnitude": 14,
+    "count": "other",
+    "pattern": "000 trillion"
+   }
+  ]
+ },
+ "calendar": {
+  "months": {
+   "wide": [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+   ],
+   "abbreviated": [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+   ],
+   "narrow": [
+    "J",
+    "F",
+    "M",
+    "A",
+    "M",
+    "J",
+    "J",
+    "A",
+    "S",
+    "O",
+    "N",
+    "D"
+   ]
+  },
+  "monthsStandalone": {
+   "wide": [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+   ],
+   "abbreviated": [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+   ],
+   "narrow": [
+    "J",
+    "F",
+    "M",
+    "A",
+    "M",
+    "J",
+    "J",
+    "A",
+    "S",
+    "O",
+    "N",
+    "D"
+   ]
+  },
+  "days": {
+   "wide": [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday"
+   ],
+   "abbreviated": [
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat"
+   ],
+   "narrow": [
+    "S",
+    "M",
+    "T",
+    "W",
+    "T",
+    "F",
+    "S"
+   ]
+  },
+  "daysStandalone": {
+   "wide": [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday"
+   ],
+   "abbreviated": [
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat"
+   ],
+   "narrow": [
+    "S",
+    "M",
+    "T",
+    "W",
+    "T",
+    "F",
+    "S"
+   ]
+  },
+  "daysShort": [
+   "Su",
+   "Mo",
+   "Tu",
+   "We",
+   "Th",
+   "Fr",
+   "Sa"
+  ],
+  "am": {
+   "wide": "AM",
+   "abbreviated": "AM",
+   "narrow": "a"
+  },
+  "pm": {
+   "wide": "PM",
+   "abbreviated": "PM",
+   "narrow": "p"
+  },
+  "eras": [
+   "BC",
+   "AD"
+  ],
+  "dateFormats": {
+   "full": "EEEE, MMMM d, y",
+   "long": "MMMM d, y",
+   "medium": "MMM d, y",
+   "short": "M/d/yy"
+  },
+  "timeFormats": {
+   "full": "h:mm:ss a zzzz",
+   "long": "h:mm:ss a z",
+   "medium": "h:mm:ss a",
+   "short": "h:mm a"
+  },
+  "dateTimeFormats": {
+   "full": "{1}, {0}",
+   "long": "{1}, {0}",
+   "medium": "{1}, {0}",
+   "short": "{1}, {0}"
+  },
+  "skeletons": {
+   "Bh": "h B",
+   "Bhm": "h:mm B",
+   "Bhms": "h:mm:ss B",
+   "E": "ccc",
+   "EBh": "E h B",
+   "EBhm": "E h:mm B",
+   "EBhms": "E h:mm:ss B",
+   "EHm": "E HH:mm",
+   "EHms": "E HH:mm:ss",
+   "Ed": "d E",
+   "Eh": "E h a",
+   "Ehm": "E h:mm a",
+   "Ehms": "E h:mm:ss a",
+   "Gy": "y G",
+   "GyM": "M/y G",
+   "GyMEd": "E, M/d/y G",
+   "GyMMM": "MMM y G",
+   "GyMMMEd": "E, MMM d, y G",
+   "GyMMMEddd": "E, MMM ddd, y G",
+   "GyMMMM": "MMMM y G",
+   "GyMMMMEd": "E, MMMM d, y G",
+   "GyMMMMEddd": "E, MMMM ddd, y G",
+   "GyMMMMd": "MMMM d, y G",
+   "GyMMMMddd": "MMMM ddd, y G",
+   "GyMMMd": "MMM d, y G",
+   "GyMMMddd": "MMM ddd, y G",
+   "GyMd": "M/d/y G",
+   "H": "HH",
+   "Hm": "HH:mm",
+   "Hms": "HH:mm:ss",
+   "Hmsv": "HH:mm:ss v",
+   "Hmv": "HH:mm v",
+   "Hv": "HH v",
+   "M": "L",
+   "MEd": "E, M/d",
+   "MMM": "LLL",
+   "MMMEd": "E, MMM d",
+   "MMMEddd": "E, MMM ddd",
+   "MMMMEd": "E, MMMM d",
+   "MMMMEddd": "E, MMMM ddd",
+   "MMMMd": "MMMM d",
+   "MMMMddd": "MMMM ddd",
+   "MMMd": "MMM d",
+   "MMMddd": "MMM ddd",
+   "Md": "M/d",
+   "d": "d",
+   "h": "h a",
+   "hm": "h:mm a",
+   "hms": "h:mm:ss a",
+   "hmsv": "h:mm:ss a v",
+   "hmv": "h:mm a v",
+   "hv": "h a v",
+   "ms": "mm:ss",
+   "y": "y",
+   "yM": "M/y",
+   "yMEd": "E, M/d/y",
+   "yMMM": "MMM y",
+   "yMMMEd": "E, MMM d, y",
+   "yMMMEddd": "E, MMM ddd, y",
+   "yMMMM": "MMMM y",
+   "yMMMMEd": "E, MMMM d, y",
+   "yMMMMEddd": "E, MMMM ddd, y",
+   "yMMMMd": "MMMM d, y",
+   "yMMMMddd": "MMMM ddd, y",
+   "yMMMd": "MMM d, y",
+   "yMMMddd": "MMM ddd, y",
+   "yMd": "M/d/y",
+   "yQQQ": "QQQ y",
+   "yQQQQ": "QQQQ y",
+   "yy": "’yy",
+   "yyMMM": "MMM ’yy",
+   "yyMMMd": "MMM d, ’yy"
+  },
+  "dayPeriods": {
+   "rules": [
+    {
+     "name": "afternoon1",
+     "from": "12:00",
+     "before": "18:00"
+    },
+    {
+     "name": "evening1",
+     "from": "18:00",
+     "before": "21:00"
+    },
+    {
+     "name": "midnight",
+     "at": "00:00"
+    },
+    {
+     "name": "morning1",
+     "from": "00:00",
+     "before": "12:00"
+    },
+    {
+     "name": "night1",
+     "from": "21:00",
+     "before": "24:00"
+    },
+    {
+     "name": "noon",
+     "at": "12:00"
+    }
+   ],
+   "names": {
+    "afternoon1": "in the afternoon",
+    "evening1": "in the evening",
+    "midnight": "midnight",
+    "morning1": "in the morning",
+    "night1": "at night",
+    "noon": "noon"
+   }
+  },
+  "gmtFormat": "GMT{0}",
+  "gmtZeroFormat": "GMT",
+  "hourFormat": "+HH:mm;-HH:mm"
+ },
+ "relative": {
+  "year": {
+   "wide": {
+    "named": {
+     "-1": "last year",
+     "0": "this year",
+     "1": "next year"
+    },
+    "future": {
+     "one": "in {0} year",
+     "other": "in {0} years"
+    },
+    "past": {
+     "one": "{0} year ago",
+     "other": "{0} years ago"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "last yr.",
+     "0": "this yr.",
+     "1": "next yr."
+    },
+    "future": {
+     "one": "in {0} yr.",
+     "other": "in {0} yr."
+    },
+    "past": {
+     "one": "{0} yr. ago",
+     "other": "{0} yr. ago"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "last yr.",
+     "0": "this yr.",
+     "1": "next yr."
+    },
+    "future": {
+     "one": "in {0}y",
+     "other": "in {0}y"
+    },
+    "past": {
+     "one": "{0}y ago",
+     "other": "{0}y ago"
+    }
+   }
+  },
+  "quarter": {
+   "wide": {
+    "named": {
+     "-1": "last quarter",
+     "0": "this quarter",
+     "1": "next quarter"
+    },
+    "future": {
+     "one": "in {0} quarter",
+     "other": "in {0} quarters"
+    },
+    "past": {
+     "one": "{0} quarter ago",
+     "other": "{0} quarters ago"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "last qtr.",
+     "0": "this qtr.",
+     "1": "next qtr."
+    },
+    "future": {
+     "one": "in {0} qtr.",
+     "other": "in {0} qtrs."
+    },
+    "past": {
+     "one": "{0} qtr. ago",
+     "other": "{0} qtrs. ago"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "last qtr.",
+     "0": "this qtr.",
+     "1": "next qtr."
+    },
+    "future": {
+     "one": "in {0}q",
+     "other": "in {0}q"
+    },
+    "past": {
+     "one": "{0}q ago",
+     "other": "{0}q ago"
+    }
+   }
+  },
+  "month": {
+   "wide": {
+    "named": {
+     "-1": "last month",
+     "0": "this month",
+     "1": "next month"
+    },
+    "future": {
+     "one": "in {0} month",
+     "other": "in {0} months"
+    },
+    "past": {
+     "one": "{0} month ago",
+     "other": "{0} months ago"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "last mo.",
+     "0": "this mo.",
+     "1": "next mo."
+    },
+    "future": {
+     "one": "in {0} mo.",
+     "other": "in {0} mo."
+    },
+    "past": {
+     "one": "{0} mo. ago",
+     "other": "{0} mo. ago"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "last mo.",
+     "0": "this mo.",
+     "1": "next mo."
+    },
+    "future": {
+     "one": "in {0}mo",
+     "other": "in {0}mo"
+    },
+    "past": {
+     "one": "{0}mo ago",
+     "other": "{0}mo ago"
+    }
+   }
+  },
+  "week": {
+   "wide": {
+    "named": {
+     "-1": "last week",
+     "0": "this week",
+     "1": "next week"
+    },
+    "future": {
+     "one": "in {0} week",
+     "other": "in {0} weeks"
+    },
+    "past": {
+     "one": "{0} week ago",
+     "other": "{0} weeks ago"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "last wk.",
+     "0": "this wk.",
+     "1": "next wk."
+    },
+    "future": {
+     "one": "in {0} wk.",
+     "other": "in {0} wk."
+    },
+    "past": {
+     "one": "{0} wk. ago",
+     "other": "{0} wk. ago"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "last wk.",
+     "0": "this wk.",
+     "1": "next wk."
+    },
+    "future": {
+     "one": "in {0}w",
+     "other": "in {0}w"
+    },
+    "past": {
+     "one": "{0}w ago",
+     "other": "{0}w ago"
+    }
+   }
+  },
+  "day": {
+   "wide": {
+    "named": {
+     "-1": "yesterday",
+     "0": "today",
+     "1": "tomorrow"
+    },
+    "future": {
+     "one": "in {0} day",
+     "other": "in {0} days"
+    },
+    "past": {
+     "one": "{0} day ago",
+     "other": "{0} days ago"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "yesterday",
+     "0": "today",
+     "1": "tomorrow"
+    },
+    "future": {
+     "one": "in {0} day",
+     "other": "in {0} days"
+    },
+    "past": {
+     "one": "{0} day ago",
+     "other": "{0} days ago"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "yesterday",
+     "0": "today",
+     "1": "tomorrow"
+    },
+    "future": {
+     "one": "in {0}d",
+     "other": "in {0}d"
+    },
+    "past": {
+     "one": "{0}d ago",
+     "other": "{0}d ago"
+    }
+   }
+  },
+  "hour": {
+   "wide": {
+    "named": {
+     "0": "this hour"
+    },
+    "future": {
+     "one": "in {0} hour",
+     "other": "in {0} hours"
+    },
+    "past": {
+     "one": "{0} hour ago",
+     "other": "{0} hours ago"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "0": "this hour"
+    },
+    "future": {
+     "one": "in {0} hr.",
+     "other": "in {0} hr."
+    },
+    "past": {
+     "one": "{0} hr. ago",
+     "other": "{0} hr. ago"
+    }
+   },
+   "narrow": {
+    "named": {
+     "0": "this hour"
+    },
+    "future": {
+     "one": "in {0}h",
+     "other": "in {0}h"
+    },
+    "past": {
+     "one": "{0}h ago",
+     "other": "{0}h ago"
+    }
+   }
+  },
+  "minute": {
+   "wide": {
+    "named": {
+     "0": "this minute"
+    },
+    "future": {
+     "one": "in {0} minute",
+     "other": "in {0} minutes"
+    },
+    "past": {
+     "one": "{0} minute ago",
+     "other": "{0} minutes ago"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "0": "this minute"
+    },
+    "future": {
+     "one": "in {0} min.",
+     "other": "in {0} min."
+    },
+    "past": {
+     "one": "{0} min. ago",
+     "other": "{0} min. ago"
+    }
+   },
+   "narrow": {
+    "named": {
+     "0": "this minute"
+    },
+    "future": {
+     "one": "in {0}m",
+     "other": "in {0}m"
+    },
+    "past": {
+     "one": "{0}m ago",
+     "other": "{0}m ago"
+    }
+   }
+  },
+  "second": {
+   "wide": {
+    "named": {
+     "0": "now"
+    },
+    "future": {
+     "one": "in {0} second",
+     "other": "in {0} seconds"
+    },
+    "past": {
+     "one": "{0} second ago",
+     "other": "{0} seconds ago"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "0": "now"
+    },
+    "future": {
+     "one": "in {0} sec.",
+     "other": "in {0} sec."
+    },
+    "past": {
+     "one": "{0} sec. ago",
+     "other": "{0} sec. ago"
+    }
+   },
+   "narrow": {
+    "named": {
+     "0": "now"
+    },
+    "future": {
+     "one": "in {0}s",
+     "other": "in {0}s"
+    },
+    "past": {
+     "one": "{0}s ago",
+     "other": "{0}s ago"
+    }
+   }
+  }
+ },
+ "lists": {
+  "conjunction": {
+   "wide": {
+    "start": "{0}, {1}",
+    "middle": "{0}, {1}",
+    "end": "{0}, and {1}",
+    "two": "{0} and {1}"
+   },
+   "abbreviated": {
+    "start": "{0}, {1}",
+    "middle": "{0}, {1}",
+    "end": "{0}, & {1}",
+    "two": "{0} & {1}"
+   },
+   "narrow": {
+    "start": "{0}, {1}",
+    "middle": "{0}, {1}",
+    "end": "{0}, {1}",
+    "two": "{0}, {1}"
+   }
+  },
+  "disjunction": {
+   "wide": {
+    "start": "{0}, {1}",
+    "middle": "{0}, {1}",
+    "end": "{0}, or {1}",
+    "two": "{0} or {1}"
+   },
+   "abbreviated": {
+    "start": "{0}, {1}",
+    "middle": "{0}, {1}",
+    "end": "{0}, or {1}",
+    "two": "{0} or {1}"
+   },
+   "narrow": {
+    "start": "{0}, {1}",
+    "middle": "{0}, {1}",
+    "end": "{0}, or {1}",
+    "two": "{0} or {1}"
+   }
+  },
+  "unit": {
+   "wide": {
+    "start": "{0}, {1}",
+    "middle": "{0}, {1}",
+    "end": "{0}, {1}",
+    "two": "{0}, {1}"
+   },
+   "abbreviated": {
+    "start": "{0}, {1}",
+    "middle": "{0}, {1}",
+    "end": "{0}, {1}",
+    "two": "{0}, {1}"
+   },
+   "narrow": {
+    "start": "{0} {1}",
+    "middle": "{0} {1}",
+    "end": "{0} {1}",
+    "two": "{0} {1}"
+   }
+  }
+ }
+}

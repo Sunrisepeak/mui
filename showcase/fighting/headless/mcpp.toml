@@ -1,0 +1,40 @@
+# The fight as a game on its own (the release plan's RC2.11, D-162): a match between two of the work's fighters —
+# the seat's player on the left, gongfu.ai's computer on the right — as meng.runtime plays it: stepped with no
+# interface, sought back and branched ahead, and played by an agent on a person's tier (a fifth of a second's
+# reaction, ten actions a second) as a person plays. One package: the game is one file and its fighters, carried by
+# gongfu.rules as the window's are.
+[package]
+namespace   = "omui.showcase.fighting"
+name        = "headless"
+version     = "0.1.0"
+description = "The fight on its own: a match of the work's fighters (the seat against gongfu.ai's computer) as a game the runtime steps, rewinds and branches, and an agent plays on a person's tier"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the fight on its own, headless (the game without its window)"
+
+[targets.fighting-headless]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+gongfu          = { path = "../../../modules/projects/gongfu" }
+"gongfu.data"    = { path = "../../../modules/projects/gongfu/data" }
+meng.runtime = { path = "../../../modules/projects/meng/game/runtime" }
+meng.input   = { path = "../../../modules/projects/meng/game/input" }
+mlibs.utils     = { path = "../../../modules/base/utils" }
+
+[build-dependencies]
+gongfu.rules = { path = "../../../modules/projects/gongfu/rules", host-module = true }
+
+[dev-dependencies]
+mcpplibs.mtest  = "0.8.4"
+mlibs.agent     = { path = "../../../modules/base/agent" }
+"mlibs.agent.cts" = { path = "../../../modules/base/agent/cts" }
+mlibs.json      = { path = "../../../modules/base/json" }

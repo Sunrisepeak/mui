@@ -1,0 +1,81 @@
+# omui.host.sdl3 — openmui on the desktop through SDL3 (imported as the
+# C++ module mcpplibs.mwrap.sdl3 over mcpp-index's compat.sdl3): a window, the display's scale, mouse, touch, wheel,
+# keyboard, text and input methods, the system clipboard and cursors; frames
+# drawn by the GPU renderer into the window's swapchain (mlibs.rhi on SDL_GPU)
+# or by the CPU renderer into a streamed texture; a program's effect files
+# loaded and reloaded while it runs; a loop that sleeps until an event, a
+# timer or an agent's request; the agent endpoint served between frames.
+[package]
+namespace   = "omui.host"
+name        = "sdl3"
+version     = "0.1.0"
+description = "openmui desktop host over SDL3: window, input, IME, clipboard, cursors, GPU or CPU frames, effect reloading, agent endpoint"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: desktop windows and input through SDL3, native only"
+lower = ["mcpplibs.mpal", "mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+reexports = ["omui.accessibility", "omui.agent", "omui.core", "omui.semantic", "omui.view", "xrender.effect", "xrender.raster"]  # what its interface re-exports (lint module-closure)
+kind = "host"
+agent = { part = "omui.agent" }
+
+[package.metadata.openmui.compose]
+slots = ["omui.host.sdl3.gpu"]  # the GPU path of a window (src/gpu.cppm)
+
+[targets.openmui-host-sdl3]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+# The system's own web view (D-141: a web page placed over a node), spoken
+# through mcpplibs.os's Objective-C runtime in macOS's own unit, built for it
+# alone; elsewhere the host has none and the component draws its card.
+[target.macos.build]
+sources = ["src/macos/*.cpp"]
+
+# What an application may leave out (B6), each off by default.
+[features]
+# SDL's HIDAPI game-controller drivers (B6): evdev, the platform's own input, stays (246,757 B of example 01).
+no-gamepad-hidapi = { forward = ["compat.sdl3/no-hidapi"] }
+# CPU frames presented by SDL's software renderer alone (through the window's surface): SDL's accelerated 2D back
+# ends (Vulkan, OpenGL, OpenGL ES 2, the one over SDL_GPU; Direct3D, Metal) left out — 236 KB of example 01 as
+# `full`. A program whose frames the GPU path draws presents through SDL_GPU and loses nothing; one drawing with
+# the CPU presents without the display's acceleration.
+software-present = { forward = ["compat.sdl3/no-render-accelerated"] }
+
+[dependencies]
+# The system's notifications (mpal: the OS's services above mcpplibs.os).
+mcpplibs.mpal = { path = "../../../../base/mpal" }
+xrender.text = { path = "../../../xrender/text" }
+omui.core     = { path = "../../core" }
+omui.view     = { path = "../../view" }
+omui.semantic = { path = "../../semantic" }
+omui.agent    = { path = "../../agent" }
+omui.accessibility = { path = "../../accessibility" }
+xrender.raster   = { path = "../../../xrender/raster" }
+xrender.vector   = { path = "../../../xrender/vector" }
+# The frame's entry: the host hands its layers to the renderer, which composes (D-162).
+xrender.frame = { path = "../../../xrender/frame" }
+mlibs.text     = { path = "../../../../content/text" }
+mlibs.image    = { path = "../../../../base/image" }
+mlibs.utils    = { path = "../../../../base/utils" }
+# The device's interface; the SDL_GPU backend and the renderer on it are a provider's (omui.host.sdl3.gpu, at gpu_slot).
+mlibs.rhi         = { path = "../../../../gfx/rhi" }
+mlibs.compose     = { path = "../../../../base/compose" }
+xrender.effect   = { path = "../../../xrender/effect" }
+mcpplibs.os      = "0.4.4"
+mcpplibs.mwrap.sdl3 = "3.4.18"
+compat.sdl3 = "3.4.18"  # its build switches (mcpplibs.mwrap.sdl3 wraps this one)
+
+[test]
+programs = "directory"  # tests/sdl3/: one program, each file run and filtered as before
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+# A web page in the system's own view (the macOS case): the web_view component.
+omui.ui.base = { path = "../../components/base" }
+# The platform's accessibility service, installed by the test as an application's SDK installs it.
+omui.accessibility.bridge = { path = "../../accessibility/bridge" }

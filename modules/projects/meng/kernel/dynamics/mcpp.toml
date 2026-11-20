@@ -1,0 +1,116 @@
+# meng.dynamics — the engine's solved simulation (D-133): on the foundation's
+# solver core (mlibs.dynamics: collision, XPBD soft bodies; moved there in A5,
+# D-231), the engine's families (src/<family>/: rigid and rigid3 today;
+# articulation, fluids, FEM, MPM later, each its own feature when it comes), a
+# body as an agent's subject, and what a body is made of from meng.matter's
+# table (the feature `matter`). A GPU part will be a gfx-layer rhi/ subpackage,
+# as cellular's. Doubles with + − × ÷ and √ only, without contraction or fast
+# math: the same bits everywhere.
+[package]
+namespace   = "meng"
+name        = "dynamics"
+version     = "0.1.0"
+description = "The engine's solved simulation: rigid families in 2D and 3D, bodies as agents' subjects, materials from meng.matter; on mlibs.dynamics"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: rigid bodies in 2D and 3D for games, matter and tests"
+kind = "module"
+agent = "subject"
+reexports = ["mlibs.dynamics"]  # what its interface re-exports (lint module-closure): the solver core it builds on
+
+[targets.meng-dynamics]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm"]
+# Optimised in every profile (the last -O wins), as cellular, xrender.mesh and xrender.particle are: a world
+# stepped at -O0 costs several times as much, which every consumer's tests would pay (emergence3d past
+# 300 s on arm, red 99); without fast-math or contraction the results are the same bits.
+cxxflags = ["-fno-fast-math", "-ffp-contract=off", "-O2"]
+
+[dependencies]
+mlibs.dynamics = { path = "../../../../base/dynamics" }
+mlibs.utils    = { path = "../../../../base/utils" }
+
+# A body as an agent's subject (src/agent/, module meng.dynamics.agent; D-174): its steps on the clock
+# and history library, its operations through the agent kernel. A feature, so that the engine's kernels that
+# take a family (cellular's rigid, audio's rigid3-matter) link no agent kernel through it.
+[features]
+agent = { sources = ["src/agent/*.cppm", "src/agent/*.cpp"] }
+# What a body is made of, from meng.matter's table (src/matter/, module meng.dynamics.matter; D-165):
+# params_of(table, material, area). A feature: a solver takes numbers, and only a consumer that has
+# materials takes the table — hanim's engine does not.
+matter = { sources = ["src/matter/*.cppm", "src/matter/*.cpp"] }
+# The 2D rigid family (src/rigid/, module meng.dynamics.rigid; P1, D-170, D-176): Box2D v3 through mwrap,
+# under this package's contract — fixed steps, ids that survive a restore and a branch, the state as bytes.
+# A feature: a consumer that does not take it links no Box2D.
+rigid = { sources = ["src/rigid/*.cppm", "src/rigid/native/*.cpp"] }
+# The 3D rigid family (src/rigid3/, module meng.dynamics.rigid3; M6.4, D-170, D-176): Jolt Physics through
+# mwrap, under the same contract as the 2D family — fixed steps, contacts as a step's output, rays and shapes
+# asked, ids that survive a restore and a branch, the state as bytes. A feature: a consumer that does not take
+# it links no Jolt.
+rigid3 = { sources = ["src/rigid3/*.cppm", "src/rigid3/native/*.cpp"] }
+# A 3D rigid world as an agent's subject (src/rigid3/agent/, module meng.dynamics.rigid3.agent; D-174).
+rigid3-agent = { implies = ["rigid3", "agent"], sources = ["src/rigid3/agent/*.cppm", "src/rigid3/agent/*.cpp"] }
+# Matter carried by 3D bodies (src/objects/, module meng.dynamics.objects; M6.5 T5.1): each body an instance of
+# meng.matter, the bodies touching now its pairs — the object carrier of the plan's §6.4.
+rigid3-matter = { implies = ["rigid3", "matter"], sources = ["src/objects/*.cppm", "src/objects/*.cpp"] }
+# Bodies and a cloud of particles in one field step (src/scene/, module meng.dynamics.scene; M6.5 T5.7): a
+# drop on a crate is beside it, the wind carries the particles.
+rigid3-scene = { implies = ["rigid3-matter"], sources = ["src/scene/*.cppm", "src/scene/*.cpp"] }
+# The solver families' conformance suite (src/cts/, module meng.dynamics.cts; mlibs.cts, D-133): a subject — the
+# CPU reference today, a SIMD or GPU tier later — run through each family's cases. A feature of its owner (release
+# plan §4.2 rule 2): its tests take it, as a later tier's tests will.
+cts = { implies = ["matter"], sources = ["src/cts/*.cppm", "src/cts/*.cpp"] }
+
+[feature-deps.agent]
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.agent      = { path = "../../../../base/agent" }
+mlibs.control    = { path = "../../../../base/control" }
+mlibs.json       = { path = "../../../../base/json" }
+openlifa.openas  = "0.2.1"
+
+[feature-deps.matter]
+# The kernel alone — the table and its plan, no JSON.
+meng.matter = { path = "../matter", default-features = false }
+
+[feature-deps.rigid]
+mcpplibs.mwrap.box2d = "3.2.0"
+# The vector type (mlibs.math's: one definition for the family, the particles and what couples them).
+mlibs.math = { path = "../../../../base/math" }
+
+[feature-deps.rigid3-scene]
+meng.particles = { path = "../particles" }
+# The bodies' shapes as the meshes particles meet (Scene::surfaces).
+mlibs.geom        = { path = "../../../../base/geom" }
+
+[feature-deps.rigid3-matter]
+# The air bodies stand in (meng.field): their guests' cell, the wind that pushes them.
+meng.field = { path = "../field" }
+
+[feature-deps.rigid3]
+mcpplibs.mwrap.jolt = "5.6.0"
+mlibs.math = { path = "../../../../base/math" }
+# What a body is made of: a material's mechanical columns (material_of), the matter kernel alone.
+meng.matter = { path = "../matter", default-features = false }
+
+[feature-deps.cts]
+mlibs.cts        = { path = "../../../../base/cts" }
+mlibs.simulation = { path = "../../../../base/simulation" }
+mlibs.utils      = { path = "../../../../base/utils" }
+# The standard table a body's material is read from (the suite's material case).
+meng.matter   = { path = "../matter" }
+
+[test]
+# Every family, the bodies as an agent's subject and the suite (mcpp 2026.11.16.1, #941).
+features = ["agent", "matter", "rigid", "rigid3", "rigid3-agent", "rigid3-matter", "rigid3-scene", "cts"]
+
+[dev-dependencies]
+mcpplibs.mtest   = "0.8.4"
+# tests/agent_test.cpp: the agent contract's suite on a body (mlibs.agent.cts), then kicks, seeks and branches.
+mlibs.agent.cts  = { path = "../../../../base/agent/cts" }
+mlibs.json       = { path = "../../../../base/json" }

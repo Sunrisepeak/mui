@@ -1,0 +1,354 @@
+== mlibs.geom
+export import mlibs.geom.api;
+== mlibs.geom.api
+export import :primitives;
+export import :path;
+export import :measure;
+export import :rounded;
+export import :solid;
+export import :mesh;
+export import :stored;
+export import :model;
+export import :bvh;
+export import :walk;
+== mlibs.geom.api:bvh
+namespace mlibs::geom {
+  [[nodiscard]] constexpr bool overlap(const Box3& one, const Box3& other) noexcept;
+  inline constexpr std::uint32_t bvh_version = 1;
+  struct Bvh {
+    struct Node {
+      Box3 bounds;
+      std::uint32_t first = 0, count = 0;
+    };
+    std::uint32_t version = bvh_version;
+    std::vector<Node> nodes;
+    std::vector<std::uint32_t> order;
+    std::uint32_t depth = 0;
+  };
+  struct BvhOptions {
+    std::uint32_t leaf = 4;
+  };
+  [[nodiscard]] Bvh bvh_of(std::span<const Box3> boxes, const BvhOptions& options = {…});
+  [[nodiscard]] Bvh bvh_of(const Mesh& mesh, const BvhOptions& options = {…});
+  class BvhBuild {
+    BvhBuild() = default;
+    explicit BvhBuild(std::span<const Box3> boxes, const BvhOptions& options = {…});
+    void begin(std::span<const Box3> boxes, const BvhOptions& options = {…}, Bvh room = {…});
+    void drop() noexcept;
+    bool step(std::size_t things);
+    [[nodiscard]] bool begun() const noexcept;
+    [[nodiscard]] bool done() const noexcept;
+    [[nodiscard]] Bvh take() noexcept;
+  };
+  [[nodiscard]] std::expected<void, std::string> check(const Bvh& tree, std::span<const Box3> boxes, const BvhOptions& options = {…});
+  inline constexpr std::size_t bvh_stack = 64;
+  template <class Visit> requires std::invocable<Visit&, std::uint32_t> void each_within(const Bvh& tree, const Box3& region, Visit&& visit);
+  struct RayHit {
+    std::uint32_t item = 0;
+    float distance = 0;
+  };
+  template <class Meet> requires std::invocable<Meet&, std::uint32_t> [[nodiscard]] std::optional<RayHit> nearest(const Bvh& tree, const Ray& ray, Meet&& meet_item, float farthest = std::numeric_limits<float>::max());
+  [[nodiscard]] std::optional<RayHit> meet(const Ray& ray, const Mesh& mesh, const Bvh& tree, float farthest = std::numeric_limits<float>::max());
+}
+== mlibs.geom.api:measure
+namespace mlibs::geom {
+  template <class Curve> concept CubicCurve = requires(const Curve& curve) {…};
+  struct ContourMeasure {
+    double area = 0;
+    double centroid_x = 0, centroid_y = 0;
+  };
+  namespace detail {
+    inline std::array<double, 4> power_basis(double start, double control1, double control2, double end, double origin, double scale) noexcept;
+    template <CubicCurve Curve> std::array<double, 3> frame(std::span<const Curve> curves) noexcept;
+  }
+  template <CubicCurve Curve> [[nodiscard]] double normalized_signed_area(std::span<const Curve> curves) noexcept;
+  template <CubicCurve Curve> [[nodiscard]] ContourMeasure measure(std::span<const Curve> curves) noexcept;
+}
+== mlibs.geom.api:mesh
+namespace mlibs::geom {
+  using mlibs::math::Vec2;
+  using mlibs::math::Vec4;
+  using mlibs::math::Mat4;
+  struct Mesh {
+    std::vector<Vec3> positions;
+    std::vector<Vec3> normals;
+    std::vector<Vec4> tangents;
+    std::vector<Vec2> uvs;
+    std::vector<Vec2> second_uvs;
+    std::vector<Vec4> colours;
+    std::vector<std::array<std::uint16_t, 4>> joints;
+    std::vector<Vec4> weights;
+    std::vector<std::uint32_t> indices;
+    [[nodiscard]] std::size_t triangles() const noexcept;
+  };
+  [[nodiscard]] std::expected<void, std::string> check(const Mesh& mesh);
+  [[nodiscard]] std::expected<void, std::string> append(Mesh& into, const Mesh& from, const Mat4& place);
+  [[nodiscard]] Box3 bounds(const Mesh& mesh) noexcept;
+  void compute_normals(Mesh& mesh);
+  struct Cluster {
+    std::uint32_t first_index = 0;
+    std::uint32_t triangle_count = 0;
+    Sphere bounds;
+    Vec3 cone_axis{…};
+    float cone_cutoff = 2;
+    float error = 0;
+    float parent_error = std::numeric_limits<float>::infinity();
+    std::uint32_t level = 0;
+  };
+  struct ClusteredMesh {
+    static constexpr std::uint32_t version = 1;
+    Mesh mesh;
+    std::vector<Cluster> clusters;
+  };
+  [[nodiscard]] inline bool faces_away(const Cluster& cluster, Vec3 eye) noexcept;
+  inline constexpr std::uint32_t most_cluster_triangles = 124;
+  [[nodiscard]] std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::uint32_t triangles = most_cluster_triangles);
+  void refit(ClusteredMesh& mesh, std::vector<Vec3>& corners);
+  [[nodiscard]] std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::span<const std::uint32_t> runs);
+  [[nodiscard]] Mesh box(Vec3 half);
+  [[nodiscard]] Mesh sheet(float width, float depth, std::uint32_t across = 1, std::uint32_t along = 1);
+  [[nodiscard]] Mesh sphere(float radius, std::uint32_t rings = 16, std::uint32_t sectors = 32);
+  [[nodiscard]] Mesh cylinder(float radius, float height, std::uint32_t sectors = 32);
+}
+== mlibs.geom.api:model
+namespace mlibs::geom {
+  [[nodiscard]] std::expected<std::vector<std::uint32_t>, std::string> triangulated(std::span<const Vec2> polygon);
+  [[nodiscard]] std::expected<Mesh, std::string> revolved(std::span<const Vec2> profile, std::uint32_t sectors = 32);
+  [[nodiscard]] std::expected<Mesh, std::string> extruded(std::span<const Vec2> outline, float depth, float bevel = 0);
+  [[nodiscard]] double volume(const Mesh& mesh) noexcept;
+}
+== mlibs.geom.api:path
+namespace mlibs::geom {
+  enum class PathVerb : std::uint8_t { move, line, quad, cubic, close };
+  enum class FillRule : std::uint8_t { nonzero, even_odd };
+  struct PathView {
+    std::span<const PathVerb> verbs;
+    std::span<const Point> points;
+  };
+  struct MutablePathView {
+    std::span<PathVerb> verbs;
+    std::span<Point> points;
+  };
+  struct PathLimits {
+    std::size_t max_verbs = 1u << 20, max_points = 3u << 20, max_contours = 1u << 16;
+  };
+  enum class PathError : std::uint8_t { verb_budget, point_budget, contour_budget, invalid_verb, missing_move, missing_points, trailing_points, nonfinite_coordinate };
+  [[nodiscard]] constexpr mlibs::error::Description describe(PathError e) noexcept;
+  struct PathWhere {
+    std::size_t verb = 0, point = 0;
+  };
+  [[nodiscard]] inline std::string describe_where(const PathWhere& w);
+  using PathFailure = mlibs::error::Error<PathError, PathWhere>;
+  struct PathInfo {
+    std::size_t contours = 0, segments = 0, closes = 0;
+  };
+  [[nodiscard]] constexpr std::expected<PathInfo,PathFailure> inspect_path(PathView path,PathLimits limits = {…}) noexcept;
+  struct PathCommand {
+    PathVerb verb;
+    std::size_t index=0, point_index=0, contour=0;
+    std::span<const Point> operands;
+    Point from{…}, end{…}, contour_start{…};
+    bool begins_contour=false;
+  };
+  class PathReader {
+    [[nodiscard]] static constexpr std::expected<PathReader,PathFailure> make(PathView path,PathLimits limits = {…}) noexcept;
+    [[nodiscard]] constexpr PathInfo info() const noexcept;
+    [[nodiscard]] constexpr std::optional<PathCommand> next() noexcept;
+  };
+  struct PathPolylines {
+    std::vector<Point> points;
+    std::vector<std::size_t> starts;
+    std::vector<bool> closed;
+    [[nodiscard]] std::size_t count() const noexcept;
+    [[nodiscard]] std::span<const Point> polygon(std::size_t i) const noexcept;
+    void begin();
+    void clear() noexcept;
+  };
+  struct PathData {
+    std::vector<PathVerb> verbs;
+    std::vector<Point> points;
+    [[nodiscard]] PathView view() const noexcept;
+  };
+  struct PathDataError {
+    std::size_t offset = 0;
+    std::string message;
+  };
+  [[nodiscard]] std::expected<PathData, PathDataError> parse_path_data(std::string_view text, PathLimits limits = {…});
+  void flatten_path(PathView path,const Affine& transform,PathPolylines& output,float tolerance=1.0f/32.0f);
+}
+== mlibs.geom.api:primitives
+namespace mlibs::geom {
+  struct Point {
+    float x = 0, y = 0;
+    friend constexpr bool operator==(const Point& a, const Point& b) noexcept;
+    friend constexpr Point operator+(Point a, Point b) noexcept;
+    friend constexpr Point operator-(Point a, Point b) noexcept;
+    friend constexpr Point operator*(Point a, float s) noexcept;
+  };
+  struct Size {
+    float width = 0, height = 0;
+    [[nodiscard]] constexpr bool empty() const noexcept;
+    friend constexpr bool operator==(const Size& a, const Size& b) noexcept;
+  };
+  struct Insets {
+    float top = 0, right = 0, bottom = 0, left = 0;
+    [[nodiscard]] static constexpr Insets all(float v) noexcept;
+    [[nodiscard]] static constexpr Insets symmetric(float vertical, float horizontal) noexcept;
+    [[nodiscard]] constexpr float horizontal() const noexcept;
+    [[nodiscard]] constexpr float vertical() const noexcept;
+    friend constexpr bool operator==(const Insets& a, const Insets& b) noexcept;
+  };
+  struct Rect {
+    float x = 0, y = 0, width = 0, height = 0;
+    [[nodiscard]] static constexpr Rect from(Point origin, Size size) noexcept;
+    [[nodiscard]] static constexpr Rect ltrb(float l, float t, float r, float b) noexcept;
+    [[nodiscard]] constexpr float left() const noexcept;
+    [[nodiscard]] constexpr float top() const noexcept;
+    [[nodiscard]] constexpr float right() const noexcept;
+    [[nodiscard]] constexpr float bottom() const noexcept;
+    [[nodiscard]] constexpr Point origin() const noexcept;
+    [[nodiscard]] constexpr Size size() const noexcept;
+    [[nodiscard]] constexpr Point center() const noexcept;
+    [[nodiscard]] constexpr bool empty() const noexcept;
+    [[nodiscard]] constexpr bool contains(Point p) const noexcept;
+    [[nodiscard]] constexpr bool contains(const Rect& r) const noexcept;
+    [[nodiscard]] constexpr bool intersects(const Rect& o) const noexcept;
+    [[nodiscard]] constexpr Rect intersection(const Rect& o) const noexcept;
+    [[nodiscard]] constexpr Rect united(const Rect& o) const noexcept;
+    [[nodiscard]] constexpr Rect inset(const Insets& i) const noexcept;
+    [[nodiscard]] constexpr Rect outset(const Insets& i) const noexcept;
+    [[nodiscard]] constexpr Rect offset(Point d) const noexcept;
+    friend constexpr bool operator==(const Rect& a, const Rect& b) noexcept;
+  };
+  struct PixelRect {
+    std::int32_t x = 0, y = 0, width = 0, height = 0;
+    [[nodiscard]] constexpr bool empty() const noexcept;
+    friend constexpr bool operator==(const PixelRect& a, const PixelRect& b) noexcept;
+  };
+  [[nodiscard]] constexpr std::int32_t snap(float v, float scale) noexcept;
+  [[nodiscard]] constexpr PixelRect snap(const Rect& r, float scale) noexcept;
+  struct CornerRadii {
+    float top_left = 0, top_right = 0, bottom_right = 0, bottom_left = 0;
+    float smoothing = 0;
+    [[nodiscard]] static constexpr CornerRadii all(float r) noexcept;
+    [[nodiscard]] constexpr bool zero() const noexcept;
+    [[nodiscard]] constexpr bool uniform() const noexcept;
+    [[nodiscard]] constexpr CornerRadii fitted(Size s) const noexcept;
+    [[nodiscard]] constexpr CornerRadii smoothed(float amount) const noexcept;
+    friend constexpr bool operator==(const CornerRadii& a, const CornerRadii& b) noexcept;
+  };
+  struct Color {
+    float r = 0, g = 0, b = 0, a = 1;
+    [[nodiscard]] static constexpr Color rgba8(std::uint8_t r, std::uint8_t g, std::uint8_t b, std::uint8_t a = 255) noexcept;
+    [[nodiscard]] static constexpr Color hex(std::uint32_t rgb, float alpha = 1.0f) noexcept;
+    [[nodiscard]] static constexpr Color transparent() noexcept;
+    [[nodiscard]] static constexpr Color white() noexcept;
+    [[nodiscard]] static constexpr Color black() noexcept;
+    [[nodiscard]] static constexpr std::optional<Color> parse(std::string_view text) noexcept;
+    [[nodiscard]] constexpr Color with_alpha(float alpha) const noexcept;
+    [[nodiscard]] constexpr std::array<std::uint8_t, 4> premultiplied8() const noexcept;
+    friend constexpr bool operator==(const Color& x, const Color& y) noexcept;
+  };
+  struct AffineD {
+    double a = 1, b = 0, c = 0, d = 1, e = 0, f = 0;
+    [[nodiscard]] static constexpr AffineD from(const std::array<double, 6>& matrix) noexcept;
+    [[nodiscard]] constexpr AffineD operator*(const AffineD& o) const noexcept;
+    [[nodiscard]] constexpr std::array<double, 2> apply(double x, double y) const noexcept;
+    [[nodiscard]] constexpr std::optional<AffineD> inverse() const noexcept;
+  };
+  struct Affine {
+    float a = 1, b = 0, c = 0, d = 1, e = 0, f = 0;
+    [[nodiscard]] static constexpr Affine translate(float x, float y) noexcept;
+    [[nodiscard]] static constexpr Affine scale(float sx, float sy) noexcept;
+    [[nodiscard]] static constexpr Affine rotation(float cos_a, float sin_a) noexcept;
+    [[nodiscard]] constexpr Affine operator*(const Affine& o) const noexcept;
+    [[nodiscard]] constexpr Point apply(Point p) const noexcept;
+    [[nodiscard]] constexpr std::optional<Affine> inverse() const noexcept;
+    [[nodiscard]] constexpr bool identity() const noexcept;
+    [[nodiscard]] constexpr bool translation_only() const noexcept;
+    [[nodiscard]] constexpr float max_scale() const noexcept;
+    [[nodiscard]] constexpr Rect map(const Rect& r) const noexcept;
+    friend constexpr bool operator==(const Affine& x, const Affine& y) noexcept;
+  };
+}
+== mlibs.geom.api:rounded
+namespace mlibs::geom {
+  namespace rounded_detail {
+    struct Corner {
+      float p = 0, a = 0, b = 0, c = 0, d = 0, chord = 0, sweep = 0;
+    };
+    inline Corner corner(float radius, float smoothing, float budget) noexcept;
+    template <class Out> void arc(Out& out, Point from, Point to, Point centre, float sweep);
+  }
+  template <class Out> void rounded_rect(Out& out, const Rect& r, const CornerRadii& radii);
+}
+== mlibs.geom.api:solid
+namespace mlibs::geom {
+  using mlibs::math::Mat4;
+  using mlibs::math::Vec3;
+  struct Box3 {
+    Vec3 low{…};
+    Vec3 high{…};
+    [[nodiscard]] constexpr bool empty() const noexcept;
+    [[nodiscard]] constexpr Vec3 centre() const noexcept;
+    [[nodiscard]] constexpr Vec3 half() const noexcept;
+    constexpr void grow(Vec3 point) noexcept;
+    constexpr void join(const Box3& other) noexcept;
+    [[nodiscard]] constexpr bool holds(Vec3 point) const noexcept;
+    [[nodiscard]] static constexpr Box3 of(std::span<const Vec3> points) noexcept;
+  };
+  [[nodiscard]] constexpr Box3 moved(const Mat4& matrix, const Box3& box) noexcept;
+  struct Sphere {
+    Vec3 centre;
+    float radius = 0;
+  };
+  [[nodiscard]] inline Sphere sphere_of(std::span<const Vec3> points) noexcept;
+  struct Plane {
+    Vec3 normal{…};
+    float distance = 0;
+    [[nodiscard]] constexpr float above(Vec3 point) const noexcept;
+  };
+  struct Ray {
+    Vec3 from;
+    Vec3 along{…};
+  };
+  [[nodiscard]] constexpr std::optional<float> meet(const Ray& ray, const Box3& box) noexcept;
+  [[nodiscard]] inline std::optional<float> meet(const Ray& ray, const Sphere& sphere) noexcept;
+  [[nodiscard]] constexpr std::optional<float> meet(const Ray& ray, Vec3 first, Vec3 second, Vec3 third) noexcept;
+  struct Frustum {
+    std::array<Plane, 6> planes{…};
+    std::uint32_t count = 0;
+    [[nodiscard]] static Frustum of(const Mat4& world_to_clip) noexcept;
+    [[nodiscard]] constexpr bool holds(const Sphere& sphere) const noexcept;
+    [[nodiscard]] constexpr bool holds(const Box3& box) const noexcept;
+  };
+}
+== mlibs.geom.api:stored
+namespace mlibs::geom {
+  inline constexpr std::array<std::uint8_t, 4> stored_magic{…};
+  [[nodiscard]] std::vector<std::uint8_t> stored(const ClusteredMesh& mesh);
+  [[nodiscard]] std::expected<ClusteredMesh, std::string> read_stored(std::span<const std::uint8_t> bytes);
+}
+== mlibs.geom.api:walk
+namespace mlibs::geom {
+  struct Lattice {
+    std::array<std::int32_t, 3> cells{…};
+    float cell = 1.0f;
+  };
+  struct Passed {
+    std::int32_t x = 0, y = 0, z = 0;
+    float entered = 0;
+    int face = -1;
+  };
+  template <class Visit> requires std::predicate<Visit&, const Passed&> std::size_t walk(const Ray& ray, const Lattice& lattice, Visit&& visit, float farthest = std::numeric_limits<float>::max());
+}
+== mlibs.geom.boolean
+export import mlibs.geom;
+namespace mlibs::geom {
+  enum class Combine : std::uint8_t { united, without, common, };
+  [[nodiscard]] std::expected<Mesh, std::string> combined(const Mesh& one, const Mesh& other, Combine how);
+  [[nodiscard]] inline std::expected<Mesh, std::string> united(const Mesh& one, const Mesh& other);
+  [[nodiscard]] inline std::expected<Mesh, std::string> without(const Mesh& one, const Mesh& other);
+  [[nodiscard]] inline std::expected<Mesh, std::string> common(const Mesh& one, const Mesh& other);
+  [[nodiscard]] std::expected<void, std::string> closed(const Mesh& mesh);
+}

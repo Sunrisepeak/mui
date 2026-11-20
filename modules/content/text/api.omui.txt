@@ -1,0 +1,242 @@
+== mlibs.text
+export import mlibs.text.api;
+== mlibs.text.api
+export import :font;
+export import :paragraph;
+export import :edit;
+== mlibs.text.api:edit
+namespace mlibs::text {
+  struct Selection {
+    std::size_t anchor = 0, focus = 0;
+    [[nodiscard]] std::size_t begin() const noexcept;
+    [[nodiscard]] std::size_t end() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    friend bool operator==(const Selection& a, const Selection& b) noexcept;
+  };
+  enum class Unit : std::uint8_t { grapheme, word, line, document };
+  struct EditorOptions {
+    bool multiline = false;
+    std::size_t max_length = 0;
+  };
+  class TextEditor {
+    explicit TextEditor(std::string text = {…}, EditorOptions options = {…});
+    [[nodiscard]] const std::string& text() const noexcept;
+    [[nodiscard]] Selection selection() const noexcept;
+    [[nodiscard]] std::uint64_t revision() const noexcept;
+    void set_text(std::string text);
+    void select(std::size_t anchor, std::size_t focus);
+    void select_all();
+    void select_word_at(std::size_t offset);
+    bool insert(std::string_view text);
+    void delete_backward(Unit unit = Unit::grapheme);
+    void delete_forward(Unit unit = Unit::grapheme);
+    void move_left(Unit unit = Unit::grapheme, bool extend = false);
+    void move_right(Unit unit = Unit::grapheme, bool extend = false);
+    void move_to(std::size_t offset, bool extend = false);
+    void set_composition(std::string_view preedit, int cursor = -1);
+    void commit_composition(std::string_view text);
+    void cancel_composition();
+    [[nodiscard]] bool composing() const noexcept;
+    [[nodiscard]] const std::string& composition() const noexcept;
+    [[nodiscard]] std::string display_text() const;
+    bool undo();
+    bool redo();
+    [[nodiscard]] bool can_undo() const noexcept;
+    [[nodiscard]] bool can_redo() const noexcept;
+  };
+}
+== mlibs.text.api:font
+namespace mlibs::text {
+  using FaceId = std::uint32_t;
+  struct FontRef {
+    std::uint32_t id = 0;
+    friend constexpr bool operator==(FontRef a, FontRef b) noexcept;
+  };
+  struct GlyphOutline {
+    std::vector<geom::PathVerb> verbs;
+    std::vector<geom::Point> points;
+    [[nodiscard]] geom::PathView view() const noexcept;
+  };
+  struct ColorLayer {
+    std::uint32_t glyph = 0;
+    geom::Color color;
+  };
+  enum class Slant : std::uint8_t { normal, italic };
+  struct FaceInfo {
+    std::string family;
+    std::string style;
+    float weight = 400;
+    Slant slant = Slant::normal;
+    bool variable = false;
+    float min_weight = 400, max_weight = 400;
+    bool color = false;
+    std::uint32_t units_per_em = 1000;
+  };
+  struct Metrics {
+    float ascent = 0;
+    float descent = 0;
+    float line_gap = 0;
+    float x_height = 0;
+    float cap_height = 0;
+    float underline_offset = 0;
+    float underline_thickness = 0;
+    [[nodiscard]] float line_height() const noexcept;
+  };
+  struct DefaultFont {
+    std::string_view file;
+    std::string_view pack;
+  };
+  inline constexpr std::array<DefaultFont, 5> default_fonts{…};
+  class FontCollection {
+    FontCollection();
+    ~FontCollection();
+    FontCollection(FontCollection&&) noexcept;
+    FontCollection& operator=(FontCollection&&) noexcept;
+    FontCollection(const FontCollection&) = delete;
+    FontCollection& operator=(const FontCollection&) = delete;
+    [[nodiscard]] static std::filesystem::path default_directory();
+    [[nodiscard]] static std::optional<std::filesystem::path> default_file(std::string_view file, const std::filesystem::path& directory = default_directory());
+    [[nodiscard]] std::uint64_t id() const noexcept;
+    [[nodiscard]] static bool alive(std::uint64_t id);
+    std::expected<void, std::string> add_defaults(const std::filesystem::path& directory = default_directory());
+    std::expected<FaceId, std::string> add_file(const std::filesystem::path& file);
+    std::expected<FaceId, std::string> add_data(std::vector<std::uint8_t> data);
+    [[nodiscard]] std::size_t bytes_held() const;
+    std::expected<FaceId, std::string> add_fallback(const std::filesystem::path& file, std::size_t at = 1);
+    [[nodiscard]] std::uint64_t revision() const noexcept;
+    [[nodiscard]] std::uint64_t uncovered() const noexcept;
+    [[nodiscard]] std::vector<char32_t> uncovered_points() const;
+    struct Missed {
+      char32_t code_point = 0;
+      std::string family;
+    };
+    [[nodiscard]] std::uint64_t missed() const noexcept;
+    [[nodiscard]] std::vector<Missed> missed_points() const;
+    [[nodiscard]] std::size_t face_count() const noexcept;
+    [[nodiscard]] const FaceInfo& face(FaceId id) const;
+    [[nodiscard]] std::span<const std::uint8_t> face_data(FaceId id) const;
+    [[nodiscard]] std::optional<FaceId> find_family(std::string_view family) const;
+    [[nodiscard]] bool covers(FaceId id, char32_t cp) const;
+    void set_fallback(std::vector<FaceId> chain);
+    [[nodiscard]] std::span<const FaceId> fallback() const noexcept;
+    [[nodiscard]] FaceId select(std::span<const std::string> families, std::u32string_view cluster) const;
+    [[nodiscard]] FontRef font(FaceId face, float weight, Slant slant = Slant::normal);
+    [[nodiscard]] FaceId face_of(FontRef font) const;
+    [[nodiscard]] float weight_of(FontRef font) const;
+    [[nodiscard]] Slant slant_of(FontRef font) const;
+    [[nodiscard]] Metrics metrics(FontRef font, float size) const;
+    [[nodiscard]] GlyphOutline outline(FontRef font, std::uint32_t glyph) const;
+    [[nodiscard]] std::vector<ColorLayer> color_layers(FontRef font, std::uint32_t glyph) const;
+    [[nodiscard]] void* hb_font(FontRef font) const;
+  };
+}
+== mlibs.text.api:paragraph
+namespace mlibs::text {
+  using geom::Color;
+  using geom::Point;
+  using geom::Rect;
+  using geom::Size;
+  struct Feature {
+    std::array<char, 4> tag{…};
+    std::uint32_t value = 1;
+    [[nodiscard]] static constexpr Feature on(std::string_view t, std::uint32_t v = 1) noexcept;
+  };
+  struct TextStyle {
+    std::vector<std::string> families{…};
+    float size = 14;
+    float weight = 400;
+    Slant slant = Slant::normal;
+    Color color = Color::black();
+    float letter_spacing = 0;
+    float line_height = 0;
+    std::vector<Feature> features;
+    std::string language;
+    bool underline = false;
+    bool strikethrough = false;
+    bool autospace = true;
+    bool trim_punctuation = true;
+  };
+  struct StyledRange {
+    std::size_t begin = 0, end = 0;
+    TextStyle style;
+  };
+  enum class TextAlign : std::uint8_t { start, end, left, right, center, justify };
+  enum class TextDirection : std::uint8_t { automatic, ltr, rtl };
+  struct ParagraphStyle {
+    TextStyle style;
+    TextAlign align = TextAlign::start;
+    TextDirection direction = TextDirection::automatic;
+    bool wrap = true;
+    int max_lines = 0;
+    bool ellipsis = true;
+  };
+  struct Glyph {
+    std::uint32_t id = 0;
+    Point position;
+    std::uint32_t cluster = 0, grapheme = 0, word = 0, line = 0;
+  };
+  struct GlyphRun {
+    FontRef font;
+    float size = 0;
+    Color color;
+    std::vector<Glyph> glyphs;
+    std::size_t begin = 0, end = 0;
+    bool rtl = false;
+    float x = 0, width = 0;
+    float baseline = 0;
+    bool underline = false, strikethrough = false;
+    float decoration_offset = 0, decoration_thickness = 0;
+  };
+  struct GraphemeBox {
+    std::size_t begin = 0, end = 0;
+    float x0 = 0, x1 = 0;
+    bool rtl = false;
+  };
+  struct Line {
+    std::size_t begin = 0, end = 0;
+    float top = 0, height = 0, baseline = 0;
+    float ascent = 0, descent = 0;
+    float left = 0, width = 0;
+    bool rtl = false;
+    bool ellipsized = false;
+    std::vector<GlyphRun> runs;
+    std::vector<GraphemeBox> graphemes;
+  };
+  struct Caret {
+    float x = 0, top = 0, height = 0;
+    std::size_t line = 0;
+  };
+  class Paragraph {
+    Paragraph() = default;
+    Paragraph(FontCollection& fonts, std::string text, ParagraphStyle style, std::vector<StyledRange> ranges = {…});
+    ~Paragraph();
+    Paragraph(Paragraph&&) noexcept;
+    Paragraph& operator=(Paragraph&&) noexcept;
+    void layout(float width);
+    [[nodiscard]] const std::string& text() const noexcept;
+    [[nodiscard]] std::span<const Line> lines() const noexcept;
+    [[nodiscard]] Size size() const noexcept;
+    [[nodiscard]] float min_intrinsic_width() const;
+    [[nodiscard]] float max_intrinsic_width() const;
+    [[nodiscard]] float first_baseline() const noexcept;
+    [[nodiscard]] bool truncated() const noexcept;
+    [[nodiscard]] bool stale() const noexcept;
+    [[nodiscard]] std::size_t offset_at(Point p) const;
+    [[nodiscard]] Caret caret(std::size_t offset) const;
+    [[nodiscard]] std::vector<Rect> selection(std::size_t begin, std::size_t end) const;
+    [[nodiscard]] std::size_t line_of(std::size_t offset) const;
+    [[nodiscard]] std::size_t offset_above(std::size_t offset, float x) const;
+    [[nodiscard]] std::size_t offset_below(std::size_t offset, float x) const;
+    struct Shaped;
+  };
+  struct PlacedOutline {
+    FontRef font;
+    std::uint32_t glyph = 0;
+    std::uint32_t cluster = 0, grapheme = 0, word = 0, line = 0;
+    Point origin;
+    float size = 0;
+    Color color;
+    GlyphOutline outline;
+  };
+  [[nodiscard]] std::vector<PlacedOutline> outlines(const Paragraph& paragraph, const FontCollection& fonts);
+}

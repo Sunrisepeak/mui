@@ -1,0 +1,73 @@
+# 《组件打砖块：闹鬼的设置》 (S4, D-50; mgame S4 design §8): the Settings panel
+# is haunted, and every control works — a breakout whose bricks are real
+# openmui components (switches that rewire the room, sliders that charge and
+# fire, a core to shut down), placed by openmui's layout and read into the
+# simulation; a run of five rooms, chains banked as sparks that pay for
+# rewinds, contraptions between rooms whose scripts you can open; an agent
+# plays it through the field's actions, and the inspector shows the rest.
+[package]
+namespace   = "omui.showcase"
+name        = "widget_breakout"
+version     = "0.1.0"
+description = "A breakout over a haunted Settings panel of real openmui components: circuits, capacitors, a core; rewindable for sparks, played by a person or an agent"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the widget breakout showcase"
+kind      = "showcase"
+contracts = ["contract/*.contract.xdef.ts"]
+profile = "app"  # its profile (D-207): what omui doctor holds it to (the game itself is headless/'s)
+id = "org.openmui.widget-breakout"
+title = "Widget breakout"
+
+[targets.openmui-showcase-widget-breakout]
+kind = "lib"
+
+[targets.omui-breakout]
+kind = "bin"
+main = "src/main.cpp"
+
+# The agent as playtester (Part 2 G): the game played headless at a person's tier, a report.
+[targets.omui-breakout-playtest]
+kind = "bin"
+main = "src/playtest_main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+# Its pictures are pinned on every platform: no fused multiply-adds (arm64 would fuse them).
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.text.fonts = { path = "../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
+mcpplibs.cmdline = "0.0.3"
+xrender.text = { path = "../../modules/projects/xrender/text" }
+mlibs.math = { path = "../../modules/base/math" }
+mlibs.utils = { path = "../../modules/base/utils" }
+omui.sdk = { path = "../../modules/projects/omui/sdk" }
+# The game itself, as it runs with no interface (meng.runtime): the window shows that same game (D-162).
+omui.showcase.widget_breakout.headless = { path = "headless" }
+meng.input = { path = "../../modules/projects/meng/game/input" }
+meng.ui    = { path = "../../modules/projects/meng/game/ui" }
+omui.theme = { path = "../../modules/projects/omui/theme" }
+omui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
+meng.audio = { path = "../../modules/projects/meng/kernel/audio" }
+omui.abi = { path = "../../modules/projects/omui/abi" }
+omui.lang = { path = "../../modules/projects/omui/lang" }
+"omui.lang.js" = { path = "../../modules/projects/omui/lang/js" }
+"meng.audio.device" = { path = "../../modules/projects/meng/kernel/audio/device" }
+
+[build-dependencies]
+omui.build = { path = "../../mcpp/build", host-module = true }
+openlifa.openmui = { path = "../../spec" }  # its registry/: what the contracts are generated against
+
+[test]
+programs = "directory"  # tests/widget-breakout/: one program, each file run and filtered as before
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { record = 1 }

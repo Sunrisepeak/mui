@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "size": [480, 320],
+  "background": "#111827",
+  "objects": [
+    { "id": "toast", "shape": { "rect": { "size": [300, 56], "radius": 14 } }, "fill": "#1f2937", "stroke": { "color": "#374151", "width": 1 }, "at": [240, 260] },
+    { "id": "icon", "shape": { "circle": 12 }, "fill": "#34d399", "at": [118, 260] },
+    { "id": "line", "shape": { "rect": { "size": [150, 10], "radius": 5 } }, "fill": "#e5e7eb", "at": [225, 252] },
+    { "id": "subline", "shape": { "rect": { "size": [110, 8], "radius": 4 } }, "fill": "#6b7280", "at": [205, 270] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "parallel", "items": [
+        { "do": "rise_in", "object": "toast", "distance": 40, "duration": 0.4 },
+        { "do": "rise_in", "object": "line", "distance": 40, "duration": 0.4 },
+        { "do": "rise_in", "object": "subline", "distance": 40, "duration": 0.4 },
+        { "do": "rise_in", "object": "icon", "distance": 40, "duration": 0.4 }
+      ] },
+      { "do": "pulse", "object": "icon", "scale": 1.25 },
+      { "do": "marker", "name": "shown" },
+      { "do": "wait", "duration": 1.6 },
+      { "do": "parallel", "items": [
+        { "do": "sink_out", "object": "toast", "distance": 20 },
+        { "do": "sink_out", "object": "line", "distance": 20 },
+        { "do": "sink_out", "object": "subline", "distance": 20 },
+        { "do": "sink_out", "object": "icon", "distance": 20 }
+      ] }
+    ]
+  }
+}

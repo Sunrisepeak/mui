@@ -1,0 +1,11 @@
+# mlibs.text
+
+A text engine (module `mlibs.text`) over HarfBuzz and SheenBidi — imported as C++ modules (`mcpplibs.mwrap.harfbuzz`, `mcpplibs.mwrap.sheenbidi` from mcpp-index; no header is included) — and mlibs.unicode.
+
+- **Fonts**: files and data, variable instances by weight (and italic), metrics; the default set in [`fonts/`](fonts) (D-48), Inter with every program and each other script a pack an application depends on (`mlibs.text.fonts.<pack>`, D-214); fallback per grapheme cluster through the family list and a fallback chain, emoji presentation to the colour face. A file's face is described from the few tables that say what it is and read whole when first needed (shaped with, its bytes asked for); whether it has a character is answered from its character map: Latin text holds Inter's 0.9 MB, not the defaults' 7.5 MB (`bytes_held`).
+- **Paragraphs**: bidi levels (SheenBidi, Unicode 17), script runs, shaping (HarfBuzz) with features and language, UAX #14 line breaking with hanging spaces and overflow breaks inside overlong words, UBA L2 reordering per line, start / end / center / justify alignment, `max_lines` with an ellipsis, styled ranges (size, weight, colour, letter spacing, line height, underline, strikethrough), intrinsic widths for layout.
+- **Queries**: hit testing, carets, selection rectangles, vertical caret movement — bidi-aware, by grapheme cluster.
+- **Glyphs as geometry**: `FontCollection::outline` (ems, y down, mlibs.geom's path encoding, through HarfBuzz's draw API) and `color_layers` (COLR v0 from the palette). Text knows no renderer: [xrender.text](../../projects/xrender/text) rasterises and paints them (convergence plan §5.3).
+- **Editing**: `TextEditor` — selection on grapheme boundaries, word movement and deletion (UAX #29), IME composition, undo / redo with typing coalescing, length and single-line constraints.
+
+Text lays out the same on GCC, LLVM and the Windows target with the default fonts; its pixels (a mixed Latin / Chinese / Arabic / emoji paragraph, pinned) are xrender.text's tests.

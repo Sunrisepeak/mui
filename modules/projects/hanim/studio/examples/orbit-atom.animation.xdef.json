@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "size": [240, 240],
+  "background": "#020617",
+  "objects": [
+    { "id": "nucleus", "shape": { "circle": 18 }, "fill": "#22d3ee", "at": [120, 120] },
+    { "id": "e1", "shape": { "circle": 6 }, "fill": "#e0f2fe", "at": [120, 190] },
+    { "id": "e2", "shape": { "circle": 6 }, "fill": "#e0f2fe", "at": [120, 160] }
+  ],
+  "program": {
+    "do": "parallel",
+    "items": [
+      { "do": "breathe", "object": "nucleus", "scale": 1.12, "period": 2, "count": 2 },
+      { "do": "orbit", "object": "e1", "radius": 70, "period": 2, "count": 2 },
+      { "do": "orbit", "object": "e2", "radius": 40, "period": 1, "count": 4 }
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+# omui.theme — themes as data (view-data-files §3, component-binding §11):
+# `*.theme.xdef.ts` files declare themes (light, dark) and overlays
+# (density, reduced motion); a library composes layers into the runtime's
+# Theme, with every mistake reported where it is. The built-in packs are such files, embedded (packs/<name>/:
+# its .theme.xdef.ts, src/ with the generated partition): default, compact, and the
+# style packs (packs/styles/styles/*.style.xdef.ts: glass, neon, retro CRT, ink on paper, liquid; fluent,
+# cupertino, material). Each keeps its module (omui.theme.default_theme, omui.theme.compact, omui.theme.styles)
+# and is added by a call (`omui::themes::add_compact()` …): a program links the packs it adds. A theme of one's
+# own is a package of its own (templates/theme).
+[package]
+namespace   = "omui"
+name        = "theme"
+version     = "0.1.0"
+description = "Themes as data: *.theme.xdef.ts evaluated to JSON, read, checked and composed into openmui's design tokens"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: themes and style packs for every interface"
+kind = "runtime"
+agent = { library = "theme data and its reader: tokens and recipes, read once" }
+
+[targets.openmui-theme]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "packs/*/src/*.cppm", "packs/*/src/*.cpp", "packs/*/src/generated/*.cppm"]
+
+[dependencies]
+omui.core   = { path = "../core" }
+omui.view   = { path = "../view" }
+hanim.core          = { path = "../../hanim/core" }
+xrender.vector = { path = "../../xrender/vector" }
+mlibs.json     = { path = "../../../base/json" }
+mlibs.xdef     = { path = "../../../base/xdef" }  # a snapshot's format checked first (D-209)
+mlibs.utils    = { path = "../../../base/utils" }  # mlibs.error: why a theme cannot be composed
+
+[build-dependencies]
+omui.build = { path = "../../../../mcpp/build", host-module = true }  # the style packs
+
+[test]
+programs = "directory"  # tests/theme/: one program, each file run and filtered as before
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+omui.lang.ts = { path = "../lang/ts" }  # the theme packages' modules, evaluated as the build does
+mlibs.cts = { path = "../../../base/cts" }

@@ -1,0 +1,727 @@
+// Typed default motion is exercised through the actual components and the
+// public runtime: semantic actions, pixels between states, accessibility
+// preferences, input during focus feedback and the theme's cascade.
+import std;
+import omui.ui.base;
+import omui.host.headless;
+import mlibs.testing;
+import mcpplibs.mtest;
+
+using namespace omui;
+using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
+
+namespace {
+
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection result;
+        (void)result.add_defaults();
+        return result;
+    }();
+    return f;
+}
+
+HeadlessOptions options() {
+    HeadlessOptions result;
+    result.size = {420, 280};
+    result.fonts = &fonts();
+    result.parallel_raster = false;
+    return result;
+}
+
+const std::filesystem::path& pictures() {
+    static const auto path = scratch_dir("ui-base-default-motion");
+    return path;
+}
+
+std::uint64_t pixels(Headless& h, std::optional<Rect> region = {}) {
+    const auto& surface = h.pixels();
+    const Rect r = region.value_or(Rect{0, 0, static_cast<float>(surface.width()), static_cast<float>(surface.height())});
+    const int left = std::clamp(static_cast<int>(std::floor(r.x)), 0, surface.width());
+    const int top = std::clamp(static_cast<int>(std::floor(r.y)), 0, surface.height());
+    const int right = std::clamp(static_cast<int>(std::ceil(r.right())), left, surface.width());
+    const int bottom = std::clamp(static_cast<int>(std::ceil(r.bottom())), top, surface.height());
+    Hash hash;
+    for (int y = top; y < bottom; ++y)
+        hash.bytes(std::as_bytes(std::span(surface.row(y) + left, static_cast<std::size_t>(right - left))));
+    return hash.value();
+}
+
+void save(Headless& h, std::string_view name) {
+    expect(h.save_png(pictures() / std::format("{}.png", name)).has_value()) << "reviewable real raster output";
+}
+
+void act(Headless& h, std::string_view path, std::string_view action, Value args = {}) {
+    Invocation call;
+    call.actor = {"agent", "default-motion-test", {}};
+    call.args = std::move(args);
+    expect(eq(h.tree().act(path, action, call).exit_code().value_or(-1), std::int64_t{0}));
+    h.step();
+}
+
+std::optional<MotionState> moving(Headless& h, std::string_view path) {
+    for (const auto& motion : h.runtime().motions())
+        if (motion.path == path) return motion;
+    return {};
+}
+
+struct Scene {
+    Element element;
+    std::function<void(Headless&)> change;
+};
+
+// These are production controls, with their own paint/parts and actions.
+// There is no animated fixture geometry and no animation in these builders.
+Scene scene(std::string_view type, std::string_view override_motion = {}) {
+    Element element;
+    std::function<void(Headless&)> change;
+    if (type == "checkbox") {
+        element = checkbox({.id = "subject", .label = "Ready to publish"});
+        change = [](Headless& h) { act(h, "main/subject", "toggle"); };
+    } else if (type == "toggle") {
+        element = toggle({.id = "subject", .label = "Sync changes"});
+        change = [](Headless& h) { act(h, "main/subject", "toggle"); };
+    } else if (type == "segmented") {
+        element = segmented({.id = "subject", .label = "Calendar", .labels = std::vector<std::string>{"Day", "Week", "Month"},
+                             .options = std::vector<std::string>{"day", "week", "month"}, .value = "day"});
+        change = [](Headless& h) { act(h, "main/subject/month", "activate"); };
+    } else if (type == "tabs") {
+        element = tabs({.id = "subject", .selected = signal(std::string("general"))},
+                       {tab({.id = "general", .text = "General"}), tab({.id = "privacy", .text = "Privacy"}), tab({.id = "advanced", .text = "Advanced"})});
+        change = [](Headless& h) { act(h, "main/subject/advanced", "select"); };
+    } else if (type == "badge") {
+        auto count = signal(std::int64_t{3});
+        element = badge({.id = "subject", .count = count});
+        change = [count](Headless& h) { count.set(12); h.step(); };
+    } else if (type == "stepper") {
+        element = stepper({.id = "subject", .free = true, .steps = std::vector<std::string>{"Cart", "Address", "Payment"}});
+        change = [](Headless& h) { act(h, "main/subject", "increment"); };
+    } else if (type == "progress") {
+        auto value = signal(0.15);
+        element = progress({.id = "subject", .label = "Upload", .value = value, .width = 300});
+        change = [value](Headless& h) { value.set(0.85); h.step(); };
+    } else if (type == "accordion") {
+        element = accordion({.id = "subject", .title = "Release details", .width = 320},
+                            {text({.id = "answer", .text = "All checks passed. Ready for review."})});
+        change = [](Headless& h) { act(h, "main/subject", "expand"); };
+    } else {
+        auto open = signal(false);
+        element = drawer({.id = "subject", .modal = false, .open = open, .size = 220.0, .title = "Filters"},
+                         {checkbox({.id = "mine", .label = "Assigned to me"}), button({.id = "apply", .text = "Apply filters"})});
+        change = [open](Headless& h) { open.set(true); h.step(); };
+    }
+    if (!override_motion.empty()) element.prop("motion", Source(Value(std::string(override_motion))));
+    return {std::move(element), std::move(change)};
+}
+
+void mount(Headless& h, Scene& sample) {
+    h.mount("main", column({.padding = 24}, {std::move(sample.element)}));
+    h.settle();
+}
+
+MotionSpec tween(double duration) {
+    return compose_motion({MotionPrimitive::match_drawing, MotionPrimitive::match_glyphs, MotionPrimitive::fade},
+                          Transition::tween(seconds(duration)));
+}
+
+void expect_duration(Headless& h, std::string_view path, double expected) {
+    const auto motion = moving(h, path);
+    expect(motion.has_value()) << std::format("{} has a real active drawing motion", path);
+    if (motion) expect(std::abs((motion->end - motion->start) - expected) < 0.001) << std::format("{}: expected {} s, actual {} s", path, expected, motion->end - motion->start);
+}
+
+// An interactive card (its own pressed look) over a text node of its own: a pressable whose drawing holds another node.
+Element card_of(int& presses) {
+    return card({.id = "card", .interactive = true, .title = "Go", .on_activated = [&presses] { ++presses; }}, {text({.id = "go", .text = "Revenue up 12%"})});
+}
+
+}  // namespace
+
+static UTest cases{"ui.base.default-motion", [] {
+    register_base_components();
+
+    "40 typed defaults reference existing compositions of shared primitives"_test = [] {
+        const auto recipes = default_component_motion_recipes();
+        const auto library = default_motion_library();
+        const auto rules = default_motion_rules();
+        expect(eq(recipes.size(), std::size_t{40}));
+        std::set<std::string_view> names;
+        for (const auto& recipe : recipes) {
+            expect(names.insert(recipe.component).second) << "one entry per component type";
+            for (const auto& [slot, name] : {std::pair{"update", recipe.update}, std::pair{"state", recipe.state},
+                                           std::pair{"enter", recipe.enter}, std::pair{"exit", recipe.exit}}) {
+                expect(!name.empty()) << std::format("{}.{} is explicit", recipe.component, slot);
+                const auto rule = std::ranges::find_if(rules, [&](const MotionRule& r) { return r.target == recipe.component && r.slot == slot; });
+                expect(rule != rules.end()) << "the directory is installed in the actual framework rules";
+                if (name == "none") {
+                    if (rule != rules.end()) expect(rule->spec.kind == MotionSpec::Kind::none) << "input content remains immediate";
+                    continue;
+                }
+                const auto found = library.find(name);
+                expect(found != library.end()) << std::format("{} exists", name);
+                if (found == library.end()) continue;
+                expect(std::popcount(found->second.primitives) >= 2) << std::format("{} composes reusable primitives", name);
+                expect((found->second.primitives & static_cast<std::uint32_t>(MotionPrimitive::match_drawing)) != 0) << "shared drawing matching underlies the recipe";
+                if (rule != rules.end()) {
+                    expect(rule->spec.name == name && rule->spec.primitives == found->second.primitives &&
+                          rule->spec.kind == found->second.kind &&
+                          rule->spec.appear == found->second.appear && rule->spec.stretch == found->second.stretch) << "installed rule is the documented composition";
+                    expect(rule->layer == MotionRule::Layer::framework) << "styles can override framework defaults";
+                }
+            }
+        }
+        expect(names.contains("actor_log") && names.contains("text_box") && names.contains("code_editor") && names.contains("agent_presence") && names.contains("timeline") && names.contains("path"));
+        expect(std::ranges::none_of(rules, [](const MotionRule& r) { return r.target == "*"; })) << "no blanket recipe for every drawing";
+    };
+
+    "nine real control types paint distinct middle frames and reach their actual state drawings"_test = [] {
+        for (const std::string type : {"checkbox", "toggle", "segmented", "tabs", "badge", "stepper", "progress", "accordion", "drawer"}) {
+            Headless animated(options()), immediate(options());
+            immediate.runtime().set_motion_level(MotionLevel::off);
+            auto sample = scene(type), reference = scene(type);
+            mount(animated, sample); mount(immediate, reference);
+            const auto before = pixels(animated);
+            expect(eq(before, pixels(immediate)));
+            save(animated, type + "-before");
+            sample.change(animated); reference.change(immediate);
+            const auto record = moving(animated, "main/subject");
+            expect(record.has_value()) << type + ": the actual control owns its motion handle";
+            if (record) {
+                expect(record->matched + record->to_only + record->from_only > 0) << "the handle contains real paint pieces";
+                if (type == "checkbox") expect(record->to_only > 0) << "the checkmark appears as a part";
+                if (type == "toggle" || type == "segmented" || type == "tabs" || type == "progress")
+                    expect(record->matched > 0) << "the existing thumb, lens, indicator or value fill is matched";
+            }
+            animated.advance(seconds(0.10));
+            const auto middle = pixels(animated), final = pixels(immediate);
+            expect(middle != before && middle != final) << type + ": painted motion is neither endpoint";
+            save(animated, type + "-middle");
+            animated.settle();
+            expect(pixels(animated) == final) << type + ": exactly the unanimated production drawing at rest";
+            expect(animated.runtime().motions().empty()) << "no autonomous component animation remains";
+            save(animated, type + "-rest");
+        }
+    };
+
+    "shape-specific primitives alter real checkmarks, thumbs and selection lenses"_test = [] {
+        for (const std::string type : {"checkbox", "toggle", "segmented"}) {
+            Theme flat = Theme::light();
+            const auto recipes = default_component_motion_recipes();
+            const auto recipe = std::ranges::find_if(recipes, [&](const ComponentMotionRecipe& r) { return r.component == type; });
+            expect(recipe != recipes.end());
+            if (recipe == recipes.end()) continue;
+            MotionSpec without_shape = flat.motion_library.at(std::string(recipe->update));
+            without_shape.appear.away.scale = hanim::Vec2{1, 1}; without_shape.stretch = 0;
+            flat.motion_library["test.without-shape"] = without_shape;
+            Headless typed(options()), plain(options());
+            plain.runtime().set_theme(flat);
+            auto sample = scene(type), reference = scene(type, "test.without-shape");
+            mount(typed, sample); mount(plain, reference);
+            expect(eq(pixels(typed), pixels(plain)));
+            sample.change(typed); reference.change(plain);
+            const seconds sample_time(type == "checkbox" ? 0.10 : 0.05);
+            typed.advance(sample_time); plain.advance(sample_time);
+            expect(moving(typed, "main/subject").has_value() && moving(plain, "main/subject").has_value());
+            expect(pixels(typed) != pixels(plain)) << type + ": its local growth or stretch affects actual intermediate paint";
+            save(typed, type + "-typed-shape"); save(plain, type + "-without-shape");
+            typed.settle(); plain.settle();
+            expect(pixels(typed) == pixels(plain)) << "only the journey changed";
+        }
+    };
+
+    "off is immediate and reduced is a short real tween for the production controls"_test = [] {
+        for (const std::string type : {"checkbox", "toggle", "segmented", "progress", "accordion", "drawer"}) {
+            Headless full(options()), reduced(options()), off(options());
+            reduced.runtime().set_motion_level(MotionLevel::reduced);
+            off.runtime().set_motion_level(MotionLevel::off);
+            auto a = scene(type), b = scene(type), c = scene(type);
+            mount(full, a); mount(reduced, b); mount(off, c);
+            const auto before = pixels(off);
+            a.change(full); b.change(reduced); c.change(off);
+            expect(off.runtime().motions().empty()) << type + ": off creates no motion";
+            expect(pixels(off) != before) << "off still applies the new state immediately";
+            expect_duration(reduced, "main/subject", 0.12);
+            const auto standard = moving(full, "main/subject");
+            if (standard) expect(standard->end - standard->start > 0.12) << "the full recipe retains its longer response";
+            reduced.advance(seconds(0.05));
+            expect(pixels(reduced) != before && pixels(reduced) != pixels(off)) << type + ": reduced has real intermediate paint";
+            reduced.advance(seconds(0.15)); full.settle();
+            expect(reduced.runtime().motions().empty()) << "reduced motion has ended";
+            expect(eq(pixels(reduced), pixels(off)));
+            expect(eq(pixels(full), pixels(off)));
+        }
+    };
+
+    "text input supersedes a running focus drawing on its first painted frame"_test = [] {
+        for (bool code : {false, true}) {
+            Headless animated(options()), reference(options());
+            reference.runtime().set_motion_level(MotionLevel::off);
+            auto source = signal(std::string("old")), target = signal(std::string("old"));
+            auto make = [code](Signal<std::string> value) {
+                return code ? code_editor({.id = "subject", .lines = 5, .text = value, .width = 340})
+                            : text_box({.id = "subject", .label = "Name", .text = value, .width = 340});
+            };
+            animated.mount("main", column({.padding = 24}, {make(source)}));
+            reference.mount("main", column({.padding = 24}, {make(target)}));
+            animated.step(); reference.step();
+            const std::string path = code ? "main/subject/text" : "main/subject";
+            animated.runtime().focus_visibly(animated.runtime().find(path));
+            reference.runtime().focus_visibly(reference.runtime().find(path));
+            animated.step(); reference.step();
+            expect(moving(animated, path).has_value()) << "focus feedback really was in progress before typing";
+            const Rect field = animated.runtime().screen_bounds(animated.runtime().find(path));
+            // Interior pixels isolate text and its caret from any enclosing panel's focus feedback.
+            const Rect interior{field.x + 8, field.y + 6, field.width - 16, field.height - 12};
+            const auto old = pixels(animated, interior);
+            animated.type("fresh"); reference.type("fresh");
+            expect(source.peek().find("fresh") != std::string::npos && source.peek() == target.peek()) << "the real editor accepted the text";
+            expect(!moving(animated, path)) << "immediate content cancels the stale focus drawing";
+            expect(pixels(animated, interior) != old) << "new glyphs paint immediately, not merely semantic text";
+            expect(pixels(animated, interior) == pixels(reference, interior)) << "the first input frame already equals the immediate editor";
+            save(animated, code ? "code-input-first-frame" : "text-input-first-frame");
+            // The same guarantee applies to an external two-way value write during another focus transition.
+            animated.runtime().focus({}); reference.runtime().focus({});
+            animated.step(); reference.step();
+            source.set("replacement text"); target.set("replacement text");
+            animated.step(); reference.step();
+            expect(!moving(animated, path)) << "external value writes also supersede stale feedback";
+            expect(eq(pixels(animated, interior), pixels(reference, interior)));
+        }
+    };
+
+    "scoped style layers and explicit overrides win on actual component drawings"_test = [] {
+        Headless baseline(options());
+        auto default_sample = scene("checkbox");
+        mount(baseline, default_sample); default_sample.change(baseline);
+        const auto default_motion = moving(baseline, "main/subject");
+        expect(default_motion.has_value());
+        const double default_duration = default_motion ? default_motion->end - default_motion->start : 0;
+        // Deliberately append a lower-layer, more-specific rule last: layer
+        // precedence must beat both insertion order and selector specificity.
+        for (const auto layer : {MotionRule::Layer::style, MotionRule::Layer::style_targeted, MotionRule::Layer::application}) {
+            Headless h(options());
+            Theme scoped = Theme::light();
+            if (layer != MotionRule::Layer::style)
+                scoped.motion_rules.push_back({.target = "checkbox", .spec = tween(0.55), .layer = MotionRule::Layer::style});
+            if (layer == MotionRule::Layer::application)
+                scoped.motion_rules.push_back({.target = "checkbox", .spec = tween(0.6), .layer = MotionRule::Layer::style_targeted});
+            scoped.motion_rules.push_back({.target = "*", .spec = tween(0.4), .layer = layer});
+            scoped.motion_rules.push_back({.target = "checkbox", .spec = tween(0.9), .layer = MotionRule::Layer::framework});
+            scoped.motion["test.explicit"] = Transition::tween(seconds(0.7));
+            h.runtime().set_scope("preview", scoped);
+            auto own = checkbox({.id = "explicit", .label = "Explicit"});
+            own.prop("motion", Source(Value("morph test.explicit")));
+            auto none = checkbox({.id = "none", .label = "Immediate"});
+            none.prop("motion", Source(Value("none")));
+            auto panel = column({.id = "scope", .gap = 16}, {
+                checkbox({.id = "styled", .label = "Scoped"}), std::move(own), std::move(none)});
+            panel.prop("theme_scope", Source(Value("preview")));
+            h.mount("main", column({.padding = 24, .gap = 16}, {
+                checkbox({.id = "outside", .label = "Outside"}), std::move(panel)}));
+            h.settle();
+            for (const std::string path : {"main/outside", "main/scope/styled", "main/scope/explicit", "main/scope/none"}) act(h, path, "toggle");
+            expect_duration(h, "main/scope/styled", 0.4);
+            expect_duration(h, "main/scope/explicit", 0.7);
+            expect(!moving(h, "main/scope/none")) << "an explicit none suppresses a style and the framework";
+            const auto outside = moving(h, "main/outside");
+            expect(outside.has_value()) << "unscoped checkbox retains its own default";
+            if (outside) expect(std::abs((outside->end - outside->start) - default_duration) < 0.001) << "unscoped duration still equals the actual framework reference";
+            const Rect rect = h.runtime().screen_bounds(h.runtime().find("main/scope/styled"));
+            const auto middle = pixels(h, rect);
+            h.settle();
+            expect(middle != pixels(h, rect)) << "the selected scoped recipe animates the actual checkbox paint";
+        }
+    };
+
+    "a focus ring comes in on the state slot's course: part-way at its middle, whole at rest, its control's shape (B4)"_test = [] {
+        Headless h(options());
+        h.mount("main", column({.padding = 24}, {button({.id = "go", .text = "Go"})}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/go"));
+        // A pixel on the ring's left edge, half way down: 2 px outside the control, the ring 2 px wide.
+        const int x = static_cast<int>(std::floor(bounds.x - 3)), y = static_cast<int>(bounds.center().y);
+        const auto at = [&] { const auto p = h.pixels().at(x, y); return std::array<int, 3>{p.r, p.g, p.b}; };
+        const auto before = at();
+        h.key(Key::tab);  // focused from the keyboard: the ring shows
+        h.advance(seconds(0.05));  // the middle of default.focus's 0.10 s
+        const auto middle = at();
+        h.settle();
+        const auto after = at();
+        const auto apart = [](const std::array<int, 3>& one, const std::array<int, 3>& other) {
+            return std::abs(one[0] - other[0]) + std::abs(one[1] - other[1]) + std::abs(one[2] - other[2]);
+        };
+        expect(fatal(apart(before, after) > 30)) << std::format("the ring drawn there at rest: {} then {}", before, after);
+        expect(apart(before, middle) > 5 && apart(middle, after) > 5)
+            << std::format("part-way at the middle: {} → {} → {}", before, middle, after);
+    };
+
+    "a button by default: hovered quickly; pressed, in about the finger on a course of its own; released, a little spring out (B4)"_test = [] {
+        Headless h(options());
+        h.mount("main", column({.padding = 24}, {button({.id = "go", .text = "Go"})}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/go"));
+        PointerEvent down;
+        down.kind = PointerKind::down; down.button = MouseButton::left; down.buttons = 1;
+        down.position = {bounds.x + bounds.width * .25f, bounds.center().y};
+        PointerEvent over = down;
+        over.kind = PointerKind::move; over.buttons = 0;
+        h.step({over});
+        expect_duration(h, "main/go", 0.10);  // the hover: default.focus's quick fade
+        h.settle();
+        // The scale the drawing is under about the finger: below 1 pressed in, above 1 sprung out.
+        const auto scaled = [&] {
+            float least = 1, most = 1;
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && push->transform.b == 0 && push->transform.a == push->transform.d)
+                    least = std::min(least, push->transform.a), most = std::max(most, push->transform.a);
+            return std::pair{least, most};
+        };
+        h.step({down});
+        h.advance(seconds(0.45 / 6));  // the press's first crest, past the 0.10 s the state's fade takes
+        expect(scaled().first < .96f) << std::format("pressed in: {}", scaled().first);
+        h.advance(seconds(0.2));
+        expect(!h.runtime().motions().empty()) << "still ringing after the state's own fade is done";
+        h.advance(seconds(0.5));
+        expect(h.runtime().motions().empty()) << "then at rest, pressed (the button's own pressed look)";
+        PointerEvent up = down;
+        up.kind = PointerKind::up; up.buttons = 0;
+        h.step({up});
+        h.advance(seconds(0.45 / 6));
+        expect(scaled().second > 1.004f) << std::format("released: sprung out a little, {}", scaled().second);
+        h.advance(seconds(1));
+        expect(h.runtime().motions().empty()) << "and at rest";
+    };
+
+    "default.press on a pressable that draws other nodes: let go, it springs out; the pointer gone without a press, it does not"_test = [] {
+        // Its states fold its children's in (a hash), so the release is kept apart from them, as the press is.
+        Headless h(options());
+        int presses = 0;
+        Element card = card_of(presses);
+        // default.press as its own (the component recipes are rules, not names a prop uses): pressed in, rung out, sprung.
+        const Value press(Value::Map{{"compose", Value(Value::List{Value("match"), Value("glyphs"), Value("fade"), Value("press")})}, {"curve", Value("motion.fast")}, {"press_length", Value(0.45)}});
+        card.prop("motion", Source(Value(Value::Map{{"state", press}})));
+        h.mount("main", column({.padding = 24}, {card}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/card/go"));
+        PointerEvent over;
+        over.kind = PointerKind::move;
+        over.position = bounds.center();
+        PointerEvent down = over;
+        down.kind = PointerKind::down, down.button = MouseButton::left, down.buttons = 1;
+        PointerEvent up = down;
+        up.kind = PointerKind::up, up.buttons = 0;
+        PointerEvent away = over;
+        away.position = {bounds.x - 400, bounds.y - 400};
+        h.step({over});
+        h.settle();
+        h.step({down});
+        h.settle();
+        h.step({up});
+        expect_duration(h, "main/card", 0.45);  // the release's own course (press_length), not the state's 0.10
+        h.settle();
+        h.step({away});
+        const auto motion = moving(h, "main/card");
+        expect(!motion || std::abs((motion->end - motion->start) - 0.45) > 0.001) << "the pointer gone: no spring";
+        expect(eq(presses, 1));
+    };
+
+    "press.squash: a pressed button is pressed in about the finger and rings out"_test = [] {
+        Headless h(options());
+        auto sample = button({.id = "go", .text = "Go"});
+        sample.prop("motion", Source(Value("press.squash")));
+        h.mount("main", column({.padding = 24}, {std::move(sample)}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/go"));
+        PointerEvent down;
+        down.kind = PointerKind::down; down.button = MouseButton::left; down.buttons = 1;
+        down.position = {bounds.x + bounds.width * .25f, bounds.center().y};
+        PointerEvent over = down;
+        over.kind = PointerKind::move; over.buttons = 0;
+        h.step({over});
+        h.settle();  // hovered first: the press alone is the state change
+        h.step({down});
+        h.advance(seconds(0.45 / 6));  // the press's first crest
+        float pressed = 1;
+        for (const auto& command : h.runtime().display_list().commands())
+            if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && push->transform.b == 0 && push->transform.a < 1)
+                pressed = std::min(pressed, push->transform.a);
+        expect(pressed < .955f) << std::format("pressed in past the button's own press: {} ({} motions)", pressed, h.runtime().motions().size());
+        h.advance(seconds(1));
+        expect(h.runtime().motions().empty()) << "then at rest, pressed";
+    };
+
+    "a badge's digit rolls: the one going rises out, its replacement rises in from below (B6)"_test = [] {
+        Headless h(options());
+        auto count = signal(std::int64_t{3});
+        h.mount("main", column({.padding = 24}, {badge({.id = "count", .count = count})}));
+        h.settle();
+        count.set(4);
+        h.step();
+        // Sampled through default.count's 0.22 s: the glyphs drawn with a vertical offset of their own, and which way —
+        // up (going) or down (coming); the going one fades early, the coming one late.
+        bool up = false, down = false;
+        for (int sample = 0; sample < 10; ++sample) {
+            h.advance(seconds(0.02));
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                    for (const auto& style : run->styles) {
+                        if (style.opacity <= 0.01f) continue;
+                        if (style.transform.f < -0.2f) up = true;
+                        if (style.transform.f > 0.2f) down = true;
+                    }
+            if (sample == 4) save(h, "badge-roll-middle");
+        }
+        expect(up) << "the 3 rises out";
+        expect(down) << "the 4 rises in from below";
+        h.settle();
+        bool still = true;
+        for (const auto& command : h.runtime().display_list().commands())
+            if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                for (const auto& style : run->styles) still = still && std::abs(style.transform.f) < 0.01f;
+        expect(still) << "at rest, in its place";
+    };
+
+    "a step done writes its check in: the stroke drawn part-way, then whole (B6)"_test = [] {
+        Headless h(options());
+        h.mount("main", column({.padding = 24}, {stepper({.id = "steps", .free = true, .steps = std::vector<std::string>{"Cart", "Address", "Payment"}})}));
+        h.settle();
+        act(h, "main/steps", "increment");
+        h.step();
+        // The appearing check: a stroke trimmed short of its end at some sample of the course.
+        // And the connector: how many pixels of its row are the accent, on the way and at rest (drawn, whatever
+        // transform the morph puts it under).
+        const Color accent = h.runtime().theme().color("accent");
+        std::optional<Rect> row;
+        const auto accent_run = [&] {
+            if (!row) return 0;
+            const auto& px = h.pixels();
+            const int y = static_cast<int>(row->y + 1);
+            int count = 0;
+            for (int x = static_cast<int>(row->x); x < static_cast<int>(row->right()) && x < px.width(); ++x) {
+                const auto p = px.at(x, y);
+                if (std::abs(p.r - accent.r * 255) < 40 && std::abs(p.g - accent.g * 255) < 40 && std::abs(p.b - accent.b * 255) < 40) ++count;
+            }
+            return count;
+        };
+        {
+            // The connector after the first step, where it is at rest now (the track, the fill to come).
+            Headless rest(options());
+            rest.mount("main", column({.padding = 24}, {stepper({.id = "steps", .free = true, .steps = std::vector<std::string>{"Cart", "Address", "Payment"}, .value = std::int64_t{1}})}));
+            rest.settle();
+            for (const auto& command : rest.runtime().display_list().commands())
+                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.height == 2 && fill->rect.width > 8 && fill->paint.color.r == accent.r &&
+                                                                                 fill->paint.color.g == accent.g && fill->paint.color.b == accent.b && !row)
+                    row = fill->rect;
+            // From the stepper's coordinates to the window's.
+            if (row) {
+                const Rect at = rest.runtime().screen_bounds(rest.runtime().find("main/steps"));
+                row = Rect{row->x + at.x, row->y + at.y, row->width, row->height};
+            }
+        }
+        expect(fatal(row.has_value())) << "the first connector filled at rest";
+        bool partway = false;
+        std::vector<int> seen;
+        for (int sample = 0; sample < 12; ++sample) {
+            h.advance(seconds(0.02));
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* stroke = std::get_if<xrender::StrokePath>(&command); stroke && stroke->style.trim_end > 0.05f && stroke->style.trim_end < 0.95f)
+                    partway = true;
+            seen.push_back(accent_run());
+        }
+        h.settle();
+        const int full = accent_run();
+        expect(full > 8 && std::ranges::any_of(seen, [&](int run) { return run > 2 && run < full - 2; }))
+            << std::format("the connector's fill flows toward the next step: {} of {} px on the way", seen, full);
+        const auto whole = std::ranges::none_of(h.runtime().display_list().commands(), [](const auto& command) {
+            const auto* stroke = std::get_if<xrender::StrokePath>(&command);
+            return stroke && stroke->style.trim_end < 1;
+        });
+        expect(whole) << "at rest, whole";
+    };
+
+    "a tree row opened turns its chevron about its centre, a quarter turn, not its corners slid (B6)"_test = [] {
+        Headless h(options());
+        Model& files = h.runtime().model("files");
+        for (const auto& [key, label, parent] : std::vector<std::tuple<std::string, std::string, std::string>>{
+                 {"src", "src", ""}, {"app", "app.cpp", "src"}, {"readme", "README.md", ""}}) {
+            Value fields = Value{}.set("label", label);
+            if (!parent.empty()) fields.set("parent", parent);
+            expect(files.push({Row{key, fields}}).has_value());
+        }
+        h.mount("main", column({.padding = 24}, {tree_view({.id = "files", .model = "files", .width = Dim(240.0f), .height = Dim(120.0f)})}));
+        h.settle();
+        act(h, "main/files/src", "expand");
+        // The chevron's own quarter turn: the transforms it is drawn under, a rotation part-way (neither 0 nor 90°).
+        const auto turned = [&] {
+            std::optional<float> most;
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) > 1e-3f) {
+                    const float angle = std::atan2(push->transform.b, push->transform.a) * 180 / std::numbers::pi_v<float>;
+                    if (!most || angle > *most) most = angle;
+                }
+            return most;
+        };
+        std::vector<float> seen;
+        for (int sample = 0; sample < 12; ++sample) {
+            h.advance(seconds(0.02));
+            if (const auto angle = turned()) seen.push_back(*angle);
+            if (sample == 3) save(h, "tree-chevron-turning");
+        }
+        expect(std::ranges::any_of(seen, [](float angle) { return angle > 10 && angle < 80; }))
+            << std::format("the chevron part-way round: {}", seen);
+        h.settle();
+        const auto rest = turned();
+        expect(rest.has_value() && std::abs(*rest - 90) < 0.5f) << "at rest, pointing down";
+    };
+
+    "a tree row opened: its children arrive one after another, in order (default.rows, B6)"_test = [] {
+        Headless h(options());
+        Model& files = h.runtime().model("files");
+        for (const auto& [key, label, parent] : std::vector<std::tuple<std::string, std::string, std::string>>{
+                 {"src", "src", ""}, {"a", "a.cpp", "src"}, {"b", "b.cpp", "src"}, {"c", "c.cpp", "src"}}) {
+            Value fields = Value{}.set("label", label);
+            if (!parent.empty()) fields.set("parent", parent);
+            expect(files.push({Row{key, fields}}).has_value());
+        }
+        h.mount("main", column({.padding = 24}, {tree_view({.id = "files", .model = "files", .width = Dim(240.0f), .height = Dim(200.0f)})}));
+        h.settle();
+        const Rect at = h.runtime().screen_bounds(h.runtime().find("main/files"));
+        // How much ink a row's band holds (its label's): rows 1–3 are the children once open.
+        const auto ink = [&](int row) {
+            const auto& px = h.pixels();
+            const int top = static_cast<int>(at.y + 6 + 30.0f * static_cast<float>(row)), bottom = top + 30;
+            int count = 0;
+            for (int y = top; y < bottom && y < px.height(); ++y)
+                for (int x = static_cast<int>(at.x + 40); x < static_cast<int>(at.right()) - 8 && x < px.width(); ++x) {
+                    const auto p = px.at(x, y);
+                    if (p.r + p.g + p.b < 3 * 160) ++count;
+                }
+            return count;
+        };
+        act(h, "main/files/src", "expand");
+        std::vector<std::array<int, 3>> seen;
+        for (int sample = 0; sample < 15; ++sample) {
+            h.advance(seconds(0.016));
+            seen.push_back({ink(1), ink(2), ink(3)});
+            if (sample == 2) save(h, "tree-rows-arriving");
+        }
+        h.settle();
+        // Each child's ink as a share of its own at rest (their labels differ): the first ahead of the third part-way.
+        const std::array<int, 3> rest{ink(1), ink(2), ink(3)};
+        expect(fatal(rest[0] > 50 && rest[1] > 50 && rest[2] > 50)) << std::format("at rest, all there: {}", rest);
+        const bool in_order = std::ranges::any_of(seen, [&](const std::array<int, 3>& now) {
+            return static_cast<double>(now[0]) / rest[0] > static_cast<double>(now[2]) / rest[2] + 0.2;
+        });
+        expect(in_order) << std::format("the first child further in than the third, part-way: {} of {}", seen, rest);
+    };
+
+    "a grid's sort turned the other way turns its arrow about its centre, a half turn, and moves its rows to their new places (B6)"_test = [] {
+        Headless h(options());
+        Model& people = h.runtime().model("people");
+        for (const auto& [key, name, age] : std::vector<std::tuple<std::string, std::string, std::int64_t>>{{"ada", "Ada", 36}, {"alan", "Alan", 41}})
+            expect(people.push({Row{key, Value{}.set("name", name).set("age", age)}}).has_value());
+        auto sort = signal(std::string("age"));
+        h.mount("main", column({.padding = 24}, {data_grid({.id = "people", .fields = std::vector<std::string>{"name", "age"}, .model = "people",
+                                                            .sort = sort, .width = Dim(300.0f)})}));
+        h.settle();
+        sort.set("-age");
+        h.step();
+        // The transforms the arrow is drawn under: a rotation part-way (its matrix neither up's nor down's). And the
+        // rows, each moved part of the way between its old place and its new one (a row is 34 px tall).
+        std::vector<float> seen;
+        std::vector<float> moved;
+        for (int sample = 0; sample < 12; ++sample) {
+            h.advance(seconds(0.02));
+            for (const auto& command : h.runtime().display_list().commands()) {
+                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) > 0.05f)
+                    seen.push_back(std::atan2(push->transform.b, push->transform.a) * 180 / std::numbers::pi_v<float>);
+                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) < 1e-3f &&
+                                                                                        std::abs(push->transform.f) > 4 && std::abs(push->transform.f) < 30)
+                    moved.push_back(push->transform.f);
+                if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                    for (const auto& style : run->styles)
+                        if (std::abs(style.transform.f) > 4 && std::abs(style.transform.f) < 30) moved.push_back(style.transform.f);
+            }
+            if (sample == 3) save(h, "grid-sort-turning");
+        }
+        expect(std::ranges::any_of(seen, [](float angle) { return std::abs(angle) > 20 && std::abs(angle) < 160; }))
+            << std::format("the arrow part-way round: {}", seen);
+        // Fixed offsets (a cell's padding, the arrow's place) are one value each; a row on its way takes several.
+        const auto ways = [&](bool down) {
+            std::set<int> distinct;
+            for (float by : moved)
+                if ((by > 0) == down) distinct.insert(static_cast<int>(std::lround(by * 10)));
+            return distinct.size();
+        };
+        expect(ways(true) >= 3 && ways(false) >= 3) << std::format("the rows part-way to their new places, one down, one up: {}", moved);
+        h.settle();
+        const bool down = std::ranges::any_of(h.runtime().display_list().commands(), [](const auto& command) {
+            const auto* push = std::get_if<xrender::PushTransform>(&command);
+            return push && push->transform.a < -0.99f && push->transform.d < -0.99f;
+        });
+        expect(down) << "at rest, pointing down";
+    };
+
+    "a focused field's caret blinks by fading, not a hard cut; shown whole again at once when moved (B6)"_test = [] {
+        Headless h(options());
+        h.mount("main", column({.padding = 24}, {text_box({.id = "field", .text = std::string("abc")})}));
+        h.settle();
+        h.runtime().focus(h.runtime().find("main/field"));
+        h.step();
+        const Color accent = h.runtime().theme().color("accent");
+        // The caret: the accent rectangle 1.5 px wide; how much of it shows (none when it is not drawn).
+        const auto shown = [&] {
+            float level = 0;
+            for (const auto& command : h.runtime().display_list().commands())
+                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && std::abs(fill->rect.width - 1.5f) < 1e-3f &&
+                                                                                 fill->paint.color.r == accent.r && fill->paint.color.g == accent.g)
+                    level = std::max(level, fill->paint.color.a / accent.a);
+            return level;
+        };
+        // Focused from the keyboard, and its focus motion over (that one fades the caret in with the ring).
+        h.key(Key::left);
+        for (int frame = 0; frame < 200 && !h.runtime().motions().empty(); ++frame) h.advance(seconds(0.01));
+        expect(fatal(h.runtime().motions().empty())) << "the focus motion over";
+        h.key(Key::right);
+        h.step();
+        expect(shown() > 0.99f) << std::format("moved: whole at once ({})", shown());
+        // Then its blink, on the timers alone (no motion running): part-shown on an edge, then gone a while.
+        std::vector<float> seen;
+        bool moving = false;
+        for (int sample = 0; sample < 80; ++sample) {
+            h.advance(seconds(0.01));
+            moving = moving || !h.runtime().motions().empty();
+            seen.push_back(shown());
+        }
+        expect(!moving) << "no motion: the timers fade it";
+        expect(std::ranges::any_of(seen, [](float level) { return level > 0.05f && level < 0.95f; }))
+            << std::format("part-shown on the way out or in: {}", seen);
+        expect(std::ranges::any_of(seen, [](float level) { return level == 0; })) << "and then gone for a while";
+        while (shown() > 0) h.advance(seconds(0.01));
+        h.key(Key::left);
+        h.step();
+        expect(shown() > 0.99f) << std::format("moved again: whole at once ({})", shown());
+    };
+
+    "a pressed tab answers the finger: deeper than hovered, before the indicator moves (B5)"_test = [] {
+        Headless h(options());
+        auto selected = signal(std::string("general"));
+        h.mount("main", column({.padding = 24}, {tabs({.id = "subject", .selected = selected},
+                                                      {tab({.id = "general", .text = "General"}), tab({.id = "privacy", .text = "Privacy"})})}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/subject/privacy"));
+        PointerEvent over;
+        over.kind = PointerKind::move;
+        over.position = bounds.center();
+        h.step({over});
+        h.settle();
+        const auto hovered = pixels(h);
+        PointerEvent down = over;
+        down.kind = PointerKind::down; down.button = MouseButton::left; down.buttons = 1;
+        h.step({down});
+        h.settle();
+        expect(pixels(h) != hovered) << "held down, the tab is drawn deeper than hovered";
+        expect(selected.peek() == "general") << "nothing selected until it is let go";
+    };
+}};

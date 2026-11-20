@@ -1,0 +1,11 @@
+// The style packs (styles/*.style.xdef.ts) embedded in the program:
+// partitions omui.theme.styles:<name>_style.
+import std;
+import mcpp;
+import omui.build.embed;
+
+int main() {
+    return omui::build::embed({.module = "omui.theme.styles", .ns = "omui::themes", .dir = "packs/styles/styles", .suffix = ".style.xdef.ts", .tag = "style"})
+               ? 0
+               : 1;
+}

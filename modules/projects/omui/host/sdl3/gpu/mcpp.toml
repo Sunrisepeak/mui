@@ -1,0 +1,43 @@
+# omui.host.sdl3.gpu — the GPU path of a desktop window, a provider at omui.host.sdl3's slot (mlibs.compose,
+# D-238): SDL_GPU's device (mlibs.rhi over Vulkan, Metal or Direct3D 12; xrender.rhi.sdl) and xrender's renderer
+# on it. A package of its own so an application built without it carries neither the backend nor the renderer's
+# shaders and draws with the CPU, as a machine without a GPU does. omui.sdk installs it (feature `gpu`).
+[package]
+namespace   = "omui.host.sdl3"
+name        = "gpu"
+version     = "0.1.0"
+description = "The GPU path of omui's desktop host: SDL_GPU's device and xrender's renderer, installed at the host's slot"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+separate = "dependency: SDL_GPU's backend and the GPU renderer, which an application drawing with the CPU leaves out"
+kind = "host"
+agent = { part = "omui.agent" }
+
+[package.metadata.openmui.compose]
+provides = ["omui.host.sdl3.gpu"]  # SDL_GPU's device, xrender's renderer
+
+[targets.openmui-host-sdl3-gpu]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.host.sdl3  = { path = ".." }
+mlibs.compose   = { path = "../../../../../base/compose" }
+mlibs.rhi       = { path = "../../../../../gfx/rhi" }
+xrender.rhi.sdl = { path = "../../../../xrender/rhi/sdl" }
+xrender.frame   = { path = "../../../../xrender/frame" }
+xrender.vector  = { path = "../../../../xrender/vector" }  # the formats its shaders are compiled to
+xrender.effect  = { path = "../../../../xrender/effect" }  # a program's effect files, which the GPU renderer draws
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mcpplibs.os    = "0.4.4"
+omui.ui.base   = { path = "../../../components/base" }  # a button in the first frame
+mlibs.utils    = { path = "../../../../../base/utils" }     # mlibs.testing: kept output directories
+mlibs.text     = { path = "../../../../../content/text" }   # the hosts' fonts

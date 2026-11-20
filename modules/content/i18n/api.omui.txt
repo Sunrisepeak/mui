@@ -1,0 +1,244 @@
+== mlibs.i18n
+export import mlibs.i18n.api;
+== mlibs.i18n.api
+export import :locale;
+export import :plural;
+export import :data;
+export import :format;
+export import :message;
+export import :catalog;
+== mlibs.i18n.api:catalog
+namespace mlibs::i18n {
+  class Catalog {
+    std::expected<void, std::string> add(std::string_view key, std::string_view source);
+    [[nodiscard]] const Message* find(std::string_view key) const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] std::vector<std::string> keys() const;
+  };
+  [[nodiscard]] std::expected<Catalog, std::vector<Diagnostic>> read_messages(std::string_view json, std::string_view file = "messages.xdef.json");
+  [[nodiscard]] std::vector<std::string> compare(const Catalog& reference, const Catalog& translation);
+  class Library {
+    void add(std::shared_ptr<const LocaleData> data);
+    void set_likely(LikelySubtags likely);
+    Catalog& catalog(const Locale& locale);
+    [[nodiscard]] const Catalog* find_catalog(const Locale& locale) const noexcept;
+    [[nodiscard]] std::shared_ptr<const LocaleData> data(const Locale& locale) const;
+    [[nodiscard]] const LikelySubtags& likely() const noexcept;
+    [[nodiscard]] std::vector<Locale> locales() const;
+  };
+  class Translator {
+    Translator(const Library& library, std::span<const Locale> requested, const Locale& fallback);
+    struct Result {
+      std::string text;
+      Locale from;
+      bool found = false;
+      std::vector<std::string> errors;
+    };
+    [[nodiscard]] Result translate(std::string_view key, const Args& args = {…}) const;
+    [[nodiscard]] std::string tr(std::string_view key, const Args& args = {…}) const;
+    [[nodiscard]] const std::vector<Locale>& chain() const noexcept;
+    [[nodiscard]] const Locale& locale() const noexcept;
+    [[nodiscard]] const Formatter& formatter() const noexcept;
+  };
+  [[nodiscard]] std::string pseudo_localize(std::string_view message_source);
+  [[nodiscard]] Catalog pseudo_catalog(const Catalog& source);
+}
+== mlibs.i18n.api:data
+namespace mlibs::i18n {
+  enum class Width : std::uint8_t { wide, abbreviated, narrow };
+  enum class DateStyle : std::uint8_t { full, long_, medium, short_ };
+  struct NumberData {
+    std::string decimal = ".", group = ",", minus = "-", plus = "+", percent = "%", exponential = "E", infinity = "∞", nan = "NaN";
+    std::string decimal_pattern = "#,##0.###";
+    std::string percent_pattern = "#,##0%";
+    int minimum_grouping = 1;
+    struct Compact {
+      int magnitude = 0;
+      Plural count = Plural::other;
+      std::string pattern;
+    };
+    std::vector<Compact> compact_short, compact_long;
+  };
+  struct CalendarData {
+    std::array<std::array<std::string, 12>, 3> months, months_standalone;
+    std::array<std::array<std::string, 7>, 3> days, days_standalone;
+    std::array<std::string, 7> days_short;
+    std::array<std::string, 3> am, pm;
+    std::array<std::string, 2> eras;
+    std::array<std::string, 4> date_formats, time_formats, datetime_formats;
+    std::vector<std::pair<std::string, std::string>> skeletons;
+    struct Period {
+      std::string name;
+      int from = 0;
+      int before = 0;
+      bool at = false;
+    };
+    std::vector<Period> period_rules;
+    std::vector<std::pair<std::string, std::string>> period_names;
+    std::string gmt_format = "GMT{0}", gmt_zero = "GMT", hour_format = "+HH:mm;-HH:mm";
+  };
+  enum class TimeUnit : std::uint8_t { year, quarter, month, week, day, hour, minute, second };
+  struct RelativeData {
+    struct Unit {
+      std::vector<std::pair<int, std::string>> named;
+      std::vector<std::pair<Plural, std::string>> future;
+      std::vector<std::pair<Plural, std::string>> past;
+    };
+    std::array<std::array<Unit, 3>, 8> units;
+  };
+  enum class ListType : std::uint8_t { conjunction, disjunction, unit };
+  struct ListData {
+    struct Patterns {
+      std::string start = "{0}, {1}", middle = "{0}, {1}", end = "{0}, {1}", two = "{0}, {1}";
+    };
+    std::array<std::array<Patterns, 3>, 3> types;
+  };
+  struct LocaleData {
+    Locale locale;
+    std::string cldr;
+    PluralRules cardinal, ordinal;
+    NumberData number;
+    CalendarData calendar;
+    RelativeData relative;
+    ListData lists;
+  };
+  struct Diagnostic {
+    std::string file;
+    int line = 0, column = 0;
+    std::string message;
+    [[nodiscard]] std::string text() const;
+  };
+  [[nodiscard]] std::expected<LocaleData, std::vector<Diagnostic>> read_locale_data(std::string_view json, std::string_view file = "locale.xdef.json");
+  [[nodiscard]] std::expected<LikelySubtags, std::vector<Diagnostic>> read_likely_subtags(std::string_view json, std::string_view file = "likely.locale.xdef.json");
+}
+== mlibs.i18n.api:format
+namespace mlibs::i18n {
+  struct NumberOptions {
+    enum class Style : std::uint8_t { decimal, percent, compact_short, compact_long };
+    enum class Sign : std::uint8_t { negative, always, never };
+    Style style = Style::decimal;
+    std::optional<int> minimum_fraction, maximum_fraction;
+    std::optional<int> minimum_integer;
+    bool grouping = true;
+    Sign sign = Sign::negative;
+  };
+  struct FormattedNumber {
+    std::string text;
+    Operands operands;
+  };
+  struct CivilTime {
+    int year = 1970, month = 1, day = 1;
+    int hour = 0, minute = 0, second = 0, millisecond = 0;
+    int offset_minutes = 0;
+    [[nodiscard]] static CivilTime from_unix(std::int64_t seconds, int offset_minutes = 0, int millisecond = 0);
+    [[nodiscard]] int weekday() const noexcept;
+  };
+  class Formatter {
+    explicit Formatter(std::shared_ptr<const LocaleData> data);
+    [[nodiscard]] const LocaleData& data() const noexcept;
+    [[nodiscard]] const Locale& locale() const noexcept;
+    [[nodiscard]] FormattedNumber number(double value, const NumberOptions& options = {…}) const;
+    [[nodiscard]] FormattedNumber number(std::int64_t value, const NumberOptions& options = {…}) const;
+    [[nodiscard]] Plural plural(const Operands& x, bool ordinal = false) const noexcept;
+    [[nodiscard]] std::string date(const CivilTime& t, DateStyle style = DateStyle::medium) const;
+    [[nodiscard]] std::string time(const CivilTime& t, DateStyle style = DateStyle::short_) const;
+    [[nodiscard]] std::string datetime(const CivilTime& t, DateStyle date_style = DateStyle::medium, DateStyle time_style = DateStyle::short_) const;
+    [[nodiscard]] std::string pattern(const CivilTime& t, std::string_view cldr_pattern) const;
+    [[nodiscard]] std::optional<std::string> skeleton(const CivilTime& t, std::string_view skeleton) const;
+    [[nodiscard]] std::string relative(double value, TimeUnit unit, Width width = Width::wide, bool named = true) const;
+    [[nodiscard]] std::string list(std::span<const std::string> items, ListType type = ListType::conjunction, Width width = Width::wide) const;
+  };
+}
+== mlibs.i18n.api:locale
+namespace mlibs::i18n {
+  struct Locale {
+    std::string language = "und";
+    std::string script;
+    std::string region;
+    std::vector<std::string> variants;
+    std::string extensions;
+    [[nodiscard]] static std::expected<Locale, std::string> parse(std::string_view tag);
+    [[nodiscard]] std::string tag() const;
+    [[nodiscard]] bool empty() const noexcept;
+    friend bool operator==(const Locale& a, const Locale& b) noexcept;
+  };
+  class LikelySubtags {
+    void add(std::string_view from, std::string_view to);
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] Locale maximize(const Locale& locale) const;
+    [[nodiscard]] Locale minimize(const Locale& locale) const;
+  };
+  [[nodiscard]] std::vector<Locale> negotiate(std::span<const Locale> requested, std::span<const Locale> available, const LikelySubtags& likely, const Locale& fallback);
+}
+== mlibs.i18n.api:message
+namespace mlibs::i18n {
+  using Arg = std::variant<std::monostate, bool, std::int64_t, double, std::string, CivilTime, std::vector<std::string>>;
+  class Args {
+    Args() = default;
+    Args(std::initializer_list<std::pair<std::string_view, Arg>> values);
+    Args& set(std::string_view name, Arg value);
+    [[nodiscard]] const Arg* get(std::string_view name) const noexcept;
+  };
+  class Message {
+    [[nodiscard]] static std::expected<Message, std::string> parse(std::string_view source);
+    [[nodiscard]] std::string format(const Formatter& fmt, const Args& args = {…}, std::vector<std::string>* errors = nullptr) const;
+    [[nodiscard]] const std::string& source() const noexcept;
+    [[nodiscard]] std::vector<std::string> variables() const;
+    struct Option {
+      std::string name, value;
+      bool variable = false;
+    };
+    struct Expression {
+      enum class Kind : std::uint8_t { none, variable, literal } kind = Kind::none;
+      std::string operand;
+      std::string function;
+      std::vector<Option> options;
+    };
+    struct Part {
+      std::string text;
+      std::optional<Expression> expression;
+    };
+    using Pattern = std::vector<Part>;
+    struct Declaration {
+      bool input = true;
+      std::string name;
+      Expression expression;
+    };
+    struct Variant {
+      std::vector<std::optional<std::string>> keys;
+      Pattern pattern;
+    };
+  };
+}
+== mlibs.i18n.api:plural
+namespace mlibs::i18n {
+  enum class Plural : std::uint8_t { zero, one, two, few, many, other };
+  [[nodiscard]] std::string_view name(Plural p) noexcept;
+  [[nodiscard]] std::optional<Plural> parse_plural(std::string_view name) noexcept;
+  struct Operands {
+    double n = 0;
+    std::uint64_t i = 0;
+    int v = 0;
+    int w = 0;
+    std::uint64_t f = 0;
+    std::uint64_t t = 0;
+    int c = 0;
+    [[nodiscard]] static std::optional<Operands> of(std::string_view decimal, int compact_exponent = 0);
+    [[nodiscard]] static Operands of(std::int64_t value);
+  };
+  class PluralRules {
+    [[nodiscard]] static std::expected<PluralRules, std::string> parse(std::span<const std::pair<Plural, std::string>> rules);
+    [[nodiscard]] Plural select(const Operands& x) const noexcept;
+    [[nodiscard]] std::vector<Plural> categories() const;
+    struct Relation {
+      char operand = 'n';
+      std::uint64_t modulo = 0;
+      bool negated = false;
+      std::vector<std::pair<std::uint64_t, std::uint64_t>> ranges;
+    };
+    struct Rule {
+      Plural category = Plural::other;
+      std::vector<std::vector<Relation>> any;
+    };
+  };
+}

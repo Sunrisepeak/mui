@@ -1,0 +1,95 @@
+{
+  "$format": "claims@1",
+  "doc": "The claims ledger (release plan §6.4, D-193): every number and every verdict (ahead, par, behind, N×) a public document states against another project, with its evidence. The document carries `claim:<id>` where it says it (an HTML comment in Markdown); lint `claims` holds both ends: every mark is here, every claim here is marked where it says, and its evidence exists — a test by its name, a benchmark by its name in a budget, a row of the lead ledger by its metric. A release candidate runs every one again. An experimental module states its goal and where it is now, and is not here.",
+  "claims": [
+    {
+      "id": "xrender.exact-error",
+      "where": "modules/projects/xrender/README.md",
+      "says": "against the picture itself the CPU reference is the nearest of the three: strokes 3.5× nearer than resvg, small shapes 5.5×",
+      "kind": "quality",
+      "evidence": [
+        {
+          "ledger": "raster.strokes-500.exact_error"
+        },
+        {
+          "ledger": "raster.small-5000.exact_error"
+        }
+      ],
+      "date": "2026-11-15",
+      "hardware": "speak-pc-32t (the development machine: 32 threads, RTX 4080)"
+    },
+    {
+      "id": "xrender.throughput",
+      "where": "modules/projects/xrender/README.md",
+      "says": "throughput leads Skia and resvg on fills, gradients and small draws (1.26–3.7×) and is level with Skia on strokes and joins on the development machine; on CI's 4-thread runner fills and small draws lead (1.27×, 3.35×), gradients and joins are level, strokes 0.92× behind",
+      "kind": "speed",
+      "evidence": [
+        {
+          "ledger": "raster.fills-1000.median_ms"
+        },
+        {
+          "ledger": "raster.gradients-200.median_ms"
+        },
+        {
+          "ledger": "raster.small-5000.median_ms"
+        },
+        {
+          "ledger": "raster.strokes-500.median_ms"
+        },
+        {
+          "ledger": "raster.joins-300.median_ms"
+        }
+      ],
+      "date": "2026-11-17",
+      "hardware": "speak-pc-32t (the development machine: 32 threads, RTX 4080) and CI's ubuntu-24.04 runner (4 threads), each side by side in one job"
+    },
+    {
+      "id": "skeleton.compression",
+      "where": "modules/projects/hanim/skeleton/README.md",
+      "says": "beside ACL: par in bytes and error on the same data; the procedural biped's clips 2.8–3.7× smaller within 0.1 mm; Fox's Survey 3.6× within 0.0001 units",
+      "kind": "size",
+      "evidence": [
+        {
+          "test": "compressed by ACL within the error said, measured between its samples too"
+        },
+        {
+          "test": "Khronos' Fox, when the fidelity cache has it: three clips compressed by ACL, measured"
+        },
+        {
+          "bench": "motion/skeleton-sample-64x50"
+        }
+      ],
+      "date": "2026-11-15",
+      "hardware": "speak-pc-32t (the development machine: 32 threads, RTX 4080)"
+    },
+    {
+      "id": "skeleton.playback",
+      "where": "modules/projects/hanim/skeleton/README.md",
+      "says": "playing back ACL's clips costs about 1.6× the raw channels at decompression, the same bits everywhere (behind by the SIMD factor, for determinism)",
+      "kind": "speed",
+      "evidence": [
+        {
+          "test": "measured (printed, not judged; the benchmark motion/skeleton-* is the gate): 64 × 50 joints, ACL beside the raw channels, and a crowd's step"
+        },
+        {
+          "bench": "motion/skeleton-sample-64x50"
+        }
+      ],
+      "date": "2026-11-15",
+      "hardware": "speak-pc-32t (the development machine: 32 threads, RTX 4080)"
+    },
+    {
+      "id": "markdown.html-web",
+      "where": "modules/content/markdown/README.md",
+      "says": "Markdown to HTML the whole way on the Web is level with md4w (0.97×) and 7.6× faster than markdown-it",
+      "kind": "speed",
+      "evidence": [
+        {
+          "ledger": "markdown.html.web.median_ms"
+        }
+      ],
+      "date": "2026-11-17",
+      "hardware": "CI's ubuntu-24.04 runner (4 threads), side by side in one job (Bench run 44168311039)"
+    }
+  ]
+}

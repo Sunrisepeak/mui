@@ -1,0 +1,146 @@
+== omui.native
+namespace omui::native {
+  using Json = nlohmann::json;
+  struct Failure {
+    std::string code;
+    std::string message;
+  };
+  using Result = std::expected<Json, Failure>;
+  struct Param {
+    std::string name;
+    std::string type;
+    std::string doc;
+  };
+  struct Function {
+    std::string name;
+    std::string doc;
+    std::string effect = "read";
+    bool async = false;
+    std::vector<Param> params;
+    std::string returns;
+    std::function<Result(const Json& args)> call;
+  };
+  struct Type {
+    std::string name;
+    std::string doc;
+    std::vector<Param> fields;
+  };
+  struct Module {
+    std::string name;
+    std::string doc;
+    std::string spec = "0.1";
+    std::vector<Type> types;
+    std::vector<Function> functions;
+  };
+  std::expected<void, std::string> define(Module module);
+  [[nodiscard]] const Module* find(std::string_view name);
+  [[nodiscard]] std::vector<const Module*> modules();
+  [[nodiscard]] Json catalog();
+  [[nodiscard]] Result call(std::string_view module, std::string_view function, const Json& args);
+  [[nodiscard]] std::string check(const Module& module, const Json& value, std::string_view type, std::string_view where);
+  inline bool decode(const Json& j, std::type_identity<bool>);
+  inline std::int32_t decode(const Json& j, std::type_identity<std::int32_t>);
+  inline std::uint32_t decode(const Json& j, std::type_identity<std::uint32_t>);
+  inline std::int64_t decode(const Json& j, std::type_identity<std::int64_t>);
+  inline double decode(const Json& j, std::type_identity<double>);
+  inline std::string decode(const Json& j, std::type_identity<std::string>);
+  inline Json decode(const Json& j, std::type_identity<Json>);
+  template <class T> std::vector<T> decode(const Json& j, std::type_identity<std::vector<T>>);
+  template <class T> std::optional<T> decode(const Json& j, std::type_identity<std::optional<T>>);
+  inline Json encode(bool v);
+  inline Json encode(std::int32_t v);
+  inline Json encode(std::uint32_t v);
+  inline Json encode(std::int64_t v);
+  inline Json encode(double v);
+  inline Json encode(const std::string& v);
+  inline Json encode(const Json& v);
+  template <class T> Json encode(const std::vector<T>& v);
+  template <class T> Json encode(const std::optional<T>& v);
+}
+== omui.native.fuzzy
+export import :matching;
+export import :fuzzy_native;
+== omui.native.fuzzy:fuzzy_native
+namespace omui::natives::fuzzy {
+  struct Segment;
+  struct Match;
+  struct Segment {
+    std::string text;
+    bool matched = false;
+  };
+  struct Match {
+    std::uint32_t index = 0;
+    std::string text;
+    std::int32_t score = 0;
+    std::vector<std::uint32_t> positions;
+    std::vector<Segment> segments;
+  };
+  [[nodiscard]] omui::native::Json encode(const Segment& v);
+  [[nodiscard]] Segment decode(const omui::native::Json& j, std::type_identity<Segment>);
+  [[nodiscard]] omui::native::Json encode(const Match& v);
+  [[nodiscard]] Match decode(const omui::native::Json& j, std::type_identity<Match>);
+  [[nodiscard]] std::expected<std::vector<Match>, std::string> rank(const std::string& query, const std::vector<std::string>& candidates, const std::optional<std::uint32_t>& limit);
+  [[nodiscard]] std::expected<std::optional<Match>, std::string> match(const std::string& query, const std::string& candidate);
+  inline omui::native::Json encode(const Segment& v);
+  inline Segment decode(const omui::native::Json& j, std::type_identity<Segment>);
+  inline omui::native::Json encode(const Match& v);
+  inline Match decode(const omui::native::Json& j, std::type_identity<Match>);
+  inline std::expected<void, std::string> define();
+}
+== omui.native.fuzzy:matching
+namespace omui::fuzzy {
+  struct Segment {
+    std::string text;
+    bool matched = false;
+  };
+  struct Match {
+    std::uint32_t index = 0;
+    std::int32_t score = 0;
+    std::vector<std::uint32_t> positions;
+    std::vector<Segment> segments;
+  };
+  [[nodiscard]] std::optional<Match> match(std::string_view query, std::string_view candidate);
+  [[nodiscard]] std::vector<Match> rank(std::string_view query, std::span<const std::string> candidates, std::size_t limit);
+  namespace score {
+    inline constexpr std::int32_t match = 16;
+    inline constexpr std::int32_t gap_start = 3;
+    inline constexpr std::int32_t gap_extension = 1;
+    inline constexpr std::int32_t boundary_white = 10;
+    inline constexpr std::int32_t boundary_delimiter = 9;
+    inline constexpr std::int32_t boundary = 8;
+    inline constexpr std::int32_t camel = 7;
+    inline constexpr std::int32_t consecutive = 4;
+    inline constexpr std::int32_t first_multiplier = 2;
+  }
+}
+== omui.native.store
+export import :store_native;
+namespace omui {
+  inline constexpr std::size_t store_key_bytes = 256;
+  [[nodiscard]] bool valid_store_key(std::string_view key) noexcept;
+  class Store {
+    virtual ~Store() = default;
+    [[nodiscard]] virtual std::string_view kind() const noexcept = 0;
+    [[nodiscard]] virtual std::optional<std::string> get(std::string_view key) const = 0;
+    virtual std::expected<void, std::string> set(std::string_view key, std::string_view value) = 0;
+    virtual bool remove(std::string_view key) = 0;
+    [[nodiscard]] virtual std::vector<std::string> keys(std::string_view prefix = {…}) const = 0;
+  };
+  class MemoryStore final : public Store {
+    [[nodiscard]] std::string_view kind() const noexcept override;
+    [[nodiscard]] std::optional<std::string> get(std::string_view key) const override;
+    std::expected<void, std::string> set(std::string_view key, std::string_view value) override;
+    bool remove(std::string_view key) override;
+    [[nodiscard]] std::vector<std::string> keys(std::string_view prefix = {…}) const override;
+  };
+  [[nodiscard]] Store& store();
+  void use_store(Store* store);
+}
+== omui.native.store:store_native
+namespace omui::natives::store {
+  [[nodiscard]] std::expected<std::optional<std::string>, std::string> get(const std::string& key);
+  [[nodiscard]] std::expected<void, std::string> set(const std::string& key, const std::string& value);
+  [[nodiscard]] std::expected<bool, std::string> remove(const std::string& key);
+  [[nodiscard]] std::expected<std::vector<std::string>, std::string> keys(const std::optional<std::string>& prefix);
+  inline std::expected<void, std::string> define();
+}

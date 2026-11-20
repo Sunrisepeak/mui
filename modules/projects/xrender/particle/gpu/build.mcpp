@@ -1,0 +1,7 @@
+// The pass's shader (shaders/particle.slang) becomes the partition xrender.particle.gpu:particle_shaders, for the
+// formats this build's target takes.
+import std;
+import mcpp;
+import mlibs.shader.rules;
+
+int main() { return mlibs::shader::rules::shaders({.module = "xrender.particle.gpu", .ns = "xrender::particle::gpu::shaders"}) ? 0 : 1; }

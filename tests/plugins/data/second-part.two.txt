@@ -1,0 +1,2 @@
+Two: a stem with a dash and a dot,
+“and text that is not ASCII”.

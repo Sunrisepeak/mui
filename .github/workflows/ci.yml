@@ -1,0 +1,516 @@
+name: CI
+
+# What a green run asserts about openmui (implementation plan §15, §19.1):
+#
+#   lint      the repository rules hold, and each rule still catches a planted
+#             violation (no macros, one header, naming, layering, exceptions,
+#             determinism flags)
+#   test      every workspace member builds and passes its tests on Linux,
+#             macOS and Windows; the pinned determinism hashes in the tests are
+#             the same constants on every row, so a green matrix is the
+#             cross-platform determinism gate
+#   web       the members that say they run on the Web pass their tests on
+#             wasm32-emscripten under node, with the same pinned hashes
+
+# When it runs (D-248, D-254): a checkpoint is verified on the developer's
+# machine (`omui-devtools ci local`, the members it touches); this workflow is
+# for what that machine cannot be. What a run tests is chosen, lane by lane,
+# from .github/ci.lanes.xdef.json (the lanes, what each checks, its minutes;
+# groups; each event's default) by `omui-devtools ci plan`, the lint job's
+# first step:
+#   a pull request's push      the lint alone (minutes) — unless the commit's
+#                              last paragraph names lanes, `CI: macos windows`,
+#                              `CI: all -android`, `CI: pages`: they are then
+#                              requested as a run of their own
+#   by hand                    omui-devtools ci request elsewhere   (or: gh workflow run CI -f lanes="…")
+#   main, nightly              every lane and the GCC rows
+#   omui-devtools ci plan [--lanes …]   says what a commit would run, and its minutes, before the push
+# The matrix was about 730 runner minutes a run (macOS 161), run on every
+# push; nearly every failure it found was one Linux x64 shows locally.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      lanes:
+        description: "Lanes and groups (.github/ci.lanes.xdef.json), -name takes one away: all, elsewhere, desktop; linux arm macos windows gcc web android split; pages sanitize bench omui mpal"
+        default: all
+  # The GCC rows (and the steps they carry: the consumers, the templates,
+  # the sweep, the benchmarks) run nightly, on main, and when named; `all`
+  # leaves them out (they took over 150 minutes, red list 9).
+  schedule:
+    - cron: "30 2 * * *"
+
+# Nothing is cancelled by a later push: a matrix in progress finishes, and so
+# does a pull request's lint — its plan may be requesting the lanes its commit
+# names (a run a push, minutes). Runs asked with different lanes do not wait on
+# one another.
+concurrency:
+  group: ci-${{ github.event.pull_request.head.sha || github.ref }}-${{ github.event_name }}-${{ inputs.lanes }}
+  cancel-in-progress: false
+
+env:
+  XLINGS_VERSION: v2026.10.26.1
+  XLINGS_NON_INTERACTIVE: '1'
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: write  # the lanes a commit names are requested as a run of their own
+    # The plan's outputs: the matrix, and each job's lane.
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      rows: ${{ steps.plan.outputs.rows }}
+      web: ${{ steps.plan.outputs.web }}
+      android: ${{ steps.plan.outputs.android }}
+      split: ${{ steps.plan.outputs.split }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 2  # a pull request's head commit, whose trailer names its lanes
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          # The lint is a subcommand of the contributors' tool, built with the project's mcpp (.xlings.json; D-206).
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+      - name: The lanes this run tests, and those it requests (.github/ci.lanes.xdef.json)
+        # First, so a rule's failure below does not take away the lanes a run asked for.
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LANES: ${{ inputs.lanes }}
+        run: >-
+          mcpp run omui-devtools -p tools/devtools --profile ci -- ci plan --dispatch
+          --event '${{ github.event_name }}' ${LANES:+--lanes "$LANES"}
+          --commit '${{ github.event.pull_request.head.sha || github.sha }}'
+          --ref '${{ github.head_ref || github.ref_name }}'
+          --github-output "$GITHUB_OUTPUT" --summary "$GITHUB_STEP_SUMMARY"
+      - name: Repository rules
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- lint
+      - name: Each rule catches a planted violation
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- lint --self-test
+      - name: openmui.h is plain C99 and C++11
+        run: |
+          gcc -std=c99 -Wall -Wextra -pedantic -Werror -Ispec/include -fsyntax-only tools/lint/abi_c99.c
+          g++ -std=c++11 -Wall -Wextra -pedantic -Werror -Ispec/include -x c++ -fsyntax-only tools/lint/abi_c99.c
+
+  # The split drill (RC3.13, D-55, D-231): each tier with only what it declares — the foundation alone, the
+  # foundation and omui, everything — its members and every member they reach by path, with the root's files, as a
+  # workspace of its own (omui-devtools split <tier>). Whatever a tier needs and does not declare is missing there,
+  # and the build or a test says so; a tier that reaches one above it is refused before anything builds.
+  split:
+    name: test the ${{ matrix.tier }} split from the repository
+    needs: lint
+    if: ${{ !cancelled() && needs.lint.outputs.split == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        tier: [foundation, framework, engine]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          mcpp --version
+          mcpp self config --mirror GLOBAL
+      - name: SDL's offscreen video driver (the desktop host's tests open windows)
+        run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
+      - name: A GPU for the renderer's device tests (lavapipe)
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- gpu
+      - name: The tier and what it declares, alone
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- split ${{ matrix.tier }} --out "$RUNNER_TEMP/split"
+      - name: Test every member of the split tree
+        working-directory: ${{ runner.temp }}/split
+        run: |
+          # omui.reflect (C++26) and the development host are the main rows' exclusions too; the foundation has neither.
+          # The repository's own tool is not tested here: its tests hold the whole repository's records and pages.
+          excluded="--exclude omui.devtools"
+          if [ "${{ matrix.tier }}" != foundation ]; then excluded="$excluded --exclude omui.reflect --exclude omui.entry.devhost"; fi
+          mcpp test --workspace --profile ci $excluded 2>&1 | tee tests.log
+          grep -q "workspace result ok" tests.log || { echo "::error::the split tree's tests failed"; exit 1; }
+
+  # The Web row (D-84): the members that say they run on the Web, built for
+  # wasm32-emscripten (emsdk and node from xlings, through mcpp) and tested
+  # under node; their pinned hashes are the other rows' constants.
+  web:
+    name: test web wasm32-emscripten
+    needs: lint
+    if: ${{ !cancelled() && needs.lint.outputs.web == 'true' }}
+    runs-on: ubuntu-24.04
+    # Red 117: the members' Web build takes about an hour on a runner and their tests about forty minutes;
+    # 90 cut the run short while it was still passing. A limit on the job's time, not on what it checks.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          # The mcpp every row builds with is the project's (.xlings.json), the one
+          # the work is checked with locally; in the project, xlings runs that one.
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+      - name: The members that run on the Web, tested under node
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check web
+        env:
+          # The runner has Chrome: a page's checks are never skipped here.
+          OMUI_REQUIRE_BROWSER: '1'
+      # D-84 §6.5: the games packed for Bilibili Toy (dist-toy) and checked by
+      # Toy's own toy_doctor.py, pinned; nothing is published.
+      - name: The games packaged for Toy, checked by Toy's doctor
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check toy
+
+  # omui on Android (W10): example 01 packed into an APK and checked inside,
+  # then run on Android 7.0's emulator (KVM): started, a tap, Back.
+  android:
+    name: test android x86_64 (emulator)
+    needs: lint
+    if: ${{ !cancelled() && needs.lint.outputs.android == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          # The mcpp every row builds with is the project's (.xlings.json), the one
+          # the work is checked with locally; in the project, xlings runs that one.
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+      - name: KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Example 01 as an APK, on the emulator
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check android --out '${{ runner.temp }}/omui-android'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-screens
+          path: ${{ runner.temp }}/omui-android/*.png
+          if-no-files-found: ignore
+
+  # The matrix's rows are the plan's (.github/ci.lanes.xdef.json). The LLVM rows build the profile `ci` (the
+  # workspace's: dev without debug information, stripped — a test program is a fifth of its size); the GCC rows keep
+  # `dev` and `release`. aarch64 Linux's native glibc toolchain is LLVM (mcpp docs/20): there `gcc` is the static
+  # musl toolchain, which cannot link the shared X11 libraries the desktop host needs.
+  test:
+    name: test ${{ matrix.os }} ${{ matrix.toolchain }} ${{ matrix.profile }}
+    needs: lint
+    if: ${{ !cancelled() && needs.lint.outputs.rows == 'true' }}
+    runs-on: ${{ matrix.os }}
+    # Every member's tests, then the scripts: 2 h 06 min on Linux x64 at e1749f83, more on macOS (each member's
+    # tests rebuild what it reaches: mcpp#874). 150 minutes cancelled both rows with nothing failing (red list 67).
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.lint.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install xlings (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+
+      - name: Install xlings (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://d2learn.org/xlings-install.ps1.txt | iex
+          "$env:USERPROFILE\.xlings\subos\current\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install mcpp
+        run: |
+          # The mcpp every row builds with is the project's (.xlings.json), the one
+          # the work is checked with locally; in the project, xlings runs that one.
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+
+
+      - name: Select the toolchain
+        run: |
+          spec='${{ matrix.toolchain }}'
+          mcpp toolchain install "${spec%@*}" "${spec#*@}"
+          mcpp toolchain default "$spec"
+
+      - name: SDL's offscreen video driver (the desktop host's tests open windows)
+        run: echo "SDL_VIDEO_DRIVER=offscreen" >> "$GITHUB_ENV"
+
+      - name: A GPU for omui.rhi (lavapipe on Linux and Windows, Metal on macOS; required, not skipped)
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- gpu
+
+      - name: Build every member
+        run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect
+
+      - name: An unchanged build leaves compilation outputs untouched
+        # A limit on the step's time, not on what it checks (0 outputs changed): Windows' warm build and repeat took
+        # 368 + 113 s and 362 + 126 s (runs 44061517307, 44103060931), the second past 10 minutes (red 127).
+        timeout-minutes: 15
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- incremental --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect
+
+      - name: Keep the incremental build check
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incremental-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.profile }}
+          path: |
+            target/incremental.report.xdef.json
+            target/incremental-*.events.xdef.jsonl
+            target/incremental-*.log
+          if-no-files-found: ignore
+
+      - name: Test every member
+        run: |
+          # The workspace declares esbuild for test runs and mcpp installs it; on Windows a test is not
+          # given the directory it is installed in (mcpp#926), so there the test is told where it is.
+          if [ "$RUNNER_OS" = Windows ]; then
+            version="$(sed -n 's/^"xim:esbuild" *= *{ *version *= *"\([^"]*\)".*/\1/p' mcpp.toml)"
+            export OMUI_ESBUILD="$(cygpath -m "$HOME/.mcpp/registry/data/xpkgs/xim-x-esbuild/$version/bin/esbuild.exe")"
+            echo "OMUI_ESBUILD=$OMUI_ESBUILD"
+          fi
+          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect --exclude omui.entry.devhost 2>&1 | tee tests.log
+          grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
+
+      # The showcases' README pictures are what their tests draw (deterministic:
+      # omui-devtools media makes them again after a change in the picture).
+      - name: The showcases' README media are up to date
+        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile != 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- media --check  # the showcases' and the site's
+
+      # A pinned picture that differs on one platform is looked at, not
+      # guessed at: every test's pictures, kept when a test failed.
+      - name: Keep the tests' pictures (on failure)
+        if: failure()
+        run: |
+          src="$(python3 -c 'import tempfile; print(tempfile.gettempdir())')/openmui-tests"
+          mkdir -p test-pictures
+          if [ -d "$src" ]; then (cd "$src" && find . -name '*.png' | tar -cf - -T -) | tar -C test-pictures -xf -; fi
+
+      - name: Upload the tests' pictures (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-pictures-${{ matrix.os }}-${{ matrix.toolchain }}-${{ matrix.profile }}
+          path: test-pictures
+          if-no-files-found: ignore
+
+      # C++26 reflection (D-39): GCC 16 with -freflection only, and a C++26
+      # build of its graph of its own, so on one row — gated on a toolchain
+      # that builds reflection beside C headers (V-08, omui-devtools check reflect).
+      - name: omui.reflect (C++26 reflection, GCC 16)
+        if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile != 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check reflect --profile '${{ matrix.profile }}'
+
+      - name: An agent drives example 07 in its own process (M1 acceptance ②)
+        if: runner.os == 'Linux'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check agent-e2e --profile '${{ matrix.profile }}'
+
+      - name: omui dev for a C++ application, end to end (W16; builds example 01 several times)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        # The case runs `mcpp build` in this workspace: `mcpp test` lets go of the build directory before its
+        # tests run (mcpp#915, fixed in 2026.11.10.1).
+        run: mcpp test -p omui.entry.devhost --profile '${{ matrix.profile }}'
+
+      - name: mpal as an ok image (openkal), its services found when loaded
+        if: runner.os == 'Linux' && runner.arch == 'X64' && matrix.profile != 'release'
+        run: mcpp test -p mcpplibs.mpal --target x86_64-openkal
+
+      - name: The products' commands as an Agent uses them (hanim, xrender; plan §10.3)
+        if: runner.os == 'Linux'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check tools-e2e --profile '${{ matrix.profile }}'
+
+      - name: The interaction sweep — every program, every action an agent can perform (D-91)
+        if: runner.os == 'Linux' && matrix.profile != 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check sweep --profile '${{ matrix.profile }}'
+
+      - name: Upload the sweep's verdicts
+        if: always() && runner.os == 'Linux' && matrix.profile != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sweep-${{ matrix.os }}-${{ matrix.toolchain }}
+          path: target/sweep
+          if-no-files-found: ignore
+
+      - name: A screen reader's protocol reads and operates examples 03 and 07 (AT-SPI over D-Bus)
+        if: runner.os == 'Linux' && runner.arch == 'X64'
+        run: |
+          command -v /usr/libexec/at-spi-bus-launcher > /dev/null || { sudo apt-get update -q && sudo apt-get install -yq at-spi2-core; }
+          mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check atspi --profile '${{ matrix.profile }}'
+
+      - name: The smallest application's distribution carries Inter alone and no window system's library (B4)
+        if: runner.os == 'Linux' && matrix.profile != 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check distribution --profile '${{ matrix.profile }}'
+
+      # The budget is Linux x64's: its bytes, and its links and installs (AccessKit has no library on Linux arm64, so
+      # the program links two packages fewer there — red 139). Other Linux rows say what they measure and hold nothing.
+      - name: The smallest application's program by owner, held to its budget (B3)
+        if: runner.os == 'Linux' && runner.arch == 'X64' && matrix.profile != 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check size --native -p omui.example.hello-im --budget examples/01-hello-im/size.budget.xdef.json
+
+      - name: The smallest application's program by owner, said (B3; no budget off Linux x64)
+        if: runner.os == 'Linux' && runner.arch != 'X64' && matrix.profile != 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check size --native -p omui.example.hello-im
+
+      - name: A feature selects one of two exclusive sources (M0 acceptance ⑤)
+        if: runner.os == 'Linux' && matrix.profile != 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check features
+
+      - name: The templates build and pass their tests (M0 acceptance ①)
+        if: runner.os == 'Linux' && matrix.profile != 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check templates
+
+      - name: Independent core and log consumer has no UI or renderer dependency
+        timeout-minutes: 10
+        if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer hanim-core
+
+      - name: Keep the independent consumer graph and results
+        if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanim-core-independent-consumer
+          path: target/hanim-core-consumer
+          if-no-files-found: ignore
+
+      - name: Independent playback and shared Agent control export real process frames without a GUI
+        timeout-minutes: 15
+        if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer hanim-play
+
+      - name: Native UI playback and provider recovery render the same process on native and Web
+        timeout-minutes: 30
+        if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer omui-hanim --web
+
+      - name: Keep UI playback pixels provider recovery and feature dependency evidence
+        if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: omui-hanim-independent-consumer
+          path: target/omui-hanim-consumer
+          if-no-files-found: ignore
+
+      - name: Public hanim authoring and umbrella stay independent
+        timeout-minutes: 15
+        if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer hanim-api
+
+      - name: Hanim features exclude unselected sources and renderer dependencies
+        timeout-minutes: 15
+        if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        run: mcpp run omui-devtools -p tools/devtools --profile release -- consumer hanim-features
+
+      - name: Keep Hanim feature dependency evidence
+        if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanim-features
+          path: target/hanim-features
+          if-no-files-found: ignore
+
+      - name: Keep public authoring checks and dependency evidence
+        if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanim-public-authoring
+          path: target/hanim-public-authoring
+          if-no-files-found: ignore
+
+      - name: Keep the independent playback graph pixels and provenance
+        if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanim-play-independent-consumer
+          path: target/hanim-play-consumer
+          if-no-files-found: ignore
+
+      # The benchmarks are mtest's cases, their budgets (tests/bench/budgets.bench.xdef.json) the cases' bounds
+      # (tests/bench/tests/budgets_test.cpp; M1 acceptance ⑤; the foundation plan's §6.13.1, T2.12 step 7): what
+      # each measured is in the run's record, and a case over a budget fails.
+      - name: Benchmarks against their budgets
+        if: matrix.profile == 'release'
+        env:
+          OMUI_BENCH: "1"
+        run: mcpp test -p omui.bench --profile release budgets
+

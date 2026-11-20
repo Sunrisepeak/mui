@@ -1,0 +1,8 @@
+[template]
+description  = "An openmui theme package: themes/*.theme.xdef.ts, embedded in the package when it builds"
+post_message = "cd into the project: themes/ holds the theme; a program calls the package's add() once, then composes it (omui.theme(\"brand\"))."
+
+# The package names what it builds on, at this package's version: nothing more is added for the
+# package the template comes from (the SDK's umbrella is an application's, not a package's).
+[template.inject]
+self = false

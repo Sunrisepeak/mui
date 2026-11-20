@@ -1,0 +1,299 @@
+== omui
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
+export import hanim.visual;
+export import omui.agent;
+export import omui.generate;
+export import omui.expr;
+export import omui.viewdoc;
+export import omui.ui.base;
+export import omui.ui.window;
+export import omui.host.headless;
+export import :host;
+export import mlibs.i18n;
+export import :app;
+export import :system;
+export import :present;
+export import :devhost;
+export import :agent_guide;
+== omui.generate
+export import :generation;
+export import :a2ui;
+export import :replay;
+== omui.generate:a2ui
+namespace omui::generate {
+  class A2uiReader {
+    struct Rendered {
+      std::string surface;
+      std::string document;
+    };
+    struct Read {
+      std::vector<Rendered> rendered;
+      std::vector<std::string> deleted;
+      std::vector<std::string> problems;
+    };
+    [[nodiscard]] Read feed(std::string_view messages);
+  };
+}
+== omui.generate:generation
+namespace omui::generate {
+  using agent::CaptureFn;
+  using agent::TaskBroker;
+  enum class Openness : std::uint8_t { off, data, limited, all };
+  [[nodiscard]] std::string_view openness_name(Openness openness) noexcept;
+  [[nodiscard]] std::optional<Openness> parse_openness(std::string_view text) noexcept;
+  struct Surface {
+    enum class Kind : std::uint8_t { view, theme };
+    std::string name;
+    std::string doc;
+    Kind kind = Kind::view;
+  };
+  using EvaluateFn = std::function<std::expected<std::string, std::string>(std::string_view language, std::string_view code)>;
+  struct GenerationOptions {
+    Openness openness = Openness::data;
+    std::vector<Surface> surfaces;
+    std::size_t max_bytes = 256 * 1024;
+    std::size_t max_nodes = 2000;
+    std::vector<std::string> components, verbs;
+    CaptureFn capture;
+    EvaluateFn evaluate;
+    std::function<std::expected<Theme, std::string>(std::string_view overlay)> theme;
+    std::function<std::optional<Signal<Value>>(std::string_view name)> provide;
+    std::filesystem::path directory;
+    std::function<std::optional<std::string>(std::string_view name)> read_kept;
+    std::function<std::expected<void, std::string>(std::string_view name, std::string_view text)> write_kept;
+    TaskBroker* tasks = nullptr;
+    std::string replay;
+    std::string replay_file;
+    std::string replay_course;
+    ShowTextsFn show;
+    std::function<void()> restore;
+  };
+  class Generation {
+    Generation(Runtime& runtime, GenerationOptions options);
+    ~Generation();
+    Generation(const Generation&) = delete;
+    Generation& operator=(const Generation&) = delete;
+    VerbResult surfaces() const;
+    VerbResult draft(const Value& args);
+    VerbResult preview(const Value& args);
+    VerbResult commit(const Value& args);
+    VerbResult restore(const Value& args);
+    VerbResult versions(const Value& args) const;
+    VerbResult drafts() const;
+    VerbResult discard(const Value& args);
+    VerbResult a2ui(const Value& args);
+    VerbResult actions(const Value& args) const;
+    VerbResult keep(const Value& args);
+    VerbResult pieces() const;
+    VerbResult forget(const Value& args);
+    [[nodiscard]] Value export_layer() const;
+    VerbResult import_layer(const Value& args);
+    struct Impl;
+  };
+  struct GenerationService {
+    std::string_view name;
+    Generation* (*make)(Runtime& runtime, GenerationOptions options) = nullptr;
+    void (*destroy)(Generation* generation) noexcept = nullptr;
+  };
+  inline constexpr mlibs::compose::Slot<GenerationService> generation_slot{…};
+  void install();
+}
+== omui.generate:replay
+namespace omui::generate {
+  using ShowTextsFn = std::function<std::expected<void, std::string>(const std::map<std::string, std::string>& texts)>;
+  class Replayer {
+    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore, std::string course = {…});
+    ~Replayer();
+    Replayer(const Replayer&) = delete;
+    Replayer& operator=(const Replayer&) = delete;
+    std::expected<void, std::string> play(std::size_t from = 1, double speed = 1);
+    void pause();
+    std::expected<void, std::string> at(std::size_t step);
+    void stop();
+    [[nodiscard]] Value state() const;
+    [[nodiscard]] std::size_t step() const noexcept;
+    [[nodiscard]] bool playing() const noexcept;
+    [[nodiscard]] const mlibs::agent::Replay& replay() const noexcept;
+    static constexpr std::string_view slot = "generate.replay";
+  };
+}
+== omui:agent_guide
+namespace omui {
+  struct AgentGuide {
+    std::string markdown;
+    std::string json;
+  };
+  inline constexpr std::string_view omui_releases = "https://github.com/Sunrisepeak/mui/releases/latest";
+  inline constexpr std::string_view omui_repository = "Sunrisepeak/mui";
+  [[nodiscard]] AgentGuide agent_guide(const AppSpec& app, Runtime& runtime, const Value& snapshot);
+  std::expected<void, Failure> write_agent_guide(const AgentGuide& guide, const std::filesystem::path& dir);
+}
+== omui:app
+namespace omui {
+  struct VerbSpec {
+    VerbDesc desc;
+    VerbFn fn;
+  };
+  struct AgentCheck {
+    std::string activate;
+    std::string read;
+    std::string expect;
+  };
+  struct AppSpec {
+    std::string id = "openmui-app";
+    std::string title = "openmui";
+    Size size{…};
+    std::function<View()> view;
+    std::vector<VerbSpec> verbs;
+    std::vector<TaskDesc> tasks;
+    void (*components)() = &register_base_components;
+    Theme theme = Theme::light();
+    std::filesystem::path effects;
+    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;
+    std::function<void(Runtime&)> setup;
+    std::function<void(Runtime&)> teardown;
+    std::function<bool()> ready;
+    std::string source_language = "en";
+    std::filesystem::path messages;
+    std::vector<std::pair<std::string, std::string_view>> catalogs;
+    std::string agent = "external";
+    bool agent_input = true;
+    bool agent_players = false;
+    bool agent_presence = true;
+    std::vector<std::string> grants;
+    AgentMode agent_mode = AgentMode::automatic;
+    AgentRestrictions agent_developer, agent_user;
+    bool accessibility = true;
+    std::string window = "native";
+    WindowFrameOptions frame;
+    std::string renderer = "automatic";
+    std::string description;
+    AgentCheck agent_check;
+    std::string agent_skill;
+    std::optional<generate::GenerationOptions> generation;
+  };
+  struct RunOptions {
+    bool headless = false;
+    bool serve = false;
+    std::optional<int> frames;
+    std::filesystem::path png;
+    int level = 2;
+    std::filesystem::path agent_dir;
+    std::string agent_name;
+    bool agent = true;
+    std::optional<AgentMode> agent_mode;
+    std::optional<bool> agent_input;
+    bool no_agent_player = false;
+    bool accessibility = true;
+    bool dark = false;
+    std::optional<bool> gpu;
+    bool reduce_transparency = false;
+    std::optional<Size> size;
+    DebugOptions debug;
+    std::string log;
+    std::filesystem::path profile;
+    std::vector<std::string> languages;
+    std::string window;
+    std::filesystem::path agent_guide;
+    std::filesystem::path static_html;
+    std::filesystem::path present_to;
+    std::filesystem::path replay;
+    static void declare(mcpplibs::cmdline::App& app);
+    [[nodiscard]] static std::expected<RunOptions, Failure> from(const mcpplibs::cmdline::ParsedArgs& parsed);
+    [[nodiscard]] static std::expected<RunOptions, Failure> parse(std::span<const std::string_view> args);
+  };
+  [[nodiscard]] std::string_view application_build_profile() noexcept;
+  [[nodiscard]] std::expected<AgentPolicy, Failure> application_agent_policy( const AppSpec& app, std::optional<AgentMode> startup_mode = {…});
+  std::expected<void, Failure> choose_renderer(std::string_view name);
+  struct CommandLine {
+    mcpplibs::cmdline::ParsedArgs args;
+    RunOptions options;
+  };
+  [[nodiscard]] std::expected<CommandLine, int> command_line(mcpplibs::cmdline::App line, int argc, char** argv);
+  int run(AppSpec app, const RunOptions& options);
+  int run(AppSpec app, int argc, char** argv);
+  [[nodiscard]] std::vector<std::string> capabilities();
+}
+== omui:devhost
+namespace omui {
+  struct DevProblem {
+    std::string file;
+    int line = 0, column = 0;
+    std::string text;
+  };
+  [[nodiscard]] std::vector<DevProblem> problems_in(std::string_view compiler_output);
+  struct DevHostOptions {
+    std::filesystem::path directory;
+    std::function<bool(const std::filesystem::path& socket)> start;
+    seconds fade{…};
+  };
+  class DevHost {
+    DevHost(Runtime& runtime, DevHostOptions options);
+    ~DevHost();
+    DevHost(const DevHost&) = delete;
+    DevHost& operator=(const DevHost&) = delete;
+    bool restart();
+    void show_problems(std::vector<DevProblem> problems);
+    [[nodiscard]] Value status() const;
+    struct Impl;
+  };
+}
+== omui:host
+export import omui.host.web;
+== omui:present
+namespace omui {
+  [[nodiscard]] NodeId built_near(const Runtime& runtime, std::string_view file, int line);
+  class Presenter {
+    Presenter(Runtime& runtime, mcpplibs::os::ipc::connection connection);
+    bool send(const FrameOutput& frame);
+    [[nodiscard]] std::vector<InputEvent> input();
+    [[nodiscard]] std::optional<std::pair<Size, float>> resized();
+  };
+  class Presentation {
+    explicit Presentation(mcpplibs::os::ipc::connection connection, mlibs::text::FontCollection* fonts = nullptr);
+    [[nodiscard]] const xrender::DisplayList* receive(std::chrono::milliseconds wait);
+    [[nodiscard]] const xrender::DisplayList& list() const noexcept;
+    [[nodiscard]] xrender::ImageStore& images() noexcept;
+    [[nodiscard]] bool gone() const noexcept;
+    [[nodiscard]] std::uint64_t frames() const noexcept;
+    bool send_input(std::span<const InputEvent> events);
+    bool resize(Size size, float scale);
+    bool ask_state();
+    [[nodiscard]] const std::optional<Value>& state() const noexcept;
+    bool restore(const Value& state);
+    bool ask_places(const Value& places);
+    [[nodiscard]] const std::optional<Value>& places() const noexcept;
+  };
+}
+== omui:system
+namespace omui {
+  enum class Surfacing : std::uint8_t { native, drawn };
+  using FileFilter = Runtime::FileFilter;
+  using FileChoice = Runtime::FileChoice;
+  using FilesChosen = Runtime::FilesChosen;
+  using Notice = Runtime::Notice;
+  using MenuEntry = Runtime::MenuEntry;
+  struct MenuGroup {
+    std::string label;
+    std::vector<MenuEntry> entries;
+  };
+  struct SystemOptions {
+    Surfacing files = Surfacing::native;
+    Surfacing notifications = Surfacing::native;
+    Surfacing menu_bar = Surfacing::drawn;
+    seconds notice_shown{…};
+  };
+  class System {
+    System(Runtime& runtime, SystemOptions options = {…});
+    ~System();
+    System(const System&) = delete;
+    System& operator=(const System&) = delete;
+    void choose_files(FileChoice choice, FilesChosen chosen);
+    void notify(Notice notice);
+    bool set_tray(std::vector<MenuEntry> entries, std::string tooltip);
+    void set_menu_bar(std::vector<MenuGroup> groups);
+    struct Impl;
+  };
+}

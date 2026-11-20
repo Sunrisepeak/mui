@@ -1,0 +1,72 @@
+== mlibs.build.compose
+export import mlibs.build.plan;
+namespace mlibs::build::compose {
+  enum class Targets : std::uint8_t { all, desktop, web, android };
+  struct provider {
+    std::string feature;
+    std::string package;
+    std::string import;
+    std::string call;
+    Targets targets = Targets::all;
+  };
+  struct unit_options {
+    std::string module;
+    std::vector<std::string> imports;
+    std::string function;
+    std::vector<provider> providers;
+    std::string file = "compose_unit.cpp";
+  };
+  struct build_facts {
+    std::function<bool(std::string_view)> has_feature;
+    std::string os;
+    std::string env;
+  };
+  [[nodiscard]] bool on(Targets targets, std::string_view os, std::string_view env) noexcept;
+  [[nodiscard]] std::vector<provider> chosen(const unit_options& options, const build_facts& facts);
+  [[nodiscard]] std::string unit_text(const unit_options& options, const build_facts& facts);
+  bool unit(const unit_options& options);
+  struct target_facts {
+    std::string os;
+    std::string env;
+    std::string profile;
+  };
+  [[nodiscard]] std::expected<std::string, std::string> report_text(std::string_view graph, const target_facts& target);
+  bool report();
+}
+== mlibs.build.embed
+export import mlibs.build.plan;
+namespace mlibs::build {
+  struct embed_options {
+    std::string module;
+    std::string ns;
+    std::string dir;
+    std::string suffix;
+    std::string tag;
+    bool index = false;
+    bool left_out = false;
+    std::string out_dir = std::string(mcpp::out_dir());
+    std::string subdir = "embed";
+  };
+  [[nodiscard]] std::vector<edge> plan_embed(const embed_options& opt);
+  bool embed(embed_options opt);
+}
+== mlibs.build.plan
+namespace mlibs::build {
+  struct edge {
+    std::string id;
+    std::string description;
+    std::vector<std::string> command;
+    std::vector<std::string> inputs;
+    std::vector<std::string> outputs;
+    std::vector<std::string> provides;
+    std::vector<std::string> imports;
+  };
+  bool submit(std::span<const edge> edges);
+  [[nodiscard]] std::string tool(std::string_view package, std::string_view program);
+  [[nodiscard]] std::string utf8(const std::filesystem::path& p);
+  [[nodiscard]] std::string generic_utf8(const std::filesystem::path& p);
+  [[nodiscard]] bool is_packed();
+  [[nodiscard]] std::string namespace_of(std::string_view module);
+  [[nodiscard]] std::vector<std::filesystem::path> files_ending(const std::filesystem::path& dir, std::string_view suffix);
+  [[nodiscard]] std::vector<std::string> files_under(const std::filesystem::path& dir);
+}

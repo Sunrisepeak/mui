@@ -1,0 +1,427 @@
+== omui.core
+export import :base;
+export import :diag;
+export import :json;
+export import :signal;
+export import :verb;
+export import :access;
+export import :keys;
+export import :platform;
+export import :event;
+export import :task;
+== omui.core:access
+export import mlibs.control;
+namespace omui {
+  [[nodiscard]] std::optional<openas::Cap> parse_cap(std::string_view text) noexcept;
+  [[nodiscard]] std::string cap_name(const openas::Cap& cap);
+  using AgentMode = mlibs::control::Mode;
+  using AgentRestrictions = mlibs::control::Restrictions;
+  using AgentPolicy = mlibs::control::Policy;
+  [[nodiscard]] std::optional<AgentMode> parse_agent_mode(std::string_view text) noexcept;
+  [[nodiscard]] std::string_view agent_mode_name(AgentMode mode) noexcept;
+  [[nodiscard]] AgentMode agent_mode_for_profile(std::string_view profile) noexcept;
+  [[nodiscard]] AgentPolicy agent_policy_for_profile(std::string_view profile, AgentMode requested = AgentMode::automatic);
+  struct AgentPolicyState {
+    AgentMode mode = AgentMode::dual_user;
+    openas::Cap cap;
+    bool enabled = true, input = true;
+    bool development_grant = false;
+    bool session_valid = true;
+    std::string source;
+    std::array<AgentRestrictions, 3> layers;
+    [[nodiscard]] bool allows(std::string_view operation) const;
+    [[nodiscard]] Value to_value() const;
+  };
+  class AgentSession {
+    [[nodiscard]] Actor attribute(const Actor& requested) const;
+    [[nodiscard]] std::string owner() const;
+    [[nodiscard]] const std::shared_ptr<const mlibs::control::Session>& control_session() const noexcept;
+  };
+  class AgentAccess {
+    AgentAccess();
+    explicit AgentAccess(std::shared_ptr<mlibs::control::Access> access);
+    AgentAccess(const AgentAccess&) = delete;
+    AgentAccess& operator=(const AgentAccess&) = delete;
+    [[nodiscard]] const std::shared_ptr<mlibs::control::Access>& control_binding() const noexcept;
+    void set_cap(openas::Cap cap);
+    [[nodiscard]] openas::Cap cap() const;
+    void set_policy(AgentPolicy policy);
+    [[nodiscard]] AgentPolicy policy() const;
+    [[nodiscard]] AgentPolicyState effective(const AgentSession* session = nullptr) const;
+    [[nodiscard]] std::shared_ptr<const AgentSession> open_session(AgentRestrictions restrictions = {…});
+    [[nodiscard]] bool owns(const AgentSession& session) const;
+    bool revoke_session(const AgentSession& session);
+    void give(openas::Grant grant);
+    std::size_t revoke(const openas::Actor& actor);
+    void revoke_all();
+    [[nodiscard]] std::vector<openas::Grant> grants() const;
+    [[nodiscard]] openas::Decision decide(std::string_view name, Effect effect, bool person, const Actor& actor, const AgentSession* session = nullptr, std::string_view operation = {…}) const;
+  };
+  [[nodiscard]] AgentAccess& agent_access();
+  [[nodiscard]] openas::Decision clearance(std::string_view name, Effect effect, bool person, const Invocation& call);
+  [[nodiscard]] Envelope above_cap(std::string_view what, const Invocation& call = {…});
+  [[nodiscard]] openas::Actor to_openas(const Actor& actor);
+  enum class ControlInvocationError : std::uint8_t { unbound_access, missing_session };
+  [[nodiscard]] std::expected<mlibs::control::Invocation,ControlInvocationError> to_control_invocation(const Invocation&);
+}
+== omui.core:base
+export import openmui.spec;
+export import hanim.core;
+export import mlibs.geom;
+export import mlibs.memory;
+namespace omui {
+  using spec::Actor;
+  using spec::Effect;
+  using spec::Envelope;
+  using spec::IdLiteral;
+  using spec::Origin;
+  using spec::Role;
+  using spec::State;
+  using spec::StateSet;
+  using spec::Value;
+  using mlibs::geom::Affine;
+  using mlibs::geom::Color;
+  using mlibs::geom::CornerRadii;
+  using mlibs::geom::Insets;
+  using mlibs::geom::PixelRect;
+  using mlibs::geom::Point;
+  using mlibs::geom::Rect;
+  using mlibs::geom::Size;
+  using hanim::seconds;
+  [[nodiscard]] inline std::string utf8(const std::filesystem::path& p);
+  [[nodiscard]] inline std::string generic_utf8(const std::filesystem::path& p);
+  [[nodiscard]] constexpr spec::Rect to_spec(const Rect& r) noexcept;
+  [[nodiscard]] constexpr Rect from_spec(const spec::Rect& r) noexcept;
+  [[nodiscard]] constexpr spec::Point to_spec(Point p) noexcept;
+  [[nodiscard]] constexpr Point from_spec(spec::Point p) noexcept;
+}
+== omui.core:diag
+export import mlibs.log;
+== omui.core:event
+namespace omui {
+  enum class PointerKind : std::uint8_t { down, up, move, enter, leave, cancel };
+  enum class PointerType : std::uint8_t { mouse, touch, pen };
+  enum class MouseButton : std::uint8_t { none, left, right, middle, back, forward };
+  struct PointerEvent {
+    PointerKind kind = PointerKind::move;
+    Point position;
+    std::uint32_t pointer = 0;
+    PointerType type = PointerType::mouse;
+    MouseButton button = MouseButton::none;
+    std::uint32_t buttons = 0;
+    Modifiers mods;
+    std::uint8_t clicks = 1;
+    float pressure = 0.5f;
+    Point movement;
+  };
+  struct WheelEvent {
+    Point position;
+    Point delta;
+    bool precise = false;
+    Modifiers mods;
+  };
+  enum class KeyKind : std::uint8_t { down, up };
+  struct KeyEvent {
+    KeyKind kind = KeyKind::down;
+    Key key = Key::unknown;
+    Modifiers mods;
+    bool repeat = false;
+  };
+  struct TextEvent {
+    std::string text;
+  };
+  struct PreeditEvent {
+    std::string text;
+    std::int32_t cursor_begin = -1;
+    std::int32_t cursor_end = -1;
+  };
+  struct FocusEvent {
+    bool gained = true;
+  };
+  struct ResizeEvent {
+    Size size;
+    float scale = 1.0f;
+  };
+  struct CloseRequestEvent {
+  };
+  enum class GamepadButton : std::uint8_t { south, east, west, north, back, guide, start, left_stick, right_stick, left_shoulder, right_shoulder, left_trigger, right_trigger, dpad_up, dpad_down, dpad_left, dpad_right, count_, };
+  enum class GamepadAxis : std::uint8_t { left_x, left_y, right_x, right_y, left_trigger, right_trigger, count_ };
+  enum class GamepadKind : std::uint8_t { connected, disconnected, down, up, axis };
+  inline constexpr std::size_t gamepad_buttons = static_cast<std::size_t>(GamepadButton::count_);
+  inline constexpr std::size_t gamepad_axes = static_cast<std::size_t>(GamepadAxis::count_);
+  struct GamepadEvent {
+    GamepadKind kind = GamepadKind::down;
+    std::uint32_t device = 0;
+    GamepadButton button = GamepadButton::south;
+    GamepadAxis axis = GamepadAxis::left_x;
+    float value = 0;
+    std::string name;
+  };
+  struct FileDropEvent {
+    enum class Kind : std::uint8_t { over, drop, leave };
+    Kind kind = Kind::drop;
+    Point position;
+    std::vector<std::string> files;
+  };
+  using InputEvent = std::variant<PointerEvent, WheelEvent, KeyEvent, TextEvent, PreeditEvent, FocusEvent, ResizeEvent, CloseRequestEvent, GamepadEvent, FileDropEvent>;
+  [[nodiscard]] std::string_view name(GamepadButton b) noexcept;
+  [[nodiscard]] std::string_view name(GamepadAxis a) noexcept;
+  [[nodiscard]] std::optional<GamepadButton> parse_gamepad_button(std::string_view text) noexcept;
+  [[nodiscard]] std::optional<GamepadAxis> parse_gamepad_axis(std::string_view text) noexcept;
+  class GamepadReader {
+    static constexpr float stick_dead_zone = 0.24f;
+    static constexpr float trigger_dead_zone = 0.06f;
+    static constexpr float trigger_press = 0.5f, trigger_release = 0.4f;
+    void connect(std::uint32_t device, std::string_view name, std::vector<InputEvent>& out);
+    void disconnect(std::uint32_t device, std::vector<InputEvent>& out);
+    void button(std::uint32_t device, GamepadButton b, bool down, std::vector<InputEvent>& out);
+    void axis(std::uint32_t device, GamepadAxis a, float raw, std::vector<InputEvent>& out);
+    void update(std::uint32_t device, std::string_view name, const std::array<bool, gamepad_buttons>& buttons, const std::array<float, gamepad_axes>& axes, std::vector<InputEvent>& out);
+    [[nodiscard]] bool connected(std::uint32_t device) const noexcept;
+    [[nodiscard]] std::vector<std::uint32_t> devices() const;
+  };
+  [[nodiscard]] Value to_value(const InputEvent& e);
+  [[nodiscard]] std::optional<InputEvent> event_from_value(const Value& v);
+}
+== omui.core:json
+namespace omui {
+  struct JsonError {
+    std::size_t line = 0;
+    std::size_t column = 0;
+    std::size_t offset = 0;
+    std::string message;
+    [[nodiscard]] std::string text() const;
+  };
+  [[nodiscard]] std::expected<Value, JsonError> parse_json(std::string_view text);
+  [[nodiscard]] std::optional<JsonError> json_location(std::string_view text, std::string_view pointer);
+  [[nodiscard]] std::string indented_json(const Value& value);
+  [[nodiscard]] std::expected<std::vector<Value>, JsonError> parse_ndjson(std::string_view text);
+}
+== omui.core:keys
+namespace omui {
+  enum class Key : std::uint16_t { unknown, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z, digit0, digit1, digit2, digit3, digit4, digit5, digit6, digit7, digit8, digit9, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, enter, escape, backspace, tab, space, minus, equal, left_bracket, right_bracket, backslash, semicolon, apostrophe, grave, comma, period, slash, insert, delete_, home, end, page_up, page_down, left, right, up, down, caps_lock, print_screen, scroll_lock, pause, menu, shift, control, alt, meta, count_, };
+  enum class Modifier : std::uint8_t { none = 0, shift = 1, ctrl = 2, alt = 4, meta = 8 };
+  struct Modifiers {
+    std::uint8_t bits = 0;
+    constexpr Modifiers() = default;
+    constexpr Modifiers(Modifier m) : bits(static_cast<std::uint8_t>(m));
+    [[nodiscard]] constexpr bool has(Modifier m) const noexcept;
+    friend constexpr Modifiers operator|(Modifiers a, Modifiers b) noexcept;
+    friend constexpr bool operator==(Modifiers a, Modifiers b) noexcept;
+  };
+  [[nodiscard]] constexpr Modifiers operator|(Modifier a, Modifier b) noexcept;
+  [[nodiscard]] std::string_view name(Key k) noexcept;
+  [[nodiscard]] std::optional<Key> parse_key(std::string_view text) noexcept;
+  [[nodiscard]] Modifier primary_modifier() noexcept;
+  struct Chord {
+    Key key = Key::unknown;
+    Modifiers mods;
+    [[nodiscard]] bool matches(Key k, Modifiers m) const noexcept;
+    [[nodiscard]] std::string text() const;
+    friend bool operator==(const Chord& a, const Chord& b) noexcept;
+  };
+  [[nodiscard]] std::optional<Chord> parse_chord(std::string_view text);
+  [[nodiscard]] std::optional<std::vector<Chord>> parse_chords(std::string_view text);
+}
+== omui.core:platform
+namespace omui {
+  enum class Platform : std::uint8_t { freedesktop, windows, macos, ios, android };
+  struct PlatformConventions {
+    Modifier primary = Modifier::ctrl;
+    bool overscroll_bounce = false;
+    bool context_on_release = false;
+    bool control_click_context = false;
+    double long_press = 0.5;
+    float touch_slop = 8;
+  };
+  [[nodiscard]] constexpr PlatformConventions conventions(Platform platform) noexcept;
+  void set_platform(Platform platform) noexcept;
+  [[nodiscard]] Platform current_platform() noexcept;
+  [[nodiscard]] inline PlatformConventions platform_conventions() noexcept;
+  [[nodiscard]] constexpr std::string_view name(Platform platform) noexcept;
+  [[nodiscard]] std::optional<Platform> parse_platform(std::string_view text) noexcept;
+}
+== omui.core:signal
+namespace omui {
+  namespace detail {
+    struct ReactiveNode {
+      struct Dep {
+        ReactiveNode* node;
+        std::uint64_t version;
+      };
+      std::uint64_t version = 0;
+      std::uint64_t checked = 0;
+      bool stale = true;
+      bool queued = false;
+      bool effect = false;
+      bool running = false;
+      std::vector<ReactiveNode*> observers;
+      std::vector<Dep> deps;
+      void (*evaluate)(ReactiveNode*) = nullptr;
+      ReactiveNode() = default;
+      ReactiveNode(const ReactiveNode&) = delete;
+      ReactiveNode& operator=(const ReactiveNode&) = delete;
+      ~ReactiveNode();
+    };
+    void track(ReactiveNode& source);
+    void changed(ReactiveNode& source);
+    void refresh(ReactiveNode& node);
+    void evaluate_tracked(ReactiveNode& node, void (*body)(ReactiveNode*));
+    void schedule(ReactiveNode& effect);
+    void begin_batch() noexcept;
+    void end_batch();
+    void after_batch(std::function<void()> f);
+    void settle_effects();
+    void dispose(ReactiveNode& node);
+    struct UntrackedScope {
+      UntrackedScope();
+      ~UntrackedScope();
+      UntrackedScope(const UntrackedScope&) = delete;
+      UntrackedScope& operator=(const UntrackedScope&) = delete;
+    };
+    template <class T> bool same(const T& a, const T& b);
+  }
+  template <class T> class Signal {
+    using value_type = T;
+    explicit Signal(T initial = T{…}) : state_(std::make_shared<State>(std::move(initial)));
+    [[nodiscard]] const T& get() const;
+    [[nodiscard]] const T& operator()() const;
+    [[nodiscard]] const T& peek() const noexcept;
+    void set(T value) const;
+    template <class F> requires std::invocable<F&, const T&> void update(F&& f) const;
+    [[nodiscard]] std::uint64_t version() const noexcept;
+    [[nodiscard]] bool same_as(const Signal& o) const noexcept;
+    [[nodiscard]] bool observed() const noexcept;
+  };
+  template <class T> [[nodiscard]] Signal<T> signal(T initial);
+  [[nodiscard]] inline Signal<std::string> signal(const char* initial);
+  template <class T> class Computed {
+    using value_type = T;
+    template <class F> requires std::invocable<F&> && std::convertible_to<std::invoke_result_t<F&>, T> explicit Computed(F f) : state_(std::make_shared<State>(std::function<T()>(std::move(f))));
+    [[nodiscard]] const T& get() const;
+    [[nodiscard]] const T& operator()() const;
+    [[nodiscard]] const T& peek() const;
+  };
+  template <class F> [[nodiscard]] auto computed(F f) -> Computed<std::invoke_result_t<F&>>;
+  class Watch {
+    Watch() noexcept;
+    explicit Watch(std::function<void()> fn);
+    Watch(Watch&&) noexcept;
+    Watch& operator=(Watch&&) noexcept;
+    Watch(const Watch&) = delete;
+    Watch& operator=(const Watch&) = delete;
+    ~Watch();
+    void dispose();
+    [[nodiscard]] bool active() const noexcept;
+  };
+  template <class F> decltype(auto) batch(F&& f);
+  inline void after_batch(std::function<void()> f);
+  inline void settle_effects();
+  template <class F> decltype(auto) untracked(F&& f);
+}
+== omui.core:task
+namespace omui {
+  enum class Priority : std::uint8_t { frame, background };
+  class Tasks {
+    explicit Tasks(unsigned threads = 0);
+    ~Tasks();
+    Tasks(const Tasks&) = delete;
+    Tasks& operator=(const Tasks&) = delete;
+    [[nodiscard]] static Tasks& shared();
+    [[nodiscard]] unsigned threads() const noexcept;
+    void parallel_for(std::size_t count, std::size_t grain, FunctionRef<void(std::size_t, std::size_t)> body);
+    std::future<void> spawn(std::function<void(std::stop_token)> fn, Priority priority = Priority::background);
+    void cancel_all() noexcept;
+    void wait_idle();
+  };
+  class UiQueue {
+    UiQueue();
+    ~UiQueue();
+    UiQueue(const UiQueue&) = delete;
+    UiQueue& operator=(const UiQueue&) = delete;
+    void post(std::function<void()> fn);
+    std::size_t drain();
+    [[nodiscard]] std::size_t approximate_size() const noexcept;
+  };
+}
+== omui.core:verb
+namespace omui {
+  struct VerbDesc {
+    std::string name;
+    std::string summary;
+    Effect effect = Effect::reversible;
+    std::string answer;
+    std::vector<std::pair<std::string, std::string>> args;
+    bool person = false;
+    bool undoable = false;
+  };
+  struct TaskStep {
+    std::string verb;
+    std::string node;
+    std::string action;
+    Value args;
+    bool dry_run = false;
+  };
+  struct TaskDesc {
+    std::string name;
+    std::string summary;
+    std::vector<TaskStep> steps;
+  };
+  class AgentAccess;
+  class AgentSession;
+  struct Invocation {
+    Value args;
+    std::string answer;
+    Actor actor{…};
+    bool remote = false;
+    bool dry_run = false;
+    std::shared_ptr<const AgentAccess> access;
+    std::shared_ptr<const AgentSession> session;
+    std::string operation;
+  };
+  [[nodiscard]] const Invocation& bind_invocation(const Invocation& given, Invocation& copy, const std::shared_ptr<const AgentAccess>& access, const Invocation* parent = nullptr, std::string_view operation = {…});
+  using InvocationContext = mlibs::control::Context<Invocation>;
+  using InvocationScope = mlibs::control::Scope<Invocation>;
+  [[nodiscard]] Envelope dry_run_answer(std::string_view outcome, Effect effect, Value more = {…});
+  [[nodiscard]] Envelope dry_run_of(const Envelope& stopped, Effect effect);
+  [[nodiscard]] Envelope person_only(std::string_view what);
+  struct Failure {
+    mlibs::error::Kind kind = mlibs::error::Kind::failed;
+    std::string message;
+    std::string way;
+    Failure() = default;
+    Failure(std::string text) : message(std::move(text));
+    Failure(const char* text) : message(text);
+    Failure(mlibs::error::Kind of, std::string text, std::string out = {…}) : kind(of), message(std::move(text)), way(std::move(out));
+    template <mlibs::error::Code C, class Where> Failure(const mlibs::error::Error<C, Where>& error) : kind(error.kind()), message(error.text()), way(error.way());
+    [[nodiscard]] std::string text() const;
+  };
+  Envelope& failed(Envelope& answer, const Failure& failure);
+  using VerbResult = std::expected<Value, Failure>;
+  using VerbFn = std::function<VerbResult(const Value& args)>;
+  [[nodiscard]] bool valid_verb_name(std::string_view name) noexcept;
+  enum class VerbError : std::uint8_t { bad_verb_name, verb_taken, no_answer, no_implementation, bad_task_name, task_taken, no_summary, no_step, bad_step, unknown_verb, person_only_step, step_asks_answer };
+  [[nodiscard]] constexpr mlibs::error::Description describe(VerbError error) noexcept;
+  using VerbRegistrationFailure = mlibs::error::Error<VerbError>;
+  [[nodiscard]] VerbDesc verb_of(const mlibs::control::CatalogEntry& entry, std::string answer = {…});
+  class Verbs {
+    void set_agent_access(std::shared_ptr<const AgentAccess> access);
+    void set_invocation_context(InvocationContext* context) noexcept;
+    std::expected<void, VerbRegistrationFailure> add(VerbDesc desc, VerbFn fn);
+    bool remove(std::string_view name);
+    [[nodiscard]] const VerbDesc* find(std::string_view name) const noexcept;
+    [[nodiscard]] std::vector<const VerbDesc*> list() const;
+    std::expected<void, VerbRegistrationFailure> add_task(TaskDesc task);
+    [[nodiscard]] std::span<const TaskDesc> tasks() const noexcept;
+    [[nodiscard]] Envelope invoke(std::string_view name, const Invocation& call);
+    struct Entry {
+      std::string verb;
+      std::string actor;
+      Value args;
+      int exit_code = 0;
+    };
+    [[nodiscard]] std::span<const Entry> journal() const noexcept;
+    void clear_journal();
+  };
+  [[nodiscard]] Envelope needs_answer(std::string_view what, std::string_view answer);
+}

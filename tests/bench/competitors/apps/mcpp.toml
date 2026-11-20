@@ -1,0 +1,50 @@
+# omui.bench.competitors.apps — omui's side of the application comparisons (C1, N2;
+# lead design §2a): the same two apps Slint (slint/), Flutter (flutter/) and NSH
+# write — a title and a button, and a counter — in a window of 800 × 600, and the
+# live market board and the 10,000-row list of tests/bench's core/* scenes, built
+# in each world of omui.sdk: the world is this package's feature, given on the
+# command line (none given is `lean`).
+#
+#   omui-devtools bench apps        every side built, launched in a window and measured from outside
+[package]
+namespace   = "omui"
+name        = "bench.competitors.apps"
+version     = "0.1.0"
+description = "omui's side of the application comparisons: hello and a counter, built in each of omui.sdk's worlds"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the application comparisons, one program built in four worlds apart from the library benchmarks"
+kind = "tool"
+
+[targets.omui-bench-hello]
+kind = "bin"
+main = "src/hello.cpp"
+
+[targets.omui-bench-counter]
+kind = "bin"
+main = "src/counter.cpp"
+
+[targets.omui-bench-market]
+kind = "bin"
+main = "src/market.cpp"
+
+[targets.omui-bench-list]
+kind = "bin"
+main = "src/list.cpp"
+
+# The worlds (compose design §6a), forwarded to the composition root.
+[features]
+default = []
+full    = { forward = ["omui.sdk/full"] }
+app     = { forward = ["omui.sdk/app"] }
+lean    = { forward = ["omui.sdk/lean"] }
+minimal = { forward = ["omui.sdk/minimal"] }
+# `lean` with one of what `app` adds, to tell their costs apart.
+lean-bridge = { forward = ["omui.sdk/lean", "omui.sdk/accessibility-bridge"] }
+lean-agent  = { forward = ["omui.sdk/lean", "omui.sdk/agent"] }
+
+[dependencies]
+omui.sdk = { path = "../../../../modules/projects/omui/sdk", default-features = false }

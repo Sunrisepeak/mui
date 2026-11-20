@@ -1,0 +1,47 @@
+# mlibs.rhi
+
+The shared GPU abstraction for renderer and compute consumers (`mlibs.rhi`, architecture §8.2, D-33, D-58). It has what the rendering features need (D-81): 2D colour targets, sampled and storage textures, depth and stencil targets (`d32_float`, `d32_float_s8`, `TextureUsage::depth_target`, a pass's `DepthTarget` with its clear, load and store), multisampled targets (`TextureDesc::samples` up to `Caps::max_samples`, resolved into `ColorTarget::resolve` when the pass ends), levels of a texture (`TextureDesc::levels`, each half the one before, down to `levels_of` its size; `CommandList::upload(…, level)` fills one; a sampler reads the level a pixel's texels ask — the nearer, or with `SamplerDesc::between` linear the two about it mixed — and a shader may name one; a texture of several levels is uploaded and sampled, nothing else), pictures kept as blocks (`Format::bc7_unorm`, `etc2_rgba8_unorm`, `astc_4x4_unorm` and each one's `_srgb`: 4 × 4 texels of four parts in 16 bytes, a byte a texel where `rgba8_unorm` has four, unpacked by the device as it samples; `Caps::bc7`, `etc2`, `astc` say which kinds a device samples, and one it does not is refused as unsupported; a texture's sides are whole blocks, an upload is whole blocks — `row_bytes` and `rows_of` say its rows — and such a texture is not a target, not read back, not copied), vertex, index and storage buffers, uniforms pushed by value, one blend state and one depth test (`DepthState`) per pipeline, and compute. Several colour targets a pass (`CommandList::begin_render(target, depth, more)`, a pipeline's `more_targets`: the fragment's outputs 1, 2, … each with its format and blending; up to `Caps::max_color_targets` — four on SDL_GPU's backends, on WebGPU and on WebGL2; a pipeline of more than the device has is refused as unsupported. `Caps::independent_blend` says whether each target blends its own way: false on a WebGL2 context without `OES_draw_buffers_indexed`, where the targets after the first blend as the first does and a pipeline that asks otherwise is refused as unsupported). Validation holds a pass and the pipelines it sets to the same samples, the same depth format and the same colour targets, alike in size and without a gap. It has no bindless resources and no GPU timestamps — SDL_GPU has none ([#3](https://github.com/Sunrisepeak/mui/issues/3)); the render graph times its passes on the CPU. Backends live in packages of their own (`modules/projects/xrender/rhi/sdl`, `modules/projects/xrender/rhi/webgpu`, `modules/projects/xrender/rhi/webgl`); this one depends on no graphics library.
+
+```cpp
+import mlibs.rhi;
+using namespace mlibs::rhi;
+
+auto target = device.create(TextureDesc{.width = 256, .height = 256, .usage = TextureUsage::color_target});
+auto pipeline = device.create(GraphicsPipelineDesc{.vertex = &quad_vs, .fragment = &quad_fs, .vertex_buffers = layout});
+
+CommandList frame;
+frame.upload(vertices, 0, std::span(quad));
+frame.begin_render({*target, LoadOp::clear, {0, 0, 0, 1}});
+frame.set_pipeline(*pipeline);
+frame.bind_vertex_buffer(0, vertices);
+frame.bind_texture(Stage::fragment, 0, image, sampler);
+frame.push_uniforms(Stage::fragment, 0, tint);
+frame.draw(4);
+frame.end_render();
+auto done = device.submit(frame);       // validated, then run
+auto pixels = device.read(*target, {0, 0, 256, 256});
+```
+
+- **Descriptions are checked before a backend sees them** (`check`): sizes and usages, a shader's stage and its code in a format the device takes, vertex attributes inside their stride, read-write storage only in compute shaders.
+- **A frame's work is data.** A `CommandList` records uploads, render passes and their draws, compute passes and their dispatches, and copies. The bytes a command carries are copied into the list's arena, so a list of the same shape as the last allocates nothing. Lists hash by content, which is what tests and the trace compare.
+- **A list crosses a boundary as words** (`mlibs.rhi:wire`): each command its op, its length and its fields, a payload by where it lies in memory; a pipeline's state the same way. A page's backend takes a whole submission in one call out of WebAssembly this way, not one call a draw.
+- **The device validates every command** (`validate`) against the resources it names before the backend runs anything:
+  - passes balanced and not nested, each command in the kind of pass it belongs to;
+  - handles live, usages declared, regions and ranges inside their resources;
+  - a pipeline set before a draw or a dispatch, its vertex buffers bound, and every slot its shaders read bound.
+
+  A mistake is an `Errc::invalid` naming the command (`command 3 (draw): the fragment shader reads a sampled texture at slot 0, and nothing is bound there`), not a driver crash.
+- **Virtual calls are per resource and per submission, never per draw.** A backend implements the protected `make`, `run` and `fetch`, and `describe` for what it created.
+
+**Presenting.** A device made for a window (a backend's option: `rhi::sdl::Options::window`) shows a frame with `present(texture)`: a sampled rgba8 or bgra8 texture, scaled to the window's swapchain after every submission so far; false when nothing could be shown (a minimised window). The check is rhi's, the showing the backend's protected `show`; a device made for no window answers `Errc::unsupported`.
+
+Shaders reach a device as `ShaderDesc`: one entry point, its code in each format it was compiled to (SPIR-V, MSL, metallib, DXBC, DXIL; WGSL for WebGPU; ESSL, GLSL ES 3.00, for WebGL2), and the resources it binds by kind. Slots follow one convention for every backend (SDL_GPU's); [mlibs.shader](../shader) compiles Slang to it and checks it.
+
+The tests (`tests/rhi_test.cpp`) run against a device that only remembers what it created: description checks, lists as data, every kind of validation failure, compute passes, readback bounds, what present() takes.
+
+## Inside
+
+- [sdl](../../projects/xrender/rhi/sdl) (`xrender.rhi.sdl`): `mlibs.rhi` on SDL_GPU — Vulkan, Metal, Direct3D 12.
+- [webgpu](../../projects/xrender/rhi/webgpu) (`xrender.rhi.webgpu`): `mlibs.rhi` on the page's WebGPU — the Web's main path, WGSL shaders.
+- [webgl](../../projects/xrender/rhi/webgl) (`xrender.rhi.webgl`): `mlibs.rhi` on the page's WebGL2 — the Web's compatibility path, ESSL shaders, no compute.
+- [cts](cts) (`mlibs.rhi.cts`): the backend conformance suite, shaders and cases with exact expected pixels.

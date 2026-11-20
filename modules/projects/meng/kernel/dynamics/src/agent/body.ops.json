@@ -1,0 +1,47 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "body",
+  "doc": "Read a soft body's place, squash, speed and contacts, push it, step it, return to a frame, and ask what would be.",
+  "tools": [
+    {"name": "body.observe", "description": "The frame, the state's hash, the body's centre, bounds, area against its rest area, its fastest particle's speed, and what it touches", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"body.observe"}],
+     "inputSchema": {"type": "object", "properties": {"budget": {"type": "integer", "description": "the most bytes of answer: contacts are left out from the last, and `more` says how many"}}, "required": []}},
+    {"name": "body.particles", "description": "Each particle's place and velocity, in order around the ring", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "body.push", "description": "What acts on the body from the next step on, held until the next push: a force on the whole of it, a walk along what it stands on; and once, on the next step alone, a kick", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "body.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the body: the push acts from the next step", "request": {"op":"body.step"}}],
+     "examples": [{"op":"body.push","kick":[120,-380]}],
+     "inputSchema": {"type": "object", "properties": {"force": {"description": "[x, y], an acceleration added to gravity"}, "walk": {"type": "number", "description": "along the ground, signed"}, "kick": {"description": "[x, y], a velocity added once"}}, "required": []}},
+    {"name": "body.step", "description": "Steps the body under what is held", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "body.seek to the frame it began at", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read where the body is now", "request": {"op":"body.observe"}}],
+     "examples": [{"op":"body.step","steps":30}],
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how many (1 when none is given)"}}, "required": []}},
+    {"name": "body.seek", "description": "Returns to a frame within the history kept; what is stepped from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the body: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read the body at the frame returned to", "request": {"op":"body.observe"}}],
+     "examples": [{"op":"body.seek","frame":240}],
+     "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
+    {"name": "body.branch", "description": "What would be: the body some steps ahead under a given push, observed as body.observe does; the body itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"body.branch","steps":30,"kick":[0,-400]}],
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "force": {}, "walk": {"type": "number"}, "kick": {}}, "required": []}},
+    {"name": "body.contacts", "description": "What the last step touched, in words: its place, its squash, its speed, its contacts by kind, and the stages a step goes through", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "string",
+     "examples": [{"op":"body.contacts"}],
+     "inputSchema": {"type": "object", "properties": {}, "required": []}}
+  ],
+  "tiers": [],
+  "tasks": [
+    {"name": "see-where-it-is", "summary": "Read where the body is and what it touches, as numbers and in words", "steps": [
+      {"op":"body.observe"},
+      {"op":"body.contacts"}
+    ]},
+    {"name": "push-and-watch", "summary": "Kick the body, step it, and read where it went", "steps": [
+      {"op":"body.push","kick":[120,-380]},
+      {"op":"body.step","steps":30},
+      {"op":"body.observe"}
+    ]},
+    {"name": "ask-before-pushing", "summary": "See where a kick would take it some steps ahead, the body itself untouched", "steps": [
+      {"op":"body.branch","steps":30,"kick":[0,-400]},
+      {"op":"body.observe"}
+    ]}
+  ]
+}

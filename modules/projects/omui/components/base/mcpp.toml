@@ -1,0 +1,62 @@
+# omui.ui.base — the Core components (spec §11), behaviour over the
+# runtime's public API only (component-binding §1: no privilege). Each
+# component's interface is its contract in spec/registry/components; the
+# partitions in src/generated are omui-gen's (`omui-gen cpp … --namespace omui
+# --catalog`),
+# the classes beside them are the behaviour, and the look comes from the
+# theme's tokens. The package's own components (badge, card, pagination …)
+# have their contracts in contract/, made into code when it builds
+# (build.mcpp, omui.build.contracts).
+[package]
+namespace   = "omui.ui"
+name        = "base"
+version     = "0.1.0"
+description = "openmui Core components: button, toggle, checkbox, slider, text box …, contract-first"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: the base components every application uses"
+reexports = ["omui.core", "omui.view"]  # what its interface re-exports (lint module-closure)
+kind = "component"
+agent = { part = "omui.agent" }
+
+[targets.openmui-ui-base]
+kind = "lib"
+
+[build]
+# Beside the base components, two libraries of their own modules (RC1.5: one package): the window frame
+# (src/window/, omui.ui.window) and liquid glass (src/liquid_glass/, omui.ui.liquid_glass).
+sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/generated/*.cpp", "src/window/*.cppm", "src/window/*.cpp",
+            "src/liquid_glass/*.cppm", "src/liquid_glass/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xrender.text = { path = "../../../xrender/text" }
+xrender.vector = { path = "../../../xrender/vector" }  # the window frame's and liquid glass's own drawing
+omui.core    = { path = "../../core" }
+omui.view    = { path = "../../view" }
+mlibs.unicode = { path = "../../../../base/unicode" }
+mlibs.utils    = { path = "../../../../base/utils" }
+# agent_presence shows who holds which part: the claims are the agent kernel's (D-160, D-173).
+mlibs.agent    = { path = "../../../../base/agent" }
+# A drawer let go mid-drag stays or closes by where its fling would come to rest (hanim's glide, B5).
+hanim.core     = { path = "../../../hanim/core" }
+
+[build-dependencies]
+omui.build = { path = "../../../../../mcpp/build", host-module = true }
+openlifa.openmui = { path = "../../../../../spec" }  # its registry/: what the contracts are generated against
+
+# The files of tests/base/ are one program, run a file at a time: one link of the closure for all of them.
+[test]
+programs = "directory"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+xrender.text = { path = "../../../xrender/text" }
+omui.host.headless = { path = "../../host/headless" }
+# platform_styles_test: the platform packs (fluent, cupertino, material) over the components.
+omui.theme = { path = "../../theme" }
+# window_test: the window's strings in every language.
+mlibs.i18n.cldr = { path = "../../../../content/i18n/cldr" }

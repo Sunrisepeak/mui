@@ -1,0 +1,44 @@
+# omui.accessibility — the semantic tree served to the platform's
+# assistive technology (D-21): UI Automation on Windows, NSAccessibility on
+# macOS, AT-SPI on Linux, through AccessKit's C bindings (mcpp-index's
+# compat.accesskit, imported as the module mcpplibs.mwrap.accesskit). A screen
+# reader, a magnifier or voice control reads the tree a view's semantics make
+# and asks for its actions; what it asks is performed as the person's own
+# input. The mapping from the tree is the same everywhere and is tested
+# everywhere; the platform's service is a bridge's (omui.accessibility.bridge,
+# AccessKit's, installed by omui.sdk unless an application leaves it out):
+# without one an adapter says it is not available.
+[package]
+namespace   = "omui"
+name        = "accessibility"
+version     = "0.1.0"
+description = "openmui accessibility: the semantic tree served to UIA, NSAccessibility and AT-SPI through AccessKit"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: the semantic tree as assistive technology reads it, on every platform"
+kind = "runtime"
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+agent = { part = "omui.agent" }
+
+[package.metadata.openmui.compose]
+slots = ["omui.accessibility.service"]  # the platform's assistive-technology service (src/adapter.cppm)
+
+[targets.openmui-accessibility]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.core     = { path = "../core" }
+omui.view     = { path = "../view" }
+omui.semantic = { path = "../semantic" }
+mlibs.utils     = { path = "../../../base/utils" }
+mlibs.compose   = { path = "../../../base/compose" }  # the slot a platform's service is installed at
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.cts = { path = "../../../base/cts" }  # the slot contract (slot_test)

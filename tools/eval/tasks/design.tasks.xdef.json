@@ -1,0 +1,49 @@
+{
+  "set": "design",
+  "doc": "Live Design (D-149, W14): a person's request for a screen, and a fresh agent with only the running application's tools (omui mcp) in development mode (`--dev`): it reads the application's TypeScript (design.sources), edits it live (design.edit: the new text runs at once, its semantic changes answered) and commits it. The outcome is checked on the running application's semantic tree, never on the agent's word. Each task starts from a fresh copy of example 02 (a text-statistics tool).",
+  "run": "text-stats",
+  "args": [
+    "--dev",
+    "--manifest",
+    "{copydir:examples/02-hello-ts}"
+  ],
+  "agent_mode": "development",
+  "package": "omui.example.hello-ts",
+  "tasks": [
+    {
+      "id": "subscription-page",
+      "difficulty": 3,
+      "goal": "This application should become a subscription settings page. Redesign it live: a heading that says Subscription, a switch to bill yearly, a choice between two plans named Basic and Pro, and a Save button. Keep it working as you go, and write the result to its source when it looks right.",
+      "check": {
+        "present": [
+          {
+            "role": "text",
+            "name": "Subscription*"
+          },
+          {
+            "role": "switch",
+            "name": "*early*"
+          },
+          {
+            "name": "*Basic*"
+          },
+          {
+            "name": "*Pro*"
+          },
+          {
+            "role": "button",
+            "name": "Save*"
+          }
+        ],
+        "state": [
+          {
+            "verb": "design.sources",
+            "at": "/scripts/0/edited",
+            "equals": false
+          }
+        ]
+      }
+    }
+  ],
+  "max_turns": 60
+}

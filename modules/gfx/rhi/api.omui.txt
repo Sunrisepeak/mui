@@ -1,0 +1,398 @@
+== mlibs.rhi
+export import mlibs.rhi.api;
+== mlibs.rhi.api
+export import :types;
+export import :commands;
+export import :device;
+export import :wire;
+== mlibs.rhi.api:commands
+namespace mlibs::rhi {
+  enum class LoadOp : std::uint8_t { clear, load, dont_care };
+  struct ColorTarget {
+    Texture texture;
+    LoadOp load = LoadOp::clear;
+    std::array<float, 4> clear{…};
+    Texture resolve;
+  };
+  struct DepthTarget {
+    Texture texture;
+    LoadOp load = LoadOp::clear;
+    float clear_depth = 1.0f;
+    std::uint8_t clear_stencil = 0;
+    bool store = false;
+  };
+  namespace cmd {
+    struct UploadBuffer {
+      Buffer buffer;
+      std::uint32_t offset = 0;
+      std::span<const std::byte> data;
+    };
+    struct UploadTexture {
+      Texture texture;
+      Region region;
+      std::span<const std::byte> data;
+      std::uint32_t row_bytes = 0;
+      std::uint32_t level = 0;
+    };
+    struct CopyTexture {
+      Texture from;
+      Region region;
+      Texture to;
+      std::uint32_t x = 0, y = 0;
+    };
+    struct BeginRender {
+      ColorTarget target;
+      DepthTarget depth;
+      std::array<ColorTarget, max_more_targets> more{…};
+      std::uint32_t asked = 0;
+    };
+    struct EndRender {
+    };
+    struct SetPipeline {
+      GraphicsPipeline pipeline;
+    };
+    struct SetViewport {
+      float x = 0, y = 0, width = 0, height = 0;
+    };
+    struct SetScissor {
+      Region rect;
+    };
+    struct BindVertexBuffer {
+      std::uint32_t slot = 0;
+      Buffer buffer;
+      std::uint32_t offset = 0;
+    };
+    struct BindIndexBuffer {
+      Buffer buffer;
+      std::uint32_t offset = 0;
+      bool wide = false;
+    };
+    struct BindTexture {
+      Stage stage = Stage::fragment;
+      std::uint32_t slot = 0;
+      Texture texture;
+      Sampler sampler;
+    };
+    struct BindStorageTexture {
+      Stage stage = Stage::fragment;
+      std::uint32_t slot = 0;
+      Texture texture;
+    };
+    struct BindStorageBuffer {
+      Stage stage = Stage::fragment;
+      std::uint32_t slot = 0;
+      Buffer buffer;
+    };
+    struct Draw {
+      std::uint32_t vertices = 0, instances = 1, first_vertex = 0, first_instance = 0;
+    };
+    struct DrawIndexed {
+      std::uint32_t indices = 0, instances = 1, first_index = 0;
+      std::int32_t vertex_offset = 0;
+      std::uint32_t first_instance = 0;
+    };
+    struct BeginCompute {
+      std::span<const Texture> textures;
+      std::span<const Buffer> buffers;
+    };
+    struct EndCompute {
+    };
+    struct SetComputePipeline {
+      ComputePipeline pipeline;
+    };
+    struct Dispatch {
+      std::uint32_t x = 1, y = 1, z = 1;
+    };
+    struct PushUniforms {
+      Stage stage = Stage::fragment;
+      std::uint32_t slot = 0;
+      std::span<const std::byte> data;
+    };
+  }
+  using Command = std::variant<cmd::UploadBuffer, cmd::UploadTexture, cmd::CopyTexture, cmd::BeginRender, cmd::EndRender, cmd::SetPipeline, cmd::SetViewport, cmd::SetScissor, cmd::BindVertexBuffer, cmd::BindIndexBuffer, cmd::BindTexture, cmd::BindStorageTexture, cmd::BindStorageBuffer, cmd::Draw, cmd::DrawIndexed, cmd::BeginCompute, cmd::EndCompute, cmd::SetComputePipeline, cmd::Dispatch, cmd::PushUniforms>;
+  [[nodiscard]] std::string_view command_name(const Command& c) noexcept;
+  class CommandList {
+    CommandList() = default;
+    CommandList(const CommandList&) = delete;
+    CommandList& operator=(const CommandList&) = delete;
+    CommandList(CommandList&&) noexcept = default;
+    CommandList& operator=(CommandList&&) noexcept = default;
+    void upload(Buffer buffer, std::uint32_t offset, std::span<const std::byte> data);
+    void upload(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes = 0, std::uint32_t level = 0);
+    void upload_borrowed(Texture texture, Region region, std::span<const std::byte> data, std::uint32_t row_bytes = 0, std::uint32_t level = 0);
+    template <class T> requires std::is_trivially_copyable_v<T> void upload(Buffer buffer, std::uint32_t offset, std::span<const T> data);
+    void copy(Texture from, Region region, Texture to, std::uint32_t x = 0, std::uint32_t y = 0);
+    void begin_render(const ColorTarget& target, const DepthTarget& depth = {…});
+    void begin_render(const ColorTarget& target, const DepthTarget& depth, std::span<const ColorTarget> more);
+    void end_render();
+    void set_pipeline(GraphicsPipeline pipeline);
+    void set_viewport(float x, float y, float width, float height);
+    void set_scissor(Region rect);
+    void bind_vertex_buffer(std::uint32_t slot, Buffer buffer, std::uint32_t offset = 0);
+    void bind_index_buffer(Buffer buffer, bool wide, std::uint32_t offset = 0);
+    void bind_texture(Stage stage, std::uint32_t slot, Texture texture, Sampler sampler);
+    void bind_storage(Stage stage, std::uint32_t slot, Texture texture);
+    void bind_storage(Stage stage, std::uint32_t slot, Buffer buffer);
+    void draw(std::uint32_t vertices, std::uint32_t instances = 1, std::uint32_t first_vertex = 0, std::uint32_t first_instance = 0);
+    void draw_indexed(std::uint32_t indices, std::uint32_t instances = 1, std::uint32_t first_index = 0, std::int32_t vertex_offset = 0, std::uint32_t first_instance = 0);
+    void begin_compute(std::span<const Texture> writes_textures, std::span<const Buffer> writes_buffers = {…});
+    void end_compute();
+    void set_pipeline(ComputePipeline pipeline);
+    void dispatch(std::uint32_t x, std::uint32_t y = 1, std::uint32_t z = 1);
+    void push_uniforms(Stage stage, std::uint32_t slot, std::span<const std::byte> data);
+    template <class T> requires std::is_trivially_copyable_v<T> void push_uniforms(Stage stage, std::uint32_t slot, const T& value);
+    [[nodiscard]] std::span<const Command> commands() const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    [[nodiscard]] std::uint64_t hash() const noexcept;
+    void clear() noexcept;
+  };
+}
+== mlibs.rhi.api:device
+namespace mlibs::rhi {
+  class Device {
+    Device() = default;
+    Device(const Device&) = delete;
+    Device& operator=(const Device&) = delete;
+    virtual ~Device() = default;
+    [[nodiscard]] virtual const Caps& caps() const noexcept = 0;
+    [[nodiscard]] Result<Buffer> create(const BufferDesc& d);
+    [[nodiscard]] Result<Texture> create(const TextureDesc& d);
+    [[nodiscard]] Result<Sampler> create(const SamplerDesc& d);
+    [[nodiscard]] Result<GraphicsPipeline> create(const GraphicsPipelineDesc& d);
+    [[nodiscard]] Result<ComputePipeline> create(const ComputePipelineDesc& d);
+    virtual void destroy(Buffer b) noexcept = 0;
+    virtual void destroy(Texture t) noexcept = 0;
+    virtual void destroy(Sampler s) noexcept = 0;
+    virtual void destroy(GraphicsPipeline p) noexcept = 0;
+    virtual void destroy(ComputePipeline p) noexcept = 0;
+    [[nodiscard]] virtual std::optional<BufferDesc> describe(Buffer b) const noexcept = 0;
+    [[nodiscard]] virtual std::optional<TextureDesc> describe(Texture t) const noexcept = 0;
+    [[nodiscard]] virtual bool exists(Sampler s) const noexcept = 0;
+    [[nodiscard]] virtual std::optional<GraphicsPipelineInfo> describe(GraphicsPipeline p) const noexcept = 0;
+    [[nodiscard]] virtual std::optional<ComputePipelineInfo> describe(ComputePipeline p) const noexcept = 0;
+    [[nodiscard]] Result<Submission> submit(const CommandList& list);
+    [[nodiscard]] virtual Result<void> wait(Submission s) = 0;
+    [[nodiscard]] virtual Result<void> wait_idle() = 0;
+    [[nodiscard]] Result<void> read(Texture t, Region region, std::span<std::byte> out);
+    [[nodiscard]] Result<std::vector<std::byte>> read(Texture t, Region region);
+    [[nodiscard]] Result<void> read(Buffer b, std::uint32_t offset, std::span<std::byte> out);
+    [[nodiscard]] Result<bool> present(Texture frame);
+  };
+  [[nodiscard]] std::string validate(const CommandList& list, const Device& device);
+}
+== mlibs.rhi.api:types
+namespace mlibs::rhi {
+  enum class Errc : std::uint8_t { unsupported, invalid, out_of_memory, device_lost, backend, };
+  [[nodiscard]] constexpr mlibs::error::Description describe(Errc code) noexcept;
+  using Error = mlibs::error::Error<Errc>;
+  template <class T> using Result = std::expected<T, Error>;
+  [[nodiscard]] inline std::unexpected<Error> fail(Errc code, std::string message);
+  enum class Backend : std::uint8_t { vulkan, metal, d3d12, webgpu, webgl };
+  [[nodiscard]] std::string_view name(Backend backend) noexcept;
+  enum class ShaderFormat : std::uint8_t { spirv, msl, metallib, dxbc, dxil, wgsl, essl };
+  inline constexpr std::size_t shader_format_count = 7;
+  [[nodiscard]] std::string_view name(ShaderFormat format) noexcept;
+  [[nodiscard]] std::optional<ShaderFormat> shader_format(std::string_view name) noexcept;
+  struct ShaderFormats {
+    std::uint8_t bits = 0;
+    [[nodiscard]] constexpr bool has(ShaderFormat f) const noexcept;
+    constexpr ShaderFormats& add(ShaderFormat f) noexcept;
+    [[nodiscard]] constexpr bool empty() const noexcept;
+    [[nodiscard]] constexpr ShaderFormats operator&(ShaderFormats o) const noexcept;
+    [[nodiscard]] constexpr ShaderFormats operator|(ShaderFormats o) const noexcept;
+    friend constexpr bool operator==(ShaderFormats a, ShaderFormats b) noexcept;
+  };
+  [[nodiscard]] constexpr ShaderFormats formats(std::initializer_list<ShaderFormat> list) noexcept;
+  enum class Format : std::uint8_t;
+  struct Caps {
+    Backend backend = Backend::vulkan;
+    std::string device;
+    ShaderFormats formats;
+    bool software = false;
+    bool compute = true;
+    std::uint32_t max_texture_size = 8192;
+    std::uint32_t max_samples = 1;
+    std::uint32_t subpixel_bits = 8;
+    bool depth = false;
+    std::uint32_t max_color_targets = 1;
+    bool independent_blend = true;
+    bool bc7 = false;
+    bool etc2 = false;
+    bool astc = false;
+    [[nodiscard]] constexpr bool samples_blocks(Format format) const noexcept;
+  };
+  [[nodiscard]] constexpr std::uint32_t subpixel_bits_of(std::string_view adapter) noexcept;
+  inline constexpr std::uint32_t max_color_targets = 4;
+  inline constexpr std::uint32_t max_more_targets = max_color_targets - 1;
+  struct BufferTag;
+  struct TextureTag;
+  struct SamplerTag;
+  struct GraphicsPipelineTag;
+  struct ComputePipelineTag;
+  using Buffer = memory::Handle<BufferTag>;
+  using Texture = memory::Handle<TextureTag>;
+  using Sampler = memory::Handle<SamplerTag>;
+  using GraphicsPipeline = memory::Handle<GraphicsPipelineTag>;
+  using ComputePipeline = memory::Handle<ComputePipelineTag>;
+  enum class Format : std::uint8_t { rgba8_unorm, bgra8_unorm, r8_unorm, rgba16_float, r32_float, r32_uint, d32_float, d32_float_s8, bc7_unorm, bc7_srgb, etc2_rgba8_unorm, etc2_rgba8_srgb, astc_4x4_unorm, astc_4x4_srgb, };
+  inline constexpr std::size_t format_count = 14;
+  inline constexpr std::uint32_t block_side = 4;
+  inline constexpr std::uint32_t block_bytes = 16;
+  [[nodiscard]] constexpr bool is_blocks(Format format) noexcept;
+  [[nodiscard]] constexpr bool is_depth(Format format) noexcept;
+  [[nodiscard]] std::string_view name(Format format) noexcept;
+  [[nodiscard]] std::uint32_t bytes_per_pixel(Format format) noexcept;
+  [[nodiscard]] constexpr std::uint32_t rows_of(Format format, std::uint32_t height) noexcept;
+  [[nodiscard]] std::size_t row_bytes(Format format, std::uint32_t width) noexcept;
+  constexpr bool Caps::samples_blocks(Format format) const noexcept;
+  enum class TextureUsage : std::uint8_t { none = 0, sampled = 1 << 0, color_target = 1 << 1, storage_read = 1 << 2, compute_read = 1 << 3, compute_write = 1 << 4, depth_target = 1 << 5, };
+  enum class BufferUsage : std::uint8_t { none = 0, vertex = 1 << 0, index = 1 << 1, indirect = 1 << 2, storage_read = 1 << 3, compute_read = 1 << 4, compute_write = 1 << 5, };
+  [[nodiscard]] constexpr TextureUsage operator|(TextureUsage a, TextureUsage b) noexcept;
+  [[nodiscard]] constexpr BufferUsage operator|(BufferUsage a, BufferUsage b) noexcept;
+  [[nodiscard]] constexpr bool has(TextureUsage set, TextureUsage u) noexcept;
+  [[nodiscard]] constexpr bool has(BufferUsage set, BufferUsage u) noexcept;
+  struct BufferDesc {
+    std::uint32_t size = 0;
+    BufferUsage usage = BufferUsage::vertex;
+    std::string_view label;
+  };
+  struct TextureDesc {
+    Format format = Format::rgba8_unorm;
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    TextureUsage usage = TextureUsage::sampled;
+    std::string_view label;
+    std::uint32_t samples = 1;
+    std::uint32_t levels = 1;
+  };
+  [[nodiscard]] constexpr std::uint32_t level_extent(std::uint32_t extent, std::uint32_t level) noexcept;
+  [[nodiscard]] constexpr std::uint32_t levels_of(std::uint32_t width, std::uint32_t height) noexcept;
+  enum class Filter : std::uint8_t { nearest, linear };
+  enum class AddressMode : std::uint8_t { clamp, repeat, mirror };
+  struct SamplerDesc {
+    Filter min = Filter::linear;
+    Filter mag = Filter::linear;
+    AddressMode u = AddressMode::clamp;
+    AddressMode v = AddressMode::clamp;
+    Filter between = Filter::nearest;
+  };
+  struct Region {
+    std::uint32_t x = 0, y = 0, width = 0, height = 0;
+    friend constexpr bool operator==(Region a, Region b) noexcept;
+  };
+  enum class Stage : std::uint8_t { vertex, fragment, compute };
+  [[nodiscard]] std::string_view name(Stage stage) noexcept;
+  struct ShaderCode {
+    ShaderFormat format = ShaderFormat::spirv;
+    std::span<const std::byte> bytes;
+  };
+  struct ShaderDesc {
+    Stage stage = Stage::vertex;
+    std::string_view entry;
+    std::span<const ShaderCode> code;
+    std::uint32_t samplers = 0;
+    std::uint32_t storage_textures = 0;
+    std::uint32_t storage_buffers = 0;
+    std::uint32_t uniform_buffers = 0;
+    std::uint32_t rw_storage_textures = 0;
+    std::uint32_t rw_storage_buffers = 0;
+    std::array<std::uint32_t, 3> threads{…};
+    std::string_view label;
+    [[nodiscard]] const ShaderCode* code_for(ShaderFormat f) const noexcept;
+    [[nodiscard]] ShaderFormats formats() const noexcept;
+  };
+  enum class VertexFormat : std::uint8_t { float1, float2, float3, float4, ubyte4_norm, uint1 };
+  [[nodiscard]] std::uint32_t size_of(VertexFormat format) noexcept;
+  struct VertexAttribute {
+    std::uint32_t location = 0;
+    VertexFormat format = VertexFormat::float2;
+    std::uint32_t offset = 0;
+  };
+  struct VertexBufferLayout {
+    std::uint32_t stride = 0;
+    bool per_instance = false;
+    std::span<const VertexAttribute> attributes;
+  };
+  enum class BlendFactor : std::uint8_t { zero, one, src_color, one_minus_src_color, dst_color, one_minus_dst_color, src_alpha, one_minus_src_alpha, dst_alpha, one_minus_dst_alpha, };
+  enum class BlendOp : std::uint8_t { add, subtract, reverse_subtract, min, max };
+  struct Blend {
+    bool enabled = false;
+    BlendFactor src_color = BlendFactor::one, dst_color = BlendFactor::zero;
+    BlendOp color_op = BlendOp::add;
+    BlendFactor src_alpha = BlendFactor::one, dst_alpha = BlendFactor::zero;
+    BlendOp alpha_op = BlendOp::add;
+    [[nodiscard]] static constexpr Blend premultiplied() noexcept;
+    [[nodiscard]] static constexpr Blend additive() noexcept;
+    [[nodiscard]] static constexpr Blend replace() noexcept;
+    friend constexpr bool operator==(Blend a, Blend b) noexcept;
+  };
+  enum class Topology : std::uint8_t { triangle_list, triangle_strip, line_list };
+  enum class Compare : std::uint8_t { never, less, equal, less_equal, greater, not_equal, greater_equal, always };
+  [[nodiscard]] std::string_view name(Compare compare) noexcept;
+  struct DepthState {
+    bool test = false;
+    bool write = false;
+    Compare compare = Compare::less_equal;
+    friend constexpr bool operator==(DepthState, DepthState) = default;
+  };
+  struct MoreTarget {
+    Format format = Format::rgba8_unorm;
+    Blend blend = Blend::premultiplied();
+  };
+  struct GraphicsPipelineDesc {
+    const ShaderDesc* vertex = nullptr;
+    const ShaderDesc* fragment = nullptr;
+    std::span<const VertexBufferLayout> vertex_buffers;
+    Format target = Format::rgba8_unorm;
+    Blend blend = Blend::premultiplied();
+    Topology topology = Topology::triangle_list;
+    std::optional<Format> depth_target;
+    DepthState depth;
+    std::uint32_t samples = 1;
+    std::span<const MoreTarget> more_targets;
+    std::string_view label;
+  };
+  struct ComputePipelineDesc {
+    const ShaderDesc* shader = nullptr;
+    std::string_view label;
+  };
+  struct Counts {
+    std::uint32_t samplers = 0, storage_textures = 0, storage_buffers = 0, uniform_buffers = 0;
+    std::uint32_t rw_storage_textures = 0, rw_storage_buffers = 0;
+    friend constexpr bool operator==(Counts a, Counts b) noexcept;
+  };
+  [[nodiscard]] constexpr Counts counts(const ShaderDesc& d) noexcept;
+  struct GraphicsPipelineInfo {
+    Counts vertex, fragment;
+    std::uint32_t vertex_buffers = 0;
+    Format target = Format::rgba8_unorm;
+    std::optional<Format> depth;
+    std::uint32_t samples = 1;
+    std::array<Format, max_more_targets> more_targets{…};
+    std::uint32_t more = 0;
+  };
+  struct ComputePipelineInfo {
+    Counts shader;
+  };
+  struct Submission {
+    std::uint64_t id = 0;
+    friend constexpr bool operator==(Submission a, Submission b) noexcept;
+  };
+  [[nodiscard]] std::string check(const BufferDesc& d);
+  [[nodiscard]] std::string check(const TextureDesc& d, const Caps& caps);
+  [[nodiscard]] std::string check(const ShaderDesc& d, ShaderFormats accepted);
+  [[nodiscard]] std::string check(const GraphicsPipelineDesc& d, ShaderFormats accepted);
+  [[nodiscard]] std::string check(const ComputePipelineDesc& d, ShaderFormats accepted);
+}
+== mlibs.rhi.api:wire
+namespace mlibs::rhi::wire {
+  enum class Op : std::uint8_t { upload_buffer, upload_texture, copy_texture, begin_render, end_render, set_pipeline, set_viewport, set_scissor, bind_vertex_buffer, bind_index_buffer, bind_texture, bind_storage_texture, bind_storage_buffer, draw, draw_indexed, begin_compute, end_compute, set_compute_pipeline, dispatch, push_uniforms, };
+  inline constexpr std::size_t op_count = 20;
+  inline constexpr std::uint32_t none = 0xffffffffu;
+  [[nodiscard]] constexpr Op op(std::uint32_t header) noexcept;
+  [[nodiscard]] constexpr std::uint32_t length(std::uint32_t header) noexcept;
+  void encode(const CommandList& list, std::vector<std::uint32_t>& out);
+  void encode(const GraphicsPipelineDesc& d, std::vector<std::uint32_t>& out);
+  void encode(const ComputePipelineDesc& d, std::vector<std::uint32_t>& out);
+}

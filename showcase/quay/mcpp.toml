@@ -1,0 +1,62 @@
+# Quay, the game on its own (D-162): a watchkeeper at a harbour at night, wardens that hear and see, the beacon to
+# light before the tide, with no window.
+#   src/sim       the simulation: deterministic, its state a value (a copy is a branch), rewound and replayed bit
+#                 for bit; wardens on meng.nav, bodies on meng.dynamics (rigid3), sound events as the world's.
+#   src/headless  the simulation as meng.runtime plays it: stepped without omui, sought back and branched ahead,
+#                 played by an agent as a person plays.
+#   src/picture   the harbour at night from the watchkeeper's eye, drawn from the state by xrender (the mesh pass and
+#                 particles on a device), the wardens skinned (hanim.skeleton); it reads the state, changes nothing.
+#   src/sound     the world's events as sounds in a place, at the watchkeeper's ears, through the containers' steel;
+#                 its sounds (sounds/*.sound.xdef.ts) carried in the program (build.mcpp).
+# Each keeps its module (import omui.showcase.quay.sim; …). Everything here builds for the Web; the window is
+# showcase/quay/window, quay-play (the signature shot on this machine's device) showcase/quay/play (D-99).
+[package]
+namespace   = "omui.showcase"
+name        = "quay"
+version     = "0.1.0"
+description = "Quay on its own: the deterministic simulation (a watchkeeper, wardens that hear and see, the beacon before the tide), the game an agent plays, its picture and its sound"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+profile = "game"  # its profile (D-207): what omui doctor holds it to
+separate = "product: the quay showcase"
+
+[targets.omui-showcase-quay]
+kind = "lib"
+
+[build]
+sources  = ["src/*/*.cppm", "src/*/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+meng.input    = { path = "../../modules/projects/meng/game/input" }
+meng.nav      = { path = "../../modules/projects/meng/game/nav" }
+meng.runtime  = { path = "../../modules/projects/meng/game/runtime" }
+meng.dynamics = { path = "../../modules/projects/meng/kernel/dynamics", features = ["rigid3"] }
+meng.audio    = { path = "../../modules/projects/meng/kernel/audio" }
+xrender.mesh     = { path = "../../modules/projects/xrender/mesh" }
+"xrender.mesh.gpu" = { path = "../../modules/projects/xrender/mesh/gpu" }
+xrender.particle = { path = "../../modules/projects/xrender/particle" }
+"xrender.particle.gpu" = { path = "../../modules/projects/xrender/particle/gpu" }
+xrender.scene    = { path = "../../modules/projects/xrender/scene" }
+hanim.skeleton   = { path = "../../modules/projects/hanim/skeleton" }
+mlibs.rhi        = { path = "../../modules/gfx/rhi" }
+mlibs.simulation = { path = "../../modules/base/simulation" }
+mlibs.geom       = { path = "../../modules/base/geom" }
+mlibs.math       = { path = "../../modules/base/math" }
+mlibs.utils      = { path = "../../modules/base/utils" }
+
+[build-dependencies]
+omui.build = { path = "../../mcpp/build", host-module = true }
+
+[dev-dependencies]
+mcpplibs.mtest   = "0.8.4"
+mcpplibs.os      = "0.4.4"
+mlibs.agent      = { path = "../../modules/base/agent" }
+mlibs.json       = { path = "../../modules/base/json" }
+mlibs.image      = { path = "../../modules/base/image" }
+meng.playtest = { path = "../../modules/projects/meng/game/playtest" }
+xrender.rhi.webgpu = { path = "../../modules/projects/xrender/rhi/webgpu" }

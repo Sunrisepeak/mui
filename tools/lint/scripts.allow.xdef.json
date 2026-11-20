@@ -1,0 +1,22 @@
+{
+  "doc": "The scripts allowed in the repository (convergence plan §4.5, D-206): developer and CI tools are C++ under mcpp, so a script (.py, .sh, .bash, .mjs, .cjs, .js, .ps1, .rb, .pl, .lua) is a problem of lint `scripts` unless an entry here names it. Four kinds, each entry saying why. Application code in the framework's own languages (TypeScript and JavaScript, D-138) is not a tool and is not in scope: `application` entries say where it is. `pending` names a script still being moved into C++, with the checkpoint that removes it (`until`); the list only shrinks, and an entry, allowed or pending, that names no file is itself a problem.",
+  "kinds": {
+    "platform-glue": "What a platform requires in its own language: the browser host's JavaScript (and its tests under node, in the same language), a workflow's one line calling a tool",
+    "competitor-runtime": "A competitor's own runtime in a comparison (GSAP's JS, Skia through node, the Lottie players' Python bindings), pinned and driven by C++",
+    "client-sdk": "A client library for another language (omui/agent/clients/python)",
+    "reference": "An independent reference implementation, deliberately in another language than the code it checks, its reason written",
+    "application": "Application code in omui's own languages (TS/JS, D-138): not a tool"
+  },
+  "allow": [
+    {"pattern": "modules/projects/*/**/src/js/*.js", "kind": "platform-glue", "why": "the Web host's and the page backends' JavaScript halves: the hidden textarea, the semantic DOM mirror, WebGPU and WebGL2 calls"},
+    {"pattern": "modules/projects/*/**/tests/js/*.mjs", "kind": "platform-glue", "why": "those halves tested under node's test runner with a fake DOM, WebGPU and WebGL2, in their own language"},
+    {"pattern": "tests/bench/competitors/js/*", "kind": "competitor-runtime", "why": "GSAP, Skia (@napi-rs/canvas), resvg and the markdown parsers, pinned in package.json; driven by omui-devtools bench competitors"},
+    {"pattern": "tests/bench/competitors/py/*", "kind": "competitor-runtime", "why": "ThorVG's and rlottie's C libraries through their Python bindings, pinned in requirements.txt"},
+    {"pattern": "tests/bench/competitors/compare/**/*", "kind": "competitor-runtime", "why": "Material 3's own web components (@material/web) drawn beside ours for the side-by-side review"},
+    {"pattern": "modules/projects/omui/agent/clients/python/**/*", "kind": "client-sdk", "why": "the Python client of the agent protocol"},
+    {"pattern": "showcase/markdown-wall/scripts/tour.py", "kind": "client-sdk", "why": "the Python client's worked example: the wall's tour as an agent drives it from outside, held by wall_test to record the same as tour.ts"},
+    {"pattern": "modules/projects/hanim/core/tests/data/gen_math_reference.py", "kind": "reference", "why": "the reference values hanim.core's math is held to, computed with Python's arbitrary-precision decimal arithmetic: a second implementation in another language, so a shared mistake cannot pass both"},
+    {"pattern": "modules/projects/omui/lang/js/tests/*.js", "kind": "application", "why": "the conformance scenarios as an application writes them in JavaScript (tests/cts.js), run by omui.lang.js"}
+  ],
+  "pending": []
+}

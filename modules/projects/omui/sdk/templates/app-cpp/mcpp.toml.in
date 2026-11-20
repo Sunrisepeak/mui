@@ -1,0 +1,30 @@
+[package]
+name    = "{{project.name}}"
+version = "0.1.0"
+
+[package.metadata.openmui]
+kind = "app"
+id   = "org.example.{{project.name}}"
+
+[targets.{{project.name}}]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+{{self.name}} = "{{self.version}}"
+
+# Its build program (build.mcpp): the page on the Web (omui build --web).
+[build-dependencies]
+omui.build = { version = "{{self.version}}", host-module = true }
+
+# On the Web (wasm32-emscripten), as omui is built there: exceptions (the
+# libraries that throw), memory that grows, a 1 MiB stack, one thread (a
+# static page has no SharedArrayBuffer).
+[target.'cfg(os = "emscripten")'.abi]
+exceptions = true
+
+[target.'cfg(os = "emscripten")'.build]
+ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0"]

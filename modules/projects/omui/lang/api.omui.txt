@@ -1,0 +1,116 @@
+== omui.lang
+export import :host;
+export import :view;
+== omui.lang:host
+namespace omui::lang {
+  using Json = nlohmann::json;
+  struct Error {
+    abi::OmuiResult result = abi::OMUI_ERROR_INTERNAL;
+    std::string message;
+    [[nodiscard]] std::string text() const;
+  };
+  template <class T> using Result = std::expected<T, Error>;
+  class Host {
+    explicit Host(abi::OmuiRuntime runtime);
+    ~Host();
+    Host(const Host&) = delete;
+    Host& operator=(const Host&) = delete;
+    [[nodiscard]] abi::OmuiRuntime runtime() const noexcept;
+    [[nodiscard]] bool threaded() const noexcept;
+    void post(std::function<void()> fn);
+    template <class F> auto ui(F fn) -> std::invoke_result_t<F&>;
+    void send(std::function<void()> fn);
+    template <class F> auto script(F fn) -> std::invoke_result_t<F&>;
+    void retire(const std::function<bool()>& down);
+    [[nodiscard]] bool idle() const noexcept;
+    [[nodiscard]] bool on_runtime_thread() const noexcept;
+    [[nodiscard]] bool on_script_thread() const noexcept;
+    void drain();
+    struct Inbox;
+  };
+}
+== omui.lang:view
+namespace omui::lang {
+  struct Expr {
+    std::string text;
+    std::vector<abi::OmuiSignal> signals;
+  };
+  [[nodiscard]] Expr literal(const Json& value);
+  [[nodiscard]] Expr signal_ref(abi::OmuiSignal s);
+  [[nodiscard]] Expr name_ref(std::string name);
+  [[nodiscard]] Expr call(std::string_view function, std::vector<Expr> args);
+  [[nodiscard]] Expr binary(std::string_view op, Expr a, Expr b);
+  [[nodiscard]] Expr unary(std::string_view op, Expr a);
+  [[nodiscard]] Expr select(Expr cond, Expr then, Expr otherwise);
+  [[nodiscard]] Expr member(Expr object, std::string_view field);
+  [[nodiscard]] Expr fmt(std::string_view pattern, std::vector<Expr> args);
+  using Handler = std::function<void(const Json& event)>;
+  struct Prop {
+    enum class Kind : std::uint8_t { constant, expr, bind, tr };
+    Kind kind = Kind::constant;
+    Json value;
+    Expr expr;
+    abi::OmuiSignal signal = 0;
+    std::vector<std::pair<std::string, Expr>> args;
+  };
+  struct Element;
+  struct Region {
+    enum class Kind : std::uint8_t { when, each, slot };
+    Kind kind = Kind::when;
+    Expr condition;
+    std::vector<Element> then, otherwise;
+    std::string model, variable, slot;
+  };
+  struct Element {
+    std::string type;
+    std::string id;
+    std::vector<std::pair<std::string, Prop>> props;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Json>> animate;
+    std::vector<Element> children;
+    std::shared_ptr<Region> region;
+    std::string built_at;
+  };
+  [[nodiscard]] Result<Element> element_from_json(const Json& tree, const std::function<std::optional<Handler>(std::size_t)>& handler);
+  [[nodiscard]] std::string contract_name(std::string_view name);
+  class Session {
+    explicit Session(Host& host);
+    ~Session();
+    Session(const Session&) = delete;
+    Session& operator=(const Session&) = delete;
+    [[nodiscard]] Host& host() noexcept;
+    [[nodiscard]] Result<abi::OmuiSignal> signal(const Json& initial);
+    [[nodiscard]] const Json& get(abi::OmuiSignal s) const;
+    void set(abi::OmuiSignal s, Json value);
+    std::uint64_t watch(abi::OmuiSignal s, std::function<void(const Json&)> fn);
+    void unwatch(std::uint64_t token);
+    [[nodiscard]] Json document(const Element& root) const;
+    Result<void> mount(std::string slot, const Element& root);
+    Result<void> unmount(std::string slot);
+    Result<void> splice(std::string_view model, std::size_t from, std::size_t remove, const Json& rows);
+    [[nodiscard]] Result<Json> rows(std::string_view model, std::size_t from = 0, std::size_t count = std::numeric_limits<std::uint32_t>::max());
+    [[nodiscard]] Result<abi::OmuiNode> find(std::string_view selector);
+    [[nodiscard]] Result<Json> get(abi::OmuiNode node, std::string_view prop);
+    Result<void> set(abi::OmuiNode node, const std::vector<std::pair<std::string, Json>>& props);
+    [[nodiscard]] Result<std::vector<Json>> snapshot(const Json& query = Json::object());
+    [[nodiscard]] Result<std::vector<Json>> act(const Json& request);
+    [[nodiscard]] Result<std::vector<Json>> invoke(std::string_view verb, const Json& args);
+    struct VerbSpec {
+      std::string name, summary;
+      abi::OmuiEffect effect = abi::OMUI_EFFECT_REVERSIBLE;
+      std::string answer;
+      bool person = false;
+    };
+    Result<void> verb(VerbSpec spec, std::function<Result<Json>(const Json& args)> fn);
+    Result<void> task(const Json& task);
+    Result<void> theme(const std::vector<std::string>& layers);
+    [[nodiscard]] Json themes();
+    Result<void> copy(std::string_view text);
+    Result<std::string> link_agent();
+    Result<abi::OmuiSignal> agent_link();
+    [[nodiscard]] Json natives();
+    [[nodiscard]] Result<Json> native(std::string_view module, std::string_view function, const Json& args);
+    void native_async(std::string module, std::string function, Json args, std::function<void(Result<Json>)> done);
+    [[nodiscard]] bool idle() const noexcept;
+  };
+}

@@ -1,0 +1,31 @@
+== omui.entry.launcher
+namespace omui::launcher {
+  struct Declared {
+    std::string openmui;
+    std::vector<std::string> needs;
+    std::string runtime;
+  };
+  [[nodiscard]] std::expected<Declared, std::string> declared(std::string_view manifest);
+  struct Runtime {
+    std::filesystem::path directory;
+    std::string version, openmui;
+    std::vector<std::string> capabilities;
+  };
+  [[nodiscard]] std::expected<Runtime, std::string> read_runtime(std::string_view text, const std::filesystem::path& directory);
+  [[nodiscard]] std::vector<Runtime> installed(const std::filesystem::path& xlings_home);
+  struct Choice {
+    std::optional<Runtime> chosen;
+    std::string why;
+    std::string install;
+  };
+  [[nodiscard]] Choice choose(const Declared& wanted, std::span<const Runtime> runtimes);
+  [[nodiscard]] std::strong_ordering compare_versions(std::string_view left, std::string_view right);
+  inline constexpr std::string_view launcher_version = "0.1.0";
+  struct Launch {
+    std::filesystem::path application;
+    bool which = false;
+    std::vector<std::string> passed;
+  };
+  int launch(const Launch& what);
+  int main(int argc, char** argv);
+}

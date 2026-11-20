@@ -1,0 +1,23 @@
+// meng's profile (D-207): a game made with meng, beyond the general rules. The tool kernel's doctor
+// (mlibs.project) reads the snapshot.
+import { defineProfile } from "mlibs/define";
+
+export default defineProfile({
+  game: {
+    doc: "a game: playable on its own (no window needed) and played by an agent in a test",
+    rules: [
+      {
+        id: "game.headless",
+        doc: "it runs on meng's runtime, a game on its own that an agent can play",
+        anyOf: [{ dependsOn: "meng.runtime" }],
+        fix: "make the game a Playable of meng.runtime: its steps, what a player is shown, its controls",
+      },
+      {
+        id: "game.playtest",
+        doc: "a test in tests/ that plays it headless",
+        file: "tests/**.cpp",
+        fix: "play it as an agent does (meng.playtest), the same play twice the same",
+      },
+    ],
+  },
+});

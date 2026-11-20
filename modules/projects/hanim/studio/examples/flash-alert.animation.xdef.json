@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "size": [320, 160],
+  "background": "#1c1917",
+  "objects": [
+    { "id": "alert", "shape": { "polygon": [[0, -44], [48, 36], [-48, 36]] }, "fill": "#facc15", "at": [160, 86] },
+    { "id": "bang", "shape": { "rect": { "size": [8, 32], "radius": 4 } }, "fill": "#1c1917", "at": [160, 84] },
+    { "id": "dot", "shape": { "circle": 4 }, "fill": "#1c1917", "at": [160, 110] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "parallel", "items": [{ "do": "zoom_in", "object": "alert" }, { "do": "zoom_in", "object": "bang" }, { "do": "zoom_in", "object": "dot" }] },
+      { "do": "parallel", "items": [{ "do": "flash", "object": "alert", "times": 3 }, { "do": "flash", "object": "bang", "times": 3 }, { "do": "flash", "object": "dot", "times": 3 }] },
+      { "do": "marker", "name": "warned" }
+    ]
+  }
+}

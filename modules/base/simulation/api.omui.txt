@@ -1,0 +1,55 @@
+== mlibs.simulation
+export import mlibs.simulation.api;
+== mlibs.simulation.api
+namespace mlibs::simulation {
+  class Clock {
+    explicit Clock(double steps_per_second = 120, std::int32_t catch_up = 8) noexcept;
+    [[nodiscard]] std::int32_t advance(double now) noexcept;
+    [[nodiscard]] double alpha() const noexcept;
+    [[nodiscard]] double step() const noexcept;
+    void reset(double now) noexcept;
+    double scale = 1;
+  };
+  template <class World> requires requires(const World& world);
+  class Branching {
+    Branching() noexcept = default;
+    explicit Branching(World world) : world_(std::make_unique<World>(std::move(world)));
+    explicit Branching(std::unique_ptr<World> world) noexcept : world_(std::move(world));
+    Branching(const Branching& other);
+    Branching& operator=(const Branching& other);
+    Branching(Branching&&) noexcept = default;
+    Branching& operator=(Branching&&) noexcept = default;
+    ~Branching() = default;
+    [[nodiscard]] explicit operator bool() const noexcept;
+    [[nodiscard]] World& operator*() const noexcept;
+    [[nodiscard]] World* operator->() const noexcept;
+  };
+  template <class G> concept Model = std::copy_constructible<typename G::State> && std::is_copy_assignable_v<typename G::State> && std::is_trivially_copyable_v<typename G::Input> && std::is_default_constructible_v<typename G::Input> && requires(typename G::State& s, const typename G::Input& in) {…};
+  template <Model G> class Timeline {
+    using State = typename G::State;
+    using Input = typename G::Input;
+    explicit Timeline(const State& initial, std::int64_t keep = 3600, std::int64_t every = 60) : every_(std::max<std::int64_t>(1, every)), keep_(std::max<std::int64_t>(every_, keep)), snapshots_(static_cast<std::size_t>(keep_ / every_ + 2), initial), inputs_(static_cast<std::size_t>(keep_ + every_)), state_(initial);
+    void step(const Input& in);
+    [[nodiscard]] const State& state() const noexcept;
+    [[nodiscard]] std::int64_t frame() const noexcept;
+    [[nodiscard]] std::int64_t latest() const noexcept;
+    [[nodiscard]] std::int64_t earliest() const noexcept;
+    [[nodiscard]] const Input& input(std::int64_t f) const noexcept;
+    bool seek(std::int64_t f);
+    void branch() noexcept;
+  };
+  enum class Fidelity : std::uint8_t { cosmetic, plausible, accurate };
+  enum class Determinism : std::uint8_t { none, same_binary, cross_platform, fixed_point };
+  enum class Backend : std::uint8_t { cpu_reference, simd, gpu };
+  struct Tier {
+    Fidelity fidelity = Fidelity::plausible;
+    Determinism determinism = Determinism::cross_platform;
+    Backend backend = Backend::cpu_reference;
+    std::int32_t substeps = 1;
+    friend constexpr bool operator==(const Tier& a, const Tier& b) noexcept;
+  };
+  [[nodiscard]] constexpr bool authoritative(const Tier& tier) noexcept;
+  [[nodiscard]] constexpr std::string_view name(Fidelity f) noexcept;
+  [[nodiscard]] constexpr std::string_view name(Determinism d) noexcept;
+  [[nodiscard]] constexpr std::string_view name(Backend b) noexcept;
+}

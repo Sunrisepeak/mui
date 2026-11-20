@@ -1,0 +1,8 @@
+[template]
+description  = "An openmui application in TypeScript, run by the player: no C++ to write"
+post_message = "cd into the project, then `mcpp run` (a window; saving app/main.ts shows at once; `omui dev` to design it live with an agent), `mcpp run -- --headless --png app.png` or `mcpp test`."
+
+# The project names what it uses (the player's entry; the player and the script runtime for its
+# test), all at this package's version: nothing more is added for the package the template comes from.
+[template.inject]
+self = false

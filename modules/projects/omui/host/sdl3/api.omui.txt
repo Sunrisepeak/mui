@@ -1,0 +1,104 @@
+== omui.host.sdl3
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
+export import omui.agent;
+export import omui.accessibility;
+export import xrender.raster;
+export import xrender.effect;
+export import :gpu;
+namespace omui {
+  struct DesktopOptions {
+    std::string title = "openmui";
+    Size size{…};
+    bool resizable = true;
+    std::string app = "openmui-app";
+    bool agent = true;
+    bool agent_input = true;
+    bool accessibility = true;
+    std::filesystem::path agent_directory;
+    Theme theme = Theme::light();
+    mlibs::text::FontCollection* fonts = nullptr;
+    bool reduce_motion = false;
+    bool reduce_transparency = false;
+    Color background = Color::white();
+    bool vsync = true;
+    std::string video_driver;
+    std::string render_driver;
+    bool parallel_raster = true;
+    enum class Renderer : std::uint8_t { automatic, cpu, gpu };
+    Renderer renderer = Renderer::automatic;
+    std::string vulkan_library;
+    std::filesystem::path effects;
+    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;
+    Runtime* runtime = nullptr;
+    enum class Frame : std::uint8_t { native, framework };
+    Frame frame = Frame::native;
+    double close_dissolve = 0.24;
+  };
+  class Desktop {
+    explicit Desktop(DesktopOptions options = {…});
+    ~Desktop();
+    Desktop(const Desktop&) = delete;
+    Desktop& operator=(const Desktop&) = delete;
+    std::expected<void, ViewFailure> open();
+    [[nodiscard]] bool is_open() const noexcept;
+    [[nodiscard]] Runtime& runtime() noexcept;
+    [[nodiscard]] semantic::Tree& tree() noexcept;
+    NodeId mount(std::string_view slot, View view);
+    int run();
+    bool step(bool wait = false);
+    void quit(int code = 0);
+    void wake();
+    void close();
+    [[nodiscard]] bool closing() const noexcept;
+    void synthesize(std::span<const InputEvent> events);
+    [[nodiscard]] std::expected<xrender::raster::Surface, ViewFailure> window_pixels();
+    [[nodiscard]] float scale() const noexcept;
+    [[nodiscard]] agent::Endpoint* endpoint() noexcept;
+    [[nodiscard]] accessibility::Mirror* accessibility_mirror() noexcept;
+    [[nodiscard]] accessibility::Adapter* accessibility_adapter() noexcept;
+    [[nodiscard]] std::size_t frames_shown() const noexcept;
+    [[nodiscard]] bool gpu() const noexcept;
+    [[nodiscard]] xrender::effect::Library* effects() noexcept;
+    struct Impl;
+  };
+  [[nodiscard]] std::vector<std::string> preferred_locales();
+}
+== omui.host.sdl3:gpu
+namespace omui {
+  struct GpuDeviceOptions {
+    std::string vulkan_library;
+    std::string video_driver;
+    std::uint32_t window = 0;
+    bool vsync = true;
+    bool hardware_only = false;
+  };
+  class GpuMaking {
+    virtual ~GpuMaking() = default;
+    [[nodiscard]] virtual mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> get() = 0;
+  };
+  class GpuRenderer {
+    virtual ~GpuRenderer() = default;
+    [[nodiscard]] virtual mlibs::rhi::Result<void> render(std::span<const xrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width, std::uint32_t height, const xrender::GpuFrameOptions& options) = 0;
+  };
+  class GpuEffects {
+    virtual ~GpuEffects() = default;
+    [[nodiscard]] virtual xrender::effect::Library& library() noexcept = 0;
+    [[nodiscard]] virtual std::vector<std::string> load(const std::filesystem::path& directory) = 0;
+    struct Reloaded {
+      std::vector<std::string> reloaded;
+      std::vector<std::string> problems;
+    };
+    [[nodiscard]] virtual Reloaded reload() = 0;
+  };
+  struct GpuService {
+    std::string_view name;
+    std::unique_ptr<GpuMaking> (*begin)(const GpuDeviceOptions& options) = nullptr;
+    mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> (*create)(const GpuDeviceOptions& options) = nullptr;
+    mlibs::rhi::Result<void> (*claim)(mlibs::rhi::Device& device, std::uint32_t window, bool vsync) = nullptr;
+    mlibs::rhi::Result<std::unique_ptr<GpuRenderer>> (*renderer)(mlibs::rhi::Device& device) = nullptr;
+    std::unique_ptr<GpuEffects> (*effects)(const mlibs::rhi::Device* device, std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> data) = nullptr;
+  };
+  inline constexpr mlibs::compose::Slot<GpuService> gpu_slot{…};
+}

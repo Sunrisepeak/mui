@@ -1,0 +1,387 @@
+// A subject that is neither an interface nor a game: a counter with a
+// reading, a change it can take back and one it cannot. What a session over
+// it answers, and that nothing reaches it undecided.
+import std;
+import openas;
+import mlibs.agent;
+import mlibs.control;
+import mlibs.json;
+import mlibs.log.api;
+import mlibs.trace.api;
+import mcpplibs.mtest;
+
+using namespace mcpplibs::mtest;
+namespace agent = mlibs::agent;
+namespace control = mlibs::control;
+
+namespace {
+
+class Counter final : public agent::Subject {
+public:
+    std::string_view name() const noexcept override { return "counter"; }
+    std::string_view interface_name() const noexcept override { return "example.counter@1"; }
+    agent::Capabilities capabilities() const noexcept override { return {.observation = true, .control = true}; }
+    std::span<const control::CatalogEntry> operations() const noexcept override {
+        static constexpr std::array<control::Parameter, 1> add_parameters{{{"by", "integer", "how much (1 when none is given)", true}}};
+        static constexpr std::array<control::Parameter, 1> set_parameters{{{"to", "integer", "the count from now on", false}}};
+        static constexpr std::array<std::string_view, 1> set_examples{R"({"op":"counter.set","to":3})"};
+        static constexpr std::array<control::Way, 1> set_then{{{"read the count it has now", R"({"op":"counter.read"})"}}};
+        static constexpr std::array<control::CatalogEntry, 4> all{{
+            {{"counter.read", openas::Effect::read, false}, "The count", {}, "json", control::Cost::instant, "", false, false, false},
+            {{"counter.add", openas::Effect::reversible, false}, "Adds to the count", add_parameters, "json", control::Cost::instant, "counter.add with the opposite", false, false, false},
+            {{"counter.reset", openas::Effect::irreversible, false}, "Forgets the count", {}, "json", control::Cost::instant, "", false, false, false, {}, "zero clear"},
+            {{"counter.set", openas::Effect::reversible, false}, "Sets the count", set_parameters, "json", control::Cost::instant, "counter.set to what it was", false, false, false, set_examples, "", set_then},
+        }};
+        return all;
+    }
+    control::Guide guide() const noexcept override {
+        static constexpr std::array<std::string_view, 2> steps{R"({"op":"counter.add","by":2})", R"({"op":"counter.read"})"};
+        static constexpr std::array<control::Task, 1> tasks{{{"count-up", "Add to the count and read it", steps}}};
+        return {"A count.", tasks};
+    }
+    std::vector<agent::Term> terms() const override { return {{"page", "three", "The page the counter is on", R"({"op":"counter.read"})"}}; }
+    std::string recorded_at() const override { return std::format("{{\"change\":{}}}", operated); }
+    std::uint64_t state_hash() const override { return static_cast<std::uint64_t>(count) + 1; }
+    void operate(std::string_view operation, const agent::Request& request, agent::Answer& answer) override {
+        ++operated;
+        by = request.actor.name;
+        if (operation == "counter.add") count += request["by"].integer().value_or(1);
+        if (operation == "counter.reset") count = 0;
+        if (operation == "counter.set") {
+            if (request["to"].integer().value_or(0) < 0) return answer.fail(openas::error_code::invalid_argument, "a count is not negative");
+            count = request["to"].integer().value_or(0);
+        }
+        answer.data(std::format("{{\"count\":{}}}", count));
+    }
+    void poll() override { ++polled; }
+
+    std::int64_t count = 0;
+    int          operated = 0, polled = 0;
+    std::string  by;  // who asked last, as the session said
+};
+
+// What a session answers to one request: its records, parsed.
+struct Answered {
+    std::vector<mlibs::json::Document> records;
+    [[nodiscard]] std::string kind(std::size_t index) const { return records[index].root()["kind"].text().value_or(""); }
+    [[nodiscard]] std::int64_t exit_code() const { return records.back().root()["exitCode"].integer().value_or(-1); }
+    [[nodiscard]] std::string error() const {
+        for (const auto& record : records)
+            if (record.root()["kind"].text() == "error") return record.root()["code"].text().value_or("");
+        return {};
+    }
+    // The error's ways out: each one's request, as JSON.
+    [[nodiscard]] std::vector<std::string> next() const {
+        std::vector<std::string> out;
+        for (const auto& record : records)
+            if (record.root()["kind"].text() == "error")
+                for (const auto& way : record.root()["next"].items()) out.push_back(way["request"].dump());
+        return out;
+    }
+};
+Answered ask(agent::SubjectSession& session, std::string_view line) {
+    Answered out;
+    session.request(line, [&](std::string_view record) {
+        auto parsed = mlibs::json::Document::parse(record, "record");
+        expect(fatal(parsed.has_value())) << record;
+        out.records.push_back(std::move(*parsed));
+    });
+    expect(fatal(!out.records.empty()));
+    expect(out.kind(out.records.size() - 1) == "result") << "an answer ends with its result";
+    return out;
+}
+
+}  // namespace
+
+UTest cases{"agent.subject", [] {
+    "a conversation over lines; kept in a file, the next process's subject is where this one left it"_test = [] {
+        const auto file = std::filesystem::temp_directory_path() / "openmui-tests" / "agent-converse" / "kept.jsonl";
+        std::filesystem::create_directories(file.parent_path());
+        std::filesystem::remove(file);
+        {
+            Counter counter;
+            agent::SubjectSession session({&counter});
+            std::istringstream in("{\"op\":\"counter.add\",\"by\":2}\n\n{\"op\":\"counter.add\",\"by\":5}\r\n");
+            std::ostringstream out;
+            const auto conversed = agent::converse(session, in, out, file);
+            expect(fatal(conversed.has_value())) << (conversed ? "" : conversed.error());
+            expect(conversed->done && eq(conversed->again, std::size_t{0}) && eq(conversed->asked, std::size_t{2}) && eq(counter.count, std::int64_t{7}));
+            expect(out.str().contains(R"("count":7)")) << out.str();
+        }
+        {
+            // Another process: a subject as it is made, the same file. What was asked is asked again, unanswered.
+            Counter counter;
+            agent::SubjectSession session({&counter});
+            std::istringstream in("{\"op\":\"counter.read\"}\n{\"op\":\"counter.set\",\"to\":-1}\n");
+            std::ostringstream out;
+            const auto conversed = agent::converse(session, in, out, file);
+            expect(fatal(conversed.has_value()));
+            expect(eq(conversed->again, std::size_t{2}) && eq(conversed->asked, std::size_t{2}) && !conversed->done) << "the refused request is said";
+            expect(out.str().starts_with(R"({"kind":"data","data":{"count":7})")) << "only the new requests are answered, from where it was left: " << out.str();
+            expect(!out.str().contains(R"("count":2)"));
+        }
+        std::ifstream kept(file);
+        const std::string lines{std::istreambuf_iterator<char>(kept), std::istreambuf_iterator<char>()};
+        expect(eq(std::ranges::count(lines, '\n'), std::ptrdiff_t{4}) && !lines.contains('\r')) << lines;
+        // Without a file: lines in, records out, nothing kept.
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        std::istringstream in("{\"op\":\"counter.add\"}\n");
+        std::ostringstream out;
+        expect(agent::converse(session, in, out).value_or({}).asked == 1 && eq(counter.count, std::int64_t{1}));
+        expect(!agent::converse(session, in, out, std::filesystem::temp_directory_path() / "openmui-tests" / "no-such-directory" / "kept.jsonl").has_value());
+    };
+
+    "who is here, what each can do, and its operations with their effects"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        const auto who = ask(session, R"({"op":"subjects","re":1})");
+        expect(eq(who.exit_code(), std::int64_t{0}));
+        const auto subject = who.records[0].root()["data"]["subjects"][0];
+        expect(subject["name"].text() == "counter" && subject["interface"].text() == "example.counter@1");
+        expect(subject["capabilities"]["observation"].boolean() == true && subject["capabilities"]["time"].boolean() == false)
+            << "what it cannot do it says";
+        expect(eq(subject["capabilities"].size(), std::size_t{8})) << "observation, budget, control, time, causes, provenance, preview, history";
+        expect(subject["hash"].text() == "0000000000000001");
+        expect(who.records[0].root()["re"].integer() == 1) << "every record echoes the request's re";
+        expect(ask(session, R"({"op":"help"})").records[0].root()["data"]["subjects"][0]["name"].text() == "counter") << "what is asked first when nothing is known";
+        const auto own = who.records[0].root()["data"]["session"];
+        expect(eq(own.size(), std::size_t{4}) && own[3]["request"].dump() == R"({"op":"log"})" && eq(own.size(), std::size_t{4}) && own[0]["request"].dump() == R"({"op":"describe","subject":"counter"})" && own[2]["request"]["op"].text() == "find")
+            << "the session's own requests: nothing but this answer is needed to go on";
+
+        const auto described = ask(session, R"({"op":"describe","subject":"counter"})");
+        const auto operations = described.records[0].root()["data"]["operations"];
+        expect(eq(operations.size(), std::size_t{4}));
+        expect(operations[1]["name"].text() == "counter.add" && operations[1]["effect"].text() == "reversible");
+        expect(!operations[1]["parameters"]) << "briefly: a name, its effect, a line";
+        expect(!described.records[0].root()["re"]) << "no re asked, none echoed";
+        const auto one = ask(session, R"({"op":"describe","operation":"counter.add"})");
+        const auto entry = one.records[0].root()["data"];
+        expect(entry["parameters"][0]["name"].text() == "by" && entry["parameters"][0]["optional"].boolean() == true) << "one operation whole";
+        expect(entry["undo"].text() == "counter.add with the opposite" && entry["cost"].text() == "instant");
+        expect(ask(session, R"({"op":"describe","operation":"counter.fly"})").error() == "not-found");
+        expect(ask(session, R"({"op":"describe","subject":"clock"})").error() == "not-found") << "a subject that is not here";
+        expect(eq(ask(session, R"({"op":"describe"})").records[0].root()["data"]["operations"].size(), std::size_t{4})) << "the only subject here, when none is named";
+    };
+
+    "an agent that knows nothing of it begins from `describe`: what it is, tasks whose steps run as written, examples with an operation (D-186)"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        const auto described = ask(session, R"({"op":"describe","subject":"counter"})");
+        const auto data = described.records[0].root()["data"];
+        expect(data["about"].text() == "A count.");
+        expect(eq(data["tasks"].size(), std::size_t{1}) && data["tasks"][0]["name"].text() == "count-up" && data["tasks"][0]["summary"].text() == "Add to the count and read it");
+        // Each step is a request: sent as it is given.
+        for (const auto& step : data["tasks"][0]["steps"].items()) expect(eq(ask(session, step.dump()).exit_code(), std::int64_t{0})) << step.dump();
+        expect(eq(counter.count, std::int64_t{2}));
+        const auto one = ask(session, R"({"op":"describe","operation":"counter.set"})");
+        const auto whole = one.records[0].root()["data"];
+        expect(eq(whole["examples"].size(), std::size_t{1}));
+        expect(eq(ask(session, whole["examples"][0].dump()).exit_code(), std::int64_t{0}) && eq(counter.count, std::int64_t{3}));
+        expect(!ask(session, R"({"op":"describe","operation":"counter.read"})").records[0].root()["data"]["examples"]) << "none declared, none shown";
+    };
+
+    "what is here is found by intent: operations, tasks and what a subject's content names, the best first, each with requests (D-186)"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        const auto names = [&](std::string_view query) {
+            std::vector<std::string> out;
+            const auto found = ask(session, std::format(R"({{"op":"find","q":"{}"}})", query));
+            for (const auto& each : found.records[0].root()["data"]["found"].items()) out.push_back(each["kind"].text().value_or("") + " " + each["name"].text().value_or(""));
+            return out;
+        };
+        using Names = std::vector<std::string>;
+        expect(names("forget the count").front() == "operation counter.reset") << "the word only it has outweighs the one all have";
+        expect(names("adding").front() == "operation counter.add") << "a word's ending does not matter";
+        expect(names("I want to add to it and read").front() == "task count-up") << "a task by what it gets done";
+        expect(names("ZERO") == Names{"operation counter.reset"}) << "a keyword: a word an intent uses that the summary does not";
+        expect(names("the page I am on") == Names{"page three"}) << "what the content names (terms)";
+        const auto found = ask(session, R"({"op":"find","q":"set the count"})");
+        const auto best = found.records[0].root()["data"]["found"][0];
+        expect(best["name"].text() == "counter.set" && best["subject"].text() == "counter" && best["requests"][0].dump() == R"({"op":"counter.set","to":3})") << "its example, to send as it is";
+        const auto task = ask(session, R"({"op":"find","q":"count up"})");
+        expect(eq(task.records[0].root()["data"]["found"][0]["requests"].size(), std::size_t{2})) << "a task's steps";
+        const auto read = ask(session, R"({"op":"find","q":"read","limit":1})");
+        expect(eq(read.records[0].root()["data"]["found"].size(), std::size_t{1}));
+        expect(read.records[0].root()["data"]["found"][0]["requests"][0].dump() == R"({"op":"describe","operation":"counter.read"})") << "no example: its description";
+        // Nothing found: where to look. Nothing asked: said so.
+        const auto nothing = ask(session, R"({"op":"find","q":"xyzzy"})");
+        expect(eq(nothing.exit_code(), std::int64_t{0}) && nothing.records[0].root()["data"]["next"][0]["request"].dump() == R"({"op":"describe","subject":"counter"})");
+        expect(ask(session, R"({"op":"find"})").error() == "invalid-argument");
+        expect(eq(counter.operated, 0)) << "finding reaches no subject's state";
+    };
+
+    "what was asked is on record as facts: a change and a failure each one, with a number its result and its log line carry (D-186, norm 11)"_test = [] {
+        mlibs::log::set_log_history(64);
+        mlibs::log::set_log_filter("agent.counter=info").value();
+        mlibs::trace::start();
+        Counter counter;
+        agent::SubjectSession session({&counter}, {.actor = {openas::Kind::agent, "ada", {}}});
+        const auto read = ask(session, R"({"op":"counter.read"})");
+        expect(!read.records.back().root()["fact"]) << "a reading that answers is no fact";
+        const auto added = ask(session, R"({"op":"counter.add","by":2})");
+        expect(added.records.back().root()["fact"].integer() == 1) << "a change: its number, with its result";
+        const auto lacking = ask(session, R"({"op":"counter.set"})");
+        expect(lacking.records.back().root()["fact"].integer() == 2) << "a failure too";
+        const auto refused = ask(session, R"({"op":"counter.set","to":-1})");
+        expect(refused.records.back().root()["fact"].integer() == 3) << "and one the subject itself refused";
+        (void)ask(session, R"({"op":"counter.fly"})");
+
+        const auto log = ask(session, R"({"op":"log"})");
+        const auto facts = log.records[0].root()["data"]["facts"];
+        expect(eq(facts.size(), std::size_t{4}) && log.records[0].root()["data"]["last"].integer() == 4);
+        expect(facts[0]["fact"].integer() == 1 && facts[0]["subject"].text() == "counter" && facts[0]["operation"].text() == "counter.add" && facts[0]["effect"].text() == "reversible" &&
+               facts[0]["outcome"].text() == "done" && facts[0]["by"]["name"].text() == "ada" && facts[0]["request"]["by"].integer() == 2);
+        expect(facts[0]["at"]["change"].integer() == 2 && !facts[1]["at"]) << "where the subject's own record has the change; a failure changed nothing";
+        expect(facts[1]["outcome"].text() == "invalid-argument" && facts[1]["text"].text().value_or("").contains("needs `to`"));
+        expect(facts[2]["outcome"].text() == "invalid-argument" && facts[2]["text"].text() == "a count is not negative");
+        expect(facts[3]["outcome"].text() == "not-found" && facts[3]["subject"].text() == "");
+        // Asked by what they are about.
+        const auto failed = ask(session, R"({"op":"log","failed":true,"since":2})");
+        expect(eq(failed.records[0].root()["data"]["facts"].size(), std::size_t{2}));
+        const auto latest = ask(session, R"({"op":"log","subject":"counter","limit":1})");
+        expect(latest.records[0].root()["data"]["facts"][0]["fact"].integer() == 3);
+        // The log's line is a reading of the same record: its number, and the words made of it.
+        const auto lines = mlibs::log::recent_logs(64);
+        const auto line = std::ranges::find_if(lines, [](const auto& each) { return each.fact == 2 && each.message.starts_with("agent:ada "); });
+        expect(fatal(line != lines.end()));
+        expect(line->category == "agent.counter" && line->message.starts_with("agent:ada counter.set → invalid-argument: ") && mlibs::log::to_json(*line).contains("\"fact\":2")) << mlibs::log::to_json(*line);
+        const auto done = std::ranges::find_if(lines, [](const auto& each) { return each.fact == 1 && each.message.starts_with("agent:ada "); });
+        expect(fatal(done != lines.end()));
+        expect(done->message == "agent:ada counter.add → done" && done->level == mlibs::log::Level::info) << mlibs::log::to_json(*done);
+        // … and so is the trace's instant, while one is taken.
+        const std::string trace = mlibs::trace::stop().chrome_json();
+        expect(trace.contains(R"("name":"counter.add","cat":"agent","ph":"i")") && trace.contains(R"("args":{"fact":1})") && trace.contains(R"("args":{"fact":3})")) << trace;
+        // A book given to two sessions: each reads what the other did.
+        auto book = std::make_shared<agent::Facts>();
+        agent::SubjectSession one({&counter}, {.actor = {openas::Kind::agent, "one", {}}, .facts = book}), two({&counter}, {.actor = {openas::Kind::person, "two", {}}, .facts = book});
+        (void)ask(one, R"({"op":"counter.add"})");
+        (void)ask(two, R"({"op":"counter.add"})");
+        const auto both = ask(one, R"({"op":"log"})");
+        expect(both.records[0].root()["data"]["facts"][1]["by"]["kind"].text() == "person" && both.records[0].root()["data"]["facts"][1]["fact"].integer() == 2);
+        mlibs::log::set_log_filter("").value();
+
+        // A book kept in a file is the same book in the next run: its facts read back, its numbers going on.
+        const auto file = std::filesystem::temp_directory_path() / "openmui-tests" / "agent-facts" / "facts.jsonl";
+        std::filesystem::remove(file);
+        {
+            agent::SubjectSession first({&counter}, {.actor = {openas::Kind::agent, "ada", {}}, .facts = agent::Facts::kept_in(file)});
+            (void)ask(first, R"({"op":"counter.add","by":7})");
+            (void)ask(first, R"({"op":"counter.set"})");
+        }
+        agent::SubjectSession next({&counter}, {.actor = {openas::Kind::agent, "ben", {}}, .facts = agent::Facts::kept_in(file)});
+        expect(ask(next, R"({"op":"counter.add"})").records.back().root()["fact"].integer() == 3) << "the numbers go on";
+        const auto across = ask(next, R"({"op":"log"})");
+        const auto kept = across.records[0].root()["data"]["facts"];
+        expect(eq(kept.size(), std::size_t{3}) && kept[0]["by"]["name"].text() == "ada" && kept[0]["request"]["by"].integer() == 7 && kept[0]["at"]["change"].integer().has_value() &&
+               kept[1]["outcome"].text() == "invalid-argument" && kept[1]["text"].text().value_or("").contains("needs `to`") && kept[2]["by"]["name"].text() == "ben");
+    };
+
+    "a request takes a value from the answer before it: {\"$last\": pointer}, put in before it is decided (D-186)"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        (void)ask(session, R"({"op":"counter.add","by":4})");                              // answers {"count":4}
+        const auto set = ask(session, R"({"op":"counter.set","to":{"$last":"/count"},"re":9})");  // … which this one sets again
+        expect(eq(set.exit_code(), std::int64_t{0}) && eq(counter.count, std::int64_t{4}) && set.records[0].root()["re"].integer() == 9);
+        (void)ask(session, R"({"op":"describe","subject":"counter"})");
+        // A place deep in the answer, and inside an argument that is a list: the first task's first step, sent as found.
+        const auto step = ask(session, R"({"op":"counter.add","by":{"$last":"/tasks/0/steps/0/by"}})");
+        expect(step.records[0].root()["data"]["count"].integer() == 6) << "the step's `by` is 2";
+        // A place that is not there is said, with what was looked for; nothing ran.
+        const int before = counter.operated;
+        const auto missing = ask(session, R"({"op":"counter.set","to":{"$last":"/total"}})");
+        expect(missing.error() == "invalid-argument" && !missing.next().empty() && eq(counter.operated, before));
+        // The record keeps the request as it was decided: the value, not the reference.
+        const auto log = ask(session, R"({"op":"log","limit":3})");
+        expect(log.records[0].root()["data"]["facts"][1]["request"]["to"].integer() == 4) << log.records[0].root()["data"]["facts"][1].dump();
+        agent::SubjectSession fresh({&counter});
+        expect(ask(fresh, R"({"op":"counter.set","to":{"$last":"/count"}})").error() == "invalid-argument") << "no answer before it";
+    };
+
+    "every error carries its ways out, requests to send as they are (D-186)"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        using Ways = std::vector<std::string>;
+        // A name a letter off: the operation it is nearest, described; then what the subject can do.
+        expect(ask(session, R"({"op":"counter.ad"})").next() == Ways{R"({"op":"describe","operation":"counter.add"})", R"({"op":"describe","subject":"counter"})"});
+        // Nothing near it, and no subject of that name: who is here.
+        expect(ask(session, R"({"op":"clock.read"})").next() == Ways{R"({"op":"subjects"})"});
+        expect(ask(session, "not json").next() == Ways{R"({"op":"subjects"})"});
+        expect(ask(session, R"({"op":"describe","subject":"clock"})").next() == Ways{R"({"op":"subjects"})"});
+        expect(ask(session, R"({"op":"describe","operation":"counter.rest"})").next().front() == R"({"op":"describe","operation":"counter.reset"})");
+        // Without what it needs: answered before the subject, with the operation whole and a request that is well formed.
+        const int before = counter.operated;
+        const auto lacking = ask(session, R"({"op":"counter.set"})");
+        expect(lacking.error() == "invalid-argument" && eq(counter.operated, before)) << "it did not reach the subject";
+        expect(lacking.next() == Ways{R"({"op":"describe","operation":"counter.set"})", R"({"op":"counter.set","to":3})"});
+        for (const std::string& way : lacking.next()) expect(eq(ask(session, way).exit_code(), std::int64_t{0})) << way;
+        // Done, it says what follows: the reading that shows what the change did. A failure says none.
+        const auto done = ask(session, R"({"op":"counter.set","to":5})");
+        const auto then = done.records.back().root()["then"];
+        expect(eq(then.size(), std::size_t{1}) && then[0]["why"].text() == "read the count it has now" && then[0]["request"].dump() == R"({"op":"counter.read"})");
+        expect(!ask(session, R"({"op":"counter.set","to":-1})").records.back().root()["then"] && !ask(session, R"({"op":"counter.read"})").records.back().root()["then"]);
+        // The subject's own failure, which names no way out, carries the operation's.
+        expect(ask(session, R"({"op":"counter.set","to":-1})").next() == lacking.next());
+
+        // What a person must agree to: the same request with the answer. What is refused: what else there is.
+        auto access = std::make_shared<control::Access>(control::Policy{});
+        agent::SubjectSession asking({&counter}, {.access = access});
+        const auto asked = ask(asking, R"({"op":"counter.reset","re":7})");
+        expect(asked.next() == Ways{R"({"op":"counter.reset","re":7,"answer":"yes"})"});
+        expect(eq(ask(asking, asked.next().front()).exit_code(), std::int64_t{0}) && eq(counter.count, std::int64_t{0}));
+        control::Policy narrow;
+        narrow.user.operations = std::vector<std::string>{"counter.read"};
+        agent::SubjectSession limited({&counter}, {.access = std::make_shared<control::Access>(narrow)});
+        expect(ask(limited, R"({"op":"counter.add"})").next() == Ways{R"({"op":"describe","subject":"counter"})"});
+    };
+
+    "an operation runs and answers its data; what is not here is not-found; a line that is no request is said so"_test = [] {
+        Counter counter;
+        agent::SubjectSession session({&counter});
+        const auto added = ask(session, R"({"op":"counter.add","by":5,"re":"a"})");
+        expect(eq(added.exit_code(), std::int64_t{0}));
+        expect(added.records[0].root()["data"]["count"].integer() == 5);
+        expect(added.records[0].root()["re"].text() == "a");
+        expect(eq(counter.count, std::int64_t{5}));
+
+        expect(ask(session, R"({"op":"counter.fly"})").error() == "not-found");
+        expect(ask(session, R"({"op":"clock.read"})").error() == "not-found");
+        expect(ask(session, "not json").error() == "invalid-argument");
+        expect(ask(session, R"({"re":3})").error() == "invalid-argument") << "a request names its operation";
+        expect(eq(counter.operated, 1)) << "none of those reached the subject";
+        session.poll();
+        expect(eq(counter.polled, 1));
+    };
+
+    "nothing reaches a subject undecided: what a person must agree to waits for the answer, what is refused does not run"_test = [] {
+        Counter counter;
+        counter.count = 9;
+        // The release default: both users, the person asked before what cannot be taken back.
+        auto access = std::make_shared<control::Access>(control::Policy{});
+        agent::SubjectSession session({&counter}, {.access = access, .actor = {openas::Kind::agent, "reviewer", {}}});
+
+        expect(eq(ask(session, R"({"op":"counter.read","actor":"person:mallory"})").exit_code(), std::int64_t{0})) << "a reading runs";
+        expect(counter.by == "reviewer") << "who asks is the session's to say, not the line's";
+
+        const auto asked = ask(session, R"({"op":"counter.reset"})");
+        expect(asked.error() == "needs-answer");
+        expect(eq(asked.exit_code(), std::int64_t{openas::exit_code::needs_answer}));
+        expect(eq(counter.count, std::int64_t{9})) << "it did not run";
+
+        const auto agreed = ask(session, R"({"op":"counter.reset","answer":"yes"})");
+        expect(eq(agreed.exit_code(), std::int64_t{0}));
+        expect(eq(counter.count, std::int64_t{0}));
+
+        // A user who allows the reading alone.
+        control::Policy narrow;
+        narrow.user.operations = std::vector<std::string>{"counter.read"};
+        auto restricted = std::make_shared<control::Access>(narrow);
+        agent::SubjectSession limited({&counter}, {.access = restricted});
+        const int before = counter.operated;
+        const auto refused = ask(limited, R"({"op":"counter.add","by":2})");
+        expect(refused.error() == "refused");
+        expect(eq(refused.exit_code(), std::int64_t{openas::exit_code::failed}));
+        expect(eq(counter.operated, before) && eq(counter.count, std::int64_t{0})) << "a refused operation did not run";
+        expect(eq(ask(limited, R"({"op":"counter.read"})").exit_code(), std::int64_t{0}));
+    };
+}};

@@ -1,0 +1,49 @@
+# omui.entry.launcher — the launcher of the shared runtime (E3b, D-250): an
+# application is data; the launcher reads what it declares (the specification's
+# version, the capabilities it needs, or an exact runtime), finds the runtimes
+# installed side by side (xlings: one directory a version), starts the newest
+# that satisfies it, and when none does says the command that installs one.
+# A program of its own and small: it links no runtime.
+[package]
+namespace   = "omui.entry"
+name        = "launcher"
+version     = "0.1.0"
+description = "Starts an omui application with the newest installed runtime that satisfies what it declares"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the launcher program; links no runtime (≤ 200 KB, E3b)"
+kind = "entry"
+agent = { part = "omui.agent" }  # it becomes the player: the application it starts is the subject, at the endpoint omui.agent serves (D-174); `--which` answers runtime@1, a refusal its way out as a command
+
+[targets.omui-entry-launcher]
+kind = "lib"  # what the program runs, and its tests
+
+[targets.omui-launch]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+# The C++ runtime shared (red 145): released through xlings, libstdc++ is xim:gcc-runtime, one copy a machine like
+# the C library; linked into each program it brought iostream, locale and the demangler with `import std;` (528 KB).
+cxx_runtime = "toolchain-coupled"
+
+[dependencies]
+mcpplibs.os = "0.4.4"
+mcpplibs.cmdline = "0.0.3"
+marzer.tomlplusplus = "3.4.0"
+mlibs.json = { path = "../../../../base/json" }
+nlohmann.json = "3.12.0"  # --which writes its answer
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+
+# Small (E3b: ≤ 200 KB): built for size when it is the build's root
+# (`mcpp pack omui-launch -p …`). No link-time optimisation: the toolchain's
+# GCC 16.1 is built without it.
+[profile.dist]
+opt   = "s"
+strip = true

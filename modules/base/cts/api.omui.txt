@@ -1,0 +1,132 @@
+== mlibs.cts
+export import :core;
+export import :compare;
+export import :prepare;
+export import :world;
+export import :errors;
+export import :slots;
+== mlibs.cts:compare
+namespace mlibs::cts {
+  struct Difference {
+    bool same = true;
+    std::size_t first = 0;
+    int largest = 0;
+    std::size_t beyond = 0;
+    std::string text() const;
+  };
+  [[nodiscard]] Difference exact(std::span<const std::byte> got, std::span<const std::byte> want) noexcept;
+  [[nodiscard]] Difference within(std::span<const std::byte> got, std::span<const std::byte> want, int tolerance, std::size_t budget) noexcept;
+  struct Picture {
+    std::span<const std::byte> bytes;
+    int width = 0, height = 0;
+    std::size_t stride = 0;
+  };
+  struct PictureDifference {
+    bool same = true;
+    int largest = 0;
+    std::size_t beyond = 0;
+    int x = -1, y = -1;
+    std::string text() const;
+  };
+  [[nodiscard]] PictureDifference image(const Picture& got, const Picture& want, int tolerance = 0, std::size_t budget = 0);
+  [[nodiscard]] std::string hash(std::span<const std::byte> bytes);
+  bool pinned(Check& c, std::span<const std::byte> bytes, std::string_view hex, std::string_view what, std::source_location at = std::source_location::current());
+  struct Sample {
+    double seconds = 0;
+    std::string hex;
+  };
+  bool sampled(Check& c, std::span<const double> times, const std::function<std::vector<std::byte>(double)>& frame, std::span<const std::string_view> pins, std::string_view what, std::source_location at = std::source_location::current());
+}
+== mlibs.cts:core
+namespace mlibs::cts {
+  enum class Level : std::uint8_t { semantic, exact, tolerance };
+  enum class Status : std::uint8_t { passed, failed, unsupported };
+  [[nodiscard]] constexpr std::string_view name(Level l) noexcept;
+  [[nodiscard]] constexpr std::string_view name(Status s) noexcept;
+  struct Failure {
+    std::string where;
+    std::string why;
+  };
+  class Check {
+    Check() = default;
+    bool that(bool ok, std::string_view why, std::source_location at = std::source_location::current());
+    template <class T> bool equal(const T& got, const T& want, std::string_view what, std::source_location at = std::source_location::current());
+    void evidence(std::string_view kind, std::string_view value);
+    [[nodiscard]] bool failed() const noexcept;
+    [[nodiscard]] const std::vector<Failure>& failures() const noexcept;
+    [[nodiscard]] const std::vector<std::pair<std::string, std::string>>& evidence() const noexcept;
+    [[nodiscard]] static Check reported();
+  };
+  struct Case {
+    std::string id;
+    std::string contract;
+    Level level = Level::exact;
+    std::vector<std::string> needs;
+    std::function<void(Check&)> body;
+  };
+  struct Against {
+    std::string subject;
+    std::function<bool(std::string_view)> has;
+    std::vector<std::string> required;
+  };
+  void against(Against who, const std::function<void()>& cases, std::source_location at = std::source_location::current());
+  void declare(Case c, std::source_location at = std::source_location::current());
+  struct Tally {
+    struct Entry {
+      std::string subject;
+      std::string id;
+      std::string contract;
+      Level level = Level::exact;
+      Status status = Status::passed;
+      std::vector<Failure> failures;
+      std::vector<std::string> missing;
+      std::vector<std::pair<std::string, std::string>> evidence;
+    };
+    std::vector<Entry> cases;
+    [[nodiscard]] std::size_t count(Status s) const noexcept;
+    [[nodiscard]] bool ok() const noexcept;
+    [[nodiscard]] std::vector<std::string> ids(Status s) const;
+    [[nodiscard]] const Entry* find(std::string_view id) const noexcept;
+    [[nodiscard]] std::string text() const;
+  };
+  [[nodiscard]] Tally tally(const std::function<void()>& suites);
+}
+== mlibs.cts:errors
+namespace mlibs::cts::errors {
+  template <mlibs::error::Code C> [[nodiscard]] std::vector<std::string> problems(C last);
+  template <mlibs::error::Code C> void declare(std::string_view contract, C last, std::source_location at = std::source_location::current());
+}
+== mlibs.cts:prepare
+namespace mlibs::cts::prepare {
+  template <class A> concept Preparer = requires(A& a, const typename A::Description& d) {…};
+  template <class D> struct Samples {
+    std::vector<std::pair<std::string, D>> valid;
+    std::vector<std::pair<std::string, D>> invalid;
+    std::vector<std::pair<std::string, D>> over_budget;
+  };
+  template <Preparer A> void declare(A& a, std::string_view contract, Samples<typename A::Description> samples);
+}
+== mlibs.cts:slots
+namespace mlibs::cts::slots {
+  [[nodiscard]] inline std::vector<std::string> problems(const mlibs::compose::SlotInfo& slot);
+  template <class Service> void declare(std::string_view contract, const mlibs::compose::Slot<Service>& slot, std::source_location at = std::source_location::current());
+  template <class Service> void declare(std::string_view contract, const mlibs::compose::Slot<Service>& slot, const Service& service, std::source_location at = std::source_location::current());
+}
+== mlibs.cts:world
+namespace mlibs::cts::world {
+  template <class A> concept Stepped = requires(A& adapter, typename A::State& state, const typename A::State& fixed) {…};
+  template <class A> concept World = Stepped<A> && requires(A& adapter, typename A::State& state, const typename A::State& fixed, std::span<const std::uint8_t> image) {…};
+  struct Run {
+    int frames = 120;
+    int at = 60;
+  };
+  namespace detail {
+    template <class A> std::vector<std::uint64_t> straight(A& adapter, int frames);
+    template <class A> bool follows(Check& check, A& adapter, typename A::State& state, const std::vector<std::uint64_t>& expected, int from, int to, std::string_view what);
+  }
+  template <World A> void declare(A adapter, std::string_view contract, Run run = {…});
+  template <World A> [[nodiscard]] constexpr std::size_t case_count() noexcept;
+  template <class P> concept Presentation = Stepped<typename P::Worlds> && requires(P& adapter, typename P::Shown& shown, const typename P::Worlds::State& fixed, std::size_t index, std::uint8_t lowered, std::string why) {…};
+  template <Presentation P> void declare_presentation(P adapter, std::string_view contract, Run run = {…});
+  inline constexpr std::size_t presentation_case_count = 4;
+}

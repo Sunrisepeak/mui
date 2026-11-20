@@ -1,0 +1,130 @@
+== mlibs.control
+export import openas;
+namespace mlibs::control {
+  [[nodiscard]] std::optional<openas::Cap> parse_cap(std::string_view text) noexcept;
+  [[nodiscard]] std::string cap_name(const openas::Cap& cap);
+  enum class Mode : std::uint8_t { automatic, development, dual_user };
+  [[nodiscard]] std::optional<Mode> parse_mode(std::string_view text) noexcept;
+  [[nodiscard]] std::string_view mode_name(Mode mode) noexcept;
+  [[nodiscard]] Mode mode_for_profile(std::string_view profile) noexcept;
+  struct Restrictions {
+    std::optional<openas::Cap> cap;
+    std::optional<bool> enabled, input;
+    std::optional<Mode> mode;
+    std::optional<std::vector<std::string>> operations;
+  };
+  struct Policy {
+    Mode mode = Mode::dual_user;
+    openas::Cap cap;
+    bool enabled = true, input = true;
+    std::string source = "explicit";
+    Restrictions developer, user;
+  };
+  [[nodiscard]] Policy policy_for_profile(std::string_view profile, Mode requested = Mode::automatic);
+  struct OperationPolicy {
+    bool enabled = true, input = true, session_valid = true;
+    std::span<const Restrictions> layers;
+    [[nodiscard]] bool allows(std::string_view operation) const;
+  };
+  struct PolicyState {
+    Mode mode = Mode::dual_user;
+    openas::Cap cap;
+    bool enabled = true, input = true;
+    bool development_grant = false;
+    bool session_valid = true;
+    std::string source;
+    std::array<Restrictions, 3> layers;
+    [[nodiscard]] bool allows(std::string_view operation) const;
+  };
+  class Session {
+    [[nodiscard]] openas::Actor attribute(const openas::Actor& requested) const;
+    [[nodiscard]] std::string owner() const;
+    [[nodiscard]] bool created_for_development() const noexcept;
+  };
+  class Access {
+    explicit Access(Policy policy = {…});
+    void set_cap(openas::Cap cap);
+    [[nodiscard]] openas::Cap cap() const;
+    void set_policy(Policy policy);
+    [[nodiscard]] Policy policy() const;
+    [[nodiscard]] PolicyState effective(const Session* session = nullptr) const;
+    [[nodiscard]] std::shared_ptr<const Session> open_session(Restrictions restrictions = {…});
+    [[nodiscard]] bool owns(const Session& session) const;
+    bool revoke_session(const Session& session);
+    void give(openas::Grant grant);
+    std::size_t revoke(const openas::Actor& actor);
+    void revoke_all();
+    [[nodiscard]] std::vector<openas::Grant> grants() const;
+    [[nodiscard]] openas::Decision decide(std::string_view name, openas::Effect effect, bool person, const openas::Actor& actor, const Session* session = nullptr, std::string_view operation = {…}) const;
+  };
+  struct Invocation {
+    std::string answer;
+    openas::Actor actor{…};
+    bool remote = false;
+    bool dry_run = false;
+    std::shared_ptr<const Access> access;
+    std::shared_ptr<const Session> session;
+    std::string operation;
+  };
+  template<class Call> [[nodiscard]] const Call& bind_invocation(const Call& given, Call& copy, const decltype(Call::access)& access, std::type_identity_t<const Call*> parent = nullptr, std::string_view operation = {…});
+  template<class Call> class Scope;
+  template<class Call> class Context {
+    [[nodiscard]] const Call* current() const noexcept;
+  };
+  template<class Call> class Scope {
+    Scope(Context<Call>& context, const Call& call) : context_(context);
+    ~Scope();
+    Scope(const Scope&) = delete;
+    Scope& operator=(const Scope&) = delete;
+  };
+  using InvocationContext = Context<Invocation>;
+  using InvocationScope = Scope<Invocation>;
+  struct Operation {
+    std::string_view name;
+    openas::Effect effect = openas::Effect::read;
+    bool person = false;
+  };
+  struct Parameter {
+    std::string_view name, type, doc;
+    bool optional = false;
+  };
+  enum class Cost : std::uint8_t { instant, frame, bounded, heavy };
+  struct Way {
+    std::string_view why;
+    std::string_view request;
+  };
+  struct CatalogEntry {
+    Operation operation;
+    std::string_view summary;
+    std::span<const Parameter> parameters;
+    std::string_view result;
+    Cost cost = Cost::instant;
+    std::string_view undo;
+    bool cancellable = false;
+    bool undoable = false;
+    bool delegated = false;
+    std::span<const std::string_view> examples;
+    std::string_view keywords;
+    std::span<const Way> then;
+    bool terminal = false;
+  };
+  struct Task {
+    std::string_view name;
+    std::string_view summary;
+    std::span<const std::string_view> steps;
+  };
+  struct Guide {
+    std::string_view about;
+    std::span<const Task> tasks;
+  };
+  class OperationScope {
+    OperationScope(InvocationContext&, std::shared_ptr<const Access>, const Invocation&, Operation);
+    OperationScope(const OperationScope&) = delete;
+    OperationScope& operator=(const OperationScope&) = delete;
+    [[nodiscard]] openas::Decision decision() const noexcept;
+    [[nodiscard]] bool dry_run() const noexcept;
+    [[nodiscard]] bool execute() const noexcept;
+    [[nodiscard]] const Invocation& invocation() const & noexcept;
+    const Invocation& invocation() const && = delete;
+  };
+}

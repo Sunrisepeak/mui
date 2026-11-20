@@ -1,0 +1,60 @@
+# omui's site, one page (G5; the site's design, 2026-11-19): the logo, one
+# sentence, the Live Design key and the install, in four states of one
+# picture — at rest, Live Design (the page grown again step by step, the
+# progress along the logo's circle), waiting (the circle open, breathing, once
+# the prompt or the commands are copied) and connected (the circle closed,
+# Mui's head in it, with the visitor's agent and its omui). Made by an agent
+# in Live Design in TypeScript; Pages publishes it at the site's root.
+#
+#   omui dev                       design it (the designer linked)
+#   mcpp run                       the page in a window
+#   omui build --web               the page on the Web (build.mcpp)
+[package]
+namespace   = "omui"
+name        = "site"
+version     = "0.1.0"
+description = "omui's site, one page: the logo, one sentence, Live Design and the install, in four states"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the site"
+kind  = "app"
+id    = "org.openmui.site"
+title = "omui"
+size  = "1280x800"
+
+[package.metadata.openmui.scripts]
+main = "app/main.ts"
+
+[package.metadata.openmui.runtime]
+openmui = "0.4"
+needs   = ["generate"]  # its design, played in place
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): the brand's (brand/), read by tools and
+# copied into the page (head16's rows).
+[package.metadata.openmui.xdef]
+kinds = { mark = 1, sprite = 1 }
+
+[targets.omui-site]
+kind = "bin"
+main = { from = "omui.entry.player/closure" }  # the components its scripts name (build.mcpp: closure(), B7b)
+
+[dependencies]
+omui.entry.player = { path = "../modules/projects/omui/entry/player" }
+
+# Its build program (build.mcpp): the page on the Web (omui build --web).
+[build-dependencies]
+omui.build = { path = "../mcpp/build", host-module = true }
+
+# Its tests drive the page without a window, as an agent does (omui doctor's app.headless-test), and design it
+# from what omui new writes through the designer's verbs (tests/design_test.cpp).
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mcpplibs.os    = "0.4.4"
+mlibs.utils    = { path = "../modules/base/utils" }
+mlibs.agent    = { path = "../modules/base/agent" }
+omui.player    = { path = "../modules/projects/omui/player" }
+omui.designer  = { path = "../modules/projects/omui/designer" }
+omui.lang.js   = { path = "../modules/projects/omui/lang/js" }
+omui.lang.ts   = { path = "../modules/projects/omui/lang/ts" }

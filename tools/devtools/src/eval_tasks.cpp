@@ -315,19 +315,55 @@ int tasks_run(const fs::path& root, std::string_view set_name, const Tasks& opti
     return 0;
 }
 
+int tasks_baseline(const fs::path& root, std::string_view set_name, const Tasks& options) {
+    // The harness alone (C7): the same agent, no tool server, a goal that needs nothing — what every session pays
+    // before any way's tools and instructions. A task's marginal tokens are its own less this: each way is charged
+    // for its own tool definitions and instructions, none for the harness's prompt.
+    ordered_json record{{"date", run::today()}, {"set", std::string(set_name)}, {"task", "(harness)"}, {"via", "none"}, {"agent", options.agent}, {"commit", run::commit(root)}};
+    const fs::path empty = scratch_directory("omui-task-");
+    auto reply = ask({.agent = options.agent, .directory = empty, .extra = {"--max-turns", "2"}, .timeout = std::chrono::seconds(300)}, "Reply with the single word: ready.");
+    std::error_code error;
+    fs::remove_all(empty, error);
+    if (!reply) {
+        std::cerr << "omui-devtools eval tasks baseline: " << reply.error().substr(0, 300) << '\n';
+        return 1;
+    }
+    const Tokens tokens = tokens_of(reply->usage);
+    record["outcome"] = reply->text.find("ready") != std::string::npos ? "success" : "failure";
+    record["steps"] = reply->tools.size();
+    record["tools"] = reply->tools;
+    record["turns"] = reply->turns;
+    record["tokens"] = tokens.fresh();
+    record["usage"] = {{"input", tokens.input}, {"cache_write", tokens.cache_write}, {"cache_read", tokens.cache_read}, {"output", tokens.output}};
+    std::cout << std::format("the harness alone ({}): {} fresh tokens (+{} cache reads)\n", options.agent, tokens.fresh(), tokens.cache_read);
+    if (!options.dry_run) {
+        std::ofstream out(root / ".agents/docs/evaluation/tasks.eval.xdef.jsonl", std::ios::binary | std::ios::app);
+        out << record.dump() << '\n';
+    } else {
+        std::cout << record.dump() << '\n';
+    }
+    return record["outcome"] == "success" ? 0 : 1;
+}
+
 int tasks_summary(const fs::path& root, std::string_view set_name, bool split_only) {
     std::ifstream in(root / ".agents/docs/evaluation/tasks.eval.xdef.jsonl", std::ios::binary);
     std::map<std::pair<std::string, std::string>, json> latest;
+    std::map<std::string, std::int64_t> harness;  // each agent's latest session alone (eval tasks baseline)
     for (std::string line; std::getline(in, line);) {
         const auto record = json::parse(line, nullptr, false);
         if (record.is_discarded() || record.value("set", "") != set_name) continue;
+        if (record.value("via", "") == "none") {
+            if (record.value("outcome", "") == "success") harness[record.value("agent", "")] = record.value("tokens", std::int64_t{0});
+            continue;
+        }
         const std::string outcome = record.value("outcome", "");
         if ((outcome != "success" && outcome != "failure") || (split_only && !record.contains("usage"))) continue;
         latest[{record.value("via", ""), record.value("task", "")}] = record;
     }
-    std::cout << std::format("{:<12} {:>5} {:>8} {:>6} {:>13} {:>12} {:>9}\n", "way", "tasks", "success", "steps", "fresh tokens", "cache reads", "overreach");
+    std::cout << std::format("{:<12} {:>5} {:>8} {:>6} {:>13} {:>9} {:>12} {:>9}\n", "way", "tasks", "success", "steps", "fresh tokens", "marginal", "cache reads", "overreach");
     for (const std::string_view way : ways) {
-        std::int64_t count = 0, success = 0, steps = 0, fresh = 0, reads = 0, overreach = 0;
+        std::int64_t count = 0, success = 0, steps = 0, fresh = 0, reads = 0, overreach = 0, alone = 0;
+        bool known = true;  // every trial's agent has a session alone to take away
         for (const auto& [key, record] : latest) {
             if (key.first != way) continue;
             ++count;
@@ -336,9 +372,15 @@ int tasks_summary(const fs::path& root, std::string_view set_name, bool split_on
             fresh += record.value("tokens", std::int64_t{0});
             reads += record.value("usage", json::object()).value("cache_read", std::int64_t{0});
             overreach += record.value("overreach", false);
+            const auto found = harness.find(record.value("agent", ""));
+            if (found == harness.end()) known = false;
+            else alone += found->second;
         }
-        if (count) std::cout << std::format("{:<12} {:>5} {:>8} {:>6} {:>13} {:>12} {:>9}\n", way, count, success, steps, fresh, reads, overreach);
+        if (count)
+            std::cout << std::format("{:<12} {:>5} {:>8} {:>6} {:>13} {:>9} {:>12} {:>9}\n", way, count, success, steps, fresh, known ? std::to_string(fresh - alone) : std::string("—"), reads,
+                                     overreach);
     }
+    for (const auto& [agent, tokens] : harness) std::cout << std::format("(the harness alone, {}: {} fresh tokens a session; marginal = fresh less that a task)\n", agent, tokens);
     return 0;
 }
 

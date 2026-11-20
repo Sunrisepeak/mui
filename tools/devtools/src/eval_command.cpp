@@ -62,6 +62,12 @@ cmd::App command() {
                         .option(Option("trials").takes_value().value_name("N").help(
                             "each task N times (default: 1)"))
                         .option(Option("dry-run").help("print the records, append none")))
+                .subcommand(cmd::App("baseline")
+                                .description("The harness alone, once: the same agent with no tool server and a goal "
+                                             "that needs nothing; the summary takes it from each way's tokens")
+                                .arg(Arg("set").required().help("the set whose ledger it joins"))
+                                .option(Option("agent").takes_value().value_name("NAME").help("default: claude"))
+                                .option(Option("dry-run").help("print the record, append none")))
                 .subcommand(cmd::App("summary")
                                 .description("Each way's latest trial of every task, side by side")
                                 .arg(Arg("set").required().help("the set"))
@@ -170,12 +176,15 @@ int run(const cmd::ParsedArgs& options, const fs::path& root) {
     if (options.subcommand_name() == "tasks" && options.subcommand()) {
         const auto& tasks = options.subcommand()->get();
         if (!tasks.subcommand()) {
-            std::cerr << "omui-devtools eval tasks: run SET or summary SET\n";
+            std::cerr << "omui-devtools eval tasks: run SET, baseline SET or summary SET\n";
             return 2;
         }
         const auto& given = tasks.subcommand()->get();
         if (tasks.subcommand_name() == "summary")
             return tasks_summary(root, given.positional(0), given.is_flag_set("split-only"));
+        if (tasks.subcommand_name() == "baseline")
+            return tasks_baseline(root, given.positional(0),
+                                  {.agent = given.value("agent").value_or("claude"), .dry_run = given.is_flag_set("dry-run")});
         Tasks run;
         if (const auto only = given.value("only"))
             for (const auto part : std::views::split(std::string_view(*only), ','))

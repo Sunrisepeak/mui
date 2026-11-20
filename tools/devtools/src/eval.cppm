@@ -98,6 +98,9 @@ struct Tasks {
 };
 // The set tools/eval/tasks/SET.tasks.xdef.json, each task on a fresh instance of its program.
 [[nodiscard]] int tasks_run(const std::filesystem::path& root, std::string_view set, const Tasks& options);
+// The harness alone, once (C7): the same agent with no tool server and a goal that needs nothing; a line of the
+// ledger (via "none") that the summary takes from each way's tokens, to say what a task cost that way.
+[[nodiscard]] int tasks_baseline(const std::filesystem::path& root, std::string_view set, const Tasks& options);
 // Each way's latest trial of every task of the set (from the ledger), side by side.
 [[nodiscard]] int tasks_summary(const std::filesystem::path& root, std::string_view set, bool split_only);
 

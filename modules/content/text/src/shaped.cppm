@@ -52,7 +52,10 @@ struct Paragraph::Shaped {
     float                      ellipsis_width = 0;
 };
 
-// Shapes `text` (implemented over HarfBuzz and SheenBidi in native/shape.cpp).
+// Shapes `text`: bidi levels (SheenBidi), the shaper's runs, then words and line-break opportunities (shape.cpp).
 void shape(Paragraph::Shaped& s);
+// The shaper's part, given each byte's bidi level and `s.base_level`: the runs, their glyphs and metrics, the
+// graphemes with their advances (their words left to shape()), the ellipsis (native/shape.cpp, over HarfBuzz).
+void shape_runs(Paragraph::Shaped& s, std::span<const std::uint8_t> level_at);
 
 }  // namespace mlibs::text

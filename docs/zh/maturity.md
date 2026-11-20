@@ -24,7 +24,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | 例子 | 12 | 0 | 0 |
 | 构建插件（mcpp） | 1 | 0 | 0 |
 | 作品（showcase） | 0 | 10 | 5 |
-| 官网 | 0 | 2 | 0 |
+| 官网 | 0 | 1 | 0 |
 | 仓库测试 | 6 | 0 | 0 |
 | 仓库工具 | 1 | 0 | 0 |
 
@@ -239,7 +239,6 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | 包 | 目录 | 标注 |
 |---|---|---|
 | `omui.site` | [site](../../site) | 预览 |
-| `omui.site.page` | [site/page](../../site/page) | 预览 |
 
 ### 仓库测试
 

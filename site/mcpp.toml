@@ -1,88 +1,60 @@
-# openmui's website (D-84 §6.6): the framework's thesis shown, not told —
-# one semantic tree, many renderings. Places in a bar (the home, every
-# component live, the docs in English and 中文, example 01 beside its
-# source, a live timeline editor), each a page in the site's own theme; a
-# lens moving the same page from its pixels to the semantic tree's
-# wireframe, the JSON an agent reads and the assertions a test writes; the
-# tree's hash in your browser beside CI's. Built for the Web (dist-toy's
-# package, which a Pages subpath serves as it is), its places pre-rendered to
-# static HTML from the same documents so a reader without JavaScript and a
-# search engine see them.
+# omui's site, one page (G5; the site's design, 2026-11-19): the logo, one
+# sentence, the Live Design key and the install, in four states of one
+# picture — at rest, Live Design (the page grown again step by step, the
+# progress along the logo's circle), waiting (the circle open, breathing, once
+# the prompt or the commands are copied) and connected (the circle closed,
+# Mui's head in it, with the visitor's agent and its omui). Made by an agent
+# in Live Design in TypeScript; Pages publishes it at the site's root.
 #
-#   mcpp run -p omui.site                       the site in a window
-#   mcpp run -p omui.site -- --prerender out/index.html   its places into a packed page
+#   omui dev                       design it (the designer linked)
+#   mcpp run                       the page in a window
+#   omui build --web               the page on the Web (build.mcpp)
 [package]
 namespace   = "omui"
 name        = "site"
 version     = "0.1.0"
-description = "omui's website: the implementation of the openmui specification, one tree and many renderings"
+description = "omui's site, one page: the logo, one sentence, Live Design and the install, in four states"
 license     = "Apache-2.0"
-repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the site"
-kind      = "site"
-contracts = ["contract/*.contract.xdef.ts"]
+kind  = "app"
+id    = "org.openmui.site"
+title = "omui"
+size  = "1280x800"
 
-[targets.openmui-site]
-kind = "lib"
+[package.metadata.openmui.scripts]
+main = "app/main.ts"
+
+[package.metadata.openmui.runtime]
+openmui = "0.4"
+needs   = ["generate"]  # its design, played in place
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): the brand's (brand/), read by tools and
+# copied into the page (head16's rows).
+[package.metadata.openmui.xdef]
+kinds = { mark = 1, sprite = 1 }
 
 [targets.omui-site]
 kind = "bin"
-main = "src/main.cpp"
-
-[build]
-sources  = ["src/*.cppm", "src/*.cpp"]
-cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
-
-[target.'cfg(not(os = "emscripten"))'.build]
-sources = ["src/targets/native.cppm"]
-
-[target.'cfg(os = "emscripten")'.build]
-sources = ["src/targets/web.cppm"]
-# The page's program carries no RTTI (AGENTS §4: core code uses none; nothing here uses typeid or dynamic_cast).
-# The type names it kept were ~300 KB of the first screen's data, 23 KB gzipped. A dialect flag: a BMI records it,
-# so it reaches the import-std prebuild and every unit of the graph (mcpp docs 04, dialect flags).
-dialect_cxxflags = ["-fno-rtti"]
+main = { from = "omui.entry.player/closure" }  # the components its scripts name (build.mcpp: closure(), B7b)
 
 [dependencies]
-mlibs.text.fonts = { path = "../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
-mcpplibs.cmdline = "0.0.3"
-omui.sdk         = { path = "../modules/projects/omui/sdk" }
-omui.ui.base = { path = "../modules/projects/omui/components/base" }  # liquid glass (omui.ui.liquid_glass): a signature work, glass that flows
-omui.view        = { path = "../modules/projects/omui/view", features = ["hanim"] }
-# The site also authors Hanim programs directly. Declared here as well because
-# mcpp does not yet apply omui.view's [feature-deps.hanim] when the view is
-# selected together with this package (the Web row: -p omui.view -p omui.site).
-sunrisepeak.hanim   = { path = "../modules/projects/hanim", default-features = false, features = ["engine", "render-vector"] }
-omui.ui.markdown = { path = "../modules/projects/omui/components/markdown" }
-omui.ui.timeline = { path = "../modules/projects/omui/components/timeline" }
-omui.ui.canvas   = { path = "../modules/projects/omui/components/canvas" }  # the components page's wall
-hanim.timeline      = { path = "../modules/projects/hanim/timeline" }  # the monitor: what plays at the playhead
-omui.theme      = { path = "../modules/projects/omui/theme" }
-omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
-omui.semantic    = { path = "../modules/projects/omui/semantic" }
-mlibs.utils       = { path = "../modules/base/utils" }
-xtools.inspector = { path = "../modules/projects/xtools/inspector" }
-mcpplibs.os         = "0.4.4"
+omui.entry.player = { path = "../modules/projects/omui/entry/player" }
 
+# Its build program (build.mcpp): the page on the Web (omui build --web).
 [build-dependencies]
 omui.build = { path = "../mcpp/build", host-module = true }
-openlifa.openmui = { path = "../spec" }  # its registry/: what the contracts are generated against
 
-# The files of tests/site/ are one program (`site`), run a file at a time: one link of the site's closure, not
-# thirty. tests/frames_test.cpp has a beginning of its own and stays a program.
-[test]
-programs = "directory"
-
+# Its tests drive the page without a window, as an agent does (omui doctor's app.headless-test), and design it
+# from what omui new writes through the designer's verbs (tests/design_test.cpp).
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-xrender.text = { path = "../modules/projects/xrender/text" }
-mlibs.math = { path = "../modules/base/math" }
-
-
-# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
-# version, and the define module a data module imports each from (none: only tools write it).
-[package.metadata.openmui.xdef]
-kinds = { mark = 1, sprite = 1, frames = 1, assets = 1, frame = 1 }
+mcpplibs.os    = "0.4.4"
+mlibs.utils    = { path = "../modules/base/utils" }
+mlibs.agent    = { path = "../modules/base/agent" }
+omui.player    = { path = "../modules/projects/omui/player" }
+omui.designer  = { path = "../modules/projects/omui/designer" }
+omui.lang.js   = { path = "../modules/projects/omui/lang/js" }
+omui.lang.ts   = { path = "../modules/projects/omui/lang/ts" }

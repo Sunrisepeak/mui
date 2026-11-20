@@ -197,11 +197,8 @@ namespace omui::devtools::check {
   [[nodiscard]] std::expected<std::string, std::string> shader_check_script(std::span<const std::filesystem::path> partitions);
   [[nodiscard]] int matrix(const std::filesystem::path& root, const std::vector<std::string>& members);
   [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
-  [[nodiscard]] int site(const std::filesystem::path& root, const std::filesystem::path& built, std::vector<std::string> names);
-  [[nodiscard]] const std::vector<std::string>& site_check_names();
-  [[nodiscard]] int visitor_path(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui, std::string_view url = {…}, bool allow_local = false);
   [[nodiscard]] int live_page(const std::filesystem::path& root, const std::filesystem::path& built);
-  [[nodiscard]] int site_page(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui, std::vector<std::string> parts);
+  [[nodiscard]] int site(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui, std::vector<std::string> parts);
   [[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);
   [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);
   [[nodiscard]] std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>& measured, std::string_view budget_text);
@@ -715,9 +712,7 @@ namespace omui::devtools::run {
 }
 == omui.devtools.site
 namespace omui::devtools::site {
-  [[nodiscard]] int build(const std::filesystem::path& root);
-  [[nodiscard]] int verify(const std::filesystem::path& site);
-  [[nodiscard]] int split(const std::filesystem::path& root, const std::filesystem::path& site, const std::vector<std::string>& routes = {…});
+  [[nodiscard]] int split(const std::filesystem::path& root, const std::filesystem::path& site, const std::vector<std::string>& routes = {…}, const std::filesystem::path& names = {…});
   struct Profile {
     std::filesystem::path site, out;
     std::string route;

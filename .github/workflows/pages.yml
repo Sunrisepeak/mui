@@ -1,9 +1,10 @@
 name: Pages
 
-# omui's website (D-84 §6.6, W3): site/ built for the Web, its places
-# pre-rendered, published to GitHub Pages (omui-devtools site build) at
-# https://sunrisepeak.github.io/mui/. A pull request that touches the site or
-# the documents it shows builds it (the built site kept as an artifact); a
+# omui's website (D-84 §6.6; G5): site/, one page in TypeScript made in Live
+# Design, built for the Web (`omui build --web`: its first screen a document
+# before the program) and published to GitHub Pages at
+# https://sunrisepeak.github.io/mui/. A pull request that touches the site
+# builds it (the built site kept as an artifact); a
 # push to main or a run by hand publishes it (the design branch by hand, at a
 # node or when the site changed: `gh workflow run Pages --ref openmui-design`;
 # D-248, each of its pushes cost about fifty minutes here) — where
@@ -17,9 +18,6 @@ on:
   pull_request:
     paths:
       - 'site/**'
-      - 'docs/**'
-      - 'modules/projects/omui/components/markdown/**'
-      - 'modules/projects/omui/components/timeline/**'
       - 'mcpp/build/**'
       - 'modules/projects/omui/tools/gen/src/dist_toy.*'
       - 'modules/projects/omui/tools/gen/tests/gen/dist_toy_test.cpp'
@@ -77,68 +75,39 @@ jobs:
         run: |
           mcpp toolchain install gcc 16.1.0
           mcpp toolchain default gcc@16.1.0
-      - name: The site, packed for the Web, pre-rendered, its program split by what its first screen runs
-        run: mcpp run omui-devtools -p tools/devtools --profile ci -- site build
-        env:
-          # The runner has Chrome: the first screen is profiled and the program split, never skipped.
-          OMUI_REQUIRE_BROWSER: '1'
-      - name: The generated loader handles real streams, failures and retries
+      - name: The loader handles real streams, failures and retries
         run: mcpp run omui-devtools -p tools/devtools --profile ci -- check dist-toy-loading
-      - name: The site in a real browser — its delivery within budget, what assistive technology reads
-        # omui-devtools check site: the page served as Pages serves it; a cold
-        # visit over 20 Mbit/s — transfer, first frame, readiness, frame tails
-        # (site/delivery.budget.xdef.json); the browser's accessibility tree
-        # and the keyboard's way in by the skip link; and the site's other
-        # browser checks (structure, fonts, catalog, workspaces, motion, first
-        # views, loading, font sharing).
-        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site
-      - name: The visitor's path — the page paired with an agent through omui connect, operated by omui page (D-95)
-        # omui-devtools check visitor-path: the pairing code the page gives, the
-        # bridge with it, both ends seeing the pairing, an action, the
-        # interaction sweep through the page, the bridge's end seen by the page.
-        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check visitor-path
-      - name: The site's one page (G5), packed for the Web beside the site (/mui/page/ until it becomes the site)
-        # omui build --web in site/page: its first screen a document, the player, its cut fonts and its files.
+      - name: The site (G5), packed for the Web
+        # omui build --web in site/: its first screen a document, the player, its cut fonts and its files.
         run: |
-          (cd site/page && mcpp run -p omui.cli -- build --web)
-          rm -rf target/site/page
-          cp -r "$(dirname "$(ls -t target/.build-mcpp/out/*/omui.site.page/toy/omui-site-page/index.html | head -1)")" target/site/page
-          cp "$(ls -t target/wasm32-emscripten/*/bin/*/omui-site-page.js.symbols | head -1)" target/site-page.symbols
-      - name: The page's program cut in two by what its first screen runs (D5, as the site's), its first half by owner
-        run: mcpp run omui-devtools -p tools/devtools --profile ci -- site split target/site/page --routes "" --names target/site-page.symbols
+          (cd site && mcpp run -p omui.cli -- build --web)
+          rm -rf target/site
+          cp -r "$(dirname "$(ls -t target/.build-mcpp/out/*/omui.site/toy/omui-site/index.html | head -1)")" target/site
+          cp "$(ls -t target/wasm32-emscripten/*/bin/*/omui-site.js.symbols | head -1)" target/site.symbols
+      - name: The site's program cut in two by what its first screen runs (D5), its first half by owner
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- site split target/site --names target/site.symbols
         env:
           OMUI_REQUIRE_BROWSER: '1'
-      - name: The page's path — Live Design, Copy, the visitor's agent connected through omui connect, the bridge gone
-        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site-page path --page target/site/page
-      - name: The page's delivery within its budget (red 148 until a TypeScript page's Web program is cut to it)
-        # site/page/delivery.budget.xdef.json (the site's design §6): 1.2 MB before the first frame, which comes
-        # within 1.5 s; split, 1.57 MB and 0.91 s at 2026-11-20 (3.49 MB, 1.74 s whole). Reported, not yet gating the publish: the page is published
-        # at /page/ so its interactions can be tried on the PR (the site's design, fifth version). Remove
-        # continue-on-error when red 148 closes.
+      - name: The visitor's path — Live Design, Copy, the visitor's agent connected through omui connect, the bridge gone
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site path --page target/site
+      - name: The site's delivery within its budget (red 148 until the TypeScript page's Web program is cut to it)
+        # site/delivery.budget.xdef.json (the site's design §6): 1.2 MB before the first frame, which comes within
+        # 1.5 s; 1.49 MB and 0.91 s at 2026-11-20. Reported, not yet gating the publish: the site is published so its
+        # interactions can be tried on the PR (the site's design, fifth version). Remove continue-on-error when red
+        # 148 closes.
         continue-on-error: true
-        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site-page delivery --page target/site/page
-      - name: Keep the site checks and font handoff pixels
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site delivery --page target/site
+      - name: Keep the site's checks and pictures
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: site-checks
           path: |
             target/site-perf.json
-            target/site-page-perf.json
-            target/site-page.json
+            target/site.json
+            target/site-requests.report.xdef.json
             target/site-split/first.owners.md
-            target/site-page/
-            target/site-a11y.json
-            target/site-*.report.xdef.json
-            target/visitor-path.json
-            target/site-fonts/
-            target/site-catalog/
-            target/site-workspace/
-            target/site-reactions/
-            target/site-motion/
-            target/site-presentation/
-            target/site-loading/
-            target/site-font-delivery/
+            target/site-pictures/
             target/dist-toy-loading.report.xdef.json
           if-no-files-found: ignore
       - name: Keep the site the checks ran on, when they failed — its split and profiles, to run here as it ran there

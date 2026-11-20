@@ -10,7 +10,6 @@
   "allow": [
     {"pattern": "modules/projects/*/**/src/js/*.js", "kind": "platform-glue", "why": "the Web host's and the page backends' JavaScript halves: the hidden textarea, the semantic DOM mirror, WebGPU and WebGL2 calls"},
     {"pattern": "modules/projects/*/**/tests/js/*.mjs", "kind": "platform-glue", "why": "those halves tested under node's test runner with a fake DOM, WebGPU and WebGL2, in their own language"},
-    {"pattern": "site/src/*.bootstrap.js", "kind": "platform-glue", "why": "the site page's loader, before the program: what a browser runs first"},
     {"pattern": "tests/bench/competitors/js/*", "kind": "competitor-runtime", "why": "GSAP, Skia (@napi-rs/canvas), resvg and the markdown parsers, pinned in package.json; driven by omui-devtools bench competitors"},
     {"pattern": "tests/bench/competitors/py/*", "kind": "competitor-runtime", "why": "ThorVG's and rlottie's C libraries through their Python bindings, pinned in requirements.txt"},
     {"pattern": "tests/bench/competitors/compare/**/*", "kind": "competitor-runtime", "why": "Material 3's own web components (@material/web) drawn beside ours for the side-by-side review"},

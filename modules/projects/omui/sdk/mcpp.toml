@@ -131,6 +131,7 @@ mlibs.build = { path = "../../../base/build", host-module = true }  # compose: t
 [dev-dependencies]
 # Tests are mtest's (D-147).
 mcpplibs.mtest = "0.8.4"
+omui.theme     = { path = "../theme" }  # quality_lab_test: the controls in the theme's style packs
 
 [test]
 programs = "directory"  # tests/sdk/: one program, each file run and filtered as before

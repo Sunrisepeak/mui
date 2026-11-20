@@ -14,7 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
-separate = "library: the timeline component for studios and films"
+separate = "dependency: hanim.timeline's editing model and its editor, kept out of every application the base components make"
 kind = "component"
 agent = { part = "omui.agent" }
 

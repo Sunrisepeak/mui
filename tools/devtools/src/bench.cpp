@@ -15,7 +15,7 @@ namespace fs = std::filesystem;
 
 std::string corpus(const fs::path& root, std::size_t size) {
     std::string text;
-    for (const std::string_view top : {"docs", "site/content"}) {
+    for (const std::string_view top : {"docs"}) {
         std::vector<fs::path> files;
         std::error_code error;
         for (auto it = fs::recursive_directory_iterator(root / top, error); it != fs::recursive_directory_iterator(); it.increment(error)) {

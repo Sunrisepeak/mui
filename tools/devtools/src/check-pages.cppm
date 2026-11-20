@@ -1,5 +1,5 @@
 // What the site's browser checks share (omui.devtools.check's own partition; moved from
-// tools/ci/site-*.mjs, visitor-path.mjs, dist-toy-loading.mjs and page.mjs, D-206): the built site
+// tools/ci/site-*.mjs, dist-toy-loading.mjs and page.mjs, D-206): the built site
 // served as Pages serves it, a headless Chromium driven over the DevTools protocol
 // (omui.devtools.cdp), and each check's report. Every check returns its report (JSON) with "ok";
 // the page-side JavaScript each evaluates stays JavaScript (the allowlist's browser host JS).
@@ -57,16 +57,5 @@ struct Perf {
     std::string moves;
 };
 json perf(const Context& context, const Perf& asked);
-json a11y(const Context& context);
-json structure(const Context& context);
-json catalog(const Context& context);
-json fonts(const Context& context);
-json workspace(const Context& context);
-json reactions(const Context& context);
-json motion(const Context& context);
-json presentation(const Context& context);
-json transition(const Context& context);
-json loading(const Context& context);
-json font_sharing(const Context& context);
 
 }  // namespace omui::devtools::check::pages

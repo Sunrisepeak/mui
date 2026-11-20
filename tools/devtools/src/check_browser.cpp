@@ -272,7 +272,7 @@ int browser_checks(const fs::path& root) {
 
 int web(const fs::path& root, std::string_view profile) {
     // Every member whose manifest says it runs on the Web (`[package] platforms` lists "emscripten"; lint `platforms`
-    // holds that each depends only on members that say it too), host.web and the site — the program browsers run, its
+    // holds that each depends only on members that say it too) and host.web — the program browsers run, its
     // pins and reference run checked where it runs: built for wasm32-emscripten and tested under node.
     std::vector<std::string> args{"--target", "wasm32-emscripten", "--profile", std::string(profile)};
     std::vector<std::string> names;
@@ -296,7 +296,7 @@ int web(const fs::path& root, std::string_view profile) {
     for (const auto& name : names) std::cout << ' ' << name;
     std::cout << '\n' << std::flush;
     for (const auto& name : names) args.insert(args.end(), {"-p", name});
-    args.insert(args.end(), {"-p", "omui.host.web", "-p", "omui.site"});
+    args.insert(args.end(), {"-p", "omui.host.web"});
     std::vector<std::string> test{"test"};
     test.insert(test.end(), args.begin(), args.end());
     if (const auto tested = run::program(root, "mcpp", test, {.shown = true, .variables = {{"MCPP_JOBS", std::to_string(run::share_of_machine())}}});

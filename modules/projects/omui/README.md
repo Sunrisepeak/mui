@@ -53,7 +53,7 @@ Each package's manifest says its label (`maturity`); lint `maturity` holds stabl
 | Capability | Label | Packages | Evidence |
 |---|---|---|---|
 | The semantic tree, views, layout, signals, themes | stable | `omui.core`, `omui.view`, `omui.semantic`, `omui.theme` | [semantic_test](semantic/tests/semantic_test.cpp), [view tests](view/tests/view) |
-| Components (base, window, markdown, canvas) | stable | `omui.ui.*` | [base components' tests](components/base/tests/base), [the wall's keyboard walk](../../../site/tests/site/wall_test.cpp) |
+| Components (base, window, markdown, canvas) | stable | `omui.ui.*` | [base components' tests](components/base/tests/base) |
 | TypeScript and JavaScript, view documents | stable | `omui.lang.*`, `omui.viewdoc`, `omui.expr` | [define_test](lang/ts/tests/define_test.cpp), [viewdoc_test](viewdoc/tests/viewdoc_test.cpp) |
 | Desktop and Web hosts, headless | stable; the desktop host's system notifications go through `mpal` (preview, `lower`) | `omui.host.sdl3`, `omui.host.web`, `omui.host.headless` | [sdl3_test](host/sdl3/tests/sdl3_test.cpp), [headless_test](host/headless/tests/headless_test.cpp), [the Web's drawing_test](host/web/tests/drawing_test.cpp) |
 | The agent surface, the `omui` command, MCP, the inspector | stable; films with omui's sources (`films()`, meng's media kernels), the inspector's reaction lab (`meng.cellular`) and hanim studio, and the dev host's designer are preview (`lower`) | `omui.agent`, `tools/cli`, `tools/mcp`, the repository's `tools/inspector`, `entry/devhost` | [agent_session_test](agent/tests/agent/agent_session_test.cpp), [cli_test](tools/cli/tests/cli_test.cpp) |

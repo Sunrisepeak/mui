@@ -15,12 +15,10 @@
       "what": "the members that run on the Web, wasm32-emscripten under node; the games packed for Toy" },
     { "name": "android", "job": "android", "minutes": 15,
       "what": "example 01 as an APK on Android 7.0's emulator" },
-    { "name": "site", "job": "site", "minutes": 17,
-      "what": "the site's tests in release and its README media" },
     { "name": "split", "job": "split", "minutes": 141,
       "what": "each tier exported with only what it declares and tested on its own (three jobs)" },
     { "name": "pages", "workflow": "pages.yml", "minutes": 55,
-      "what": "the site and its one page (G5, at /page/) built for the Web, checked in a real browser and published to GitHub Pages" },
+      "what": "the site, one page (G5), built for the Web, its visitor's path and delivery checked in a real browser, published to GitHub Pages" },
     { "name": "sanitize", "workflow": "nightly.yml", "minutes": 150,
       "what": "every member's tests under AddressSanitizer and UndefinedBehaviorSanitizer" },
     { "name": "bench", "workflow": "bench.yml", "minutes": 23,
@@ -31,7 +29,7 @@
       "what": "mpal's services on each system" }
   ],
   "groups": [
-    { "name": "all", "lanes": ["linux", "arm", "macos", "windows", "web", "android", "site", "split"],
+    { "name": "all", "lanes": ["linux", "arm", "macos", "windows", "web", "android", "split"],
       "what": "the matrix a node runs: every lane of this workflow but the GCC rows" },
     { "name": "desktop", "lanes": ["linux", "macos", "windows"],
       "what": "the three desktop rows of tier 1" },

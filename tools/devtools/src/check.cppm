@@ -60,25 +60,16 @@
 //           the cellular kernel), the mesh pass's contract on both, Quay's frame, host.web drawing on each (its fonts
 //           preloaded), and every WGSL and ESSL entry point the Web build wrote, compiled by the browser. Without a
 //           Chromium the checks are said to be skipped, a failure only with OMUI_REQUIRE_BROWSER=1.
-// site      the built site in a real browser, served as Pages serves it (omui.devtools.cdp): its delivery within
-//           its budget (site/delivery.budget.xdef.json), with and without the HTTP cache; Chromium's accessibility
-//           tree and the keyboard's way in; routing and the static-to-program handoff; first-frame fonts; the
-//           component catalog; the release and reaction workspaces; motion, the reference pages and the agent; the
-//           first views on phones and desktops; the opening pictures and loading; static and runtime fonts sharing
-//           one download; (named) transitions clicked on moving painted pixels. Reports under target/.
-// visitor-path  the visitor's path (D-95): the built site in a real browser paired with an agent through `omui
-//           connect`, read and operated by `omui page`, the interaction sweep through the page, the bridge's end seen
-//           by the page (target/visitor-path.json).
 // dist-toy-loading  omui.gen's dist_toy tests, then the generated loader they wrote run against the browser's own
 //           fetch, streams and WebAssembly over real gzip HTTP: failures, retries, shared font transfers
 //           (target/dist-toy-loading.report.xdef.json).
 // live-page the design shown in place and the customization of a page as it ships (G8): a page built for the Web
 //           (example 13's) in a real browser through window.omui — the replay, a look and a view document committed,
 //           kept across a reload, exported and imported to the same picture (target/live-page.json).
-// site-page omui's site page (G5) built for the Web, in a real browser: its delivery within its budget
-//           (site/page/delivery.budget.xdef.json), then the visitor's path — the Live Design key, Copy, the O breathing
+// site      omui's site, its one page (G5), built for the Web, in a real browser: its delivery within its budget
+//           (site/delivery.budget.xdef.json), then the visitor's path — the Live Design key, Copy, the circle breathing
 //           while it waits, the visitor's agent connected by `omui connect <code>` and named with its omui and platform,
-//           the bridge stopped, reduced motion (target/site-page-perf.json, target/site-page.json).
+//           the bridge stopped, reduced motion (target/site-perf.json, target/site.json).
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.
@@ -120,23 +111,14 @@ struct Size {
 [[nodiscard]] int matrix(const std::filesystem::path& root, const std::vector<std::string>& members);
 [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 
-// The built site in a real browser: these checks (none: every one but transition), each report under target/.
-[[nodiscard]] int site(const std::filesystem::path& root, const std::filesystem::path& built, std::vector<std::string> names);
-// The site's checks, by name.
-[[nodiscard]] const std::vector<std::string>& site_check_names();
-// The visitor's path through the built site with an agent paired by omui connect (omui: built when not given).
-// `url`: a deployed site rather than the one built here; `allow_local`: the person allows that page to reach this
-// machine (the browser's local network access permission).
-[[nodiscard]] int visitor_path(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui,
-                               std::string_view url = {}, bool allow_local = false);
 // The design shown in place and the customization of a page as it ships (G8): the page `built` (example 13's when
 // empty) in a real browser through window.omui — the replay, a look previewed, committed and undone, a view document
 // in a surface, a reload, the layer exported and imported to the same picture (target/live-page.json).
 [[nodiscard]] int live_page(const std::filesystem::path& root, const std::filesystem::path& built);
-// omui's site page (G5) as it ships: `built` (site/page's `omui build --web` when empty) — these parts (none: both):
-// "delivery" within its budget, "path" the visitor's with an agent connected by omui connect (omui: built when not given).
-[[nodiscard]] int site_page(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui,
-                            std::vector<std::string> parts);
+// omui's site (G5) as it ships: `built` (site/'s `omui build --web` when empty) — these parts (none: both): "delivery"
+// within its budget, "path" the visitor's with an agent connected by omui connect (omui: built when not given).
+[[nodiscard]] int site(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui,
+                       std::vector<std::string> parts);
 // The generated loader against the browser's own streams, failures and retries (fixture: omui.gen's dist_toy test
 // run first and its own used, when not given).
 [[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);

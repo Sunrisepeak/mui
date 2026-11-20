@@ -1,46 +1,31 @@
-// The site's build program: its lens's contract becomes code; its content, its theme and
-// the docs it shows are carried in the program; on the Web it is packed as a
-// static page (the shape a Pages subpath serves as it is).
+// The site on the Web, a static page (`omui build --web`, D-236): the
+// player, its fonts, the page's own files (its manifest, its config, app/ and
+// its design's replay) in the player's file system before it starts, and its
+// first screen as a document a reader and a search engine read before it runs
+// — the file below, which `omui build --web` writes first by running it natively.
 import std;
 import mcpp;
-import omui.build.contracts;
-import omui.build.embed;
 import omui.build.toy;
+import omui.build.closure;
 
 int main() {
-    const bool lens = omui::build::components({.module = "omui.site", .ns = "omui::site"});
-    const bool content = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "content", .suffix = ".md", .tag = "content", .index = true});
-    const bool en = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "../docs/en", .suffix = ".md", .tag = "en", .index = true});
-    const bool zh = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "../docs/zh", .suffix = ".md", .tag = "zh", .index = true});
-    // The reference run's frames as CI hashed them (the footer compares a browser's own with them).
-    const bool frames = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "reference", .suffix = ".frames.xdef.json", .tag = "frames"});
-    // Its own theme: the design language's tokens, light and dark.
-    const bool theme = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "theme", .suffix = ".theme.xdef.ts", .tag = "theme", .index = true});
-    // Mui's frames and palettes (the brand's data, drawn by the framework).
-    const bool sprites = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "brand", .suffix = ".sprite.xdef.json", .tag = "sprites"});
-    const bool bootstrap = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "src", .suffix = ".bootstrap.js", .tag = "bootstrap"});
-    // The Chinese font cut down to the characters the site draws (2.7 of the 7.7 MB before its first frame):
-    // its text, the docs it shows, the program it runs — and the common characters people type.
+    // Its fonts cut down to what it draws before their full faces are asked for: the page's own text (app/), ASCII
+    // (an agent's name, a platform) and the shared symbols; a character neither has (a name in another script)
+    // fetches the full face then, as the site's does (RC2.9).
     const std::string here = mcpp::manifest_dir();
-    std::vector<std::string> text{here + "/content", here + "/src", here + "/contract", here + "/../docs"};
-    for (const char* dep : {"omui.example.hello-im", "omui.ui.timeline", "omui.ui.base", "omui.ui.markdown"})
-        if (const char* d = mcpp::dep_dir(dep); d && *d) text.push_back(std::string(d) + "/src");
-    // The opening uses the same Inter outlines before the full face arrives, if it does.
-    // ASCII covers the initial UI; keep the shared symbols and standard Latin
-    // ligatures too. Full input coverage still comes from the regular face, on demand.
-    std::string initial_latin;
-    for (int c = 32; c < 127; ++c) initial_latin += static_cast<char>(c);
-    initial_latin += " áéíóúàèìòùäëïöüÿÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÑñÆæØøßÇçµαβγΔΣπΩμ°€£¥±·×−–—‘’“”…→←↔↑↓✓✗ﬁﬂﬀﬃﬄﬅﬆ";
-    // Inter's full face (460 KB sent) only when text asks for a character the initial subset lacks (a word typed
-    // in another script): the subset holds every character of the site's own text Inter has, so reading it never
-    // does (RC2.9, red 33).
-    const std::vector<std::string> own_text = text;
-    const bool page = omui::build::dist_toy({.target = "omui-site", .title = "omui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#fbfbfa", .sdk = false,
-                                                .subsets = {{.font = "NotoSansSC", .text = std::move(text)}},
-                                                // The Chinese font before the first frame only for a page opened in Chinese; else when the page first needs it.
-                                                .font_languages = {{"NotoSansSC", {"zh"}}},
-                                                .font_initial = {{"Inter", std::move(initial_latin)}, {"NotoSansSC", "中文"}},
-                                                .font_initial_text = {{.font = "Inter", .text = own_text}},
-                                                .fonts_on_demand = {"Inter"}});
-    return lens && content && en && zh && frames && theme && sprites && bootstrap && page ? 0 : 1;
+    std::string ascii;
+    for (int c = 32; c < 127; ++c) ascii += static_cast<char>(c);
+    const std::string latin = ascii + " áéíóúàèìòùäëïöüÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÑñçÇß°·×−–—‘’“”…→←✓";
+    // The components it carries are the ones its scripts and its design's steps create by name (B7b).
+    const bool components = omui::build::closure({.files = {"app", "design/main.replay.xdef.json"}});
+    const bool page = omui::build::dist_toy({.target = "omui-site", .title = "omui", .fonts = {"Inter", "JetBrainsMono"}, .background = "#faf9f6",
+                                             .sdk = false,
+                                             .font_initial = {{"Inter", latin}, {"JetBrainsMono", ascii + "·…"}},
+                                             .font_initial_text = {{.font = "Inter", .text = {here + "/app"}}, {.font = "JetBrainsMono", .text = {here + "/app"}}},
+                                             .fonts_on_demand = {"Inter", "JetBrainsMono"},
+                                             .static_html = "target/web/omui-site.static.html", .lang = "en",
+                                             .description = "A UI framework where one semantic tree drives the pixels, the motion, accessibility, agents and tests. "
+                                                            "An agent made this page in Live Design; press the key to watch it.",
+                                             .files = {"mcpp.toml", "omui.config.ts", "app", "design/main.replay.xdef.json"}});
+    return components && page ? 0 : 1;
 }

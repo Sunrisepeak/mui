@@ -3,8 +3,7 @@
 The Inspector's cellular workspace edits and inspects real projects using
 `meng.cellular` and the shared `mlibs::simulation::Timeline`.
 Its model, view and CLI live in `src/cellular/` under the existing manifest.
-The website embeds this workspace at `#/explore/reactions`. It does not
-implement another simulator, clock, history or renderer.
+It does not implement another simulator, clock, history or renderer.
 
 The workspace executes the CPU rule program. The separately available RHI
 cellular kernel is not silently substituted into this UI. GPU-resident
@@ -86,7 +85,7 @@ Live playback retains the **bound invocation**, including session, and
 resubmits each bounded advance through `Runtime::invoke`. Revocation and
 restrictions are rechecked; refusal stops playback and reports why.
 The trusted C++ `Runtime::current_invocation()` accessor is not JSON input or
-a grant mechanism. The site pauses playback on leaving the workspace or
+a grant mechanism. A host pauses playback on leaving the workspace or
 losing foreground focus. The initial view is paused; Play is explicit.
 Embedded C++ callers keep the borrowed runtime alive while the attached
 session is in use. A session without a host supports finite edits and replay;
@@ -122,8 +121,4 @@ The palette is data, not a style-name switch in a component.
 revisions, every intermediate state and reverse seek, project reload/evolution,
 real pointer versus Agent painting, actor undo/redo, revoked-session playback,
 restricted reads/writes, narrow Chinese and high-DPI offscreen pixels, and the
-actual batch exporter. `site/tests/site/reactions_test.cpp` covers embedding,
-route changes and pause. `omui-devtools check site reactions` checks real browser
-pointer/keyboard input, 25 canvas samples, reverse replay, navigation and a
-Chinese phone layout, and runs in the existing site browser CI job. Concrete
-run results belong to the checkpoint report.
+actual batch exporter. Concrete run results belong to the checkpoint report.

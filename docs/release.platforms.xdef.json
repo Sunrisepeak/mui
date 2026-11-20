@@ -141,10 +141,10 @@
       "name": "Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6)",
       "label": "stable",
       "cells": {
-        "linux-x64": {"status": "real", "evidence": "site.wall: Tab visits all 36 component cards (and the works) once each, the focus ring drawn at each (CI's site job)"},
-        "web": {"status": "unverified", "needs": "the same walk in a real browser (the wall's test runs natively, on the Linux site job)"},
-        "macos-arm64": {"status": "unverified", "needs": "the wall's test on a macOS row (omui.site runs on the Linux site job only); the library's own Tab cases (omui.ui.base) run there"},
-        "windows-x64": {"status": "unverified", "needs": "the wall's test on a Windows row (omui.site runs on the Linux site job only); the library's own Tab cases (omui.ui.base) run there"}
+        "linux-x64": {"status": "unverified", "needs": "a Tab walk over every base component in omui.ui.base's tests (the C++ site's wall walk, site.wall, retired with that site on 2026-11-21); the library's own Tab cases run here"},
+        "web": {"status": "unverified", "needs": "the same walk in a real browser"},
+        "macos-arm64": {"status": "unverified", "needs": "the walk on a macOS row; the library's own Tab cases (omui.ui.base) run there"},
+        "windows-x64": {"status": "unverified", "needs": "the walk on a Windows row; the library's own Tab cases (omui.ui.base) run there"}
       }
     },
     {

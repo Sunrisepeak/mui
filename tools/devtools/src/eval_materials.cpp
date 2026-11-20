@@ -1,6 +1,6 @@
 // eval materials (moved from tools/eval/materials/controls.sh): the material a comparison set names. `controls`
-// (compare set `components`): ours from the site's quality lab — each control's four states in light
-// (site/tests/site/quality_lab_test.cpp) — and Material 3's, the same controls in the same states, cells and
+// (compare set `components`): ours from the components' quality lab — each control's four states in light
+// (modules/projects/omui/sdk/tests/sdk/quality_lab_test.cpp) — and Material 3's, the same controls in the same states, cells and
 // background, as Google's @material/web draws them (tests/bench/competitors/compare/material3, captured by
 // `bench material3`). Both land in target/compare-material/{omui,material3}/<control>.png.
 module omui.devtools.eval;
@@ -22,7 +22,7 @@ int materials_controls(const fs::path& root) {
     fs::create_directories(out / "omui", error);
     fs::create_directories(out / "material3" / "states", error);
     // Ours: the quality lab's pictures, as its test writes them.
-    const auto lab = run::program(root, "mcpp", {"test", "-p", "omui.site", "quality_lab_test"},
+    const auto lab = run::program(root, "mcpp", {"test", "-p", "omui.sdk", "quality_lab_test"},
                                   {.merged = true, .variables = {{"MCPP_JOBS", std::to_string(run::share_of_machine())}}});
     std::ofstream(out / "quality-lab.log", std::ios::binary) << (lab ? lab->out : lab.error());
     if (!lab || lab->status != 0) {

@@ -1,7 +1,7 @@
 // Material 3's controls in four states (moved from
 // tests/bench/competitors/compare/material3/capture.mjs, D-206): at rest, under the pointer,
 // pressed, keyboard-focused — each a 220×84 cell at 2× on the same background as ours
-// (site/tests/site/quality_lab_test.cpp): the competitor's side of the controls' side-by-side
+// (modules/projects/omui/sdk/tests/sdk/quality_lab_test.cpp): the competitor's side of the controls' side-by-side
 // review (D-135). The page (controls.html and its esbuild bundle of @material/web, the competitor's
 // own runtime) is served from its directory; each state is captured to OUT/<control>-<state>.png.
 module omui.devtools.bench;

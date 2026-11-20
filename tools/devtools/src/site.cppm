@@ -1,23 +1,10 @@
-// omui.devtools.site — the website's build steps and its page tools (moved from tools/ci/site.sh,
-// site-split.sh, site-profile.mjs and drive-page.mjs, D-206).
+// omui.devtools.site — the website's page tools (moved from tools/ci/site-split.sh, site-profile.mjs and
+// drive-page.mjs, D-206). The site is one page (site/): `omui build --web` packs it, `omui-devtools check site`
+// holds it.
 //
-// build    omui.site built for wasm32-emscripten and packed as a static page (dist-toy's package
-// without Toy's SDK —
-//          a Pages subpath serves it as it is), copied to target/site/ (what Pages uploads, and
-//          what a person serves to look at it); then, by the same program built natively, the
-//          openings (`omui-site --openings`: the pictures and geometry the page shows while it
-//          loads), its places pre-rendered into the page
-//          (`--prerender`: the documents as md4c-html writes them, in a section a reader without
-//          JavaScript and a search engine read, hidden when the program starts) and what an agent
-//          needs to operate it
-//          (`--agent-guide`: agent.md, .well-known/openmui-agent.json, the page's link); then
-//          split; then verified.
-// verify   the page carries what it must (the loader, the static places, the fonts, the canvas, the
-// agent's link and
-//          files, no Toy SDK) and its sizes are said.
 // split    the program cut in two by what its first screen runs (D5; Part 2 plan §4.1, LD2):
 // wasm-split instruments
-//          a copy, a copy of the page runs it at its first screen in each language (`profile`),
+//          a copy, a copy of the page runs it at its first screen at each route asked (`profile`),
 //          wasm-split cuts the program by the merged profile, and `omui-gen dist-toy-split` puts
 //          both halves in the package (the second compiled after the first frame on the home
 //          routes, before main elsewhere). Without a browser or wasm-split the page stays whole,
@@ -36,12 +23,10 @@ import std;
 
 export namespace omui::devtools::site {
 
-[[nodiscard]] int build(const std::filesystem::path& root);
-[[nodiscard]] int verify(const std::filesystem::path& site);
-// routes: the first screens profiled ("" the page's own, "/zh" …), their profiles merged. names: the program's symbol
+// routes: the first screens profiled ("" the page's own; "/zh" … a route's), their profiles merged. names: the program's symbol
 // map (Emscripten's --emit-symbol-map, beside the build's program), when given the first half said by owner
 // (target/site-split/first.owners.{md,json}: what its first frame waits for, B3).
-[[nodiscard]] int split(const std::filesystem::path& root, const std::filesystem::path& site, const std::vector<std::string>& routes = {"", "/zh"},
+[[nodiscard]] int split(const std::filesystem::path& root, const std::filesystem::path& site, const std::vector<std::string>& routes = {""},
                         const std::filesystem::path& names = {});
 
 struct Profile {

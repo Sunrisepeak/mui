@@ -29,8 +29,8 @@
 
 | 步 | 内容 | 验收（本机） |
 |---|---|---|
-| 1 | 着色器：xrender 的着色器表按后端成为包里的文件（构建时由同一份 slang 生成，内容不变）；Web 宿主在页面知道后端时取那一份，首帧之前到；原生仍嵌入程序 | `xrender.vector` 测试与像素基线逐字节不变；页面首帧之前少约 30 KB；`check site-page path` 23/23 |
-| 2 | Agent 的文字：目录说明、引导与 TS 声明由生成器写成一个数据文件（`agent-text@1`），程序里只留键；原生嵌入，Web 按需取；到之前 describe 带 `pending` 与重试的时间 | 契约 CTS 的文字项在两种取法下相同；`check site-page path` 里 Agent 的 describe 与之前逐字相同；首帧之前再少约 60–80 KB |
+| 1 | 着色器：xrender 的着色器表按后端成为包里的文件（构建时由同一份 slang 生成，内容不变）；Web 宿主在页面知道后端时取那一份，首帧之前到；原生仍嵌入程序 | `xrender.vector` 测试与像素基线逐字节不变；页面首帧之前少约 30 KB；`check site path` 23/23 |
+| 2 | Agent 的文字：目录说明、引导与 TS 声明由生成器写成一个数据文件（`agent-text@1`），程序里只留键；原生嵌入，Web 按需取；到之前 describe 带 `pending` 与重试的时间 | 契约 CTS 的文字项在两种取法下相同；`check site path` 里 Agent 的 describe 与之前逐字相同；首帧之前再少约 60–80 KB |
 | 3 | 按需取的通道收成一个：字体、着色器、Agent 的文字都经宿主的“要一个文件”钩子，页面一处实现 | 字体的检查（官网的 fonts）照旧通过 |
 
 ## 4. 风险

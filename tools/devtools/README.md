@@ -138,31 +138,26 @@ omui-devtools gpu --real -- mcpp test -p xrender.rhi.sdl   # this machine's GPU
 
 ## site
 
-The website's build steps and page tools (moved from `tools/ci/site.sh`, `site-split.sh`, `site-profile.mjs` and `drive-page.mjs`, D-206).
+The website's page tools (moved from `tools/ci/site-split.sh`, `site-profile.mjs` and `drive-page.mjs`, D-206). The site is one page (`site/`, G5): `omui build --web` in `site/` packs it.
 
 ```sh
-omui-devtools site build                       # omui.site packed for the Web into target/site: openings, places, agent guide, split, verified
-omui-devtools site verify [DIR]                # what the built page must carry (loader, static places, fonts, canvas, agent files); its sizes
-omui-devtools site split [DIR] [--routes R,…]  # the program cut in two by what its first screen runs (wasm-split; a profile at each route, default "" and /zh; --routes "" for a page of one screen)
-omui-devtools site profile DIR OUT [--route /zh] [--idle MS]   # an instrumented page's first screen used; the functions that ran written
+omui-devtools site split [DIR] [--routes R,…] [--names MAP]   # the program cut in two by what its first screen runs (wasm-split; a profile at each route, default ""); --names: the first half by owner
+omui-devtools site profile DIR OUT [--route R] [--idle MS]    # an instrumented page's first screen used; the functions that ran written
 omui-devtools site drive URL OUT.png [SECONDS] [WIDTH] [HEIGHT] [SCRIPT] [--flag SWITCH]… [--click X,Y]
 ```
 
 `split` gives up with a notice where there is no wasm-split or headless Chromium, and fails instead under `OMUI_REQUIRE_BROWSER=1` (CI).
 
-## check site, visitor-path, site-page, dist-toy-loading
+## check site, dist-toy-loading
 
-The site's checks in a real browser (moved from `tools/ci/site-browser.sh`, the `site-*.mjs` drivers, `visitor-path.sh`/`.mjs` and `dist-toy-loading.mjs`). Chromium is headless and driven over the DevTools protocol by `omui.devtools.cdp`: the built site served on 127.0.0.1 as Pages serves it (gzip for HTML, scripts, wasm, fonts, JSON and Markdown, made before the first request), a WebSocket client (masked frames, fragments, ping and pong, payloads of several MB), a deadline on every call (`OMUI_CDP_TIMEOUT_S`, default 120 s; after one stall later calls fail at once), events delivered in order on the caller's thread. The JavaScript a check evaluates in the page stays JavaScript (the allowlist's browser host JS); gzip is zlib's through `mcpplibs.mwrap.zlib`.
+The site's checks in a real browser (moved from `tools/ci/site-browser.sh`, the page driver and `dist-toy-loading.mjs`). Chromium is headless and driven over the DevTools protocol by `omui.devtools.cdp`: the built site served on 127.0.0.1 as Pages serves it (gzip for HTML, scripts, wasm, fonts, JSON and Markdown, made before the first request), a WebSocket client (masked frames, fragments, ping and pong, payloads of several MB), a deadline on every call (`OMUI_CDP_TIMEOUT_S`, default 120 s; after one stall later calls fail at once), events delivered in order on the caller's thread. The JavaScript a check evaluates in the page stays JavaScript (the allowlist's browser host JS); gzip is zlib's through `mcpplibs.mwrap.zlib`.
 
 ```sh
-omui-devtools check site [CHECK…] [--site DIR]   # perf a11y structure fonts catalog workspace reactions motion presentation loading font-sharing; transition when named
-omui-devtools check visitor-path [--site DIR] [--omui PATH]   # omui.cli built unless given; target/site only when site build made it from this tree
-omui-devtools check visitor-path --url https://sunrisepeak.github.io/mui/ [--allow-local]   # the deployed page reaching this machine's bridge
-omui-devtools check site-page [delivery] [path] [--page DIR] [--omui PATH]   # the site's one page (G5): site/page's omui build --web unless given
-omui-devtools check dist-toy-loading [--fixture FILE]          # omui.gen's dist_toy tests first unless a fixture is given
+omui-devtools check site [delivery] [path] [--page DIR] [--omui PATH]   # the site (G5): site/'s omui build --web unless given
+omui-devtools check dist-toy-loading [--fixture FILE]                  # omui.gen's dist_toy tests first unless a fixture is given
 ```
 
-Each check's report lands under `target/` (`site-perf.json`, `site-a11y.json`, `site-<check>.report.xdef.json`, `visitor-path.json`, `dist-toy-loading.report.xdef.json`; pictures in `target/site-<check>/`), and a line is said for each of its checks. `perf` holds the delivery to `site/delivery.budget.xdef.json`, with and without the HTTP cache. `site-page` holds the site's one page (G5) to `site/page/delivery.budget.xdef.json` (a cold visit, frames timed while its design plays; `target/site-page-perf.json`), then walks the visitor's path with real clicks (`target/site-page.json`, pictures in `target/site-page/`): the Live Design key, Copy with a pairing code on the clipboard and the O breathing, the command tab, `omui connect <code>` pairing, the page connected with the agent's name, omui and platform, `omui page describe` and `snapshot`, the bridge stopped, reduced motion. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly. `transition` is a coverage study of input on moving painted pixels, not in the default set. `visitor-path --url` opens a deployed page instead of serving one (its documents fetched through the page): an https page reaching the bridge on the loopback is what a browser asks the person about (local network access); `--allow-local` grants it as the person would (2026-11-19, headless Chromium 156: the Pages site pairs either way).
+`site` holds the site to `site/delivery.budget.xdef.json` (a cold visit, frames timed while its design plays; `target/site-perf.json`), then walks the visitor's path with real clicks (`target/site.json`, pictures in `target/site-pictures/`): the Live Design key, Copy with a pairing code on the clipboard and the circle breathing, the command tab, `omui connect <code>` pairing, the page connected with the agent's name, omui and platform, `omui page describe` and `snapshot`, the bridge stopped, reduced motion. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly.
 
 `omui-devtools bench material3 OUT` captures Material 3's controls in four states from their page (`tests/bench/competitors/compare/material3`, once bundled), the competitor's side of the controls' review.
 
@@ -172,7 +167,7 @@ The CI steps that were shell scripts (D-206), each a subcommand whose verdict is
 
 - `check features | size | atspi | templates | reflect | sweep | toy | tools-e2e | agent-e2e | android | web | browser`: a feature chosen alone builds; a page's WebAssembly within its budget; examples read and operated as a screen reader does; the templates built from the release; the reflection canary; a sweep's agents; Toy's package and its doctor; the tools and the agent end to end; the Android row; the Web row's members; every wasm test program in Chromium.
 - `browser PROGRAM.js [--preload DIR:AT]…`: a wasm test program in a real page of headless Chromium (its server on the loopback with mlibs.http's framing, the program's lines relayed, its summary line judged); `--headed` under `gpu --real` for the full browser on this machine's GPU.
-- `media [--check] [--showcases] [SHOW…]`: the showcases' and the site's README pictures, made by their tests, copied in or held to them.
+- `media [--check] [--showcases] [SHOW…]`: the showcases' and the site's README pictures, made by their tests (scratch `readme-<name>`), copied in or held to them.
 - `ci local [MEMBER…]`: CI's matrix on this one Linux machine, for when hosted runners are unavailable.
 
 ## consumer

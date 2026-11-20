@@ -32,6 +32,8 @@ constexpr std::array<std::string_view, 15> visual_props{
 
 // Animation the runtime applies to whatever the node draws (D-68).
 constexpr std::array<std::string_view, 2> motion_props{"glyph_motion", "pixel_effect"};
+// Its own motion slots (spec M-8): a recipe for its update slot, or recipes by slot (`{ambient: "breathe"}`).
+constexpr std::array<std::string_view, 1> slot_props{"motion"};
 
 // `undo_scope`: the node keeps its own history of what is done inside it (S-12).
 // `level`: a heading's level (its value, when its role is heading).
@@ -248,7 +250,8 @@ std::span<const std::string_view> runtime_properties() noexcept {
     static const auto all = [] {
         std::vector<std::string_view> v;
         for (auto set : {std::span<const std::string_view>(layout_props), std::span<const std::string_view>(visual_props),
-                         std::span<const std::string_view>(motion_props), std::span<const std::string_view>(semantic_props),
+                         std::span<const std::string_view>(motion_props), std::span<const std::string_view>(slot_props),
+                         std::span<const std::string_view>(semantic_props),
                          std::span<const std::string_view>(window_props), std::span<const std::string_view>(scope_props)})
             v.insert(v.end(), set.begin(), set.end());
         std::ranges::sort(v);

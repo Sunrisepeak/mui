@@ -49,7 +49,7 @@ struct ShadowToken {
 enum class MotionPrimitive : std::uint32_t {
     match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16,
     grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512, readable_text = 1024,
-    write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768, arrivals = 65536
+    write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768, arrivals = 65536, breathe = 131072
 };
 
 // A motion a node's slot holds (universal motion §5, D-93): none, or a morph
@@ -106,6 +106,10 @@ struct MotionSpec {
     bool                  reshape = false; // a replaced glyph's outline morphs into its replacement's
     float                 press = 0;       // a state change under the pointer presses the drawing in by this, ringing out
     double                press_length = 0;  // the press's own course, seconds (0: the motion's curve)
+    // An ambient slot's (spec M-7): the drawing breathes while it is shown — with w = (1 − cos(2π t / T)) / 2, t
+    // since it was first drawn and T the curve's length, scaled by 1 + 0.04 w about its centre, its opacity by
+    // 1 − 0.4 w. Not a change: nothing moves it but the time.
+    bool                  breathe = false;
     friend bool operator==(const MotionSpec&, const MotionSpec&);
 };
 
@@ -150,6 +154,9 @@ inline constexpr auto motion_slots = [] {
     for (std::size_t i = 0; i < names.size(); ++i) names[i] = omui::spec::motion_slots[i].name;
     return names;
 }();
+// The one slot that is not a change: what moves the node by itself while it is shown (a breath).
+inline constexpr std::size_t ambient_slot = 6;
+static_assert(motion_slots.size() > ambient_slot && motion_slots[ambient_slot] == "ambient");
 
 // Component-specific defaults compose the shared operations: selection,
 // values, text, surfaces and presence have different recipes. Editing and

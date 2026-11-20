@@ -408,9 +408,9 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             r.named(x, e);
             reg.motion_slots.push_back(std::move(x));
         });
-        constexpr std::array<std::string_view, 17> primitives{"match_drawing", "match_glyphs", "fade", "lift", "panel_lift", "grow",
+        constexpr std::array<std::string_view, 18> primitives{"match_drawing", "match_glyphs", "fade", "lift", "panel_lift", "grow",
                                                              "check_grow", "stretch", "stagger", "distance", "readable_text",
-                                                             "write", "drop", "noise", "reshape", "press", "arrivals"};
+                                                             "write", "drop", "noise", "reshape", "press", "arrivals", "breathe"};
         r.each(root, "recipe", [&](const Node& e) {
             MotionRecipe x;
             r.named(x, e);

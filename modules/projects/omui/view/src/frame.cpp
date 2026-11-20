@@ -707,6 +707,7 @@ void Runtime::Impl::paint() {
     glyph_movers.clear();
     moving_said.clear();
     culled.clear();
+    breathing.clear();
     ++paints;
     // What the window shows of the root, in its coordinates: what lies past it is not drawn (N5).
     // Drawn ahead: what the window shows and as much again on each side, so what a scroll brings in was drawn before it
@@ -771,6 +772,15 @@ void Runtime::Impl::paint() {
     for (const NodeId id : moving_said)
         if (std::ranges::find(moving_flagged, id) == moving_flagged.end()) touch(dirty_semantics);
     moving_flagged = moving_said;
+    // A breath goes on (spec M-7): its next frame at the display's pace, 60 a second at most. Ambient: hosts wake for
+    // it, a settle does not wait for it; nothing breathing, no frame asked for.
+    if (!breathing.empty() && !breath_timer) {
+        const double hz = display_hz > 0 ? std::min(display_hz, 60.0) : 60.0;
+        breath_timer = self.ambient_after(seconds(1.0 / hz), [this] {
+            breath_timer = 0;
+            touch(dirty_paint);
+        });
+    }
 }
 
 void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
@@ -780,15 +790,28 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
     auto use = use_theme(id);
     const Visual& v = n.visual;
     const Size size = n.frame.size();
-    const Affine local = n.local;
+    Affine local = n.local;
     const float s = v[Field::scale];
     if (!v.visible || v[Field::opacity] <= 0 || s == 0) return;
     if (layout.style(n.layout).display == mlibs::layout::Display::none) return;
     ++stats.painted;
 
+    // Its ambient motion (spec M-7), a breath: w = (1 − cos(2π t / T)) / 2, t since it was first drawn with one, the
+    // drawing scaled by 1 + 0.04 w about its centre and its opacity by 1 − 0.4 w. At rest under reduced motion.
+    float opacity = v[Field::opacity];
+    if (const MotionSpec* ambient = slot_motion(id, ambient_slot, false); ambient && ambient->breathe && !reduce_motion && motion_now() == MotionLevel::full) {
+        if (n.ambient_since < 0) n.ambient_since = now().count();
+        const double period = std::max(0.1, ambient->curve.duration.count());
+        const auto w = static_cast<float>((1 - hanim::dm::cos(2 * std::numbers::pi * (now().count() - n.ambient_since) / period)) / 2);
+        const Point centre{size.width / 2, size.height / 2};
+        local = local * Affine::translate(centre.x, centre.y) * Affine::scale(1 + 0.04f * w, 1 + 0.04f * w) * Affine::translate(-centre.x, -centre.y);
+        opacity *= 1 - 0.4f * w;
+        breathing.push_back(id);
+    }
+
     list.begin_node(n.index);
     list.push_transform(local);
-    const bool layer = v[Field::opacity] < 1;
+    const bool layer = opacity < 1;
     const Rect box{0, 0, size.width, size.height};
     // The pixel effect takes the node's whole drawing, children included (D-68).
     // Its own, else what the style's rules give its type or role (D-69: a
@@ -897,7 +920,7 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
             list.push_layer(1, xrender::BlendMode::normal, fxs->effect, fxs->params, box, std::span(shapes.data(), count));
         }
     }
-    if (layer) list.push_layer(v[Field::opacity], xrender::BlendMode::normal, {}, {}, box);
+    if (layer) list.push_layer(opacity, xrender::BlendMode::normal, {}, {}, box);
     // Disabled, of a kind that draws no disabled state of its own: drawn whole at the theme's disabled opacity (the
     // change moves as every change of a drawing does, by the kind's motion).
     const bool dimmed = n.state.disabled && !n.type->draws_disabled && theme.disabled_opacity < 1;

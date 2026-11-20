@@ -46,13 +46,14 @@ The page ends as `app/main.ts` is. Its history ships as [`design/main.replay.xde
 
 Copy puts the chosen tab's words on the clipboard (`copy()`, openmui 0.4.7), and the page waits. GitHub is a `link`.
 
+While the design plays, its course goes round the O: `omui.config.ts`'s `generation.replay` names the O (`course: "o"`), and the replay lays its steps on that path where it is drawn (`timeline`'s `over`, openmui 0.4.8). While the page waits, the O breathes: the wider, fainter O has `motion: { ambient: "breathe" }`, the style's ambient motion (openmui 0.4.9); unseen at the other states, it rests and asks for no frame.
+
 ## Not in this round
 
 | What | Where it comes from |
 |---|---|
 | Material and light (the mark's halo, the install's surface) | The framework's effects (liquid glass, a theme layer), not page code |
-| The motion between states, including the O's breathing | The default recipes (`path`: `default.structure`); the sketches are at rest |
-| The design's course on the O while it plays | The replay draws its steps in its own card now; drawing them on a named node (the mark) is the replay's option, not page code |
+| The motion between states | The default recipes (`path`: `default.structure`); the sketches are at rest |
 | The bridge and pairing | `omui connect` (G9) |
 | Chinese, static HTML, budgets | G2's projection; the site's budgets (§6) |
 

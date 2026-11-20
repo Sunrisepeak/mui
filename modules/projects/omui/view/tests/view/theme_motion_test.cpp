@@ -122,8 +122,8 @@ void current_matches(Probe& fading, Probe& reference) {
 
 static UTest cases{"view.theme_motion", [] {
     "the motion slots and the built-in recipes are the specification's (M-7, M-8)"_test = [] {
-        expect(eq(motion_slots.size(), std::size_t{6}));
-        expect(motion_slots[0] == "update" && motion_slots[5] == "replace") << "the registry's order";
+        expect(eq(motion_slots.size(), std::size_t{7}));
+        expect(motion_slots[0] == "update" && motion_slots[5] == "replace" && motion_slots[ambient_slot] == "ambient") << "the registry's order";
         const auto library = default_motion_library();
         for (const auto& recipe : spec::motion_recipes)
             expect(recipe.name == "none" || library.contains(recipe.name)) << std::format("the spec's recipe `{}` is built in", recipe.name);
@@ -133,13 +133,13 @@ static UTest cases{"view.theme_motion", [] {
             if (!recipe) continue;
             // Both ways, by the specification's names: each primitive it lists is composed, and each composed one is listed
             // (a recipe that gained `write` or `arrivals` in code and not in the registry is caught).
-            constexpr std::array<std::pair<std::string_view, MotionPrimitive>, 17> named{{
+            constexpr std::array<std::pair<std::string_view, MotionPrimitive>, 18> named{{
                 {"match_drawing", MotionPrimitive::match_drawing}, {"match_glyphs", MotionPrimitive::match_glyphs}, {"fade", MotionPrimitive::fade},
                 {"lift", MotionPrimitive::lift}, {"panel_lift", MotionPrimitive::panel_lift}, {"grow", MotionPrimitive::grow},
                 {"check_grow", MotionPrimitive::check_grow}, {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger},
                 {"distance", MotionPrimitive::distance}, {"readable_text", MotionPrimitive::readable_text}, {"write", MotionPrimitive::write},
                 {"drop", MotionPrimitive::drop}, {"noise", MotionPrimitive::noise}, {"reshape", MotionPrimitive::reshape},
-                {"press", MotionPrimitive::press}, {"arrivals", MotionPrimitive::arrivals}}};
+                {"press", MotionPrimitive::press}, {"arrivals", MotionPrimitive::arrivals}, {"breathe", MotionPrimitive::breathe}}};
             std::uint32_t listed = 0;
             for (std::string_view primitive : recipe->primitives | std::views::split(' ') | std::views::transform([](auto r) { return std::string_view(r); })) {
                 const auto found = std::ranges::find(named, primitive, &std::pair<std::string_view, MotionPrimitive>::first);
@@ -155,6 +155,34 @@ static UTest cases{"view.theme_motion", [] {
             if (!recipe->effect.empty()) expect(motion.travel && motion.travel->effect == recipe->effect) << std::format("`{}` travels through {}", name, recipe->effect);
         }
     };
+    "an ambient slot's breath: scaled about its centre by a wave of the time since it was first drawn; its frames ambient; at rest under reduced motion (M-7)"_test = [] {
+        const auto drawn = [](bool reduce) {
+            mlibs::text::FontCollection fonts;
+            Runtime runtime{options(fonts, reduce)};
+            auto o = box({.id = "o", .width = 100, .height = 50, .background = "accent"});
+            o.prop("motion", Source(Value{}.set("ambient", "breathe")));
+            runtime.mount("main", column({.width = 260, .height = 100, .padding = 25}, {std::move(o)}));
+            std::vector<Rect> boxes;
+            for (const double t : {0.0, 0.8, 1.6, 3.2}) {
+                expect(runtime.frame({seconds(t), {}}).failure.empty());
+                boxes.push_back(runtime.drawn_bounds(runtime.find("main/o")));
+            }
+            // Its next frame is asked for, and no run waits for it.
+            expect(reduce ? !runtime.next_timer().has_value() : runtime.next_timer().has_value()) << "a frame of its own while it breathes";
+            expect(!runtime.next_work().has_value()) << "ambient: a settle does not wait for it";
+            return boxes;
+        };
+        const auto near = [](float a, float b, float within = 0.01f) { return std::abs(a - b) <= within; };
+        const auto breathing = drawn(false);
+        const Point centre = breathing[0].center();
+        expect(near(breathing[0].width, 100.0f) && near(breathing[2].width, 104.0f, 0.05f) && near(breathing[1].width, 102.0f, 0.05f))
+            << "w = 0, ½, 1: 1, 1.02, 1.04 times as wide";
+        expect(near(breathing[3].width, 100.0f, 0.05f)) << "a whole breath: as it was";
+        expect(near(breathing[2].center().x, centre.x, 0.01f) && near(breathing[2].center().y, centre.y, 0.01f)) << "about its centre";
+        const auto still = drawn(true);
+        expect(std::ranges::all_of(still, [&](const Rect& r) { return near(r.width, 100.0f); })) << "reduced motion: at rest";
+    };
+
     "the representations' recipes carry their operations to the morph"_test = [] {
         const auto library = default_motion_library();
         expect(library.at("trace.focus").appear.writes && library.at("write.check").appear.writes) << "strokes written";

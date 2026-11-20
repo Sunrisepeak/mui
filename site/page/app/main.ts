@@ -61,9 +61,9 @@ const commands = `# after the release; until then build it from GitHub\nomui con
 // The mark: its O (open while it waits, drawn as far as the design has come), the word or Mui, and in Live Design the
 // course of the design's steps along the O.
 const mark = stack({ id: "mark", width: side + 20, height: side + 20, alignItems: "center", justify: "center" }, [
-  // Breathing while it waits: a wider, fainter O.
+  // Breathing while it waits: a wider, fainter O, its breath the style's ambient motion (spec M-7); unseen, it rests.
   path({ id: "breath", d: ring, stroke: accent, strokeWidth: 2, width: side, height: side,
-         opacity: select(waiting, 0.28, 0), scale: 1.1 }),
+         opacity: select(waiting, 0.28, 0), scale: 1.1, motion: { ambient: "breathe" } }),
   path({ id: "o", d: ring, stroke: select(designing, sketch, ink), strokeWidth: 6, width: side, height: side,
         fill: select(connected, palette.b, ""), trim: select(waiting, 0.9, 1), label: select(connected, "Mui", "omui") }),
   when(designing, [

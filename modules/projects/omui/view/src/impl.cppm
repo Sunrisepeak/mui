@@ -295,7 +295,8 @@ struct Node {
     // property, its scope's rules, the defaults; `motion_gen` says against
     // which it was resolved — what it drew last (a hash, its nested roots'
     // ranges left out: they move themselves) and its morph under way.
-    std::array<std::vector<MotionSpec>, 6> slot_motions;  // candidates, by slot (motion_slots)
+    std::array<std::vector<MotionSpec>, motion_slots.size()> slot_motions;  // candidates, by slot (motion_slots)
+    double                                ambient_since = -1;  // its ambient motion's start: when it was first drawn with one
     std::uint32_t                         motion_gen = 0;
     std::uint32_t                         changes = 0;  // its properties written (a count): an update, not a state
     // What it was drawn with last: its subtree's changes and interaction states, its children (which slot a change is).
@@ -497,6 +498,10 @@ struct Runtime::Impl {
         bool                  ambient = false;  // goes on by itself: no work a run waits for
     };
     std::vector<Timer>          timers;
+    // The nodes an ambient motion moved in the last paint (a breath), and the ambient timer that draws them again:
+    // hosts wake for it, a settle does not wait for it (spec M-7).
+    std::vector<NodeId>         breathing;
+    std::uint64_t               breath_timer = 0;
     std::vector<ActionEntry>    journal;
     // The interaction recorder (D-148): its level, what it keeps (a ring of
     // `record_capacity`), the input events numbered, the one being dispatched.

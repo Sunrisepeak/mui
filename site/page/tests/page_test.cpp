@@ -28,6 +28,15 @@ std::vector<std::byte> picture(Headless& host) {
 
 bool shows(Headless& host, Role role, std::string_view name) { return !host.tree().find({.role = role, .name = std::string(name)}).empty(); }
 
+// The first node under `at`, in the tree's order, whose own id is `id` (what the page draws, named or not).
+NodeId named(const Runtime& runtime, NodeId at, std::string_view id) {
+    for (const NodeId child : runtime.children(at)) {
+        if (const std::string path = runtime.path(child); path == id || path.ends_with(std::format("/{}", id))) return child;
+        if (const NodeId deeper = named(runtime, child, id); deeper) return deeper;
+    }
+    return {};
+}
+
 }  // namespace
 
 static UTest cases{"site.page", [] {
@@ -77,6 +86,18 @@ static UTest cases{"site.page", [] {
         expect(eq(set("waiting"), 0));
         expect(shows(host, Role::button, "Copied") && host.tree().find({.role = Role::slider}).empty());
         const auto waiting = picture(host);
+        // And the O breathes (the style's ambient motion, spec M-7), sampled over a whole breath: its ring 4 % wider at
+        // the top of it than at the bottom; a frame of its own asked for, which no run waits for.
+        const NodeId ring = named(host.runtime(), host.runtime().root(), "breath");
+        expect(fatal(host.runtime().valid(ring)));
+        std::vector<float> widths;
+        for (int sample = 0; sample < 16; ++sample) {
+            (void)host.advance(seconds(0.2));
+            widths.push_back(host.runtime().drawn_bounds(ring).width);
+        }
+        const auto [narrowest, widest] = std::ranges::minmax(widths);
+        expect(widest / narrowest > 1.035f && widest / narrowest < 1.045f) << std::format("breathing: {} to {}", narrowest, widest);
+        expect(host.runtime().next_timer().has_value() && !host.runtime().next_work().has_value()) << "its frames ambient";
 
         // Connected: the mark has become Mui (the O with ears her outline, her face in it); the visitor's agent and its
         // omui beside it.
@@ -87,9 +108,10 @@ static UTest cases{"site.page", [] {
 
         const std::set<std::vector<std::byte>> pictures{rest, design, waiting, connected};
         expect(eq(pictures.size(), std::size_t{4})) << "four pictures";
-        // Back at rest, the first picture again.
+        // Back at rest, the first picture again, and nothing asks for a frame (the ring unseen rests).
         expect(eq(set("rest"), 0));
         expect(picture(host) == rest) << "at rest again, as it was";
+        expect(!host.runtime().next_timer().has_value()) << "at rest: no frame asked for";
 
         // Copy, pressed as a person presses it: the Agent tab's one sentence on the clipboard (the pairing code in
         // it), and the page waits for the agent.

@@ -2,6 +2,7 @@
 // steps by frames, input by point or by id, pixels and PNG, pixel
 // provenance, and an agent driving an H3 session.
 import std;
+import omui.agent;
 import omui.host.headless;
 import mlibs.agent.cts;
 import omui.ui.base;
@@ -58,6 +59,10 @@ std::string essence(semantic::Tree& t) {
 }  // namespace
 
 UTest cases{"headless", [] {
+    // This program makes its own hosts: it is its root, and installs the agent surface (K6); without it a session
+    // serves no endpoint and the cases at the endpoint skip.
+    omui::agent::install();
+
 
     "H0, H1 and H2 give the same semantic tree; only H1 and up have places"_test = [] {
         std::array<std::string, 3> trees;

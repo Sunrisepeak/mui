@@ -1,6 +1,7 @@
 // `omui agent` against a running application: a headless H3 session on this
 // thread, the command line on another, talking over the real endpoint.
 import std;
+import omui.agent;
 import omui.cli;
 import omui.host.headless;
 import omui.ui.base;
@@ -76,6 +77,10 @@ std::filesystem::path repository() {
 }  // namespace
 
 static UTest cases{"cli", [] {
+    // This program makes its own hosts: it is its root, and installs the agent surface (K6); without it a session
+    // serves no endpoint and the cases at the endpoint skip.
+    omui::agent::install();
+
 
     "requests from arguments: an operation's words are its catalog's parameters, sent as the protocol's request"_test = [] {
         std::vector<Value> sent;

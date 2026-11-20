@@ -6,6 +6,7 @@
 import std;
 import omui.core;
 import omui.mcp;
+import omui.agent;
 import omui.host.headless;
 import omui.ui.base;
 import mlibs.testing;
@@ -103,6 +104,9 @@ struct Notes {
     bool     pinned = false;
 
     explicit Notes(const std::filesystem::path& dir) : h([&] {
+          // This program makes its own host: it is its root, and installs the agent surface (K6) — without it no
+          // endpoint is served, and the cases against a running application skip.
+          omui::agent::install();
           HeadlessOptions o;
           o.level = HeadlessLevel::session;
           o.size = {320, 160};
@@ -211,7 +215,7 @@ UTest cases{"mcp", [] {
         serve(notes.h, server, c);
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
         expect(tools && tools->list() && tools->list()->size() == 20) << (tools ? tools->json() : std::string("<none>"));
-        expect(eq(server.tools().size(), std::size_t{68})) << "every tool still known";
+        expect(eq(server.tools().size(), std::size_t{72})) << "every tool still known";
         expect(c.reply(3) && c.error(3)) << "a tool not listed answers as a verb the application lacks";
     };
 
@@ -237,6 +241,11 @@ UTest cases{"mcp", [] {
                 call(10, "ui_act", Value{}.set("node", "notes/delete")),
                 call(11, "ui_describe")};
         serve(notes.h, server, c);
+        // Said at connect (C7): the one running application's interactive outline and its verbs, before any tool.
+        const Value* result = c.reply(1) ? c.reply(1)->get("result") : nullptr;
+        const std::string said = result && result->get("instructions") ? std::string(result->get("instructions")->as_string()) : std::string();
+        expect(said.contains("org.openmui.test-notes") && said.contains("notes/delete") && said.contains("(irreversible)") && said.contains("- notes.pin ("))
+            << said;
         expect(!c.error(11) && c.text(11).contains("- notes.pin (")) << c.text(11);
         expect(c.text(2).contains("org.openmui.test-notes")) << c.text(2);
         expect(c.text(3).contains("notes/delete") && c.text(3).contains("(irreversible)") && !c.text(3).contains("notes/title")) << c.text(3);

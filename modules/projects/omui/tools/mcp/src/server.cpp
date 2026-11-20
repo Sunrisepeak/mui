@@ -343,6 +343,35 @@ struct Server::Impl {
         return out;
     }
 
+    // What runs now, said when the client connects (C7; D-186's first level): with one application running, its
+    // interactive nodes as an outline and its verbs, so an agent acts on its first turn without asking for the tree
+    // (a session's fixed prompt is most of a short task's tokens; the steps are what the interface saves). At most
+    // `lines` lines of the outline; the rest is ui_snapshot's.
+    std::string at_connect(std::size_t lines = 60) {
+        const auto apps = running();
+        if (apps.size() != 1) return {};
+        const std::string& app = apps.front().name;
+        const Answer tree = call(app, Value{}.set("op", "snapshot").set("interactive", true).set("actor", actor), options.timeout);
+        const Value* nodes = tree.exit == 0 ? tree.data.get("nodes") : nullptr;
+        if (!nodes || !nodes->list() || nodes->list()->empty()) return {};
+        const std::string listed = outline(*nodes->list());
+        std::size_t end = 0;
+        for (std::size_t count = 0; count < lines && end < listed.size(); ++count) {
+            const std::size_t line = listed.find('\n', end);
+            end = line == std::string::npos ? listed.size() : line + 1;
+        }
+        std::string out = std::format("\n\n{} ({}) is running. Its interactive nodes now (id role \"name\" = value [states] {{actions}}): act on an id "
+                                      "with ui_act, no need to ask for the tree first; what an action changed comes back with it.\n{}",
+                                      apps.front().app, apps.front().interface_name, listed.substr(0, end));
+        if (end < listed.size()) out += "… the rest: ui_snapshot\n";
+        const Answer described = call(app, Value{}.set("op", "describe").set("actor", actor), options.timeout);
+        if (const Value* verbs = described.exit == 0 ? described.data.get("verbs") : nullptr; verbs && verbs->list() && !verbs->list()->empty()) {
+            out += "Its verbs (ui_invoke):\n";
+            for (const Value& verb : *verbs->list()) out += std::format("- {} ({}) — {}\n", str(verb, "name"), str(verb, "effect"), str(verb, "summary"));
+        }
+        return out;
+    }
+
     // The verbs the running applications offer; none when nothing runs (nothing to tell by).
     std::optional<std::set<std::string>> offered_verbs() {
         const auto apps = running();
@@ -971,11 +1000,12 @@ void Server::handle(std::string_view line, Transport& t) {
             return;
         }
         r.set("instructions",
-              "Operate running openmui applications through their semantic trees: ui_apps to see what runs, ui_snapshot or ui_find "
+              std::string("Operate running openmui applications through their semantic trees: ui_apps to see what runs, ui_snapshot or ui_find "
               "to read, ui_describe for the application's verbs, ui_act or ui_invoke to change, ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, "
               "click, drag, scroll and type as a person does (when the application allows it), ui_clock for its time. Ids are stable "
               "paths. Actions marked irreversible or external are confirmed by the user; never answer for them. Actions marked person are "
-              "the user's own and are refused to agents.");
+              "the user's own and are refused to agents.") +
+                  d.at_connect());
         t.write(response(*id, std::move(r)).json());
         return;
     }

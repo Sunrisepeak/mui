@@ -359,6 +359,10 @@ static UTest cases{"cli", [] {
         auto session = parse_json(hello.second);
         const std::string s_id(session && session->get("session") ? session->get("session")->as_string() : "");
         expect(!s_id.empty()) << "a session";
+        // The install it pairs through, for the page to say who linked and with what (spec §6).
+        const std::string_view said_version = session && session->get("version") ? session->get("version")->as_string() : std::string_view();
+        const std::string_view said_platform = session && session->get("platform") ? session->get("platform")->as_string() : std::string_view();
+        expect(!said_version.empty() && said_platform.contains('-')) << hello.second;
         {
             std::scoped_lock g(heard_lock);
             expect(eq(heard, std::string("https://example.org/app org.example.notes"))) << "the bridge says which page paired";

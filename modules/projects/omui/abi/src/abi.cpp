@@ -709,6 +709,21 @@ OmuiResult omuiCopyText(OmuiRuntime rt, OmuiString text_given) noexcept {
     return OMUI_SUCCESS;
 }
 
+// ── the person's own agent, through a bridge on their machine (spec §6) ─────
+
+OmuiResult omuiLinkAgent(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {
+    if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
+    const std::string code = rt->rt->link_agent();  // empty where the host cannot link one
+    if (!code.empty()) send(sink, user, code);
+    return OMUI_SUCCESS;
+}
+
+OmuiResult omuiAgentLink(OmuiRuntime rt, OmuiSignal* out) noexcept {
+    if (!rt || !out) return OMUI_ERROR_INVALID_ARGUMENT;
+    *out = rt->handle_of(rt->rt->agent_link_signal());
+    return OMUI_SUCCESS;
+}
+
 // ── tasks to begin with (spec §5) ──────────────────────────────────────────
 
 OmuiResult omuiAddTask(OmuiRuntime rt, OmuiString task_json, PFN_omuiSink sink, void* user) noexcept {

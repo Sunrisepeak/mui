@@ -1184,8 +1184,17 @@ void Runtime::set_agent_linker(AgentLinker linker) {
     agent_link_changed({d.agent_linker.link ? "idle" : "unavailable", {}, {}, {}, 0});
 }
 
+Signal<Value> Runtime::agent_link_signal() const { return impl_->agent_link_value; }
+
 void Runtime::agent_link_changed(AgentLink link) {
     Impl& d = *impl_;
+    d.agent_link_value.set(Value{}
+                               .set("state", link.state)
+                               .set("code", link.code)
+                               .set("agent", link.agent)
+                               .set("version", link.version)
+                               .set("platform", link.platform)
+                               .set("error", link.error));
     d.agent_link = std::move(link);
     ++d.agent_link_revision;
     d.actions_changed();

@@ -360,18 +360,26 @@ Session::~Session() {
 
 Result<abi::OmuiSignal> Session::signal(const Json& initial) {
     const std::string text = dump(initial);
+    abi::OmuiSignal s = 0;
+    const abi::OmuiResult r = host_.ui([&] {
+        const abi::OmuiValue v = json_value(text);
+        return abi::omuiSignalCreate(host_.runtime(), &v, &s);
+    });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, "a signal could not be made"));
+    return mirrored(s, initial);
+}
+
+Result<abi::OmuiSignal> Session::mirrored(abi::OmuiSignal s, const Json& value) {
+    if (signals_.contains(s)) return s;
     struct Watcher {
         Host*                 host;
         Session*              session;
         std::shared_ptr<bool> alive;
     };
     auto watcher = std::make_shared<Watcher>(Watcher{&host_, this, alive_});
-    abi::OmuiSignal s = 0;
     abi::OmuiSubscription sub = 0;
     const abi::OmuiResult r = host_.ui([&] {
-        const abi::OmuiValue v = json_value(text);
-        abi::OmuiResult x = abi::omuiSignalCreate(host_.runtime(), &v, &s);
-        if (x != abi::OMUI_SUCCESS) return x;
+        abi::OmuiResult x = abi::OMUI_SUCCESS;
         const std::string name = signal_name(s);
         if ((x = abi::omuiSignalShare(host_.runtime(), s, str(name))) != abi::OMUI_SUCCESS) return x;
         return abi::omuiSignalWatch(
@@ -389,7 +397,7 @@ Result<abi::OmuiSignal> Session::signal(const Json& initial) {
     });
     if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, "a signal could not be made"));
     Mirror& m = signals_[s];
-    m.value = initial;
+    m.value = value;
     m.watch = sub;
     watchers_.push_back(std::move(watcher));
     return s;
@@ -615,6 +623,25 @@ Result<void> Session::copy(std::string_view text) {
     const abi::OmuiResult r = host_.ui([&] { return abi::omuiCopyText(host_.runtime(), str(text)); });
     if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, "the clipboard did not take the text"));
     return {};
+}
+
+Result<std::string> Session::link_agent() {
+    std::string code;
+    const abi::OmuiResult r = host_.ui([&] { return abi::omuiLinkAgent(host_.runtime(), collect, &code); });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, "the agent link did not start"));
+    return code;
+}
+
+Result<abi::OmuiSignal> Session::agent_link() {
+    abi::OmuiSignal handle = 0;
+    std::string now;
+    const abi::OmuiResult r = host_.ui([&] {
+        const abi::OmuiResult x = abi::omuiAgentLink(host_.runtime(), &handle);
+        return x != abi::OMUI_SUCCESS ? x : abi::omuiSignalGet(host_.runtime(), handle, collect, &now);
+    });
+    if (r != abi::OMUI_SUCCESS) return std::unexpected(failure(r, "the agent link's signal was not given"));
+    // The runtime's, taken as the script's own: read, watched and bound like any of its signals.
+    return mirrored(handle, Json::parse(now, nullptr, false));
 }
 
 // ── native modules ────────────────────────────────────────────────────────

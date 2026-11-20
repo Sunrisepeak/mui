@@ -46,6 +46,12 @@ static UTest cases{"site.page", [] {
         auto manifest = read_manifest(std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "mcpp.toml");
         expect(fatal(manifest.has_value())) << (manifest ? std::string() : manifest.error());
         Headless host({.size = manifest->size});
+        // The Web host's part (the agent link, spec §6), as it plays it: looking starts with a code and says so.
+        host.runtime().set_agent_linker({[&] {
+                                             host.runtime().agent_link_changed({"waiting", "7KQ2-M9X4", {}, {}, 0});
+                                             return std::string("7KQ2-M9X4");
+                                         },
+                                         [] {}});
         player::Player page(host.runtime(), *manifest, {lang::js::typescript()});
         const auto started = page.start();
         expect(fatal(started.has_value())) << (started ? std::string() : started.error());
@@ -99,11 +105,11 @@ static UTest cases{"site.page", [] {
         expect(widest / narrowest > 1.035f && widest / narrowest < 1.045f) << std::format("breathing: {} to {}", narrowest, widest);
         expect(host.runtime().next_timer().has_value() && !host.runtime().next_work().has_value()) << "its frames ambient";
 
-        // Connected: the mark has become Mui (the O with ears her outline, her face in it); the visitor's agent and its
-        // omui beside it.
+        // Connected (its sketch: no agent has paired): the mark has become Mui (the O with ears her outline, her face in
+        // it); beside it, where the visitor's agent will be named.
         expect(eq(set("connected"), 0));
         expect(shows(host, Role::image, "Mui") && !shows(host, Role::image, "omui")) << "the O is Mui";
-        expect(!host.tree().find({.name = "Claude Code · omui 0.1.0 · linux-x64"}).empty()) << "the agent's chip";
+        expect(!host.tree().find({.name = "Your agent · omui · your machine"}).empty()) << "the agent's chip, before one pairs";
         const auto connected = picture(host);
 
         const std::set<std::vector<std::byte>> pictures{rest, design, waiting, connected};
@@ -122,7 +128,24 @@ static UTest cases{"site.page", [] {
         expect(eq(host.tree().act(copy_key.front().id, "activate", press).exit_code().value_or(-1), 0));
         settle();
         const std::string copied = host.runtime().clipboard_text();
-        expect(copied.starts_with("Install omui") && copied.contains("omui connect 7KQ2-M9") && copied.contains("describe")) << copied;
+        expect(copied.starts_with("Install omui") && copied.contains("omui connect 7KQ2-M9X4") && copied.contains("describe"))
+            << "the link's own code: " << copied;
         expect(shows(host, Role::button, "Copied")) << "waiting";
+        expect(eq(host.runtime().agent_link().state, std::string("waiting")));
+
+        // The visitor's agent runs `omui connect 7KQ2-M9X4`: the bridge pairs, and the page hears who and with what.
+        AgentLink paired{"paired", "7KQ2-M9X4", "Claude Code", {}, 47110};
+        paired.version = "0.1.0";
+        paired.platform = "linux-x86_64";
+        host.runtime().agent_link_changed(paired);
+        settle();
+        expect(shows(host, Role::image, "Mui")) << "connected: the O is Mui";
+        expect(!host.tree().find({.name = "Claude Code · omui 0.1.0 · linux-x86_64"}).empty()) << "the agent, its omui, its machine";
+        // The bridge goes: waiting again, the O open.
+        AgentLink lost = paired;
+        lost.state = "lost";
+        host.runtime().agent_link_changed(lost);
+        settle();
+        expect(shows(host, Role::image, "omui") && shows(host, Role::button, "Copied")) << "lost: waiting again";
     };
 }};

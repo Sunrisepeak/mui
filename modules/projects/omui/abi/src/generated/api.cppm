@@ -50,6 +50,8 @@ OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, 
 OmuiResult omuiThemes(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
 OmuiResult omuiAddTask(OmuiRuntime rt, OmuiString task_json, PFN_omuiSink sink, void* user) noexcept;
 OmuiResult omuiCopyText(OmuiRuntime rt, OmuiString text) noexcept;
+OmuiResult omuiLinkAgent(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept;
+OmuiResult omuiAgentLink(OmuiRuntime rt, OmuiSignal* out) noexcept;
 
 }  // extern "C"
 

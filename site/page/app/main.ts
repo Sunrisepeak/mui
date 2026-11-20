@@ -7,6 +7,7 @@
 // state becomes the next is the style's motion, not this page's (D-93).
 import {
   signal, eq, or, select, when, stack, column, row, box, text, button, segmented, link, path, timeline, mount, verb, invoke, copy,
+  fmt, linkAgent, agentLink,
 } from "openmui";
 
 type State = "rest" | "design" | "waiting" | "connected";
@@ -54,9 +55,16 @@ const designing = eq(state, "design");
 const waiting = eq(state, "waiting");
 const connected = eq(state, "connected");
 
-const code = "7KQ2-M9";
-const prompt = `Install omui (after the release; until then build it from GitHub), run \`omui connect ${code}\`, then call \`describe\` and follow it.`;
-const commands = `# after the release; until then build it from GitHub\nomui connect ${code}`;
+// The visitor's own agent, through a bridge on their machine (spec §6): Copy starts looking for it, and the pairing code
+// is in the words copied, nowhere else on the page; paired, the page is connected, and says who and with what.
+const agent = agentLink();
+const code = signal("····-····", "page.code");  // its shape until Copy gives one
+const promptWords = "Install omui (after the release; until then build it from GitHub), run `omui connect {}`, then call `describe` and follow it.";
+const commandWords = "# after the release; until then build it from GitHub\nomui connect {}";
+agent.watch((now) => {
+  if (now.state === "paired") state.set("connected");
+  else if (state.get() === "connected" && (now.state === "lost" || now.state === "stopped")) state.set("waiting");
+});
 
 // The mark: its O (open while it waits, drawn as far as the design has come), the word or Mui, and in Live Design the
 // course of the design's steps along the O.
@@ -107,7 +115,9 @@ const beside = column({ id: "beside", height: 100, width: "100%", alignItems: "c
   when(connected, [
     row({ id: "agent", gap: 8, alignItems: "center", paddingX: 12, paddingY: 7, radius: 999, background: "#eef2ff" }, [
       box({ width: 8, height: 8, radius: 4, background: "#16a34a" }),
-      text({ style: "label", color: ink, text: "Claude Code · omui 0.1.0 · linux-x64" }),
+      text({ id: "who", style: "label", color: ink,
+             text: select(eq(agent.field("state"), "paired"), fmt("{} · omui {} · {}", agent.field("agent"), agent.field("version"), agent.field("platform")),
+                          "Your agent · omui · your machine") }),
     ]),
   ]),
   when(designing, [
@@ -132,9 +142,15 @@ const install = column({
     segmented({ id: "how", options: ["agent", "command"], labels: ["Agent", "Command"], value: how, label: "How to install" }),
     // The chosen tab's words on the clipboard; the page waits for the agent (or the command) to connect.
     button({ id: "copy", variant: "primary", text: select(or(waiting, connected), "Copied", "Copy"),
-             onPress: () => { copy(how.get() === "agent" ? prompt : commands); if (state.get() !== "connected") state.set("waiting"); } }),
+             onPress: () => {
+               const given = linkAgent();  // "" where the page cannot link one (off the Web)
+               if (given) code.set(given);
+               copy((how.get() === "agent" ? promptWords : commandWords).replace("{}", code.get()));
+               if (state.get() !== "connected") state.set("waiting");
+             } }),
   ]),
-  text({ id: "words", style: "code", wrap: true, color: ink, text: select(eq(how, "agent"), prompt, commands) }),
+  text({ id: "words", style: "code", wrap: true, color: ink,
+         text: select(eq(how, "agent"), fmt(promptWords, code), fmt(commandWords, code)) }),
   when(connected, [
     text({ id: "token", style: "caption", color: accent, text: "surface · radius.lg · shadow.lg — the structure your agent changed" }),
   ]),

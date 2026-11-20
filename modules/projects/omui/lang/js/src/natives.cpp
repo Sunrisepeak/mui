@@ -221,6 +221,12 @@ Result<void> Natives::theme(std::string_view layers_text) {
 
 std::string Natives::themes() { return session_.themes().dump(); }
 Result<void> Natives::copy(std::string_view text) { return session_.copy(text); }
+Result<std::string> Natives::link_agent() { return session_.link_agent(); }
+Result<std::int64_t> Natives::agent_link() {
+    auto handle = session_.agent_link();
+    if (!handle) return std::unexpected(handle.error());
+    return static_cast<std::int64_t>(*handle);
+}
 
 // A native module's function (component-binding §8): its result as JSON text.
 Result<std::string> Natives::native_call(std::string_view module, std::string_view function, std::string_view arguments) {

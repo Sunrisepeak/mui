@@ -170,7 +170,7 @@ addToLibrary({
         // How it stands (what the program shows: waiting, paired with whom, lost, expired, stopped); null before one began.
         linkState: function () {
           var l = P.link;
-          return l ? { state: l.state, code: l.code, agent: l.agent, port: l.port, error: l.error || '' } : null;
+          return l ? { state: l.state, code: l.code, agent: l.agent, version: l.version || '', platform: l.platform || '', port: l.port, error: l.error || '' } : null;
         },
       };
       window.omui = Object.freeze(omui);
@@ -531,7 +531,7 @@ addToLibrary({
     linkSay: function () {
       var P = omuiPage, l = P.link;
       if (!l) return;
-      P.send(P.LINK, 0, 0, JSON.stringify({ state: l.state, code: l.code, port: l.port, agent: l.agent, error: l.error || '' }));
+      P.send(P.LINK, 0, 0, JSON.stringify({ state: l.state, code: l.code, port: l.port, agent: l.agent, version: l.version || '', platform: l.platform || '', error: l.error || '' }));
     },
     linkHello: function (l) {
       var P = omuiPage;
@@ -557,6 +557,8 @@ addToLibrary({
           l.port = paired.port;
           l.session = paired.body.session;
           l.agent = paired.body.agent || 'an agent';
+          l.version = paired.body.version || '';
+          l.platform = paired.body.platform || '';
           l.state = 'paired';
           l.error = '';
           P.linkSay();

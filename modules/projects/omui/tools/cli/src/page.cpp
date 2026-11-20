@@ -200,7 +200,14 @@ void serve(Bridge& b, os::ipc::connection c) {
         b.page = std::string(hello->get("page") ? hello->get("page")->as_string() : "");
         b.seen = std::chrono::steady_clock::now();
         b.changed.notify_all();
-        const std::string answer = Value{}.set("session", b.session).set("agent", b.agent_name).set("bridge", std::string(version)).json();
+        // The install it pairs through (spec §6): the page shows who linked and with what.
+        const std::string answer = Value{}
+                                       .set("session", b.session)
+                                       .set("agent", b.agent_name)
+                                       .set("bridge", std::string(version))
+                                       .set("version", std::string(version))
+                                       .set("platform", std::format("{}-{}", os::name(os::PLATFORM), os::name(os::ARCH)))
+                                       .json();
         const std::string page = b.page, app = b.app;
         g.unlock();
         if (b.on_paired) b.on_paired(page, app);  // heard before the page is answered

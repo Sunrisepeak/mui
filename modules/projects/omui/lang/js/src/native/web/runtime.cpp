@@ -168,6 +168,8 @@ char* dispatch(int script, const char* op_text, const char* arguments_text) {
     else if (op == "theme") out = answer(s.natives.theme(text(0)));
     else if (op == "themes") out = value(s.natives.themes());
     else if (op == "copy") out = answer(s.natives.copy(text(0)));
+    else if (op == "linkAgent") out = answer(s.natives.link_agent());
+    else if (op == "agentLink") out = answer(s.natives.agent_link());
     else if (op == "nativeCall") out = answer(s.natives.native_call(text(0), text(1), text(2)));
     else if (op == "nativeAsync") {
         const int resolve = static_cast<int>(number(3)), reject = static_cast<int>(number(4));

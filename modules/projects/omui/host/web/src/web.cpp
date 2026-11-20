@@ -203,7 +203,10 @@ struct Web::Impl {
             auto str = [&](std::string_view k) { return std::string(v->get(k) ? v->get(k)->as_string() : ""); };
             constexpr Log link_log{"agent"};
             link_log.info("the agent link: {}{}{}", str("state"), str("agent").empty() ? "" : " with ", str("agent"));
-            heard({str("state"), str("code"), str("agent"), str("error"), static_cast<int>(v->get("port") ? v->get("port")->as_int() : 0)});
+            AgentLink link{str("state"), str("code"), str("agent"), str("error"), static_cast<int>(v->get("port") ? v->get("port")->as_int() : 0)};
+            link.version = str("version");
+            link.platform = str("platform");
+            heard(std::move(link));
             return;
         }
         if (kind == page::Request::Kind::agent) {

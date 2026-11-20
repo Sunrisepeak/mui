@@ -895,6 +895,9 @@ public:
     void unlink_agent() override;
     [[nodiscard]] const AgentLink& agent_link() const noexcept override;
     [[nodiscard]] std::uint64_t agent_link_revision() const noexcept;
+    // The link as a script reads it (spec §6, agentLink()): {state, code, agent, version, platform, error}, a signal the
+    // runtime keeps as each state is heard.
+    [[nodiscard]] Signal<Value> agent_link_signal() const;
     struct AgentLinker {
         std::function<std::string()> link;
         std::function<void()>        unlink;

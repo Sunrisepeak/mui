@@ -200,6 +200,7 @@ struct AgentLink {
     std::string error;  // the last thing the bridge refused, said plainly
     int         port = 0;
     std::string guide;  // where the application's agent.md is (the Web: beside the page), for the prompt
+    std::string version, platform;  // the omui it paired through, as its bridge says (spec §6)
 };
 
 // A demand while it lasts (RAII): released when it goes — or when the

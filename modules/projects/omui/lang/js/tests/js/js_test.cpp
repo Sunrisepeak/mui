@@ -304,6 +304,50 @@ mount("main", column({}, [button({ id: "copy", text: "Copy", onPress: () => copy
         expect(js.errors.empty()) << (js.errors.empty() ? "" : js.errors[0]);
     };
 
+    "linkAgent and agentLink: a press starts the link and gets its code; the link's state a signal the script watches and binds (spec §6)"_test = [] {
+        Runtime r;
+        omui::Runtime& runtime = *omui::abi::runtime_of(r.rt);
+        Js js(r);
+        // Where the host cannot link one: no code.
+        auto none = js.run(R"js(
+import { linkAgent, agentLink } from "openmui";
+if (linkAgent() !== "") throw new Error("a code where the host cannot link one");
+if (agentLink().get().state !== "unavailable") throw new Error(JSON.stringify(agentLink().get()));
+)js", "none.js");
+        expect(none.has_value()) << (none ? "" : none.error().text());
+        runtime.set_agent_linker({[&] {
+                                      runtime.agent_link_changed({"waiting", "ABCD-EFGH", {}, {}, 0});
+                                      return std::string("ABCD-EFGH");
+                                  },
+                                  [] {}});
+        auto ran = js.run(R"js(
+import { mount, column, button, text, signal, linkAgent, agentLink, fmt } from "openmui";
+const link = agentLink();
+const code = signal("", "code");
+const heard = signal("", "heard");
+link.watch((now) => heard.set(now.state + (now.agent ? " " + now.agent : "")));
+mount("main", column({}, [
+  button({ id: "link", text: "Link", onPress: () => code.set(linkAgent()) }),
+  text({ id: "who", text: fmt("{} · omui {} · {}", link.field("agent"), link.field("version"), link.field("platform")) }),
+]));
+globalThis.state = () => code.get() + "|" + heard.get();
+)js");
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        expect(eq(r.act("main/link", "activate"), std::int64_t{0}));
+        r.settle(js.host);
+        auto pressed = js.run(R"js(if (globalThis.state() !== "ABCD-EFGH|waiting") throw new Error(globalThis.state());)js", "pressed.js");
+        expect(pressed.has_value()) << (pressed ? "" : pressed.error().text());
+        omui::AgentLink paired{"paired", "ABCD-EFGH", "Claude Code", {}, 47110};
+        paired.version = "0.1.0";
+        paired.platform = "linux-x86_64";
+        runtime.agent_link_changed(paired);
+        r.settle(js.host);
+        auto linked = js.run(R"js(if (globalThis.state() !== "ABCD-EFGH|paired Claude Code") throw new Error(globalThis.state());)js", "linked.js");
+        expect(linked.has_value()) << (linked ? "" : linked.error().text());
+        expect(eq(r.name_of("main/who"), std::string("Claude Code · omui 0.1.0 · linux-x86_64"))) << "bound to the link's fields";
+        expect(js.errors.empty()) << (js.errors.empty() ? "" : js.errors[0]);
+    };
+
     "a handler reads the signals as its event left them (a bound field's changed)"_test = [] {
         Runtime r;
         Js js(r);

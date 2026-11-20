@@ -477,6 +477,7 @@ struct Runtime::Impl {
     // The person's own agent (Runtime::link_agent): the host's way to link, what it last heard.
     Runtime::AgentLinker                    agent_linker;
     AgentLink                               agent_link;
+    Signal<Value>                           agent_link_value{Value{}.set("state", "unavailable")};
     std::uint64_t                           agent_link_revision = 0;
     std::vector<NodeId>                     action_followers;  // Services::follow_actions
     std::string                             pointed_out;       // Services::point_out

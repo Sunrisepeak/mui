@@ -222,6 +222,10 @@ export function find(selector) {
 export const log = (...a) => N.log(a.map(String).join(" "));
 // Text on the person's clipboard (spec §6), where the host has one and allows it now; nothing is read back.
 export const copy = (text) => { native(N.copy, String(text)); };
+// The person's own agent, through a bridge on their machine (spec §6): looking for it starts here (the pairing code to
+// give it, "" where the host cannot link one); how the link stands is a signal the runtime keeps.
+export const linkAgent = () => native(N.linkAgent);
+export const agentLink = () => new Signal(native(N.agentLink));
 export const nil = null;
 )js";
 

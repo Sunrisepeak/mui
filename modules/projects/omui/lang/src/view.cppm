@@ -152,6 +152,11 @@ public:
     // ── the clipboard (spec §6) ──
     // Text on the person's clipboard, where the host has one and allows it now; nothing is read back.
     Result<void> copy(std::string_view text);
+    // ── the person's own agent, through a bridge on their machine (spec §6) ──
+    // Starts looking for it: the pairing code to give it (empty where the host cannot link one).
+    Result<std::string> link_agent();
+    // How the link stands: the signal the runtime keeps of it.
+    Result<abi::OmuiSignal> agent_link();
 
     // ── native modules (component-binding §8) ──
     // The catalogue (omuiNativeCatalog): {"modules": {name: {types, functions}}}.
@@ -186,6 +191,8 @@ private:
     struct Workers;  // the threads async natives run on
 
     void changed(abi::OmuiSignal s, Json value);  // from the runtime: its echo of the script's write, or a change
+    // A runtime signal taken as this session's own: named for its views, watched, mirrored here with `value`.
+    [[nodiscard]] Result<abi::OmuiSignal> mirrored(abi::OmuiSignal s, const Json& value);
 
     Host&                                    host_;
     std::map<abi::OmuiSignal, Mirror>        signals_;

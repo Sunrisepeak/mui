@@ -106,6 +106,8 @@ namespace omui::lang {
     Result<void> theme(const std::vector<std::string>& layers);
     [[nodiscard]] Json themes();
     Result<void> copy(std::string_view text);
+    Result<std::string> link_agent();
+    Result<abi::OmuiSignal> agent_link();
     [[nodiscard]] Json natives();
     [[nodiscard]] Result<Json> native(std::string_view module, std::string_view function, const Json& args);
     void native_async(std::string module, std::string function, Json args, std::function<void(Result<Json>)> done);

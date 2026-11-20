@@ -51,6 +51,9 @@ public:
     [[nodiscard]] std::string themes();
     // Text on the person's clipboard (spec §6): nothing is read back.
     [[nodiscard]] Result<void> copy(std::string_view text);
+    // The person's own agent (spec §6): the pairing code (empty where the host cannot link one), and the link's signal.
+    [[nodiscard]] Result<std::string> link_agent();
+    [[nodiscard]] Result<std::int64_t> agent_link();
     [[nodiscard]] Result<std::string> native_call(std::string_view module, std::string_view function, std::string_view arguments);
     // An async native: `settled` gets its result (or its refusal's text) on the script's thread.
     void native_async(std::string_view module, std::string_view function, std::string_view arguments, std::function<void(Result<std::string>)> settled);

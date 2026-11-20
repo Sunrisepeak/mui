@@ -216,6 +216,7 @@ namespace omui {
     std::string error;
     int port = 0;
     std::string guide;
+    std::string version, platform;
   };
   class FrameDemandLease {
     FrameDemandLease() = default;
@@ -1327,6 +1328,7 @@ namespace omui {
     void unlink_agent() override;
     [[nodiscard]] const AgentLink& agent_link() const noexcept override;
     [[nodiscard]] std::uint64_t agent_link_revision() const noexcept;
+    [[nodiscard]] Signal<Value> agent_link_signal() const;
     struct AgentLinker {
       std::function<std::string()> link;
       std::function<void()> unlink;

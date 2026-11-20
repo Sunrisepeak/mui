@@ -44,7 +44,7 @@ omui agent capture sitepage --out media/sketch-waiting-1280.png
 
 The page ends as `app/main.ts` is. Its history ships as [`design/main.replay.xdef.json`](design/main.replay.xdef.json): nine steps, each in its maker's words, `agent:designer` or `person:maintainer`. [`omui.config.ts`](omui.config.ts) names that file. The Live Design key plays it in place (`generate.replay`): each step is the real page as it was, its maker framed at what it built. `OMUI_EXAMPLE_WRITE=1` writes the page and the replay instead of comparing them, for a change that is meant.
 
-Copy puts the chosen tab's words on the clipboard (`copy()`, openmui 0.4.7), and the page waits. GitHub is a `link`.
+Copy starts looking for the visitor's own agent (`linkAgent()`, openmui 0.4.10: on the Web, a bridge on their machine) and puts the chosen tab's words on the clipboard with the pairing code in them (`copy()`, 0.4.7); the code is nowhere else on the page, and the page waits. When their agent runs `omui connect <code>`, the bridge pairs and says the omui it runs and the machine it is on; the page hears it through `agentLink()` (a signal the runtime keeps), turns connected, and names them: "Claude Code · omui 0.1.0 · linux-x86_64". If the bridge goes, it waits again. GitHub is a `link`.
 
 While the design plays, its course goes round the O: `omui.config.ts`'s `generation.replay` names the O (`course: "o"`), and the replay lays its steps on that path where it is drawn (`timeline`'s `over`, openmui 0.4.8). While the page waits, the O breathes: the wider, fainter O has `motion: { ambient: "breathe" }`, the style's ambient motion (openmui 0.4.9); unseen at the other states, it rests and asks for no frame.
 
@@ -54,7 +54,6 @@ While the design plays, its course goes round the O: `omui.config.ts`'s `generat
 |---|---|
 | Material and light (the mark's halo, the install's surface) | The framework's effects (liquid glass, a theme layer), not page code |
 | The motion between states | The default recipes (`path`: `default.structure`); the sketches are at rest |
-| The bridge and pairing | `omui connect` (G9) |
 | Chinese, static HTML, budgets | G2's projection; the site's budgets (§6) |
 
 The page carries a copy of head16's rows from `../brand/mascot.sprite.xdef.json`, because this round does not read the brand's file from the script.

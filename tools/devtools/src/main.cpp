@@ -36,6 +36,7 @@
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
+import mlibs.hash;
 import mlibs.image;
 import nlohmann.json;
 import omui.devtools.api;
@@ -251,17 +252,17 @@ cmd::App app() {
                                         .option(Option("work").takes_value().value_name("DIR").help("default: target/release/try (emptied first)"))
                                         .option(Option("tag").takes_value().value_name("TEMPLATE").help("the release's tag (release index --tag)"))
                                         .option(Option("index").takes_value().value_name("DIR").help("the copy of mcpp-index it starts from (default: this home's)"))
-                                        .option(Option("tool").takes_value().value_name("DIR").help("with the omui tool (release tool's directory): `omui new` and `omui run` through its player, nothing built; the time from new to the first window (E2: ≤ 60 s)")))
+                                        .option(Option("tool").takes_value().value_name("DIR").help("with the omui tool (release tool's directory: its omui.lua and archive), installed through xlings in a home of its own ($TMPDIR/omui-release-xlings): `omui new` and `omui run` through its player, nothing built; the time from new to the first window (E2: ≤ 60 s)")))
                         .subcommand(cmd::App("tool")
-                                        .description("The omui tool as a release ships it (E2): the command, the player built with the designer (a TypeScript application of this release runs through it, nothing built) and the development host, in one directory and its archive")
+                                        .description("The omui tool as a release ships it (E2): the command, the player built with the designer (a TypeScript application of this release runs through it, nothing built) and the development host, vendored, in one directory, its archive and its xlings descriptor (omui.lua: its C library and graphics stack are xlings', red 142)")
                                         .option(Option("out").takes_value().value_name("DIR").help("default: target/release/tool (emptied first)")))
                         .subcommand(cmd::App("runtime")
-                                        .description("The shared runtime as a release ships it (E3b): the player without the designer and omui-launch, self-contained, with runtime.json, as omui-runtime-<version>-<platform>/ and its archive; the xlings descriptor of every version packed (omui-runtime.lua)")
+                                        .description("The shared runtime as a release ships it (E3b): the player without the designer and omui-launch, vendored (xlings installs it onto its own C library), with runtime.json, as omui-runtime-<version>-<platform>/ and its archive; the xlings descriptor of every version packed (omui-runtime.lua)")
                                         .option(Option("out").takes_value().value_name("DIR").help("default: target/release/runtime (each version's directory and archive replaced, the others kept)"))
                                         .option(Option("version").takes_value().value_name("V").help("the version it ships as (default: the player's)"))
                                         .option(Option("no-pack").help("only the descriptor (and --check) from what is packed"))
                                         .option(Option("check").help("in an xlings home of its own: every version installed side by side; two applications from app-ts, one pinned to the oldest, started together each from its runtime and drawing; the way out a refusal gives, run; each package ≤ 100 KB (report: <out>/check.json)"))
-                                        .option(Option("home").takes_value().value_name("DIR").help("the check's xlings home (default: <out>/xlings, made with `xlings self init`)"))
+                                        .option(Option("home").takes_value().value_name("DIR").help("the check's xlings home (default: $TMPDIR/omui-release-xlings, outside any project; made with `xlings self init`, this machine's downloads linked in)"))
                                         .option(Option("omui").takes_value().value_name("FILE").help("the check also runs `omui run` with this omui command in the newest application, the launcher on PATH: it starts on its runtime")))
                         .subcommand(cmd::App("index")
                                         .description("The templates' closure, its mcpp-index descriptors written to a directory, and what blocks `mcpp publish`")
@@ -1163,10 +1164,12 @@ std::uintmax_t bytes_under(const fs::path& directory) {
 // template, built, and its first window drawn (SDL's offscreen driver). Its report: <work>/try.json.
 // The omui tool as a release ships it (E2): the command; the player built with the designer, which `omui dev` and
 // `omui run` run a TypeScript application of this release through (nothing built); the development host — each
-// packed as mcpp packs a program (dist, stripped, self-contained: its libraries and the C library with it), in one
-// directory (bin/, share/, licenses/) and its archive.
+// packed as mcpp packs a program (dist, stripped, vendored: its libraries with it, not the C library), in one
+// directory (bin/, share/, licenses/), its archive and its xlings descriptor (omui.lua: xlings installs it onto its
+// own C library and graphics stack, red 142).
 int release_tool(const cmd::ParsedArgs& options, const fs::path& root) {
     namespace run = omui::devtools::run;
+    namespace release = omui::devtools::release;
     const fs::path out = options.value("out") ? fs::absolute(mcpplibs::os::fs::from_utf8(*options.value("out"))) : root / "target/release/tool";
     struct Part {
         std::string_view program, member, features;
@@ -1185,25 +1188,13 @@ int release_tool(const cmd::ParsedArgs& options, const fs::path& root) {
     fs::create_directories(out, error);
     fs::path dir;
     for (const Part& part : parts) {
-        const fs::path packed = root / part.member / "target/dist";
-        fs::remove_all(packed, error);
-        // Self-contained: the C library with it (red 142: the toolchain links glibc 2.44, a system may have 2.39), so the
-        // tool starts on any x86-64 Linux; an application's package is the vendored kind (its floor is red 142's).
-        std::vector<std::string> args{"pack",          std::string(part.program), "-p", std::string(part.member), "--profile", "dist", "--pkg-format", "dir",
-                                      "--mode",        "self-contained"};
-        if (!part.features.empty()) args.insert(args.end(), {"--features", std::string(part.features)});
-        const auto ran = run::program(root, "mcpp", std::move(args), {.cwd = root, .merged = true});
-        if (!ran || ran->status != 0) {
-            std::cerr << std::format("omui-devtools release tool: {} did not pack:\n{}\n", part.program, ran ? ran->out : ran.error());
+        // Vendored (red 142): no C library in it; xlings installs it onto its own (release::xlings_descriptor).
+        const auto packed = release::pack_program(root, part.program, part.member, part.features);
+        if (!packed) {
+            std::cerr << std::format("omui-devtools release tool: {}\n", packed.error());
             return 1;
         }
-        fs::path made;
-        for (const auto& entry : fs::directory_iterator(packed, error))
-            if (entry.is_directory(error)) made = entry.path();
-        if (made.empty() || !fs::exists(made / "bin" / std::string(part.program), error)) {
-            std::cerr << std::format("omui-devtools release tool: no bin/{} under {}\n", part.program, mcpplibs::os::fs::utf8(packed));
-            return 1;
-        }
+        const fs::path made = *packed;
         if (dir.empty()) {
             // <package>-<version>-<triple>: the triple the programs run on
             const std::string name = mcpplibs::os::fs::utf8(made.filename()), prefix = std::format("-{}-", version);
@@ -1219,9 +1210,15 @@ int release_tool(const cmd::ParsedArgs& options, const fs::path& root) {
     fs::create_directories(dir / "licenses/omui", error);
     fs::copy_file(root / "LICENSE", dir / "licenses/omui/LICENSE", fs::copy_options::overwrite_existing, error);
     // What the player it ships says it is: this release (the command runs an application through it only then).
-    // Through its launcher, as a person starts it (self-contained: the loader it carries).
-    const auto said = run::program(root, mcpplibs::os::fs::utf8(fs::exists(dir / "omui-player", error) ? dir / "omui-player" : dir / "bin/omui-player"), {"--version"},
-                                   {.cwd = root, .merged = true});
+    // On the C library xlings installs it onto.
+    const auto loader = release::xlings_loader(dir);
+    if (!loader) {
+        std::cerr << std::format("omui-devtools release tool: {}\n", loader.error());
+        return 1;
+    }
+    std::vector<std::string> asked(loader->begin() + 1, loader->end());
+    asked.insert(asked.end(), {mcpplibs::os::fs::utf8(dir / "bin/omui-player"), "--version"});
+    const auto said = run::program(root, loader->front(), std::move(asked), {.cwd = root, .merged = true});
     std::string answered = said ? said->out : said.error();
     while (!answered.empty() && (answered.back() == '\n' || answered.back() == '\r')) answered.pop_back();
     if (!said || said->status != 0 || answered != version) {
@@ -1229,14 +1226,41 @@ int release_tool(const cmd::ParsedArgs& options, const fs::path& root) {
         return 1;
     }
     const fs::path archive = out / std::format("{}.tar.gz", mcpplibs::os::fs::utf8(dir.filename()));
-    if (auto packed = run::output(root, "tar", {"-C", mcpplibs::os::fs::utf8(out), "-czf", mcpplibs::os::fs::utf8(archive), mcpplibs::os::fs::utf8(dir.filename())});
+    // No hard links: xlings extracts them with link(2), which some systems refuse.
+    if (auto packed = run::output(root, "tar", {"--hard-dereference", "-C", mcpplibs::os::fs::utf8(out), "-czf", mcpplibs::os::fs::utf8(archive), mcpplibs::os::fs::utf8(dir.filename())});
         !packed) {
         std::cerr << std::format("omui-devtools release tool: tar: {}\n", packed.error());
         return 1;
     }
+    // Its sha256 and its xlings descriptor (omui.lua): what its programs ask of the machine, read from them.
+    const std::string sha256 = mlibs::hash::sha256_hex(mcpplibs::os::fs::read(archive).value_or(""));
+    (void)mcpplibs::os::fs::write(fs::path(archive).concat(".sha256"), std::format("{}  {}\n", sha256, mcpplibs::os::fs::utf8(archive.filename())));
+    release::XlingsRelease described{
+        .name = "omui",
+        .description = "omui: the command, the player a TypeScript application of this release runs through, and the development host",
+        .about = "omui: the tool of an omui release (E2). Written by `omui-devtools release tool`: `omui new`, `omui dev` and\n"
+                 "`omui run` of a TypeScript application through the player it ships, nothing compiled.",
+        .programs = {"omui", "omui-player", "omui-devhost"},
+        .categories = {"gui", "tools"},
+        .keywords = {"omui", "openmui", "ui", "agent"},
+        .versions = {{.version = version, .url = release::release_url(version, mcpplibs::os::fs::utf8(archive.filename())), .sha256 = sha256}},
+        .wants = release::wants_of(dir),
+    };
+    // The omui command makes, builds and packs through mcpp (D-150): the workspace's mcpp, at least.
+    const nlohmann::json workspace = nlohmann::json::parse(mcpplibs::os::fs::read(root / ".xlings.json").value_or("{}"), nullptr, false);
+    if (!workspace.is_discarded() && workspace.contains("workspace") && workspace["workspace"].contains("mcpp"))
+        described.starts.push_back(std::format("xim:mcpp@>={}", workspace["workspace"]["mcpp"].get<std::string>()));
+    if (auto written = mcpplibs::os::fs::write(out / "omui.lua", release::xlings_descriptor(described)); !written) {
+        std::cerr << std::format("omui-devtools release tool: omui.lua: {}\n", written.error().message());
+        return 1;
+    }
     for (const Part& part : parts)
         std::println("  bin/{:13} {:>10} B", part.program, fs::file_size(dir / "bin" / std::string(part.program), error));
-    std::println("release tool: {} ({} B, archive {} B)", mcpplibs::os::fs::utf8(dir), bytes_under(dir), fs::file_size(archive, error));
+    std::string wanted = described.wants.glibc.empty() ? std::string() : std::format("xim:glibc@>={}", described.wants.glibc);
+    for (const auto& package : described.wants.packages) wanted += std::format("{}{}", wanted.empty() ? "" : ", ", package);
+    for (const auto& package : described.starts) wanted += std::format("{}{}", wanted.empty() ? "" : ", ", package);
+    std::println("release tool: {} ({} B, archive {} B); omui.lua wants {}{}", mcpplibs::os::fs::utf8(dir), bytes_under(dir), fs::file_size(archive, error), wanted,
+                 described.wants.graphics ? ", xim:graphics" : "");
     return 0;
 }
 
@@ -1339,21 +1363,50 @@ int release_try(const cmd::ParsedArgs& options, const fs::path& root) {
     // With the omui tool (E2): `omui new`, then the first window through the player it ships — nothing compiled;
     // new to first window within a minute on this home (the downloads are the seeded store's).
     if (const auto tool_text = options.value("tool")) {
-        // The tool and the project outside any checkout (fonts, the source tree's fallbacks: none of them here), the
-        // tool started by its launchers as a person's PATH has them.
+        // The tool installed as a user installs it (red 142): through xlings from its descriptor (omui.lua), in an xlings
+        // home of its own, onto xlings' C library and graphics stack; the host's (glibc 2.39 here) is never used. Its
+        // archive seeded where xlings downloads to (nothing is published); its dependencies from this machine's store.
+        const fs::path released = fs::absolute(mcpplibs::os::fs::from_utf8(*tool_text));
+        fs::path archive;
+        for (const auto& entry : fs::directory_iterator(released, error))
+            if (const std::string name = mcpplibs::os::fs::utf8(entry.path().filename()); name.starts_with("omui-") && name.ends_with(".tar.gz")) archive = entry.path();
+        if (archive.empty() || !fs::exists(released / "omui.lua", error))
+            return failed("tool", std::format("no omui.lua and omui-*.tar.gz in {} (omui-devtools release tool)", *tool_text));
+        since = clock::now();
+        // Outside any project: inside the checkout, xlings would take the checkout's .xlings.json as the scope of what
+        // the home installs and its shims run.
+        const fs::path xlings_home = fs::temp_directory_path() / "omui-release-xlings";
+        const auto in_xlings = release::xlings_home(root, xlings_home, released / "omui.lua");
+        if (!in_xlings) return failed("tool: install", in_xlings.error());
+        fs::create_directories(xlings_home / "data/runtimedir", error);
+        fs::remove(xlings_home / "data/runtimedir" / archive.filename(), error);
+        fs::copy_file(archive, xlings_home / "data/runtimedir" / archive.filename(), error);
+        const auto xlings = [&](std::vector<std::string> args) {
+            return run::program(root, mcpplibs::os::fs::utf8(xlings_home / "bin/xlings"), std::move(args),
+                                {.cwd = xlings_home, .merged = true, .variables = in_xlings->variables, .unset = in_xlings->unset, .timeout = std::chrono::seconds(900)});
+        };
+        (void)xlings({"remove", "omui", "-y", "--global"});
+        if (auto installed = xlings({"install", "omui", "-y", "--global"}); !ok(installed)) return failed("tool: install", said(installed));
+        // Its programs on PATH as xvm puts them, and where the package went.
+        const fs::path shims = in_xlings->shims;
+        fs::path installed;
+        for (const auto& package : fs::directory_iterator(xlings_home / "data/xpkgs", error))
+            if (mcpplibs::os::fs::utf8(package.path().filename()).ends_with("-x-omui"))
+                for (const auto& version : fs::directory_iterator(package.path(), error)) installed = version.path();
+        if (!fs::exists(shims / "omui", error) || !fs::exists(shims / "omui-player", error) || installed.empty())
+            return failed("tool: install", std::format("no omui and omui-player shims in {}, or no package under its xpkgs", mcpplibs::os::fs::utf8(shims)));
+        passed("tool: install", since, {{"package_bytes", bytes_under(installed)}, {"archive_bytes", fs::file_size(archive, error)}});
+        // The project outside any checkout (fonts, the source tree's fallbacks: none of them here).
         const fs::path scratch = fs::temp_directory_path() / "omui-release-try-tool";
         fs::remove_all(scratch, error);
         fs::create_directories(scratch, error);
-        const fs::path tool = scratch / "tool";
-        fs::copy(fs::absolute(mcpplibs::os::fs::from_utf8(*tool_text)), tool, fs::copy_options::recursive, error);
-        if (error || !fs::exists(tool / "omui", error) || !fs::exists(tool / "omui-player", error))
-            return failed("tool", std::format("no omui and omui-player launchers in {} (omui-devtools release tool)", *tool_text));
         std::vector<std::pair<std::string, std::string>> with_tool = in_home;
-        with_tool.emplace_back("PATH", std::format("{}:{}", mcpplibs::os::fs::utf8(tool), mcpplibs::os::env::get("PATH").value_or("/usr/bin:/bin")));
+        with_tool.insert(with_tool.end(), in_xlings->variables.begin(), in_xlings->variables.end());
+        with_tool.emplace_back("PATH", std::format("{}:{}", mcpplibs::os::fs::utf8(shims), mcpplibs::os::env::get("PATH").value_or("/usr/bin:/bin")));
         const auto omui = [&](std::vector<std::string> args, const fs::path& cwd, std::vector<std::pair<std::string, std::string>> extra = {}) {
-            run::How how{.cwd = cwd, .merged = true, .variables = with_tool};
+            run::How how{.cwd = cwd, .merged = true, .variables = with_tool, .unset = in_xlings->unset};
             how.variables.insert(how.variables.end(), extra.begin(), extra.end());
-            return run::program(root, mcpplibs::os::fs::utf8(tool / "omui"), std::move(args), how);
+            return run::program(root, mcpplibs::os::fs::utf8(shims / "omui"), std::move(args), how);
         };
         since = clock::now();
         if (auto made = omui({"new", "hello", "--template", template_name}, scratch); !ok(made)) return failed("tool: new", said(made));

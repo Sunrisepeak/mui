@@ -199,11 +199,17 @@ constexpr std::string_view player_version = "0.1.0";
 
 namespace {
 
-// Where this player runs from: its package's directory (a self-contained package's launcher says it,
-// MCPP_BUNDLE_DIR), else its program's.
+// Where this player runs from: its package's directory — a self-contained package's launcher says it
+// (MCPP_BUNDLE_DIR); a vendored package (as xlings installs a release) is the directory above the program's bin/
+// that holds the package's mcpp-package.json — else its program's.
 std::filesystem::path runtime_directory() {
     if (const auto bundle = mcpplibs::os::env::get("MCPP_BUNDLE_DIR"); bundle && !bundle->empty()) return mcpplibs::os::fs::from_utf8(*bundle);
-    if (const auto image = mcpplibs::os::env::image()) return image->parent_path();
+    if (const auto image = mcpplibs::os::env::image()) {
+        const std::filesystem::path directory = image->parent_path();
+        std::error_code error;
+        if (directory.filename() == "bin" && std::filesystem::exists(directory.parent_path() / "mcpp-package.json", error)) return directory.parent_path();
+        return directory;
+    }
     return std::filesystem::current_path();
 }
 

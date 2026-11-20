@@ -31,20 +31,6 @@ std::string stem_of(std::string_view version, std::string_view platform) { retur
 
 std::string platform_here() { return std::format("{}-{}", os::name(os::host()), os::machine::arch()); }
 
-// `mcpp pack PROGRAM -p MEMBER --profile dist`, self-contained (the C library with it: red 142): the directory made.
-std::expected<fs::path, std::string> pack(const fs::path& root, std::string_view program, std::string_view member) {
-    const fs::path packed = root / member / "target/dist";
-    std::error_code error;
-    fs::remove_all(packed, error);
-    const auto ran = run::program(root, "mcpp",
-                                  {"pack", std::string(program), "-p", std::string(member), "--profile", "dist", "--pkg-format", "dir", "--mode", "self-contained"},
-                                  {.cwd = root, .merged = true});
-    if (!ran || ran->status != 0) return std::unexpected(std::format("{} did not pack:\n{}", program, ran ? ran->out : ran.error()));
-    for (const auto& entry : fs::directory_iterator(packed, error))
-        if (entry.is_directory(error) && fs::exists(entry.path() / "bin" / std::string(program), error)) return entry.path();
-    return std::unexpected(std::format("no bin/{} under {}", program, utf8(packed)));
-}
-
 std::uintmax_t bytes_in(const fs::path& directory) {
     std::uintmax_t total = 0;
     std::error_code error;
@@ -78,65 +64,27 @@ std::vector<Packed> packed_in(const fs::path& out, std::string_view platform) {
 }
 
 // The xlings descriptor of every version in `out`: where a release puts each archive (GitHub, the tag of its
-// version), its sha256; installed, the launcher is on PATH (xvm).
-std::string descriptor(std::span<const Packed> versions, std::string_view platform) {
-    std::string entries;
+// version), its sha256, and what the newest one's programs ask of the machine (wants_of); installed, the launcher is
+// on PATH (xvm).
+std::expected<std::string, std::string> descriptor(const fs::path& out, std::span<const Packed> versions, std::string_view platform) {
+    XlingsRelease release{
+        .name = std::string(package_name),
+        .description = "The omui runtime: starts TypeScript applications, shipped as data, that declare the openmui specification it implements",
+        .about = "omui-runtime: the shared runtime of omui applications (E3b, D-250). Written by `omui-devtools release runtime`:\n"
+                 "each version is a directory of its own, its runtime.json saying the openmui specification it implements and\n"
+                 "the capabilities it carries; omui-launch starts an application with the newest installed one that satisfies\n"
+                 "what its manifest declares ([package.metadata.openmui.runtime]).",
+        .programs = {"omui-launch"},
+        .categories = {"gui", "runtime"},
+        .keywords = {"omui", "openmui", "ui", "runtime"},
+    };
     for (const Packed& one : versions)
-        entries += std::format("            [\"{}\"] = {{\n                url = \"https://github.com/Sunrisepeak/mui/releases/download/v{}/{}\",\n"
-                               "                sha256 = \"{}\",\n            }},\n",
-                               one.version, one.version, utf8(one.archive.filename()), one.sha256);
-    return std::format(R"(-- omui-runtime: the shared runtime of omui applications (E3b, D-250). Written by
--- `omui-devtools release runtime`: each version is a directory of its own, its runtime.json saying the openmui
--- specification it implements and the capabilities it carries; omui-launch starts an application with the newest
--- installed one that satisfies what its manifest declares ([package.metadata.openmui.runtime]).
-package = {{
-    spec = "1",
-    name = "{}",
-    description = "The omui runtime: starts TypeScript applications, shipped as data, that declare the openmui specification it implements",
-    type = "package",
-    licenses = {{"Apache-2.0"}},
-    repo = "https://github.com/Sunrisepeak/mui",
-    archs = {{"{}"}},
-    status = "dev",
-    categories = {{"gui", "runtime"}},
-    keywords = {{"omui", "openmui", "ui", "runtime"}},
-    programs = {{"omui-launch"}},
-    xvm_enable = true,
-
-    xpm = {{
-        {} = {{
-            deps = {{ build = {{ "xim:patchelf" }} }},
-            ["latest"] = {{ ref = "{}" }},
-{}        }},
-    }},
-}}
-
-import("xim.libxpkg.pkginfo")
-import("xim.libxpkg.xvm")
-import("xim.libxpkg.elfpatch")
-
--- Self-contained: its programs run on the C library and loader it carries (lib/). Packed, their interpreter is
--- the build machine's; installed, each one's is its own lib/ld-linux and its search path its own lib/, so that
--- bin/omui-player starts as well as the launcher scripts beside it (which name the loader themselves).
-function install()
-    os.tryrm(pkginfo.install_dir())
-    os.mv(pkginfo.install_file():replace(".tar.gz", ""), pkginfo.install_dir())
-    local lib = path.join(pkginfo.install_dir(), "lib")
-    elfpatch.set({{ interpreter = path.join(lib, "ld-linux-x86-64.so.2"), extra_rpath = {{ lib }} }})
-    return true
-end
-
-function config()
-    xvm.add("omui-launch", {{ bindir = pkginfo.install_dir() }})
-    return true
-end
-
-function uninstall()
-    xvm.remove("omui-launch", pkginfo.version())
-    return true
-end
-)",
-                       package_name, os::machine::arch(), os::name(os::host()), versions.empty() ? std::string() : versions.back().version, entries);
+        release.versions.push_back({.version = one.version, .url = release_url(one.version, utf8(one.archive.filename())), .sha256 = one.sha256});
+    std::error_code error;
+    const fs::path newest = out / stem_of(versions.back().version, platform);
+    if (!fs::is_directory(newest / "bin", error)) return std::unexpected(std::format("{} is not there: what its programs ask for is read from it", utf8(newest)));
+    release.wants = wants_of(newest);
+    return xlings_descriptor(release);
 }
 
 // Packs this tree's runtime as `version` into `out`; its directory.
@@ -153,7 +101,7 @@ int pack_runtime(const fs::path& root, const fs::path& out, const std::string& v
     // The player without the designer (a release leaves it out), then the launcher beside it (the libraries they
     // share already there).
     for (const auto& [program, member] : {std::pair{std::string_view("omui-player"), player_member}, std::pair{std::string_view("omui-launch"), launcher_member}}) {
-        auto made = pack(root, program, member);
+        auto made = pack_program(root, program, member);
         if (!made) return fail(made.error());
         fs::copy(*made, dir, fs::copy_options::recursive | fs::copy_options::skip_existing, error);
         if (error) return fail(std::format("{}: {}", utf8(*made), error.message()));
@@ -161,14 +109,23 @@ int pack_runtime(const fs::path& root, const fs::path& out, const std::string& v
     fs::create_directories(dir / "licenses/omui", error);
     fs::copy_file(root / "LICENSE", dir / "licenses/omui/LICENSE", fs::copy_options::overwrite_existing, error);
     // What it is: the player's own word (--runtime), the version it ships as.
-    const auto said = run::output(root, utf8(dir / "omui-player"), {"--runtime"}, {.cwd = root});
+    // Run as xlings will install it: on its C library (vendored, red 142).
+    const auto loader = xlings_loader(dir);
+    if (!loader) return fail(loader.error());
+    const auto through = [&](std::string_view program, std::string_view argument) {
+        std::vector<std::string> args(loader->begin() + 1, loader->end());
+        args.push_back(utf8(dir / "bin" / std::string(program)));
+        args.emplace_back(argument);
+        return run::output(root, loader->front(), std::move(args), {.cwd = root});
+    };
+    const auto said = through("omui-player", "--runtime");
     if (!said) return fail(std::format("omui-player --runtime: {}", said.error()));
     json described = json::parse(*said, nullptr, false);
     if (described.is_discarded() || described.value("$format", "") != "runtime@1") return fail(std::format("omui-player --runtime said `{}`", *said));
     described["runtime"]["version"] = version;
     described["runtime"].erase("directory");  // where it ran from here: the installed copy is elsewhere
     if (auto written = os::fs::write(dir / "runtime.json", described.dump(2) + "\n"); !written) return fail(written.error().message());
-    if (auto helped = run::output(root, utf8(dir / "omui-launch"), {"--help"}, {.cwd = root}); !helped) return fail(std::format("omui-launch --help: {}", helped.error()));
+    if (auto helped = through("omui-launch", "--help"); !helped) return fail(std::format("omui-launch --help: {}", helped.error()));
     // Its archive (no hard links: xlings extracts them with link(2), which some systems refuse) and its sha256.
     const fs::path archive = out / std::format("{}.tar.gz", stem);
     if (auto made = run::output(root, "tar", {"--hard-dereference", "-C", utf8(out), "-czf", utf8(archive), stem}); !made) return fail(std::format("tar: {}", made.error()));
@@ -218,7 +175,12 @@ int runtime(const fs::path& root, const RuntimeRelease& options) {
         std::println(std::cerr, "omui-devtools release runtime: no {}-*-{}.tar.gz in {} (pack one first)", package_name, platform, utf8(out));
         return 1;
     }
-    if (auto written = os::fs::write(out / "omui-runtime.lua", descriptor(versions, platform)); !written) {
+    const auto described = descriptor(out, versions, platform);
+    if (!described) {
+        std::println(std::cerr, "omui-devtools release runtime: {}", described.error());
+        return 1;
+    }
+    if (auto written = os::fs::write(out / "omui-runtime.lua", *described); !written) {
         std::println(std::cerr, "omui-devtools release runtime: omui-runtime.lua: {}", written.error().message());
         return 1;
     }
@@ -246,22 +208,19 @@ int runtime(const fs::path& root, const RuntimeRelease& options) {
         return 1;
     };
     if (versions.size() < 2) return failed("versions", std::format("two versions side by side are checked; {} has {} (pack another: --version)", utf8(out), versions.size()));
-    const auto xlings = os::env::find_executable("xlings");
-    if (!xlings) return failed("xlings", "xlings is not on PATH");
-    const fs::path home = options.home.empty() ? out / "xlings" : fs::absolute(options.home);
+    // Outside any project (inside the checkout, its .xlings.json would scope what the home installs).
+    const fs::path home = fs::absolute(options.home.empty() ? fs::temp_directory_path() / "omui-release-xlings" : options.home).lexically_normal();
     std::error_code error;
-    const std::vector<std::pair<std::string, std::string>> in_home{{"XLINGS_HOME", utf8(home)}};
+    // An xlings home of its own (its index fetched once, this machine's downloads seeded), the descriptor registered.
+    const auto in_xlings = xlings_home(root, home, out / "omui-runtime.lua");
+    if (!in_xlings) return failed("home", in_xlings.error());
+    passed("home", {{"home", utf8(home)}});
     const auto with_xlings = [&](std::vector<std::string> args, std::chrono::seconds timeout = std::chrono::seconds(600)) {
-        return run::program(root, utf8(*xlings), std::move(args), {.cwd = out, .merged = true, .variables = in_home, .timeout = timeout});
+        return run::program(root, utf8(home / "bin/xlings"), std::move(args),
+                            {.cwd = home, .merged = true, .variables = in_xlings->variables, .unset = in_xlings->unset, .timeout = timeout});
     };
     const auto said = [](const std::expected<run::Ran, std::string>& ran) { return ran ? ran->out : ran.error(); };
     const auto ok = [](const std::expected<run::Ran, std::string>& ran) { return ran && ran->status == 0; };
-
-    // An xlings home of its own (its index fetched once), the descriptor registered beside the index.
-    if (!fs::exists(home / "data/xim-pkgindex", error))
-        if (auto made = with_xlings({"self", "init"}); !ok(made)) return failed("home", said(made));
-    if (auto added = with_xlings({"config", "--add-xpkg", utf8(out / "omui-runtime.lua")}); !ok(added)) return failed("home", said(added));
-    passed("home", {{"home", utf8(home)}});
 
     // Every version installed side by side: its archive seeded where xlings downloads to (nothing is published).
     const auto install = [&](const Packed& one) -> std::expected<void, std::string> {
@@ -319,7 +278,8 @@ int runtime(const fs::path& root, const RuntimeRelease& options) {
     const fs::path launcher = places.at(newest) / "omui-launch";
     const std::vector<std::pair<std::string, std::string>> session{{"XLINGS_HOME", utf8(home)}, {"SDL_VIDEO_DRIVER", "offscreen"}};
     const auto launch = [&](std::vector<std::string> args) {
-        return run::program(root, utf8(launcher), std::move(args), {.cwd = apps, .merged = true, .variables = session, .timeout = std::chrono::seconds(120)});
+        return run::program(root, utf8(launcher), std::move(args),
+                            {.cwd = apps, .merged = true, .variables = session, .unset = in_xlings->unset, .timeout = std::chrono::seconds(120)});
     };
     const auto which = [&](std::string_view name) -> std::expected<std::string, std::string> {
         const auto asked = launch({"--which", utf8(apps / name)});
@@ -354,6 +314,7 @@ int runtime(const fs::path& root, const RuntimeRelease& options) {
         for (const std::string_view name : {"first", "second"}) {
             os::process::spawn_options how{.program = launcher, .args = {utf8(apps / name)}, .cwd = apps};
             for (const auto& [variable, value] : session) how.env.emplace_back(variable, value);
+            for (const auto& variable : in_xlings->unset) how.env.emplace_back(variable, std::nullopt);
             how.in = os::process::stdio::null;
             how.out = how.err = os::process::stdio::null;
             auto started = os::process::process::spawn(how);
@@ -390,7 +351,7 @@ int runtime(const fs::path& root, const RuntimeRelease& options) {
         auto with_path = session;
         with_path.emplace_back("PATH", std::format("{}:{}", utf8(launcher.parent_path()), os::env::get("PATH").value_or("")));
         const auto ran = run::program(root, utf8(fs::absolute(options.omui)), {"run", "--", "--runtime"},
-                                      {.cwd = apps / "second", .merged = true, .variables = with_path, .timeout = std::chrono::seconds(120)});
+                                      {.cwd = apps / "second", .merged = true, .variables = with_path, .unset = in_xlings->unset, .timeout = std::chrono::seconds(120)});
         if (!ok(ran)) return failed("omui run", said(ran));
         // The player's word (its runtime@1 line) among omui's own records.
         fs::path directory;

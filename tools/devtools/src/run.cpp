@@ -19,6 +19,7 @@ std::expected<Ran, std::string> program(const fs::path& root, std::string name, 
     options.out = how.shown ? process::stdio::inherit : process::stdio::pipe;
     options.err = how.merged && !how.shown ? process::stdio::output : process::stdio::inherit;
     for (const auto& [variable, value] : how.variables) options.env.emplace_back(variable, value);
+    for (const auto& variable : how.unset) options.env.emplace_back(variable, std::nullopt);
     const bool bounded = how.timeout.count() > 0;
     options.own_unit = bounded;  // the timeout ends what it started too
     auto started = process::process::spawn(options);

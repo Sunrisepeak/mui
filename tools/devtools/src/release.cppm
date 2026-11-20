@@ -96,8 +96,63 @@ struct Closure {
 // The templates `mcpp new --template` offers from the SDK (their directories under templates_directory).
 inline constexpr std::array<std::string_view, 5> template_names{"app-cpp", "app-ts", "component", "native", "theme"};
 
+// ── A release's programs through xlings (red 142: route A of mcpp's packaging) ──────────────────────────────────
+// Packed vendored: no C library in the package. Installed by xlings, every ELF file's interpreter and search path
+// are pointed at the runtime dependencies its descriptor states (xim:glibc the one loader among them: the C library
+// the toolchain itself runs on, one copy a machine), and a program that opens windows and GPUs is given xlings'
+// graphics stack (X11's libraries, the Vulkan loader, Mesa, or the host's NVIDIA userspace through
+// xim:nvidia-gl-host-link). Nothing comes from the system but its kernel and its display server.
+
+// `mcpp pack PROGRAM -p MEMBER --profile dist --pkg-format dir` (vendored) with FEATURES: the directory it made.
+[[nodiscard]] std::expected<std::filesystem::path, std::string> pack_program(const std::filesystem::path& root, std::string_view program,
+                                                                             std::string_view member, std::string_view features = {});
+
+// What the ELF files under a directory ask of the machine they run on: the newest GLIBC_2.x they name and the
+// xlings packages of the libraries they name (DT_NEEDED and dlopen's alike: SDL loads X11 and Vulkan by name).
+struct Wants {
+    std::string glibc;                  // "2.43" (empty: none named)
+    std::vector<std::string> packages;  // "xim:gcc-runtime@>=15.1", …, in the table's order, each once
+    bool graphics = false;              // a window or a GPU: xim:graphics among them, its variables on the programs
+};
+[[nodiscard]] Wants wants_of(const std::filesystem::path& directory);
+
+// An xlings descriptor (spec 2) of a release's programs, vendored: its versions' archives, its runtime
+// dependencies (`wants`), each program on PATH (xvm) from bin/.
+struct XlingsVersion {
+    std::string version, url, sha256;
+};
+struct XlingsRelease {
+    std::string name, description, about;  // `about`: the comment at its top, a line each
+    std::vector<std::string> programs, categories, keywords;
+    std::vector<XlingsVersion> versions;  // oldest first; the last is `latest`
+    Wants wants;
+    std::vector<std::string> starts;  // the packages of programs it starts ("xim:mcpp@>=…": the omui command's builds)
+};
+[[nodiscard]] std::string xlings_descriptor(const XlingsRelease& release);
+
+// How a packed program of a package runs here before xlings installs it, as installed it will: through the loader of
+// this machine's newest xim:glibc, that C library, xim:gcc-runtime's and the package's own lib/ searched first. The
+// words before the program's path (its loader and `--library-path …`).
+[[nodiscard]] std::expected<std::vector<std::string>, std::string> xlings_loader(const std::filesystem::path& package);
+
+// The archive a GitHub release of `version` puts at https://github.com/Sunrisepeak/mui/releases/download/v<version>/.
+[[nodiscard]] std::string release_url(std::string_view version, std::string_view archive);
+
+// An xlings home to try a release in, as a user's own is: its index fetched once (`xlings self init`), xlings itself
+// in its bin/ (an installed program's shim is a link to it), the descriptor at `descriptor` registered, and its
+// download store seeded with the archives this machine's xlings already has (links; xlings checks each one's
+// sha256), so a dependency is not downloaded twice. How to run in it: XLINGS_HOME set, the variables of the home
+// this process runs in (its active subos) left out; where its programs' shims are.
+struct XlingsHome {
+    std::vector<std::pair<std::string, std::string>> variables;
+    std::vector<std::string> unset;
+    std::filesystem::path shims;  // <home>/subos/default/bin
+};
+[[nodiscard]] std::expected<XlingsHome, std::string> xlings_home(const std::filesystem::path& root, const std::filesystem::path& home,
+                                                                 const std::filesystem::path& descriptor);
+
 // `release runtime` (E3b, D-250): the shared runtime as a release ships it — the player without the designer and the
-// launcher (omui-launch), self-contained, with runtime.json (runtime@1: its version, the specification it implements,
+// launcher (omui-launch), vendored (red 142), with runtime.json (runtime@1: its version, the specification it implements,
 // its capabilities) — as omui-runtime-<version>-<platform>/ and its archive in `out`, and the xlings descriptor of
 // every version there (omui-runtime.lua). `check`: in an xlings home of its own, every version installed side by
 // side through the descriptor (the archives seeded where xlings downloads to: nothing is published); two applications
@@ -109,7 +164,7 @@ struct RuntimeRelease {
     std::string version;         // the version it is packed as (default: the player's)
     bool pack = true;
     bool check = false;
-    std::filesystem::path home;  // the check's xlings home (default: <out>/xlings, made with `xlings self init`)
+    std::filesystem::path home;  // the check's xlings home (default: $TMPDIR/omui-release-xlings, outside any project)
     std::filesystem::path omui;  // the check's `omui` command: `omui run` through the launcher (none: that step not run)
 };
 [[nodiscard]] int runtime(const std::filesystem::path& root, const RuntimeRelease& options);

@@ -19,6 +19,7 @@ struct How {
     bool shown = false;                                          // standard output passed through rather than captured
     bool merged = false;                                         // standard error captured with standard output
     std::vector<std::pair<std::string, std::string>> variables;  // set for the program
+    std::vector<std::string> unset;                              // left out of what it inherits
     std::string input;                                           // given on its standard input (none: the null device)
     std::chrono::seconds timeout{0};                             // more than 0: ended with what it started after so long
 };

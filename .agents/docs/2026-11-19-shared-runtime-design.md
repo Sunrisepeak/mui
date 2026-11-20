@@ -46,7 +46,7 @@ runtime  = "=0.1.3"              # 可选：钉确切的运行时（C++ 动态�
 
 **启动器。** 一个很小的程序（目标 ≤ 200 KB，不链接运行时）：读清单 → 在 xlings 的数据目录里列出已装的 `omui-runtime` 与它们的 `composition.json` → 选出满足声明的最新一个 → 把应用的目录交给它的播放器。找不到时的输出是可执行的出路（D-186）：缺哪个规范版本或哪项能力、装它的那一条命令。数据目录的位置经 `mcpplibs.os` 取，三个桌面平台各自的约定。
 
-实现（E3b 第一步，480d7d8a）：每个运行时版本的自描述是包里的 `runtime.json`（`runtime@1`：版本、实现的规范的主次版本、能力），由播放器的 `--runtime` 写出，能力取自这次构建装了的 compose 槽位（与 `composition.json` 同源）；运行时包随带启动器 `omui-launch`，经 xvm 放上 PATH；装上之后每个程序的加载器与库都是包自己的（xlings 的 elfpatch）。第二步：`omui run` 对声明了运行时、且用本发布的播放器的 TS 应用，经 PATH 上的 `omui-launch` 在满足它的最新运行时上启动（与用户机器上一样）；没有满足的就在 `omui` 自带的播放器上运行，先说出启动器给的原因与安装命令；`omui dev` 仍用自带的播放器（它带设计器）；检出里用路径依赖的应用照旧构建。
+实现（E3b 第一步，480d7d8a）：每个运行时版本的自描述是包里的 `runtime.json`（`runtime@1`：版本、实现的规范的主次版本、能力），由播放器的 `--runtime` 写出，能力取自这次构建装了的 compose 槽位（与 `composition.json` 同源）；运行时包随带启动器 `omui-launch`，经 xvm 放上 PATH；包是 vendored 的，不带 C 库（红灯 142，2026-11-20 起）：描述里的运行时依赖由 `omui-devtools release` 从包里的 ELF 文件读出——用到的最新 `GLIBC_2.x` 成为 `xim:glibc@>=` 的下限，点名的库（SDL 运行时加载的 X11 各库与 Vulkan 加载器、libgcc_s）各对应 xlings 的包，开窗口或用 GPU 的再加 `xim:graphics`（Mesa，或经 `nvidia-gl-host-link` 接上宿主机的 NVIDIA 用户态，驱动的查找路径由 `graphics.consumer_envs()` 设在 shim 上）；`xim:glibc` 是依赖里唯一导出加载器的包，xlings 装包时自动把每个 ELF 的加载器与搜索路径指向这些依赖。所以宿主机只提供内核与显示服务，C 库每台机器一份，与工具链共用。第二步：`omui run` 对声明了运行时、且用本发布的播放器的 TS 应用，经 PATH 上的 `omui-launch` 在满足它的最新运行时上启动（与用户机器上一样）；没有满足的就在 `omui` 自带的播放器上运行，先说出启动器给的原因与安装命令；`omui dev` 仍用自带的播放器（它带设计器）；检出里用路径依赖的应用照旧构建。
 
 **应用作为包。** 应用自己可以是 xlings 的包，`deps` 写 `omui-runtime@>=0.1`（或确切版本）；`xlings install <应用>` 把缺的运行时一起装上；不再被引用的旧版本由 xlings 清理，不另做一套。
 

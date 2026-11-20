@@ -1,5 +1,6 @@
 // omui-devtools run: a program's output captured, its standard error with it when merged, in the order
-// written; a status as a shell reports it; a missing program said so; the machine's share at least one.
+// written; a status as a shell reports it; a variable set or left out; a missing program said so; the machine's share
+// at least one.
 import std;
 import mcpplibs.mtest;
 import mcpplibs.os;
@@ -21,6 +22,14 @@ static UTest cases{"devtools.run", [] {
         const auto only_error = run::program(root, "sh", {"-c", "echo alone >&2; exit 2"}, {.merged = true});
         expect(only_error.has_value() && eq(only_error->status, 2) && eq(only_error->out, std::string("alone\n")))
             << (only_error ? std::format("[{}] {:?}", only_error->status, only_error->out) : only_error.error());
+    };
+
+    "a variable set for the program; one it would inherit left out"_test = [] {
+        if constexpr (mcpplibs::os::is_windows) return;
+        const auto root = std::filesystem::current_path();
+        const auto ran = run::program(root, "sh", {"-c", "echo \"[${OMUI_RUN_SET}][${HOME+home}]\""},
+                                      {.variables = {{"OMUI_RUN_SET", "set"}}, .unset = {"HOME"}});
+        expect(ran.has_value() && eq(ran->out, std::string("[set][]\n"))) << (ran ? ran->out : ran.error());
     };
 
     "a missing program is said so; the machine's share is at least one compile"_test = [] {

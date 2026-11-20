@@ -135,4 +135,43 @@ static UTest cases{
             expect(problem.starts_with("4:")) << problem;
         };
 
+        "a vendored package's xlings dependencies are what its ELF files name (red 142)"_test = [] {
+            namespace fs = std::filesystem;
+            const fs::path package = fs::temp_directory_path() / "omui-release-wants";
+            fs::remove_all(package);
+            fs::create_directories(package / "bin");
+            fs::create_directories(package / "lib");
+            // A program: its symbol versions and the libraries it loads by name; the Vulkan loader is carried beside it.
+            std::ofstream(package / "bin/app", std::ios::binary) << std::string("\x7f" "ELF", 4) << '\0' << "GLIBC_2.2.5" << '\0'
+                                                                  << "GLIBC_2.38" << '\0' << "GLIBCXX_3.4.35" << '\0' << "libgcc_s.so.1" << '\0'
+                                                                  << "libX11.so.6" << '\0' << "libvulkan.so.1";
+            std::ofstream(package / "lib/libvulkan.so.1", std::ios::binary) << std::string("\x7f" "ELF", 4);
+            std::ofstream(package / "README.md") << "libXi.so.6 GLIBC_2.99: not an ELF file, not read";
+            const release::Wants wants = release::wants_of(package);
+            expect(wants.glibc == "2.38") << wants.glibc;
+            const std::vector<std::string> expected{"xim:gcc-runtime@>=16.1", "xim:libX11@>=1.8"};
+            expect(wants.packages == expected) << "GLIBCXX_3.4.35 is GCC 16's; the carried loader is not wanted";
+            expect(wants.graphics) << "X11: a window";
+            fs::remove_all(package);
+
+            const std::string lua = release::xlings_descriptor({.name = "omui",
+                                                                .description = "the tool",
+                                                                .about = "a\nb",
+                                                                .programs = {"omui", "omui-player"},
+                                                                .categories = {"gui"},
+                                                                .keywords = {"omui"},
+                                                                .versions = {{.version = "0.1.0", .url = "https://x/0.1.0.tar.gz", .sha256 = "aa"},
+                                                                             {.version = "0.2.0", .url = "https://x/0.2.0.tar.gz", .sha256 = "bb"}},
+                                                                .wants = wants,
+                                                                .starts = {"xim:mcpp@>=2026.11.18.1"}});
+            expect(lua.starts_with("-- a\n-- b\npackage = {")) << lua;
+            expect(lua.contains("runtime = { \"xim:glibc@>=2.38\", \"xim:gcc-runtime@>=16.1\", \"xim:libX11@>=1.8\", \"xim:graphics@>=0.1.5\", "
+                                "\"xim:mcpp@>=2026.11.18.1\" }"))
+                << "glibc first: the one loader; then the libraries, the graphics stack, the programs it starts";
+            expect(lua.contains("[\"latest\"] = { ref = \"0.2.0\" }")) << "the last version is latest";
+            expect(lua.contains("xvm.add(\"omui-player\", { bindir = bindir, envs = envs })") && lua.contains("graphics.consumer_envs()"))
+                << "a window's programs get the drivers' variables";
+            expect(!lua.contains("elfpatch")) << "xlings patches it from the loader among its dependencies";
+        };
+
     }};

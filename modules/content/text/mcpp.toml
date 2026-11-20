@@ -38,6 +38,9 @@ mlibs.geom    = { path = "../../base/geom" }
 mlibs.unicode = { path = "../../base/unicode" }
 mcpplibs.os     = "0.4.4"
 mcpplibs.mwrap.harfbuzz = "14.3.0"
+# HarfBuzz without its FreeType backend (mcpp-index#860): shaping reads its fonts through HarfBuzz's own `ot`
+# functions, and with FreeType built in, every program that makes a font would link all of FreeType (red 149).
+compat.harfbuzz = { version = "14.3.0", features = ["no-freetype"] }
 mcpplibs.mwrap.sheenbidi = "3.0.0"
 
 [dev-dependencies]

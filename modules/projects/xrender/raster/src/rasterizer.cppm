@@ -206,7 +206,6 @@ private:
     void sweep(FillRule rule, Emit&& emit);
     void line(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::int32_t y2);
     void scanline(std::int32_t ey, std::int32_t x1, std::int32_t fy1, std::int32_t x2, std::int32_t fy2);
-    void cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area);
 
     std::vector<Cell> cells_;              // row by row, width_ a row; zero but between prepare and sweep
     std::vector<std::uint64_t> marked_;    // a bit a column with a cell, words_ a row; zero likewise

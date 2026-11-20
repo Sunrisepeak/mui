@@ -53,7 +53,11 @@ std::int32_t to_sub(float v) {
     constexpr float limit = 1e6f;
     if (!(v > -limit)) v = -limit;  // also NaN
     if (v > limit) v = limit;
-    return static_cast<std::int32_t>(std::floor(static_cast<double>(v) * one + 0.5));
+    // ⌊v·256 + ½⌋ by truncation, one down where that rounded up (a negative fraction): floor's integer, without the
+    // instruction sequence std::floor is on a baseline x86-64 (no SSE4.1). |v·256| ≤ 2.56e8 fits an int32.
+    const double scaled = static_cast<double>(v) * one + 0.5;
+    const auto truncated = static_cast<std::int32_t>(scaled);
+    return truncated - (static_cast<double>(truncated) > scaled ? 1 : 0);
 }
 
 // floor(a / b) for b > 0, exact in 64 bits.
@@ -70,46 +74,50 @@ std::int64_t floor_div(std::int64_t a, std::int64_t b) {
 // visits the marked columns alone, a word of 64 at a time, and leaves the
 // cells and bits zero again. What lies right of the clip (the extra column)
 // changes no visible pixel, so it is not kept.
-[[gnu::always_inline]] inline void Rasterizer::cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area) {
-    if (ey < 0 || ey >= height_ || ex >= width_) return;
-    if (ex < 0) ex = 0;
-    Cell& at = cells_[static_cast<std::size_t>(ey) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(ex)];
-    at.cover += cover;
-    at.area += area;
-    marked_[static_cast<std::size_t>(ey) * static_cast<std::size_t>(words_) + static_cast<std::size_t>(ex >> 6)] |= std::uint64_t{1} << (ex & 63);
-}
 
 void Rasterizer::scanline(std::int32_t ey, std::int32_t x1, std::int32_t fy1, std::int32_t x2, std::int32_t fy2) {
-    if (fy1 == fy2) return;
+    if (fy1 == fy2 || ey < 0 || ey >= height_) return;
+    // The row's cells and marks found once a row, not a cell at a time (the rasteriser's sizes are not read again
+    // after each cell's write, which the compiler cannot tell does not change them).
+    const std::int32_t width = width_;
+    Cell* const row = cells_.data() + static_cast<std::size_t>(ey) * static_cast<std::size_t>(width);
+    std::uint64_t* const marks = marked_.data() + static_cast<std::size_t>(ey) * static_cast<std::size_t>(words_);
+    const auto put = [row, marks, width](std::int32_t ex, std::int32_t cover, std::int32_t area) {
+        if (ex >= width) return;
+        if (ex < 0) ex = 0;
+        row[ex].cover += cover;
+        row[ex].area += area;
+        marks[ex >> 6] |= std::uint64_t{1} << (ex & 63);
+    };
     std::int32_t ex1 = x1 >> 8, ex2 = x2 >> 8;
     std::int32_t fx1 = x1 & (one - 1), fx2 = x2 & (one - 1);
     if (ex1 == ex2) {
-        cell(ex1, ey, fy2 - fy1, (fx1 + fx2) * (fy2 - fy1));
+        put(ex1, fy2 - fy1, (fx1 + fx2) * (fy2 - fy1));
         return;
     }
     std::int64_t dx = static_cast<std::int64_t>(x2) - x1, dy = static_cast<std::int64_t>(fy2) - fy1;
     auto y_at = [&](std::int64_t x) { return static_cast<std::int32_t>(fy1 + floor_div((x - x1) * dy, dx)); };
     if (dx > 0) {
         std::int32_t y = y_at(static_cast<std::int64_t>(ex1 + 1) * one);
-        cell(ex1, ey, y - fy1, (fx1 + one) * (y - fy1));
+        put(ex1, y - fy1, (fx1 + one) * (y - fy1));
         for (std::int32_t ex = ex1 + 1; ex < ex2; ++ex) {
             std::int32_t yn = y_at(static_cast<std::int64_t>(ex + 1) * one);
-            cell(ex, ey, yn - y, one * (yn - y));
+            put(ex, yn - y, one * (yn - y));
             y = yn;
         }
-        cell(ex2, ey, fy2 - y, fx2 * (fy2 - y));
+        put(ex2, fy2 - y, fx2 * (fy2 - y));
     } else {
         // Leftwards, its cells given left to right (the row's list grows at
         // the end): the end's cell, the whole ones, the start's — each with
         // the crossings at its two sides, as walking from the start gives.
         std::int32_t y = y_at(static_cast<std::int64_t>(ex2 + 1) * one);  // at the end cell's right side
-        cell(ex2, ey, fy2 - y, (fx2 + one) * (fy2 - y));
+        put(ex2, fy2 - y, (fx2 + one) * (fy2 - y));
         for (std::int32_t ex = ex2 + 1; ex < ex1; ++ex) {
             const std::int32_t right = y_at(static_cast<std::int64_t>(ex + 1) * one);
-            cell(ex, ey, y - right, one * (y - right));
+            put(ex, y - right, one * (y - right));
             y = right;
         }
-        cell(ex1, ey, y - fy1, fx1 * (y - fy1));
+        put(ex1, y - fy1, fx1 * (y - fy1));
     }
 }
 

@@ -48,7 +48,7 @@ namespace omui::agent {
   inline constexpr std::array<mlibs::control::Parameter, 5> parameters_ui_reload{…};
   inline constexpr std::array<mlibs::control::Parameter, 6> parameters_ui_snapshot{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_find{…};
-  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_ui_act{…};
+  inline constexpr std::array<mlibs::control::Parameter, 7> parameters_ui_act{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_ui_invoke{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_undo{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_redo{…};
@@ -76,7 +76,7 @@ namespace omui::agent {
   inline constexpr std::array<std::string_view, 1> examples_ui_snapshot{…};
   inline constexpr std::array<std::string_view, 1> examples_ui_changes{…};
   inline constexpr std::array<std::string_view, 1> examples_ui_find{…};
-  inline constexpr std::array<std::string_view, 1> examples_ui_act{…};
+  inline constexpr std::array<std::string_view, 2> examples_ui_act{…};
   inline constexpr std::array<std::string_view, 1> examples_ui_invoke{…};
   inline constexpr std::array<std::string_view, 2> examples_ui_transaction{…};
   inline constexpr std::array<std::string_view, 1> examples_ui_preview{…};

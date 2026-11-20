@@ -397,6 +397,25 @@ static UTest cases{"agent", [] {
         expect(exit_of(honest) == 1 && honest[0].json().contains("no known way back") && app.saved.peek() == saved) << honest[0].json();
         expect(exit_of(talk(p, R"({"op":"transaction","steps":[]})")) == 1) << "a transaction needs steps";
         expect(exit_of(talk(p, R"({"op":"history","scope":"nowhere"})")) == 1);
+        // Several in order, each as if alone (C7): what a transaction cannot hold (a handler that keeps no history) goes
+        // in one request, checked by what must hold after; the first that fails ends them and those before stay done;
+        // one answer never approves the rest — the step that asks, asks.
+        const auto counted = value("counts/a");
+        auto in_order = talk(p, R"({"op":"act","report":"changes","steps":[{"node":"counts/a","action":"increment"},{"node":"notes/save","action":"activate"}],"expect":[{"q":{"id":"counts/a","value":)" +
+                                     std::to_string(counted + 1) + "}}]}");
+        expect(exit_of(in_order) == 0 && value("counts/a") == counted + 1) << (in_order.empty() ? "" : in_order[0].json());
+        expect(in_order.size() >= 2 && in_order[1].get("data") && in_order[1].get("data")->get("changes")) << (in_order.size() < 2 ? "" : in_order[1].json());
+        auto stopped = talk(p, R"({"op":"act","steps":[{"node":"counts/a","action":"increment"},{"node":"notes/nothing","action":"activate"},{"node":"counts/a","action":"increment"}]})");
+        expect(exit_of(stopped) == 1 && stopped[0].get("done")->as_int() == 1 && stopped[0].json().contains("stays done") && value("counts/a") == counted + 2)
+            << (stopped.empty() ? "" : stopped[0].json());
+        auto unmet_in_order = talk(p, R"({"op":"act","steps":[{"node":"counts/a","action":"increment"}],"expect":[{"q":{"id":"counts/a","value":0}}]})");
+        expect(exit_of(unmet_in_order) == 1 && unmet_in_order[0].json().contains("expectation 1") && unmet_in_order[0].json().contains("stays done") &&
+               value("counts/a") == counted + 3) << (unmet_in_order.empty() ? "" : unmet_in_order[0].json());
+        const int deleted = app.deleted;
+        auto asks = talk(p, R"({"op":"act","answer":"yes","steps":[{"node":"counts/a","action":"increment"},{"node":"notes/delete","action":"activate"}]})");
+        expect(exit_of(asks) == 2 && app.deleted == deleted && value("counts/a") == counted + 4) << (asks.empty() ? "" : asks[0].json());
+        auto plan_in_order = talk(p, R"({"op":"act","dry_run":true,"steps":[{"node":"counts/a","action":"increment"},{"node":"notes/nothing","action":"activate"}]})");
+        expect(exit_of(plan_in_order) == 0 && plan_in_order[0].get("data")->get("outcome")->as_string() == "fail" && value("counts/a") == counted + 4) << plan_in_order[0].json();
     };
 
     "wait: answered when the condition holds, between frames"_test = [] {

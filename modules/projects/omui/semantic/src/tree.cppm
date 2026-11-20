@@ -84,6 +84,12 @@ public:
     // steps and their check in one call, nothing left half done (C7).
     Envelope transaction(std::span<const Step> steps, const Invocation& call = {}, std::string label = {},
                          std::span<const Condition> expect = {});
+    // Steps in order, each as `act` performs it (its own effect, answer and history), not as one: for what a
+    // transaction cannot hold (a step with no way back). The first that does not succeed ends them and those
+    // before it stay done — the answer says how many (`done`) and carries the step's own options (the answer it
+    // asks for); `expect` is read as a transaction's, and one that does not hold is said, nothing taken back. A
+    // dry run answers each step's outcome against the tree as it is now.
+    Envelope sequence(std::span<const Step> steps, const Invocation& call = {}, std::span<const Condition> expect = {});
     // What the steps would make, shown before anything is allowed (Part 2
     // §4.1, A): the ones that can be taken back run inside a transaction in
     // a preview (no journal, no motion), `look` sees the state they make (a
@@ -133,6 +139,8 @@ private:
     };
 
     void refresh();
+    // `expect` read after a still frame (the state the steps made): the first that does not hold, its index and why.
+    std::optional<std::pair<std::size_t, std::string>> unmet(std::span<const Condition> expect);
     // Marks a node changed since the last `changes`.
     void touch(const std::string& id, Entry& entry);
 

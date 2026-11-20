@@ -498,6 +498,115 @@ Value changes_between(const Snapshot& before, const Snapshot& after) {
     return Value{}.set("added", Value(std::move(added))).set("removed", Value(std::move(removed))).set("changed", Value(std::move(changed)));
 }
 
+namespace {
+
+// A step's call: the whole's, with the step's arguments and, when it has one, its answer.
+Invocation step_call(const Invocation& call, const Step& step) {
+    Invocation out = call;
+    out.args = step.args;
+    if (!step.answer.empty()) out.answer = step.answer;
+    return out;
+}
+
+// What a step is called in an answer.
+std::string step_label(const Step& step) { return std::format("{} on '{}'", step.action, step.id); }
+
+// An answer's first error: its code and its text.
+std::pair<std::string, std::string> first_error(const Envelope& e) {
+    for (const spec::Record& r : e.records())
+        if (r.kind == spec::RecordKind::error)
+            return {std::string(r.body.get("code") ? r.body.get("code")->as_string() : spec::error_code::failed),
+                    std::string(r.body.get("text") ? r.body.get("text")->as_string() : std::string_view{})};
+    return {std::string(spec::error_code::failed), {}};
+}
+
+// What a failed step's error offers (the answer it asks for, a hint, the actions there are), kept with the whole's.
+void keep_options(const Envelope& failed, Value& extra) {
+    for (const spec::Record& r : failed.records())
+        if (r.kind == spec::RecordKind::error)
+            for (std::string_view key : {"answer", "hint", "args", "actions"})
+                if (const Value* v = r.body.get(key)) extra.set(key, *v);
+}
+
+// An expectation that did not hold, as an answer names it, and its data.
+std::string expectation_text(std::size_t index, const Condition& c, std::string_view why) {
+    return std::format("expectation {} ({}{}) did not hold: {}", index + 1, c.absent ? "absent " : "", c.query ? c.query->to_value().json() : std::string("{}"), why);
+}
+Value expectation_data(std::size_t index, const Condition& c) {
+    Value out;
+    out.set("expectation", static_cast<std::int64_t>(index)).set("absent", c.absent);
+    if (c.query) out.set("q", c.query->to_value());
+    return out;
+}
+
+}  // namespace
+
+std::optional<std::pair<std::size_t, std::string>> Tree::unmet(std::span<const Condition> expect) {
+    if (expect.empty()) return std::nullopt;
+    // What the steps made, at this very time: their reactive updates applied and laid out.
+    FrameInput still;
+    still.time = runtime_.now();
+    (void)runtime_.frame(still);
+    for (std::size_t i = 0; i < expect.size(); ++i)
+        if (const WaitState now = check(expect[i]); !now.satisfied) return std::pair{i, now.why};
+    return std::nullopt;
+}
+
+Envelope Tree::sequence(std::span<const Step> steps, const Invocation& call, std::span<const Condition> expect) {
+    Envelope e;
+    if (steps.empty()) {
+        e.error(spec::error_code::invalid_argument, "steps in order need steps").result(spec::exit_code::failure);
+        return e;
+    }
+    if (call.dry_run) {
+        // Each step against the tree as it is now, as `act` would answer its dry run.
+        Value::List outcomes;
+        std::string outcome = "run";
+        Effect strongest = Effect::read;
+        for (const Step& s : steps) {
+            Envelope d = act(s.id, s.action, step_call(call, s));
+            Value v = d.data_value() ? *d.data_value() : Value{};
+            v.set("id", s.id).set("action", s.action);
+            if (d.exit_code() != spec::exit_code::success && !v.get("outcome")) {
+                const auto [code, message] = first_error(d);
+                v.set("outcome", "fail").set("error", Value{}.set("code", code).set("text", message));
+            }
+            const std::string_view effect = v.get("effect") ? v.get("effect")->as_string() : std::string_view{};
+            strongest = std::max(strongest, spec::parse_effect(effect).value_or(Effect::external));
+            if (outcome == "run" && v.get("outcome") && v.get("outcome")->as_string() != "run") outcome = std::string(v.get("outcome")->as_string());
+            outcomes.push_back(std::move(v));
+        }
+        return dry_run_answer(outcome, strongest, Value{}.set("steps", Value(std::move(outcomes))));
+    }
+    const auto stay = [](std::size_t done) {
+        return done == 0 ? std::string() : std::format("; the {} step{} before it stay{} done", done, done == 1 ? "" : "s", done == 1 ? "s" : "");
+    };
+    Value::List results;
+    for (std::size_t i = 0; i < steps.size(); ++i) {
+        Envelope r = act(steps[i].id, steps[i].action, step_call(call, steps[i]));
+        if (r.exit_code() != spec::exit_code::success) {
+            const auto [code, message] = first_error(r);
+            Value extra;
+            extra.set("step", static_cast<std::int64_t>(i)).set("id", steps[i].id).set("action", steps[i].action).set("done", static_cast<std::int64_t>(i));
+            keep_options(r, extra);
+            e.error(code, std::format("step {} ({}): {}{}", i + 1, step_label(steps[i]), message, stay(i)), std::move(extra))
+                .result(r.exit_code().value_or(spec::exit_code::failure));
+            return e;
+        }
+        results.push_back(r.data_value() ? *r.data_value() : Value{});
+    }
+    if (const auto missing = unmet(expect)) {
+        Value extra = expectation_data(missing->first, expect[missing->first]);
+        extra.set("done", static_cast<std::int64_t>(steps.size()));
+        e.error(spec::error_code::failed,
+                std::format("{}; the {} step{} stay{} done", expectation_text(missing->first, expect[missing->first], missing->second), steps.size(),
+                            steps.size() == 1 ? "" : "s", steps.size() == 1 ? "s" : ""),
+                std::move(extra))
+            .result(spec::exit_code::failure);
+        return e;
+    }
+    return e.data(Value{}.set("done", static_cast<std::int64_t>(steps.size())).set("results", Value(std::move(results)))).result(spec::exit_code::success);
+}
 
 Envelope Tree::preview(std::span<const Step> steps, const Invocation& call, const std::function<Value()>& look) {
     Envelope e;
@@ -506,10 +615,8 @@ Envelope Tree::preview(std::span<const Step> steps, const Invocation& call, cons
         return e;
     }
     auto call_of = [&](const Step& s) {
-        Invocation c = call;
-        c.args = s.args;
+        Invocation c = step_call(call, s);
         c.dry_run = false;
-        if (!s.answer.empty()) c.answer = s.answer;
         return c;
     };
     // Which steps run and which only would, by each one's own dry run.
@@ -598,20 +705,8 @@ Envelope Tree::preview(std::span<const Step> steps, const Invocation& call, cons
 }
 
 Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, std::string label, std::span<const Condition> expect) {
-    auto first_error = [](const Envelope& e) -> std::pair<std::string, std::string> {
-        for (const spec::Record& r : e.records())
-            if (r.kind == spec::RecordKind::error)
-                return {std::string(r.body.get("code") ? r.body.get("code")->as_string() : spec::error_code::failed),
-                        std::string(r.body.get("text") ? r.body.get("text")->as_string() : std::string_view{})};
-        return {std::string(spec::error_code::failed), {}};
-    };
-    auto label_of = [](const Step& s) { return std::format("{} on '{}'", s.action, s.id); };
-    auto call_of = [&](const Step& s) {
-        Invocation c = call;
-        c.args = s.args;
-        if (!s.answer.empty()) c.answer = s.answer;
-        return c;
-    };
+    const auto label_of = [](const Step& s) { return step_label(s); };
+    const auto call_of = [&](const Step& s) { return step_call(call, s); };
     // Whether a transaction may hold a step, from its preview — one rule for
     // the preview's answer and for running it (S-13): a read takes nothing
     // back and needs nothing; anything else must say it can be taken back
@@ -688,11 +783,7 @@ Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, 
                 if (const Value* n = d->get("rolled_back")) extra.set("rolled_back", *n);
                 if (const Value* k = d->get("kept")) extra.set("kept", *k);
             }
-            // The step's own options (the answer it asks for) stay with it.
-            for (const spec::Record& rec : r.records())
-                if (rec.kind == spec::RecordKind::error)
-                    for (std::string_view k : {"answer", "hint", "args", "actions"})
-                        if (const Value* v = rec.body.get(k)) extra.set(k, *v);
+            keep_options(r, extra);  // the step's own (the answer it asks for) stay with it
             std::string why = std::format("step {} ({}): {}", i + 1, label_of(steps[i]), message);
             const Value* kept = back.data_value() ? back.data_value()->get("kept") : nullptr;
             const bool some_kept = kept && kept->list() && !kept->list()->empty();
@@ -708,30 +799,17 @@ Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, 
         }
         results.push_back(r.data_value() ? *r.data_value() : Value{});
     }
-    if (!expect.empty()) {
-        // What the steps made, at this very time (their reactive updates applied and laid out), then each
-        // expectation against it: one that does not hold takes all back, as a failed step would.
-        const auto settle = [&] {
-            FrameInput still;
-            still.time = runtime_.now();
-            (void)runtime_.frame(still);
-        };
-        settle();
-        for (std::size_t i = 0; i < expect.size(); ++i) {
-            const WaitState now = check(expect[i]);
-            if (now.satisfied) continue;
-            Envelope back = runtime_.rollback_transaction(call);
-            settle();
-            const std::string query = expect[i].query ? expect[i].query->to_value().json() : std::string("{}");
-            std::string why = std::format("expectation {} ({}{}) did not hold: {}", i + 1, expect[i].absent ? "absent " : "", query, now.why);
-            if (back.exit_code() != spec::exit_code::success) why += std::format("; taking the steps back failed: {}", first_error(back).second);
-            else why += std::format("; the {} step{} {} taken back", steps.size(), steps.size() == 1 ? "" : "s", steps.size() == 1 ? "was" : "were");
-            Value extra;
-            extra.set("expectation", static_cast<std::int64_t>(i)).set("absent", expect[i].absent);
-            if (expect[i].query) extra.set("q", expect[i].query->to_value());
-            e.error(spec::error_code::failed, why, std::move(extra)).result(spec::exit_code::failure);
-            return e;
-        }
+    // What must hold after: one that does not takes all back, as a failed step would.
+    if (const auto missing = unmet(expect)) {
+        Envelope back = runtime_.rollback_transaction(call);
+        FrameInput still;  // back as it was, read at this very time
+        still.time = runtime_.now();
+        (void)runtime_.frame(still);
+        std::string why = expectation_text(missing->first, expect[missing->first], missing->second);
+        if (back.exit_code() != spec::exit_code::success) why += std::format("; taking the steps back failed: {}", first_error(back).second);
+        else why += std::format("; the {} step{} {} taken back", steps.size(), steps.size() == 1 ? "" : "s", steps.size() == 1 ? "was" : "were");
+        e.error(spec::error_code::failed, why, expectation_data(missing->first, expect[missing->first])).result(spec::exit_code::failure);
+        return e;
     }
     Envelope done = runtime_.commit_transaction();
     Value data = done.data_value() ? *done.data_value() : Value{};

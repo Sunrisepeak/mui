@@ -223,6 +223,9 @@ UTest cases{"mcp", [] {
         const auto dir = scratch_dir("mcp-lean");
         Notes notes(dir);
         if (!notes.h.endpoint()) return;
+        auto volume = signal(30.0);
+        notes.h.mount("prefs", column({.gap = 4}, {slider({.id = "volume", .label = "Volume", .step = 5.0, .value = volume, .width = 120})}));
+        notes.h.step();
         mcp::Server server({.directory = dir});
         Client c;
         c.in = {initialize(1, false),
@@ -232,7 +235,13 @@ UTest cases{"mcp", [] {
                 call(5, "ui_more", Value{}.set("tool", "ui_describe")),
                 call(6, "ui_more"),
                 call(7, "ui_more", Value{}.set("tool", "ui_nothing")),
-                call(8, "ui_clock")};
+                call(8, "ui_clock"),
+                // several in order in one call, checked by what must hold after; the first that fails ends them
+                call(9, "ui_act", Value{}.set("steps", Value(Value::List{Value{}.set("node", "prefs/volume").set("action", "set_value").set("args", Value{}.set("value", 40.0)),
+                                                                   Value{}.set("node", "prefs/volume").set("action", "set_value").set("args", Value{}.set("value", 50.0))}))
+                                     .set("expect", Value(Value::List{Value{}.set("q", Value{}.set("id", "prefs/volume").set("value", 50))}))),
+                call(10, "ui_act", Value{}.set("steps", Value(Value::List{Value{}.set("node", "prefs/volume").set("action", "set_value").set("args", Value{}.set("value", 55.0)),
+                                                                    Value{}.set("node", "prefs/nothing").set("action", "activate")})))};
         serve(notes.h, server, c);
         const Value* init = c.reply(1) ? c.reply(1)->get("result") : nullptr;
         expect(init && init->get("instructions") && init->get("instructions")->as_string().contains("ui_more finds the rest")) << (init ? init->json() : std::string());
@@ -248,6 +257,9 @@ UTest cases{"mcp", [] {
         expect(!c.error(6) && c.text(6).contains("ui_explain") && !c.text(6).contains("ui_preview") && !c.text(6).contains("design_edit")) << "the names, what runs offers: " << c.text(6);
         expect(c.error(7) && c.text(7).contains("ui_more with `intent`")) << c.text(7);
         expect(c.reply(8) && !c.error(8)) << "a tool not listed still answers by name";
+        expect(!c.error(9) && c.text(9).starts_with("done: 2 steps in order, 1 expectation held") && c.text(9).contains("~ prefs/volume value: 30 → 50")) << c.text(9);
+        expect(c.error(10) && c.text(10).contains("the 1 step before it stays done") && volume.peek() == 55) << c.text(10);
+        expect(init && init->get("instructions")->as_string().contains("Its tree now") && init->get("instructions")->as_string().contains("prefs/volume")) << "the whole tree, when it fits";
     };
 
     "against a running application: apps, the tree, find, a verb, wait, capture — and an irreversible action refused to a client that cannot ask"_test = [] {

@@ -127,6 +127,34 @@ std::string_view text_of(const Value& req, std::string_view key) {
     return v ? v->as_string() : std::string_view{};
 }
 
+// A request's steps, as a transaction and steps in order take them: {node, action, args, answer} each.
+std::expected<std::vector<semantic::Step>, Envelope> steps_of(const Value& req, std::string_view what, std::string_view example) {
+    const Value* steps = req.get("steps");
+    if (!steps || !steps->list() || steps->list()->empty())
+        return std::unexpected(invalid(std::format("`{}` needs `steps`: a list of {{node, action, args, answer}}", what), example));
+    std::vector<semantic::Step> list;
+    for (const Value& st : *steps->list()) {
+        if (!st.map() || text_of(st, "node").empty() || text_of(st, "action").empty()) return std::unexpected(invalid("each step names its `node` and `action`", example));
+        list.push_back({std::string(text_of(st, "node")), std::string(text_of(st, "action")), st.get("args") ? *st.get("args") : Value{}, std::string(text_of(st, "answer"))});
+    }
+    return list;
+}
+
+// What must hold after the steps (C7): wait's condition without `settled` — the state they make, not their motion.
+std::expected<std::vector<semantic::Condition>, Envelope> expectations_of(const Value& req, std::string_view example) {
+    std::vector<semantic::Condition> out;
+    const Value* listed = req.get("expect");
+    if (!listed) return out;
+    if (!listed->list()) return std::unexpected(invalid("`expect` is a list of {q, absent}", example));
+    for (const Value& one : *listed->list()) {
+        if (one.get("settled")) return std::unexpected(invalid("an expectation is about the state the steps make, not motion: wait for `settled` with `wait`", example));
+        auto condition = semantic::Condition::parse(one);
+        if (!condition) return std::unexpected(invalid(condition.error().message, example));
+        out.push_back(std::move(*condition));
+    }
+    return out;
+}
+
 Value history_value(const History& h) {
     auto items = [](const std::vector<HistoryItem>& from) {
         Value::List out;
@@ -531,6 +559,21 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         for (const spec::SemanticNode& n : tree_.find(*query)) nodes.push_back(spec::to_value(n));
         return e.data(Value{}.set("nodes", Value(std::move(nodes)))).result(spec::exit_code::success);
     }
+    if (op == "act" && req.get("steps")) {
+        // Several actions in order, in one request (C7): each as `act` alone — its own effect, answer and history —
+        // for what a transaction cannot hold; those done stay done, and what must hold after is checked.
+        constexpr std::string_view example =
+            R"({"op":"act","steps":[{"node":"main/compose","action":"set_value","args":{"value":"Milk"}},{"node":"main/add","action":"activate"}],"expect":[{"q":{"name":"Milk"}}]})";
+        auto list = steps_of(req, "act", example);
+        if (!list) return std::move(list.error());
+        auto expect = expectations_of(req, example);
+        if (!expect) return std::move(expect.error());
+        auto call = invocation(req);
+        if (!call) return call.error();
+        call->args = {};
+        call->answer.clear();  // the person's answer is a step's own: one answer never approves the rest
+        return with_changes(runtime_, tree_, req, *call, [&] { return tree_.sequence(*list, *call, *expect); });
+    }
     if (op == "act") {
         const std::string_view node = text_of(req, "node");
         const std::string_view action = text_of(req, "action");
@@ -576,33 +619,16 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         return e.data(history_value(runtime_.history(runtime_.undo_scope(n)))).result(spec::exit_code::success);
     }
     if (op == "transaction") {
-        // Steps performed as one (S-13): all done, or all taken back.
-        const Value* steps = req.get("steps");
+        // Steps performed as one (S-13): all done, or all taken back — and what must hold after, checked (C7).
         constexpr std::string_view example =
-            R"({"op":"transaction","label":"rename","steps":[{"node":"main/title","action":"set_value","args":{"value":"Plan"}},{"node":"main/done","action":"toggle"}]})";
-        if (!steps || !steps->list() || steps->list()->empty()) return invalid("`transaction` needs `steps`: a list of {node, action, args, answer}", example);
-        std::vector<semantic::Step> list;
-        for (const Value& st : *steps->list()) {
-            if (!st.map() || text_of(st, "node").empty() || text_of(st, "action").empty()) return invalid("each step names its `node` and `action`", example);
-            list.push_back({std::string(text_of(st, "node")), std::string(text_of(st, "action")), st.get("args") ? *st.get("args") : Value{},
-                            std::string(text_of(st, "answer"))});
-        }
-        // What must hold after (C7): wait's condition without `settled` — the state the steps make, not their motion.
-        std::vector<semantic::Condition> expect;
-        if (const Value* listed = req.get("expect")) {
-            constexpr std::string_view with_expect =
-                R"({"op":"transaction","steps":[{"node":"main/done","action":"toggle"}],"expect":[{"q":{"id":"main/done","state":["checked"]}},{"q":{"id":"main/toast"},"absent":true}]})";
-            if (!listed->list()) return invalid("`expect` is a list of {q, absent}", with_expect);
-            for (const Value& one : *listed->list()) {
-                if (one.get("settled")) return invalid("an expectation is about the state the steps make, not motion: wait for `settled` with `wait`", with_expect);
-                auto condition = semantic::Condition::parse(one);
-                if (!condition) return invalid(condition.error().message, with_expect);
-                expect.push_back(std::move(*condition));
-            }
-        }
+            R"({"op":"transaction","label":"rename","steps":[{"node":"main/title","action":"set_value","args":{"value":"Plan"}},{"node":"main/done","action":"toggle"}],"expect":[{"q":{"id":"main/done","state":["checked"]}}]})";
+        auto list = steps_of(req, "transaction", example);
+        if (!list) return std::move(list.error());
+        auto expect = expectations_of(req, example);
+        if (!expect) return std::move(expect.error());
         auto call = invocation(Value{});
         if (!call) return call.error();
-        return with_changes(runtime_, tree_, req, *call, [&] { return tree_.transaction(list, *call, std::string(text_of(req, "label")), expect); });
+        return with_changes(runtime_, tree_, req, *call, [&] { return tree_.transaction(*list, *call, std::string(text_of(req, "label")), *expect); });
     }
     if (op == "preview") {
         // What the steps would make, shown before it is allowed (Part 2 §4.1, A): the picture now and the

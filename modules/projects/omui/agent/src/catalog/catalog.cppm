@@ -28,9 +28,11 @@ inline constexpr std::array<mlibs::control::Parameter, 6> parameters_ui_snapshot
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_find{{
     {"q", "json", "a query: {\"role\": \"button\", \"name\": \"Save*\"}", false},
 }};
-inline constexpr std::array<mlibs::control::Parameter, 5> parameters_ui_act{{
-    {"node", "node", "", false},
-    {"action", "string", "one of the node's actions (activate, toggle, set_value, …)", false},
+inline constexpr std::array<mlibs::control::Parameter, 7> parameters_ui_act{{
+    {"node", "node", "", true},
+    {"action", "string", "one of the node's actions (activate, toggle, set_value, …)", true},
+    {"steps", "json", "instead of node and action: several in order, a list of {node, action, args, answer}, each as if alone; the first that fails ends them, those before it stay done", true},
+    {"expect", "json", "with steps: what must hold after, a list of {q, absent} (q as ui.find's), checked in the same call", true},
     {"args", "json", "the action's arguments", true},
     {"answer", "string", "the person's answer, when the action asks", true},
     {"dry_run", "bool", "only say what would happen", true},
@@ -154,8 +156,9 @@ inline constexpr std::array<std::string_view, 1> examples_ui_changes{{
 inline constexpr std::array<std::string_view, 1> examples_ui_find{{
     "{\"op\":\"ui.find\",\"q\":{\"role\":\"button\"}}",
 }};
-inline constexpr std::array<std::string_view, 1> examples_ui_act{{
+inline constexpr std::array<std::string_view, 2> examples_ui_act{{
     "{\"op\":\"ui.act\",\"node\":\"main/save\",\"action\":\"activate\"}",
+    "{\"op\":\"ui.act\",\"steps\":[{\"node\":\"main/compose\",\"action\":\"set_value\",\"args\":{\"value\":\"Milk\"}},{\"node\":\"main/add\",\"action\":\"activate\"}],\"expect\":[{\"q\":{\"name\":\"Milk\"}}]}",
 }};
 inline constexpr std::array<std::string_view, 1> examples_ui_invoke{{
     "{\"op\":\"ui.invoke\",\"verb\":\"save\"}",
@@ -221,7 +224,7 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 32> catalog{{
     {{"ui.snapshot", openas::Effect::read, false}, "The semantic tree, or a part of it", parameters_ui_snapshot, "tree", mlibs::control::Cost::bounded, "", false, false, false, examples_ui_snapshot},
     {{"ui.changes", openas::Effect::read, false}, "What changed in the tree since the last snapshot or changes", {}, "json", mlibs::control::Cost::instant, "", false, false, false, examples_ui_changes},
     {{"ui.find", openas::Effect::read, false}, "Nodes matching a query (role, name, id, state; wildcards)", parameters_ui_find, "json", mlibs::control::Cost::bounded, "", false, false, false, examples_ui_find},
-    {{"ui.act", openas::Effect::irreversible, false}, "Perform a node's action, under that action's effect (an irreversible one asks the person)", parameters_ui_act, "json", mlibs::control::Cost::frame, "the action's own: ui.undo for a reversible one; an irreversible one cannot be taken back", false, false, true, examples_ui_act, "", then_ui_act},
+    {{"ui.act", openas::Effect::irreversible, false}, "Perform a node's action, or several in order (`steps`), each under its own effect (an irreversible one asks the person)", parameters_ui_act, "json", mlibs::control::Cost::frame, "the action's own: ui.undo for a reversible one; an irreversible one cannot be taken back", false, false, true, examples_ui_act, "", then_ui_act},
     {{"ui.invoke", openas::Effect::irreversible, false}, "Call one of the application's verbs, under its declared effect", parameters_ui_invoke, "json", mlibs::control::Cost::bounded, "the verb's own (an undoable verb: ui.undo)", false, false, true, examples_ui_invoke, "", then_ui_invoke},
     {{"ui.undo", openas::Effect::reversible, false}, "Take back the last change in a history scope", parameters_ui_undo, "json", mlibs::control::Cost::instant, "ui.redo", false, false, false, {}, "", then_ui_undo},
     {{"ui.redo", openas::Effect::reversible, false}, "Do again what ui.undo took back", parameters_ui_redo, "json", mlibs::control::Cost::instant, "ui.undo", false, false, false, {}, "again undone back", then_ui_redo},
@@ -298,10 +301,10 @@ inline constexpr std::string_view listing = R"listing({
     {"name": "ui.find", "description": "Nodes matching a query (role, name, id, state; wildcards)", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "examples": [{"op":"ui.find","q":{"role":"button"}}],
      "inputSchema": {"type": "object", "properties": {"q": {"description": "a query: {\"role\": \"button\", \"name\": \"Save*\"}"}}, "required": ["q"]}},
-    {"name": "ui.act", "description": "Perform a node's action, under that action's effect (an irreversible one asks the person)", "effect": "irreversible", "person": false, "delegated": true, "cost": "frame", "undo": "the action's own: ui.undo for a reversible one; an irreversible one cannot be taken back", "undoable": false, "cancellable": false, "result": "json",
+    {"name": "ui.act", "description": "Perform a node's action, or several in order (`steps`), each under its own effect (an irreversible one asks the person)", "effect": "irreversible", "person": false, "delegated": true, "cost": "frame", "undo": "the action's own: ui.undo for a reversible one; an irreversible one cannot be taken back", "undoable": false, "cancellable": false, "result": "json",
      "then": [{"why": "read what changed in the tree, without reading it all again", "request": {"op":"ui.changes"}}],
-     "examples": [{"op":"ui.act","node":"main/save","action":"activate"}],
-     "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "a node (its id)"}, "action": {"type": "string", "description": "one of the node's actions (activate, toggle, set_value, …)"}, "args": {"description": "the action's arguments"}, "answer": {"type": "string", "description": "the person's answer, when the action asks"}, "dry_run": {"type": "boolean", "description": "only say what would happen"}}, "required": ["node", "action"]}},
+     "examples": [{"op":"ui.act","node":"main/save","action":"activate"}, {"op":"ui.act","steps":[{"node":"main/compose","action":"set_value","args":{"value":"Milk"}},{"node":"main/add","action":"activate"}],"expect":[{"q":{"name":"Milk"}}]}],
+     "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "a node (its id)"}, "action": {"type": "string", "description": "one of the node's actions (activate, toggle, set_value, …)"}, "steps": {"description": "instead of node and action: several in order, a list of {node, action, args, answer}, each as if alone; the first that fails ends them, those before it stay done"}, "expect": {"description": "with steps: what must hold after, a list of {q, absent} (q as ui.find's), checked in the same call"}, "args": {"description": "the action's arguments"}, "answer": {"type": "string", "description": "the person's answer, when the action asks"}, "dry_run": {"type": "boolean", "description": "only say what would happen"}}, "required": []}},
     {"name": "ui.invoke", "description": "Call one of the application's verbs, under its declared effect", "effect": "irreversible", "person": false, "delegated": true, "cost": "bounded", "undo": "the verb's own (an undoable verb: ui.undo)", "undoable": false, "cancellable": false, "result": "json",
      "then": [{"why": "read what changed in the tree, without reading it all again", "request": {"op":"ui.changes"}}],
      "examples": [{"op":"ui.invoke","verb":"save"}],

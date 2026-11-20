@@ -75,13 +75,18 @@ export default defineOps({
     {
       name: "ui.act",
       then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
-      examples: [{ node: "main/save", action: "activate" }],
+      examples: [
+        { node: "main/save", action: "activate" },
+        { steps: [{ node: "main/compose", action: "set_value", args: { value: "Milk" } }, { node: "main/add", action: "activate" }], expect: [{ q: { name: "Milk" } }] },
+      ],
       effect: "irreversible",
       delegated: true,
-      summary: "Perform a node's action, under that action's effect (an irreversible one asks the person)",
+      summary: "Perform a node's action, or several in order (`steps`), each under its own effect (an irreversible one asks the person)",
       params: [
-        { name: "node", type: "node" },
-        { name: "action", type: "string", doc: "one of the node's actions (activate, toggle, set_value, …)" },
+        { name: "node", type: "node", optional: true },
+        { name: "action", type: "string", doc: "one of the node's actions (activate, toggle, set_value, …)", optional: true },
+        { name: "steps", type: "json", doc: "instead of node and action: several in order, a list of {node, action, args, answer}, each as if alone; the first that fails ends them, those before it stay done", optional: true },
+        { name: "expect", type: "json", doc: "with steps: what must hold after, a list of {q, absent} (q as ui.find's), checked in the same call", optional: true },
         { name: "args", type: "json", doc: "the action's arguments", optional: true },
         { name: "answer", type: "string", doc: "the person's answer, when the action asks", optional: true },
         { name: "dry_run", type: "bool", doc: "only say what would happen", optional: true },

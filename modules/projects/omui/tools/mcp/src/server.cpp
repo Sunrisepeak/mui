@@ -411,19 +411,26 @@ struct Server::Impl {
         const auto apps = running();
         if (apps.size() != 1) return {};
         const std::string& app = apps.front().name;
-        const Answer tree = call(app, Value{}.set("op", "snapshot").set("interactive", true).set("actor", actor), options.timeout);
-        const Value* nodes = tree.exit == 0 ? tree.data.get("nodes") : nullptr;
-        if (!nodes || !nodes->list() || nodes->list()->empty()) return {};
-        const std::string listed = outline(*nodes->list());
+        // The whole tree when it fits (what it says, not only what it operates: a count is read, not asked for); else
+        // its interactive nodes.
+        const auto outline_of = [&](bool interactive_only) -> std::string {
+            const Answer tree = call(app, Value{}.set("op", "snapshot").set("interactive", interactive_only).set("actor", actor), options.timeout);
+            const Value* nodes = tree.exit == 0 ? tree.data.get("nodes") : nullptr;
+            return nodes && nodes->list() ? outline(*nodes->list()) : std::string();
+        };
+        std::string listed = outline_of(false);
+        const bool whole = static_cast<std::size_t>(std::ranges::count(listed, '\n')) <= lines;
+        if (!whole) listed = outline_of(true);
+        if (listed.empty()) return {};
         std::size_t end = 0;
         for (std::size_t count = 0; count < lines && end < listed.size(); ++count) {
             const std::size_t line = listed.find('\n', end);
             end = line == std::string::npos ? listed.size() : line + 1;
         }
-        std::string out = std::format("\n\n{} ({}) is running. Its interactive nodes now (id role \"name\" = value [states] {{actions}}): act on an id "
+        std::string out = std::format("\n\n{} ({}) is running. Its {} now (id role \"name\" = value [states] {{actions}}): act on an id "
                                       "with ui_act, no need to ask for the tree first; what an action changed comes back with it. Several steps: one "
-                                      "ui_transaction, its `expect` checking them in the same call.\n{}",
-                                      apps.front().app, apps.front().interface_name, listed.substr(0, end));
+                                      "ui_act with `steps` and `expect` (what must hold after), or ui_transaction for all or nothing.\n{}",
+                                      apps.front().app, apps.front().interface_name, whole ? "tree" : "interactive nodes", listed.substr(0, end));
         if (end < listed.size()) out += "… the rest: ui_snapshot\n";
         const Answer described = call(app, Value{}.set("op", "describe").set("actor", actor), options.timeout);
         if (const Value* verbs = described.exit == 0 ? described.data.get("verbs") : nullptr; verbs && verbs->list() && !verbs->list()->empty()) {
@@ -606,6 +613,30 @@ struct Server::Impl {
                            true);
     }
 
+    // Several actions in order in one call (C7), each under its own effect: what they changed, and whether what must
+    // hold after does. A step that needs the person's answer is not asked here (asking and sending again would do
+    // the steps before it twice): the agent asks, then does that step alone.
+    Value in_order(const std::string& app, Value request, const Value& args) {
+        request.set("actor", actor).set("report", "changes");
+        const Answer a = call(app, request, options.timeout);
+        const std::size_t steps = args.get("steps") && args.get("steps")->list() ? args.get("steps")->list()->size() : 0;
+        if (a.exit == 0) {
+            const std::size_t expected = args.get("expect") && args.get("expect")->list() ? args.get("expect")->list()->size() : 0;
+            return tool_result(std::format("done: {} steps in order{}{}", steps, expected ? std::format(", {} expectation{} held", expected, expected == 1 ? "" : "s") : std::string(),
+                                           changes_text(a.changes)),
+                               false, a.data.is_null() ? Value{} : Value{}.set("data", a.data));
+        }
+        if (a.exit == 2) {
+            const Value* answers = a.detail.get("answer");
+            const std::string answer = answers && answers->list() && !answers->list()->empty() ? std::string(answers->list()->front().as_string()) : "yes";
+            return tool_result(std::format("{} — that step needs the user's confirmation. Ask the user; only if they agree, do that step alone with ui_act and "
+                                           "\"answer\": \"{}\". Never answer for them.",
+                                           a.message, answer),
+                               true, Value{}.set("needs_answer", Value{}.set("question", a.message).set("answer", answer)));
+        }
+        return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+    }
+
     // A dry run (S-13): what it would do, said plainly; nothing is asked or done.
     Value plan(const std::string& app, Value request, std::string_view what) {
         request.set("actor", actor).set("dry_run", true);
@@ -762,11 +793,13 @@ struct Server::Impl {
             for (const auto& [key, value] : *args.map())
                 if (key != "app" && key != "dry_run" && !(op == "input" && key == "capture")) request.set(key, value);
         const bool dry = args.get("dry_run") && args.get("dry_run")->as_bool();
-        const std::string what = op == "act" ? std::format("{} on {}", str(args, "action"), str(args, "node"))
+        const std::string what = op == "act" && args.get("steps") && args.get("steps")->list() ? std::format("{} steps in order", args.get("steps")->list()->size())
+                               : op == "act"                                                ? std::format("{} on {}", str(args, "action"), str(args, "node"))
                                : op == "invoke" ? std::string(str(args, "verb"))
                                : op == "transaction" && args.get("steps") && args.get("steps")->list() ? std::format("{} steps", args.get("steps")->list()->size())
                                                                                                          : std::string(op);
         if (dry) return plan(app, std::move(request), what);
+        if (op == "act" && args.get("steps")) return in_order(app, std::move(request), args);
         if (op == "act" || op == "invoke") return perform(t, app, std::move(request), what);
         request.set("actor", actor);
         if (op == "transaction") request.set("report", "changes");  // as an action's: what it changed, no snapshot to check
@@ -1119,10 +1152,10 @@ void Server::handle(std::string_view line, Transport& t) {
         }
         // What every tool is for, as the list has them: the few and ui_more, or every one.
         const std::string_view tools_said =
-            d.options.every_tool ? "ui_describe for the application's verbs, ui_act or ui_invoke to change (ui_transaction for several steps with what must hold "
-                                   "after), ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, click, drag, scroll and type as a "
+            d.options.every_tool ? "ui_describe for the application's verbs, ui_act or ui_invoke to change (ui_act's `steps` for several in order, "
+                                   "ui_transaction for all or nothing, each with `expect`, what must hold after), ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, click, drag, scroll and type as a "
                                    "person does (when the application allows it), ui_clock for its time"
-                                 : "ui_act or ui_invoke to change (ui_transaction for several steps with what must hold after, ui_preview to show them first), ui_undo to take back, ui_wait "
+                                 : "ui_act or ui_invoke to change (ui_act's `steps` for several in order, ui_transaction for all or nothing, each with `expect`, what must hold after; ui_preview to show them first), ui_undo to take back, ui_wait "
                                    "to let the interface settle, ui_capture to see pixels; ui_more finds the rest by a few words of what you want (the verbs "
                                    "described, why something happened, input as a person, the clock) and runs it";
         r.set("instructions", std::format("Operate running openmui applications through their semantic trees: ui_apps to see what runs, ui_snapshot or "

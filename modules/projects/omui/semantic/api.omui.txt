@@ -110,6 +110,7 @@ namespace omui::semantic {
     [[nodiscard]] std::optional<spec::SemanticNode> node(std::string_view id);
     Envelope act(std::string_view id, std::string_view action, const Invocation& call = {…});
     Envelope transaction(std::span<const Step> steps, const Invocation& call = {…}, std::string label = {…}, std::span<const Condition> expect = {…});
+    Envelope sequence(std::span<const Step> steps, const Invocation& call = {…}, std::span<const Condition> expect = {…});
     Envelope preview(std::span<const Step> steps, const Invocation& call = {…}, const std::function<Value()>& look = {…});
     [[nodiscard]] Value state();
     Value restore(const Value& state, const Invocation& call = {…});

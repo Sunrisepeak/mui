@@ -16,6 +16,7 @@ export default defineOps({
   operations: [
     {
       name: "ui.describe",
+      keywords: ["verbs", "operations", "help", "capabilities", "policy"],
       effect: "read",
       summary: "What this endpoint is: the protocol, the application, its operations, the session's policy and the application's verbs",
       params: [
@@ -25,6 +26,7 @@ export default defineOps({
     },
     {
       name: "ui.record",
+      keywords: ["replay", "scenario", "reproduce", "bug", "test"],
       effect: "read",
       summary: "Development: every frame since the recorder kept everything — its time and input — and what it ended as (the tree's hash, the pixels'), as a scenario a fresh instance replays to the same bytes (`--replay`, `omui replay`); the person's input, outside development, once they say yes (answer)",
       result: "json",
@@ -32,6 +34,7 @@ export default defineOps({
     },
     {
       name: "ui.reload",
+      keywords: ["hot", "source", "file", "edited", "saved", "code"],
       effect: "reversible",
       summary: "Development: reloads the saved sources (or those named) at once and says what came of it — the semantic changes, where the pixels changed (that region before and after) and the motion it started, sampled over time",
       params: [
@@ -115,6 +118,7 @@ export default defineOps({
     },
     {
       name: "ui.redo",
+      keywords: ["again", "undone", "back"],
       then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
       effect: "reversible",
       summary: "Do again what ui.undo took back",
@@ -125,11 +129,15 @@ export default defineOps({
     {
       name: "ui.transaction",
       then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
-      examples: [{ steps: [{ node: "main/name", action: "set_value", args: { value: "Ada" } }] }],
+      examples: [
+        { steps: [{ node: "main/name", action: "set_value", args: { value: "Ada" } }] },
+        { steps: [{ node: "main/done", action: "toggle" }], expect: [{ q: { id: "main/done", state: ["checked"] } }] },
+      ],
       effect: "reversible",
-      summary: "Steps performed as one: all done, or all taken back",
+      summary: "Steps performed as one, checked by what must hold after: all done, or all taken back",
       params: [
         { name: "steps", type: "json", doc: "a list of {node, action, args, answer}" },
+        { name: "expect", type: "json", doc: "what must hold after the steps, a list of {q, absent} (q as ui.find's); one that does not takes all back", optional: true },
         { name: "label", type: "string", doc: "what the history calls it", optional: true },
         { name: "dry_run", type: "bool", doc: "only say what each step would do", optional: true },
       ],
@@ -139,6 +147,7 @@ export default defineOps({
     },
     {
       name: "ui.preview",
+      keywords: ["try", "simulate", "look", "before", "picture", "what", "if"],
       examples: [{ steps: [{ node: "main/dark", action: "toggle" }], pictures: false }],
       effect: "read",
       summary: "What steps would make, shown before it is allowed: pictures before and after, the semantic changes; nothing stays",
@@ -203,6 +212,7 @@ export default defineOps({
     },
     {
       name: "ui.input",
+      keywords: ["click", "type", "key", "drag", "scroll", "pointer", "mouse", "keyboard", "press", "person"],
       then: [{ why: "read what changed in the tree, without reading it all again", request: { op: "ui.changes" } }],
       examples: [{ events: [{ type: "click", at: [24, 24] }] }],
       effect: "reversible",
@@ -214,6 +224,7 @@ export default defineOps({
     },
     {
       name: "ui.intend",
+      keywords: ["tell", "say", "plan", "announce", "person", "hand", "over"],
       examples: [{ text: "filling in the form" }],
       effect: "read",
       summary: "Say to the person what you are about to do (the steps, or a note) — or, handing the task back, what you did, what is left, what you were unsure of: shown by your presence until you say another; nothing in the application changes",
@@ -259,6 +270,7 @@ export default defineOps({
     },
     {
       name: "ui.timeline",
+      keywords: ["history", "log", "events", "happened", "cause", "who"],
       effect: "read",
       summary: "What input did, oldest first: each input event's records — what it hit, what stopped it (disabled, outside, nothing to press, refused), what it activated — at the recorder's level; and what was done (`actions`): every action with who did it, whatever led to it — a press, or an agent's request — kept at every level. The person's own input and actions, outside development, once they say yes (answer)",
       params: [
@@ -270,8 +282,9 @@ export default defineOps({
     },
     {
       name: "ui.explain",
+      keywords: ["why", "cause", "reason", "happened", "pressed", "nothing"],
       effect: "read",
-      summary: "A press and what came of it, from press to release: what it hit, what stopped it, the actions it led to, and a sentence saying what happened. A press of the person's, outside development, once they say yes (answer)",
+      summary: "Why a press did what it did, or nothing: from press to release, what it hit, what stopped it, the actions it led to, and a sentence saying what happened. A press of the person's, outside development, once they say yes (answer)",
       params: [
         { name: "at", type: "json", doc: "[x, y]: the last press within a few pixels of it", optional: true },
         { name: "cause", type: "integer", doc: "or the press by its number (timeline)", optional: true },
@@ -280,6 +293,7 @@ export default defineOps({
     },
     {
       name: "ui.drew",
+      keywords: ["pixel", "drawn", "source", "which", "node", "code", "where"],
       examples: [{ at: [24, 24] }],
       effect: "read",
       summary: "What drew a pixel: the node its colour came from, the nodes it sits in, and where in the program each was built; where the node shows something drawn elsewhere (a world in a viewport), `shows`: its subject, the place in its picture and what is there",
@@ -351,6 +365,7 @@ export default defineOps({
     },
     {
       name: "ui.clock",
+      keywords: ["time", "pause", "step", "advance", "frame", "animation", "seek"],
       effect: "reversible",
       summary: "The application's time: show it (a read), or pause, resume, rate, step, seek and release",
       params: [

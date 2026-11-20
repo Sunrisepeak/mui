@@ -368,6 +368,19 @@ static UTest cases{"agent", [] {
         auto ok = talk(p, good);
         expect(exit_of(ok) == 0 && value("counts/a") == 3 && value("counts/b") == 5) << (ok.empty() ? "" : ok[0].json());
         expect(exit_of(talk(p, R"({"op":"undo"})")) == 0 && value("counts/a") == 2 && value("counts/b") == 0) << "undone as one";
+        // What must hold after, checked in the same call (C7): held, it is done and says what changed; not held, all of
+        // it is taken back and the answer names the expectation; `settled` is wait's, not a transaction's.
+        auto held = talk(p, R"({"op":"transaction","report":"changes","steps":[{"node":"counts/a","action":"increment"},{"node":"counts/b","action":"set_value","args":{"value":7}}],"expect":[{"q":{"id":"counts/b","value":7}},{"q":{"id":"counts/c"},"absent":true}]})");
+        expect(exit_of(held) == 0 && value("counts/a") == 3 && value("counts/b") == 7) << (held.empty() ? "" : held[0].json());
+        expect(held.size() >= 2 && held[1].get("data") && held[1].get("data")->get("changes") && held[1].get("data")->get("changes")->json().contains("counts/b"))
+            << (held.size() < 2 ? "" : held[1].json());
+        auto unmet = talk(p, R"({"op":"transaction","steps":[{"node":"counts/a","action":"increment"},{"node":"counts/b","action":"set_value","args":{"value":8}}],"expect":[{"q":{"id":"counts/b","value":8}},{"q":{"id":"counts/a","value":9}}]})");
+        expect(exit_of(unmet) == 1 && unmet[0].get("code")->as_string() == "failed" && unmet[0].get("expectation")->as_int() == 1 &&
+               unmet[0].json().contains("expectation 2") && unmet[0].json().contains("were taken back")) << (unmet.empty() ? "" : unmet[0].json());
+        expect(value("counts/a") == 3 && value("counts/b") == 7) << "an unmet expectation takes every step back";
+        expect(exit_of(talk(p, R"({"op":"undo"})")) == 0 && value("counts/a") == 2 && value("counts/b") == 0) << "the held one is one step of history";
+        auto moving = talk(p, R"({"op":"transaction","steps":[{"node":"counts/a","action":"increment"}],"expect":[{"settled":true}]})");
+        expect(exit_of(moving) == 1 && moving[0].json().contains("wait") && value("counts/a") == 2) << (moving.empty() ? "" : moving[0].json());
         // An irreversible verb ends what can be undone.
         expect(exit_of(talk(p, R"({"op":"invoke","verb":"notes.delete","answer":"yes"})")) == 0 && app.deleted == 1);
         auto refused = talk(p, R"({"op":"undo"})");

@@ -132,6 +132,14 @@ struct Found {
 // same answer everywhere. A word in a name weighs most, then in what it says, then in its parameters and
 // keywords; a word few things have weighs more than one many have; what has more of the words wanted comes first.
 [[nodiscard]] std::vector<Found> find(std::span<Subject* const> subjects, std::string_view query, std::size_t limit = 5);
+// One thing to rank that is not a subject's (a tool server's listing): its name and what it says as `found`
+// has them, `more` the rest (parameters, keywords).
+struct Candidate {
+    Found       found;
+    std::string more;
+};
+// The same ranking over candidates given as they are: the same words, weights and order as `find`'s.
+[[nodiscard]] std::vector<Found> rank(std::vector<Candidate> candidates, std::string_view query, std::size_t limit = 5);
 
 // One connection's conversation with a process's subjects.
 class SubjectSession final : public Session {

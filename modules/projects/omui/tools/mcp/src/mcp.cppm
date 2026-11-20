@@ -76,6 +76,11 @@ struct ServerOptions {
     // Runtime generation's verbs (generate.*, omui.agent's generate catalog):
     // they answer where an application lets generated interface in (W5).
     bool generate = true;
+    // Every tool on every turn. Not set (C7): the few most tasks use, and
+    // ui_more for the rest — found by a few words of intent, run by name —
+    // since a long list costs each turn and a client defers it behind a
+    // search step. Either way every tool answers when called by name.
+    bool every_tool = false;
 };
 
 // A listing read and checked: an omui.ops listing of an application's verbs

@@ -309,6 +309,11 @@ namespace mlibs::agent {
     std::uint64_t score = 0;
   };
   [[nodiscard]] std::vector<Found> find(std::span<Subject* const> subjects, std::string_view query, std::size_t limit = 5);
+  struct Candidate {
+    Found found;
+    std::string more;
+  };
+  [[nodiscard]] std::vector<Found> rank(std::vector<Candidate> candidates, std::string_view query, std::size_t limit = 5);
   class SubjectSession final : public Session {
     SubjectSession(std::vector<Subject*> subjects, SessionOptions options = {…});
     void request(std::string_view line, const Reply& reply) override;

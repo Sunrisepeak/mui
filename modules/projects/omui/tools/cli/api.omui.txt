@@ -30,7 +30,7 @@ namespace omui::cli::ops {
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_dev{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_run{…};
   inline constexpr std::array<mlibs::control::Parameter, 5> parameters_omui_connect{…};
-  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_omui_mcp{…};
+  inline constexpr std::array<mlibs::control::Parameter, 6> parameters_omui_mcp{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_replay{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_check{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_describe{…};

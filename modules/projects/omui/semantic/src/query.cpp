@@ -21,6 +21,14 @@ bool is_interactive(const spec::SemanticNode& n) {
     return std::ranges::any_of(n.actions, [](const spec::ActionDesc& a) { return a.effect != Effect::read; });
 }
 
+// A wanted value against a node's: a number is its value however it was written (JSON's 80 is a slider's
+// 80.0), and is a range's ({value, min, max, step}) value now; anything else, as it is.
+bool same_value(const Value& has, const Value& wanted) {
+    if (!wanted.is_number()) return has == wanted;
+    const Value* now = has.is_number() ? &has : has.map() ? has.get("value") : nullptr;
+    return now && now->is_number() && now->as_double() == wanted.as_double();
+}
+
 std::expected<std::vector<State>, QueryFailure> states_of(const Value& v, std::string_view field) {
     std::vector<State> out;
     const Value::List* l = v.list();
@@ -74,7 +82,7 @@ bool Query::matches(const spec::SemanticNode& n) const {
         if (!n.states.has(s)) return false;
     for (State s : without)
         if (n.states.has(s)) return false;
-    if (value && !(n.value == *value)) return false;
+    if (value && !same_value(n.value, *value)) return false;
     if (within && (!n.bounds || !from_spec(*n.bounds).intersects(*within))) return false;
     if (at && (!n.bounds || !from_spec(*n.bounds).contains(*at))) return false;
     if (interactive && !is_interactive(n)) return false;

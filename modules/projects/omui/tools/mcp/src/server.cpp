@@ -4,6 +4,7 @@ import std;
 import mcpplibs.os;
 import omui.core;
 import omui.agent;
+import mlibs.agent;
 import openas;
 
 namespace omui::mcp {
@@ -127,6 +128,30 @@ std::string_view str(const Value& args, std::string_view key) {
     return v ? v->as_string() : std::string_view{};
 }
 
+// The tools most tasks use, listed on every turn unless every tool is asked for; the rest wait behind ui_more,
+// found by a few words of intent (C7: a short task's tokens are mostly what every turn carries, and a client defers
+// a long list behind a search step).
+constexpr std::array<std::string_view, 10> everyday_tools{"ui_apps",        "ui_snapshot", "ui_find", "ui_act",     "ui_invoke",
+                                                         "ui_transaction", "ui_preview",  "ui_wait", "ui_capture", "ui_undo"};
+constexpr std::string_view more_tool = "ui_more";
+bool everyday(const Value& listed) { return std::ranges::contains(everyday_tools, str(listed, "name")); }
+
+// A tool's arguments in one line, `name: type — what it is` (`?`: optional; `app` left out, every one takes it).
+std::string arguments_text(const Value& listed) {
+    const Value* schema = listed.get("inputSchema");
+    const Value* properties = schema ? schema->get("properties") : nullptr;
+    if (!properties || !properties->map()) return {};
+    const Value* required = schema->get("required");
+    std::string out;
+    for (const auto& [key, property] : *properties->map()) {
+        if (key == "app") continue;
+        const bool needed = required && required->list() && std::ranges::any_of(*required->list(), [&](const Value& one) { return one.as_string() == key; });
+        const std::string_view type = str(property, "type"), doc = str(property, "description");
+        out += std::format("{}{}{}: {}{}", out.empty() ? "" : "; ", key, needed ? "" : "?", type.empty() ? "json" : type, doc.empty() ? std::string() : std::format(" — {}", doc));
+    }
+    return out.empty() ? std::string() : std::format("  args: {}\n", out);
+}
+
 // The actor's name from a client's: lower case, letters, digits and '-'.
 std::string actor_name(std::string_view client) {
     std::string out;
@@ -149,6 +174,17 @@ struct Answer {
     bool        delivered = false;  // a result came back
 };
 
+// A range ({value, min, max, step}) as an agent reads it: its value now and its bounds ("60 (0–100, step 5)"), or
+// only its value; not a range, nothing.
+std::optional<std::string> range_text(const Value& v, bool bounds) {
+    const Value* now = v.map() ? v.get("value") : nullptr;
+    if (!now || !now->is_number() || !v.get("min") || !v.get("max")) return std::nullopt;
+    if (!bounds) return now->json();
+    const Value* step = v.get("step");
+    return std::format("{} ({}–{}{})", now->json(), v.get("min")->json(), v.get("max")->json(),
+                       step && step->is_number() && step->as_double() > 0 ? std::format(", step {}", step->json()) : std::string());
+}
+
 // A step's semantic changes, a line each: "+ id role \"name\"", "- id",
 // "~ id field: before → after" (at most 24 lines; the rest counted).
 std::string changes_text(const Value& changes) {
@@ -166,7 +202,10 @@ std::string changes_text(const Value& changes) {
         for (const Value& n : *changed->list())
             if (const Value* fields = n.get("fields"); fields && fields->map())
                 for (const auto& [field, was] : *fields->map()) {
-                    const auto shown = [](const Value* v) { return !v ? std::string("?") : v->type() == Value::Type::text ? std::format("\"{}\"", v->as_string()) : v->json(); };
+                    const auto shown = [](const Value* v) {
+                        if (!v) return std::string("?");
+                        return range_text(*v, false).value_or(v->type() == Value::Type::text ? std::format("\"{}\"", v->as_string()) : v->json());
+                    };
                     lines.push_back(std::format("~ {} {}: {} → {}", str(n, "id"), field, shown(was.get("before")), shown(was.get("after"))));
                 }
     if (lines.empty()) return "\nno semantic change";
@@ -243,6 +282,11 @@ struct Server::Impl {
     std::map<std::string, std::string>     verbs;
     // The command line's commands as tools (omui_build …): each one's command and effect.
     std::map<std::string, std::pair<std::string, std::string>> commands;
+    // Words an intent may use for a listed tool that its description does not (its catalog's keywords), for ui_more.
+    std::map<std::string, std::string> keywords;
+    // The tools of listings given by name (`--ops`): an application's verbs asked for, listed even when lean.
+    std::set<std::string> asked;
+    bool always_listed(const Value& listed) const { return everyday(listed) || asked.contains(std::string(str(listed, "name"))); }
 
     explicit Impl(ServerOptions o) : options(std::move(o)), actor(options.actor.empty() ? "agent:mcp" : options.actor) {
         std::vector<Value> listings;
@@ -271,9 +315,24 @@ struct Server::Impl {
                 t.set("annotations", hints_of(str(op, "effect"), op.get("delegated") && op.get("delegated")->as_bool()));
                 listed.push_back(std::move(t));
                 verbs.emplace(name, verb);
+                keep_keywords(name, op);
             }
         }
+        for (const Value& listing : options.listings)
+            if (const Value* tools = listing.get("tools"); tools && tools->list())
+                for (const Value& op : *tools->list()) asked.insert(tool_name(str(op, "name")));
         list_commands();
+    }
+
+    void keep_keywords(const std::string& name, const Value& op) {
+        if (const Value* words = op.get("keywords"); words && words->list())
+            for (const Value& word : *words->list()) keywords[name] += std::format("{} ", word.as_string());
+    }
+    // A tool's keywords: a ui_* tool's from the protocol's catalog, the rest's from their listings.
+    std::string keywords_of(std::string_view tool) const {
+        if (const Operation* operation = protocol_operation(tool)) return std::string(operation->keywords);
+        const auto found = keywords.find(std::string(tool));
+        return found == keywords.end() ? std::string() : found->second;
     }
 
     // The command line's commands (no application named: they work on the project the server runs in).
@@ -300,6 +359,7 @@ struct Server::Impl {
             t.set("annotations", hints_of(effect, false));
             listed.push_back(std::move(t));
             commands.emplace(name, std::pair{command, effect});
+            keep_keywords(name, op);
         }
     }
 
@@ -361,7 +421,8 @@ struct Server::Impl {
             end = line == std::string::npos ? listed.size() : line + 1;
         }
         std::string out = std::format("\n\n{} ({}) is running. Its interactive nodes now (id role \"name\" = value [states] {{actions}}): act on an id "
-                                      "with ui_act, no need to ask for the tree first; what an action changed comes back with it.\n{}",
+                                      "with ui_act, no need to ask for the tree first; what an action changed comes back with it. Several steps: one "
+                                      "ui_transaction, its `expect` checking them in the same call.\n{}",
                                       apps.front().app, apps.front().interface_name, listed.substr(0, end));
         if (end < listed.size()) out += "… the rest: ui_snapshot\n";
         const Answer described = call(app, Value{}.set("op", "describe").set("actor", actor), options.timeout);
@@ -384,6 +445,54 @@ struct Server::Impl {
                 for (const Value& verb : *verbs->list()) out.insert(std::string(str(verb, "name")));
         }
         return out;
+    }
+
+    // Every tool without the listings' tools no running application offers (all of them while none runs).
+    Value::List offered(Value::List all) {
+        const auto verbs_offered = offered_verbs();
+        if (!verbs_offered) return all;
+        std::erase_if(all, [&](const Value& listed) {
+            const auto verb = verbs.find(std::string(str(listed, "name")));
+            return verb != verbs.end() && !verbs_offered->contains(verb->second);
+        });
+        return all;
+    }
+
+    // ui_more (C7): the tools not listed on every turn, found by a few words of what is wanted — mlibs.agent's
+    // ranking, the same answer everywhere — and each with its arguments; or one of them run by name; or, asked
+    // nothing, their names.
+    Value more(Value::List rest, const Value& args, Transport& t) {
+        if (const std::string_view name = str(args, "tool"); !name.empty()) {
+            const bool known = name != more_tool && (std::ranges::contains(everyday_tools, name) ||
+                                                     std::ranges::any_of(rest, [&](const Value& one) { return str(one, "name") == name; }));
+            if (!known) return tool_result(std::format("no tool `{}` here: ui_more with `intent` finds one", name), true);
+            Value given = args.get("args") && args.get("args")->map() ? *args.get("args") : Value(Value::Map{});
+            if (const std::string_view app = str(args, "app"); !app.empty() && !given.get("app")) given.set("app", app);
+            return run_tool(name, given, t);
+        }
+        const std::string_view intent = str(args, "intent");
+        if (intent.empty()) {
+            std::string names;
+            for (const Value& one : rest) names += std::format("{}{}", names.empty() ? "" : ", ", str(one, "name"));
+            return tool_result(std::format("{} more: {}\n(ui_more with `intent` says what the ones that fit take)", rest.size(), names));
+        }
+        std::vector<mlibs::agent::Candidate> candidates;
+        for (const Value& one : rest) {
+            std::string more_words = keywords_of(str(one, "name"));
+            if (const Value* schema = one.get("inputSchema"); schema && schema->get("properties") && schema->get("properties")->map())
+                for (const auto& [key, property] : *schema->get("properties")->map()) more_words += std::format("{} {} ", key, str(property, "description"));
+            candidates.push_back({.found = {.kind = "tool", .name = std::string(str(one, "name")), .text = std::string(str(one, "description"))}, .more = std::move(more_words)});
+        }
+        const auto found = mlibs::agent::rank(std::move(candidates), intent, 5);
+        if (found.empty()) return tool_result(std::format("nothing here answers \"{}\": ui_more with no arguments lists every name", intent));
+        std::string out;
+        for (const auto& one : found) {
+            out += std::format("- {} — {}\n", one.name, one.text);
+            if (const auto listed = std::ranges::find_if(rest, [&](const Value& each) { return str(each, "name") == one.name; }); listed != rest.end())
+                out += arguments_text(*listed);
+        }
+        out += "run one: ui_more {tool, args}";
+        return tool_result(std::move(out));
     }
 
     // The application a call means: its `app` (an endpoint's name or an app
@@ -660,6 +769,7 @@ struct Server::Impl {
         if (dry) return plan(app, std::move(request), what);
         if (op == "act" || op == "invoke") return perform(t, app, std::move(request), what);
         request.set("actor", actor);
+        if (op == "transaction") request.set("report", "changes");  // as an action's: what it changed, no snapshot to check
         std::chrono::milliseconds budget = options.timeout;
         if (op == "wait") {  // waiting is the application's: the answer may take that long
             const double seconds = args.get("timeout") ? args.get("timeout")->as_double(5) : 5.0;
@@ -724,7 +834,10 @@ struct Server::Impl {
         if (op == "undo" || op == "redo") return tool_result(std::format("{}: {}", op == "redo" ? "redone" : "undone", str(a.data, op == "redo" ? "redone" : "undone")), false, data_of);
         if (op == "transaction") {
             const std::size_t steps = args.get("steps") && args.get("steps")->list() ? args.get("steps")->list()->size() : 0;
-            return tool_result(std::format("done: {} steps as one step ({})", steps, str(a.data, "committed")), false, data_of);
+            const std::size_t expected = args.get("expect") && args.get("expect")->list() ? args.get("expect")->list()->size() : 0;
+            return tool_result(std::format("done: {} steps as one step ({}){}{}", steps, str(a.data, "committed"),
+                                           expected ? std::format(", {} expectation{} held", expected, expected == 1 ? "" : "s") : std::string(), changes_text(a.changes)),
+                               false, data_of);
         }
         if (op == "wait") return tool_result("the condition holds", false, a.data);
         if (op == "preview") {
@@ -939,13 +1052,18 @@ Value::List Server::tools() const {
 }
 
 Value::List Server::offered_tools() const {
-    Value::List out = tools();
-    const auto offered = impl_->offered_verbs();
-    if (!offered) return out;
-    std::erase_if(out, [&](const Value& listed) {
-        const auto verb = impl_->verbs.find(std::string(str(listed, "name")));
-        return verb != impl_->verbs.end() && !offered->contains(verb->second);
-    });
+    Value::List out = impl_->offered(tools());
+    if (impl_->options.way != Way::semantic || impl_->options.every_tool) return out;
+    const auto rest = std::ranges::count_if(out, [&](const Value& listed) { return !impl_->always_listed(listed); });
+    std::erase_if(out, [&](const Value& listed) { return !impl_->always_listed(listed); });
+    out.push_back(tool(more_tool, "Everything else, by intent",
+                       std::format("The {} other tools: redo, why something happened (explain, timeline), input as a person, "
+                                   "recordings, hot reload, the clock, the verbs described, Live Design, generation, background tasks, the project's commands. "
+                                   "`intent`, a few words of what you want: the ones that fit, with their arguments. `tool` and `args`: run one.",
+                                   rest),
+                       object_schema({{"intent", prop("string", "what you want, in a few words")}, {"tool", prop("string", "a tool to run, by name")},
+                                      {"args", prop("object", "its arguments")}, app_prop}),
+                       "ui.act"));  // it runs what it names: as an action's, at most irreversible
     return out;
 }
 
@@ -999,13 +1117,18 @@ void Server::handle(std::string_view line, Transport& t) {
             t.write(response(*id, std::move(r)).json());
             return;
         }
-        r.set("instructions",
-              std::string("Operate running openmui applications through their semantic trees: ui_apps to see what runs, ui_snapshot or ui_find "
-              "to read, ui_describe for the application's verbs, ui_act or ui_invoke to change, ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, "
-              "click, drag, scroll and type as a person does (when the application allows it), ui_clock for its time. Ids are stable "
-              "paths. Actions marked irreversible or external are confirmed by the user; never answer for them. Actions marked person are "
-              "the user's own and are refused to agents.") +
-                  d.at_connect());
+        // What every tool is for, as the list has them: the few and ui_more, or every one.
+        const std::string_view tools_said =
+            d.options.every_tool ? "ui_describe for the application's verbs, ui_act or ui_invoke to change (ui_transaction for several steps with what must hold "
+                                   "after), ui_wait to let the interface settle, ui_capture to see pixels, ui_input to point, click, drag, scroll and type as a "
+                                   "person does (when the application allows it), ui_clock for its time"
+                                 : "ui_act or ui_invoke to change (ui_transaction for several steps with what must hold after, ui_preview to show them first), ui_undo to take back, ui_wait "
+                                   "to let the interface settle, ui_capture to see pixels; ui_more finds the rest by a few words of what you want (the verbs "
+                                   "described, why something happened, input as a person, the clock) and runs it";
+        r.set("instructions", std::format("Operate running openmui applications through their semantic trees: ui_apps to see what runs, ui_snapshot or "
+                                          "ui_find to read, {}. Ids are stable paths. Actions marked irreversible or external are confirmed by the user; "
+                                          "never answer for them. Actions marked person are the user's own and are refused to agents.{}",
+                                          tools_said, d.at_connect()));
         t.write(response(*id, std::move(r)).json());
         return;
     }
@@ -1020,12 +1143,20 @@ void Server::handle(std::string_view line, Transport& t) {
     if (method == "tools/call") {
         const std::string name(str(params, "name"));
         const Value args = params.get("arguments") && params.get("arguments")->map() ? *params.get("arguments") : Value(Value::Map{});
-        const bool known = std::ranges::any_of(tools(), [&](const Value& tl) { return str(tl, "name") == name; });
+        const bool lean = d.options.way == Way::semantic && !d.options.every_tool;
+        const bool known = (lean && name == more_tool) || std::ranges::any_of(tools(), [&](const Value& tl) { return str(tl, "name") == name; });
         if (!known) {
             t.write(failure(*id, invalid_params, std::format("no tool `{}`", name)).json());
             return;
         }
-        Value result = d.run_tool(name, args, t);
+        Value result;
+        if (lean && name == more_tool) {
+            Value::List rest = d.offered(tools());
+            std::erase_if(rest, [&](const Value& listed) { return d.always_listed(listed); });
+            result = d.more(std::move(rest), args, t);
+        } else {
+            result = d.run_tool(name, args, t);
+        }
         d.journal(name, args, result);
         t.write(response(*id, std::move(result)).json());
         return;
@@ -1063,7 +1194,7 @@ std::string outline(const Value::List& nodes) {
         std::string l(static_cast<std::size_t>(depth) * 2, ' ');
         l += std::format("{} {}", id, str(n, "role"));
         if (auto name = str(n, "name"); !name.empty()) l += std::format(" \"{}\"", name);
-        if (const Value* v = n.get("value"); v && !v->is_null()) l += std::format(" = {}", v->json());
+        if (const Value* v = n.get("value"); v && !v->is_null()) l += std::format(" = {}", range_text(*v, true).value_or(v->json()));
         if (const Value* s = n.get("state"); s && s->list() && !s->list()->empty()) {
             std::string states;
             for (const Value& x : *s->list()) states += std::format("{}{}", states.empty() ? "" : " ", x.as_string());

@@ -88,6 +88,13 @@ int serve_mcp(const mlibs::agent::Arguments& a, std::ostream& err) {
         }
         o.way = *way;
     }
+    if (auto v = a.value("tools")) {
+        if (*v != "lean" && *v != "all") {
+            err << "omui mcp: --tools is lean (the few most tasks use, and ui_more for the rest) or all\n";
+            return 1;
+        }
+        o.every_tool = *v == "all";
+    }
     if (auto directory = a.value("dir")) o.directory = mcpplibs::os::fs::from_utf8(*directory);
     for (const std::string& file : a.values("ops")) {
         auto listing = mcp::read_listing(mcpplibs::os::fs::from_utf8(file));

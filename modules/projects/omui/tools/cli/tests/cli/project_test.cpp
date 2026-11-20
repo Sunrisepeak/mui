@@ -187,7 +187,7 @@ static UTest cases{"cli.project", [] {
                      call(3, "omui_doctor", Value(Value::Map{})),
                      call(4, "omui_package", Value(Value::Map{}))};
         mcp::Server server({.directory = std::filesystem::temp_directory_path() / "omui-cli-mcp", .commands = parse_json(cli::ops::listing).value_or(Value{}),
-                            .run_command = cli::run_for_agent, .design = false});
+                            .run_command = cli::run_for_agent, .design = false, .every_tool = true});
         server.serve(client);
         const auto reply = [&](int id) -> const Value* {
             for (const Value& message : client.out)

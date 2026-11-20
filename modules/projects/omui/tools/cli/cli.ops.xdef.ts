@@ -92,6 +92,7 @@ export default defineOps({
         { name: "app", type: "string", doc: "the application a call names none of (default: the one running)", optional: true },
         { name: "actor", type: "string", doc: "who acts (default: the client's name, agent:claude-code)", optional: true },
         { name: "way", type: "string", doc: "semantic (default); a11y-tree or screenshot: what a browser agent's accessibility tree or computer use offers, on the same application (D-142)", optional: true },
+        { name: "tools", type: "string", doc: "lean (default): the few tools most tasks use, and ui_more finding the rest by intent; all: every tool on every turn", optional: true },
         { name: "ops", type: "json", doc: "an application's verbs as tools, from its <product>.ops.json listing (ops-gen); given again for more", optional: true },
         { name: "dir", type: "path", doc: "where the running applications' endpoints are (default: the per-user directory)", optional: true },
       ],

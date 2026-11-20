@@ -587,9 +587,22 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             list.push_back({std::string(text_of(st, "node")), std::string(text_of(st, "action")), st.get("args") ? *st.get("args") : Value{},
                             std::string(text_of(st, "answer"))});
         }
+        // What must hold after (C7): wait's condition without `settled` — the state the steps make, not their motion.
+        std::vector<semantic::Condition> expect;
+        if (const Value* listed = req.get("expect")) {
+            constexpr std::string_view with_expect =
+                R"({"op":"transaction","steps":[{"node":"main/done","action":"toggle"}],"expect":[{"q":{"id":"main/done","state":["checked"]}},{"q":{"id":"main/toast"},"absent":true}]})";
+            if (!listed->list()) return invalid("`expect` is a list of {q, absent}", with_expect);
+            for (const Value& one : *listed->list()) {
+                if (one.get("settled")) return invalid("an expectation is about the state the steps make, not motion: wait for `settled` with `wait`", with_expect);
+                auto condition = semantic::Condition::parse(one);
+                if (!condition) return invalid(condition.error().message, with_expect);
+                expect.push_back(std::move(*condition));
+            }
+        }
         auto call = invocation(Value{});
         if (!call) return call.error();
-        return tree_.transaction(list, *call, std::string(text_of(req, "label")));
+        return with_changes(runtime_, tree_, req, *call, [&] { return tree_.transaction(list, *call, std::string(text_of(req, "label")), expect); });
     }
     if (op == "preview") {
         // What the steps would make, shown before it is allowed (Part 2 §4.1, A): the picture now and the

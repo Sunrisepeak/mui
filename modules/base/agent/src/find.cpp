@@ -54,6 +54,10 @@ struct Indexed {
 
 }  // namespace
 
+namespace {
+std::vector<Found> ranked(std::vector<Indexed> all, std::string_view query, std::size_t limit);
+}  // namespace
+
 std::vector<Found> find(std::span<Subject* const> subjects, std::string_view query, std::size_t limit) {
     std::vector<Indexed> all;
     for (const Subject* subject : subjects) {
@@ -82,6 +86,23 @@ std::vector<Found> find(std::span<Subject* const> subjects, std::string_view que
                            std::move(name), std::move(text), {}});
         }
     }
+    return ranked(std::move(all), query, limit);
+}
+
+std::vector<Found> rank(std::vector<Candidate> candidates, std::string_view query, std::size_t limit) {
+    std::vector<Indexed> all;
+    all.reserve(candidates.size());
+    for (Candidate& each : candidates) {
+        std::vector<std::string> name = words(each.found.name), text = words(each.found.text), more = words(each.more);
+        all.push_back({std::move(each.found), std::move(name), std::move(text), std::move(more)});
+    }
+    return ranked(std::move(all), query, limit);
+}
+
+namespace {
+
+// The ranking itself, one rule for subjects and candidates.
+std::vector<Found> ranked(std::vector<Indexed> all, std::string_view query, std::size_t limit) {
     // A word found in few weighs more than one found in many: whole numbers, the same on every machine.
     const std::vector<std::string> wanted = words(query);
     std::vector<std::uint64_t> rarity(wanted.size(), 0);
@@ -109,5 +130,7 @@ std::vector<Found> find(std::span<Subject* const> subjects, std::string_view que
     for (std::size_t index = 0; index < std::min(all.size(), limit); ++index) out.push_back(std::move(all[index].found));
     return out;
 }
+
+}  // namespace
 
 }  // namespace mlibs::agent

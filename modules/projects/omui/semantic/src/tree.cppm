@@ -77,8 +77,13 @@ public:
     // ends it: those done are taken back, last first, and its error is the
     // answer (with its exit code: 2 when it needs an answer). An irreversible
     // or external step is refused before it runs. A dry run checks each step
-    // against the tree as it is now and answers their outcomes.
-    Envelope transaction(std::span<const Step> steps, const Invocation& call = {}, std::string label = {});
+    // against the tree as it is now and answers their outcomes. `expect`:
+    // what must hold once the steps are done, read at this very time after a
+    // frame (the state, not motion: no `settled`); the first that does not
+    // hold takes every step back, and the answer names it and why — the
+    // steps and their check in one call, nothing left half done (C7).
+    Envelope transaction(std::span<const Step> steps, const Invocation& call = {}, std::string label = {},
+                         std::span<const Condition> expect = {});
     // What the steps would make, shown before anything is allowed (Part 2
     // §4.1, A): the ones that can be taken back run inside a transaction in
     // a preview (no journal, no motion), `look` sees the state they make (a

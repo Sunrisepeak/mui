@@ -136,7 +136,7 @@ struct Notes {
 UTest cases{"mcp", [] {
 
     "the protocol: initialize (the version asked for, the client named), tools, ping, and errors as JSON-RPC's"_test = [] {
-        mcp::Server server({.directory = scratch_dir("mcp-empty")});
+        mcp::Server server({.directory = scratch_dir("mcp-empty"), .every_tool = true});
         Client c;
         Value p;
         p.set("protocolVersion", "2025-03-26").set("capabilities", Value(Value::Map{})).set("clientInfo", Value{}.set("name", "Claude Code"));
@@ -209,7 +209,7 @@ UTest cases{"mcp", [] {
             std::println("    skipped: local endpoints are not supported here");
             return;
         }
-        mcp::Server server({.directory = dir});
+        mcp::Server server({.directory = dir, .every_tool = true});
         Client c;
         c.in = {initialize(1, false), request(2, "tools/list"), call(3, "design_sources")};
         serve(notes.h, server, c);
@@ -217,6 +217,37 @@ UTest cases{"mcp", [] {
         expect(tools && tools->list() && tools->list()->size() == 20) << (tools ? tools->json() : std::string("<none>"));
         expect(eq(server.tools().size(), std::size_t{72})) << "every tool still known";
         expect(c.reply(3) && c.error(3)) << "a tool not listed answers as a verb the application lacks";
+    };
+
+    "lean by default (C7): the few tools most tasks use, and ui_more finding the rest by intent and running them"_test = [] {
+        const auto dir = scratch_dir("mcp-lean");
+        Notes notes(dir);
+        if (!notes.h.endpoint()) return;
+        mcp::Server server({.directory = dir});
+        Client c;
+        c.in = {initialize(1, false),
+                request(2, "tools/list"),
+                call(3, "ui_more", Value{}.set("intent", "pause the time and step one frame of the animation")),
+                call(4, "ui_more", Value{}.set("intent", "why did nothing happen when I pressed it")),
+                call(5, "ui_more", Value{}.set("tool", "ui_describe")),
+                call(6, "ui_more"),
+                call(7, "ui_more", Value{}.set("tool", "ui_nothing")),
+                call(8, "ui_clock")};
+        serve(notes.h, server, c);
+        const Value* init = c.reply(1) ? c.reply(1)->get("result") : nullptr;
+        expect(init && init->get("instructions") && init->get("instructions")->as_string().contains("ui_more finds the rest")) << (init ? init->json() : std::string());
+        const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
+        std::set<std::string> names;
+        if (tools && tools->list())
+            for (const Value& listed : *tools->list()) names.insert(std::string(listed.get("name")->as_string()));
+        expect((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_transaction", "ui_preview", "ui_wait", "ui_capture", "ui_undo", "ui_more"}))
+            << (tools ? tools->json() : std::string("<none>"));
+        expect(!c.error(3) && c.text(3).starts_with("- ui_clock") && c.text(3).contains("args: ")) << c.text(3);
+        expect(!c.error(4) && c.text(4).starts_with("- ui_explain")) << c.text(4);
+        expect(!c.error(5) && c.text(5).contains("- notes.pin (")) << "run by name: " << c.text(5);
+        expect(!c.error(6) && c.text(6).contains("ui_explain") && !c.text(6).contains("ui_preview") && !c.text(6).contains("design_edit")) << "the names, what runs offers: " << c.text(6);
+        expect(c.error(7) && c.text(7).contains("ui_more with `intent`")) << c.text(7);
+        expect(c.reply(8) && !c.error(8)) << "a tool not listed still answers by name";
     };
 
     "against a running application: apps, the tree, find, a verb, wait, capture — and an irreversible action refused to a client that cannot ask"_test = [] {
@@ -395,7 +426,12 @@ UTest cases{"mcp", [] {
                 call(7, "ui_transaction", Value{}.set("steps", steps).set("dry_run", true)),
                 call(8, "ui_transaction", Value{}.set("steps", steps)),
                 call(9, "ui_transaction", Value{}.set("steps", Value(Value::List{(*steps.list())[0], (*steps.list())[1]})).set("label", "quiet")),
-                call(10, "ui_act", Value{}.set("node", "notes/delete").set("action", "activate").set("dry_run", true))};
+                call(10, "ui_act", Value{}.set("node", "notes/delete").set("action", "activate").set("dry_run", true)),
+                // the steps and their check in one call (C7): held, done with what changed; not held, nothing stays
+                call(11, "ui_transaction", Value{}.set("steps", Value(Value::List{Value{}.set("node", "prefs/volume").set("action", "set_value").set("args", Value{}.set("value", 80.0))}))
+                                              .set("expect", Value(Value::List{Value{}.set("q", Value{}.set("id", "prefs/volume").set("value", 80.0))})).set("label", "checked")),
+                call(12, "ui_transaction", Value{}.set("steps", Value(Value::List{Value{}.set("node", "prefs/volume").set("action", "set_value").set("args", Value{}.set("value", 90.0))}))
+                                              .set("expect", Value(Value::List{Value{}.set("q", Value{}.set("id", "prefs/volume").set("value", 95.0))})))};
         serve(notes.h, server, c);
         expect(!c.error(2) && c.text(2).contains("it would run (reversible); value false → true; it can be undone")) << c.text(2);
         expect(!c.error(3)) << c.text(3);
@@ -406,9 +442,11 @@ UTest cases{"mcp", [] {
         expect(c.error(8) && c.text(8).contains("step 3") && c.text(8).contains("nothing of it stays")) << c.text(8);
         expect(!c.error(9) && c.text(9).contains("as one step (quiet)")) << c.text(9);
         expect(!c.error(10) && c.text(10).contains("confirmation") && notes.deleted == 0) << c.text(10);
-        expect(!pinned.peek() && volume.peek() == 60) << std::format("{} {}", pinned.peek(), volume.peek());
+        expect(!c.error(11) && c.text(11).contains("as one step (checked), 1 expectation held") && c.text(11).contains("~ prefs/volume value: 60 → 80")) << c.text(11);
+        expect(c.error(12) && c.text(12).contains("expectation 1") && c.text(12).contains("was taken back")) << c.text(12);
+        expect(!pinned.peek() && volume.peek() == 80) << std::format("{} {}", pinned.peek(), volume.peek());
         const History h = notes.h.runtime().history(notes.h.runtime().root());
-        expect(!h.undo.empty() && h.undo.back().label == "quiet" && h.undo.back().steps == 2);
+        expect(h.undo.size() >= 2 && h.undo.back().label == "checked" && h.undo[h.undo.size() - 2].label == "quiet" && h.undo[h.undo.size() - 2].steps == 2);
     };
 
     "shown before it is allowed (Part 2 A): the picture before and after, the changes, the step that asks the person not done — nothing stays"_test = [] {
@@ -519,10 +557,10 @@ UTest cases{"mcp", [] {
         c.in = {initialize(1, false), request(2, "tools/list"), call(3, "notes_pin"), call(4, "notes_delete")};
         serve(notes.h, server, c);
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        expect(tools && tools->list() && tools->list()->size() == 22) << "twenty ui_* tools and the two listed";
-        if (tools && tools->list() && tools->list()->size() == 22) {
-            const Value& pin = (*tools->list())[20];
-            const Value& del = (*tools->list())[21];
+        expect(tools && tools->list() && tools->list()->size() == 13) << "the ten everyday tools, the two listed (asked for: listed even when lean) and ui_more";
+        if (tools && tools->list() && tools->list()->size() == 13) {
+            const Value& pin = (*tools->list())[10];
+            const Value& del = (*tools->list())[11];
             expect(pin.get("name")->as_string() == "notes_pin" && pin.get("title")->as_string() == "notes.pin") << pin.json();
             expect(pin.get("inputSchema")->get("properties")->get("app") != nullptr) << "a call may name its application";
             expect(!pin.get("annotations")->get("readOnlyHint")->as_bool() && !pin.get("annotations")->get("destructiveHint")->as_bool()) << pin.json();

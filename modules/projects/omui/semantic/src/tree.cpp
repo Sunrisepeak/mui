@@ -597,7 +597,7 @@ Envelope Tree::preview(std::span<const Step> steps, const Invocation& call, cons
     return e;
 }
 
-Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, std::string label) {
+Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, std::string label, std::span<const Condition> expect) {
     auto first_error = [](const Envelope& e) -> std::pair<std::string, std::string> {
         for (const spec::Record& r : e.records())
             if (r.kind == spec::RecordKind::error)
@@ -707,6 +707,31 @@ Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, 
             return e;
         }
         results.push_back(r.data_value() ? *r.data_value() : Value{});
+    }
+    if (!expect.empty()) {
+        // What the steps made, at this very time (their reactive updates applied and laid out), then each
+        // expectation against it: one that does not hold takes all back, as a failed step would.
+        const auto settle = [&] {
+            FrameInput still;
+            still.time = runtime_.now();
+            (void)runtime_.frame(still);
+        };
+        settle();
+        for (std::size_t i = 0; i < expect.size(); ++i) {
+            const WaitState now = check(expect[i]);
+            if (now.satisfied) continue;
+            Envelope back = runtime_.rollback_transaction(call);
+            settle();
+            const std::string query = expect[i].query ? expect[i].query->to_value().json() : std::string("{}");
+            std::string why = std::format("expectation {} ({}{}) did not hold: {}", i + 1, expect[i].absent ? "absent " : "", query, now.why);
+            if (back.exit_code() != spec::exit_code::success) why += std::format("; taking the steps back failed: {}", first_error(back).second);
+            else why += std::format("; the {} step{} {} taken back", steps.size(), steps.size() == 1 ? "" : "s", steps.size() == 1 ? "was" : "were");
+            Value extra;
+            extra.set("expectation", static_cast<std::int64_t>(i)).set("absent", expect[i].absent);
+            if (expect[i].query) extra.set("q", expect[i].query->to_value());
+            e.error(spec::error_code::failed, why, std::move(extra)).result(spec::exit_code::failure);
+            return e;
+        }
     }
     Envelope done = runtime_.commit_transaction();
     Value data = done.data_value() ? *done.data_value() : Value{};

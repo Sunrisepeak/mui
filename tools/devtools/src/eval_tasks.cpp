@@ -27,7 +27,7 @@ constexpr std::array<std::string_view, 3> ways{"semantic", "a11y-tree", "screens
 std::string_view tools_said(std::string_view way) {
     if (way == "a11y-tree") return "the window's accessibility tree, a screenshot, and clicking, typing, keys, dragging and scrolling";
     if (way == "screenshot") return "a screenshot of the window, and clicking, typing, keys, dragging and scrolling at its coordinates";
-    return "the openmui tools: ui_snapshot, ui_find, ui_act, ui_invoke, ui_preview, ui_undo, ui_capture …";
+    return "the openmui tools: ui_snapshot, ui_find, ui_act, ui_invoke, ui_transaction, ui_undo, ui_capture, ui_more …";
 }
 
 fs::path scratch_directory(std::string_view prefix) {

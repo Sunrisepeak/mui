@@ -46,7 +46,7 @@ struct Query {
 
     [[nodiscard]] bool matches(const spec::SemanticNode& node) const;
 
-    // {"id", "under", "role", "name", "state": [...], "not": [...], "value",
+    // {"id", "under", "role", "name", "state": [...], "not": [...], "value" (a number: a range's value now too),
     //  "within": [x, y, w, h], "at": [x, y], "interactive", "limit"}
     [[nodiscard]] static std::expected<Query, QueryFailure> parse(const Value& v);
     [[nodiscard]] Value to_value() const;

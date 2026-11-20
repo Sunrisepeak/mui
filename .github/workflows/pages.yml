@@ -103,11 +103,15 @@ jobs:
           (cd site/page && mcpp run -p omui.cli -- build --web)
           rm -rf target/site/page
           cp -r "$(dirname "$(ls -t target/.build-mcpp/out/*/omui.site.page/toy/omui-site-page/index.html | head -1)")" target/site/page
+      - name: The page's program cut in two by what its first screen runs (D5, as the site's)
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- site split target/site/page --routes ""
+        env:
+          OMUI_REQUIRE_BROWSER: '1'
       - name: The page's path — Live Design, Copy, the visitor's agent connected through omui connect, the bridge gone
         run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site-page path --page target/site/page
       - name: The page's delivery within its budget (red 148 until a TypeScript page's Web program is cut to it)
         # site/page/delivery.budget.xdef.json (the site's design §6): 1.2 MB before the first frame, which comes
-        # within 1.5 s; 3.49 MB and 1.74 s at 2026-11-20. Reported, not yet gating the publish: the page is published
+        # within 1.5 s; split, 1.57 MB and 0.91 s at 2026-11-20 (3.49 MB, 1.74 s whole). Reported, not yet gating the publish: the page is published
         # at /page/ so its interactions can be tried on the PR (the site's design, fifth version). Remove
         # continue-on-error when red 148 closes.
         continue-on-error: true

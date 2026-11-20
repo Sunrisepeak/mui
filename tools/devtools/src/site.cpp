@@ -235,7 +235,7 @@ int build(const fs::path& root) {
     return 0;
 }
 
-int split(const fs::path& root, const fs::path& given) {
+int split(const fs::path& root, const fs::path& given, const std::vector<std::string>& routes) {
     const fs::path site = given.is_absolute() ? given : root / given;
     const fs::path work = root / "target/site-split";
     const bool require = os::env::get("OMUI_REQUIRE_BROWSER") == "1";
@@ -315,16 +315,19 @@ int split(const fs::path& root, const fs::path& given) {
         return 1;
     }
     write_file(work / "page/index.html", *edited);
-    // The first screen in each language the page speaks (the Chinese home draws with its own face,
-    // through code the English one never runs), merged.
-    if (profile({.site = work / "page", .out = work / "en.profile"}) != 0)
-        return 1;
-    if (profile({.site = work / "page", .out = work / "zh.profile", .route = "/zh"}) != 0)
-        return 1;
-    if (!splitting({"--merge-profiles", os::fs::utf8(work / "en.profile"),
-                    os::fs::utf8(work / "zh.profile"), "-o",
-                    os::fs::utf8(work / "first-screen.profile")},
-                   "merge.log", "merge the profiles"))
+    // The first screen at each route asked (the site's in each language it speaks: the Chinese home draws with its
+    // own face, through code the English one never runs), merged.
+    std::vector<std::string> merging{"--merge-profiles"};
+    for (std::size_t index = 0; index < routes.size(); ++index) {
+        const fs::path out = work / std::format("route-{}.profile", index);
+        if (profile({.site = work / "page", .out = out, .route = routes[index]}) != 0)
+            return 1;
+        merging.push_back(os::fs::utf8(out));
+    }
+    merging.insert(merging.end(), {"-o", os::fs::utf8(work / "first-screen.profile")});
+    if (routes.size() == 1)
+        fs::copy_file(work / "route-0.profile", work / "first-screen.profile", fs::copy_options::overwrite_existing, error);
+    else if (!splitting(merging, "merge.log", "merge the profiles"))
         return 1;
     if (!splitting({"--split", "--profile=" + os::fs::utf8(work / "first-screen.profile"),
                     "--export-prefix=%", "--placeholder-namespace=placeholder", whole, "-o1",

@@ -38,7 +38,8 @@ export namespace omui::devtools::site {
 
 [[nodiscard]] int build(const std::filesystem::path& root);
 [[nodiscard]] int verify(const std::filesystem::path& site);
-[[nodiscard]] int split(const std::filesystem::path& root, const std::filesystem::path& site);
+// routes: the first screens profiled ("" the page's own, "/zh" …), their profiles merged.
+[[nodiscard]] int split(const std::filesystem::path& root, const std::filesystem::path& site, const std::vector<std::string>& routes = {"", "/zh"});
 
 struct Profile {
     std::filesystem::path site, out;

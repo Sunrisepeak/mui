@@ -143,7 +143,7 @@ The website's build steps and page tools (moved from `tools/ci/site.sh`, `site-s
 ```sh
 omui-devtools site build                       # omui.site packed for the Web into target/site: openings, places, agent guide, split, verified
 omui-devtools site verify [DIR]                # what the built page must carry (loader, static places, fonts, canvas, agent files); its sizes
-omui-devtools site split [DIR]                 # the program cut in two by what its first screen runs (wasm-split; a profile in each language)
+omui-devtools site split [DIR] [--routes R,…]  # the program cut in two by what its first screen runs (wasm-split; a profile at each route, default "" and /zh; --routes "" for a page of one screen)
 omui-devtools site profile DIR OUT [--route /zh] [--idle MS]   # an instrumented page's first screen used; the functions that ran written
 omui-devtools site drive URL OUT.png [SECONDS] [WIDTH] [HEIGHT] [SCRIPT] [--flag SWITCH]… [--click X,Y]
 ```

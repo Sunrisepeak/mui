@@ -8,6 +8,7 @@
 #
 #   omui dev                       design it (the designer linked)
 #   mcpp run                       the page in a window
+#   omui build --web               the page on the Web (build.mcpp)
 [package]
 namespace   = "omui.site"
 name        = "page"
@@ -36,6 +37,10 @@ main = { from = "omui.entry.player/player" }
 
 [dependencies]
 omui.entry.player = { path = "../../modules/projects/omui/entry/player" }
+
+# Its build program (build.mcpp): the page on the Web (omui build --web).
+[build-dependencies]
+omui.build = { path = "../../mcpp/build", host-module = true }
 
 # Its tests drive the page without a window, as an agent does (omui doctor's app.headless-test), and design it
 # from what omui new writes through the designer's verbs (tests/design_test.cpp).

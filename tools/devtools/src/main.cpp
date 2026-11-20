@@ -358,6 +358,11 @@ cmd::App app() {
                         .subcommand(cmd::App("live-page")
                                         .description("A page as it ships, in a real browser through window.omui: its design replayed in place, a look and a view document committed, kept across a reload, exported and imported")
                                         .option(Option("page").takes_value().value_name("DIR").help("the built page (default: example 13's, omui build --web)")))
+                        .subcommand(cmd::App("site-page")
+                                        .description("omui's site page as it ships, in a real browser: its delivery within budget, then the Live Design key, Copy, the visitor's agent connected through omui connect, the bridge stopped")
+                                        .option(Option("page").takes_value().value_name("DIR").help("the built page (default: site/page's, omui build --web)"))
+                                        .option(Option("omui").takes_value().value_name("PATH").help("this omui program rather than omui.cli built here"))
+                                        .arg(Arg("part").help("these parts (default: both): delivery path")))
                         .subcommand(cmd::App("dist-toy-loading")
                                         .description("omui.gen's dist_toy tests, then the generated loader run against the browser's own streams, failures and retries")
                                         .option(Option("fixture").takes_value().value_name("FILE").help("this generated index.html, the tests not run")))
@@ -1701,7 +1706,7 @@ int main(int argc, char** argv) {
         namespace step = omui::devtools::check;
         const auto& sub = parsed->subcommand()->get();
         if (!sub.has_subcommand()) {
-            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | distribution [--profile P] | android [--out DIR] | web [--profile P] | browser | site [CHECK…] | visitor-path | live-page [--page DIR] | dist-toy-loading | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
+            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | distribution [--profile P] | android [--out DIR] | web [--profile P] | browser | site [CHECK…] | visitor-path | live-page [--page DIR] | site-page [PART…] [--page DIR] [--omui PATH] | dist-toy-loading | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
             return 2;
         }
         const auto& given = sub.subcommand()->get();
@@ -1712,6 +1717,12 @@ int main(int argc, char** argv) {
             return step::visitor_path(root, mcpplibs::os::fs::from_utf8(given.value("site").value_or("")), mcpplibs::os::fs::from_utf8(given.value("omui").value_or("")),
                                       given.value("url").value_or(""), given.is_flag_set("allow-local"));
         if (sub.subcommand_name() == "live-page") return step::live_page(root, mcpplibs::os::fs::from_utf8(given.value("page").value_or("")));
+        if (sub.subcommand_name() == "site-page") {
+            std::vector<std::string> parts;
+            for (std::size_t index = 0; index < given.positional_count(); ++index) parts.push_back(given.positional(index));
+            return step::site_page(root, mcpplibs::os::fs::from_utf8(given.value("page").value_or("")), mcpplibs::os::fs::from_utf8(given.value("omui").value_or("")),
+                                   std::move(parts));
+        }
         if (sub.subcommand_name() == "dist-toy-loading") return step::dist_toy_loading(root, mcpplibs::os::fs::from_utf8(given.value("fixture").value_or("")));
         if (sub.subcommand_name() == "site") {
             std::vector<std::string> names;

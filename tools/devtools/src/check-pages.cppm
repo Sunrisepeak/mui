@@ -52,6 +52,9 @@ struct Perf {
     fs::path budget;      // none: no verdict
     bool cache = true;
     fs::path request_log;
+    // What the page does while its frames are timed: statements in an async function with `act(id)` (window.omui's
+    // activate) and `pause(ms)`; empty, the site's flights (to the documentation, the features and back).
+    std::string moves;
 };
 json perf(const Context& context, const Perf& asked);
 json a11y(const Context& context);

@@ -42,7 +42,7 @@ json at_path(const json& report, std::string_view path) {
 // --- delivery (site-perf.mjs) ---
 // What the page transfers (each response's encoded bytes, by kind), how long until the program
 // draws its first frame (its semantic mirror filled after it) and what had arrived by then, until
-// it is ready (window.omui answers), its frame tails while it flies to a place and back, the heap's
+// it is ready (window.omui answers), its frame tails while it moves (asked.moves), the heap's
 // and the wasm memory's size at the end. A cold visit (a fresh profile), over a connection when
 // asked; a fresh profile still permits HTTP cache reuse within one visit.
 
@@ -157,16 +157,19 @@ json perf(const Context& context, const Perf& asked) {
             before_first = sum();  // what had arrived when it first drew (to within 100 ms)
     }
     script.sleep(1500);  // its fonts arrived, its opening at rest
-    // The frame tails: animation-frame intervals while it flies to a place and back.
+    // The frame tails: animation-frame intervals while it moves (the site: to a place and back).
+    const std::string moves = asked.moves.empty() ? R"(
+  await act('main/bar/nav/to_docs'); await pause(250);
+  await act('main/body/view/docs/page/directory/to_features'); await pause(2500);
+  await act('main/bar/mark'); await pause(2500);)"
+                                                  : asked.moves;
     const json tails = script.value(R"(new Promise(async (done) => {
   const gaps = []; let last = null, running = true;
   const tick = (t) => { if (last !== null) gaps.push(t - last); last = t; if (running) requestAnimationFrame(tick); };
   requestAnimationFrame(tick);
   const acted = [];
   const act = async (id) => { const r = window.omui ? await window.omui.act(id, 'activate') : null; acted.push({ node: id, exitCode: r ? r.exitCode : null }); };
-  await act('main/bar/nav/to_docs'); await new Promise((r) => setTimeout(r, 250));
-  await act('main/body/view/docs/page/directory/to_features'); await new Promise((r) => setTimeout(r, 2500));
-  await act('main/bar/mark'); await new Promise((r) => setTimeout(r, 2500));
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));)" + moves + R"(
   running = false;
   gaps.sort((a, b) => a - b);
   const q = (p) => gaps.length ? gaps[Math.min(gaps.length - 1, Math.floor(p * gaps.length))] : null;

@@ -1,0 +1,13 @@
+{
+  "about": "omui's site page (G5) in a real browser (omui-devtools check site-page delivery): built by omui build --web, served as Pages serves it (gzip), a cold visit without the HTTP cache over a 20 Mbit/s, 40 ms connection at 1280×800, then the Live Design key's design played for five seconds. The site's design §6. Bytes, milliseconds.",
+  "network": "20/40",
+  "budgets": [
+    { "metric": "transfer.before_first_frame", "max": 1200000, "why": "§6: at most 1.2 MB before the first frame, without the design's replay and the customization; D-247's low line (a TypeScript application's download, NSH's about 1.1 MB) the target" },
+    { "metric": "transfer.total", "max": 1800000, "why": "§6: the first frame's 1.2 MB and at most 0.6 MB more for the design played in place (the customization: measured first)" },
+    { "metric": "first_contentful_ms", "max": 1000, "why": "§6: the first screen's text visible within a second — the static document the browser paints before the program" },
+    { "metric": "first_frame_ms", "max": 1500, "why": "§6: the program's first frame within 1.5 s over this connection" },
+    { "metric": "frames.p99", "max": 17, "why": "§6, D-187: a frame within 16.7 ms while the design plays; measured as the interval between animation frames, which a 60 Hz display paces at 16.7 ms and the browser's coarsened clock reports as 16.6 to 16.8 (a frame missed reads 33)" },
+    { "metric": "frames.long", "max": 0, "why": "§6, D-187: no frame interval over 33 ms" },
+    { "metric": "errors.length", "max": 0, "why": "no exception thrown on the page" }
+  ]
+}

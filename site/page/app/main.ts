@@ -56,7 +56,7 @@ const waiting = eq(state, "waiting");
 const connected = eq(state, "connected");
 
 // The visitor's own agent, through a bridge on their machine (spec §6): Copy starts looking for it, and the pairing code
-// is in the words copied, nowhere else on the page; paired, the page is connected, and says who and with what.
+// is in the words copied and shown; paired, the page is connected, and says who and with what.
 const agent = agentLink();
 const code = signal("····-····", "page.code");  // its shape until Copy gives one
 const promptWords = "Install omui (after the release; until then build it from GitHub), run `omui connect {}`, then call `describe` and follow it.";

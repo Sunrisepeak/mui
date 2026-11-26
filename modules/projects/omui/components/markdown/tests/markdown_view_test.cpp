@@ -148,6 +148,47 @@ std::optional<spec::SemanticNode> find_role(Headless& h, Role r, std::string_vie
     return std::nullopt;
 }
 
+// A table whose cells hold sentences (the operations reference's shape) and one that fits anywhere.
+constexpr std::string_view wide_table = R"(| Operation | What it does | Effect |
+|:--|:--|--:|
+| `site.build` | Builds every route of the site into a folder of static pages that a reader's browser opens before any program has arrived, and writes its documents for agents beside them | write |
+| `site.check` | Checks every link of the site | read |
+)";
+
+// A table as a document in a view `width` wide lays it out: the view it scrolls in, the table, its cells by row.
+struct TableSeen {
+    spec::Rect                     view, table;
+    double                         max_x = 0;  // how far its view scrolls sideways
+    std::vector<std::vector<spec::Rect>> cells;  // by row, by column
+    std::vector<std::vector<std::size_t>> lines;  // each cell's lines of text
+};
+TableSeen table_seen(std::string_view source, float width) {
+    Headless h({.size = {width, 900}});
+    h.mount("main", column({}, {markdown({.id = "doc", .source = std::string(source)})}));
+    h.settle();
+    TableSeen seen;
+    const auto nodes = h.tree().snapshot({}).nodes;
+    const auto table = std::ranges::find(nodes, Role::table, &spec::SemanticNode::role);
+    if (table == nodes.end() || !table->bounds) return seen;
+    seen.table = *table->bounds;
+    const std::string view = table->id.substr(0, table->id.rfind('/'));
+    if (const auto scroll = h.tree().node(view); scroll && scroll->bounds) {
+        seen.view = *scroll->bounds;
+        if (const Value* max = scroll->value.get("max_x")) seen.max_x = max->as_double();
+    }
+    for (const auto& n : nodes) {
+        if (!n.id.starts_with(table->id + "/") || !n.bounds) continue;
+        if (n.role == Role::row) {
+            seen.cells.emplace_back();
+            seen.lines.emplace_back();
+        } else if ((n.role == Role::cell || n.role == Role::column_header) && !seen.cells.empty()) {
+            seen.cells.back().push_back(*n.bounds);
+            seen.lines.back().push_back(h.runtime().text_lines(h.runtime().find(n.id)).size());
+        }
+    }
+    return seen;
+}
+
 }  // namespace
 
 UTest cases{"ui.markdown", [] {
@@ -485,6 +526,49 @@ UTest cases{"ui.markdown", [] {
         h.step();
         expect(eq(clipboard, std::string("import omui;")));
         expect(find_role(h, Role::button, "Copied").has_value()) << "the button says so";
+    };
+
+    "a table is no wider than its view while its columns' longest words fit: its cells wrap; past that it scrolls (red 162)"_test = [] {
+        // Wide enough for every cell on one line: the table's natural size, narrower than its view.
+        const TableSeen roomy = table_seen(wide_table, 2400);
+        expect(eq(roomy.cells.size(), std::size_t{3}) && roomy.view.width == 2400.0f) << "three rows in a view as wide as the window";
+        if (roomy.cells.size() != 3) return;
+        const float natural = roomy.table.width;
+        expect(natural < roomy.view.width && roomy.max_x == 0) << std::format("natural {} in a view of {}", natural, roomy.view.width);
+        for (const auto& row : roomy.lines)
+            for (const std::size_t n : row) expect(eq(n, std::size_t{1})) << "every cell on one line at its natural size";
+
+        // In a view of 480: the table is the view's width, the sentence wraps, every row has the same columns.
+        const TableSeen narrow = table_seen(wide_table, 480);
+        expect(eq(narrow.table.width, 480.0f) && narrow.max_x == 0) << std::format("{} wide, scrolls {}", narrow.table.width, narrow.max_x);
+        expect(narrow.lines.size() == 3 && narrow.lines[1].size() == 3 && narrow.lines[1][1] > 2u) << "the sentence in more than two lines";
+        for (std::size_t column = 0; column < 3; ++column)
+            for (const auto& row : narrow.cells)
+                expect(row.size() == 3 && row[column].x == narrow.cells[0][column].x && row[column].width == narrow.cells[0][column].width)
+                    << std::format("column {} the same in every row", column);
+        float cells = 0;
+        for (const spec::Rect& cell : narrow.cells[0]) cells += cell.width;
+        expect(eq(cells, 480.0f - 2)) << "the cells fill the table inside its border";
+        // Each column gives what lies between its longest word and its widest content, in proportion: the one
+        // with a sentence gives most, a column of one word nothing.
+        expect(narrow.cells[0][1].width < roomy.cells[0][1].width && eq(narrow.cells[0][2].width, roomy.cells[0][2].width)) << "the sentence's column narrows, the one-word column keeps its width";
+
+        // Narrower than its columns' longest words: it keeps those and scrolls by what is left over.
+        const TableSeen least = table_seen(wide_table, 120);
+        expect(least.table.width > 120.0f && eq(least.max_x, static_cast<double>(least.table.width - 120.0f))) << std::format("{} wide, scrolls {}", least.table.width, least.max_x);
+        const TableSeen at_least = table_seen(wide_table, least.table.width);
+        expect(eq(at_least.table.width, least.table.width) && eq(at_least.max_x, 0.0)) << "a view as wide as that: no scrolling";
+        const TableSeen under = table_seen(wide_table, least.table.width - 10);
+        expect(eq(under.table.width, least.table.width) && eq(under.max_x, 10.0)) << "10 px narrower: it scrolls 10";
+        // The table in a narrow view is the one at its least: no column under its longest word.
+        if (least.cells.size() == 3)
+            for (std::size_t column = 0; column < 3; ++column) expect(least.cells[0][column].width <= narrow.cells[0][column].width);
+
+        // The readme's table fits as it is: its natural size, unchanged by the view (the pinned pixels say the rest).
+        const TableSeen small = table_seen(readme, 720), smaller = table_seen(readme, 320);
+        expect(small.table.width < 320.0f && eq(small.table.width, smaller.table.width) && small.max_x == 0) << small.table.width;
+        std::println("    natural {} px; in a view of 480: {} px, the sentence in {} lines; at least {} px (scrolls {} in a view of 120)", natural,
+                     narrow.table.width, narrow.lines.size() == 3 && narrow.lines[1].size() == 3 ? narrow.lines[1][1] : 0, least.table.width, least.max_x);
     };
 
     "remote text is marked so on every node"_test = [] {

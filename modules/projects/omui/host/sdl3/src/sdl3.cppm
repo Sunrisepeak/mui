@@ -33,6 +33,9 @@ export namespace omui {
 struct DesktopOptions {
     std::string             title = "openmui";
     Size                    size{960, 640};   // logical pixels
+    // Where the window opens on the screen, in the system's units (X11's: the screen's pixels, every monitor in one
+    // space); none: where the system places it (a window manager: on the pointer's monitor).
+    std::optional<std::array<int, 2>> position;
     bool                    resizable = true;
     std::string             app = "openmui-app";  // the application id (the agent endpoint's name)
     bool                    agent = true;         // serve openmui.tree@0.1
@@ -48,6 +51,12 @@ struct DesktopOptions {
     mlibs::text::FontCollection* fonts = nullptr;
     bool                    reduce_motion = false;
     bool                    reduce_transparency = false;  // glass drawn as opaque panels
+    // The person's appearance and motion as the system says them, read when the window opens and followed while it
+    // runs: a dark appearance is Runtime::dark_preferred (a theme that follows it turns with it: omui.theme's schemes,
+    // an application's dark theme), less motion adds to `reduce_motion`. Said by SDL on Windows and macOS, by the
+    // desktop portal on Linux (mpal); where the system says nothing, light and full motion. Off: as the options say
+    // (a test, a picture taken of a given look).
+    bool                    follow_system = true;
     Color                   background = Color::white();
     bool                    vsync = true;
     std::string             video_driver;     // "" the platform's; "offscreen" in CI

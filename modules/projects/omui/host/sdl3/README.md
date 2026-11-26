@@ -27,7 +27,15 @@ openmui on the desktop, through SDL3 (`compat.sdl3` from mcpp-index):
 - the platform's assistive technology served the tree (`omui.accessibility`:
   UI Automation, NSAccessibility, AT-SPI), its adapter attached before the
   window is first shown; what a screen reader asks is performed between
-  frames as the person's input (`DesktopOptions::accessibility`).
+  frames as the person's input (`DesktopOptions::accessibility`);
+- the person's appearance and motion as the system says them, read when the
+  window opens and followed while it runs (`DesktopOptions::follow_system`, on
+  by default): a dark appearance is `Runtime::dark_preferred` — a theme that
+  follows it (omui.theme's schemes, an application's `dark_theme`) turns with
+  the system —, less motion adds to `reduce_motion`; where the system says
+  nothing, light and full motion;
+- the window opened where it is asked to be (`DesktopOptions::position`, the
+  system's screen coordinates), else where the system places it.
 
 ```cpp
 import omui.host.sdl3;
@@ -85,6 +93,21 @@ go and the CPU draws on. `DesktopOptions::effects` names a directory of
 between frames when a file in it — or a file its shader imports — changes, so
 a shader saved while the program runs shows on the next frame; a file that
 no longer loads is reported where it is wrong and the effect stays as it was.
+
+**The system's appearance.** On Windows and macOS SDL reads it (`SDL_GetSystemTheme`, and its
+`SDL_EVENT_SYSTEM_THEME_CHANGED`). On Linux the build of SDL here has no D-Bus (`compat.sdl3` leaves SDL's D-Bus
+stack out), so it says nothing; the host reads the desktop portal's settings through
+[`mcpplibs.mpal`](../../../../base/mpal) (`mpal:preferences`, a preview): `org.freedesktop.appearance`'s
+`color-scheme` for the appearance, its `reduced-motion` for motion where the portal has it, else GNOME's
+`enable-animations` (its "Reduce animation"), which the portal passes on. The reading is a conversation of its
+own on a thread of its own, begun when the host is made, so it runs beside the fonts, the runtime and the window
+(26–30 ms from the host's making to the window open on this machine's desktop, the read never waited for); the
+window's opening waits for it at most 100 ms (a portal being started by the bus) and takes it later if it comes
+later. The thread then waits for the portal's `SettingChanged`, asked for by namespace only — no wakeups while
+nothing changes — and a change wakes the loop, which hands it to the runtime between frames. Tests that look at
+pixels turn it off (`follow_system = false`); `preferences_test` runs a copy of the test program against a portal
+of its own (no display, nothing of the machine's session read), and on a person's desktop, when asked
+(`OMUI_REAL_WINDOW_AT=x,y`), opens a real window there and holds what it has to what the session's portal says.
 
 SDL's headers appear only in `src/native/sdl.cpp`. Tests run on SDL's
 offscreen video driver with software rendering: what the window shows is read

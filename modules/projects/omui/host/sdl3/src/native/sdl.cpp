@@ -285,6 +285,10 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, o.title.c_str());
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, static_cast<Sint64>(o.size.width));
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, static_cast<Sint64>(o.size.height));
+    if (o.position) {
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, static_cast<Sint64>((*o.position)[0]));
+        SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, static_cast<Sint64>((*o.position)[1]));
+    }
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER, static_cast<Sint64>(flags));
     // The window's graphics are someone else's: the software renderer draws
     // into its surface, and a GPU device claims it (Metal views, Vulkan
@@ -449,6 +453,15 @@ std::vector<std::string> preferred_locales() {
     return out;
 }
 
+std::optional<bool> system_dark() {
+    if (!sdl_ready) return std::nullopt;
+    switch (SDL_GetSystemTheme()) {
+        case SDL_SYSTEM_THEME_DARK: return true;
+        case SDL_SYSTEM_THEME_LIGHT: return false;
+        default: return std::nullopt;
+    }
+}
+
 double refresh_hz(Window& w) {
     const SDL_DisplayID display = SDL_GetDisplayForWindow(w.window);
     const SDL_DisplayMode* mode = display ? SDL_GetCurrentDisplayMode(display) : nullptr;
@@ -520,6 +533,7 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
             case SDL_EVENT_WINDOW_RESTORED:
             case SDL_EVENT_WINDOW_ENTER_FULLSCREEN:
             case SDL_EVENT_WINDOW_LEAVE_FULLSCREEN: out.state = state(w); break;
+            case SDL_EVENT_SYSTEM_THEME_CHANGED: out.appearance = true; break;
             case SDL_EVENT_WINDOW_FOCUS_GAINED: out.events.push_back(FocusEvent{true}); break;
             case SDL_EVENT_WINDOW_FOCUS_LOST: out.events.push_back(FocusEvent{false}); break;
             case SDL_EVENT_WINDOW_MOUSE_LEAVE: {

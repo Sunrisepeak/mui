@@ -1,0 +1,116 @@
+== mcpplibs.mpal
+export import :error;
+export import :dbus;
+export import :notify;
+export import :pick;
+export import :preferences;
+== mcpplibs.mpal:dbus
+namespace mcpplibs::mpal::dbus {
+  struct Value;
+  using Variant = std::pair<std::string, std::shared_ptr<Value>>;
+  struct Value {
+    std::variant<std::monostate, std::uint8_t, bool, std::int32_t, std::uint32_t, std::int64_t, std::uint64_t, double, std::string, std::vector<Value>, Variant> data;
+    static Value of(std::string text);
+  };
+  [[nodiscard]] std::expected<std::string, Error> marshal(std::string_view signature, std::span<const Value> values, std::size_t offset = 0);
+  [[nodiscard]] std::expected<std::vector<Value>, Error> unmarshal(std::string_view signature, std::string_view bytes, std::size_t offset = 0);
+  struct Call {
+    std::string destination, path, interface, member, signature;
+    std::vector<Value> arguments;
+  };
+  enum class Kind : std::uint8_t { call = 1, reply = 2, error = 3, signal = 4 };
+  struct Message {
+    Kind kind = Kind::call;
+    std::uint32_t serial = 0, reply_to = 0;
+    std::string path, interface, member, error_name, destination, sender, signature;
+    std::vector<Value> body;
+  };
+  [[nodiscard]] std::string message_bytes(const Call& call, std::uint32_t serial);
+  [[nodiscard]] std::expected<std::optional<std::pair<Message, std::size_t>>, Error> read_message(std::string_view bytes);
+  class Bus {
+    [[nodiscard]] static std::expected<Bus, Error> session();
+    [[nodiscard]] static std::expected<Bus, Error> address(std::string_view address);
+    [[nodiscard]] static std::expected<Bus, Error> at(const std::filesystem::path& directory, std::string_view name);
+    [[nodiscard]] std::expected<std::vector<Value>, Error> call(const Call& call, std::chrono::milliseconds wait = std::chrono::milliseconds(2000));
+    [[nodiscard]] std::expected<void, Error> add_match(std::string_view rule);
+    [[nodiscard]] std::expected<std::optional<Message>, Error> next_signal(std::chrono::milliseconds wait);
+    void shutdown();
+    [[nodiscard]] const std::string& name() const noexcept;
+  };
+}
+== mcpplibs.mpal:error
+namespace mcpplibs::mpal {
+  struct Error {
+    enum class Code : std::uint8_t { unsupported, unavailable, refused, failed, };
+    Code code = Code::failed;
+    std::string text;
+  };
+  [[nodiscard]] inline std::unexpected<Error> failure(Error::Code code, std::string text);
+}
+== mcpplibs.mpal:notify
+namespace mcpplibs::mpal {
+  struct Notification {
+    std::string application;
+    std::string title, body;
+    std::string icon;
+    std::vector<std::pair<std::string, std::string>> actions;
+    std::optional<std::chrono::milliseconds> shown;
+  };
+  struct Answer {
+    enum class Kind : std::uint8_t { chosen, dismissed, expired, closed };
+    std::uint32_t id = 0;
+    Kind kind = Kind::chosen;
+    std::string key;
+  };
+  [[nodiscard]] std::expected<std::uint32_t, Error> notify(const Notification& notification);
+  [[nodiscard]] std::expected<std::uint32_t, Error> notify_on(dbus::Bus& bus, const Notification& notification);
+  class Notifier {
+    [[nodiscard]] static std::expected<Notifier, Error> open();
+    [[nodiscard]] static std::expected<Notifier, Error> on(dbus::Bus bus);
+    [[nodiscard]] static std::expected<Notifier, Error> listen();
+    [[nodiscard]] static std::expected<Notifier, Error> listen(dbus::Bus bus);
+    [[nodiscard]] std::expected<std::uint32_t, Error> show(const Notification& notification);
+    [[nodiscard]] std::expected<void, Error> close(std::uint32_t id);
+    [[nodiscard]] std::expected<std::optional<Answer>, Error> next(std::chrono::milliseconds wait);
+    void stop();
+  };
+}
+== mcpplibs.mpal:pick
+namespace mcpplibs::mpal {
+  struct Filter {
+    std::string name;
+    std::vector<std::string> extensions;
+  };
+  struct Pick {
+    enum class Kind : std::uint8_t { open, save, folder };
+    Kind kind = Kind::open;
+    std::string title;
+    std::vector<Filter> filters;
+    bool many = false;
+    std::filesystem::path start;
+    std::string name;
+    std::string parent;
+  };
+  [[nodiscard]] bool can_pick();
+  [[nodiscard]] bool can_pick_on(dbus::Bus& bus);
+  [[nodiscard]] std::expected<std::vector<std::filesystem::path>, Error> pick(const Pick& asked);
+  [[nodiscard]] std::expected<std::vector<std::filesystem::path>, Error> pick_on(dbus::Bus& bus, const Pick& asked, std::chrono::milliseconds wait = std::chrono::hours(24));
+  [[nodiscard]] std::optional<std::filesystem::path> path_of_uri(std::string_view uri);
+}
+== mcpplibs.mpal:preferences
+namespace mcpplibs::mpal {
+  struct Preferences {
+    std::optional<bool> dark;
+    std::optional<bool> reduce_motion;
+    friend bool operator==(const Preferences&, const Preferences&) = default;
+  };
+  [[nodiscard]] std::expected<Preferences, Error> preferences();
+  [[nodiscard]] std::expected<Preferences, Error> preferences_on(dbus::Bus& bus);
+  class PreferenceWatch {
+    [[nodiscard]] static std::expected<PreferenceWatch, Error> open();
+    [[nodiscard]] static std::expected<PreferenceWatch, Error> on(dbus::Bus bus);
+    [[nodiscard]] const Preferences& now() const noexcept;
+    [[nodiscard]] std::expected<std::optional<Preferences>, Error> next(std::chrono::milliseconds wait);
+    void stop();
+  };
+}

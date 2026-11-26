@@ -44,6 +44,7 @@ DesktopOptions offscreen(std::string app = "sdl3-test") {
     o.agent = false;
     o.accessibility = false;  // its own test
     o.renderer = DesktopOptions::Renderer::cpu;  // the CPU frame, read back exactly
+    o.follow_system = false;  // the options' look, whatever the machine's person prefers (its own test)
     return o;
 }
 

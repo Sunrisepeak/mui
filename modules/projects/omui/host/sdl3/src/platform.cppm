@@ -12,6 +12,7 @@ namespace omui::platform {
 struct WindowOptions {
     std::string title;
     Size        size;
+    std::optional<std::array<int, 2>> position;  // where it opens (none: where the system places it)
     bool        resizable = true;
     bool        vsync = true;
     std::string video_driver;
@@ -60,6 +61,7 @@ struct Polled {
     std::vector<InputEvent>    events;
     bool                       quit = false;
     std::optional<WindowState> state;  // the system changed it
+    bool                       appearance = false;  // the system's light or dark appearance changed (system_dark)
 };
 
 // ── the window as a window (D-75) ──
@@ -124,6 +126,9 @@ void wake();
 // takes gamepad input (Runtime::gamepads_wanted) — the subsystem watches for devices, and where the system gives it
 // no notice of them (no /dev/input) it wakes the loop every three seconds to look.
 void start_gamepads();
+// Whether the person prefers a dark appearance, as SDL reads the system's setting (Windows, macOS); none where it says
+// nothing (this build's Linux: SDL has no D-Bus here, and mpal reads the desktop portal instead).
+[[nodiscard]] std::optional<bool> system_dark();
 // The person's languages as the system states them, best first, as BCP 47
 // tags (SDL's preferred locales: the settings on Windows and macOS).
 [[nodiscard]] std::vector<std::string> preferred_locales();

@@ -115,6 +115,110 @@ private:
     std::jthread                                     listener_;  // last: stopped first
 };
 
+// The person's appearance and motion as the system says them (mpal: Linux's desktop portal), read on a thread of its
+// own from the host's start — beside the fonts, the runtime and the window, off the first frame's path — and listened
+// to there while the window lives: one wait, no wakeups while nothing changes. A change wakes the loop, which takes it
+// between frames. None where mpal has no backend (Windows and macOS: SDL says the appearance there).
+class SystemPreferences {
+public:
+    static std::unique_ptr<SystemPreferences> start(std::function<void()> wake) {
+        if constexpr (mcpplibs::os::is_linux) {
+            auto preferences = std::make_unique<SystemPreferences>();
+            preferences->state_->wake = std::move(wake);
+            preferences->listener_ = std::thread([state = preferences->state_] { listen(state); });
+            return preferences;
+        }
+        return nullptr;
+    }
+
+    // The first reading, waited for at most `wait`; none when it has not come (taken later, when it does) or could
+    // not be read.
+    std::optional<mcpplibs::mpal::Preferences> first(std::chrono::milliseconds wait) {
+        std::unique_lock lock(state_->mutex);
+        if (!state_->read.wait_for(lock, wait, [&] { return state_->done; })) {
+            state_->late = true;
+            return std::nullopt;
+        }
+        state_->fresh = false;
+        return state_->latest;
+    }
+
+    // What the system said since it was last taken (none: nothing new).
+    std::optional<mcpplibs::mpal::Preferences> take() {
+        if (!state_->fresh.load(std::memory_order_acquire)) return std::nullopt;
+        const std::scoped_lock lock(state_->mutex);
+        state_->fresh = false;
+        return state_->latest;
+    }
+
+    ~SystemPreferences() {
+        bool done = false;
+        {
+            const std::scoped_lock lock(state_->mutex);
+            state_->stopping = true;
+            state_->wake = nullptr;
+            if (state_->watch) state_->watch->stop();
+            done = state_->done;
+        }
+        // Still reaching the bus (its connection, its reading): it ends by itself once it has, holding its own state.
+        if (done) listener_.join();
+        else listener_.detach();
+    }
+
+private:
+    struct State {
+        std::mutex                                 mutex;
+        std::condition_variable                    read;
+        bool                                       done = false;  // the first reading came, or could not be read
+        bool                                       late = false;  // it came after the window opened: the loop is woken
+        bool                                       stopping = false;
+        std::optional<mcpplibs::mpal::Preferences> latest;
+        std::atomic<bool>                          fresh{false};  // `latest` not taken yet
+        std::function<void()>                      wake;
+        mcpplibs::mpal::PreferenceWatch*           watch = nullptr;  // while it listens: stopped from the host
+    };
+
+    static void listen(const std::shared_ptr<State>& state) {
+        auto watch = mcpplibs::mpal::PreferenceWatch::open();
+        std::function<void()> wake;
+        {
+            const std::scoped_lock lock(state->mutex);
+            state->done = true;
+            if (state->stopping) return;
+            if (watch) {
+                state->latest = watch->now();
+                state->fresh = true;
+                state->watch = &*watch;
+                if (state->late) wake = state->wake;
+            } else {
+                debug("desktop: the system's appearance is not read ({}): light, full motion", watch.error().text);
+            }
+        }
+        state->read.notify_all();
+        if (!watch) return;
+        if (wake) wake();
+        while (true) {
+            auto changed = watch->next(std::chrono::hours(24));
+            {
+                const std::scoped_lock lock(state->mutex);
+                if (state->stopping || !changed) {
+                    if (!changed && !state->stopping) debug("desktop: the system's appearance is no longer heard ({})", changed.error().text);
+                    state->watch = nullptr;
+                    return;
+                }
+                if (!*changed) continue;
+                state->latest = **changed;
+                state->fresh = true;
+                wake = state->wake;
+            }
+            if (wake) wake();
+        }
+    }
+
+    std::shared_ptr<State> state_ = std::make_shared<State>();
+    std::thread            listener_;
+};
+
 }  // namespace
 
 struct Desktop::Impl final : WindowHost {
@@ -165,6 +269,25 @@ struct Desktop::Impl final : WindowHost {
     std::size_t                                     devices_lost = 0;  // how many times the device was lost and made again
     std::uint32_t                            gpu_w = 0, gpu_h = 0;
     std::unique_ptr<GpuEffects>                       effects;  // the GPU path's (gpu_slot)
+
+    // The person's appearance and motion as the system says them (follow_system): SDL's (Windows, macOS) and the
+    // desktop portal's (Linux, through mpal), applied to the runtime as each changes.
+    std::unique_ptr<SystemPreferences>       system_preferences;
+    std::optional<bool>                      sdl_dark;          // SDL's reading of the system's appearance
+    mcpplibs::mpal::Preferences              portal;            // the portal's
+    bool                                     program_reduce_motion = false;  // what the program asked, before the system's
+
+    // The system's reading in the runtime: a dark appearance where SDL or the portal says so (SDL first: the
+    // system's own interface), else light; less motion where the program asked for it or the portal says so (where
+    // the portal says nothing of motion, the program's choice stands untouched).
+    void prefer() {
+        const bool dark = sdl_dark ? *sdl_dark : portal.dark.value_or(false);
+        const bool reduce = portal.reduce_motion ? program_reduce_motion || *portal.reduce_motion : runtime->reduce_motion();
+        if (dark != runtime->dark_preferred() || reduce != runtime->reduce_motion())
+            debug("desktop: the system prefers a {} appearance{}", dark ? "dark" : "light", reduce ? ", and less motion" : "");
+        runtime->set_dark_preferred(dark);
+        runtime->set_reduce_motion(reduce);
+    }
 
     // The window as a window (D-75): who draws its frame, and its close.
     bool                                     framework = false;
@@ -516,6 +639,8 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
         if (auto installed = install_morphs(); !installed) warn("the morphs: {}", installed.error().message);
     if (!mlibs::image::decoder())
         if (auto installed = mlibs::image::install(); !installed) warn("the picture reader: {}", installed.error().message);
+    // The system's appearance read from now, beside everything that follows (the window opening takes it).
+    if (d.options.follow_system) d.system_preferences = SystemPreferences::start([] { platform::wake(); });
     // When the GPU may draw, SDL is brought up here and the device is made on a thread of its own. A window that
     // waits for it (the GPU insisted on, effects, a window with no framebuffer of its own) begins it at once, so the
     // driver's start overlaps the fonts, the runtime and the window (RC3.6). A window whose first frames the CPU draws
@@ -573,6 +698,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
 }
 
 Desktop::~Desktop() {
+    impl_->system_preferences.reset();  // no longer listened to: nothing wakes the loop from there
     if (omui::window().host() == impl_.get()) omui::window().detach();
     if (impl_->endpoint) impl_->endpoint.stop();
     // The adapter lets go of the window before the window goes.
@@ -615,6 +741,7 @@ std::expected<void, ViewFailure> Desktop::open() {
     d.framework = d.options.frame == DesktopOptions::Frame::framework;
     platform::WindowOptions wo{.title = d.options.title,
                                .size = d.options.size,
+                               .position = d.options.position,
                                .resizable = d.options.resizable,
                                .vsync = d.options.vsync,
                                .video_driver = d.options.video_driver,
@@ -658,6 +785,18 @@ std::expected<void, ViewFailure> Desktop::open() {
         if (d.effects && !d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
     }
     d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
+    // The person's appearance and motion as the system says them now — SDL's once its video is up, the portal's read
+    // since the host began (waited for a little at most: a portal being started is taken when it answers) — before
+    // the application prepares its theme and the first frame is drawn.
+    if (d.options.follow_system) {
+        d.program_reduce_motion = d.runtime->reduce_motion();
+        d.sdl_dark = platform::system_dark();
+        if (d.system_preferences) {
+            mlibs::trace::Span waited("start.preferences", "host");  // the reading's wait, if it had not come yet
+            if (auto read = d.system_preferences->first(std::chrono::milliseconds(100))) d.portal = *read;
+        }
+        d.prefer();
+    }
     // Who draws, and the machine's tier (told again when a device takes over); the governor on: these frames are a person's.
     d.tell_renderer();
     d.runtime->set_governor(true);
@@ -836,6 +975,20 @@ bool Desktop::step(bool wait) {
     platform::Polled polled = platform::poll(*d.window, sleep, timeout);
     d.take_over(was_idle && polled.events.empty());  // the device, when it became ready meanwhile (UI9)
     if (polled.state) omui::window().set_state(*polled.state);
+    // The system's appearance changed (SDL told it, or the portal's listener woke the loop): the runtime has it now.
+    if (d.options.follow_system) {
+        bool changed = false;
+        if (polled.appearance) {
+            d.sdl_dark = platform::system_dark();
+            changed = true;
+        }
+        if (d.system_preferences)
+            if (auto read = d.system_preferences->take()) {
+                d.portal = *read;
+                changed = true;
+            }
+        if (changed) d.prefer();
+    }
     if (polled.quit || d.close_requested) {
         d.close_requested = false;
         polled.quit = false;

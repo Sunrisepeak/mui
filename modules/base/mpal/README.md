@@ -14,6 +14,7 @@ Each service is a partition with one contract; a platform that does not give it 
 |---|---|---|
 | `notify` | telling the person something outside the application's view, and their answer | Linux: freedesktop Notifications over D-Bus, with the answers (an action chosen, dismissed, expired, closed) read back from its signals (done) · Windows: toasts through the Windows Runtime, the application named by a Start menu shortcut (done) · macOS: UserNotifications, for an .app (done) · iOS: UserNotifications · Android: NotificationManager · Web: Notification API |
 | `pick` | the person choosing files or folders the system holds (storage access) | Linux: the desktop portal's FileChooser over D-Bus (done; omui's desktop host uses it when a portal is there) · Windows/macOS: the file dialogs · iOS/Android: the document pickers · Web: File System Access |
+| `preferences` | how the person prefers things to look and move: a dark or a light appearance, less motion — read, and their changes heard (`PreferenceWatch`) | Linux: the desktop portal's Settings over D-Bus — `org.freedesktop.appearance` (`color-scheme`, `reduced-motion`), else GNOME's `enable-animations` the portal passes on (done; omui's desktop host follows it) · Windows/macOS: SDL3 tells a window's host there · Web: `prefers-color-scheme`, `prefers-reduced-motion` (omui's Web host) |
 | `transfer` | data handed between applications: clipboard, share, drag and drop | |
 | `launch` | how an application is started and found: open a URL, file associations and deep links, single instance, start at login | |
 | `shell` | the system's surfaces for an application: tray or status item, menu bar, dock and taskbar badges, shortcuts | |
@@ -37,6 +38,6 @@ A primitive mpal needs and os lacks is asked of os; a service never goes into os
 
 The D-Bus wire format (`:dbus`) is its own partition: marshalling, the EXTERNAL authentication, a method call's reply and the signals a match rule asks for (kept in order while a call waits) — no libdbus (its licence) and no sd-bus.
 
-A service answered asynchronously is read by pulling (`Notifier::next(wait)`): mpal starts no threads. A program that must not wait where it shows (an interface's thread) listens on a second connection in a thread of its own (`Notifier::listen()`), as omui's desktop host does.
+A service answered asynchronously is read by pulling (`Notifier::next(wait)`, `PreferenceWatch::next(wait)`): mpal starts no threads. A program that must not wait where it shows (an interface's thread) listens on a second connection in a thread of its own (`Notifier::listen()`, a `PreferenceWatch`), as omui's desktop host does.
 
 Why a package of its own (D-99): it is general (no UI, no omui), its platform code is isolated from the layers that use it, and it is meant to leave the repository once its contracts settle.

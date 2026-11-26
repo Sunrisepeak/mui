@@ -10,7 +10,7 @@ namespace {
 enum class InCB : std::uint8_t { none, linker, consonant, extend };
 
 InCB incb(char32_t cp) {
-    return static_cast<InCB>((tables::lookup(tables::grapheme_stage1, tables::grapheme_stage2, cp) >> 5) & 3);
+    return static_cast<InCB>((tables::lookup(tables::grapheme, cp) >> 5) & 3);
 }
 
 struct Cp {

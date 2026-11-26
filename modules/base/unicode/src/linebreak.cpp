@@ -49,7 +49,7 @@ std::vector<LineBreak> line_breaks(std::string_view text) {
     std::vector<Item> it;
     for (std::size_t i = 0; i < text.size();) {
         auto d = decode(text, i);
-        std::uint8_t raw = tables::lookup(tables::line_stage1, tables::line_stage2, d.cp);
+        std::uint8_t raw = tables::lookup(tables::line, d.cp);
         Item x{i, d.cp, resolve(static_cast<Lb>(raw & 0x3F)), Lb::AL, it.size(), (raw & 0x40) != 0, (raw & 0x80) != 0};
         it.push_back(x);
         i += d.length;

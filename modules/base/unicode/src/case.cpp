@@ -39,8 +39,8 @@ const tables::CaseSpecial* special(std::span<const tables::CaseSpecial> list, ch
     return it != list.end() && it->cp == cp ? &*it : nullptr;
 }
 
-bool cased(char32_t cp) noexcept { return tables::lookup(tables::casing_stage1, tables::casing_stage2, cp) & 1; }
-bool case_ignorable(char32_t cp) noexcept { return tables::lookup(tables::casing_stage1, tables::casing_stage2, cp) & 2; }
+bool cased(char32_t cp) noexcept { return tables::lookup(tables::casing, cp) & 1; }
+bool case_ignorable(char32_t cp) noexcept { return tables::lookup(tables::casing, cp) & 2; }
 
 // Whether the capital sigma at [at, at + 2) ends a word: a cased letter
 // before it and none after, case-ignorable code points skipped both ways.

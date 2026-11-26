@@ -30,16 +30,16 @@ static UTest cases{"devtools.lead", [] {
         expect(eq(named.size(), std::size_t{2}) && named[1].contains("\"series\":\"rlottie\"")) << joined(named);
         // A vector comparison: one line a renderer, and the pictures' differences as error samples against the reference.
         const auto vector = lead::samples(
-            R"({"scene":"fills-1000","renderer":"skia 0.1","median_ms":11.6,"skia against xrender":{"mean_difference":0.2},"its SVG against xrender":{"mean_difference":9}})", "skia", "", "", 2);
+            R"({"scene":"fills-1000","renderer":"skia 0.1","median_ms":11.6,"skia against mrender":{"mean_difference":0.2},"its SVG against mrender":{"mean_difference":9}})", "skia", "", "", 2);
         expect(eq(vector.size(), std::size_t{2})) << joined(vector);
         expect(vector[0].contains(R"("series":"skia","round":2,"key":"fills-1000","median_ms":11.6)")) << vector[0];
-        expect(vector[1].contains(R"("series":"skia","round":2,"key":"fills-1000","error_vs_xrender":0.2)")) << vector[1];
+        expect(vector[1].contains(R"("series":"skia","round":2,"key":"fills-1000","error_vs_mrender":0.2)")) << vector[1];
     };
 
     "the verdict: ratios paired by round, the strongest competitor, the interval's lower end"_test = [] {
         const std::string metrics = R"({"metric":[
             {"id":"m.lower","project":"hanim","key":"k","field":"ms","better":"lower","ours":"us","competitors":["fast","slow"]},
-            {"id":"m.device","project":"xrender","better":"lower","status":"unverified","needs":"a phone","competitors":["x"]},
+            {"id":"m.device","project":"mrender","better":"lower","status":"unverified","needs":"a phone","competitors":["x"]},
             {"id":"m.none","project":"hanim","key":"other","field":"ms","better":"lower","ours":"us","competitors":["fast"]}]})";
         std::vector<std::string> samples;
         for (int round = 1; round <= 8; ++round) {

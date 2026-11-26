@@ -114,7 +114,7 @@ struct Market {
 private:
     void sparkline(PaintContext& paint, std::size_t symbol) const {
         const float width = paint.size.width, height = paint.size.height;
-        xrender::Path path;
+        mrender::Path path;
         for (std::size_t point = 0; point < points; ++point) {
             const float value = history[symbol][(head + 1 + point) % points];
             const Point at{static_cast<float>(point) * width / static_cast<float>(points - 1),
@@ -125,7 +125,7 @@ private:
                 path.line_to(at);
         }
         paint.list.stroke_path(path, {.width = 1.5f},
-                               xrender::Paint::solid(paint.theme.color("accent")));
+                               mrender::Paint::solid(paint.theme.color("accent")));
     }
 };
 

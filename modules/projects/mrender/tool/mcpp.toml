@@ -1,0 +1,54 @@
+# mrender.tool — the `mrender` command: what an Agent (or a person at a
+# terminal) does with the renderer without a GUI — check a pixel effect,
+# preview it on a picture through the real GPU renderer, run the render
+# contract's conformance suite on this machine's device, describe the device.
+# JSON out, exit codes. Its own package: a tool's dependencies (a device
+# backend, the suite, image files) stay out of the renderer's.
+[package]
+namespace   = "mrender"
+name        = "tool"
+version     = "0.1.0"
+description = "The mrender command: effects checked and previewed, the conformance suite and the device, headless"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the mrender command"
+kind = "tool"
+reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
+agent = "tool"
+
+[targets.mrender-tool]
+kind = "lib"
+
+[targets.mrender]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+
+[dependencies]
+# The command is the subject `mrender` behind the tool kernel's entries (mlibs.agent:host, T0).
+mlibs.agent = { path = "../../../base/agent" }
+mlibs.json  = { path = "../../../base/json" }
+openlifa.openas = "0.2.1"
+mrender.vector  = { path = "../vector" }
+mrender.raster  = { path = "../raster" }
+mrender.effect  = { path = "../effect" }
+mrender.cts   = { path = "../cts" }
+mrender.asset = { path = "../asset" }
+mrender.mesh  = { path = "../mesh" }
+mrender.scene = { path = "../scene" }
+mrender.rhi.sdl = { path = "../rhi/sdl" }
+mlibs.rhi       = { path = "../../../gfx/rhi" }
+mlibs.cts       = { path = "../../../base/cts" }
+mlibs.image     = { path = "../../../base/image" }
+mlibs.geom      = { path = "../../../base/geom" }
+mcpplibs.os     = "0.4.4"
+nlohmann.json   = "3.12.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

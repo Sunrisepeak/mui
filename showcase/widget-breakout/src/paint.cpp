@@ -13,7 +13,7 @@ import std;
 import mlibs.hash;
 import omui;
 import omui.showcase.widget_breakout.sim;
-import xrender.text;
+import mrender.text;
 
 namespace omui::breakout {
 
@@ -21,7 +21,7 @@ namespace {
 
 Color hex(std::uint32_t c, float a = 1) { return Color::hex(c, a); }
 constexpr std::uint32_t rim = 0x10131c;  // round the ball and the paddles: readable on a light style too
-xrender::Paint solid(Color c) { return xrender::Paint::solid(c); }
+mrender::Paint solid(Color c) { return mrender::Paint::solid(c); }
 Rect rect(const mlibs::dynamics::Box& b) { return {static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.w), static_cast<float>(b.h)}; }
 Point mid(const mlibs::dynamics::Box& b) { return {static_cast<float>(b.x + b.w / 2), static_cast<float>(b.y + b.h / 2)}; }
 Point point(mlibs::dynamics::V2 v) { return {static_cast<float>(v.x), static_cast<float>(v.y)}; }
@@ -63,7 +63,7 @@ Color gift_color(Gift g) {
 // (things side by side, a shield of four shutters, are one group), square
 // cornered: up (or down) from the switch's edge to just short of the group,
 // across, and into the middle of the group's near side.
-void draw_wires(xrender::DisplayList& out, xrender::Path& path, const State& s, Color colour, float width) {
+void draw_wires(mrender::DisplayList& out, mrender::Path& path, const State& s, Color colour, float width) {
     s.world.each<Body, Brick>([&](meng::Entity, const Body& sb, const Brick& sw) {
         if (sw.kind != Kind::toggle || sw.wire == 0) return;
         std::array<Rect, 8> groups{};
@@ -108,7 +108,7 @@ void draw_wires(xrender::DisplayList& out, xrender::Path& path, const State& s, 
             const float bus = up ? end.y + 14 : end.y - 14;
             if (end.x != fx) path.line_to({fx, bus}).line_to({end.x, bus});
             path.line_to(end);
-            out.stroke_path(path, {.width = width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, solid(colour));
+            out.stroke_path(path, {.width = width, .cap = mrender::LineCap::round, .join = mrender::LineJoin::round}, solid(colour));
             out.fill_round_rect({end.x - 4, end.y - 4, 8, 8}, CornerRadii::all(4), solid(colour));
             out.fill_round_rect({start.x - 4, start.y - 4, 8, 8}, CornerRadii::all(4), solid(sw.on ? hex(ink::live) : colour));
         }
@@ -136,12 +136,12 @@ const char* role_of(Kind k) {
 // The ghost that haunts the panel — the same face behind every room, whatever its style: two eyes that follow
 // the ball, blink now and then, widen as it nears the core, squeeze shut when the core is struck and close for
 // good when the last core shuts down; a mouth that grins when a ball is lost. Faint: the room's bricks over it.
-void Field::haunt(xrender::DisplayList& out, const State& s, const Theme& theme) const {
+void Field::haunt(mrender::DisplayList& out, const State& s, const Theme& theme) const {
     const Color ground = theme.color("background", hex(0x0d111c));
     const bool light = 0.2126f * ground.r + 0.7152f * ground.g + 0.0722f * ground.b > 0.5f;
     const Color ghost = light ? hex(0x3a3f6b) : hex(0xd8e6ff);
     const float a = light ? 0.10f : 0.13f;
-    auto oval = [](xrender::Path& p, Point at, float rx, float ry) { p.add_ellipse({at.x - rx, at.y - ry, 2 * rx, 2 * ry}); };
+    auto oval = [](mrender::Path& p, Point at, float rx, float ry) { p.add_ellipse({at.x - rx, at.y - ry, 2 * rx, 2 * ry}); };
     const Point c{static_cast<float>(field_w) / 2, static_cast<float>(s.height) - static_cast<float>(field_h) * 0.62f};
     // What it watches: the first ball in flight, else the paddle's.
     Point look{c.x, static_cast<float>(s.height)};
@@ -157,33 +157,33 @@ void Field::haunt(xrender::DisplayList& out, const State& s, const Theme& theme)
     const float shut = std::clamp(std::max(blink, fx_.wince * 0.9f), 0.0f, 1.0f);
     const float wide = 1 + 0.35f * fx_.startle;
     // Its head: one faint veil, no outline.
-    xrender::Path halo;
+    mrender::Path halo;
     oval(halo, {c.x, c.y + 50}, 330, 230);
-    out.fill_path(halo, xrender::FillRule::nonzero, solid(ghost.with_alpha(a * 0.22f)));
+    out.fill_path(halo, mrender::FillRule::nonzero, solid(ghost.with_alpha(a * 0.22f)));
     for (int side = -1; side <= 1; side += 2) {
         const Point eye{c.x + static_cast<float>(side) * 130, c.y};
         const float dx = look.x - eye.x, dy = look.y - eye.y, d = std::max(1.0f, std::sqrt(dx * dx + dy * dy));
         const float open = 34 * wide * (1 - shut) + 3;
-        xrender::Path lid;
+        mrender::Path lid;
         oval(lid, eye, 70 * wide, open);
-        out.fill_path(lid, xrender::FillRule::nonzero, solid(ghost.with_alpha(a * 1.6f)));
+        out.fill_path(lid, mrender::FillRule::nonzero, solid(ghost.with_alpha(a * 1.6f)));
         if (shut < 0.85f) {
-            xrender::Path pupil;
+            mrender::Path pupil;
             const float r = 16 * (1 - shut);
             oval(pupil, {eye.x + dx / d * 28, eye.y + dy / d * std::min(open * 0.5f, 14.0f)}, r, r);
-            out.fill_path(pupil, xrender::FillRule::nonzero, solid(ground.with_alpha(0.55f)));
+            out.fill_path(pupil, mrender::FillRule::nonzero, solid(ground.with_alpha(0.55f)));
         }
     }
     // The mouth: a thin line, a grin when a ball is lost, a small 'o' when its core is struck.
-    xrender::Path mouth;
+    mrender::Path mouth;
     const float grin = fx_.glee, o = fx_.wince;
     const float my = c.y + 120;
     mouth.move_to({c.x - 90 - 40 * grin, my}).cubic_to({c.x - 40, my + 10 + 70 * grin - 20 * o}, {c.x + 40, my + 10 + 70 * grin - 20 * o}, {c.x + 90 + 40 * grin, my});
-    out.stroke_path(mouth, {.width = 10.0f + 6 * grin, .cap = xrender::LineCap::round}, solid(ghost.with_alpha(a * (1.2f + grin))));
+    out.stroke_path(mouth, {.width = 10.0f + 6 * grin, .cap = mrender::LineCap::round}, solid(ghost.with_alpha(a * (1.2f + grin))));
     if (o > 0.05f) {
-        xrender::Path ring;
+        mrender::Path ring;
         oval(ring, {c.x, my + 6}, 18 * o, 24 * o);
-        out.fill_path(ring, xrender::FillRule::nonzero, solid(ghost.with_alpha(a * 1.5f * o)));
+        out.fill_path(ring, mrender::FillRule::nonzero, solid(ghost.with_alpha(a * 1.5f * o)));
     }
 }
 
@@ -278,7 +278,7 @@ void Field::paint_over(PaintContext& ctx) const {
     };
     auto centred = [&](std::string_view text, float size, Color color, Point at) {
         const auto& p = label(text, size, color);
-        xrender::text::paint(p, out, {at.x - p.size().width / 2, at.y - p.size().height / 2});
+        mrender::text::paint(p, out, {at.x - p.size().width / 2, at.y - p.size().height / 2});
     };
     const State* sp = state();
     if (!sp) return;
@@ -316,7 +316,7 @@ void Field::paint_over(PaintContext& ctx) const {
                 path_.clear();
                 path_.move_to(base).line_to(tip).move_to({tip.x - static_cast<float>(d.x) * 10 + side.x, tip.y - static_cast<float>(d.y) * 10 + side.y}).line_to(tip)
                     .line_to({tip.x - static_cast<float>(d.x) * 10 - side.x, tip.y - static_cast<float>(d.y) * 10 - side.y});
-                out.stroke_path(path_, {.width = 4, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, solid(hex(ink::kicker, 0.75f + 0.25f * lit)));
+                out.stroke_path(path_, {.width = 4, .cap = mrender::LineCap::round, .join = mrender::LineJoin::round}, solid(hex(ink::kicker, 0.75f + 0.25f * lit)));
                 if (lit > 0) out.stroke_round_rect(grow(r, 3 + 6 * (1 - lit)), CornerRadii::all(8), 2, solid(hex(ink::kicker, lit)));
                 break;
             }
@@ -338,7 +338,7 @@ void Field::paint_over(PaintContext& ctx) const {
                     const float x = r.x + r.width * (0.2f + 0.6f * static_cast<float>((k * 37) % 10) / 10);
                     path_.move_to({x, r.y}).line_to({x + 6, r.y + r.height * 0.45f}).line_to({x - 4, r.y + r.height * 0.7f}).line_to({x + 3, r.y + r.height});
                 }
-                if (!path_.empty()) out.stroke_path(path_, {.width = 2, .cap = xrender::LineCap::round}, solid(hex(0x1a0505, 0.7f)));
+                if (!path_.empty()) out.stroke_path(path_, {.width = 2, .cap = mrender::LineCap::round}, solid(hex(0x1a0505, 0.7f)));
                 if (lit > 0) out.fill_round_rect(r, CornerRadii::all(8), solid(hex(0xffffff, 0.55f * lit)));
                 break;
             }
@@ -373,12 +373,12 @@ void Field::paint_over(PaintContext& ctx) const {
         const Rect all{-20, -20, static_cast<float>(field_w) + 40, static_cast<float>(s.height) + 40};
         out.push_layer(1);
         out.fill_rect(all, hex(0x04060b, 0.95f));
-        out.push_layer(1, xrender::BlendMode::erase);
+        out.push_layer(1, mrender::BlendMode::erase);
         auto light = [&](Point at, float radius) {
-            const std::array<xrender::GradientStop, 3> stops{{{0, hex(0xffffff, 1)}, {0.55f, hex(0xffffff, 0.92f)}, {1, hex(0xffffff, 0)}}};
-            xrender::Paint p;
-            p.kind = xrender::Paint::Kind::gradient;
-            p.gradient = {xrender::GradientKind::radial, at, at, radius, xrender::Spread::pad, stops};
+            const std::array<mrender::GradientStop, 3> stops{{{0, hex(0xffffff, 1)}, {0.55f, hex(0xffffff, 0.92f)}, {1, hex(0xffffff, 0)}}};
+            mrender::Paint p;
+            p.kind = mrender::Paint::Kind::gradient;
+            p.gradient = {mrender::GradientKind::radial, at, at, radius, mrender::Spread::pad, stops};
             out.fill_rect({at.x - radius, at.y - radius, 2 * radius, 2 * radius}, p);
         };
         s.world.each<Ball>([&](meng::Entity, const Ball& b) { light(point(b.at), 220); });
@@ -520,8 +520,8 @@ void Field::paint_over(PaintContext& ctx) const {
         if (b.pierce > 0) {
             path_.clear();
             path_.move_to({radius * 1.5f, 0}).line_to({0, radius}).line_to({-radius * 1.1f, 0}).line_to({0, -radius}).close();
-            out.stroke_path(path_, {.width = 3 * px, .join = xrender::LineJoin::round}, solid(hex(rim, 0.7f)));
-            out.fill_path(path_, xrender::FillRule::nonzero, solid(colour));
+            out.stroke_path(path_, {.width = 3 * px, .join = mrender::LineJoin::round}, solid(hex(rim, 0.7f)));
+            out.fill_path(path_, mrender::FillRule::nonzero, solid(colour));
         } else {
             out.fill_round_rect({-radius - 1.5f * px, -radius - 1.5f * px, 2 * radius + 3 * px, 2 * radius + 3 * px}, CornerRadii::all(radius + 1.5f * px), solid(hex(rim, 0.7f)));
             out.fill_round_rect({-radius, -radius, 2 * radius, 2 * radius}, CornerRadii::all(radius), solid(colour));
@@ -557,7 +557,7 @@ void Field::paint_over(PaintContext& ctx) const {
         const float bw = said.size().width + 24, bh = said.size().height + 12;
         const float bx = std::clamp(static_cast<float>(top.x) - bw / 2, 8.0f, static_cast<float>(field_w) - bw - 8), by = static_cast<float>(top.y) + 22;
         out.fill_round_rect({bx, by, bw, bh}, CornerRadii::all(bh / 2), solid(hex(ink::live, 0.92f * fade)));
-        xrender::text::paint(said, out, {bx + 12, by + 6});
+        mrender::text::paint(said, out, {bx + 12, by + 6});
     }
     // The agent player's intent (agent_overlay): the arrow it holds, where it means the paddle to be, its note,
     // the step it saw and the step it took effect — what it played, from its record, live or replayed.
@@ -579,7 +579,7 @@ void Field::paint_over(PaintContext& ctx) const {
                 const float dir = len > 0 ? 1.0f : -1.0f;
                 path_.clear();
                 path_.move_to({at.x, y}).line_to({at.x + len, y}).move_to({at.x + len - dir * 10, y - 7}).line_to({at.x + len, y}).line_to({at.x + len - dir * 10, y + 7});
-                out.stroke_path(path_, {.width = 4, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, solid(tint));
+                out.stroke_path(path_, {.width = 4, .cap = mrender::LineCap::round, .join = mrender::LineJoin::round}, solid(tint));
             }
             std::string said = std::format("saw {} · played {}{}", now->seen, now->at, now->launch ? " · launch" : "");
             if (!now->note.empty()) said += " · " + now->note;
@@ -587,7 +587,7 @@ void Field::paint_over(PaintContext& ctx) const {
             const float bw = line.size().width + 20, bh = line.size().height + 10;
             const float bx = std::clamp(at.x - bw / 2, 8.0f, static_cast<float>(field_w) - bw - 8), by = at.y - 60 - bh;
             out.fill_round_rect({bx, by, bw, bh}, CornerRadii::all(bh / 2), solid(tint.with_alpha(0.9f)));
-            xrender::text::paint(line, out, {bx + 10, by + 5});
+            mrender::text::paint(line, out, {bx + 10, by + 5});
         }
     }
     // Rings: the shutdown's wave, a banked chain, a capsule caught.
@@ -603,14 +603,14 @@ void Field::paint_over(PaintContext& ctx) const {
         const Color c = light ? Color{f.color.r * 0.62f, f.color.g * 0.62f, f.color.b * 0.62f, f.color.a} : f.color;
         const auto& p = label(f.view(), f.size, c.with_alpha(std::min(1.0f, f.life * 2)));
         const float x = std::clamp(f.at.x - p.size().width / 2, 8.0f, static_cast<float>(field_w) - p.size().width - 8);
-        xrender::text::paint(p, out, {x, f.at.y - p.size().height / 2});
+        mrender::text::paint(p, out, {x, f.at.y - p.size().height / 2});
     }
     out.pop_transform();
 
     // ── the HUD, on the screen ──
     const float W = ctx.size.width, H = ctx.size.height;
-    xrender::text::paint(label(std::format("{}", s.score), 26, text_ink), out, {24, 14});
-    xrender::text::paint(label(std::format("{} / {}   {} · {}", def.number, room_count, def.name, def.title), 13, text_ink.with_alpha(0.65f), 0, 500), out, {24, 50});
+    mrender::text::paint(label(std::format("{}", s.score), 26, text_ink), out, {24, 14});
+    mrender::text::paint(label(std::format("{} / {}   {} · {}", def.number, room_count, def.name, def.title), 13, text_ink.with_alpha(0.65f), 0, 500), out, {24, 50});
     for (std::int32_t i = 0; i < s.lives; ++i) out.fill_round_rect({W - 30 - 22.0f * static_cast<float>(i), 22, 13, 13}, CornerRadii::all(6.5f), solid(text_ink));
     // Sparks: three diamonds, each a rewind's worth, filling; glowing as a chain is banked.
     if (fx_.banked > 0) out.fill_round_rect({W - 110, 40, 92, 36}, CornerRadii::all(18), solid(cue(ink::spark, 0.35f * fx_.banked)));
@@ -619,10 +619,10 @@ void Field::paint_over(PaintContext& ctx) const {
         const float fill = std::clamp(static_cast<float>(s.sparks - k * rewind_cost) / rewind_cost, 0.0f, 1.0f);
         path_.clear();
         path_.move_to({cx, cy - 10}).line_to({cx + 9, cy}).line_to({cx, cy + 10}).line_to({cx - 9, cy}).close();
-        out.fill_path(path_, xrender::FillRule::nonzero, solid(cue(ink::spark, 0.18f)));
+        out.fill_path(path_, mrender::FillRule::nonzero, solid(cue(ink::spark, 0.18f)));
         if (fill > 0) {
             out.push_clip(Rect{cx - 10, cy + 10 - 20 * fill, 20, 20 * fill});
-            out.fill_path(path_, xrender::FillRule::nonzero, solid(cue(ink::spark, fill >= 1 ? 1.0f : 0.7f)));
+            out.fill_path(path_, mrender::FillRule::nonzero, solid(cue(ink::spark, fill >= 1 ? 1.0f : 0.7f)));
             out.pop_clip();
         }
     }
@@ -630,7 +630,7 @@ void Field::paint_over(PaintContext& ctx) const {
         // A rewind across the bank that paid for it leaves a debt: owed, in the colour of a loss, until sparks pay it back.
         const auto& n = s.sparks >= 0 ? label(std::format("{} ◆", s.sparks), 12, cue(ink::spark, 0.85f))
                                       : label(std::format("{} ◆ owed", -s.sparks), 12, cue(ink::lost, 0.95f));
-        xrender::text::paint(n, out, {W - 128 - n.size().width, 51});
+        mrender::text::paint(n, out, {W - 128 - n.size().width, 51});
     }
     // The chain, as it grows.
     if (s.combo >= 2 && !s.over) {
@@ -643,21 +643,21 @@ void Field::paint_over(PaintContext& ctx) const {
         for (std::int32_t k = 0; k < duet_full; ++k)
             out.fill_round_rect({24 + 22.0f * static_cast<float>(k), 86, 14, 6}, CornerRadii::all(3),
                                 solid(cue(ink::live, s.finisher ? 0.6f + 0.4f * pulse(s.frame, 12) : k < s.duet ? 0.95f : 0.25f)));
-        xrender::text::paint(label(s.finisher ? std::string("DUET — return it now") : std::format("duet · copilot: {}", order_), 11, cue(ink::live, 0.85f)), out, {24, 98});
+        mrender::text::paint(label(s.finisher ? std::string("DUET — return it now") : std::format("duet · copilot: {}", order_), 11, cue(ink::live, 0.85f)), out, {24, 98});
     }
     // The X-ray: on, or how soon again.
     if (def.dark || scan || (game_ && game_->frame() < scan_ready_)) {
         const std::int64_t now = game_->frame();
         const std::string what = scan ? std::string("X-RAY") : now < scan_ready_ ? std::format("X-ray in {:.1f} s", static_cast<double>(scan_ready_ - now) / steps_per_second)
                                                                                 : std::string("X  X-ray ready");
-        xrender::text::paint(label(what, 12, hex(ink::cache, scan ? 1.0f : 0.7f)), out, {24, H - 28});
+        mrender::text::paint(label(what, 12, hex(ink::cache, scan ? 1.0f : 0.7f)), out, {24, H - 28});
     }
     // A hint, once, when it is needed; fading out.
     if (!hint_.empty() && s.frame < hint_until_ && !s.over) {
         const float a = std::min(1.0f, static_cast<float>(hint_until_ - s.frame) / 60);
         const auto& p = label(hint_, 16, on_dark.with_alpha(0.9f * a));
         out.fill_round_rect({W / 2 - p.size().width / 2 - 16, H - 92, p.size().width + 32, p.size().height + 14}, CornerRadii::all(12), solid(hex(0x0b0e17, 0.7f * a)));
-        xrender::text::paint(p, out, {W / 2 - p.size().width / 2, H - 85});
+        mrender::text::paint(p, out, {W / 2 - p.size().width / 2, H - 85});
     }
     // Rewinding: the picture tinted, how far back.
     if (rewinding_) {
@@ -694,25 +694,25 @@ void Field::paint_over(PaintContext& ctx) const {
             const Color c = hidden ? hex(0xff7043) : hex(0x64ffda);
             out.stroke_round_rect(at, CornerRadii::all(6), hidden ? 2.5f : 1.5f, solid(c));
             const auto& p = label(std::format("{} · {}", role_of(def.bricks[i].kind), brick_id(i)), 10, c);
-            xrender::text::paint(p, out, {at.x + 3, at.y - p.size().height - 1});
+            mrender::text::paint(p, out, {at.x + 3, at.y - p.size().height - 1});
         }
         const float x = W - 352, w = 330;
         const auto& made = label(def.made, 12, on_dark.with_alpha(0.9f), w, 400);
         const float line = 17, top = 84;
         const float h = made.size().height + line * static_cast<float>(log_size + 4) + 40;
         out.fill_round_rect({x - 12, top - 10, w + 24, h}, CornerRadii::all(10), solid(hex(0x0b0e17, 0.9f)));
-        xrender::text::paint(label("INSPECTOR · HOW THIS ROOM IS MADE", 11, hex(0x64ffda, 0.8f)), out, {x, top});
-        xrender::text::paint(made, out, {x, top + 20});
+        mrender::text::paint(label("INSPECTOR · HOW THIS ROOM IS MADE", 11, hex(0x64ffda, 0.8f)), out, {x, top});
+        mrender::text::paint(made, out, {x, top + 20});
         float y = top + 32 + made.size().height;
-        xrender::text::paint(label("SEMANTIC TREE · LATEST CHANGES", 11, hex(0x64ffda, 0.8f)), out, {x, y});
+        mrender::text::paint(label("SEMANTIC TREE · LATEST CHANGES", 11, hex(0x64ffda, 0.8f)), out, {x, y});
         for (std::size_t k = 0; k < log_.size(); ++k) {
             const float alpha = 0.45f + 0.55f * static_cast<float>(k + 1) / static_cast<float>(log_.size());
-            xrender::text::paint(label(log_[k], 11, on_dark.with_alpha(alpha), 0, 500), out, {x, y + line * static_cast<float>(k + 1)});
+            mrender::text::paint(label(log_[k], 11, on_dark.with_alpha(alpha), 0, 500), out, {x, y + line * static_cast<float>(k + 1)});
         }
         y += line * static_cast<float>(log_size + 1) + 6;
-        xrender::text::paint(label(std::format("frame {} · state {:016x}", s.frame, checksum(s)), 11, on_dark.with_alpha(0.6f), 0, 500), out, {x, y});
-        xrender::text::paint(label("Tab — back to the game (paused while you look)", 11, hex(0x64ffda, 0.7f), 0, 500), out, {x, y + line * 2});
-        if (!agent_log_.empty()) xrender::text::paint(label(std::format("copilot: {}", agent_log_.back()), 11, hex(ink::live, 0.8f), w, 500), out, {x, y + line});
+        mrender::text::paint(label(std::format("frame {} · state {:016x}", s.frame, checksum(s)), 11, on_dark.with_alpha(0.6f), 0, 500), out, {x, y});
+        mrender::text::paint(label("Tab — back to the game (paused while you look)", 11, hex(0x64ffda, 0.7f), 0, 500), out, {x, y + line * 2});
+        if (!agent_log_.empty()) mrender::text::paint(label(std::format("copilot: {}", agent_log_.back()), 11, hex(ink::live, 0.8f), w, 500), out, {x, y + line});
     }
 }
 

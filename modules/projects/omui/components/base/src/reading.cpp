@@ -126,8 +126,8 @@ void Kbd::paint(PaintContext& ctx) const {
             if (key) x += cap_gap;
             // The cap: its edge one point lower than its face, as a key stands.
             const Rect cap{x, 0, cap_width, cap_height + 2};
-            ctx.list.fill_round_rect(cap, CornerRadii::all(cap_radius), xrender::Paint::solid(edge));
-            ctx.list.fill_round_rect({x, 0, cap_width, cap_height}, CornerRadii::all(cap_radius), xrender::Paint::solid(face));
+            ctx.list.fill_round_rect(cap, CornerRadii::all(cap_radius), mrender::Paint::solid(edge));
+            ctx.list.fill_round_rect({x, 0, cap_width, cap_height}, CornerRadii::all(cap_radius), mrender::Paint::solid(face));
             label.paint(ctx, {x + (cap_width - text.width) / 2, 2}, ink);
             x += cap_width;
         }
@@ -225,7 +225,7 @@ constexpr float icon_alone = 24;  // an icon with no text and no size of its own
 constexpr float icon_gap = 6;     // between an icon and its text
 }  // namespace
 
-const xrender::Path* Link::icon() const {
+const mrender::Path* Link::icon() const {
     if (props.icon.empty()) return nullptr;
     if (icon_of_ != props.icon) {
         icon_of_ = props.icon;
@@ -262,10 +262,10 @@ void Link::paint(PaintContext& ctx) const {
     const Size text = alone ? Size{} : label_.measure(ctx.services, ink);
     // Its icon: the text's line high before it, or the whole box where it is alone (the 24-unit square fitted, centred).
     const float side = icon_side(std::ceil(text.height), ctx.size);
-    if (const xrender::Path* drawn = icon(); drawn && side > 0) {
+    if (const mrender::Path* drawn = icon(); drawn && side > 0) {
         const Rect square = alone ? Rect{0, 0, ctx.size.width, ctx.size.height} : Rect{0, 0, side, side};
         ctx.part({.role = "icon", .allocation = square}, [&] {
-            ctx.list.fill_path(drawn->transformed(parts::fitted({0, 0, 24, 24}, square)), xrender::FillRule::nonzero, xrender::Paint::solid(ink));
+            ctx.list.fill_path(drawn->transformed(parts::fitted({0, 0, 24, 24}, square)), mrender::FillRule::nonzero, mrender::Paint::solid(ink));
         });
     }
     if (alone) {
@@ -347,7 +347,7 @@ void DescriptionList::paint(PaintContext& ctx) const {
     const Color muted = ctx.theme.color("text_muted"), ink = ctx.theme.color("text"), divider = ctx.theme.color("border");
     for (std::size_t index = 0; index < terms_.size() && index < rows_.size(); ++index) {
         const Rect& row = rows_[index];
-        if (index) ctx.list.fill_rect({0, row.y - row_gap / 2, ctx.size.width, 1}, divider.with_alpha(0.6f), xrender::PixelAlign::device);
+        if (index) ctx.list.fill_rect({0, row.y - row_gap / 2, ctx.size.width, 1}, divider.with_alpha(0.6f), mrender::PixelAlign::device);
         if (props.aligned) {
             const float lift = details_[index].baseline(ctx.services, ink) - terms_[index].baseline(ctx.services, muted);
             terms_[index].paint(ctx, {0, row.y + std::max(0.0f, lift)}, muted);
@@ -398,19 +398,19 @@ void Spinner::paint(PaintContext& ctx) const {
     const float diameter = std::min(ctx.size.width, ctx.size.height);
     const float stroke = std::max(2.0f, diameter / 9);
     const Point centre{ctx.size.width / 2, ctx.size.height / 2};
-    xrender::Path ring;
+    mrender::Path ring;
     ring.add_circle(centre, (diameter - stroke) / 2);
     const Color accent = ctx.theme.color("accent");
-    ctx.list.stroke_path(ring, {.width = stroke}, xrender::Paint::solid(accent.with_alpha(0.18f)));
+    ctx.list.stroke_path(ring, {.width = stroke}, mrender::Paint::solid(accent.with_alpha(0.18f)));
     // An indicator, not a transition: its arc is where the runtime's clock says (the progress bar's way);
     // still, a quarter at rest, when motion is reduced or time is held.
     const bool still = ctx.services.motion_reduced() || ctx.services.time_paused();
     const double phase = still ? 0.0 : std::fmod(ctx.services.now().count() / turn, 1.0);
-    xrender::StrokeStyle arc{.width = stroke, .cap = xrender::LineCap::round};
+    mrender::StrokeStyle arc{.width = stroke, .cap = mrender::LineCap::round};
     arc.trim_start = 0;
     arc.trim_end = 0.28f;
     arc.trim_offset = static_cast<float>(phase);
-    ctx.list.stroke_path(ring, arc, xrender::Paint::solid(accent));
+    ctx.list.stroke_path(ring, arc, mrender::Paint::solid(accent));
     if (!still) {
         ctx.services.invalidate_paint(node());
         ctx.services.request_frame();

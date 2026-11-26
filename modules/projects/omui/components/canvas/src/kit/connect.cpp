@@ -4,7 +4,7 @@ module omui.ui.canvas.kit;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import omui.ui.canvas;
 import :parts;
 
@@ -57,7 +57,7 @@ public:
         return true;
     }
 
-    void paint_over(Host& h, xrender::DisplayList& list) override {
+    void paint_over(Host& h, mrender::DisplayList& list) override {
         if (from_.empty()) return;
         Scene& s = h.scene();
         const auto a = s.find(from_);
@@ -67,13 +67,13 @@ public:
         Point end = at_;
         if (const auto b = to_.empty() ? std::nullopt : s.find(to_)) {
             const Rect rb = screen_of(h, s.rect(*b));
-            list.stroke_round_rect(grow(rb, 3), CornerRadii::all(static_cast<float>(s.radius(*b) * h.camera().zoom) + 3), 2, xrender::Paint::solid(c));
+            list.stroke_round_rect(grow(rb, 3), CornerRadii::all(static_cast<float>(s.radius(*b) * h.camera().zoom) + 3), 2, mrender::Paint::solid(c));
             end = rb.center();
         }
         line(list, ra.center(), end, 2, c);
-        xrender::Path dot;
+        mrender::Path dot;
         dot.add_circle(end, 4);
-        list.fill_path(dot, xrender::FillRule::nonzero, xrender::Paint::solid(c));
+        list.fill_path(dot, mrender::FillRule::nonzero, mrender::Paint::solid(c));
     }
 
     void describe(Host& h, NodeRef n, spec::SemanticNode& node) override {

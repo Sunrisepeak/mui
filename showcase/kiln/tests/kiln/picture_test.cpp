@@ -13,7 +13,7 @@ import mcpplibs.mtest;
 // mtest by name: its `cts` is not mlibs'.
 using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::fatal, mcpplibs::mtest::operator""_test;
 namespace ca = meng::cellular;
-namespace raster = xrender::raster;
+namespace raster = mrender::raster;
 
 namespace {
 constexpr int scale = 6;
@@ -46,7 +46,7 @@ struct Game {
     std::uint64_t hash(const State& state) const { return kiln::checksum(state); }
 };
 struct Pictured {
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     kiln::Picture picture;
     Pictured() : picture(*kiln::Picture::make(images, kiln::level::first())) {}
 };
@@ -62,10 +62,10 @@ struct KilnPicture {
     std::string describe(const Shown& shown) const { return shown.picture.world().describe(); }
 };
 struct Shown {
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     kiln::Picture picture;
-    xrender::DisplayList list;
-    xrender::CpuRenderer renderer;
+    mrender::DisplayList list;
+    mrender::CpuRenderer renderer;
     Shown(ca::Light light, bool alive) : picture(*kiln::Picture::make(images, kiln::level::first())) {
         picture.world().set_light(light, "the test's"), picture.world().set_scenery(alive, "the test's");
     }

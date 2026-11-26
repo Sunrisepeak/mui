@@ -16,7 +16,7 @@ import mcpplibs.os;
 import omui.cli;
 import hanim.studio;
 import hanim.timeline.tool;
-import xrender.tool;
+import mrender.tool;
 import gongfu.studio;
 import xtools.audition;
 
@@ -24,7 +24,7 @@ namespace {
 
 constexpr std::string_view usage =
     "xtools — the toolchain whole: every project's toolkit behind one tool kernel\n\n"
-    "  xtools <toolkit> <words…>    a toolkit's own command line: omui, hanim, hanim-timeline, xrender, gongfu-studio, video, audition\n"
+    "  xtools <toolkit> <words…>    a toolkit's own command line: omui, hanim, hanim-timeline, mrender, gongfu-studio, video, audition\n"
     "  xtools <operation> <words…>  an operation by its whole name (document.check, effect.preview, video.render …)\n"
     "  xtools subjects | find WORDS | describe NAME   what is here, across the toolkits\n"
     "  xtools mcp                   every toolkit's operations to an MCP client, on stdio\n";
@@ -39,13 +39,13 @@ int run(std::span<const std::string> argv, std::istream& in, std::ostream& out, 
     omui::cli::Project project;
     hanim::studio::Documents documents;
     hanim::timeline::tool::Timelines timelines;
-    xrender::tool::Renderer renderer(argv.empty() ? std::filesystem::path{} : mcpplibs::os::fs::from_utf8(argv.front()));
+    mrender::tool::Renderer renderer(argv.empty() ? std::filesystem::path{} : mcpplibs::os::fs::from_utf8(argv.front()));
     gongfu::studio::Studio fighters;
     // Films are meng.video's toolkit, with omui's sources (a view's frames, its data kinds), composed here (films.cpp).
     const std::unique_ptr<mlibs::agent::Subject> films = xtools::films();
     xtools::audition::Audition audition;  // a timeline's gain heard and seen: hanim, meng.audio and omui together
     const std::vector<std::pair<std::string_view, mlibs::agent::Subject*>> toolkits{
-        {"hanim", &documents}, {"hanim-timeline", &timelines}, {"xrender", &renderer}, {"gongfu-studio", &fighters}, {"video", films.get()}, {"audition", &audition}};
+        {"hanim", &documents}, {"hanim-timeline", &timelines}, {"mrender", &renderer}, {"gongfu-studio", &fighters}, {"video", films.get()}, {"audition", &audition}};
     if (!given.empty()) {
         // omui's command line is a function of its words (agent, page, the project's catalog): called as `omui` calls it.
         if (given.front() == "omui") {

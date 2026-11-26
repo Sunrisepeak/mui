@@ -37,15 +37,15 @@ std::optional<Rect> drawn(const Runtime& runtime) {
     std::vector<Affine> transforms(1);
     std::vector<bool> inside;
     for (const auto& command : runtime.display_list().commands()) {
-        if (const auto* push = std::get_if<xrender::PushTransform>(&command)) transforms.push_back(transforms.back() * push->transform);
-        else if (std::holds_alternative<xrender::PopTransform>(command)) {
+        if (const auto* push = std::get_if<mrender::PushTransform>(&command)) transforms.push_back(transforms.back() * push->transform);
+        else if (std::holds_alternative<mrender::PopTransform>(command)) {
             if (transforms.size() > 1) transforms.pop_back();
-        } else if (const auto* begin = std::get_if<xrender::BeginNode>(&command)) {
+        } else if (const auto* begin = std::get_if<mrender::BeginNode>(&command)) {
             const auto id = runtime.node_at_index(begin->node);
             inside.push_back(runtime.valid(id) && runtime.path(id).ends_with("/popup"));
-        } else if (std::holds_alternative<xrender::EndNode>(command)) {
+        } else if (std::holds_alternative<mrender::EndNode>(command)) {
             if (!inside.empty()) inside.pop_back();
-        } else if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && !inside.empty() && inside.back() && fill->paint.color.b > 0.8f) {
+        } else if (const auto* fill = std::get_if<mrender::FillRect>(&command); fill && !inside.empty() && inside.back() && fill->paint.color.b > 0.8f) {
             const Point top_left = transforms.back().apply({fill->rect.x, fill->rect.y});
             const Point bottom_right = transforms.back().apply({fill->rect.right(), fill->rect.bottom()});
             return Rect{top_left.x, top_left.y, bottom_right.x - top_left.x, bottom_right.y - top_left.y};
@@ -57,7 +57,7 @@ std::optional<Rect> drawn(const Runtime& runtime) {
 // The scrim's alpha: the fill over the whole window.
 std::optional<float> scrim_alpha(const Runtime& runtime) {
     for (const auto& command : runtime.display_list().commands())
-        if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.width >= 300 && fill->rect.height >= 300 && fill->paint.color.a < 1)
+        if (const auto* fill = std::get_if<mrender::FillRect>(&command); fill && fill->rect.width >= 300 && fill->rect.height >= 300 && fill->paint.color.a < 1)
             return fill->paint.color.a;
     return std::nullopt;
 }

@@ -3,10 +3,10 @@ import std;
 import mlibs.hash;
 
 namespace meng::cellular {
-namespace raster = xrender::raster;
+namespace raster = mrender::raster;
 
 struct WorldPicture::Data {
-    xrender::ImageStore* store = nullptr;
+    mrender::ImageStore* store = nullptr;
     const meng::matter::Program* program = nullptr;
     meng::matter::Look look;
     Shape shape;
@@ -32,10 +32,10 @@ WorldPicture::WorldPicture(WorldPicture&&) noexcept = default;
 WorldPicture& WorldPicture::operator=(WorldPicture&&) noexcept = default;
 WorldPicture::~WorldPicture() {
     if (!data_ || !data_->store) return;
-    for (const xrender::ImageRef frame : data_->flames.frames) data_->store->remove(frame);
+    for (const mrender::ImageRef frame : data_->flames.frames) data_->store->remove(frame);
 }
 
-std::expected<WorldPicture, std::string> WorldPicture::make(xrender::ImageStore& store, const meng::matter::Program& program, const meng::matter::Look& look, Shape shape,
+std::expected<WorldPicture, std::string> WorldPicture::make(mrender::ImageStore& store, const meng::matter::Program& program, const meng::matter::Look& look, Shape shape,
                                                             PictureOptions options) {
     auto data = std::make_unique<Data>();
     data->store = &store;
@@ -118,7 +118,7 @@ void WorldPicture::show(const rigid::MatterWorld& world) {
     ++d.frame;
 }
 
-void WorldPicture::draw(xrender::DisplayList& list, mlibs::geom::Rect dest) const {
+void WorldPicture::draw(mrender::DisplayList& list, mlibs::geom::Rect dest) const {
     const Data& d = *data_;
     d.view->draw(list, dest);
     d.view->draw_loose(list, dest, d.centres, d.loose);
@@ -132,18 +132,18 @@ void WorldPicture::draw(xrender::DisplayList& list, mlibs::geom::Rect dest) cons
         const raster::Surface* first = d.store->get(d.flames.frames.front());
         if (!first) return;
         const mlibs::geom::Rect source{0, 0, static_cast<float>(first->width()), static_cast<float>(first->height())};
-        list.push_layer(d.options.strength, xrender::BlendMode::plus);
+        list.push_layer(d.options.strength, mrender::BlendMode::plus);
         for (std::uint32_t by = 0; by < grid.height; ++by)
             for (std::uint32_t bx = 0; bx < grid.width; ++bx) {
                 const Data::Block& block = d.blocks[static_cast<std::size_t>(by) * grid.width + bx];
                 if (!block.emitting) continue;
                 const std::uint64_t turn = d.frame / static_cast<std::uint64_t>(std::max(1, d.flames.every)) + bx * 7u + by * 13u;
-                const xrender::ImageRef image = d.flames.frames[turn % d.flames.frames.size()];
+                const mrender::ImageRef image = d.flames.frames[turn % d.flames.frames.size()];
                 // The frame's own source of light over the middle of what emits in the block.
                 const float at_x = (static_cast<float>(block.sum_x) / static_cast<float>(block.emitting) + 0.5f - d.flames.centre_x) * across;
                 const float at_y = (static_cast<float>(block.sum_y) / static_cast<float>(block.emitting) + 0.5f - d.flames.centre_y) * down;
                 const float share = std::clamp(static_cast<float>(block.emitting) / 12.0f, 0.4f, 1.0f);
-                list.draw_image(image, source, {dest.x + at_x, dest.y + at_y, d.flames.cells_wide * across, d.flames.cells_high * down}, xrender::Sampling::linear, share);
+                list.draw_image(image, source, {dest.x + at_x, dest.y + at_y, d.flames.cells_wide * across, d.flames.cells_high * down}, mrender::Sampling::linear, share);
             }
         list.pop_layer();
     }
@@ -158,7 +158,7 @@ std::expected<void, std::string> WorldPicture::bake(const rigid::MatterWorld& sc
     rigid::MatterWorld& world = **branch;
     const Shape shape = world.shape();
     constexpr int scale = 4;  // pixels a cell in a baked frame
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     auto view = FieldPresenter::make(images, shape, static_cast<std::uint32_t>(d.program->channels().size()), d.look.shade(), d.options.tile);
     if (!view) return std::unexpected(view.error());
     if (!view->glows()) return std::unexpected(std::string("the look emits no light: nothing to bake"));
@@ -167,8 +167,8 @@ std::expected<void, std::string> WorldPicture::bake(const rigid::MatterWorld& sc
     std::vector<std::vector<raster::Rgba8>> baked;
     double emitting = 0, sum_x = 0, sum_y = 0;
     mlibs::hash::Fnv1a key;
-    xrender::CpuRenderer renderer;
-    xrender::DisplayList list;
+    mrender::CpuRenderer renderer;
+    mrender::DisplayList list;
     for (int frame = 0; frame < frames; ++frame) {
         for (int step = 0; step < every; ++step) world.step();
         (void)view->present(world.cells());
@@ -185,7 +185,7 @@ std::expected<void, std::string> WorldPicture::bake(const rigid::MatterWorld& sc
         for (const raster::Rgba8 pixel : out.pixels()) key.le(pixel.r, 1).le(pixel.g, 1).le(pixel.b, 1).le(pixel.a, 1);
     }
     if (emitting <= 0) return std::unexpected(std::string("nothing in the scene emitted light while it was baked"));
-    for (const xrender::ImageRef frame : d.flames.frames) d.store->remove(frame);
+    for (const mrender::ImageRef frame : d.flames.frames) d.store->remove(frame);
     d.flames = {};
     for (auto& pixels : baked) d.flames.frames.push_back(d.store->add(static_cast<int>(width), static_cast<int>(height), std::move(pixels)));
     d.flames.cells_wide = static_cast<float>(shape.width), d.flames.cells_high = static_cast<float>(shape.height);

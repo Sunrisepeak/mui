@@ -189,7 +189,7 @@ int browser_checks(const fs::path& root) {
     };
 
     // 1. rhi.webgpu and rhi.webgl on the page's WebGPU and WebGL2 (the mlibs.rhi conformance suite among them).
-    const auto backends = built({"xrender.rhi.webgpu", "xrender.rhi.webgl"}, "the page backends' tests");
+    const auto backends = built({"mrender.rhi.webgpu", "mrender.rhi.webgl"}, "the page backends' tests");
     if (!backends) return 1;
     for (const std::string backend : {"webgpu", "webgl"}) {
         const auto program = program_of(*backends, backend + "_test");
@@ -204,7 +204,7 @@ int browser_checks(const fs::path& root) {
         if (!program || !in_page(*program, {"--require-webgpu"})) return failed(std::format("{} failed in the browser", suite));
     }
     // 1c. The mesh pass's contract, run by its owner on the page's WebGPU and its WebGL2: every case on both.
-    const auto mesh = built({"xrender.mesh.gpu.cts"}, "the mesh pass's suite");
+    const auto mesh = built({"mrender.mesh.gpu.cts"}, "the mesh pass's suite");
     if (!mesh) return 1;
     for (const std::string backend : {"webgpu", "webgl"}) {
         const auto program = program_of(*mesh, "mesh_" + backend + "_test");
@@ -324,7 +324,7 @@ int web(const fs::path& root, std::string_view profile) {
     const auto page = run::program(root, node, {"--test", "modules/projects/omui/host/web/tests/js/page.test.mjs", "modules/projects/omui/host/web/tests/js/wasm.test.mjs"},
                                    {.shown = true, .variables = {{"OMUI_PAGE_TEST", mcpplibs::os::fs::utf8(*page_test)}}});
     if (!page || page->status != 0) return failed("the page's half of host.web failed its tests");
-    const auto backends = run::program(root, node, {"--test", "modules/projects/xrender/rhi/webgpu/tests/js/webgpu.test.mjs", "modules/projects/xrender/rhi/webgl/tests/js/webgl.test.mjs"},
+    const auto backends = run::program(root, node, {"--test", "modules/projects/mrender/rhi/webgpu/tests/js/webgpu.test.mjs", "modules/projects/mrender/rhi/webgl/tests/js/webgl.test.mjs"},
                                        {.shown = true});
     if (!backends || backends->status != 0) return failed("the page's halves of rhi.webgpu and rhi.webgl failed their tests");
 

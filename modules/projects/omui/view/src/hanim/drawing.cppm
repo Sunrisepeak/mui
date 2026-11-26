@@ -31,7 +31,7 @@ private:
     std::optional<hanim::vector_render::PreparedVector> drawn_;
     std::optional<hanim::PlaybackRef>                   bound_;
     const void*                                         animation_ = nullptr;  // the segment's animation it is bound to
-    xrender::DisplayList                                staging_;
+    mrender::DisplayList                                staging_;
     std::vector<mlibs::geom::Affine>                    world_;
     std::vector<float>                                  parameters_;
     std::vector<mlibs::geom::Rect>                      layers_;

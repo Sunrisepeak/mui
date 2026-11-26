@@ -6,8 +6,8 @@ import omui.view;
 import omui.hanim;
 import omui.semantic;
 import omui.accessibility;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import mlibs.text;
 import mlibs.trace;
 import omui.ui.base;
@@ -20,8 +20,8 @@ import omui.showcase.markdown_wall;
 import omui.showcase.style_gallery;
 import omui.theme.styles;
 import mlibs.rhi;
-import xrender.rhi.sdl;
-import xrender.text;
+import mrender.rhi.sdl;
+import mrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -199,14 +199,14 @@ struct Market {
 private:
     void sparkline(PaintContext& paint, std::size_t symbol) const {
         const float   width = paint.size.width, height = paint.size.height;
-        xrender::Path path;
+        mrender::Path path;
         for (std::size_t point = 0; point < points; ++point) {
             const float value = history[symbol][(head + 1 + point) % points];
             const Point at{static_cast<float>(point) * width / static_cast<float>(points - 1), height - 2 - value * (height - 4)};
             if (point == 0) path.move_to(at);
             else path.line_to(at);
         }
-        paint.list.stroke_path(path, {.width = 1.5f}, xrender::Paint::solid(paint.theme.color("accent")));
+        paint.list.stroke_path(path, {.width = 1.5f}, mrender::Paint::solid(paint.theme.color("accent")));
     }
 };
 
@@ -290,16 +290,16 @@ private:
 };
 
 // What a list is made of, by kind of command: where a frame's masks come from.
-std::string made_of(const xrender::DisplayList& list) {
-    std::array<std::size_t, std::variant_size_v<xrender::Command>> kinds{};
+std::string made_of(const mrender::DisplayList& list) {
+    std::array<std::size_t, std::variant_size_v<mrender::Command>> kinds{};
     std::size_t rounded = 0, smoothed = 0;
-    for (const xrender::Command& command : list.commands()) {
+    for (const mrender::Command& command : list.commands()) {
         ++kinds[command.index()];
-        if (const auto* clip = std::get_if<xrender::PushClipRect>(&command); clip && !clip->radii.zero()) ++rounded, smoothed += clip->radii.smoothing > 0 ? 1 : 0;
+        if (const auto* clip = std::get_if<mrender::PushClipRect>(&command); clip && !clip->radii.zero()) ++rounded, smoothed += clip->radii.smoothing > 0 ? 1 : 0;
     }
     std::string text = rounded > 0 ? std::format("{} clips rounded ({} of them smoothed)", rounded, smoothed) : std::string();
     for (std::size_t kind = 0; kind < kinds.size(); ++kind)
-        if (kinds[kind] > 0) text += std::format("{}{} {}", text.empty() ? "" : ", ", kinds[kind], xrender::command_kind_name(kind));
+        if (kinds[kind] > 0) text += std::format("{}{} {}", text.empty() ? "" : ", ", kinds[kind], mrender::command_kind_name(kind));
     return text;
 }
 
@@ -313,17 +313,17 @@ public:
         // One device for the program's benchmarks, as a program has one: a device a benchmark
         // gave out at the fifteenth (a driver's limit of them in a process), and the later ones were skipped.
         static mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> shared = [] {
-            xrender::rhi::sdl::Options o;
-            o.formats = xrender::gpu_shader_formats();
+            mrender::rhi::sdl::Options o;
+            o.formats = mrender::gpu_shader_formats();
             o = environment_options(std::move(o));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
-            return xrender::rhi::sdl::create(o);
+            return mrender::rhi::sdl::create(o);
         }();
         if (!shared) {
             why_ = std::format("no GPU device ({})", shared.error().message);
             return;
         }
         device_ = shared->get();
-        auto renderer = xrender::GpuRenderer::create(*device_);
+        auto renderer = mrender::GpuRenderer::create(*device_);
         if (!renderer) {
             why_ = std::format("the GPU renderer: {}", renderer.error().message);
             return;
@@ -361,9 +361,9 @@ public:
     // of which encode_ms is the CPU's (the list encoded and submitted), and
     // what it uploaded (uploaded_kb: new images, new masks, the instances).
     // Returns the frame's milliseconds (0: not a frame) and leaves its report in `last`.
-    double draw(State& s, const xrender::DisplayList& list, const xrender::Resources& resources, Color background) {
+    double draw(State& s, const mrender::DisplayList& list, const mrender::Resources& resources, Color background) {
         const auto t0 = std::chrono::steady_clock::now();
-        auto r = renderer_->render(list, target_, resources, {.scale = 1, .clear = true, .background = background, .glyph_masks = xrender::glyph_masks_a_live_frame});
+        auto r = renderer_->render(list, target_, resources, {.scale = 1, .clear = true, .background = background, .glyph_masks = mrender::glyph_masks_a_live_frame});
         last_encode_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         s.counter("encode_ms", last_encode_ms);
         if (r) s.counter("uploaded_kb", static_cast<double>(r->uploaded) / 1024.0);
@@ -382,12 +382,12 @@ public:
         s.counter("software", device_->caps().software ? 1 : 0);
         return ms;
     }
-    xrender::RenderReport last{};
+    mrender::RenderReport last{};
     double                last_encode_ms = 0;
 
 private:
     mlibs::rhi::Device*                device_ = nullptr;  // the program's, shared
-    std::optional<xrender::GpuRenderer> renderer_;
+    std::optional<mrender::GpuRenderer> renderer_;
     mlibs::rhi::Texture                       target_{};
     std::string                        why_;
 };
@@ -459,7 +459,7 @@ void canvas_wall(std::string_view name, std::size_t count) {
     sc.kind("window", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {80, world::Tier::Draw::custom}},
                                   .draw = [](world::DrawContext& d) {
                                       const Rect r = d.screen;
-                                      d.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(d.scene.fill(d.node)));
+                                      d.list.fill_round_rect(r, CornerRadii::all(6), mrender::Paint::solid(d.scene.fill(d.node)));
                                       d.list.fill_rect({r.x, r.y, r.width, std::min(r.height, 22.0f)}, Color::hex(0x334155));
                                       for (float y = r.y + 30; y + 6 < r.bottom() - 6; y += 12)
                                           d.list.fill_rect({r.x + 8, y, (r.width - 16) * 0.8f, 5}, Color::hex(0xcbd5e1));
@@ -539,14 +539,14 @@ void add_framework_benchmarks() {
             lease.emplace(std::move(*acquired));
         }
         std::array<hanim::Transform2D,count> poses;
-        xrender::LayerBoundsMap content_bounds;xrender::text::GlyphCache glyphs(fonts);
+        mrender::LayerBoundsMap content_bounds;mrender::text::GlyphCache glyphs(fonts);
         if(images) {
             // This workload animates translation at DPI 1 with fixed glyphs
             // and sizes. Prepare every supported subpixel mask before timing
             // the steady frame; first-use font rasterization is a cold cost.
-            for(const auto& command:runtime.display_list().commands())if(const auto* run=std::get_if<xrender::DrawGlyphs>(&command))
-                for(const auto& glyph:run->glyphs)for(int y=0;y<xrender::text::GlyphCache::phases;++y)for(int x=0;x<xrender::text::GlyphCache::phases;++x)
-                    (void)glyphs.mask(run->font,glyph.id,run->size,{static_cast<float>(x)/xrender::text::GlyphCache::phases,static_cast<float>(y)/xrender::text::GlyphCache::phases});
+            for(const auto& command:runtime.display_list().commands())if(const auto* run=std::get_if<mrender::DrawGlyphs>(&command))
+                for(const auto& glyph:run->glyphs)for(int y=0;y<mrender::text::GlyphCache::phases;++y)for(int x=0;x<mrender::text::GlyphCache::phases;++x)
+                    (void)glyphs.mask(run->font,glyph.id,run->size,{static_cast<float>(x)/mrender::text::GlyphCache::phases,static_cast<float>(y)/mrender::text::GlyphCache::phases});
             s.note("glyph_resources","Fixed glyphs/sizes at DPI 1: all public GlyphCache subpixel phases prepared before timing. Cold mask generation, changing text and new sizes are outside this steady-state budget.");
         }
         s.items(count);
@@ -606,10 +606,10 @@ void add_framework_benchmarks() {
             auto& sc = world::scene("bench-sharpen");
             sc.clear();
             sc.kind("doc", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}},
-                                       .content = [](const world::Scene& sc2, world::NodeRef n, xrender::DisplayList& dl) {
+                                       .content = [](const world::Scene& sc2, world::NodeRef n, mrender::DisplayList& dl) {
                                            const auto r = sc2.rect(n);
                                            const float w = static_cast<float>(r.width), h = static_cast<float>(r.height);
-                                           dl.fill_round_rect({0, 0, w, h}, CornerRadii::all(8), xrender::Paint::solid(Color::hex(0xf8fafc)));
+                                           dl.fill_round_rect({0, 0, w, h}, CornerRadii::all(8), mrender::Paint::solid(Color::hex(0xf8fafc)));
                                            dl.fill_rect({0, 0, w, 28}, Color::hex(0x334155));
                                            for (float y = 40; y + 10 < h; y += 18) dl.fill_rect({12, y, (w - 24) * (0.6f + 0.4f * std::fmod(y * 0.37f, 1.0f)), 9}, Color::hex(0x94a3b8));
                                        }});
@@ -748,7 +748,7 @@ void add_framework_benchmarks() {
         }
         const auto b = world::scene(lists ? "bench-wall-zoom-gpu-lists" : "bench-wall-zoom-gpu").bounds();
         w.camera(b.x + b.width / 2, b.y + b.height / 2, 0.01);
-        xrender::text::GlyphCache glyphs(w.h.runtime().fonts());
+        mrender::text::GlyphCache glyphs(w.h.runtime().fonts());
         float dir = -1;
         double      slowest_ms = 0;
         std::string slowest;
@@ -799,16 +799,16 @@ void add_framework_benchmarks() {
         style.style.size = 9;
         mlibs::text::Paragraph page(fonts, text, style);
         page.layout(1880);
-        xrender::DisplayList content;
+        mrender::DisplayList content;
         for (int card = 0; card < 4000; ++card)
             content.fill_round_rect({20.0f + static_cast<float>(card % 80) * 23.5f, 20.0f + static_cast<float>(card / 80) * 20.8f, 21, 18}, CornerRadii::all(4),
-                                    xrender::Paint::solid(Color::hex(0xf0f2f7)));
-        xrender::text::paint(page, content, {20, 20});
+                                    mrender::Paint::solid(Color::hex(0xf0f2f7)));
+        mrender::text::paint(page, content, {20, 20});
         std::size_t glyph_count = 0;
         for (const auto& command : content.commands())
-            if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command)) glyph_count += run->glyphs.size();
-        xrender::text::GlyphCache glyphs(fonts);
-        xrender::DisplayList      frame;
+            if (const auto* run = std::get_if<mrender::DrawGlyphs>(&command)) glyph_count += run->glyphs.size();
+        mrender::text::GlyphCache glyphs(fonts);
+        mrender::DisplayList      frame;
         std::uint64_t             revision = 0;
         s.items(glyph_count + 4000);
         while (s.next()) {
@@ -903,40 +903,40 @@ void add_framework_benchmarks() {
     // the frame drawn whole — by the CPU reference, and on the GPU when the
     // machine has one (lavapipe in CI: a CPU's Vulkan; a real GPU's number is
     // the report's, M4's 120 Hz target).
-    auto glass_frame = [](xrender::DisplayList& dl) {
+    auto glass_frame = [](mrender::DisplayList& dl) {
         dl.clear();
         dl.fill_rect({0, 0, 1920, 1080}, Color::hex(0x0f172a));
         for (int i = 0; i < 24; ++i)
             dl.fill_rect({static_cast<float>(i) * 80.0f + 6, 0, 36, 1080}, Color{0.2f + 0.03f * static_cast<float>(i), 0.35f, 0.85f - 0.025f * static_cast<float>(i), 1});
         for (int i = 0; i < 6; ++i) {
-            xrender::Path ring;
+            mrender::Path ring;
             ring.add_circle({300.0f + static_cast<float>(i) * 260, 540}, 140).add_circle({300.0f + static_cast<float>(i) * 260, 540}, 110);
-            dl.fill_path(ring, xrender::FillRule::even_odd, xrender::Paint::solid(Color::hex(0xf59e0b, 0.8f)));
+            dl.fill_path(ring, mrender::FillRule::even_odd, mrender::Paint::solid(Color::hex(0xf59e0b, 0.8f)));
         }
-        const auto ref = xrender::effects().find("liquid_glass");
+        const auto ref = mrender::effects().find("liquid_glass");
         const std::array<std::pair<std::string_view, float>, 3> values{{{"blur", 8}, {"tint_a", 0.12f}, {"dispersion", 0.4f}}};
-        const auto params = xrender::effects().params(*ref, values);
+        const auto params = mrender::effects().params(*ref, values);
         for (int i = 0; i < 10; ++i) {
             const Rect r{80.0f + static_cast<float>(i % 5) * 360, 140.0f + static_cast<float>(i / 5) * 440, 300, 360};
-            const std::array<xrender::EffectShape, 1> shape{{{r, CornerRadii::all(28)}}};
-            dl.push_layer(1, xrender::BlendMode::normal, *ref, params, r, shape);
+            const std::array<mrender::EffectShape, 1> shape{{{r, CornerRadii::all(28)}}};
+            dl.push_layer(1, mrender::BlendMode::normal, *ref, params, r, shape);
             dl.fill_rect({r.x + 24, r.y + 24, 120, 18}, Color::hex(0xffffff, 0.85f));
             dl.pop_layer();
         }
     };
     add("glass/10-1080p-cpu", "ten liquid glass panels at 1920×1080, the frame drawn whole by the CPU reference (on the task pool, in bands)", [glass_frame](State& s) {
-        xrender::DisplayList dl;
+        mrender::DisplayList dl;
         glass_frame(dl);
-        xrender::raster::Surface target(1920, 1080);
-        xrender::CpuRenderer r;
+        mrender::raster::Surface target(1920, 1080);
+        mrender::CpuRenderer r;
         while (s.next()) (void)r.render(dl, target, {}, {.parallel = &raster_parallel()});
     });
     add("glass/10-1080p-gpu", "the same frame on the GPU (omui.rhi), submitted and waited for", [glass_frame](State& s) {
         Gpu gpu(full_hd);
         if (!gpu.ready(s)) return;
-        xrender::DisplayList dl;
+        mrender::DisplayList dl;
         glass_frame(dl);
-        xrender::ImageStore images;
+        mrender::ImageStore images;
         while (s.next()) gpu.draw(s, dl, {&images, nullptr}, Color::hex(0x0f172a));
     });
 
@@ -948,17 +948,17 @@ void add_framework_benchmarks() {
             Gpu gpu(full_hd);
             if (!gpu.ready(s)) return;
             const int side = megabytes == 1 ? 512 : megabytes == 4 ? 1024 : 2048;
-            auto pixels = std::make_shared<xrender::raster::Surface>(side, side);
+            auto pixels = std::make_shared<mrender::raster::Surface>(side, side);
             for (int row = 0; row < side; ++row)
                 for (int column = 0; column < side; ++column)
                     pixels->at(column, row) = {static_cast<std::uint8_t>(column), static_cast<std::uint8_t>(row), 120, 255};
-            xrender::ImageStore images;
-            xrender::ImageRef   before{};
+            mrender::ImageStore images;
+            mrender::ImageRef   before{};
             while (s.next()) {
                 if (before.id) images.remove(before);
-                before = images.add(std::shared_ptr<const xrender::raster::Surface>(pixels));
-                xrender::DisplayList dl;
-                dl.draw_image(before, {0, 0, static_cast<float>(side), static_cast<float>(side)}, {0, 0, 512, 512}, xrender::Sampling::nearest);
+                before = images.add(std::shared_ptr<const mrender::raster::Surface>(pixels));
+                mrender::DisplayList dl;
+                dl.draw_image(before, {0, 0, static_cast<float>(side), static_cast<float>(side)}, {0, 0, 512, 512}, mrender::Sampling::nearest);
                 gpu.draw(s, dl, {&images, nullptr}, Color::white());
             }
         });
@@ -978,7 +978,7 @@ void add_framework_benchmarks() {
                 spec.setup(h.runtime());
                 h.mount("main", spec.view());
                 h.settle();
-                xrender::text::GlyphCache glyphs(h.runtime().fonts());
+                mrender::text::GlyphCache glyphs(h.runtime().fonts());
                 std::size_t i = 0;
                 while (s.next()) {
                     studio.volume.set(static_cast<double>(++i % 100) / 100.0);
@@ -1069,7 +1069,7 @@ void add_framework_benchmarks() {
             }
             h.mount("main", column({.padding = 24, .gap = 20}, std::move(rows)));
             h.settle();
-            xrender::text::GlyphCache glyphs(h.runtime().fonts());
+            mrender::text::GlyphCache glyphs(h.runtime().fonts());
             while (s.next()) {
                 const FrameOutput f = h.step();
                 if (!f.animating) on.set(!on.peek());  // at rest: flip them all again
@@ -1117,29 +1117,29 @@ void add_framework_benchmarks() {
         Headless h(scene_options());
         h.mount("main", d.view());
         h.settle();
-        xrender::text::GlyphCache glyphs(h.runtime().fonts());
-        xrender::CpuRenderer renderer;
-        xrender::raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
-        xrender::CpuOptions o;
+        mrender::text::GlyphCache glyphs(h.runtime().fonts());
+        mrender::CpuRenderer renderer;
+        mrender::raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
+        mrender::CpuOptions o;
         o.background = Color::white();
-        const xrender::DisplayList& list = h.runtime().display_list();
+        const mrender::DisplayList& list = h.runtime().display_list();
         s.counter("commands", static_cast<double>(list.size()));
         while (s.next()) (void)renderer.render(list, target, {&h.runtime().images(), &glyphs}, o);
         // Where the time goes, per kind of command (one measured pass after the timed ones).
         o.measure = true;
-        const xrender::RenderReport r = renderer.render(list, target, {&h.runtime().images(), &glyphs}, o);
+        const mrender::RenderReport r = renderer.render(list, target, {&h.runtime().images(), &glyphs}, o);
         for (std::size_t k = 0; k < r.kinds.size(); ++k)
-            if (r.kinds[k].count) s.counter(std::format("{}_ms", xrender::command_kind_name(k)), r.kinds[k].ms);
+            if (r.kinds[k].count) s.counter(std::format("{}_ms", mrender::command_kind_name(k)), r.kinds[k].ms);
     });
     add("ui/raster/full-1080p-parallel", "the same, in bands of 64 rows on the task pool (the same bytes)", [](State& s) {
         Dashboard d;
         Headless h(scene_options());
         h.mount("main", d.view());
         h.settle();
-        xrender::text::GlyphCache glyphs(h.runtime().fonts());
-        xrender::CpuRenderer renderer;
-        xrender::raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
-        xrender::CpuOptions o;
+        mrender::text::GlyphCache glyphs(h.runtime().fonts());
+        mrender::CpuRenderer renderer;
+        mrender::raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
+        mrender::CpuOptions o;
         o.background = Color::white();
         o.parallel = &raster_parallel();
         s.counter("threads", static_cast<double>(Tasks::shared().threads()));
@@ -1251,7 +1251,7 @@ void add_framework_benchmarks() {
             if (!on_gpu) (void)h.pixels();
             std::optional<accessibility::Mirror> mirror;
             if (reading) (void)mirror.emplace(h.runtime()).refresh();
-            xrender::text::GlyphCache glyphs(h.runtime().fonts());
+            mrender::text::GlyphCache glyphs(h.runtime().fonts());
             const Point at{market_size.width / 2, market_size.height / 2};
             float       position = 0, direction = 1;
             while (s.next()) {
@@ -1291,7 +1291,7 @@ void add_framework_benchmarks() {
                 if (!line) return s.fail(std::format("no sparkline for symbol {}", symbol));
                 lines.push_back(line);
             }
-            xrender::text::GlyphCache glyphs(h.runtime().fonts());
+            mrender::text::GlyphCache glyphs(h.runtime().fonts());
             s.note("nodes", std::format("{}", h.runtime().node_count()));
             while (s.next()) {
                 market.tick();
@@ -1408,12 +1408,12 @@ void add_framework_benchmarks() {
         mlibs::text::Paragraph p(fonts, paragraph_text(), {});
         p.layout(600);
         // The glyphs as the runtime animates them: the painted runs.
-        xrender::DisplayList painted;
-        xrender::text::paint(p, painted, {0, 0});
-        std::vector<std::span<const xrender::Glyph>> runs;
+        mrender::DisplayList painted;
+        mrender::text::paint(p, painted, {0, 0});
+        std::vector<std::span<const mrender::Glyph>> runs;
         std::size_t n = 0;
         for (const auto& c : painted.commands())
-            if (const auto* g = std::get_if<xrender::DrawGlyphs>(&c)) {
+            if (const auto* g = std::get_if<mrender::DrawGlyphs>(&c)) {
                 runs.emplace_back(g->glyphs);
                 n += g->glyphs.size();
             }
@@ -1433,38 +1433,38 @@ void add_framework_benchmarks() {
                                     GradientFill{"render/gradient-fill-1080p-radial", "a repeating radial gradient of two stops over 1920 × 1080 on the CPU reference", true, false},
                                     GradientFill{"render/gradient-fill-1080p-radial-steep", "the same of six stops", true, true}})
         add(std::string(fill.name), std::string(fill.about), [fill](State& s) {
-            const std::array<xrender::GradientStop, 6> six{{{0, Color::hex(0xef4444)}, {0.2f, Color::hex(0xf59e0b)}, {0.4f, Color::hex(0x22c55e)},
+            const std::array<mrender::GradientStop, 6> six{{{0, Color::hex(0xef4444)}, {0.2f, Color::hex(0xf59e0b)}, {0.4f, Color::hex(0x22c55e)},
                                                             {0.6f, Color::hex(0x06b6d4)}, {0.8f, Color::hex(0x6366f1)}, {1, Color::hex(0xec4899)}}};
-            const std::array<xrender::GradientStop, 2> two{{{0, Color::hex(0x4f46e5)}, {1, Color::hex(0xec4899)}}};
-            xrender::Paint paint;
-            paint.kind = xrender::Paint::Kind::gradient;
-            paint.gradient.kind = fill.radial ? xrender::GradientKind::radial : xrender::GradientKind::linear;
+            const std::array<mrender::GradientStop, 2> two{{{0, Color::hex(0x4f46e5)}, {1, Color::hex(0xec4899)}}};
+            mrender::Paint paint;
+            paint.kind = mrender::Paint::Kind::gradient;
+            paint.gradient.kind = fill.radial ? mrender::GradientKind::radial : mrender::GradientKind::linear;
             paint.gradient.start = fill.radial ? Point{960, 540} : Point{0, 0};
             paint.gradient.end = {1920, 1080};
             paint.gradient.radius = 400;
-            paint.gradient.spread = fill.radial ? xrender::Spread::repeat : xrender::Spread::pad;
+            paint.gradient.spread = fill.radial ? mrender::Spread::repeat : mrender::Spread::pad;
             if (fill.steep) paint.gradient.stops = six;
             else paint.gradient.stops = two;
-            xrender::DisplayList dl;
+            mrender::DisplayList dl;
             dl.fill_rect({0, 0, 1920, 1080}, paint);
-            xrender::raster::Surface surf(1920, 1080);
-            xrender::CpuRenderer cpu;
+            mrender::raster::Surface surf(1920, 1080);
+            mrender::CpuRenderer cpu;
             s.items(1920 * 1080);
             while (s.next()) (void)cpu.render(dl, surf, {}, {.background = Color::white()});
         });
     add("render/effect-particles", "a 480 × 320 layer bursting into particles: offscreen, effect, composite (D-68)", [](State& s) {
-        xrender::DisplayList dl;
+        mrender::DisplayList dl;
         const Rect area{20, 20, 480, 320};
-        const auto ref = *xrender::effects().find("particles");
+        const auto ref = *mrender::effects().find("particles");
         const std::array<std::pair<std::string_view, float>, 2> given{{{"progress", 0.4f}, {"seed", 2}}};
-        const auto params = xrender::effects().params(ref, given);
-        dl.push_layer(1, xrender::BlendMode::normal, ref, params, area);
+        const auto params = mrender::effects().params(ref, given);
+        dl.push_layer(1, mrender::BlendMode::normal, ref, params, area);
         for (int i = 0; i < 12; ++i)
             dl.fill_round_rect({area.x + 10.0f + 38.0f * static_cast<float>(i), area.y + 20, 30, 280}, CornerRadii::all(8),
-                               xrender::Paint::solid(Color::hex(0x4f46e5 + 0x0a0a00 * static_cast<std::uint32_t>(i))));
+                               mrender::Paint::solid(Color::hex(0x4f46e5 + 0x0a0a00 * static_cast<std::uint32_t>(i))));
         dl.pop_layer();
-        xrender::raster::Surface surf(560, 400);
-        xrender::CpuRenderer cpu;
+        mrender::raster::Surface surf(560, 400);
+        mrender::CpuRenderer cpu;
         s.items(static_cast<std::size_t>(area.width * area.height));
         while (s.next()) {
             const auto r = cpu.render(dl, surf, {}, {.background = Color::white()});
@@ -1475,17 +1475,17 @@ void add_framework_benchmarks() {
     for (std::string_view name : {"wobble", "metaball", "neon", "paper"})
         add(std::format("render/effect-{}", name), std::format("a 480 × 320 layer of bars through {}: offscreen, effect, composite (per pixel)", name),
             [name](State& s) {
-                xrender::DisplayList dl;
+                mrender::DisplayList dl;
                 const Rect area{20, 20, 480, 320};
-                const auto ref = *xrender::effects().find(name);
-                const auto params = xrender::effects().params(ref, {});
-                std::array<xrender::EffectShape, 8> shapes{};
+                const auto ref = *mrender::effects().find(name);
+                const auto params = mrender::effects().params(ref, {});
+                std::array<mrender::EffectShape, 8> shapes{};
                 for (int i = 0; i < 8; ++i) shapes[i] = {{area.x + 10.0f + 58.0f * static_cast<float>(i), area.y + 20, 44, 280}, CornerRadii::all(8)};
-                dl.push_layer(1, xrender::BlendMode::normal, ref, params, area, shapes);
-                for (const auto& sh : shapes) dl.fill_round_rect(sh.rect, sh.radii, xrender::Paint::solid(Color::hex(0x4f46e5)));
+                dl.push_layer(1, mrender::BlendMode::normal, ref, params, area, shapes);
+                for (const auto& sh : shapes) dl.fill_round_rect(sh.rect, sh.radii, mrender::Paint::solid(Color::hex(0x4f46e5)));
                 dl.pop_layer();
-                xrender::raster::Surface surf(560, 400);
-                xrender::CpuRenderer cpu;
+                mrender::raster::Surface surf(560, 400);
+                mrender::CpuRenderer cpu;
                 s.items(static_cast<std::size_t>(area.width * area.height));
                 while (s.next()) (void)cpu.render(dl, surf, {}, {.background = Color::white()});
             });

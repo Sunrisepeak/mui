@@ -3,8 +3,8 @@ module omui.ui.canvas;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
-import xrender.text;
+import mrender.vector;
+import mrender.text;
 import mlibs.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -460,6 +460,6 @@ const mlibs::text::Paragraph& Labels::get(const DrawContext& d, const std::strin
     return it->second;
 }
 
-void Labels::paint(const mlibs::text::Paragraph& label, xrender::DisplayList& list, Point at) { xrender::text::paint(label, list, at); }
+void Labels::paint(const mlibs::text::Paragraph& label, mrender::DisplayList& list, Point at) { mrender::text::paint(label, list, at); }
 
 }  // namespace omui::world

@@ -122,10 +122,10 @@ A world drawn: a picture that reads it, then a display list drawn by the CPU ref
 <!-- code: modules/projects/meng/kernel/matter/cts/tests/cts/ladder_test.cpp#shown -->
 ```cpp
 struct Shown {
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     ca::WorldPicture picture;
-    xrender::DisplayList list;
-    xrender::CpuRenderer renderer;
+    mrender::DisplayList list;
+    mrender::CpuRenderer renderer;
     explicit Shown(ca::Light best = ca::Light::glow, bool alive = true)
         : picture(*ca::WorldPicture::make(images, standard(), look(), {96, 56}, {.fill = "air", .seed = 9, .best_light = best, .scenery_alive = alive})) {
         picture.scenery({23, 46, 10, 4}, material("wood"));  // a hedge beside the post

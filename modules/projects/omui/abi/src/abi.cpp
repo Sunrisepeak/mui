@@ -10,8 +10,8 @@ import omui.view;
 import omui.viewdoc;
 import omui.semantic;
 import omui.agent;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import mlibs.text;
 import mlibs.trace;
 import omui.native;
@@ -19,7 +19,7 @@ import omui.theme;
 import nlohmann.json;
 import :c;
 import :api;
-import xrender.text;
+import mrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -98,11 +98,11 @@ struct OmuiRuntime_T {
     Runtime*                                          rt = nullptr;
     std::shared_ptr<bool>                             alive = std::make_shared<bool>(true);
     std::function<void()>                             wake;  // the host's loop, when it sleeps
-    std::unique_ptr<xrender::text::GlyphCache>              glyphs;
+    std::unique_ptr<mrender::text::GlyphCache>              glyphs;
     std::unique_ptr<agent::Protocol>                  protocol;
-    xrender::CpuRenderer                               renderer;
-    xrender::raster::Surface                                   surface;
-    xrender::DamageTracker                             damage;
+    mrender::CpuRenderer                               renderer;
+    mrender::raster::Surface                                   surface;
+    mrender::DamageTracker                             damage;
     bool                                              have_pixels = false;
     std::map<std::string, viewdoc::View, std::less<>> views;
 
@@ -189,7 +189,7 @@ OmuiRuntime attach(Runtime& runtime, std::string app_id) {
     r->app_id = app_id.empty() ? std::string("openmui-app") : std::move(app_id);
     r->headless = false;
     r->rt = &runtime;
-    r->glyphs = std::make_unique<xrender::text::GlyphCache>(runtime.fonts());
+    r->glyphs = std::make_unique<mrender::text::GlyphCache>(runtime.fonts());
     agent::ProtocolOptions po;
     po.app = r->app_id;
     po.default_actor = "program:binding";
@@ -230,7 +230,7 @@ OmuiResult omuiCreateRuntime(const OmuiRuntimeCreateInfo* info, OmuiRuntime* out
     o.clock = hanim::Clock::virtual_time();
     r->owned = std::make_unique<Runtime>(std::move(o));
     r->rt = r->owned.get();
-    r->glyphs = std::make_unique<xrender::text::GlyphCache>(*r->fonts);
+    r->glyphs = std::make_unique<mrender::text::GlyphCache>(*r->fonts);
     agent::ProtocolOptions po;
     po.app = r->app_id;
     po.default_actor = "program:binding";
@@ -508,14 +508,14 @@ OmuiResult omuiFrame(OmuiRuntime rt, const OmuiFrameInput* in, OmuiFrameOutput* 
         const int w = static_cast<int>(in->width), h = static_cast<int>(in->height);
         if (w <= 0 || h <= 0 || out->stride < static_cast<std::uint32_t>(w) * 4) return OMUI_ERROR_INVALID_ARGUMENT;
         if (rt->surface.width() != w || rt->surface.height() != h) {
-            rt->surface = xrender::raster::Surface(w, h);
+            rt->surface = mrender::raster::Surface(w, h);
             rt->have_pixels = false;
         }
-        const xrender::Resources resources{&r.images(), rt->glyphs.get()};
+        const mrender::Resources resources{&r.images(), rt->glyphs.get()};
         if (!rt->have_pixels) rt->damage.invalidate();
         const auto rows = rt->damage.update(r.display_list(), w, h, scale, resources);
         if (!rows.empty()) {
-            xrender::CpuOptions o;
+            mrender::CpuOptions o;
             o.scale = scale;
             o.rows = rows;
             (void)rt->renderer.render(r.display_list(), rt->surface, resources, o);
@@ -523,7 +523,7 @@ OmuiResult omuiFrame(OmuiRuntime rt, const OmuiFrameInput* in, OmuiFrameOutput* 
         rt->have_pixels = true;
         auto* dst = static_cast<std::uint8_t*>(out->pixels);
         for (int y = 0; y < h; ++y) {
-            const xrender::raster::Rgba8* src = rt->surface.row(y);
+            const mrender::raster::Rgba8* src = rt->surface.row(y);
             std::uint8_t* row = dst + static_cast<std::size_t>(y) * out->stride;
             for (int x = 0; x < w; ++x) {
                 row[x * 4 + 0] = src[x].b;

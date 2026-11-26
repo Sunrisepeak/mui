@@ -12,7 +12,7 @@ export module hanim.visual:matter;
 
 import std;
 import mlibs.geom;
-import xrender.vector;
+import mrender.vector;
 
 export namespace hanim::visual {
 
@@ -72,9 +72,9 @@ struct Part {
     std::string role, id;
     Rect allocation;
     Point anchor{0.5f,0.5f};
-    xrender::PartKind kind = xrender::PartKind::content;
-    std::vector<xrender::ReferenceWeight> lineage;
-    [[nodiscard]] xrender::PartFrame view(std::uint32_t owner) const {
+    mrender::PartKind kind = mrender::PartKind::content;
+    std::vector<mrender::ReferenceWeight> lineage;
+    [[nodiscard]] mrender::PartFrame view(std::uint32_t owner) const {
         return {owner,role,id,allocation,anchor,kind,lineage};
     }
 };
@@ -122,13 +122,13 @@ public:
     Matter& operator=(const Matter&) = delete;
 
     // The commands [begin, end) of `source`, copied and taken apart.
-    [[nodiscard]] static Matter extract(const xrender::DisplayList& source, std::size_t begin, std::size_t end, const Resolver& resolver);
+    [[nodiscard]] static Matter extract(const mrender::DisplayList& source, std::size_t begin, std::size_t end, const Resolver& resolver);
     // A whole list (a morph's drawing, taken again when it is interrupted).
-    [[nodiscard]] static Matter extract(const xrender::DisplayList& source, const Resolver& resolver) {
+    [[nodiscard]] static Matter extract(const mrender::DisplayList& source, const Resolver& resolver) {
         return extract(source, 0, source.size(), resolver);
     }
 
-    [[nodiscard]] const xrender::DisplayList& list() const noexcept { return list_; }
+    [[nodiscard]] const mrender::DisplayList& list() const noexcept { return list_; }
     [[nodiscard]] std::span<const Piece> pieces() const noexcept { return pieces_; }
     [[nodiscard]] std::span<const Frame> frames() const noexcept { return frames_; }
     [[nodiscard]] std::span<const Reference> references() const noexcept { return references_; }
@@ -147,7 +147,7 @@ public:
     void follow_layout(Matter& target, std::span<const std::string> scopes = {});
 
 private:
-    xrender::DisplayList    list_;
+    mrender::DisplayList    list_;
     std::vector<Piece>     pieces_;
     std::vector<Frame>     frames_;
     std::vector<Reference> references_;
@@ -160,14 +160,14 @@ private:
 
 // The range's wrapper (its own effect layer around all it draws): the index
 // of its PushLayer in [begin, end), when it has one.
-[[nodiscard]] std::optional<std::size_t> wrapper_of(std::span<const xrender::Command> commands, std::size_t begin, std::size_t end);
+[[nodiscard]] std::optional<std::size_t> wrapper_of(std::span<const mrender::Command> commands, std::size_t begin, std::size_t end);
 
 // A command's class (drawable ones; nullopt for pushes, pops and markers).
-[[nodiscard]] std::optional<PieceClass> class_of(const xrender::Command& c) noexcept;
+[[nodiscard]] std::optional<PieceClass> class_of(const mrender::Command& c) noexcept;
 
 // Where [begin, end) holds the range of the node marker `marker`: its
 // BeginNode to the EndNode that closes it. Nullopt when it is not there.
-[[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const xrender::Command> commands, std::uint32_t marker,
+[[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const mrender::Command> commands, std::uint32_t marker,
                                                                              std::size_t from = 0);
 
 }  // namespace hanim::visual

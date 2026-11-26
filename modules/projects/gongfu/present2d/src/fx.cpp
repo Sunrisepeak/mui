@@ -9,14 +9,14 @@ import mlibs.math;
 import gongfu;
 import hanim.core;
 import mlibs.geom;
-import xrender.vector;
+import mrender.vector;
 
 namespace gongfu::present2d {
 
 namespace {
 
 namespace dm = hanim::dm;
-namespace render = xrender;
+namespace render = mrender;
 using mlibs::geom::Rect;
 
 // A number in [0, 1) from a seed and an index (splitmix64).

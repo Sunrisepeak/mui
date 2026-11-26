@@ -39,6 +39,6 @@ omui.ui.base       = { path = "../components/base" }
 # omui.agent, which depends on this package. The component sweep, which needs the
 # headless host, is that host's test.
 omui.semantic = { path = "../semantic" }
-xrender.vector = { path = "../../xrender/vector" }
-xrender.raster = { path = "../../xrender/raster" }
-xrender.text = { path = "../../xrender/text" }
+mrender.vector = { path = "../../mrender/vector" }
+mrender.raster = { path = "../../mrender/raster" }
+mrender.text = { path = "../../mrender/text" }

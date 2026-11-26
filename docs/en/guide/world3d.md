@@ -66,7 +66,7 @@ for (const Noise& noise : state.recent) {
 
 ## Drawn by the CPU reference, then on a device
 
-`quay::Picture` draws a frame from the state with `xrender.mesh`, the CPU reference: the same pixels on every machine. Rain is `xrender.particle`; the glow is the frame's. `OnDevice` draws the same frame on a device and is held to these pixels.
+`quay::Picture` draws a frame from the state with `mrender.mesh`, the CPU reference: the same pixels on every machine. Rain is `mrender.particle`; the glow is the frame's. `OnDevice` draws the same frame on a device and is held to these pixels.
 
 <!-- code: showcase/quay/src/picture/picture.cpp#draw -->
 ```cpp
@@ -78,7 +78,7 @@ targets_.resize(frame.width, frame.height);
 mesh::Options options = options_;
 options.shadows = frame.shadows;
 pass_.draw(world_, seen_, view_, assets(frame.shadows), targets_, options);
-rained_ = xrender::particle::draw(batches_, view_, targets_);
+rained_ = mrender::particle::draw(batches_, view_, targets_);
 shown_ = targets_.colour;
 bright_ = frame.glow ? glow_.show(targets_.light, frame.width, frame.height, bloom(frame.width), shown_).bright : 0;
 return targets_;

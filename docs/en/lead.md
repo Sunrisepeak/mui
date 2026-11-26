@@ -14,22 +14,22 @@ Every metric is ours against the strongest competitor, measured on one machine i
 | hanim | `motion.playback.ms` | — | rive, lottie-web | — | planned |
 | hanim | `motion.gpu.morph-1m.ms` | — | hanim-cpu | — | needs a device |
 | hanim | `playback.lottie-200.median_ms` | hanim 2.099 | thorvg 1.666 | 0.79× [0.79, 0.80] | **behind** |
-| xrender | `raster.fills-1000.median_ms` | xrender 18.158 | skia 23.147 | 1.27× [1.25, 1.28] | **ahead** |
-| xrender | `raster.gradients-200.median_ms` | xrender 11.723 | skia 11.632 | 0.99× [0.99, 1.00] | **par** |
-| xrender | `raster.small-5000.median_ms` | xrender 3.867 | resvg 12.905 | 3.35× [3.34, 3.38] | **ahead** |
-| xrender | `raster.strokes-500.median_ms` | xrender 21.689 | skia 19.67 | 0.92× [0.91, 0.93] | **behind** |
-| xrender | `raster.joins-300.median_ms` | xrender 19.87 | skia 19.551 | 0.99× [0.97, 0.99] | **par** |
-| xrender | `raster.fills-1000.error` | xrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | **ahead** |
-| xrender | `raster.gradients-200.error` | xrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | **par** |
-| xrender | `raster.small-5000.error` | xrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | **ahead** |
-| xrender | `raster.strokes-500.error` | xrender 0.922 | resvg 0.741 | 0.80× [0.80, 0.80] | **behind** |
-| xrender | `raster.joins-300.error` | xrender 0.383 | resvg 0.597 | 1.56× [1.56, 1.56] | **ahead** |
-| xrender | `raster.small-5000.exact_error` | xrender 0.034 | resvg 0.187 | 5.50× [5.50, 5.50] | **ahead** |
-| xrender | `raster.strokes-500.exact_error` | xrender 0.238 | resvg 0.839 | 3.53× [3.53, 3.53] | **ahead** |
-| xrender | `raster.cjk-5000.median_ms` | — | skia | — | planned |
-| xrender | `raster.web.submit-5000.ms` | — | canvaskit | — | planned |
-| xrender | `raster.wasm.bytes` | — | thorvg | — | planned |
-| xrender | `gpu.fills-1000.ms` | — | vello, graphite | — | needs a device |
+| mrender | `raster.fills-1000.median_ms` | mrender 18.158 | skia 23.147 | 1.27× [1.25, 1.28] | **ahead** |
+| mrender | `raster.gradients-200.median_ms` | mrender 11.723 | skia 11.632 | 0.99× [0.99, 1.00] | **par** |
+| mrender | `raster.small-5000.median_ms` | mrender 3.867 | resvg 12.905 | 3.35× [3.34, 3.38] | **ahead** |
+| mrender | `raster.strokes-500.median_ms` | mrender 21.689 | skia 19.67 | 0.92× [0.91, 0.93] | **behind** |
+| mrender | `raster.joins-300.median_ms` | mrender 19.87 | skia 19.551 | 0.99× [0.97, 0.99] | **par** |
+| mrender | `raster.fills-1000.error` | mrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | **ahead** |
+| mrender | `raster.gradients-200.error` | mrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | **par** |
+| mrender | `raster.small-5000.error` | mrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | **ahead** |
+| mrender | `raster.strokes-500.error` | mrender 0.922 | resvg 0.741 | 0.80× [0.80, 0.80] | **behind** |
+| mrender | `raster.joins-300.error` | mrender 0.383 | resvg 0.597 | 1.56× [1.56, 1.56] | **ahead** |
+| mrender | `raster.small-5000.exact_error` | mrender 0.034 | resvg 0.187 | 5.50× [5.50, 5.50] | **ahead** |
+| mrender | `raster.strokes-500.exact_error` | mrender 0.238 | resvg 0.839 | 3.53× [3.53, 3.53] | **ahead** |
+| mrender | `raster.cjk-5000.median_ms` | — | skia | — | planned |
+| mrender | `raster.web.submit-5000.ms` | — | canvaskit | — | planned |
+| mrender | `raster.wasm.bytes` | — | thorvg | — | planned |
+| mrender | `gpu.fills-1000.ms` | — | vello, graphite | — | needs a device |
 | omui | `ui.cold-start.ms` | — | slint, flutter, nsh | — | planned |
 | omui | `web.first-paint.mobile.ms` | — | flutter-web, react-ssr | — | planned |
 | omui | `web.interactive.mobile.ms` | — | flutter-web | — | planned |
@@ -90,9 +90,9 @@ Every metric is ours against the strongest competitor, measured on one machine i
 | hanim | H: Agent 驱动的设计与动效工作台：分支方案、画面指认、参数微调 | evidence | — |
 | hanim | hanim.one-engine: 一个引擎服务 UI、视频和游戏，三处逐位一致 | planned | — |
 | hanim | hanim.morph: 跨表示、拓扑对齐的形变 | evidence | ahead |
-| xrender | B.pixels: 为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图 | evidence | ahead |
-| xrender | xrender.same-source: CPU 与 GPU 同源：CPU 参考逐位，GPU 差 ≤ 1/255 | evidence | — |
-| xrender | xrender.web-first: Web 优先：每次提交只跨一次 wasm 边界 | planned | — |
+| mrender | B.pixels: 为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图 | evidence | ahead |
+| mrender | mrender.same-source: CPU 与 GPU 同源：CPU 参考逐位，GPU 差 ≤ 1/255 | evidence | — |
+| mrender | mrender.web-first: Web 优先：每次提交只跨一次 wasm 边界 | planned | — |
 | meng | G: Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩 | evidence | ahead |
 | meng | meng.equal-play: 人与 Agent 平等游玩：同一套感知和反应约束，逐位回放 | evidence | ahead |
 | meng | meng.native: 原生胜过适配：场景是数据、编辑是事务、模拟确定、离屏同源 | planned | — |

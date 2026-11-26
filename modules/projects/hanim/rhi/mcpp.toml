@@ -40,5 +40,5 @@ mlibs.cts   = { path = "../../../base/cts" }
 # Its run on SDL_GPU is in a native-only package: this one runs on the Web too.
 [dev-dependencies]
 mcpplibs.mtest     = "0.8.4"
-xrender.rhi.webgpu = { path = "../../xrender/rhi/webgpu" }
+mrender.rhi.webgpu = { path = "../../mrender/rhi/webgpu" }
 mcpplibs.os        = "0.4.4"

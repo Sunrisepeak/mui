@@ -19,13 +19,13 @@ constexpr float arrow = 7;
 // A chevron pointing right, or down (turned a quarter), centred at c.
 void draw_chevron(PaintContext& ctx, Point c, float size, bool down, Color color) {
     auto at = [&](float x, float y) { return down ? Point{c.x - y, c.y + x} : Point{c.x + x, c.y + y}; };
-    xrender::Path p;
+    mrender::Path p;
     p.move_to(at(-size / 4, -size / 2)).line_to(at(size / 4, 0)).line_to(at(-size / 4, size / 2));
-    xrender::StrokeStyle st;
+    mrender::StrokeStyle st;
     st.width = 1.75f;
-    st.cap = xrender::LineCap::round;
-    st.join = xrender::LineJoin::round;
-    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
+    st.cap = mrender::LineCap::round;
+    st.join = mrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, mrender::Paint::solid(color));
 }
 
 }  // namespace
@@ -79,19 +79,19 @@ void Card::paint(PaintContext& ctx) const {
     switch (props.variant) {
         case CardVariant::elevated:
             shadow(ctx, lifted ? "lg" : "md", box, r);
-            ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+            ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
             break;
         case CardVariant::outlined:
-            ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+            ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
             ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1,
-                                       xrender::Paint::solid(lifted ? th.color("border_strong") : th.color("border")), xrender::PixelAlign::device);
+                                       mrender::Paint::solid(lifted ? th.color("border_strong") : th.color("border")), mrender::PixelAlign::device);
             break;
         case CardVariant::filled:
-            ctx.list.fill_round_rect(box, r, xrender::Paint::solid(lifted ? th.color("surface_pressed") : th.color("surface_variant")));
+            ctx.list.fill_round_rect(box, r, mrender::Paint::solid(lifted ? th.color("surface_pressed") : th.color("surface_variant")));
             break;
     }
-    if (live && ctx.state.pressed) ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("text").with_alpha(0.04f)));
-    if (props.selected) ctx.list.stroke_round_rect({1, 1, box.width - 2, box.height - 2}, r, 2, xrender::Paint::solid(th.color("accent")));
+    if (live && ctx.state.pressed) ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("text").with_alpha(0.04f)));
+    if (props.selected) ctx.list.stroke_round_rect({1, 1, box.width - 2, box.height - 2}, r, 2, mrender::Paint::solid(th.color("accent")));
     float y = card_pad;
     if (!title_.text().empty()) {
         title_.paint(ctx, {card_pad, y}, th.color("text"));
@@ -115,7 +115,7 @@ void Card::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     else node.role = Role::button;
 }
 
-std::size_t Card::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
+std::size_t Card::effect_shapes(Size size, Rect, std::span<mrender::EffectShape> out) const {
     if (out.empty()) return 0;
     out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(12).fitted(size)};
     return 1;
@@ -167,15 +167,15 @@ void Accordion::paint(PaintContext& ctx) const {
     const bool off = props.disabled || ctx.state.disabled;
     const float hh = header_height(th);
     const Rect head{0, 0, ctx.size.width, hh};
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     if (!off && (ctx.state.hovered || ctx.state.pressed))
         ctx.list.fill_round_rect(head, CornerRadii::all(th.corner("medium", 8)).fitted(head.size()),
-                                 xrender::Paint::solid(ctx.state.pressed ? th.color("surface_pressed") : th.color("surface_variant")));
+                                 mrender::Paint::solid(ctx.state.pressed ? th.color("surface_pressed") : th.color("surface_variant")));
     const Size t = title_.measure(ctx.services, th.color("text"));
     title_.paint(ctx, {accordion_pad, (hh - t.height) / 2}, th.color("text"));
     draw_chevron(ctx, {ctx.size.width - accordion_pad - chevron / 2, hh / 2}, chevron, props.expanded, th.color("text_muted"));
     // The line under it: between it and the next.
-    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"), xrender::PixelAlign::device);
+    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"), mrender::PixelAlign::device);
     if (off) ctx.list.pop_layer();
 }
 
@@ -284,14 +284,14 @@ void Toast::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     shadow(ctx, "lg", box, r);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, mrender::Paint::solid(th.color("border")), mrender::PixelAlign::device);
     const Color tone = props.tone == ToastTone::success ? th.color("success")
                        : props.tone == ToastTone::warning ? th.color("warning")
                        : props.tone == ToastTone::danger  ? th.color("danger")
                                                           : th.color("accent");
     const Rect c = ctx.content;
-    ctx.list.fill_round_rect({c.x, c.y + 2, toast_bar, std::max(0.0f, c.height - 4)}, CornerRadii::all(toast_bar / 2), xrender::Paint::solid(tone));
+    ctx.list.fill_round_rect({c.x, c.y + 2, toast_bar, std::max(0.0f, c.height - 4)}, CornerRadii::all(toast_bar / 2), mrender::Paint::solid(tone));
     const Size msg = message_.measure(ctx.services, th.color("text"), 320);
     message_.paint(ctx, {c.x + toast_bar + toast_gap, c.y + (c.height - msg.height) / 2}, th.color("text"));
     if (!props.action.empty()) {
@@ -374,8 +374,8 @@ void Popover::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     shadow(ctx, "lg", box, r);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, mrender::Paint::solid(th.color("border")), mrender::PixelAlign::device);
     if (!props.arrow) return;
     // The point toward what opened it: on the edge facing it, across from its middle.
     const Rect me = ctx.services.bounds(ctx.node);
@@ -387,7 +387,7 @@ void Popover::paint(PaintContext& ctx) const {
     }
     const bool vertical = props.side == PopoverSide::below || props.side == PopoverSide::above;
     const bool before = (vertical && anchor.center().y < me.y) || (!vertical && anchor.center().x < me.x);
-    xrender::Path p;
+    mrender::Path p;
     if (vertical) {
         const float x = std::clamp(anchor.center().x - me.x, 16.0f, box.width - 16);
         const float y = before ? 0.5f : box.height - 0.5f, tip = before ? -arrow : arrow;
@@ -397,11 +397,11 @@ void Popover::paint(PaintContext& ctx) const {
         const float x = before ? 0.5f : box.width - 0.5f, tip = before ? -arrow : arrow;
         p.move_to({x, y - arrow}).line_to({x + tip, y}).line_to({x, y + arrow}).close();
     }
-    ctx.list.fill_path(p, xrender::FillRule::nonzero, xrender::Paint::solid(th.color("surface")));
-    xrender::StrokeStyle st;
+    ctx.list.fill_path(p, mrender::FillRule::nonzero, mrender::Paint::solid(th.color("surface")));
+    mrender::StrokeStyle st;
     st.width = 1;
-    st.join = xrender::LineJoin::round;
-    xrender::Path edge;  // its two outer sides only: where it meets the surface, no line
+    st.join = mrender::LineJoin::round;
+    mrender::Path edge;  // its two outer sides only: where it meets the surface, no line
     if (vertical) {
         const float x = std::clamp(anchor.center().x - me.x, 16.0f, box.width - 16);
         const float y = before ? 0.5f : box.height - 0.5f, tip = before ? -arrow : arrow;
@@ -411,7 +411,7 @@ void Popover::paint(PaintContext& ctx) const {
         const float x = before ? 0.5f : box.width - 0.5f, tip = before ? -arrow : arrow;
         edge.move_to({x, y - arrow}).line_to({x + tip, y}).line_to({x, y + arrow});
     }
-    ctx.list.stroke_path(edge, st, xrender::Paint::solid(th.color("border")));
+    ctx.list.stroke_path(edge, st, mrender::Paint::solid(th.color("border")));
 }
 
 void Popover::semantics(SemanticsContext&, spec::SemanticNode& node) const {

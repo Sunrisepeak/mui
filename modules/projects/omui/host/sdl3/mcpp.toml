@@ -17,7 +17,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "platform: desktop windows and input through SDL3, native only"
 lower = ["mcpplibs.mpal", "mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
-reexports = ["omui.accessibility", "omui.agent", "omui.core", "omui.semantic", "omui.view", "xrender.effect", "xrender.raster"]  # what its interface re-exports (lint module-closure)
+reexports = ["omui.accessibility", "omui.agent", "omui.core", "omui.semantic", "omui.view", "mrender.effect", "mrender.raster"]  # what its interface re-exports (lint module-closure)
 kind = "host"
 agent = { part = "omui.agent" }
 
@@ -49,23 +49,23 @@ software-present = { forward = ["compat.sdl3/no-render-accelerated"] }
 [dependencies]
 # The system's notifications (mpal: the OS's services above mcpplibs.os).
 mcpplibs.mpal = { path = "../../../../base/mpal" }
-xrender.text = { path = "../../../xrender/text" }
+mrender.text = { path = "../../../mrender/text" }
 omui.core     = { path = "../../core" }
 omui.view     = { path = "../../view" }
 omui.semantic = { path = "../../semantic" }
 omui.agent    = { path = "../../agent" }
 omui.accessibility = { path = "../../accessibility" }
-xrender.raster   = { path = "../../../xrender/raster" }
-xrender.vector   = { path = "../../../xrender/vector" }
+mrender.raster   = { path = "../../../mrender/raster" }
+mrender.vector   = { path = "../../../mrender/vector" }
 # The frame's entry: the host hands its layers to the renderer, which composes (D-162).
-xrender.frame = { path = "../../../xrender/frame" }
+mrender.frame = { path = "../../../mrender/frame" }
 mlibs.text     = { path = "../../../../content/text" }
 mlibs.image    = { path = "../../../../base/image" }
 mlibs.utils    = { path = "../../../../base/utils" }
 # The device's interface; the SDL_GPU backend and the renderer on it are a provider's (omui.host.sdl3.gpu, at gpu_slot).
 mlibs.rhi         = { path = "../../../../gfx/rhi" }
 mlibs.compose     = { path = "../../../../base/compose" }
-xrender.effect   = { path = "../../../xrender/effect" }
+mrender.effect   = { path = "../../../mrender/effect" }
 mcpplibs.os      = "0.4.4"
 mcpplibs.mwrap.sdl3 = "3.4.18"
 compat.sdl3 = "3.4.18"  # its build switches (mcpplibs.mwrap.sdl3 wraps this one)

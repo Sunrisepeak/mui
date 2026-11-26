@@ -16,10 +16,10 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 omui.view = { path = {{view_path}}, features = ["hanim"] }
 omui.ui.base = { path = {{components_path}} }
 sunrisepeak.hanim = { path = {{hanim_path}}, features = ["control"] }
-xrender.raster = { path = {{raster_path}} }
+mrender.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }
 mlibs.utils = { path = {{utils_path}} }
-xrender.text = { path = {{xrender_text_path}} }
+mrender.text = { path = {{mrender_text_path}} }
 mcpplibs.os = "0.4.4"
 
 [target.'cfg(os = "emscripten")'.abi]

@@ -2,7 +2,7 @@
 export import omui.core;
 export import omui.view;
 export import omui.semantic;
-export import xrender.raster;
+export import mrender.raster;
 export import omui.native.store;
 export import :mirror;
 namespace omui {
@@ -49,9 +49,9 @@ namespace omui {
     [[nodiscard]] const AgentLink& agent_link() const noexcept;
     void on_agent_link(std::function<void(const AgentLink&)> fn);
     void on_visibility(std::function<void(bool hidden)> fn);
-    [[nodiscard]] const xrender::raster::Surface& pixels() const noexcept;
+    [[nodiscard]] const mrender::raster::Surface& pixels() const noexcept;
     [[nodiscard]] std::string_view renderer() const noexcept;
-    [[nodiscard]] std::expected<xrender::raster::Surface, ViewFailure> read_frame();
+    [[nodiscard]] std::expected<mrender::raster::Surface, ViewFailure> read_frame();
     [[nodiscard]] std::size_t frames_shown() const noexcept;
     [[nodiscard]] bool hidden() const noexcept;
     struct Impl;

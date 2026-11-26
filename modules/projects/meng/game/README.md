@@ -1,6 +1,6 @@
 # meng/game
 
-The game layer, above the interface (D-161, D-162): a game is the engine's — its world, its fixed steps, its rules and its scenes — and runs without omui, headless; every pixel is xrender's; windows, input devices and the interface are omui's. Of the packages here only [ui](ui), the bridge, knows omui.
+The game layer, above the interface (D-161, D-162): a game is the engine's — its world, its fixed steps, its rules and its scenes — and runs without omui, headless; every pixel is mrender's; windows, input devices and the interface are omui's. Of the packages here only [ui](ui), the bridge, knows omui.
 
 | Package | |
 |---|---|

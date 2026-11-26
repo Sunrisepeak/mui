@@ -6,9 +6,9 @@
 // time, seekable.
 import std;
 import omui.view;
-import xrender.raster;
+import mrender.raster;
 import mcpplibs.mtest;
-import xrender.text;
+import mrender.text;
 
 using namespace mcpplibs::mtest;
 using namespace omui;
@@ -31,17 +31,17 @@ RuntimeOptions options(Size size = {200, 100}) {
     return o;
 }
 
-xrender::raster::Surface draw(Runtime& rt) {
-    static xrender::text::GlyphCache glyphs(fonts());
-    xrender::raster::Surface s(static_cast<int>(rt.size().width), static_cast<int>(rt.size().height));
-    xrender::CpuRenderer r;
-    xrender::CpuOptions o;
+mrender::raster::Surface draw(Runtime& rt) {
+    static mrender::text::GlyphCache glyphs(fonts());
+    mrender::raster::Surface s(static_cast<int>(rt.size().width), static_cast<int>(rt.size().height));
+    mrender::CpuRenderer r;
+    mrender::CpuOptions o;
     o.background = Color::white();
     (void)r.render(rt.display_list(), s, {&rt.images(), &glyphs}, o);
     return s;
 }
 
-bool same(const xrender::raster::Surface& a, const xrender::raster::Surface& b) {
+bool same(const mrender::raster::Surface& a, const mrender::raster::Surface& b) {
     if (a.width() != b.width() || a.height() != b.height()) return false;
     for (int y = 0; y < a.height(); ++y)
         for (int x = 0; x < a.width(); ++x)
@@ -50,7 +50,7 @@ bool same(const xrender::raster::Surface& a, const xrender::raster::Surface& b) 
 }
 
 // The left edge of the first pixel of `colour` in row `y` (-1: none).
-int left_of(const xrender::raster::Surface& s, int y, xrender::raster::Rgba8 colour) {
+int left_of(const mrender::raster::Surface& s, int y, mrender::raster::Rgba8 colour) {
     for (int x = 0; x < s.width(); ++x)
         if (s.at(x, y) == colour) return x;
     return -1;
@@ -67,16 +67,16 @@ Element track(Signal<float> x, std::string_view motion = "morph motion.normal") 
 
 // Whether the frame's list draws a layer with the named effect.
 bool draws(Runtime& rt, std::string_view effect) {
-    const auto ref = xrender::effects().find(effect);
+    const auto ref = mrender::effects().find(effect);
     for (const auto& c : rt.display_list().commands())
-        if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) return true;
+        if (const auto* l = std::get_if<mrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) return true;
     return false;
 }
 
 }  // namespace
 
 static UTest cases{"view.motion", [] {
-    const xrender::raster::Rgba8 rose{0xe1, 0x1d, 0x48, 0xff};
+    const mrender::raster::Rgba8 rose{0xe1, 0x1d, 0x48, 0xff};
 
     "a root whose drawing changed moves to it: the thumb travels, the runtime says so, and at rest it is the drawing as it is"_test = [&] {
         auto x = signal(0.0f);
@@ -172,8 +172,8 @@ static UTest cases{"view.motion", [] {
         const auto most_contours = [&] {
             std::size_t most = 0;
             for (const auto& command : rt.display_list().commands())
-                if (const auto* fill = std::get_if<xrender::FillPath>(&command))
-                    most = std::max(most, static_cast<std::size_t>(std::ranges::count(fill->path.verbs, xrender::PathVerb::move)));
+                if (const auto* fill = std::get_if<mrender::FillPath>(&command))
+                    most = std::max(most, static_cast<std::size_t>(std::ranges::count(fill->path.verbs, mrender::PathVerb::move)));
             return most;
         };
         rt.frame({seconds(0.25), {}});
@@ -330,7 +330,7 @@ static UTest cases{"view.motion", [] {
             rt.frame({seconds(0.1), {}});
             float written = -1;
             for (const auto& command : rt.display_list().commands())
-                if (const auto* stroke = std::get_if<xrender::StrokePath>(&command); stroke && stroke->style.trim_end < 1) written = stroke->style.trim_end;
+                if (const auto* stroke = std::get_if<mrender::StrokePath>(&command); stroke && stroke->style.trim_end < 1) written = stroke->style.trim_end;
             expect(written > 0 && written < 1) << std::format("the ring part drawn: to {} of its length", written);
             rt.frame({seconds(1), {}});
             expect(rt.motions().empty()) << "then the ring as it is";
@@ -467,7 +467,7 @@ static UTest cases{"view.motion", [] {
             // The middle of the new box, a moment after it came: drawn whole (red) or still being written in.
             const Point centre = rt.screen_bounds(rt.find("main/b")).center();
             const auto picture = draw(rt);
-            return picture.at(static_cast<int>(centre.x), static_cast<int>(centre.y)) == xrender::raster::Rgba8{200, 60, 40, 255};
+            return picture.at(static_cast<int>(centre.x), static_cast<int>(centre.y)) == mrender::raster::Rgba8{200, 60, 40, 255};
         };
         expect(whole(false, MotionLevel::full)) << "the application said none: it appears at once";
         expect(!whole(true, MotionLevel::full)) << "presented as a design edit, it is still being written in";
@@ -476,9 +476,9 @@ static UTest cases{"view.motion", [] {
 
     "design steps presented by kind (W14 step 4): an edit grows in from its top and a removal dissolves; an undo plays back, the last first; the pace scales the time"_test = [] {
         using Kind = Runtime::DesignPresentation::Kind;
-        const xrender::raster::Rgba8 white{255, 255, 255, 255};
+        const mrender::raster::Rgba8 white{255, 255, 255, 255};
         // The rows drawn (anything not the white behind) in a column of the picture: the first and the last (-1: none).
-        const auto rows = [&](const xrender::raster::Surface& s, int x) {
+        const auto rows = [&](const mrender::raster::Surface& s, int x) {
             int first = -1, last = -1;
             for (int y = 0; y < s.height(); ++y)
                 if (!(s.at(x, y) == white)) {
@@ -488,7 +488,7 @@ static UTest cases{"view.motion", [] {
             return std::pair{first, last};
         };
         // Anything drawn inside a rectangle.
-        const auto drawn = [&](const xrender::raster::Surface& s, Rect r) {
+        const auto drawn = [&](const mrender::raster::Surface& s, Rect r) {
             int n = 0;
             for (int y = static_cast<int>(r.y); y < static_cast<int>(r.y + r.height); ++y)
                 for (int x = static_cast<int>(r.x); x < static_cast<int>(r.x + r.width); ++x) n += !(s.at(x, y) == white);
@@ -545,11 +545,11 @@ static UTest cases{"view.motion", [] {
             scene.rt.present_design();
             scene.items.set({});
             bool dissolving = false;
-            const auto ref = xrender::effects().find("dissolve");
+            const auto ref = mrender::effects().find("dissolve");
             for (double t = 1.0 / 60; t < 0.5; t += 1.0 / 60) {
                 (void)scene.rt.frame({seconds(t), {}});
                 for (const auto& c : scene.rt.display_list().commands())
-                    if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) dissolving = true;
+                    if (const auto* l = std::get_if<mrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) dissolving = true;
             }
             expect(dissolving) << "a dissolve layer while it goes";
             for (double t = 0.5; t < 1.5; t += 1.0 / 60) (void)scene.rt.frame({seconds(t), {}});
@@ -560,7 +560,7 @@ static UTest cases{"view.motion", [] {
             Scene scene({"b"});
             const Rect fill = scene.rt.screen_bounds(scene.rt.find("main/b/fill"));
             const Rect strip{rest.x, rest.y, rest.width, fill.y - rest.y};  // the panel's own, above its box
-            const auto ink = [&](const xrender::raster::Surface& surface, Rect region) {
+            const auto ink = [&](const mrender::raster::Surface& surface, Rect region) {
                 long sum = 0;
                 for (int y = static_cast<int>(region.y); y < static_cast<int>(region.y + region.height); ++y)
                     for (int x = static_cast<int>(region.x); x < static_cast<int>(region.x + region.width); ++x) {

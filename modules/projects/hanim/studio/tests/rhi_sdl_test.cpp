@@ -7,7 +7,7 @@
 import std;
 import mlibs.rhi;
 import mlibs.cts;
-import xrender.rhi.sdl;
+import mrender.rhi.sdl;
 import hanim.rhi;
 import hanim.rhi.cts;
 import mlibs.testing;
@@ -18,12 +18,12 @@ using namespace mcpplibs::mtest;
 
 UTest cases{"hanim.rhi.sdl", [] {
     "shape batches: every control point equal to the CPU sampler's within float error"_test = [] {
-        xrender::rhi::sdl::Options options;
+        mrender::rhi::sdl::Options options;
         options.formats = hanim::gpu::shader_formats();
         options = environment_options(std::move(options));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
-        auto device = xrender::rhi::sdl::create(options);
+        auto device = mrender::rhi::sdl::create(options);
         if (!device) {
-            if (xrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
+            if (mrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", device.error().message);
             return;
         }

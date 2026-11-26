@@ -7,7 +7,7 @@ import std;
 
 import omui.ui.liquid_glass;
 import omui.host.headless;
-import xrender.vector;
+import mrender.vector;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -41,11 +41,11 @@ std::vector<std::pair<std::string, Role>> roles(Headless& h) {
     return out;
 }
 
-std::size_t glass_layers(const xrender::DisplayList& list, std::size_t* shapes = nullptr) {
-    const auto ref = xrender::effects().find("liquid_glass");
+std::size_t glass_layers(const mrender::DisplayList& list, std::size_t* shapes = nullptr) {
+    const auto ref = mrender::effects().find("liquid_glass");
     std::size_t n = 0;
     for (const auto& c : list.commands())
-        if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) {
+        if (const auto* l = std::get_if<mrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) {
             ++n;
             if (shapes) *shapes = l->shapes.size();
         }

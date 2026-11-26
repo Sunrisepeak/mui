@@ -73,7 +73,7 @@ struct ParagraphStyle {
 // from (D-68): the first byte of its cluster in the source text, and its
 // grapheme, word and line in the paragraph — what glyph-level animation, text
 // ranges and selection address. (A renderer's glyph has the same fields:
-// xrender.text draws these.)
+// mrender.text draws these.)
 struct Glyph {
     std::uint32_t id = 0;
     Point         position;

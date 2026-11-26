@@ -5,8 +5,8 @@ import mlibs.math;
 import gongfu;
 import hanim.core;
 import mlibs.geom;
-import xrender.vector;
-import xrender.sprite;
+import mrender.vector;
+import mrender.sprite;
 
 namespace gongfu::present2d {
 
@@ -15,7 +15,7 @@ namespace {
 namespace dm = hanim::dm;
 using mlibs::geom::Affine;
 using mlibs::geom::Rect;
-namespace render = xrender;
+namespace render = mrender;
 
 
 double stage(Fixed f) { return f.to_double(); }
@@ -941,7 +941,7 @@ void Painter::draw_cel(const Look& look, const Cel& cel, const FighterState& s, 
         const Point w = cel_point(look, cel, s, pixel[corner]);
         placed[corner] = view.at(w.x, w.y);
     }
-    xrender::sprite::cornered(r, placed, mesh_);
+    mrender::sprite::cornered(r, placed, mesh_);
     if (tint) out.draw_mesh_mask(pic.ref, mesh_.at, mesh_.uv, mesh_.index, *tint, render::Sampling::linear, 0);
     else out.draw_mesh(pic.ref, mesh_.at, mesh_.uv, mesh_.index, render::Sampling::linear, 1.0f, 0);
 }
@@ -958,14 +958,14 @@ void Painter::picture_part(const Look& look, const Part& own, std::size_t drawin
     const View view{scene, camera};
     const double facing = s.facing < 0 ? -1.0 : 1.0;
     const auto b = static_cast<std::size_t>(part.bone);
-    // Skinned by the renderer's own (xrender.sprite): the part's bone and the bones it bends to, as drawn and as posed.
+    // Skinned by the renderer's own (mrender.sprite): the part's bone and the bones it bends to, as drawn and as posed.
     bends_.clear();
     for (const std::int32_t cb : part.bend) {
         if (cb < 0 || static_cast<std::size_t>(cb) >= rest_.size()) continue;
         const auto bend = static_cast<std::size_t>(cb);
         bends_.push_back({{rest_[bend].joint, rest_[bend].angle}, {pose_[bend].joint, pose_[bend].angle}});
     }
-    xrender::sprite::skinned({d.source, d.anchor, d.tip},
+    mrender::sprite::skinned({d.source, d.anchor, d.tip},
                              {.columns = part.mesh[0], .rows = part.mesh[1], .blend = part.blend, .mirror = part.mirror, .facing = facing,
                               .scale = look.art_scale > 0 && !part.fit ? look.art_scale : 0.0, .length = look.bones[b].length},
                              {{rest_[b].joint, rest_[b].angle}, {pose_[b].joint, pose_[b].angle}}, bends_, mesh_);
@@ -1214,7 +1214,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     const View view{scene, camera};
 
     // Time standing still (a cinematic's stop): the whole picture drawn in a layer turned grey toward the
-    // stop's tint, its brightness kept (xrender's `tone`: shapes and pictures alike).
+    // stop's tint, its brightness kept (mrender's `tone`: shapes and pictures alike).
     const bool stopped = cine && cine->stop.from >= 0 && st.lock.frame >= cine->stop.from && st.lock.frame < cine->stop.to;
     if (stopped) {
         static const std::optional<render::EffectRef> tone = render::effects().find("tone");

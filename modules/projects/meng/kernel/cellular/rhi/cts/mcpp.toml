@@ -37,7 +37,7 @@ meng.matter = { path = "../../../matter" }
 # selected by target (mcpp 2026.11.16.1, #942), with what they import.
 [dev-dependencies]
 mcpplibs.mtest     = "0.8.4"
-xrender.rhi.webgpu = { path = "../../../../../xrender/rhi/webgpu" }
+mrender.rhi.webgpu = { path = "../../../../../mrender/rhi/webgpu" }
 mcpplibs.os        = "0.4.4"
 
 [test]
@@ -47,8 +47,8 @@ discover = ["tests/*.cpp", "tests/native/*.cpp"]
 discover = ["!tests/native/**"]
 
 [target.'cfg(not(os = "emscripten"))'.dev-dependencies]
-xrender.rhi.sdl            = { path = "../../../../../xrender/rhi/sdl" }
+mrender.rhi.sdl            = { path = "../../../../../mrender/rhi/sdl" }
 "meng.cellular.present" = { path = "../../present" }
-xrender.vector             = { path = "../../../../../xrender/vector" }
-xrender.raster             = { path = "../../../../../xrender/raster" }
+mrender.vector             = { path = "../../../../../mrender/vector" }
+mrender.raster             = { path = "../../../../../mrender/raster" }
 mlibs.geom                 = { path = "../../../../../../base/geom" }

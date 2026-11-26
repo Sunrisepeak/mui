@@ -6,7 +6,7 @@ import mlibs.error;
 export import hanim.library;
 export import hanim.effect;
 export import hanim.program;
-export import xrender.vector;
+export import mrender.vector;
 export import mlibs.geom;
 
 namespace hanim::detail { struct VectorData; struct VectorProgramData; struct VectorEffects; }
@@ -54,7 +54,7 @@ using VectorFailure = mlibs::error::Error<VectorError, VectorWhere>;
 // UI, vector and other content adapters consume these same validated slots;
 // this type owns neither content geometry, a player nor a clock.
 struct BoundImageEffect {
-    xrender::EffectRef ref;
+    mrender::EffectRef ref;
     std::uint64_t generation = 0;
     std::size_t offset = 0, count = 0;
 };
@@ -76,7 +76,7 @@ private:
 };
 struct MaterialBinding {
     std::string part;
-    xrender::Paint from, to;
+    mrender::Paint from, to;
 };
 struct VectorRequirements {
     std::size_t world_transforms = 0, backend_parameters = 0, effect_layers = 0;
@@ -84,7 +84,7 @@ struct VectorRequirements {
 struct VectorScratch {
     // Reused native recording arena ensures failed recording never appends
     // partial commands to the destination. Must differ from destination.
-    xrender::DisplayList* recording = nullptr;
+    mrender::DisplayList* recording = nullptr;
     std::span<mlibs::geom::Affine> world;
     std::span<float> backend_parameters;
     std::span<mlibs::geom::Rect> effect_layers;
@@ -103,7 +103,7 @@ public:
     // failure and exclusive per concurrent caller, as are destination/buffers.
     [[nodiscard]] std::expected<void, VectorFailure> record(
         FrameView frame, std::span<const float> effect_values,
-        xrender::DisplayList& destination, VectorScratch scratch) const;
+        mrender::DisplayList& destination, VectorScratch scratch) const;
 private:
     friend class PreparedVectorProgram;
     std::shared_ptr<const detail::VectorData> data_;
@@ -130,7 +130,7 @@ public:
     // Draws selected bindings in author preorder; nested effects apply once
     // after their subtree. No Engine dependency and no private rasterizer.
     [[nodiscard]] std::expected<void, VectorFailure> record(
-        ProgramFrameView frame, xrender::DisplayList& destination, ProgramVectorScratch scratch) const;
+        ProgramFrameView frame, mrender::DisplayList& destination, ProgramVectorScratch scratch) const;
 private:
     std::shared_ptr<const detail::VectorProgramData> data_;
 };

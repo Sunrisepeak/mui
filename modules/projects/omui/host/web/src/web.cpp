@@ -4,12 +4,12 @@ import std;
 import omui.core;
 import omui.view;
 import omui.semantic;
-import xrender.raster;
-import xrender.vector;
-import xrender.frame;
+import mrender.raster;
+import mrender.vector;
+import mrender.frame;
 import mlibs.rhi;
-import xrender.rhi.webgpu;
-import xrender.rhi.webgl;
+import mrender.rhi.webgpu;
+import mrender.rhi.webgl;
 import mlibs.text;
 import mlibs.trace;
 import omui.agent;
@@ -19,7 +19,7 @@ import omui.native.store;
 import mcpplibs.os;
 import :platform;
 import :mirror;
-import xrender.text;
+import mrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -73,18 +73,18 @@ struct Web::Impl {
     std::unique_ptr<Runtime>                 own_runtime;
     Runtime*                                 runtime = nullptr;
     std::unique_ptr<semantic::Tree>          tree;
-    std::unique_ptr<xrender::text::GlyphCache>     glyphs;
-    xrender::CpuFrame                         composed;  // the frame's entry (xrender.frame): the host composes nothing itself
+    std::unique_ptr<mrender::text::GlyphCache>     glyphs;
+    mrender::CpuFrame                         composed;  // the frame's entry (mrender.frame): the host composes nothing itself
     // The GPU, when one draws (WebOptions::renderer): its device (before the
     // renderer, which holds it), the renderer, the texture each frame is drawn in.
     std::unique_ptr<mlibs::rhi::Device>             device;
-    std::optional<xrender::GpuFrame>          gpu;
+    std::optional<mrender::GpuFrame>          gpu;
     mlibs::rhi::Texture                             target{};
     int                                      target_w = 0, target_h = 0;
     ShownPictures                            shown_pictures;  // the viewports' pictures as textures on the device
     std::string_view                         drawn_by = "cpu";
-    xrender::DamageTracker                    damage;
-    xrender::raster::Surface                          frame;
+    mrender::DamageTracker                    damage;
+    mrender::raster::Surface                          frame;
     std::uint64_t                            shown = 0;   // the list hash on the canvas
     std::size_t                              frames_shown = 0;
     std::vector<InputEvent>                  pending;     // synthesized, for the next step
@@ -145,7 +145,7 @@ struct Web::Impl {
         runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });
         runtime->set_file_offer([](const Runtime::OfferedFile& file) { return page::offer_file(file.name, file.type, file.bytes); });
         runtime->set_svg_capture([this](Rect region) -> std::expected<std::string, ViewFailure> {
-            const xrender::Resources resources{&runtime->images(), glyphs.get()};
+            const mrender::Resources resources{&runtime->images(), glyphs.get()};
             auto capture = agent::vector_capture(*runtime, resources, region, scale, std::nullopt);
             if (!capture) return std::unexpected(capture.error());
             return std::move(capture->svg);
@@ -173,7 +173,7 @@ struct Web::Impl {
             o.remote = true;  // window.omui is the bus: openas decides, never the person (S-10, S-11)
             o.capture = [this](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
                 // The frame on the canvas, cut to the region (logical pixels).
-                const xrender::raster::Surface& f = frame;
+                const mrender::raster::Surface& f = frame;
                 const int x0 = std::clamp(static_cast<int>(std::floor(region.x * scale)), 0, f.width());
                 const int y0 = std::clamp(static_cast<int>(std::floor(region.y * scale)), 0, f.height());
                 const int x1 = std::clamp(static_cast<int>(std::ceil(region.right() * scale)), x0, f.width());
@@ -186,7 +186,7 @@ struct Web::Impl {
                 return std::move(*png);
             };
             o.capture_svg = [this](Rect region) {
-                const xrender::Resources resources{&runtime->images(), glyphs.get()};
+                const mrender::Resources resources{&runtime->images(), glyphs.get()};
                 return agent::vector_capture(*runtime, resources, region, scale, std::nullopt);
             };
             protocol = std::make_unique<agent::Protocol>(*runtime, std::move(o));
@@ -258,17 +258,17 @@ struct Web::Impl {
             // without the canvas, so that the canvas keeps no context of a
             // device that will not draw (and the CPU can still show its frames).
             if (want == Renderer::automatic) {
-                auto probe = kind == Renderer::webgpu ? xrender::rhi::webgpu::create({}) : xrender::rhi::webgl::create({});
+                auto probe = kind == Renderer::webgpu ? mrender::rhi::webgpu::create({}) : mrender::rhi::webgl::create({});
                 if (!probe || (*probe)->caps().software) return false;
             }
             const std::string canvas = options.present ? options.canvas : std::string();
-            auto made = kind == Renderer::webgpu ? xrender::rhi::webgpu::create({.canvas = canvas}) : xrender::rhi::webgl::create({.canvas = canvas});
+            auto made = kind == Renderer::webgpu ? mrender::rhi::webgpu::create({.canvas = canvas}) : mrender::rhi::webgl::create({.canvas = canvas});
             const std::string_view name = kind == Renderer::webgpu ? "WebGPU" : "WebGL2";
             if (!made) {
                 if (want == kind) warn("host.web: {} was asked for and the page has none ({}): the CPU draws", name, made.error().message);
                 return false;
             }
-            auto renderer = xrender::GpuFrame::create(**made);
+            auto renderer = mrender::GpuFrame::create(**made);
             if (!renderer) {
                 warn("host.web: {} cannot draw ({}): the CPU does", name, renderer.error().message);
                 return false;
@@ -284,7 +284,7 @@ struct Web::Impl {
 
     // The frame on the GPU: drawn whole into a texture the canvas's size,
     // presented. False when the GPU failed it (said once).
-    bool show_gpu(const xrender::DisplayList& list, int w, int hgt) {
+    bool show_gpu(const mrender::DisplayList& list, int w, int hgt) {
         if (target_w != w || target_h != hgt) {
             if (target.valid()) device->destroy(target);
             auto t = device->create(mlibs::rhi::TextureDesc{.format = mlibs::rhi::Format::rgba8_unorm, .width = static_cast<std::uint32_t>(w),
@@ -296,9 +296,9 @@ struct Web::Impl {
         }
         {
             mlibs::trace::Span span("render", "host");
-            const xrender::Resources resources{&runtime->images(), glyphs.get()};
-            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
-            xrender::GpuFrameOptions how;
+            const mrender::Resources resources{&runtime->images(), glyphs.get()};
+            const mrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            mrender::GpuFrameOptions how;
             how.background = options.background;
             how.external = [this](std::uint64_t number) {  // a world in a viewport
                 auto texture = shown_pictures.texture(*runtime, *device, number);
@@ -322,7 +322,7 @@ struct Web::Impl {
     bool gpu_said = false;
 
     void show() {
-        const xrender::DisplayList& list = runtime->display_list();
+        const mrender::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
         const int w = static_cast<int>(std::lround(runtime->size().width * scale));
         const int hgt = static_cast<int>(std::lround(runtime->size().height * scale));
@@ -336,13 +336,13 @@ struct Web::Impl {
             return;
         }
         if (h == shown && frame.width() == w && frame.height() == hgt) return;
-        if (frame.width() != w || frame.height() != hgt) frame = xrender::raster::Surface(w, hgt);
+        if (frame.width() != w || frame.height() != hgt) frame = mrender::raster::Surface(w, hgt);
         {
             mlibs::trace::Span span("render", "host");
-            const xrender::Resources resources{&runtime->images(), glyphs.get()};
+            const mrender::Resources resources{&runtime->images(), glyphs.get()};
             const auto rows = damage.update(list, w, hgt, scale, resources);
-            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
-            xrender::FrameOptions how;
+            const mrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            mrender::FrameOptions how;
             how.background = options.background;
             how.rows = rows;
             how.external = [this](std::uint64_t number) { return runtime->picture(number); };  // a world in a viewport
@@ -545,7 +545,7 @@ Web::Web(WebOptions options) : impl_(std::make_unique<Impl>()) {
         d.runtime->clock() = hanim::Clock::interactive();
         d.runtime->resize(d.size, d.scale);
         d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-        d.glyphs = std::make_unique<xrender::text::GlyphCache>(d.runtime->fonts());
+        d.glyphs = std::make_unique<mrender::text::GlyphCache>(d.runtime->fonts());
         d.attach();
         return;
     }
@@ -566,7 +566,7 @@ Web::Web(WebOptions options) : impl_(std::make_unique<Impl>()) {
     d.own_runtime = std::make_unique<Runtime>(std::move(ro));
     d.runtime = d.own_runtime.get();
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-    d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
+    d.glyphs = std::make_unique<mrender::text::GlyphCache>(*fonts);
     d.attach();
 }
 
@@ -590,17 +590,17 @@ Web::~Web() {
 Runtime& Web::runtime() noexcept { return *impl_->runtime; }
 semantic::Tree& Web::tree() noexcept { return *impl_->tree; }
 NodeId Web::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
-const xrender::raster::Surface& Web::pixels() const noexcept { return impl_->frame; }
+const mrender::raster::Surface& Web::pixels() const noexcept { return impl_->frame; }
 std::string_view Web::renderer() const noexcept { return impl_->drawn_by; }
 
-std::expected<xrender::raster::Surface, ViewFailure> Web::read_frame() {
+std::expected<mrender::raster::Surface, ViewFailure> Web::read_frame() {
     Impl& d = *impl_;
     if (!d.gpu) return d.frame;
     if (!d.target.valid()) return std::unexpected(ViewFailure{ViewError::nothing_shown});
     const auto w = static_cast<std::uint32_t>(d.target_w), h = static_cast<std::uint32_t>(d.target_h);
     auto bytes = d.device->read(d.target, mlibs::rhi::Region{0, 0, w, h});
     if (!bytes) return std::unexpected(ViewFailure{ViewError::capture_failed, bytes.error().message});
-    xrender::raster::Surface s(d.target_w, d.target_h);
+    mrender::raster::Surface s(d.target_w, d.target_h);
     for (int y = 0; y < d.target_h; ++y)
         std::memcpy(s.row(y), bytes->data() + static_cast<std::size_t>(y) * w * 4, static_cast<std::size_t>(w) * 4);
     return s;

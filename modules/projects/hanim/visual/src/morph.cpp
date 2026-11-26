@@ -6,13 +6,13 @@ import hanim.core;
 import hanim.object;
 import mlibs.math;
 import mlibs.geom;
-import xrender.vector;
+import mrender.vector;
 
 namespace hanim::visual {
 
 namespace {
 
-using namespace xrender;
+using namespace mrender;
 namespace det = ::mlibs::math::det;
 
 double clamp01(double u) noexcept { return u < 0 ? 0 : (u > 1 ? 1 : u); }
@@ -699,18 +699,18 @@ std::optional<Rect> effect_ink_bounds(const DisplayList& list, std::size_t first
                                      const GlyphBounds& glyph_bounds, float scale, unsigned depth) {
     if (depth >= 8) return std::nullopt;
     const auto& layer = std::get<PushLayer>(list.commands()[first]);
-    const auto* info = xrender::effects().info(layer.effect);
+    const auto* info = mrender::effects().info(layer.effect);
     if (!info) return std::nullopt;
     std::array<float, 64> params;
     const std::size_t count = std::max(layer.params.size(), info->params.size());
     if (count > params.size()) return std::nullopt;
     for (std::size_t i = 0; i < count; ++i) params[i] = i < layer.params.size() ? layer.params[i] : info->params[i].value;
-    const auto reach = xrender::effects().output_reach(layer.effect, std::span(params.data(), count));
+    const auto reach = mrender::effects().output_reach(layer.effect, std::span(params.data(), count));
     if (!reach || !std::isfinite(*reach) || *reach < 0) return std::nullopt;
     auto source = nested_ink_bounds(list, {first + 1, last, transform}, glyph_bounds, scale, depth + 1);
     if (!source) return std::nullopt;
     Rect generated = transform.map(layer.bounds);
-    if(layer.bounds_mode==xrender::LayerBoundsMode::content)generated=generated.united(*source);
+    if(layer.bounds_mode==mrender::LayerBoundsMode::content)generated=generated.united(*source);
     for (const auto& shape : layer.shapes) generated = generated.united(transform.map(shape.rect));
     const float margin = std::ceil(*reach * scale) + 1; // renderer's device reach and AA convention
     generated = {std::floor(generated.x - margin), std::floor(generated.y - margin),
@@ -745,7 +745,7 @@ std::optional<Rect> nested_ink_bounds(const DisplayList& list, const NestedRange
             if (!glyph_bounds) return std::nullopt;
             bounds = glyph_bounds(*run, transforms[depth]);
             if (!bounds) return std::nullopt;
-        } else bounds = xrender::device_bounds(command, transforms[depth]);
+        } else bounds = mrender::device_bounds(command, transforms[depth]);
         if (bounds && !bounds->empty()) { result = any ? result.united(*bounds) : *bounds; any = true; }
         else if (!bounds && class_of(command)) return std::nullopt;
     }
@@ -838,7 +838,7 @@ std::optional<Color> uniform_underpaint(const DisplayList& list, std::size_t gly
             if (!glyph_bounds) { if (i > glyph) return std::nullopt; background.reset(); continue; }
             bounds = glyph_bounds(*run, transforms[depth]);
             if (!bounds) { if (i > glyph) return std::nullopt; background.reset(); continue; }
-        } else bounds = xrender::device_bounds(command, transforms[depth]);
+        } else bounds = mrender::device_bounds(command, transforms[depth]);
         if (!bounds || bounds->empty() || !bounds->intersects(text)) continue;
         if (const auto* stroke = std::get_if<StrokeRoundRect>(&command); stroke && stroke_misses(*stroke, transforms[depth], text)) continue;
         if (i > glyph) return std::nullopt; // this draw actually paints over the selected text
@@ -992,7 +992,7 @@ double fade_in(double u, double from) noexcept { return clamp01(from >= 1 ? (u >
 
 }  // namespace
 
-std::optional<xrender::Path> glyph_outline(const xrender::DrawGlyphs& run, std::size_t glyph, xrender::GlyphSource& source) {
+std::optional<mrender::Path> glyph_outline(const mrender::DrawGlyphs& run, std::size_t glyph, mrender::GlyphSource& source) {
     if (glyph >= run.glyphs.size() || !std::isfinite(run.size) || run.size <= 0 || (!run.styles.empty() && run.styles.size() != run.glyphs.size()))
         return std::nullopt;
     const auto outline = source.outline(run.font, run.glyphs[glyph].id);
@@ -1002,7 +1002,7 @@ std::optional<xrender::Path> glyph_outline(const xrender::DrawGlyphs& run, std::
     return path_of({outline.verbs, outline.points}).transformed(Affine::translate(pen.x, pen.y) * style.transform * Affine::scale(run.size, run.size));
 }
 
-std::optional<Rect> glyph_ink_bounds(const xrender::DrawGlyphs& run, const Affine& transform, xrender::GlyphSource& source) {
+std::optional<Rect> glyph_ink_bounds(const mrender::DrawGlyphs& run, const Affine& transform, mrender::GlyphSource& source) {
     if (run.glyphs.empty() || run.paint.color.a <= 0) return Rect{};
     if (!std::isfinite(run.size) || run.size <= 0 || (!run.styles.empty() && run.styles.size() != run.glyphs.size()) ||
         !std::isfinite(transform.a) || !std::isfinite(transform.b) || !std::isfinite(transform.c) || !std::isfinite(transform.d) ||
@@ -1449,9 +1449,9 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
         if (carrier) {
             frame.delay = carrier->delay;
             if (frame.a >= 0 && carrier->a >= 0 && B[static_cast<std::size_t>(carrier->b)].cls == PieceClass::fill) {
-                auto rect = [](const xrender::Command& command) -> std::optional<Rect> {
-                    if (const auto* fill = std::get_if<xrender::FillRect>(&command)) return fill->rect;
-                    if (const auto* fill = std::get_if<xrender::FillRoundRect>(&command)) return fill->rect;
+                auto rect = [](const mrender::Command& command) -> std::optional<Rect> {
+                    if (const auto* fill = std::get_if<mrender::FillRect>(&command)) return fill->rect;
+                    if (const auto* fill = std::get_if<mrender::FillRoundRect>(&command)) return fill->rect;
                     return std::nullopt;
                 };
                 const auto a = rect(from_.list().commands()[A[static_cast<std::size_t>(carrier->a)].command]);
@@ -1528,7 +1528,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, const Pus
         p = mixf(p, tr.peak, on);
     }
     // What the effect draws beyond the shapes (a waver, a drop's bridge): its own reach at these numbers.
-    const float reach = xrender::effects().reach(tr.effect, params) + 2;
+    const float reach = mrender::effects().reach(tr.effect, params) + 2;
     out.push_layer(1, BlendMode::normal, tr.effect, params, {all.x - reach, all.y - reach, all.width + 2 * reach, all.height + 2 * reach},
                    std::span(shapes.data(), count));
     for (const Command& c : aside.commands()) out.append_command(c);
@@ -1659,7 +1659,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         const Rect& about = options_.local_presence ? bounds : whole;
         const Point origin{about.x + about.width * static_cast<float>(course.anchor.x), about.y + about.height * static_cast<float>(course.anchor.y)};
         const float sx = mixf(1, static_cast<float>(pose.scale.x), away), sy = mixf(1, static_cast<float>(pose.scale.y), away);
-        const Affine turn = pose.rotation == 0 ? Affine{} : xrender::rotate(static_cast<float>(pose.rotation * away));
+        const Affine turn = pose.rotation == 0 ? Affine{} : mrender::rotate(static_cast<float>(pose.rotation * away));
         return Affine::translate(origin.x + mixf(0, static_cast<float>(pose.offset.x), away), origin.y + mixf(0, static_cast<float>(pose.offset.y), away)) * turn *
                Affine::scale(sx, sy) * Affine::translate(-origin.x, -origin.y);
     };

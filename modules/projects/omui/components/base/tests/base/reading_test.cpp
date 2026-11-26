@@ -39,7 +39,7 @@ std::int64_t act(Headless& h, std::string_view id, std::string_view action, Valu
     return answer.exit_code().value_or(-1);
 }
 
-std::uint64_t hash_of(const xrender::raster::Surface& pixels) {
+std::uint64_t hash_of(const mrender::raster::Surface& pixels) {
     Hash hash;
     for (int y = 0; y < pixels.height(); ++y) hash.bytes(std::as_bytes(std::span(pixels.row(y), static_cast<std::size_t>(pixels.width()))));
     return hash.value();

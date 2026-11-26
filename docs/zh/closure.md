@@ -5,7 +5,7 @@
 | 项目 | 标注 | 1★ 定义与特性 | 2 API 复查 | 3 错误 | 4★ Agent 面 | 5 ops 与 skill | 6★ 测试 | 7 基准 | 8 并排对照 | 9 独立消费 | 10★ 已知局限 |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | mlibs | stable | ✓ | ✓ | ✓ | ✓ | 例外 | ✓ | ✓ | ✓ | ○ | ✓ |
-| xrender | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ✓ |
+| mrender | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ✓ |
 | hanim | stable | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ✓ |
 | omui | stable | ✓ | ✓ | ✓ | ✓ | ✓ | 例外 | ✓ | ○ | ○ | ✓ |
 | meng | preview | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ○ | ○ | ✓ |
@@ -17,7 +17,7 @@
 ## 欠着的
 
 - **mlibs**, 9 独立消费: probe hanim-core-consumer builds from paths; from published packages once RC3.1 publishes them
-- **xrender**, 9 独立消费: probe hanim-play-consumer builds from paths; from published packages once RC3.1 publishes them
+- **mrender**, 9 独立消费: probe hanim-play-consumer builds from paths; from published packages once RC3.1 publishes them
 - **hanim**, 9 独立消费: probe hanim-core-consumer builds from paths; from published packages once RC3.1 publishes them
 - **omui**, 8 并排对照: no claim in the ledger dated from 2026-11-15
 - **omui**, 9 独立消费: probe features-consumer builds from paths; from published packages once RC3.1 publishes them

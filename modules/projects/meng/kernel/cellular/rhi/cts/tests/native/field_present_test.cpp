@@ -6,9 +6,9 @@
 import std;
 import mlibs.rhi;
 import mlibs.geom;
-import xrender.rhi.sdl;
-import xrender.raster;
-import xrender.vector;
+import mrender.rhi.sdl;
+import mrender.raster;
+import mrender.vector;
 import meng.cellular;
 import meng.cellular.present;
 import meng.cellular.rhi;
@@ -21,9 +21,9 @@ namespace geom = mlibs::geom;
 
 UTest cases{"cellular.present.device", [] {
     "the field drawn by the GPU from the device's own cells is the CPU's picture, one command each"_test = [] {
-        auto created = xrender::rhi::sdl::create(xrender::rhi::sdl::environment_options({.formats = xrender::gpu_shader_formats() & ca::gpu::shader_formats()}));
+        auto created = mrender::rhi::sdl::create(mrender::rhi::sdl::environment_options({.formats = mrender::gpu_shader_formats() & ca::gpu::shader_formats()}));
         if (!created) {
-            if (xrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message);
+            if (mrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message);
             return;
         }
         rhi::Device& device = **created;
@@ -42,7 +42,7 @@ UTest cases{"cellular.present.device", [] {
         expect(program.has_value());
         if (!program) return;
         // The CPU path: stepped, presented, drawn by the CPU renderer.
-        xrender::ImageStore store;
+        mrender::ImageStore store;
         auto view = ca::FieldPresenter::make(store, shape, 3,
                                              {{{{{1, {1, 1}}}, geom::Color::hex(0xff7a1a)}, {{{1, {2, 2}}}, geom::Color::hex(0x3a2a20)}, {{{0, {1, 1}}}, geom::Color::hex(0x8fa3b8)}},
                                               geom::Color::hex(0x101820)});
@@ -63,10 +63,10 @@ UTest cases{"cellular.present.device", [] {
         ca::gpu::Field in{&device, *a, shape, 3}, out{&device, *b, shape, 3};
         rhi::CommandList list;
         list.upload(*a, 0, std::span<const std::uint32_t>(cells));
-        auto renderer = xrender::GpuRenderer::create(device);
+        auto renderer = mrender::GpuRenderer::create(device);
         expect(renderer.has_value());
         if (!renderer) return;
-        const xrender::Resources resources{&store, nullptr};
+        const mrender::Resources resources{&store, nullptr};
         const geom::Rect dest{0, 0, static_cast<float>(shape.width * 4), static_cast<float>(shape.height * 4)};
         for (int tick = 1; tick <= 40; ++tick) {
             expect(program->step(shape, cpu, next).has_value());
@@ -78,8 +78,8 @@ UTest cases{"cellular.present.device", [] {
             expect((*painter)->record(list, in, *image).has_value());
             expect(device.submit(list).has_value());
             list.clear();
-            xrender::DisplayList gpu_list;
-            gpu_list.external_texture(1, dest, 1, xrender::Sampling::nearest);  // pixels that stay pixels
+            mrender::DisplayList gpu_list;
+            gpu_list.external_texture(1, dest, 1, mrender::Sampling::nearest);  // pixels that stay pixels
             expect(eq(gpu_list.commands().size(), std::size_t{1}));
             auto report = renderer->render(gpu_list, *target, resources, {.external = [&](std::uint64_t id) -> std::optional<rhi::Texture> {
                                                return id == 1 ? std::optional(*image) : std::nullopt;
@@ -89,11 +89,11 @@ UTest cases{"cellular.present.device", [] {
             expect(bytes.has_value());
             // The CPU: one image command.
             (void)view->present(cpu);
-            xrender::DisplayList cpu_list;
+            mrender::DisplayList cpu_list;
             view->draw(cpu_list, dest);
             expect(eq(cpu_list.commands().size(), std::size_t{1}));
-            xrender::raster::Surface surface(static_cast<int>(shape.width * 4), static_cast<int>(shape.height * 4));
-            xrender::CpuRenderer cpu_renderer;
+            mrender::raster::Surface surface(static_cast<int>(shape.width * 4), static_cast<int>(shape.height * 4));
+            mrender::CpuRenderer cpu_renderer;
             (void)cpu_renderer.render(cpu_list, surface, resources);
             if (!bytes) continue;
             std::size_t different = 0;

@@ -31,7 +31,7 @@ sources = ["src/*.cppm", "src/*.cpp", "packs/*/src/*.cppm", "packs/*/src/*.cpp",
 omui.core   = { path = "../core" }
 omui.view   = { path = "../view" }
 hanim.core          = { path = "../../hanim/core" }
-xrender.vector = { path = "../../xrender/vector" }
+mrender.vector = { path = "../../mrender/vector" }
 mlibs.json     = { path = "../../../base/json" }
 mlibs.xdef     = { path = "../../../base/xdef" }  # a snapshot's format checked first (D-209)
 mlibs.utils    = { path = "../../../base/utils" }  # mlibs.error: why a theme cannot be composed

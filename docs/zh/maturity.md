@@ -16,7 +16,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 |---|---|---|---|
 | omui | 30 | 3 | 1 |
 | hanim | 5 | 4 | 0 |
-| xrender | 10 | 8 | 0 |
+| mrender | 10 | 8 | 0 |
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
@@ -81,28 +81,28 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `hanim.skeleton` | [modules/projects/hanim/skeleton](../../modules/projects/hanim/skeleton) | 预览 |
 | `hanim.skeleton.cts` | [modules/projects/hanim/skeleton/cts](../../modules/projects/hanim/skeleton/cts) | 预览 |
 
-### xrender
+### mrender
 
 | 包 | 目录 | 标注 |
 |---|---|---|
-| `xrender.raster` | [modules/projects/xrender/raster](../../modules/projects/xrender/raster) | 稳定 |
-| `xrender.text` | [modules/projects/xrender/text](../../modules/projects/xrender/text) | 稳定 |
-| `xrender.graph` | [modules/projects/xrender/graph](../../modules/projects/xrender/graph) | 稳定 |
-| `xrender.cts` | [modules/projects/xrender/cts](../../modules/projects/xrender/cts) | 稳定 |
-| `xrender.vector` | [modules/projects/xrender/vector](../../modules/projects/xrender/vector) | 稳定 |
-| `xrender.frame` | [modules/projects/xrender/frame](../../modules/projects/xrender/frame) | 稳定 |
-| `xrender.scene` | [modules/projects/xrender/scene](../../modules/projects/xrender/scene) | 预览 |
-| `xrender.mesh` | [modules/projects/xrender/mesh](../../modules/projects/xrender/mesh) | 预览 |
-| `xrender.particle` | [modules/projects/xrender/particle](../../modules/projects/xrender/particle) | 预览 |
-| `xrender.particle.gpu` | [modules/projects/xrender/particle/gpu](../../modules/projects/xrender/particle/gpu) | 预览 |
-| `xrender.mesh.gpu` | [modules/projects/xrender/mesh/gpu](../../modules/projects/xrender/mesh/gpu) | 预览 |
-| `xrender.mesh.gpu.cts` | [modules/projects/xrender/mesh/gpu/cts](../../modules/projects/xrender/mesh/gpu/cts) | 预览 |
-| `xrender.asset` | [modules/projects/xrender/asset](../../modules/projects/xrender/asset) | 预览 |
-| `xrender.effect` | [modules/projects/xrender/effect](../../modules/projects/xrender/effect) | 稳定 |
-| `xrender.rhi.sdl` | [modules/projects/xrender/rhi/sdl](../../modules/projects/xrender/rhi/sdl) | 稳定 |
-| `xrender.tool` | [modules/projects/xrender/tool](../../modules/projects/xrender/tool) | 预览 |
-| `xrender.rhi.webgpu` | [modules/projects/xrender/rhi/webgpu](../../modules/projects/xrender/rhi/webgpu) | 稳定 |
-| `xrender.rhi.webgl` | [modules/projects/xrender/rhi/webgl](../../modules/projects/xrender/rhi/webgl) | 稳定 |
+| `mrender.raster` | [modules/projects/mrender/raster](../../modules/projects/mrender/raster) | 稳定 |
+| `mrender.text` | [modules/projects/mrender/text](../../modules/projects/mrender/text) | 稳定 |
+| `mrender.graph` | [modules/projects/mrender/graph](../../modules/projects/mrender/graph) | 稳定 |
+| `mrender.cts` | [modules/projects/mrender/cts](../../modules/projects/mrender/cts) | 稳定 |
+| `mrender.vector` | [modules/projects/mrender/vector](../../modules/projects/mrender/vector) | 稳定 |
+| `mrender.frame` | [modules/projects/mrender/frame](../../modules/projects/mrender/frame) | 稳定 |
+| `mrender.scene` | [modules/projects/mrender/scene](../../modules/projects/mrender/scene) | 预览 |
+| `mrender.mesh` | [modules/projects/mrender/mesh](../../modules/projects/mrender/mesh) | 预览 |
+| `mrender.particle` | [modules/projects/mrender/particle](../../modules/projects/mrender/particle) | 预览 |
+| `mrender.particle.gpu` | [modules/projects/mrender/particle/gpu](../../modules/projects/mrender/particle/gpu) | 预览 |
+| `mrender.mesh.gpu` | [modules/projects/mrender/mesh/gpu](../../modules/projects/mrender/mesh/gpu) | 预览 |
+| `mrender.mesh.gpu.cts` | [modules/projects/mrender/mesh/gpu/cts](../../modules/projects/mrender/mesh/gpu/cts) | 预览 |
+| `mrender.asset` | [modules/projects/mrender/asset](../../modules/projects/mrender/asset) | 预览 |
+| `mrender.effect` | [modules/projects/mrender/effect](../../modules/projects/mrender/effect) | 稳定 |
+| `mrender.rhi.sdl` | [modules/projects/mrender/rhi/sdl](../../modules/projects/mrender/rhi/sdl) | 稳定 |
+| `mrender.tool` | [modules/projects/mrender/tool](../../modules/projects/mrender/tool) | 预览 |
+| `mrender.rhi.webgpu` | [modules/projects/mrender/rhi/webgpu](../../modules/projects/mrender/rhi/webgpu) | 稳定 |
+| `mrender.rhi.webgl` | [modules/projects/mrender/rhi/webgl](../../modules/projects/mrender/rhi/webgl) | 稳定 |
 
 ### meng
 

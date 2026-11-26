@@ -118,8 +118,8 @@ std::expected<int, std::string> competitors(const fs::path& root, const Options&
         {"hanim-native", "", "drive-1000", program["omui-bench-motion"], {"--json"}},
         {"hanim-wasm", "", "drive-1000", "node", {program["omui-bench-motion.js"], "--json"}},
         {"gsap", "", "drive-1000", "node", {mcpplibs::os::fs::utf8(work / "gsap-1000.mjs"), "--json"}},
-        // xrender first: it writes the scenes and its pictures the others are compared with.
-        {"xrender", "", "", program["omui-bench-vector"], {"--out", vector_dir, "--runs", "5"}},
+        // mrender first: it writes the scenes and its pictures the others are compared with.
+        {"mrender", "", "", program["omui-bench-vector"], {"--out", vector_dir, "--runs", "5"}},
         {"skia", "", "", "node", {mcpplibs::os::fs::utf8(work / "vector.mjs"), vector_dir, "--runs", "5"}},
         {"hanim", "", "lottie-200", program["omui-bench-lottie"], {"--out", lottie_dir, "--runs", "3"}},
         {"lottie", "player", "lottie-200", python_text, {"-I", lottie_players, lottie_dir, "--runs", "3"}},

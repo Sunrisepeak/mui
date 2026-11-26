@@ -24,4 +24,4 @@ How an Agent examines and tries a cloud of particles in 3D (`meng.particles.agen
 
 ## Not here
 
-Why a particle is as it is as a record — which law cooled it, which strike turned it — comes with the kernels' record of causes. What it looks like is the world's look (`Look::shade()` over the cloud's state) drawn by `xrender.particle`; what a strike sounds like is the audio engine's.
+Why a particle is as it is as a record — which law cooled it, which strike turned it — comes with the kernels' record of causes. What it looks like is the world's look (`Look::shade()` over the cloud's state) drawn by `mrender.particle`; what a strike sounds like is the audio engine's.

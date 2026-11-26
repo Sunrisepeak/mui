@@ -13,7 +13,7 @@
 | 界面动效、代码生成的动画与视频 | hanim | 稳定（studio：预览） | [动效](guide/motion.md) |
 | 会燃烧、流动、凝固的 2D 物质世界 | meng 的物质与格点 | 预览 | [物质世界](guide/world.md) |
 | 不开窗口也能跑、Agent 能玩的 2D 游戏 | meng 的游戏运行时 | 预览 | [游戏](guide/game.md) |
-| 三维世界：刚体、人群、穿墙的声音；场景、网格、阴影、glTF | meng 的内核、xrender 的 scene 与 mesh | 预览 | [三维世界](guide/world3d.md) → [Quay](../../showcase/quay) |
+| 三维世界：刚体、人群、穿墙的声音；场景、网格、阴影、glTF | meng 的内核、mrender 的 scene 与 mesh | 预览 | [三维世界](guide/world3d.md) → [Quay](../../showcase/quay) |
 
 **稳定**：过全部质量门，0.1.x 内源码兼容。**预览**：在声明的范围内过全部质量门，接口会变。**实验**：能构建、原理成立，离自己的目标还有差距。每个包的标注见[成熟度](maturity.md)。整个项目仍在开发阶段，尚未发布版本（2026-11-17）。
 

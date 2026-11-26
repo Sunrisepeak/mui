@@ -14,7 +14,7 @@ using namespace mcpplibs::mtest;
 namespace {
 
 // How many pixels are mostly red (the stroke's colour in these cases).
-int red_in(const xrender::raster::Surface& pixels, Rect within = {0, 0, 1e6f, 1e6f}) {
+int red_in(const mrender::raster::Surface& pixels, Rect within = {0, 0, 1e6f, 1e6f}) {
     int count = 0;
     for (int row = 0; row < pixels.height(); ++row)
         for (int column = 0; column < pixels.width(); ++column) {

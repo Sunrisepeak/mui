@@ -69,19 +69,19 @@ void WebView::paint(PaintContext& ctx) const {
             placed_ = at;
             services().place_web(number_, at, true);
         }
-        ctx.list.fill_rect(whole, xrender::Paint::solid(th.color("surface")));
+        ctx.list.fill_rect(whole, mrender::Paint::solid(th.color("surface")));
         return;
     }
     // No web view here: a card saying what the page is, which opens it in the system's browser.
-    ctx.part({.role = "card", .allocation = whole, .kind = xrender::PartKind::box}, [&] {
-        ctx.list.fill_round_rect(whole, th.radii(th.corner("medium", 8)), xrender::Paint::solid(th.color("surface_variant")));
+    ctx.part({.role = "card", .allocation = whole, .kind = mrender::PartKind::box}, [&] {
+        ctx.list.fill_round_rect(whole, th.radii(th.corner("medium", 8)), mrender::Paint::solid(th.color("surface_variant")));
         title_.set_text(!page_.title.empty() ? page_.title : !props.label.empty() ? props.label : std::string("Web page"));
         const Size t = title_.measure(ctx.services, th.color("text"), std::max(0.0f, ctx.size.width - 32));
         const float top = std::max(16.0f, ctx.size.height / 2 - t.height - 4);
         title_.paint(ctx, {16, top}, th.color("text"));
         address_.set_text(props.url.empty() ? std::string("no address") : std::format("{} — opens in the browser", props.url));
         (void)address_.measure(ctx.services, th.color("text_muted"), std::max(0.0f, ctx.size.width - 32));
-        ctx.part({.role = "address", .kind = xrender::PartKind::content}, [&] { address_.paint(ctx, {16, top + t.height + 6}, th.color("accent")); });
+        ctx.part({.role = "address", .kind = mrender::PartKind::content}, [&] { address_.paint(ctx, {16, top + t.height + 6}, th.color("accent")); });
     });
     if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, whole, th.radii(th.corner("medium", 8)));
 }

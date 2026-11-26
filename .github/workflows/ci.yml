@@ -396,7 +396,7 @@ jobs:
         if: runner.os == 'Linux' && runner.arch == 'X64' && matrix.profile != 'release'
         run: mcpp test -p mcpplibs.mpal --target x86_64-openkal
 
-      - name: The products' commands as an Agent uses them (hanim, xrender; plan §10.3)
+      - name: The products' commands as an Agent uses them (hanim, mrender; plan §10.3)
         if: runner.os == 'Linux'
         run: mcpp run omui-devtools -p tools/devtools --profile '${{ matrix.profile }}' -- check tools-e2e --profile '${{ matrix.profile }}'
 

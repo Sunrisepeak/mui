@@ -3,7 +3,7 @@ module omui.ui.liquid_glass;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 
 namespace omui {
 
@@ -21,7 +21,7 @@ std::vector<float> material(const Props& p, double smoothness, const Theme& them
             static_cast<float>(p.rim)};
 }
 
-std::optional<xrender::EffectRef> glass_effect() { return xrender::effects().find("liquid_glass"); }
+std::optional<mrender::EffectRef> glass_effect() { return mrender::effects().find("liquid_glass"); }
 
 CornerRadii fitted(double radius, Size size) {
     return CornerRadii::all(std::max(0.0f, std::min(static_cast<float>(radius), std::min(size.width, size.height) / 2)));
@@ -31,8 +31,8 @@ CornerRadii fitted(double radius, Size size) {
 void panel(PaintContext& ctx, double radius) {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = fitted(radius, ctx.size);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(ctx.theme.color("surface", Color::white())));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, xrender::Paint::solid(ctx.theme.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(ctx.theme.color("surface", Color::white())));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, mrender::Paint::solid(ctx.theme.color("border")), mrender::PixelAlign::device);
 }
 
 }  // namespace
@@ -70,9 +70,9 @@ void LiquidGlass::paint(PaintContext& ctx) const {
     const auto ref = glass_effect();
     if (!ref) return;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
-    const std::array<xrender::EffectShape, 1> shape{{{box, fitted(props.radius, ctx.size)}}};
+    const std::array<mrender::EffectShape, 1> shape{{{box, fitted(props.radius, ctx.size)}}};
     const std::vector<float> params = material(props, 0, ctx.theme);
-    ctx.list.push_layer(1, xrender::BlendMode::normal, *ref, params, box, shape);
+    ctx.list.push_layer(1, mrender::BlendMode::normal, *ref, params, box, shape);
 }
 
 void LiquidGlass::paint_over(PaintContext& ctx) const {
@@ -96,8 +96,8 @@ void GlassGroup::prop_changed(GlassGroupProp p) {
     services().invalidate_paint(node());
 }
 
-std::vector<xrender::EffectShape> GlassGroup::shapes() const {
-    std::vector<xrender::EffectShape> out;
+std::vector<mrender::EffectShape> GlassGroup::shapes() const {
+    std::vector<mrender::EffectShape> out;
     if (!attached()) return out;
     // Where the members are drawn (a member sprung to a new place: its glass with it, merging as it goes).
     const Rect me = services().drawn_bounds(node());
@@ -119,7 +119,7 @@ void GlassGroup::paint(PaintContext& ctx) const {
     if (!ref || members.empty()) return;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const std::vector<float> params = material(props, props.smoothness, ctx.theme);
-    ctx.list.push_layer(1, xrender::BlendMode::normal, *ref, params, box, members);
+    ctx.list.push_layer(1, mrender::BlendMode::normal, *ref, params, box, members);
 }
 
 void GlassGroup::paint_over(PaintContext& ctx) const {

@@ -11,7 +11,7 @@
 | `openmui` | UI 规范（OpenLifa 标准，`openmui.spec`） | `spec/`（子模块） |
 | `omui` | 用一棵语义树同时驱动像素、强动画、无障碍、Agent 和测试的 UI 框架（动画由 hanim 提供） | `modules/projects/omui`（含 `components/`、`lang/`、`sdk/`、`templates/`） |
 | `hanim` | 可组合、Agent 原生的高级动画引擎，同一套能力支撑 UI 动画、视频和游戏动画；**唯一的通用动画能力归属** | `modules/projects/hanim` |
-| `xrender` | CPU 与 GPU 同源、Web 优先、像素可供 Agent 审查的渲染引擎（内部代号） | `modules/projects/xrender` |
+| `mrender` | CPU 与 GPU 同源、Web 优先、像素可供 Agent 审查的渲染引擎（D-276；原内部代号 xrender，0.1.0 的 FE0 一次改完） | `modules/projects/mrender` |
 | `meng`（D-234） | 人和 Agent 地位对等地开发与游玩的 Agent 原生游戏引擎系统（对外叫 meng／meng engine，原内部代号 xengine，实施方案 A8 一次改完）；omui 是它的 UI 框架并可独立使用；也容纳暂时不好分类、还不够独立的领域能力 | `modules/projects/meng`：`kernel/`（UI 之下的引擎内核：模拟、媒体）与 `game/`（UI 之上的游戏层） |
 | `gongfu` | 确定性、可回滚、角色即数据的格斗游戏框架 | `modules/projects/gongfu` |
 | `mlibs` | 与领域无关的通用库、**纯抽象接口**（如 `mlibs.rhi`）和通用工具链（如 `mlibs.shader`） | `modules/{base,gfx,content}` |
@@ -30,7 +30,7 @@
 1. **主线与验证线。** 核心引擎与框架是主线；作品是对主线能力的验证，承担一部分集成和验收测试的作用。作品只消费公开能力，不写引擎代码；遇到缺口就回到主线实现。
 2. **局部 × 全局 × 分级。** 每个引擎按本领域最优的方式设计内核（局部）；跨引擎只通过统一形状的契约组合（全局）：句柄、错误、时间、值与通道、准备与执行、预算、资源生命周期、操作与观测、能力查询；每个公开 API 都提供 L0 一句话调用、L1 参数、L2 组合、L3 显式准备与检查、L4 扩展，所有层走同一条执行路径。统一的是契约和模式，不做万能对象。详见[核心设计准则](.agents/docs/2026-11-05-local-global-composable-architecture-design.md)。
 3. **单一归属，不重复实现。**
-   - 每种能力只有一个 owner：数学和随机在 `mlibs.math`，hash 在 `mlibs.hash`，通用动画（取值、曲线、通道、表示、编排、播放、配方）在 `hanim`，渲染在 `xrender`，设备抽象在 `mlibs.rhi`。
+   - 每种能力只有一个 owner：数学和随机在 `mlibs.math`，hash 在 `mlibs.hash`，通用动画（取值、曲线、通道、表示、编排、播放、配方）在 `hanim`，渲染在 `mrender`，设备抽象在 `mlibs.rhi`。
    - 别处发现需要就去补 owner，不复制一份（lint `math`／`hash`／`motion`，以后扩展为归属检查）。
 4. **人与 Agent 双第一优先级。**
    - 先定义 Agent 可发现、可观察、可控制的语义契约（经 openas），再用 GUI／TUI 呈现同一能力。
@@ -53,15 +53,15 @@
 6. **一切皆插件，管线可编排**（D-65、D-66）。核心只规定模型、数据契约和管线；插件按阶段或按批调用，不按节点或像素调用；每类插件都有 CTS、trace 和日志类别。一致性测试统一用 `mlibs.cts` 框架，套件放在契约 owner 处，结果分为通过／失败／不支持（不可用永远不算通过）。控制请求不进入逐像素或逐采样的热循环。
 7. **确定性与可观测。** 纯动画是时间的函数；有状态的部分走显式模拟、checkpoint 和重放；新子系统要有 trace、日志和基准预算（`tests/bench`）。
 8. **体系分五层，每个引擎不输本领域最好的**（D-161–D-177，[底层架构综合方案](.agents/docs/2026-11-12-foundation-omui-xengine-emergent-world-design.md)；按 M6.0–M6.5 落地）。
-   - **五层，项目之间也无环**：mlibs（含 Agent 内核）← 引擎内核（xrender、hanim、`meng/kernel`）← omui ← `meng/game` ← 类型框架与作品（lint `project-dag`）。omui 只是其中一层，可以独立成项目；meng 复用它做 UI。
-   - **各有其主**：游戏归引擎，不依赖 omui，可以无头运行；全部渲染（含图层合成、呈现、离屏与截图）归 xrender，引擎和 omui 都只描述内容；窗口、输入与 UI 归 omui；同时认识引擎和 omui 的只有桥 `meng.ui`。
+   - **五层，项目之间也无环**：mlibs（含 Agent 内核）← 引擎内核（mrender、hanim、`meng/kernel`）← omui ← `meng/game` ← 类型框架与作品（lint `project-dag`）。omui 只是其中一层，可以独立成项目；meng 复用它做 UI。
+   - **各有其主**：游戏归引擎，不依赖 omui，可以无头运行；全部渲染（含图层合成、呈现、离屏与截图）归 mrender，引擎和 omui 都只描述内容；窗口、输入与 UI 归 omui；同时认识引擎和 omui 的只有桥 `meng.ui`。
    - **Agent 原生是底层架构**：每个引擎从数据模型起提供状态、观察、控制、时间、因果、身份与授权六个原语；Agent 内核 `mlibs.agent` 在所有引擎之下；八个原生性质由契约 CTS 在每个主体上检查；新的引擎和模块先写 README 的“Agent 面”，再写实现（lint `agent-surface`）。
    - **物理管运动，化学管状态**：`meng.matter` 的规律只引用性质，不点名材料（lint `matter`）；同一份规则跑在格点、物体、粒子、环境场上；物体只声明材料与状态，表现由配方决定。
    - **世界法则可以发明**（D-180–D-183）：规则系统就是 `meng.matter`，不另起引擎；新法则是数据（性质、通道、规律，含“运动”规律与场），定义可以叠加成包；作品只放置与施加量，不直接把一种材料换成另一种；每个引擎（含 audio）随带自己的标准库，声音与外观一样由事件与性质自然发生。
-   - **CPU 与 GPU 是同一份契约的两条路径**（D-184）：CPU 是确定的参考，GPU 是同一份内核的另一个目标；权威状态只有逐位一致时才上 GPU；射线查询归 `mlibs.geom`、批量追踪归 `mlibs.compute`、光线追踪的渲染归 xrender，不另起引擎；有 GPU 时每个可加速特性的阶梯有明确的最高一级，给出更高的细节与质量，玩法不变。
+   - **CPU 与 GPU 是同一份契约的两条路径**（D-184）：CPU 是确定的参考，GPU 是同一份内核的另一个目标；权威状态只有逐位一致时才上 GPU；射线查询归 `mlibs.geom`、批量追踪归 `mlibs.compute`、光线追踪的渲染归 mrender，不另起引擎；有 GPU 时每个可加速特性的阶梯有明确的最高一级，给出更高的细节与质量，玩法不变。
    - **水平目标**：先求超越，持平是低线（第 10 条，D-185）；没有实测数据的不算持平。
    - **顶尖的独立中间件优先复用**（mwrap），放在唯一 owner 之下、我们的契约之下；Agent 契约与确定性是硬约束，过不了才自研，自研以它的基准为低线。
-   - **两个产品，三层依赖**（D-231–D-233，[顶层设计](.agents/docs/2026-11-18-omui-meng-top-level-design.md)）：omui 与 meng 是两个面向开发者的产品，共用基础层；依赖按 基础层（mlibs、xrender、hanim）← 框架层（omui）← 引擎层（meng）只许向下，测试依赖也算；meng 对外是一个整体加多个可单独依赖与发布的子系统，再加同形的工具链层。先在本仓库里按这条规范做到发布标准，再拆成各自的仓库。
+   - **两个产品，三层依赖**（D-231–D-233，[顶层设计](.agents/docs/2026-11-18-omui-meng-top-level-design.md)）：omui 与 meng 是两个面向开发者的产品，共用基础层；依赖按 基础层（mlibs、mrender、hanim）← 框架层（omui）← 引擎层（meng）只许向下，测试依赖也算；meng 对外是一个整体加多个可单独依赖与发布的子系统，再加同形的工具链层。先在本仓库里按这条规范做到发布标准，再拆成各自的仓库。
    - **暂缓不等于不做**：暂缓项写明当前的替代、预留与重启条件；预留只留接口扩展点、带版本的数据位置、可插的阶段，不预先实现，并且要有现在就在用的消费者。
 
 9. **四级归位**（D-179）：通用基础（性质、规律、内核、契约）→ 通用部件（由基础组合出、带一种效果、换个作品还能用）→ 专用（某一类型或领域）→ 具体应用（作品、关卡、数值）。
@@ -81,11 +81,11 @@
 
 ## 3. 架构与依赖
 
-- **依赖只能向下**（lint `layering`）：`base`（含 `hanim.core`：只依赖标准库和 `mlibs` 的 math、utils、memory、geom）← `gfx`（含 `hanim`、`xrender`）← `content` ← `media` ← `spec` ← `ui`（omui）← `components` ← meng 游戏层（`meng/game`）← 作品。UI 永远不依赖游戏层；`spec/` 只依赖标准库；除 omui 及其上层外，引擎和库都不依赖 UI；`projects/` 中的项目随时可以拆成独立仓库（D-55），所以项目之间也不成环，测试依赖也算（lint `project-dag`：xrender ← `meng/kernel` 的模拟内核 ← hanim ← `meng/kernel` 的媒体内核 ← omui ← `meng/game`）。
+- **依赖只能向下**（lint `layering`）：`base`（含 `hanim.core`：只依赖标准库和 `mlibs` 的 math、utils、memory、geom）← `gfx`（含 `hanim`、`mrender`）← `content` ← `media` ← `spec` ← `ui`（omui）← `components` ← meng 游戏层（`meng/game`）← 作品。UI 永远不依赖游戏层；`spec/` 只依赖标准库；除 omui 及其上层外，引擎和库都不依赖 UI；`projects/` 中的项目随时可以拆成独立仓库（D-55），所以项目之间也不成环，测试依赖也算（lint `project-dag`：mrender ← `meng/kernel` 的模拟内核 ← hanim ← `meng/kernel` 的媒体内核 ← omui ← `meng/game`）。
 - **名字表示归属，目录表示分组，层级由 lint 的“路径 → 层”映射表判定**：一个项目的包可以跨层（例如 `hanim.core` 在 base 层，`hanim` 在 gfx 层）。
 - **动画**：组件不写动画（D-93，lint `motion`），只画状态和可选的部件名；变化怎么动由节点的 motion 槽和风格包配方决定，由 hanim 统一求值。UI 框架负责身份、语义、呈现和命中一致性。每个宿主只有一个 hanim Engine。表示与选择策略见[多表示方案](.agents/docs/2026-11-05-hanim-representations-selection-policy-design.md)。画布相机飞行这类导航运动是例外，需在行内写 `MOTION-OK:` 和理由。
 - **界面全平台自绘**（D-140）：窗口和系统集成面（边框、菜单栏、托盘、通知、文件对话框）可选原生或自绘，界面内容一律自绘；webview 只作可选的外部表面组件，不做 Web 前端模式（D-141）。
-- **渲染器只写一次**：xrender 的渲染图承载所有渲染特性（vector、effect，以后的 mesh、particle）；GPU 路径只依赖 `mlibs.rhi` 接口，后端（SDL_GPU、WebGPU、WebGL）是 xrender 的实现，由宿主注入；模拟等计算只依赖接口，不依赖 xrender。
+- **渲染器只写一次**：mrender 的渲染图承载所有渲染特性（vector、effect，以后的 mesh、particle）；GPU 路径只依赖 `mlibs.rhi` 接口，后端（SDL_GPU、WebGPU、WebGL）是 mrender 的实现，由宿主注入；模拟等计算只依赖接口，不依赖 mrender。
 - **标准**：`spec/` 是 [`openlifa/openmui`](https://github.com/openlifa/openmui) 子模块，openas 来自 [`openlifa/openas`](https://github.com/openlifa/openas)。两个标准的设计分支已合入各自的 main（2026-11-18：openmui 0.4.1、openas 0.2.1）；改标准就在标准仓库开一个小 PR（一次增补一个，CI 通过后合入并打补丁版本的 tag，非增补的改动升次版本号），提交人为 `Sunrisepeak <speakshen@outlook.com>`，带 `-s`；代码 Apache-2.0，规范文本 CC BY-SA 4.0。actor、效果、信封、授权以 openas 为准，运行时用 `openas::decide` 判定请求。
 
 ## 4. 代码规范
@@ -146,7 +146,7 @@
 - **够不上自己标准的模块照样进发布，标为实验**（D-199）：顶级目标保留；门槛是一级平台能构建、一条无头验证、README 的“实验”节写明目标、差距、局限与毕业条件。稳定级不依赖预览与实验级（lint `maturity`）。
 - **验证状态如实标注**（D-201）：每个平台的每项能力是 实机／软件／未验证／不支持 之一，记在 `docs/release.platforms.xdef.json`；没有实机的按契约把理论上能做的做好，标“未验证”——它不算通过、不算红、不作证据、不挡发布，标之前先查根因。
 - **开发策略**（D-200）：核心功能优先；检查点的验证放后台、只跑触及的范围；**CI 的全量通过只在阶段节点与发布候选上验证**（按需发起、后台取回，推送不触发矩阵，D-248），节点之间以本机验证为准；子 Agent 最多一个；上游构建工具的故障挡住全量时用替代跑法（成员与用例的全集不变）并写明原因与恢复条件，门不改（D-210）。一级平台：Linux x64、Web、macOS arm64、Windows x64；二级：Linux arm64、Android（D-191）。
-- **推进与记录**（D-202）：功能沿切片纵向推进（3D 世界 → 2D 世界 → 应用 → Agent → 实验模块），收口沿层次横向自下而上（mlibs → xrender → hanim → omui → meng → 作品）；节点记九个计数器（第九个是跨层接口改动数：一次提交同时改了一层的导出接口和另一层的成员，D-231）。STATUS 按两波分节，第二波成员的失败照记照修、不计入第一波的门；一个任务在 STATUS 只有一行（≤ 600 字符，带证据指针），分几步提交时各步写在提交正文；推送只是同步与备份，随时可推（只触发 lint），开新任务不以 CI 对账为前置（D-248 取代 D-210 的这一条）；另一个 worktree 的提交在任务结束时合回（D-210）；提交主题行 ≤ 100 字符；节点记录 ≤ 12 行；对外的数字与“领先”必须在声明台账 `docs/release.claims.xdef.json` 里有证据（D-193）。
+- **推进与记录**（D-202）：功能沿切片纵向推进（3D 世界 → 2D 世界 → 应用 → Agent → 实验模块），收口沿层次横向自下而上（mlibs → mrender → hanim → omui → meng → 作品）；节点记九个计数器（第九个是跨层接口改动数：一次提交同时改了一层的导出接口和另一层的成员，D-231）。STATUS 按两波分节，第二波成员的失败照记照修、不计入第一波的门；一个任务在 STATUS 只有一行（≤ 600 字符，带证据指针），分几步提交时各步写在提交正文；推送只是同步与备份，随时可推（只触发 lint），开新任务不以 CI 对账为前置（D-248 取代 D-210 的这一条）；另一个 worktree 的提交在任务结束时合回（D-210）；提交主题行 ≤ 100 字符；节点记录 ≤ 12 行；对外的数字与“领先”必须在声明台账 `docs/release.claims.xdef.json` 里有证据（D-193）。
 - **发布分两波**（D-222–D-229）：第一波是 omui 与基础层，以品质为目标；第二波是 meng。第一波另加三条门：体积与内存的预算、并排基准没有“落后”、默认集合之外的组合各有一条冒烟。任务与依赖见[实施方案](.agents/docs/2026-11-18-omui-meng-implementation-plan.md)；依赖三层只许向下，由 lint `project-dag` 按各项目身份里的 `tier` 检查（测试依赖与 feature 也算）。
 - **状态按三类写**（D-219）：已做；确定可做、未做（写明等什么）；需要设计或有风险。没做不等于做不了。
 - **发布门**全部机械可查（方案 §8）：一级平台连续两轮全绿、lint 0、收口清单、D-187 实测、四个开发者体验数（D-195）、三个 Agent 冷启动任务（D-192）、声明重跑、模板与例子从发布物构建。

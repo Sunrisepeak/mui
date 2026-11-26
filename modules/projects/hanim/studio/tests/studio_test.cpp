@@ -4,7 +4,7 @@
 // in its numbers and its pixels, not only its ends.
 import std;
 import hanim.studio;
-import xrender.vector.svg;
+import mrender.vector.svg;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -79,10 +79,10 @@ UTest cases{"hanim.studio", [] {
         auto opened = studio::Studio::open(*studio::read(example()));
         if (!opened) { expect(false) << studio::to_text(opened.error()); return; };
         const auto draw = [&](double time) {
-            xrender::raster::Surface surface(480, 320);
+            mrender::raster::Surface surface(480, 320);
             const auto drawn = opened->render(hanim::seconds(time), surface);
             expect(drawn.has_value()) << (drawn ? "" : studio::to_text(drawn.error()));
-            return std::vector<xrender::raster::Rgba8>(surface.pixels().begin(), surface.pixels().end());
+            return std::vector<mrender::raster::Rgba8>(surface.pixels().begin(), surface.pixels().end());
         };
         const double end_time = opened->duration().count();
         const auto start = draw(0), middle = draw(1.0), end = draw(end_time), repeated = draw(1.0);
@@ -126,7 +126,7 @@ UTest cases{"hanim.studio", [] {
         expect(std::abs(highest - 242) < .01) << std::format("d bobs 8 up: {}", highest);
         const auto end = *opened->state(opened->duration());
         expect(find(end, "c").opacity < .01 && std::abs(find(end, "d").position.y - 250) < 1e-6) << "c faded out; d back where it was";
-        xrender::raster::Surface surface(480, 320);
+        mrender::raster::Surface surface(480, 320);
         for (const double t : {0.1, in, swapped, opened->duration().count()}) expect(opened->render(hanim::seconds(t), surface).has_value()) << "drawn";
         // An object whose first step is an entrance is not on the stage before it; one standing still is.
         const auto later = studio::read(R"({"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff", "at": [10, 10]},
@@ -170,7 +170,7 @@ UTest cases{"hanim.studio", [] {
             if (!opened) continue;
             const double length = opened->duration().count();
             expect(std::isfinite(length) && length > .3 && length < 10) << std::format("{} lasts {} s", name, length);
-            xrender::raster::Surface a(static_cast<int>(document->width), static_cast<int>(document->height)), b = a, c = a;
+            mrender::raster::Surface a(static_cast<int>(document->width), static_cast<int>(document->height)), b = a, c = a;
             expect(opened->render(hanim::seconds(length * .1), a).has_value() && opened->render(hanim::seconds(length * .5), b).has_value() &&
                       opened->render(hanim::seconds(length), c).has_value()) << std::format("{} draws", name);
             expect(!std::ranges::equal(a.bytes(), b.bytes()) || !std::ranges::equal(b.bytes(), c.bytes())) << std::format("{} moves", name);
@@ -178,8 +178,8 @@ UTest cases{"hanim.studio", [] {
             // effect), trimmed strokes — nothing left as pixels.
             for (const double at : {0.0, length * .25, length * .5, length * .75, length}) {
                 const auto list = opened->display(hanim::seconds(at));
-                const auto picture = list ? xrender::svg::write(**list, {}, {.view = {0, 0, static_cast<float>(document->width), static_cast<float>(document->height)}})
-                                          : std::expected<xrender::svg::Picture, std::string>(std::unexpected("no list"));
+                const auto picture = list ? mrender::svg::write(**list, {}, {.view = {0, 0, static_cast<float>(document->width), static_cast<float>(document->height)}})
+                                          : std::expected<mrender::svg::Picture, std::string>(std::unexpected("no list"));
                 expect(picture && picture->report.islands.empty() && picture->report.unencoded == 0) << std::format("{} at {:.2f} s as SVG: {}", name, at, picture ? std::format("{} islands", picture->report.islands.size()) : picture.error());
             }
         }
@@ -241,7 +241,7 @@ UTest cases{"hanim.studio", [] {
         auto fewer = studio::Studio::open(*(*variants)[1].document);
         auto more = studio::Studio::open(*(*variants)[2].document);
         if (!fewer || !more) return;
-        xrender::raster::Surface first(static_cast<int>(fewer->document().width), static_cast<int>(fewer->document().height)), second(first.width(), first.height());
+        mrender::raster::Surface first(static_cast<int>(fewer->document().width), static_cast<int>(fewer->document().height)), second(first.width(), first.height());
         expect(fewer->render(hanim::seconds(0), first) && more->render(hanim::seconds(0), second) && first.hash() == second.hash()) << "the same start";
         expect(fewer->render(hanim::seconds(0.7), first) && more->render(hanim::seconds(0.7), second) && first.hash() != second.hash()) << "different bounces";
         // A key the step does not have yet is added; a pointer to nowhere, or not JSON, refuses them all.

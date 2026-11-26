@@ -25,7 +25,7 @@ public:
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
 
     ActResult increment(ActContext& ctx);
     ActResult decrement(ActContext& ctx);

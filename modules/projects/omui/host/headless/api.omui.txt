@@ -3,7 +3,7 @@ export import omui.core;
 export import omui.view;
 export import omui.semantic;
 export import omui.agent;
-export import xrender.raster;
+export import mrender.raster;
 export import mlibs.image;
 namespace omui {
   enum class HeadlessLevel : std::uint8_t { semantics, layout, pixels, session, };
@@ -48,7 +48,7 @@ namespace omui {
     void type(std::string_view text);
     void scroll(Point at, Point delta, bool precise = true);
     void focus_next(bool backward = false);
-    [[nodiscard]] const xrender::raster::Surface& pixels();
+    [[nodiscard]] const mrender::raster::Surface& pixels();
     [[nodiscard]] std::expected<std::vector<std::uint8_t>, ViewFailure> png(std::optional<Rect> region = {…});
     [[nodiscard]] std::expected<std::vector<std::uint8_t>, ViewFailure> framed_png(Rect frame, std::string_view fixed = {…});
     std::expected<void, ViewFailure> save_png(const std::filesystem::path& file, std::optional<Rect> region = {…});

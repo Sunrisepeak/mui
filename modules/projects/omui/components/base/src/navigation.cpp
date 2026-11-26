@@ -14,13 +14,13 @@ constexpr float slot = 32, slot_gap = 4;
 // A chevron pointing left (back) or right (on), centred at c.
 void arrowhead(PaintContext& ctx, Point c, bool right, Color color) {
     const float s = 5, d = right ? 1.0f : -1.0f;
-    xrender::Path p;
+    mrender::Path p;
     p.move_to({c.x - d * s / 2, c.y - s}).line_to({c.x + d * s / 2, c.y}).line_to({c.x - d * s / 2, c.y + s});
-    xrender::StrokeStyle st;
+    mrender::StrokeStyle st;
     st.width = 1.75f;
-    st.cap = xrender::LineCap::round;
-    st.join = xrender::LineJoin::round;
-    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
+    st.cap = mrender::LineCap::round;
+    st.join = mrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, mrender::Paint::solid(color));
 }
 
 // A part's box as the semantic tree states bounds: in the window (the node's own box, then the part in it).
@@ -89,7 +89,7 @@ void Breadcrumb::paint(PaintContext& ctx) const {
         at_[i] = r;
         crumbs_[i].paint(ctx, {x + crumb_pad, r.y + crumb_pad}, c);
         // A link looks like one where the pointer is over it: underlined.
-        if (!current && hover_ == static_cast<int>(i)) ctx.list.fill_rect({r.x + crumb_pad, r.bottom() - crumb_pad + 1, std::ceil(t.width), 1}, c, xrender::PixelAlign::device);
+        if (!current && hover_ == static_cast<int>(i)) ctx.list.fill_rect({r.x + crumb_pad, r.bottom() - crumb_pad + 1, std::ceil(t.width), 1}, c, mrender::PixelAlign::device);
         x = r.right();
     }
 }
@@ -227,9 +227,9 @@ void Pagination::paint(PaintContext& ctx) const {
         const CornerRadii round = CornerRadii::all(th.corner("medium", 8)).fitted(r.size());
         const bool off = (v == 0 && cur <= 1) || (v == -1 && cur >= n);
         if (v == cur) {
-            ctx.list.fill_round_rect(r, round, xrender::Paint::solid(th.color("accent")));
+            ctx.list.fill_round_rect(r, round, mrender::Paint::solid(th.color("accent")));
         } else if (v != -2 && !off && hover_ == v) {
-            ctx.list.fill_round_rect(r, round, xrender::Paint::solid(th.color("surface_variant")));
+            ctx.list.fill_round_rect(r, round, mrender::Paint::solid(th.color("surface_variant")));
         }
         if (v == 0 || v == -1) {
             arrowhead(ctx, r.center(), v == -1, off ? th.color("text_disabled") : th.color("text_muted"));

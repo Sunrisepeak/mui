@@ -48,7 +48,7 @@ struct PictureOptions {
 
 // Frames of a flame, baked from the rich form: each an image of light (added over the field), `cells` a side.
 struct Flipbook {
-    std::vector<xrender::ImageRef> frames;
+    std::vector<mrender::ImageRef> frames;
     float cells_wide = 0, cells_high = 0;   // what a frame covers, in cells
     float centre_x = 0, centre_y = 0;       // where its light comes from, in cells from the frame's corner: put over what emits
     int every = 1;                          // world frames a baked frame is shown for
@@ -57,7 +57,7 @@ struct Flipbook {
 
 class WorldPicture {
 public:
-    [[nodiscard]] static std::expected<WorldPicture, std::string> make(xrender::ImageStore& store, const meng::matter::Program& program, const meng::matter::Look& look,
+    [[nodiscard]] static std::expected<WorldPicture, std::string> make(mrender::ImageStore& store, const meng::matter::Program& program, const meng::matter::Look& look,
                                                                        Shape shape, PictureOptions options = {});
     WorldPicture(WorldPicture&&) noexcept;
     WorldPicture& operator=(WorldPicture&&) noexcept;
@@ -84,7 +84,7 @@ public:
 
     // A frame: the world read, the step's own work done (the layer stepped, the images updated).
     void show(const rigid::MatterWorld& world);
-    void draw(xrender::DisplayList& list, mlibs::geom::Rect dest) const;
+    void draw(mrender::DisplayList& list, mlibs::geom::Rect dest) const;
     // The cells shown (the world's, with the layer's own over them), for whoever draws more over the field.
     [[nodiscard]] std::span<const std::uint32_t> shown() const noexcept;
     [[nodiscard]] const FieldPresenter& view() const noexcept;

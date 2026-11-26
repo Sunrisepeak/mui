@@ -4,8 +4,8 @@
 import std;
 import hanim.core;
 import mlibs.geom;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 import hanim.visual;
 import mcpplibs.mtest;
 
@@ -33,14 +33,14 @@ struct Names {
 };
 
 // A node 1 holding a rounded rectangle at `x`, coloured `c`, and (node 2) a label.
-xrender::DisplayList card(float x, Color c, std::span<const xrender::Glyph> glyphs = {}) {
-    xrender::DisplayList l;
+mrender::DisplayList card(float x, Color c, std::span<const mrender::Glyph> glyphs = {}) {
+    mrender::DisplayList l;
     l.begin_node(1);
     l.push_transform(Affine::translate(10, 10));
-    l.fill_round_rect({x, 0, 40, 20}, mlibs::geom::CornerRadii::all(6), xrender::Paint::solid(c));
+    l.fill_round_rect({x, 0, 40, 20}, mlibs::geom::CornerRadii::all(6), mrender::Paint::solid(c));
     if (!glyphs.empty()) {
         l.begin_node(2);
-        l.draw_glyphs(xrender::FontRef{1}, 16, {x, 40}, glyphs, xrender::Paint::solid(Color::hex(0x111827)));
+        l.draw_glyphs(mrender::FontRef{1}, 16, {x, 40}, glyphs, mrender::Paint::solid(Color::hex(0x111827)));
         l.end_node();
     }
     l.pop_transform();
@@ -48,32 +48,32 @@ xrender::DisplayList card(float x, Color c, std::span<const xrender::Glyph> glyp
     return l;
 }
 
-const xrender::FillRoundRect* first_round(const xrender::DisplayList& l) {
+const mrender::FillRoundRect* first_round(const mrender::DisplayList& l) {
     for (const auto& c : l.commands())
-        if (const auto* f = std::get_if<xrender::FillRoundRect>(&c)) return f;
+        if (const auto* f = std::get_if<mrender::FillRoundRect>(&c)) return f;
     return nullptr;
 }
 
 // Where the list draws its first rounded rectangle, through the transforms around it.
-Rect drawn_rect(const xrender::DisplayList& l) {
+Rect drawn_rect(const mrender::DisplayList& l) {
     std::vector<Affine> t{Affine{}};
     for (const auto& c : l.commands()) {
-        if (const auto* p = std::get_if<xrender::PushTransform>(&c)) t.push_back(t.back() * p->transform);
-        else if (std::holds_alternative<xrender::PopTransform>(c)) t.pop_back();
-        else if (const auto* f = std::get_if<xrender::FillRoundRect>(&c)) return t.back().map(f->rect);
+        if (const auto* p = std::get_if<mrender::PushTransform>(&c)) t.push_back(t.back() * p->transform);
+        else if (std::holds_alternative<mrender::PopTransform>(c)) t.pop_back();
+        else if (const auto* f = std::get_if<mrender::FillRoundRect>(&c)) return t.back().map(f->rect);
     }
     return {};
 }
 
-xrender::raster::Surface pixels(const xrender::DisplayList& l) {
-    xrender::raster::Surface s(120, 80);
-    xrender::CpuRenderer cpu;
-    xrender::ImageStore images;
+mrender::raster::Surface pixels(const mrender::DisplayList& l) {
+    mrender::raster::Surface s(120, 80);
+    mrender::CpuRenderer cpu;
+    mrender::ImageStore images;
     (void)cpu.render(l, s, {&images, nullptr}, {.scale = 1, .background = Color::hex(0xffffff)});
     return s;
 }
 
-bool same(const xrender::raster::Surface& a, const xrender::raster::Surface& b) {
+bool same(const mrender::raster::Surface& a, const mrender::raster::Surface& b) {
     if (a.width() != b.width() || a.height() != b.height()) return false;
     for (int y = 0; y < a.height(); ++y)
         for (int x = 0; x < a.width(); ++x)
@@ -81,8 +81,8 @@ bool same(const xrender::raster::Surface& a, const xrender::raster::Surface& b) 
     return true;
 }
 
-std::vector<xrender::Glyph> run(std::initializer_list<std::uint32_t> ids) {
-    std::vector<xrender::Glyph> g;
+std::vector<mrender::Glyph> run(std::initializer_list<std::uint32_t> ids) {
+    std::vector<mrender::Glyph> g;
     float x = 0;
     for (const std::uint32_t id : ids) g.push_back({.id = id, .position = {x, 0}}), x += 9;
     return g;
@@ -98,34 +98,34 @@ mo::Options linear(double seconds) {
 
 // A word of two strokes (node 3), or a picture of nine squares in one fill (node 4), inside node 1 — the site's
 // logo becoming Mui, small.
-xrender::DisplayList word() {
-    xrender::DisplayList l;
+mrender::DisplayList word() {
+    mrender::DisplayList l;
     l.begin_node(1);
     l.begin_node(3);
-    xrender::Path strokes;
+    mrender::Path strokes;
     strokes.move_to({10, 20}).line_to({90, 20}).move_to({10, 50}).line_to({90, 50});
-    l.stroke_path(strokes, {.width = 4}, xrender::Paint::solid(Color::hex(0x1e1b4b)));
+    l.stroke_path(strokes, {.width = 4}, mrender::Paint::solid(Color::hex(0x1e1b4b)));
     l.end_node();
     l.end_node();
     return l;
 }
-xrender::DisplayList picture() {
-    xrender::DisplayList l;
+mrender::DisplayList picture() {
+    mrender::DisplayList l;
     l.begin_node(1);
     l.begin_node(4);
-    xrender::Path squares;
+    mrender::Path squares;
     for (int row = 0; row < 3; ++row)
         for (int column = 0; column < 3; ++column) squares.add_rect({40.0f + 8 * column, 22.0f + 8 * row, 8, 8});
-    l.fill_path(squares, xrender::FillRule::nonzero, xrender::Paint::solid(Color::hex(0x4f46e5)));
+    l.fill_path(squares, mrender::FillRule::nonzero, mrender::Paint::solid(Color::hex(0x4f46e5)));
     l.end_node();
     l.end_node();
     return l;
 }
 // The fills a frame draws, and how many contours each has.
-std::vector<std::size_t> fills(const xrender::DisplayList& l) {
+std::vector<std::size_t> fills(const mrender::DisplayList& l) {
     std::vector<std::size_t> out;
     for (const auto& c : l.commands())
-        if (const auto* f = std::get_if<xrender::FillPath>(&c)) out.push_back(std::ranges::count(f->path.verbs, mlibs::geom::PathVerb::move));
+        if (const auto* f = std::get_if<mrender::FillPath>(&c)) out.push_back(std::ranges::count(f->path.verbs, mlibs::geom::PathVerb::move));
     return out;
 }
 
@@ -134,13 +134,13 @@ std::vector<std::size_t> fills(const xrender::DisplayList& l) {
 static UTest cases{"ui.motion", [] {
 
     "matter: each drawable a piece with its node, its place among the node's pieces of its class, its transform, clip and opacity"_test = [] {
-        xrender::DisplayList l;
+        mrender::DisplayList l;
         l.begin_node(7);
         l.push_transform(Affine::translate(5, 6));
         l.fill_rect({0, 0, 10, 10}, Color::hex(0xff0000));
         l.push_clip(Rect{0, 0, 50, 50});
         l.push_layer(0.5f);
-        l.fill_round_rect({1, 1, 4, 4}, mlibs::geom::CornerRadii::all(2), xrender::Paint::solid(Color::hex(0x00ff00)));
+        l.fill_round_rect({1, 1, 4, 4}, mlibs::geom::CornerRadii::all(2), mrender::Paint::solid(Color::hex(0x00ff00)));
         l.begin_node(8);
         l.fill_rect({2, 2, 3, 3}, Color::hex(0x0000ff));
         l.end_node();
@@ -165,12 +165,12 @@ static UTest cases{"ui.motion", [] {
     };
 
     "matter: a style's effect layer around everything is the wrapper; one inside is a group; a nested root's range is drawn whole"_test = [] {
-        xrender::DisplayList l;
+        mrender::DisplayList l;
         const std::array<float, 2> params{0.3f, 0.7f};
         l.begin_node(1);
-        l.push_layer(1, xrender::BlendMode::normal, xrender::EffectRef{3}, params, {0, 0, 50, 50});
+        l.push_layer(1, mrender::BlendMode::normal, mrender::EffectRef{3}, params, {0, 0, 50, 50});
         l.fill_rect({0, 0, 50, 50}, Color::hex(0x222222));
-        l.push_layer(1, xrender::BlendMode::screen);
+        l.push_layer(1, mrender::BlendMode::screen);
         l.fill_rect({1, 1, 2, 2}, Color::hex(0xffffff));
         l.pop_layer();
         l.begin_node(9);
@@ -196,7 +196,7 @@ static UTest cases{"ui.motion", [] {
         expect(eq(m.stats().matched, std::size_t{1}));
         expect(eq(m.end(), 3.0));
         auto at = [&](double t) {
-            xrender::DisplayList out;
+            mrender::DisplayList out;
             m.draw(t, out);
             expect(out.balanced()) << "pushes and pops balanced";
             return out;
@@ -221,11 +221,11 @@ static UTest cases{"ui.motion", [] {
         expect(eq(m.stats().glyphs_kept, std::size_t{4}));
         expect(eq(m.stats().glyphs_new, std::size_t{2}));
         expect(eq(m.stats().glyphs_gone, std::size_t{0}));
-        xrender::DisplayList out;
+        mrender::DisplayList out;
         m.draw(0.2, out);
-        const xrender::DrawGlyphs* text = nullptr;
+        const mrender::DrawGlyphs* text = nullptr;
         for (const auto& c : out.commands())
-            if (const auto* g = std::get_if<xrender::DrawGlyphs>(&c)) text = g;
+            if (const auto* g = std::get_if<mrender::DrawGlyphs>(&c)) text = g;
         expect(text && text->styles.size() == 6) << "the second run drawn with a style a glyph";
         if (text && text->styles.size() == 6) {
             expect(text->styles[0].opacity == 1 && text->styles[3].opacity == 1) << "kept glyphs whole";
@@ -258,7 +258,7 @@ static UTest cases{"ui.motion", [] {
 
     "what only one drawing has fades: out by fade_out, in from fade_in; staggered by distance, the far ones later"_test = [] {
         Names names;
-        xrender::DisplayList a, b;
+        mrender::DisplayList a, b;
         a.begin_node(1);
         a.fill_rect({0, 0, 10, 10}, Color::hex(0xff0000));
         a.end_node();
@@ -273,11 +273,11 @@ static UTest cases{"ui.motion", [] {
         mo::Morph m(mo::Matter::extract(a, names.resolver()), mo::Matter::extract(b, names.resolver()), o, 0);
         expect(eq(m.stats().to_only, std::size_t{2}));
         expect(eq(m.end(), 1.2));
-        xrender::DisplayList out;
+        mrender::DisplayList out;
         m.draw(0.2, out);
         float faint = 1;
         for (const auto& c : out.commands())
-            if (const auto* f = std::get_if<xrender::FillRect>(&c); f && f->paint.color.g > 0.9f) faint = f->paint.color.a;
+            if (const auto* f = std::get_if<mrender::FillRect>(&c); f && f->paint.color.g > 0.9f) faint = f->paint.color.a;
         expect(faint == 1) << "the new piece is not drawn yet (its alpha would be > 0)";
     };
 
@@ -290,7 +290,7 @@ static UTest cases{"ui.motion", [] {
         expect(now.nodes().size() == 2 && now.nodes()[0].key == "n1" && now.nodes()[1].key == "n2") << "the nodes' keys kept";
         mo::Morph next(m.snapshot(0.5), mo::Matter::extract(card(-20, Color::hex(0xff0000), run({1, 2})), names.resolver()), linear(1), 0.5);
         expect(eq(next.stats().matched, std::size_t{2}));
-        xrender::DisplayList out;
+        mrender::DisplayList out;
         next.draw(0.5, out);
         expect(eq(drawn_rect(out), Rect{40, 10, 40, 20}), std::source_location::current());
     };
@@ -308,42 +308,42 @@ static UTest cases{"ui.motion", [] {
     "a style's effect on the node stays around the moving pieces, its numbers between the two"_test = [] {
         Names names;
         auto glow = [](float x, float strength) {
-            xrender::DisplayList l;
+            mrender::DisplayList l;
             const std::array<float, 1> p{strength};
             l.begin_node(1);
-            l.push_layer(1, xrender::BlendMode::normal, xrender::EffectRef{5}, p, {0, 0, 100, 40});
+            l.push_layer(1, mrender::BlendMode::normal, mrender::EffectRef{5}, p, {0, 0, 100, 40});
             l.fill_rect({x, 0, 10, 10}, Color::hex(0x22d3ee));
             l.pop_layer();
             l.end_node();
             return l;
         };
         mo::Morph m(mo::Matter::extract(glow(0, 0.2f), names.resolver()), mo::Matter::extract(glow(40, 1.0f), names.resolver()), linear(1), 0);
-        xrender::DisplayList out;
+        mrender::DisplayList out;
         m.draw(0.5, out);
-        const xrender::PushLayer* layer = nullptr;
+        const mrender::PushLayer* layer = nullptr;
         for (const auto& c : out.commands())
-            if (const auto* p = std::get_if<xrender::PushLayer>(&c); p && p->effect.id == 5) layer = p;
+            if (const auto* p = std::get_if<mrender::PushLayer>(&c); p && p->effect.id == 5) layer = p;
         expect(layer && layer->params.size() == 1 && std::abs(layer->params[0] - 0.6f) < 1e-5f) << "the effect's strength half way";
     };
 
     "content sized effect groups retain a measured envelope through morph and snapshots"_test = [] {
-        Names names;const auto blur=*xrender::effects().find("blur");
-        auto scene=[&](float x){xrender::DisplayList list;list.begin_node(1);
+        Names names;const auto blur=*mrender::effects().find("blur");
+        auto scene=[&](float x){mrender::DisplayList list;list.begin_node(1);
             list.fill_rect({0,0,3,3},Color::white());
             list.push_transform(Affine::translate(x,10));
-            const auto values=xrender::effects().params(blur,std::array{std::pair<std::string_view,float>{"radius",2}});
-            list.push_layer(1,xrender::BlendMode::normal,blur,values,{}, {},xrender::LayerBoundsMode::content);
+            const auto values=mrender::effects().params(blur,std::array{std::pair<std::string_view,float>{"radius",2}});
+            list.push_layer(1,mrender::BlendMode::normal,blur,values,{}, {},mrender::LayerBoundsMode::content);
             list.fill_rect({10,10,30,20},Color::white());list.pop_layer();list.pop_transform();list.end_node();return list;};
         auto a=scene(10),b=scene(40);auto source=mo::Matter::extract(a,names.resolver());
         const auto group=std::ranges::find(source.pieces(),mo::PieceClass::group,&mo::Piece::cls);
         expect(group!=source.pieces().end() && group->bounds.width>=30 && group->bounds.height>=20);
         mo::Morph morph(std::move(source),mo::Matter::extract(b,names.resolver()),linear(1),0);
-        auto pixels=[](const xrender::DisplayList& list){xrender::raster::Surface surface(120,80);xrender::CpuRenderer cpu;
+        auto pixels=[](const mrender::DisplayList& list){mrender::raster::Surface surface(120,80);mrender::CpuRenderer cpu;
             expect(cpu.render(list,surface,{}).effects_skipped==0);return surface.hash();};
         for(double at:{0.,.25,.5,.75,1.}) {
-            xrender::DisplayList frame;morph.draw(at,frame);
-            expect(std::ranges::any_of(frame.commands(),[](const auto& command){const auto* layer=std::get_if<xrender::PushLayer>(&command);
-                return layer && layer->bounds_mode==xrender::LayerBoundsMode::content;}));
+            mrender::DisplayList frame;morph.draw(at,frame);
+            expect(std::ranges::any_of(frame.commands(),[](const auto& command){const auto* layer=std::get_if<mrender::PushLayer>(&command);
+                return layer && layer->bounds_mode==mrender::LayerBoundsMode::content;}));
             if(at==0)expect(pixels(frame)==pixels(a));if(at==1)expect(pixels(frame)==pixels(b));
             auto snapshot=mo::Matter::extract(frame,names.resolver());expect(!snapshot.pieces().empty());
         }
@@ -355,7 +355,7 @@ static UTest cases{"ui.motion", [] {
         mo::Morph m(mo::Matter::extract(word(), names.resolver()), mo::Matter::extract(picture(), names.resolver()), gather, 0);
         expect(eq(m.stats().from_only, std::size_t{1}) && eq(m.stats().to_only, std::size_t{1}));
         const auto at = [&](const mo::Morph& morph, double t) {
-            xrender::DisplayList out;
+            mrender::DisplayList out;
             morph.draw(t, out);
             expect(out.balanced());
             return out;
@@ -372,7 +372,7 @@ static UTest cases{"ui.motion", [] {
         // The strokes unwritten as the squares leave them: half-way, shorter than the word's.
         bool trimmed = false;
         for (const auto& c : at(m, 0.5).commands())
-            if (const auto* s = std::get_if<xrender::StrokePath>(&c)) trimmed = s->style.trim_end < 1;
+            if (const auto* s = std::get_if<mrender::StrokePath>(&c)) trimmed = s->style.trim_end < 1;
         expect(trimmed) << "the word unwritten";
         // And back: the picture's squares go into the strokes, which are written; at rest, the word.
         mo::Morph back(mo::Matter::extract(picture(), names.resolver()), mo::Matter::extract(word(), names.resolver()), gather, 0);

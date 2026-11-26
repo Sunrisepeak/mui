@@ -5,8 +5,8 @@ import std;
 import mcpplibs.os;
 import omui.core;
 import omui.view;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import omui.semantic;
 import mlibs.text;
 import mlibs.hash;
@@ -57,9 +57,9 @@ std::optional<std::pair<Kind, std::string>> next_message(std::string& pending) {
 }
 
 // Every image a list refers to: drawn, painted with, or a material's normal map.
-void images_of(const xrender::DisplayList& list, std::set<std::uint32_t>& out) {
-    const auto paint = [&](const xrender::Paint& p, auto& self) -> void {
-        if (p.kind == xrender::Paint::Kind::image || p.kind == xrender::Paint::Kind::image_mask) out.insert(p.image.id);
+void images_of(const mrender::DisplayList& list, std::set<std::uint32_t>& out) {
+    const auto paint = [&](const mrender::Paint& p, auto& self) -> void {
+        if (p.kind == mrender::Paint::Kind::image || p.kind == mrender::Paint::Kind::image_mask) out.insert(p.image.id);
         if (p.material && p.material->normal.id) out.insert(p.material->normal.id);
         for (const auto& term : p.mix) self(term.paint, self);
     };
@@ -68,7 +68,7 @@ void images_of(const xrender::DisplayList& list, std::set<std::uint32_t>& out) {
             [&](const auto& c) {
                 using T = std::decay_t<decltype(c)>;
                 if constexpr (requires { c.paint; }) paint(c.paint, paint);
-                if constexpr (std::same_as<T, xrender::DrawImage>) out.insert(c.image.id);
+                if constexpr (std::same_as<T, mrender::DrawImage>) out.insert(c.image.id);
             },
             command);
     out.erase(0);
@@ -110,7 +110,7 @@ bool Presenter::send(const FrameOutput& frame) {
     images_of(*frame.list, wanted);
     std::string out;
     for (const std::uint32_t id : wanted) {
-        const xrender::ImageRef ref{id};
+        const mrender::ImageRef ref{id};
         const auto revision = runtime_.images().revision(ref);
         if (const auto known = sent_.find(id); known != sent_.end() && known->second == revision) continue;
         const auto* surface = runtime_.images().get(ref);
@@ -132,7 +132,7 @@ bool Presenter::send(const FrameOutput& frame) {
     read_available();  // what the host has said it has
     std::set<std::uint32_t> described_now;
     for (const auto& command : frame.list->commands())
-        if (const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command);
+        if (const auto* glyphs = std::get_if<mrender::DrawGlyphs>(&command);
             glyphs && glyphs->font.id && !fonts_sent_.contains(glyphs->font.id) && described_now.insert(glyphs->font.id).second) {
             if (host_said_) fonts_sent_.insert(glyphs->font.id);
             const mlibs::text::FontRef font{glyphs->font.id};
@@ -154,7 +154,7 @@ bool Presenter::send(const FrameOutput& frame) {
             described.push_back(static_cast<char>(runtime_.fonts().slant_of(font)));
             out += message(Kind::font, described);
         }
-    out += message(Kind::frame, xrender::encode(*frame.list));
+    out += message(Kind::frame, mrender::encode(*frame.list));
     return connection_.write(out).has_value();
 }
 
@@ -235,7 +235,7 @@ Presentation::Presentation(mcpplibs::os::ipc::connection connection, mlibs::text
     (void)connection_.write(message(Kind::faces_known, known));
 }
 
-const xrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait) {
+const mrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait) {
     const auto until = std::chrono::steady_clock::now() + wait;
     while (!gone_) {
         while (auto next = next_message(pending_)) {
@@ -245,7 +245,7 @@ const xrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait
                 const auto revision = get(bytes, 4, 8);
                 const auto width = static_cast<int>(get(bytes, 12, 4)), height = static_cast<int>(get(bytes, 16, 4));
                 if (bytes.size() != 20 + static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4) continue;
-                auto surface = std::make_shared<xrender::raster::Surface>(width, height);
+                auto surface = std::make_shared<mrender::raster::Surface>(width, height);
                 std::memcpy(surface->pixels().data(), bytes.data() + 20, bytes.size() - 20);
                 images_.put({id}, std::move(surface), revision);
             } else if (next->first == Kind::face && next->second.size() > 8) {
@@ -268,14 +268,14 @@ const xrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait
             } else if (next->first == Kind::state) {
                 if (auto state = parse_json(next->second)) state_ = std::move(*state);
             } else if (next->first == Kind::frame) {
-                xrender::DisplayList list;
-                xrender::Remap remap;
+                mrender::DisplayList list;
+                mrender::Remap remap;
                 if (fonts_)
                     remap.font = [this](std::uint32_t id) {
                         const auto found = font_map_.find(id);
                         return found == font_map_.end() ? 0u : found->second;  // a font never described: none drawn
                     };
-                if (xrender::decode(next->second, list, remap)) {
+                if (mrender::decode(next->second, list, remap)) {
                     list_ = std::move(list);
                     ++frames_;
                     return &list_;

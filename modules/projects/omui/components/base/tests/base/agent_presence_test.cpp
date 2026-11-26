@@ -35,7 +35,7 @@ std::int64_t act(Headless& h, std::string_view id, std::string_view action, Valu
     return e.exit_code().value_or(-1);
 }
 
-std::uint64_t hash_of(const xrender::raster::Surface& pixels) {
+std::uint64_t hash_of(const mrender::raster::Surface& pixels) {
     Hash hash;
     for (int y = 0; y < pixels.height(); ++y) hash.bytes(std::as_bytes(std::span(pixels.row(y), static_cast<std::size_t>(pixels.width()))));
     return hash.value();
@@ -94,7 +94,7 @@ static UTest cases{"ui.base.agent_presence", [] {
         // What it draws: a frame round Delete and the card, within the page.
         bool framed = false;
         for (const auto& command : rt.display_list().commands())
-            if (std::holds_alternative<xrender::StrokePath>(command)) framed = true;
+            if (std::holds_alternative<mrender::StrokePath>(command)) framed = true;
         expect(framed) << "the frame's corners drawn";
         (void)h.save_png(scratch_dir("agent-presence") / "asking.png");
         // Answered by the person's own way (the application's control): it acts on.

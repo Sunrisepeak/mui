@@ -5,7 +5,7 @@
 import std;
 import hanim.core;
 import mlibs.geom;
-import xrender.vector;
+import mrender.vector;
 import hanim.visual;
 import mcpplibs.mtest;
 
@@ -25,43 +25,43 @@ mo::Options linear() {
     options.curve.ease = hanim::ease::linear;
     return options;
 }
-xrender::DisplayList blank() {
-    xrender::DisplayList list;
+mrender::DisplayList blank() {
+    mrender::DisplayList list;
     list.begin_node(1);
     list.end_node();
     return list;
 }
-xrender::DisplayList ring() {
-    xrender::DisplayList list;
+mrender::DisplayList ring() {
+    mrender::DisplayList list;
     list.begin_node(1);
     list.stroke_round_rect({10, 10, 80, 40}, geom::CornerRadii::all(8), 2,
-                           xrender::Paint::solid(geom::Color::hex(0x3366ff)));
+                           mrender::Paint::solid(geom::Color::hex(0x3366ff)));
     list.end_node();
     return list;
 }
-xrender::DisplayList card(geom::Affine place = {}) {
-    xrender::DisplayList list;
+mrender::DisplayList card(geom::Affine place = {}) {
+    mrender::DisplayList list;
     list.begin_node(1);
     list.push_transform(place);
-    list.fill_rect({30, 60, 40, 20}, xrender::Paint::solid(geom::Color::hex(0x182030)));
+    list.fill_rect({30, 60, 40, 20}, mrender::Paint::solid(geom::Color::hex(0x182030)));
     list.pop_transform();
     list.end_node();
     return list;
 }
-xrender::DisplayList drawn(const mo::Morph& morph, double time) {
-    xrender::DisplayList out;
+mrender::DisplayList drawn(const mo::Morph& morph, double time) {
+    mrender::DisplayList out;
     morph.draw(time, out);
     return out;
 }
 // The fill's rectangle where it is drawn, through the transforms around it.
-std::optional<geom::Rect> placed_fill(const xrender::DisplayList& list) {
+std::optional<geom::Rect> placed_fill(const mrender::DisplayList& list) {
     std::vector<geom::Affine> transforms{geom::Affine{}};
     for (const auto& command : list.commands()) {
-        if (const auto* push = std::get_if<xrender::PushTransform>(&command))
+        if (const auto* push = std::get_if<mrender::PushTransform>(&command))
             transforms.push_back(transforms.back() * push->transform);
-        else if (std::holds_alternative<xrender::PopTransform>(command))
+        else if (std::holds_alternative<mrender::PopTransform>(command))
             transforms.pop_back();
-        else if (const auto* fill = std::get_if<xrender::FillRect>(&command))
+        else if (const auto* fill = std::get_if<mrender::FillRect>(&command))
             return transforms.back().map(fill->rect);
     }
     return std::nullopt;
@@ -78,9 +78,9 @@ static UTest cases{"hanim.visual.representation", [] {
                               mo::Matter::extract(ring(), resolver()), options, 0);
         for (const double time : {.25, .5, .75}) {
             const auto frame = drawn(morph, time);
-            const xrender::StrokePath* written = nullptr;
+            const mrender::StrokePath* written = nullptr;
             for (const auto& command : frame.commands())
-                if (const auto* stroke = std::get_if<xrender::StrokePath>(&command))
+                if (const auto* stroke = std::get_if<mrender::StrokePath>(&command))
                     written = stroke;
             expect(written && written->style.trim_start == 0 &&
                       std::abs(written->style.trim_end - time) < 1e-6 && written->style.width == 2) << std::format("at {} the ring is drawn to {}", time,
@@ -89,7 +89,7 @@ static UTest cases{"hanim.visual.representation", [] {
         const auto end = drawn(morph, 1.5);
         expect(std::ranges::any_of(end.commands(),
                                   [](const auto& command) {
-                                      return std::holds_alternative<xrender::StrokeRoundRect>(
+                                      return std::holds_alternative<mrender::StrokeRoundRect>(
                                           command);
                                   })) << "settled: the ring as drawn";
         // And going, unwritten.
@@ -97,7 +97,7 @@ static UTest cases{"hanim.visual.representation", [] {
                               mo::Matter::extract(blank(), resolver()), options, 0);
         bool shrinking = false;
         for (const auto& command : drawn(going, .3).commands())
-            if (const auto* stroke = std::get_if<xrender::StrokePath>(&command))
+            if (const auto* stroke = std::get_if<mrender::StrokePath>(&command))
                 shrinking = stroke->style.trim_end < 1 && stroke->style.trim_end > 0;
         expect(shrinking) << "a going ring is undrawn";
     };
@@ -110,8 +110,8 @@ static UTest cases{"hanim.visual.representation", [] {
             std::optional<float> outline;
             bool fill = false;
             for (const auto& command : drawn(morph, time).commands()) {
-                if (const auto* stroke = std::get_if<xrender::StrokePath>(&command)) outline = stroke->style.trim_end;
-                fill = fill || std::holds_alternative<xrender::FillRect>(command);
+                if (const auto* stroke = std::get_if<mrender::StrokePath>(&command)) outline = stroke->style.trim_end;
+                fill = fill || std::holds_alternative<mrender::FillRect>(command);
             }
             return std::pair{outline, fill};
         };
@@ -163,7 +163,7 @@ static UTest cases{"hanim.visual.representation", [] {
                    // "A" (an outline with a hole) becomes "B" (an outline with two): stand-in em
                    // outlines.
                    const auto outline_of = [](std::uint32_t id) {
-                       xrender::Path path;
+                       mrender::Path path;
                        path.add_rect({0, -0.7f, 0.6f, 0.7f});
                        if (id == 1)
                            path.add_rect({0.2f, -0.5f, 0.2f, 0.2f});
@@ -174,8 +174,8 @@ static UTest cases{"hanim.visual.representation", [] {
                        return path;
                    };
                    auto options = linear();
-                   options.glyph_outline = [&](const xrender::DrawGlyphs& run,
-                                               std::size_t glyph) -> std::optional<xrender::Path> {
+                   options.glyph_outline = [&](const mrender::DrawGlyphs& run,
+                                               std::size_t glyph) -> std::optional<mrender::Path> {
                        const auto& placed = run.glyphs[glyph];
                        return outline_of(placed.id).transformed(
                            geom::Affine::translate(run.origin.x + placed.position.x,
@@ -183,27 +183,27 @@ static UTest cases{"hanim.visual.representation", [] {
                            geom::Affine::scale(run.size, run.size));
                    };
                    const auto letter = [](std::uint32_t id) {
-                       xrender::DisplayList list;
+                       mrender::DisplayList list;
                        list.begin_node(1);
-                       const std::array glyphs{xrender::Glyph{.id = 7,
+                       const std::array glyphs{mrender::Glyph{.id = 7,
                                                               .position = {0, 0},
                                                               .cluster = 0,
                                                               .grapheme = 0},
-                                               xrender::Glyph{.id = id,
+                                               mrender::Glyph{.id = id,
                                                               .position = {12, 0},
                                                               .cluster = 1,
                                                               .grapheme = 1}};
-                       list.draw_glyphs(xrender::FontRef{1}, 20, {20, 40}, glyphs,
-                                        xrender::Paint::solid(geom::Color::hex(0x182030)));
+                       list.draw_glyphs(mrender::FontRef{1}, 20, {20, 40}, glyphs,
+                                        mrender::Paint::solid(geom::Color::hex(0x182030)));
                        list.end_node();
                        return list;
                    };
                    const mo::Morph morph(mo::Matter::extract(letter(1), resolver()),
                                          mo::Matter::extract(letter(2), resolver()), options, 0);
-                   const auto contours = [](const xrender::DisplayList& list) {
+                   const auto contours = [](const mrender::DisplayList& list) {
                        std::size_t most = 0;
                        for (const auto& command : list.commands())
-                           if (const auto* fill = std::get_if<xrender::FillPath>(&command))
+                           if (const auto* fill = std::get_if<mrender::FillPath>(&command))
                                most = std::max(most, static_cast<std::size_t>(
                                                          std::ranges::count(fill->path.verbs,
                                                                             geom::PathVerb::move)));
@@ -215,7 +215,7 @@ static UTest cases{"hanim.visual.representation", [] {
                                                             contours(middle));
                    bool replaced_hidden = true;
                    for (const auto& command : middle.commands())
-                       if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                       if (const auto* run = std::get_if<mrender::DrawGlyphs>(&command))
                            for (std::size_t index = 0; index < run->glyphs.size(); ++index)
                                if (run->glyphs[index].id != 7 && !run->styles.empty() &&
                                    run->styles[index].opacity > 0)

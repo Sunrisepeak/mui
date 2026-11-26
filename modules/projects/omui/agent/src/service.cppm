@@ -9,7 +9,7 @@ export module omui.agent:service;
 import std;
 import mlibs.compose;
 import mlibs.image;
-import xrender.vector;
+import mrender.vector;
 import omui.core;
 import omui.view;
 import :protocol;
@@ -31,7 +31,7 @@ struct EndpointService {
     std::size_t (*pump)(Endpoint& endpoint) = nullptr;
     std::optional<AgentInput> (*take_input)(Endpoint& endpoint) = nullptr;
     // The captures: the display list as SVG over a region; pixels as PNG.
-    std::expected<VectorCapture, ViewFailure> (*vector_capture)(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale,
+    std::expected<VectorCapture, ViewFailure> (*vector_capture)(const Runtime& runtime, const mrender::Resources& resources, Rect region, float scale,
                                                                 std::optional<Color> background) = nullptr;
     std::expected<std::vector<std::uint8_t>, std::string> (*png)(const mlibs::image::View& pixels) = nullptr;
     // An application's background tasks (task.*), and their end.

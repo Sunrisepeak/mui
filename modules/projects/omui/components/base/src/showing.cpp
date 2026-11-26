@@ -127,7 +127,7 @@ void Chart::paint(PaintContext& ctx) const {
     // The scale: round numbers, a line each.
     for (double value = s.low; value <= s.high + s.step * 1e-6; value += s.step) {
         const float y = p.bottom() - static_cast<float>((value - s.low) / (s.high - s.low)) * p.height;
-        ctx.list.fill_rect({p.x, std::round(y), p.width, 1}, value == 0 ? grid : grid.with_alpha(0.5f), xrender::PixelAlign::device);
+        ctx.list.fill_rect({p.x, std::round(y), p.width, 1}, value == 0 ? grid : grid.with_alpha(0.5f), mrender::PixelAlign::device);
         text_at(ctx, number(value), "caption", muted, {p.x - axis_gap, y - 8}, 1);
     }
     // The steps, as many as fit.
@@ -150,27 +150,27 @@ void Chart::paint(PaintContext& ctx) const {
                 for (std::size_t step = 0; step < count; ++step) {
                     const Point top = at(series, step, ctx.size);
                     const Rect column{top.x - bar / 2 + 1, std::min(top.y, base), std::max(1.0f, bar - 2), std::abs(base - top.y)};
-                    ctx.list.fill_round_rect(column, CornerRadii{3, 3, 0, 0}, xrender::Paint::solid(ink));
+                    ctx.list.fill_round_rect(column, CornerRadii{3, 3, 0, 0}, mrender::Paint::solid(ink));
                 }
                 return;
             }
-            xrender::Path line;
+            mrender::Path line;
             for (std::size_t step = 0; step < count; ++step) {
                 const Point point = at(series, step, ctx.size);
                 if (step == 0) line.move_to(point);
                 else line.line_to(point);
             }
             if (props.kind == ChartKind::area) {
-                xrender::Path area = line;
+                mrender::Path area = line;
                 area.line_to({at(series, count - 1, ctx.size).x, p.bottom()}).line_to({at(series, 0, ctx.size).x, p.bottom()}).close();
-                ctx.list.fill_path(area, xrender::FillRule::nonzero, xrender::Paint::solid(ink.with_alpha(0.16f)));
+                ctx.list.fill_path(area, mrender::FillRule::nonzero, mrender::Paint::solid(ink.with_alpha(0.16f)));
             }
-            ctx.list.stroke_path(line, {.width = 2, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, xrender::Paint::solid(ink));
+            ctx.list.stroke_path(line, {.width = 2, .cap = mrender::LineCap::round, .join = mrender::LineJoin::round}, mrender::Paint::solid(ink));
             if (count <= 24)
                 for (std::size_t step = 0; step < count; ++step) {
-                    xrender::Path dot;
+                    mrender::Path dot;
                     dot.add_circle(at(series, step, ctx.size), 2.5f);
-                    ctx.list.fill_path(dot, xrender::FillRule::nonzero, xrender::Paint::solid(ink));
+                    ctx.list.fill_path(dot, mrender::FillRule::nonzero, mrender::Paint::solid(ink));
                 }
         });
     }
@@ -178,7 +178,7 @@ void Chart::paint(PaintContext& ctx) const {
     if (series_.size() > 1) {
         float x = p.x;
         for (std::size_t series = 0; series < series_.size(); ++series) {
-            ctx.list.fill_round_rect({x, chart_pad + 4, 10, 10}, CornerRadii::all(3), xrender::Paint::solid(color_of(theme, series)));
+            ctx.list.fill_round_rect({x, chart_pad + 4, 10, 10}, CornerRadii::all(3), mrender::Paint::solid(color_of(theme, series)));
             parts::Label name;
             name.set_style("caption");
             name.set_text(series_[series].name);
@@ -214,7 +214,7 @@ void Chart::paint_over(PaintContext& ctx) const {
     Rect card{x + 10, p.y + 4, wide + 16, tall};
     if (card.right() > ctx.size.width) card.x = x - 10 - card.width;
     parts::shadow(ctx, "md", card, CornerRadii::all(8));
-    ctx.list.fill_round_rect(card, CornerRadii::all(8), xrender::Paint::solid(theme.color("surface")));
+    ctx.list.fill_round_rect(card, CornerRadii::all(8), mrender::Paint::solid(theme.color("surface")));
     float y = card.y + 4;
     for (std::size_t index = 0; index < labels.size(); ++index) {
         const Size size = labels[index].measure(ctx.services, theme.color("text"));
@@ -334,19 +334,19 @@ void Carousel::paint_over(PaintContext& ctx) const {
         if (!props.wrap && (forward ? at + 1 >= count : at == 0)) continue;
         const Rect r = arrow(forward, ctx.size);
         parts::shadow(ctx, "sm", r, CornerRadii::all(arrow_d / 2));
-        ctx.list.fill_round_rect(r, CornerRadii::all(arrow_d / 2), xrender::Paint::solid(theme.color("surface").with_alpha(0.92f)));
+        ctx.list.fill_round_rect(r, CornerRadii::all(arrow_d / 2), mrender::Paint::solid(theme.color("surface").with_alpha(0.92f)));
         const Point mid{r.x + r.width / 2, r.y + r.height / 2};
         // A chevron pointing the way it goes.
         const float back = forward ? -2.0f : 2.0f, tip = forward ? 3.0f : -3.0f;
-        xrender::Path chevron;
+        mrender::Path chevron;
         chevron.move_to({mid.x + back, mid.y - 5}).line_to({mid.x + tip, mid.y}).line_to({mid.x + back, mid.y + 5});
-        ctx.list.stroke_path(chevron, {.width = 2, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, xrender::Paint::solid(theme.color("text")));
+        ctx.list.stroke_path(chevron, {.width = 2, .cap = mrender::LineCap::round, .join = mrender::LineJoin::round}, mrender::Paint::solid(theme.color("text")));
     }
     // Its dots: the current one in the accent.
     for (std::size_t index = 0; index < count; ++index) {
         const Rect r = dot(index, ctx.size);
         ctx.list.fill_round_rect(r, CornerRadii::all(dot_d / 2),
-                                 xrender::Paint::solid(index == at ? theme.color("accent") : theme.color("text_muted").with_alpha(0.4f)));
+                                 mrender::Paint::solid(index == at ? theme.color("accent") : theme.color("text_muted").with_alpha(0.4f)));
     }
     if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, {0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(theme.corner("medium", 8)));
 }

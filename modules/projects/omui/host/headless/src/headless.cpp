@@ -5,14 +5,14 @@ import omui.core;
 import omui.view;
 import omui.semantic;
 import omui.agent;
-import xrender.raster;
-import xrender.vector;
-import xrender.frame;
+import mrender.raster;
+import mrender.vector;
+import mrender.frame;
 import mlibs.text;
 import mlibs.image;
 import mlibs.compose;
 import mlibs.trace;
-import xrender.text;
+import mrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::warn;
@@ -41,16 +41,16 @@ struct Headless::Impl {
     std::unique_ptr<mlibs::text::FontCollection>    own_fonts;
     std::unique_ptr<Runtime>                    runtime;
     std::unique_ptr<semantic::Tree>             tree;
-    std::unique_ptr<xrender::text::GlyphCache>        glyphs;
-    // The frame's entry (xrender.frame): the host hands its layers over and composes nothing itself.
-    xrender::CpuFrame                            window;  // the window's: one layer, the interface's
-    xrender::CpuFrame                            camera;  // framed_png's: the scene under the camera, then what stays fixed
-    xrender::FrameSubject                        picture;  // the window's frame, for agents: beside `ui` at the endpoint
-    xrender::raster::Surface                             surface;
+    std::unique_ptr<mrender::text::GlyphCache>        glyphs;
+    // The frame's entry (mrender.frame): the host hands its layers over and composes nothing itself.
+    mrender::CpuFrame                            window;  // the window's: one layer, the interface's
+    mrender::CpuFrame                            camera;  // framed_png's: the scene under the camera, then what stays fixed
+    mrender::FrameSubject                        picture;  // the window's frame, for agents: beside `ui` at the endpoint
+    mrender::raster::Surface                             surface;
     std::uint64_t                               rendered = 0;   // the list hash the surface shows
     std::uint64_t                               shown_list = 0; // the list hash of the last frame shown (frame_shown)
     bool                                        have_pixels = false;
-    xrender::DamageTracker                       damage;         // what the next list changes
+    mrender::DamageTracker                       damage;         // what the next list changes
     agent::Served                                endpoint;  // through the agent surface's slot (agent::endpoint_slot)
     bool                                        requests_held = false;  // the application is not ready yet
     std::int64_t                                frame = -1;
@@ -58,20 +58,20 @@ struct Headless::Impl {
     bool                                        pointer_held = false;  // the interface keeps it (a pointer lock)
 
     void render_now() {
-        const xrender::DisplayList& list = runtime->display_list();
+        const mrender::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
         if (have_pixels && h == rendered) return;
         const int w = static_cast<int>(std::lround(options.size.width * options.scale));
         const int hgt = static_cast<int>(std::lround(options.size.height * options.scale));
-        if (surface.width() != w || surface.height() != hgt) surface = xrender::raster::Surface(w, hgt);
+        if (surface.width() != w || surface.height() != hgt) surface = mrender::raster::Surface(w, hgt);
         if (!have_pixels) damage.invalidate();
         mlibs::trace::Span span("render", "host");
-        const xrender::Resources resources{&runtime->images(), glyphs.get()};
+        const mrender::Resources resources{&runtime->images(), glyphs.get()};
         // Only the rows the new list can change: the same bytes as a full render.
         const auto rows = damage.update(list, w, hgt, options.scale, resources);
         if (!rows.empty()) {
-            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = options.scale, .object_ids = true};
-            xrender::FrameOptions how;
+            const mrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = options.scale, .object_ids = true};
+            mrender::FrameOptions how;
             how.background = options.background;
             how.rows = rows;
             if (options.parallel_raster) how.parallel = &raster_parallel();
@@ -85,7 +85,7 @@ struct Headless::Impl {
 
 // Defined below, used where a session opens.
 namespace {
-std::expected<mlibs::image::View, ViewFailure> view_of(const xrender::raster::Surface& s, float scale, std::optional<Rect> region);
+std::expected<mlibs::image::View, ViewFailure> view_of(const mrender::raster::Surface& s, float scale, std::optional<Rect> region);
 }
 std::expected<std::vector<std::uint8_t>, ViewFailure> encoded(std::expected<std::vector<std::uint8_t>, std::string> bytes);
 
@@ -111,7 +111,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     d.runtime->set_renderer("cpu");
     d.runtime->set_device_tier(d.options.tier, std::format("headless, drawn as on {}", mlibs::pipeline::name(d.options.tier)));
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-    d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
+    d.glyphs = std::make_unique<mrender::text::GlyphCache>(*fonts);
     // A file offered is taken (the runtime keeps it: offered_files); the
     // drawing in vectors is the agent's capture.
     d.runtime->set_pointer_lock([this](bool held) { return impl_->pointer_held = held, true; });
@@ -151,7 +151,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
         };
         eo.protocol.capture_svg = [this, surface](Rect region) {
             Impl& held = *impl_;
-            const xrender::Resources resources{&held.runtime->images(), held.glyphs.get()};
+            const mrender::Resources resources{&held.runtime->images(), held.glyphs.get()};
             return surface->vector_capture(*held.runtime, resources, region, held.options.scale, held.options.background);
         };
         eo.protocol.pixel_owner = [this](Point at) { return node_at_pixel(at); };
@@ -316,7 +316,7 @@ void Headless::scroll(Point at, Point delta, bool precise) {
 
 void Headless::focus_next(bool backward) { key(Key::tab, backward ? Modifiers(Modifier::shift) : Modifiers{}); }
 
-const xrender::raster::Surface& Headless::pixels() {
+const mrender::raster::Surface& Headless::pixels() {
     impl_->render_now();
     return impl_->surface;
 }
@@ -324,7 +324,7 @@ const xrender::raster::Surface& Headless::pixels() {
 namespace {
 
 // The pixels of a region (logical coordinates), as an image view of the surface.
-std::expected<mlibs::image::View, ViewFailure> view_of(const xrender::raster::Surface& s, float scale, std::optional<Rect> region) {
+std::expected<mlibs::image::View, ViewFailure> view_of(const mrender::raster::Surface& s, float scale, std::optional<Rect> region) {
     int x0 = 0, y0 = 0, x1 = s.width(), y1 = s.height();
     if (region) {
         const PixelRect r = mlibs::geom::snap(*region, scale);
@@ -362,13 +362,13 @@ std::expected<std::vector<std::uint8_t>, ViewFailure> Headless::framed_png(Rect 
     // The list in two: the fixed slot's drawing (a top-level node: its commands carry their own
     // transform, window coordinates) and everything else, which the camera frames.
     const NodeId kept = fixed.empty() ? NodeId{} : d.runtime->find(fixed);
-    xrender::DisplayList scene, over;
+    mrender::DisplayList scene, over;
     int inside = 0;
-    for (const xrender::Command& command : d.runtime->display_list().commands()) {
-        const auto* begin = std::get_if<xrender::BeginNode>(&command);
+    for (const mrender::Command& command : d.runtime->display_list().commands()) {
+        const auto* begin = std::get_if<mrender::BeginNode>(&command);
         if (inside == 0 && begin && d.runtime->valid(kept) && d.runtime->node_at_index(begin->node) == kept) inside = 1;
         else if (inside > 0 && begin) ++inside;
-        else if (inside > 0 && std::holds_alternative<xrender::EndNode>(command)) {
+        else if (inside > 0 && std::holds_alternative<mrender::EndNode>(command)) {
             over.append_command(command);
             --inside;
             continue;
@@ -380,18 +380,18 @@ std::expected<std::vector<std::uint8_t>, ViewFailure> Headless::framed_png(Rect 
     const float fit = std::min(window.width / frame.width, window.height / frame.height);
     const float left = (window.width - frame.width * fit) / 2 - frame.x * fit, top = (window.height - frame.height * fit) / 2 - frame.y * fit;
     const int width = static_cast<int>(std::lround(window.width * d.options.scale)), height = static_cast<int>(std::lround(window.height * d.options.scale));
-    xrender::raster::Surface framed(width, height);
-    const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+    mrender::raster::Surface framed(width, height);
+    const mrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
     // Two layers: the scene through the camera, then the fixed slot as it is.
     const std::array layers{
-        xrender::FrameLayer{.name = "scene",
+        mrender::FrameLayer{.name = "scene",
                             .list = &scene,
                             .resources = resources,
                             .scale = d.options.scale * fit,
-                            .transform = xrender::Affine::scale(d.options.scale, d.options.scale) * xrender::Affine::translate(left, top) * xrender::Affine::scale(fit, fit),
+                            .transform = mrender::Affine::scale(d.options.scale, d.options.scale) * mrender::Affine::translate(left, top) * mrender::Affine::scale(fit, fit),
                             .effect_scale = d.options.scale},
-        xrender::FrameLayer{.name = "fixed", .list = &over, .resources = resources, .scale = d.options.scale}};
-    xrender::FrameOptions how;
+        mrender::FrameLayer{.name = "fixed", .list = &over, .resources = resources, .scale = d.options.scale}};
+    mrender::FrameOptions how;
     how.background = d.options.background;
     how.external = [&d](std::uint64_t number) { return d.runtime->picture(number); };
     (void)d.camera.render(std::span(layers).first(over.commands().empty() ? 1 : 2), framed, how);
@@ -463,7 +463,7 @@ agent::CaptureSvgFn Headless::capture_svg() {
 
 std::expected<agent::VectorCapture, ViewFailure> Headless::svg(std::optional<Rect> region) {
     Impl& d = *impl_;
-    const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+    const mrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
     return agent::vector_capture(*d.runtime, resources, region.value_or(Rect{0, 0, d.options.size.width, d.options.size.height}), d.options.scale,
                                  d.options.background);
 }

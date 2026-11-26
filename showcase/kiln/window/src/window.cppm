@@ -19,8 +19,8 @@ export import omui.showcase.kiln;
 export import omui.showcase.kiln.picture;
 export import omui.showcase.kiln.sound;
 export import meng.audio.device;
-export import xrender.raster;
-export import xrender.vector;
+export import mrender.raster;
+export import mrender.vector;
 
 export namespace kiln::window {
 
@@ -64,7 +64,7 @@ public:
     // The game as played so far (none before it is mounted, or where the level could not be made).
     [[nodiscard]] const Standalone* game() const noexcept { return game_ ? &*game_ : nullptr; }
     [[nodiscard]] const meng::ui::Viewport& viewport() const noexcept { return view_; }
-    [[nodiscard]] const xrender::raster::Surface& picture() const noexcept { return frame_; }
+    [[nodiscard]] const mrender::raster::Surface& picture() const noexcept { return frame_; }
     [[nodiscard]] const Sound* sound() const noexcept { return sound_ ? &*sound_ : nullptr; }
     [[nodiscard]] const meng::audio::Device* output() const noexcept { return output_ ? &*output_ : nullptr; }
     [[nodiscard]] std::uint64_t sounds_begun() const noexcept { return sounds_begun_; }
@@ -79,11 +79,11 @@ private:
     std::optional<Standalone>             game_;
     meng::Sampler                      sampler_;
     meng::ui::Pacer                    pacer_;
-    xrender::ImageStore                   images_;
+    mrender::ImageStore                   images_;
     std::optional<Picture>                picture_;
-    xrender::DisplayList                  list_;
-    xrender::CpuRenderer                  renderer_;
-    xrender::raster::Surface              frame_{1, 1};
+    mrender::DisplayList                  list_;
+    mrender::CpuRenderer                  renderer_;
+    mrender::raster::Surface              frame_{1, 1};
     std::optional<Sound>                  sound_;
     std::unique_ptr<meng::audio::Feed> feed_;
     std::optional<meng::audio::Device> output_;  // after the feed it drains: it goes first

@@ -1,5 +1,5 @@
-// xrender's side of js/vector.mjs: the same scenes of filled and stroked
-// paths drawn by xrender's CPU renderer here, and by Skia (through
+// mrender's side of js/vector.mjs: the same scenes of filled and stroked
+// paths drawn by mrender's CPU renderer here, and by Skia (through
 // @napi-rs/canvas) and resvg (tiny-skia) there. The scenes are made here,
 // once, from a seed, and written for the others as SVG and as canvas calls,
 // so all three draw the same numbers.
@@ -10,8 +10,8 @@
 // --only draws one scene (for a profiler's samples to be of it alone).
 //
 // DIR/<scene>.svg, DIR/<scene>.scene.json (path data and paints, for a
-// canvas), DIR/<scene>.xrender.png and DIR/<scene>.xrender.svg (the display
-// list written by xrender.vector.svg, for the others to draw back); one JSON
+// canvas), DIR/<scene>.mrender.png and DIR/<scene>.mrender.svg (the display
+// list written by mrender.vector.svg, for the others to draw back); one JSON
 // line a scene on standard output
 // (its median, mean and fastest frame over N runs, after three to warm up).
 import std;
@@ -19,9 +19,9 @@ import mcpplibs.cmdline;
 import mlibs.geom;
 import mlibs.math;
 import mlibs.image;
-import xrender.raster;
-import xrender.vector;
-import xrender.vector.svg;
+import mrender.raster;
+import mrender.vector;
+import mrender.vector.svg;
 import mlibs.trace;
 
 namespace {
@@ -43,8 +43,8 @@ struct Item {
     bool closed = true;
     Rgba color, second;
     float width = 1;
-    xrender::LineCap cap = xrender::LineCap::round;
-    xrender::LineJoin join = xrender::LineJoin::round;
+    mrender::LineCap cap = mrender::LineCap::round;
+    mrender::LineJoin join = mrender::LineJoin::round;
     Point from, to;  // the gradient's line
 };
 
@@ -124,8 +124,8 @@ std::vector<Scene> scenes() {
     {
         Scene scene{"joins-300", "300 polylines of 3–7 sharp corners, a third closed, stroked 2–24 px with each join (miter, round, bevel) and cap (butt, round, square)", {}};
         Random random{{0x7015}};
-        constexpr std::array joins{xrender::LineJoin::miter, xrender::LineJoin::round, xrender::LineJoin::bevel};
-        constexpr std::array caps{xrender::LineCap::butt, xrender::LineCap::round, xrender::LineCap::square};
+        constexpr std::array joins{mrender::LineJoin::miter, mrender::LineJoin::round, mrender::LineJoin::bevel};
+        constexpr std::array caps{mrender::LineCap::butt, mrender::LineCap::round, mrender::LineCap::square};
         for (int index = 0; index < 300; ++index) {
             Item item;
             item.kind = Item::Kind::stroke;
@@ -185,8 +185,8 @@ std::string path_data(const Item& item) {
 }
 std::string hex(Rgba color) { return std::format("#{:02x}{:02x}{:02x}", color.red, color.green, color.blue); }
 std::string opacity(Rgba color) { return std::format("{}", color.alpha / 255.0); }
-std::string_view cap_name(xrender::LineCap cap) { return cap == xrender::LineCap::butt ? "butt" : cap == xrender::LineCap::round ? "round" : "square"; }
-std::string_view join_name(xrender::LineJoin join) { return join == xrender::LineJoin::miter ? "miter" : join == xrender::LineJoin::round ? "round" : "bevel"; }
+std::string_view cap_name(mrender::LineCap cap) { return cap == mrender::LineCap::butt ? "butt" : cap == mrender::LineCap::round ? "round" : "square"; }
+std::string_view join_name(mrender::LineJoin join) { return join == mrender::LineJoin::miter ? "miter" : join == mrender::LineJoin::round ? "round" : "bevel"; }
 
 std::string svg_of(const Scene& scene) {
     std::string out = std::format(R"(<svg xmlns="http://www.w3.org/2000/svg" width="{0}" height="{0}" viewBox="0 0 {0} {0}">)", side);
@@ -233,30 +233,30 @@ std::string canvas_of(const Scene& scene) {
     return out + "]}\n";
 }
 
-xrender::Color color_of(Rgba color) { return xrender::Color::rgba8(color.red, color.green, color.blue, color.alpha); }
+mrender::Color color_of(Rgba color) { return mrender::Color::rgba8(color.red, color.green, color.blue, color.alpha); }
 
-void record(const Scene& scene, xrender::DisplayList& list, std::vector<std::array<xrender::GradientStop, 2>>& stops) {
+void record(const Scene& scene, mrender::DisplayList& list, std::vector<std::array<mrender::GradientStop, 2>>& stops) {
     stops.reserve(scene.items.size());
     for (const Item& item : scene.items) {
-        xrender::Path path;
+        mrender::Path path;
         path.move_to(item.start);
         for (const auto& cubic : item.cubics) path.cubic_to(cubic[0], cubic[1], cubic[2]);
         for (const auto& point : item.lines) path.line_to(point);
         if (item.closed) path.close();
         switch (item.kind) {
-        case Item::Kind::fill: list.fill_path(path, xrender::FillRule::nonzero, xrender::Paint::solid(color_of(item.color))); break;
+        case Item::Kind::fill: list.fill_path(path, mrender::FillRule::nonzero, mrender::Paint::solid(color_of(item.color))); break;
         case Item::Kind::stroke:
             list.stroke_path(path, {.width = item.width, .cap = item.cap, .join = item.join},
-                             xrender::Paint::solid(color_of(item.color)));
+                             mrender::Paint::solid(color_of(item.color)));
             break;
         case Item::Kind::gradient: {
             stops.push_back({{{0, color_of(item.color)}, {1, color_of(item.second)}}});
-            xrender::Paint paint;
-            paint.kind = xrender::Paint::Kind::gradient;
+            mrender::Paint paint;
+            paint.kind = mrender::Paint::Kind::gradient;
             paint.gradient.start = item.from;
             paint.gradient.end = item.to;
             paint.gradient.stops = stops.back();
-            list.fill_path(path, xrender::FillRule::nonzero, paint);
+            list.fill_path(path, mrender::FillRule::nonzero, paint);
             break;
         }
         }
@@ -268,7 +268,7 @@ void record(const Scene& scene, xrender::DisplayList& list, std::vector<std::arr
 // rasterising it as the canvas does (a row's pieces of coverage), and the rest of the fill — compositing
 // (the whole fill timed, less the two before it, measured again apart).
 void phases(const Scene& scene, int runs) {
-    namespace raster = xrender::raster;
+    namespace raster = mrender::raster;
     raster::Surface surface(side, side);
     raster::Canvas canvas(surface);
     raster::Polygons polygons;
@@ -358,7 +358,7 @@ bool write(const std::filesystem::path& file, std::string_view text) {
 int main(int argc, char** argv) {
     using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
     const auto line = App("omui-bench-vector")
-        .description("xrender's CPU raster against the competitors' scenes")
+        .description("mrender's CPU raster against the competitors' scenes")
         .arg(Arg("count").help("with --phases: runs a scene (default 9)"))
         .option(Option("out").takes_value().value_name("DIR").help("where the pictures and report go"))
         .option(Option("runs").value_type<int>().help("measured runs (default 15)"))
@@ -384,37 +384,37 @@ int main(int argc, char** argv) {
         return 2;
     }
     std::filesystem::create_directories(out);
-    xrender::CpuRenderer renderer;
-    const xrender::Resources resources{};
+    mrender::CpuRenderer renderer;
+    const mrender::Resources resources{};
     for (const Scene& scene : scenes()) {
         if (!only.empty() && scene.name != only) continue;
         if (!write(out / (scene.name + ".svg"), svg_of(scene)) || !write(out / (scene.name + ".scene.json"), canvas_of(scene))) return 1;
-        xrender::DisplayList list;
-        std::vector<std::array<xrender::GradientStop, 2>> stops;
+        mrender::DisplayList list;
+        std::vector<std::array<mrender::GradientStop, 2>> stops;
         record(scene, list, stops);
-        xrender::raster::Surface surface(side, side);
+        mrender::raster::Surface surface(side, side);
         std::vector<double> times;
         for (int run = 0; run < 3 + runs; ++run) {
             const auto start = std::chrono::steady_clock::now();
-            renderer.render(list, surface, resources, {.background = xrender::Color::white()});
+            renderer.render(list, surface, resources, {.background = mrender::Color::white()});
             const auto spent = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
             if (run >= 3) times.push_back(spent);
         }
         const mlibs::image::View view{surface.bytes().data(), side, side, side * 4, mlibs::image::Alpha::premultiplied};
-        if (const auto saved = mlibs::image::save_png(out / (scene.name + ".xrender.png"), view); !saved) {
+        if (const auto saved = mlibs::image::save_png(out / (scene.name + ".mrender.png"), view); !saved) {
             std::println(std::cerr, "{}: {}", scene.name, saved.error());
             return 1;
         }
-        const auto picture = xrender::svg::write(list, resources, {.view = {0, 0, side, side}, .background = xrender::Color::white(),
+        const auto picture = mrender::svg::write(list, resources, {.view = {0, 0, side, side}, .background = mrender::Color::white(),
             .encode_png = [](std::span<const std::uint8_t> rgba, int width, int height) {
                 return mlibs::image::encode_png({rgba.data(), width, height, width * 4, mlibs::image::Alpha::premultiplied});
             }});
-        if (!picture || !write(out / (scene.name + ".xrender.svg"), picture->text)) return 1;
+        if (!picture || !write(out / (scene.name + ".mrender.svg"), picture->text)) return 1;
         double mean = 0;
         for (const double time : times) mean += time;
         mean /= static_cast<double>(times.size());
         std::ranges::sort(times);
-        std::println(R"({{"renderer":"xrender","scene":"{}","items":{},"runs":{},"median_ms":{:.3f},"mean_ms":{:.3f},"min_ms":{:.3f}}})", scene.name,
+        std::println(R"({{"renderer":"mrender","scene":"{}","items":{},"runs":{},"median_ms":{:.3f},"mean_ms":{:.3f},"min_ms":{:.3f}}})", scene.name,
                      scene.items.size(), runs, times[times.size() / 2], mean, times.front());
     }
     return 0;

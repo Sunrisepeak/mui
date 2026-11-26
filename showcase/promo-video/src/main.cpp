@@ -148,7 +148,7 @@ private:
     static constexpr int ahead = 3;  // frames each player may be ahead of the encoder
     struct Slot {
         std::int64_t          frame = -1;
-        xrender::raster::Surface pixels;
+        mrender::raster::Surface pixels;
     };
     void work(int w) {
         mlibs::text::FontCollection fonts;
@@ -192,7 +192,7 @@ private:
     std::int64_t                       consumed_ = 0;
     bool                               stop_ = false;
     std::string                        error_;
-    xrender::raster::Surface              shown_;
+    mrender::raster::Surface              shown_;
 };
 
 // A text file of each frame's pixel hash (FNV-1a over its rows): the film's
@@ -347,7 +347,7 @@ int still(const cmd::ParsedArgs& p) {
     promo::Player player(l->film, l->cut, l->options);
     auto px = player.frame(frame);
     if (!px) return failed(report, px.error());
-    const xrender::raster::Surface& s = **px;
+    const mrender::raster::Surface& s = **px;
     auto png = mlibs::image::encode_png({reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4, mlibs::image::Alpha::premultiplied});
     if (!png) return failed(report, png.error());
     if (auto w = mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(*target), std::string_view(reinterpret_cast<const char*>(png->data()), png->size())); !w)

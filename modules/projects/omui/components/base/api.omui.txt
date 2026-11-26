@@ -173,7 +173,7 @@ namespace omui {
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
     ActResult activate(ActContext& ctx);
     struct Colors {
       Color base, hover, pressed, text;
@@ -1031,7 +1031,7 @@ namespace omui {
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
     ActResult increment(ActContext& ctx);
     ActResult decrement(ActContext& ctx);
     ActResult set_value(ActContext& ctx, const Value& value);
@@ -1045,10 +1045,10 @@ namespace omui::parts {
   [[nodiscard]] std::string segment(const Services& services, NodeId node);
   [[nodiscard]] std::optional<Rect> view_box(std::string_view text) noexcept;
   [[nodiscard]] mlibs::geom::Affine fitted(const Rect& view_box, const Rect& into) noexcept;
-  [[nodiscard]] std::optional<xrender::Path> shape_of(std::string_view data);
+  [[nodiscard]] std::optional<mrender::Path> shape_of(std::string_view data);
   void chevron(PaintContext& ctx, Point c, float size, Color color);
   void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii);
-  void agent_corners(xrender::DisplayList& list, const Rect& box, Color ink, float arm, float width = 2);
+  void agent_corners(mrender::DisplayList& list, const Rect& box, Color ink, float arm, float width = 2);
   void cross(PaintContext& ctx, Point c, float size, Color color);
   void check_mark(PaintContext& ctx, Point c, float size, Color color, float width = 1.75f);
   void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r);
@@ -1495,7 +1495,7 @@ namespace omui {
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     ActResult increment(ActContext& ctx);
@@ -1565,7 +1565,7 @@ namespace omui {
     float baseline(MeasureContext& m, Size content);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
     [[nodiscard]] std::string shown() const;
     [[nodiscard]] static std::pair<Color, Color> colors(const Theme& theme, BadgeTone tone);
   };
@@ -1575,7 +1575,7 @@ namespace omui {
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
     [[nodiscard]] static std::string initials(std::string_view name);
     [[nodiscard]] static Color hue_of(std::string_view name, bool dark);
   };
@@ -1584,7 +1584,7 @@ namespace omui {
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
   };
 }
 == omui.ui.base:surfaces
@@ -1596,7 +1596,7 @@ namespace omui {
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
     ActResult activate(ActContext& ctx);
   };
   class Accordion : public AccordionContract<Accordion> {
@@ -1688,7 +1688,7 @@ namespace omui {
     void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
     ActResult next(ActContext& ctx);
     ActResult previous(ActContext& ctx);
     [[nodiscard]] NodeId current() const;
@@ -1900,7 +1900,7 @@ namespace omui {
     float baseline(MeasureContext& m, Size content);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     ActResult toggle(ActContext& ctx);
     ActResult activate(ActContext& ctx);
@@ -2024,7 +2024,7 @@ namespace omui {
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     void prop_changed(GlassGroupProp p);
-    [[nodiscard]] std::vector<xrender::EffectShape> shapes() const;
+    [[nodiscard]] std::vector<mrender::EffectShape> shapes() const;
   };
   void register_liquid_glass_components();
 }

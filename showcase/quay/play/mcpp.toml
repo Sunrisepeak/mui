@@ -1,4 +1,4 @@
-# Quay on this machine's device (the FPS slice design, F3): the game drawn by xrender.mesh.gpu through SDL_GPU —
+# Quay on this machine's device (the FPS slice design, F3): the game drawn by mrender.mesh.gpu through SDL_GPU —
 # a signature shot played by the guide and written frame by frame, the same every run (`quay-play shot`); a window's
 # recording replayed (`quay-play replay`); the device held to the reference, and the window (`window`) on a real
 # SDL3 window's device. SDL_GPU is the native systems' device here, so this member is the desktop's.
@@ -27,7 +27,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 mlibs.text.fonts = { path = "../../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 omui.showcase.quay.window = { path = "../window" }
 omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
-xrender.rhi.sdl  = { path = "../../../modules/projects/xrender/rhi/sdl" }
+mrender.rhi.sdl  = { path = "../../../modules/projects/mrender/rhi/sdl" }
 mlibs.rhi        = { path = "../../../modules/gfx/rhi" }
 mlibs.image      = { path = "../../../modules/base/image" }
 mcpplibs.cmdline = "0.0.3"

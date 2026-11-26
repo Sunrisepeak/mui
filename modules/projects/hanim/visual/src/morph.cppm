@@ -17,7 +17,7 @@ export module hanim.visual:morph;
 import std;
 import hanim.core;
 import mlibs.geom;
-import xrender.vector;
+import mrender.vector;
 import :matter;
 
 export namespace hanim::visual {
@@ -49,15 +49,15 @@ enum class TextTransition : std::uint8_t { glyphs, replace, automatic };
 
 // Nullopt means unknown; an empty rectangle means a known blank drawing.
 // A callback used by concurrent draws must serialize any mutable font cache.
-using GlyphBounds = std::function<std::optional<Rect>(const xrender::DrawGlyphs&, const Affine&)>;
+using GlyphBounds = std::function<std::optional<Rect>(const mrender::DrawGlyphs&, const Affine&)>;
 // Exact masks for simple placement; transformed actual outline control-point
 // bounds (and the renderer's colour-bitmap fallback) otherwise. Unknown
 // coverage-only transformed bitmaps never become an em approximation.
-[[nodiscard]] std::optional<Rect> glyph_ink_bounds(const xrender::DrawGlyphs& run, const Affine& transform, xrender::GlyphSource& source);
+[[nodiscard]] std::optional<Rect> glyph_ink_bounds(const mrender::DrawGlyphs& run, const Affine& transform, mrender::GlyphSource& source);
 // A glyph's outline as a path in its run's space (pen, style and size
 // applied), from the text engine's em outline; nullopt for a blank glyph.
-using GlyphOutline = std::function<std::optional<xrender::Path>(const xrender::DrawGlyphs&, std::size_t glyph)>;
-[[nodiscard]] std::optional<xrender::Path> glyph_outline(const xrender::DrawGlyphs& run, std::size_t glyph, xrender::GlyphSource& source);
+using GlyphOutline = std::function<std::optional<mrender::Path>(const mrender::DrawGlyphs&, std::size_t glyph)>;
+[[nodiscard]] std::optional<mrender::Path> glyph_outline(const mrender::DrawGlyphs& run, std::size_t glyph, mrender::GlyphSource& source);
 
 struct Options {
     Curve  curve;
@@ -107,7 +107,7 @@ struct Options {
     // — an effect a motion carries (component × effect × motion, D-93). The
     // layer's shapes are the moving fills where they are.
     struct Travel {
-        xrender::EffectRef  effect;
+        mrender::EffectRef  effect;
         std::vector<float> params;
         int                param = -1;
         float              peak = 0;
@@ -181,17 +181,17 @@ struct PathMorphStatus {
     PathMorphIssue issue = PathMorphIssue::none;
     std::optional<hanim::ShapeMorphError> geometry_error;
     PathMaterialMode material_mode = PathMaterialMode::interpolated;
-    std::optional<xrender::PaintMixError> material_error;
+    std::optional<mrender::PaintMixError> material_error;
 };
 
 // Draws a nested root's range where the morph places it (its marker; into `out`).
-using NestedDraw = std::function<void(std::uint32_t marker, xrender::DisplayList& out)>;
+using NestedDraw = std::function<void(std::uint32_t marker, mrender::DisplayList& out)>;
 
 // Actual drawing before this root at the sampled time. It may contain open
 // ancestor transforms/clips/nodes; it is borrowed only for the proof during
 // snapshot(). None of its commands or owners enter the returned Matter.
 struct SnapshotContext {
-    std::span<const xrender::Command> prefix;
+    std::span<const mrender::Command> prefix;
 };
 
 class Morph {
@@ -204,7 +204,7 @@ public:
     // each piece inside its node's marker (the second drawing's markers).
     // `live`: the wrapper as the node draws it now — its effect's numbers taken
     // as they are (a style's state transition goes on while the pieces move).
-    void draw(double t, xrender::DisplayList& out, const NestedDraw& nested = {}, const xrender::PushLayer* live = nullptr) const;
+    void draw(double t, mrender::DisplayList& out, const NestedDraw& nested = {}, const mrender::PushLayer* live = nullptr) const;
     // The drawing at `t` as matter again, its pieces keeping their nodes' keys:
     // where a morph interrupted by another change starts from.
     [[nodiscard]] Matter snapshot(double t, const NestedDraw& nested = {}) const;
@@ -243,7 +243,7 @@ private:
         std::vector<Reshape> reshapes;
         std::vector<char> glyph_kept;  // per glyph of a: whether some glyph of b comes from it
         std::vector<hanim::PreparedShapeMorph> paths;  // a prepared pair per contour pair (hanim.core's pairing)
-        std::optional<xrender::PreparedPaintMix> paint;
+        std::optional<mrender::PreparedPaintMix> paint;
         bool path_compatible = false; // direct verb/point interpolation, including legacy open paths
         bool replace_text = false;
         int text_carrier = -1; // cached pair index; never a per-frame background search
@@ -275,7 +275,7 @@ private:
     MorphStats        stats_;
     std::vector<PathMorphStatus> path_status_;
     bool              deferred_contrast_ = false;
-    void draw(double t, xrender::DisplayList& out, const NestedDraw& nested, bool snapshot, const xrender::PushLayer* live) const;
+    void draw(double t, mrender::DisplayList& out, const NestedDraw& nested, bool snapshot, const mrender::PushLayer* live) const;
 };
 
 // A transform between two, decomposed (translation, rotation the short way,

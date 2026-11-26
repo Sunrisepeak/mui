@@ -5,7 +5,7 @@ module omui.host.web:platform;
 
 import std;
 import omui.core;
-import xrender.raster;
+import mrender.raster;
 
 namespace omui::page {
 
@@ -65,7 +65,7 @@ bool offer_file(std::string_view name, std::string_view type, std::string_view b
 bool storage_remove(std::string_view key);
 [[nodiscard]] std::vector<std::string> storage_keys(std::string_view prefix);
 
-void present(std::string_view selector, const xrender::raster::Surface& frame);
+void present(std::string_view selector, const mrender::raster::Surface& frame);
 // The canvas's backing store the frame's size (a GPU presents into it).
 void backing(std::string_view selector, int width, int height);
 [[nodiscard]] bool hidden();

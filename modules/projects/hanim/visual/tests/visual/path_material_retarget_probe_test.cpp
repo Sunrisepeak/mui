@@ -3,14 +3,14 @@
 import std;
 import hanim.core;
 import mlibs.geom;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 import hanim.visual;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
 namespace mo = hanim::visual;
-namespace render = xrender;
+namespace render = mrender;
 namespace geom = mlibs::geom;
 namespace {
 mo::Resolver resolver() {
@@ -30,7 +30,7 @@ render::DisplayList scene(const render::Path& path, const render::Paint& paint) 
     render::DisplayList list; list.begin_node(7); list.fill_path(path, render::FillRule::nonzero, paint); list.end_node(); return list;
 }
 std::uint64_t pixel_hash(const render::DisplayList& list) {
-    xrender::raster::Surface surface(160, 160); render::CpuRenderer cpu;
+    mrender::raster::Surface surface(160, 160); render::CpuRenderer cpu;
     (void)cpu.render(list, surface, {}); return surface.hash();
 }
 }

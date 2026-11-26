@@ -120,7 +120,7 @@ std::expected<void,BindingFailure> Binding::prepare(const hanim::PreparedProgram
             error.where.segment=segment;error.where.scope=scope;return std::unexpected(BindingFailure{.code=BindingError::rendering,.rendering=error});};
         if(!result)return failure(result.error());
         for(std::size_t i=0;i<result->bindings().size();++i) {
-            const auto* info=xrender::effects().info(result->bindings()[i].ref);
+            const auto* info=mrender::effects().info(result->bindings()[i].ref);
             if(!info || !info->preserves_hit_geometry || info->source_of)return failure({hanim::vector_render::VectorError::unsupported_effect,{},{i}});
         }
         chain.layers=result->bindings().size();chain.parameters=result->parameter_count();chain.binding=std::move(*result);

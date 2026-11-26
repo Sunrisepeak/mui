@@ -17,19 +17,19 @@ constexpr float grid = 6;  // units between the floor's lines
 
 }  // namespace
 
-void draw(const State& state, xrender::DisplayList& list, geom::Rect dest) {
+void draw(const State& state, mrender::DisplayList& list, geom::Rect dest) {
     const float across = dest.width / arena_width, down = dest.height / arena_height;
     const auto place = [&](Vec2 at) { return geom::Point{dest.x + at.x * across, dest.y + at.y * down}; };
     const auto disc = [&](Vec2 at, float radius, geom::Color colour) {
         const geom::Point centre = place(at);
-        xrender::Path path;
+        mrender::Path path;
         path.add_ellipse({centre.x - radius * across, centre.y - radius * down, 2 * radius * across, 2 * radius * down});
-        list.fill_path(path, xrender::FillRule::nonzero, xrender::Paint::solid(colour));
+        list.fill_path(path, mrender::FillRule::nonzero, mrender::Paint::solid(colour));
     };
     list.fill_rect(dest, ground);
     for (float x = grid; x < arena_width; x += grid) list.fill_rect({dest.x + x * across, dest.y, 1, dest.height}, lines);
     for (float y = grid; y < arena_height; y += grid) list.fill_rect({dest.x, dest.y + y * down, dest.width, 1}, lines);
-    list.stroke_round_rect(dest, {}, 2, xrender::Paint::solid(rim));
+    list.stroke_round_rect(dest, {}, 2, mrender::Paint::solid(rim));
 
     state.field.each<Body, Enemy>([&](meng::Entity, const Body& body, const Enemy& enemy) {
         const geom::Color colour = wave_colours[(enemy.wave + wave_colours.size() - 1) % wave_colours.size()];
@@ -42,9 +42,9 @@ void draw(const State& state, xrender::DisplayList& list, geom::Rect dest) {
     const bool faded = state.safe_for > 0 && (state.safe_for / 8) % 2 == 1;
     if (faded) list.push_layer(0.35f);
     const geom::Point from = place(state.player), to = place(state.player + state.aim * (player_radius * 1.8f));
-    xrender::Path gun;
+    mrender::Path gun;
     gun.move_to(from).line_to(to);
-    list.stroke_path(gun, {.width = 0.7f * across, .cap = xrender::LineCap::round}, xrender::Paint::solid(gun_colour));
+    list.stroke_path(gun, {.width = 0.7f * across, .cap = mrender::LineCap::round}, mrender::Paint::solid(gun_colour));
     disc(state.player, player_radius, player_colour);
     if (faded) list.pop_layer();
 }

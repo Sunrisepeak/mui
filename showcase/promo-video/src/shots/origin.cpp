@@ -4,13 +4,13 @@
 // its button, to the panel; the panel's semantic tree grows beside it, the
 // path to the button lit. Then the tree's lines leave it and settle on the
 // wordmark's outline, the wordmark fills in, and a band of light crosses it
-// (a wipe within a wipe: xrender's Slang effects).
+// (a wipe within a wipe: mrender's Slang effects).
 module omui.showcase.promo_video;
 
 import std;
 import hanim.core;
 import omui;
-import xrender.text;
+import mrender.text;
 
 namespace omui::promo {
 
@@ -78,7 +78,7 @@ public:
         const bool portrait = c_.portrait();
         word_size_ = portrait ? 150.0f : 210.0f;
         auto s = s_;
-        auto refs = std::make_shared<std::pair<xrender::ImageRef, xrender::ImageRef>>();
+        auto refs = std::make_shared<std::pair<mrender::ImageRef, mrender::ImageRef>>();
         refs_ = refs;
         Element lens = painter({.id = "lens",
                                 .width = Dim(mlibs::layout::pct(100)),
@@ -194,13 +194,13 @@ public:
     std::vector<Cue> cues(double) override { return {}; }
 
 private:
-    static void paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef, xrender::ImageRef>& refs);
+    static void paint(PaintContext& p, State& s, const std::pair<mrender::ImageRef, mrender::ImageRef>& refs);
     void layout_tree();
     void layout_wordmark(Runtime& rt);
 
     ShotContext                                                  c_;
     std::shared_ptr<State>                                       s_;
-    std::shared_ptr<std::pair<xrender::ImageRef, xrender::ImageRef>> refs_;
+    std::shared_ptr<std::pair<mrender::ImageRef, mrender::ImageRef>> refs_;
     NodeId lens_{}, label_{}, word_{}, under_{}, sweep_from_{}, sweep_to_{};
     float  word_size_ = 210;
 };
@@ -283,7 +283,7 @@ void Origin::layout_wordmark(Runtime& rt) {
     const Rect b = h.runtime().bounds(h.runtime().find("main/mark"));
     const float top = (c_.portrait() ? screen.height * 0.42f : screen.height * 0.44f) - b.height / 2;
     s.wordmark = {b.x, top, b.width, b.height};
-    const xrender::raster::Surface& px = h.pixels();
+    const mrender::raster::Surface& px = h.pixels();
     std::vector<Mark> edge;
     for (int y = 1; y + 1 < px.height(); y += 2)
         for (int x = 1; x + 1 < px.width(); ++x) {
@@ -344,7 +344,7 @@ void Origin::layout_wordmark(Runtime& rt) {
     s.sources = std::move(sources);
 }
 
-void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef, xrender::ImageRef>& refs) {
+void Origin::paint(PaintContext& p, State& s, const std::pair<mrender::ImageRef, mrender::ImageRef>& refs) {
     const PanelPicture& panel = panel_picture();
     const Size screen = p.size;
     auto& list = p.list;
@@ -379,10 +379,10 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
         list.fill_rect({pix.x + pix.width, pix.y, std::max(0.0f, screen.width - pix.x - pix.width), pix.height}, dark);
         // The pixel itself, lighting up: dark, then its colour, a halo round it.
         const float glow = std::min(1.0f, s.pixel_glow * 0.5f);
-        const std::array<xrender::GradientStop, 3> halo{{{0, hex(ink::cyan, 0.32f * glow * a)}, {0.45f, hex(ink::cyan, 0.1f * glow * a)}, {1, hex(ink::cyan, 0)}}};
-        xrender::Paint g;
-        g.kind = xrender::Paint::Kind::gradient;
-        g.gradient.kind = xrender::GradientKind::radial;
+        const std::array<mrender::GradientStop, 3> halo{{{0, hex(ink::cyan, 0.32f * glow * a)}, {0.45f, hex(ink::cyan, 0.1f * glow * a)}, {1, hex(ink::cyan, 0)}}};
+        mrender::Paint g;
+        g.kind = mrender::Paint::Kind::gradient;
+        g.gradient.kind = mrender::GradientKind::radial;
         g.gradient.start = g.gradient.end = {pix.x + pix.width / 2, pix.y + pix.height / 2};
         g.gradient.radius = std::max(pix.width, pix.height) * (0.8f + 0.5f * s.pixel_glow);
         g.gradient.stops = halo;
@@ -394,7 +394,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
         if (on > 0) {
             paint_ticks(list, {pix.x - 10, pix.y - 10, pix.width + 20, pix.height + 20}, hex(ink::ice, 0.8f * on), 26, 2, 0);
             const auto& dim = s.labels.get(fonts, "1 px", 18, hex(ink::muted, on), 500, "JetBrains Mono");
-            xrender::text::paint(dim, list, {pix.x + pix.width / 2 - dim.size().width / 2, pix.y - 44});
+            mrender::text::paint(dim, list, {pix.x + pix.width / 2 - dim.size().width / 2, pix.y - 44});
         }
     }
     // The Save button's frame, as the panel comes into view.
@@ -422,11 +422,11 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
         for (const TreeBox& b : s.boxes) {
             const float on = shown(b.level) * solid;
             if (on <= 0) continue;
-            list.fill_round_rect(b.rect, CornerRadii::all(4), xrender::Paint::solid(hex(b.lit ? 0x0d3b55 : ink::panel, 0.92f * on)));
-            list.stroke_round_rect(b.rect, CornerRadii::all(4), b.lit ? 1.6f : 1, xrender::Paint::solid(hex(b.lit ? ink::cyan : ink::line, on)));
+            list.fill_round_rect(b.rect, CornerRadii::all(4), mrender::Paint::solid(hex(b.lit ? 0x0d3b55 : ink::panel, 0.92f * on)));
+            list.stroke_round_rect(b.rect, CornerRadii::all(4), b.lit ? 1.6f : 1, mrender::Paint::solid(hex(b.lit ? ink::cyan : ink::line, on)));
             const auto& l = s.labels.get(fonts, b.label, 18, hex(b.lit ? ink::ice : ink::muted, on), 500, "JetBrains Mono");
             list.push_clip({b.rect.x + 6, b.rect.y, b.rect.width - 12, b.rect.height});
-            xrender::text::paint(l, list, {b.rect.x + 9, b.rect.y + b.rect.height / 2 - l.size().height / 2});
+            mrender::text::paint(l, list, {b.rect.x + 9, b.rect.y + b.rect.height / 2 - l.size().height / 2});
             list.pop_clip();
         }
         // The lit node to the button it is: a leader line.
@@ -444,7 +444,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
     if (s.gather > 0 && !s.marks.empty()) {
         const float fade = static_cast<float>(1 - hanim::window(s.gather, 0.9, 1.0, hanim::ease::smoothstep));
         if (fade > 0) {
-            xrender::Path dashes;
+            mrender::Path dashes;
             for (std::size_t i = 0; i < s.marks.size(); ++i) {
                 const double g = hanim::ease::in_out_cubic(std::clamp((s.gather - s.delays[i]) / 0.55, 0.0, 1.0));
                 const Mark& a = s.sources[i];
@@ -459,10 +459,10 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
                 dashes.move_to({static_cast<float>(x - cx), static_cast<float>(y - cy)});
                 dashes.line_to({static_cast<float>(x + cx), static_cast<float>(y + cy)});
             }
-            xrender::StrokeStyle st;
+            mrender::StrokeStyle st;
             st.width = 2.2f;
-            st.cap = xrender::LineCap::round;
-            list.stroke_path(dashes, st, xrender::Paint::solid(hex(ink::cyan, fade)));
+            st.cap = mrender::LineCap::round;
+            list.stroke_path(dashes, st, mrender::Paint::solid(hex(ink::cyan, fade)));
         }
         // The drawing's construction lines round the wordmark: its axis, its edges and their dimension, a circle drawn round it.
         const float lines = static_cast<float>(s.timing["lines.in"]);
@@ -479,10 +479,10 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
             for (const float x : {w.x, w.x + w.width}) list.fill_rect({x - 4, dy - 4, 9, 1}, line), list.fill_rect({x, dy - 4, 1, 9}, line);
             const auto& dim = s.labels.get(fonts, "one semantic tree · one wordmark", 18, hex(ink::muted, lines), 500, "JetBrains Mono");
             list.fill_rect({cx - dim.size().width / 2 - 10, dy - 12, dim.size().width + 20, 24}, hex(ink::paper, lines));
-            xrender::text::paint(dim, list, {cx - dim.size().width / 2, dy - dim.size().height / 2});
+            mrender::text::paint(dim, list, {cx - dim.size().width / 2, dy - dim.size().height / 2});
             const float radius = w.width * 0.6f;
             const double sweep = hanim::dm::two_pi * s.timing["circle.sweep"];
-            xrender::Path arc;
+            mrender::Path arc;
             const int steps = 180;
             for (int k = 0; k <= steps; ++k) {
                 const double a = -hanim::dm::half_pi + sweep * k / steps;
@@ -490,9 +490,9 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
                 if (k == 0) arc.move_to(q);
                 else arc.line_to(q);
             }
-            xrender::StrokeStyle st;
+            mrender::StrokeStyle st;
             st.width = 1;
-            if (sweep > 0) list.stroke_path(arc, st, xrender::Paint::solid(faint));
+            if (sweep > 0) list.stroke_path(arc, st, mrender::Paint::solid(faint));
         }
         // A rule under the wordmark, drawn out once it stands.
         const float rule = static_cast<float>(hanim::window(s.gather, 0.9, 1.0, hanim::ease::smoothstep) * s.timing["rule.in"]);

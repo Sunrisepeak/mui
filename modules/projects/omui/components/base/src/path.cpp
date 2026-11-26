@@ -21,7 +21,7 @@ void Path::prop_changed(PathProp p) {
 
 Rect Path::view_box() const noexcept { return parts::view_box(props.view_box).value_or(Rect{0, 0, 100, 100}); }
 
-const xrender::Path* Path::shape() const {
+const mrender::Path* Path::shape() const {
     if (shape_of_ == props.d && shape_) return &*shape_;
     shape_of_ = props.d;
     shape_ = parts::shape_of(props.d);
@@ -41,21 +41,21 @@ Size Path::measure(MeasureContext&, std::optional<float> width, std::optional<fl
 }
 
 void Path::paint(PaintContext& ctx) const {
-    const xrender::Path* drawn = shape();
+    const mrender::Path* drawn = shape();
     if (!drawn || ctx.content.empty()) return;
     // The view box into the content box, its ratio kept, centred.
     const mlibs::geom::Affine into = parts::fitted(view_box(), ctx.content);
     const float scale = into.a;
-    const xrender::Path placed = drawn->transformed(into);
+    const mrender::Path placed = drawn->transformed(into);
     const Theme& th = ctx.theme;
     ctx.part({.role = "shape", .allocation = {0, 0, ctx.size.width, ctx.size.height}}, [&] {
-        if (!props.fill.empty()) ctx.list.fill_path(placed, xrender::FillRule::nonzero, xrender::Paint::solid(th.color(props.fill)));
+        if (!props.fill.empty()) ctx.list.fill_path(placed, mrender::FillRule::nonzero, mrender::Paint::solid(th.color(props.fill)));
         const float trim = static_cast<float>(std::clamp(props.trim, 0.0, 1.0));
         if (!props.stroke.empty() && props.stroke_width > 0 && trim > 0)
             ctx.list.stroke_path(placed,
-                                 {.width = static_cast<float>(props.stroke_width) * scale, .cap = xrender::LineCap::round,
-                                  .join = xrender::LineJoin::round, .trim_end = trim},
-                                 xrender::Paint::solid(th.color(props.stroke)));
+                                 {.width = static_cast<float>(props.stroke_width) * scale, .cap = mrender::LineCap::round,
+                                  .join = mrender::LineJoin::round, .trim_end = trim},
+                                 mrender::Paint::solid(th.color(props.stroke)));
     });
 }
 

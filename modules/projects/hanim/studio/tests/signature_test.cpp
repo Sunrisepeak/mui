@@ -9,9 +9,9 @@ import std;
 import mlibs.rhi;
 import mlibs.geom;
 import mlibs.image;
-import xrender.rhi.sdl;
-import xrender.raster;
-import xrender.vector;
+import mrender.rhi.sdl;
+import mrender.raster;
+import mrender.vector;
 import hanim.engine;
 import hanim.render.vector;
 import mlibs.hash;
@@ -23,7 +23,7 @@ using namespace mcpplibs::mtest;
 using namespace hanim;
 namespace rhi = mlibs::rhi;
 namespace geom = mlibs::geom;
-namespace raster = xrender::raster;
+namespace raster = mrender::raster;
 
 namespace {
 template <class T, class E>
@@ -98,18 +98,18 @@ std::unique_ptr<Shot> drop() {
 }
 }  // namespace
 
-UTest cases{"xrender.sdl.signature", [] {
+UTest cases{"mrender.sdl.signature", [] {
     "the four signature shots: CPU and GPU draw the same frames through each course"_test = [] {
-        xrender::rhi::sdl::Options o;
-        o.formats = xrender::gpu_shader_formats();
+        mrender::rhi::sdl::Options o;
+        o.formats = mrender::gpu_shader_formats();
         o = environment_options(std::move(o));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
-        auto created = xrender::rhi::sdl::create(o);
+        auto created = mrender::rhi::sdl::create(o);
         if (!created) {
-            if (xrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message);
+            if (mrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message);
             return;
         }
         rhi::Device& device = **created;
-        auto gpu = take(xrender::GpuRenderer::create(device));
+        auto gpu = take(mrender::GpuRenderer::create(device));
         auto target = device.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "signature"});
         expect(target.has_value());
         if (!target) return;
@@ -125,7 +125,7 @@ UTest cases{"xrender.sdl.signature", [] {
             take(shot->engine.pause(playback));
             const auto drawing = take(hanim::vector_render::PreparedVectorProgram::bind(*shot->plan));
             const auto needs = drawing.requirements();
-            xrender::DisplayList staging;
+            mrender::DisplayList staging;
             std::vector<geom::Affine> world(needs.buffers.world_transforms);
             std::vector<float> parameters(needs.buffers.backend_parameters);
             std::vector<geom::Rect> layers(needs.buffers.effect_layers), bounds(needs.tracks + needs.scopes);
@@ -135,10 +135,10 @@ UTest cases{"xrender.sdl.signature", [] {
             std::size_t distinct = 0;
             for (std::size_t k = 0; k < shot->moments.size(); ++k) {
                 take(shot->engine.seek(playback, seconds(shot->moments[k])));
-                xrender::DisplayList list;
+                mrender::DisplayList list;
                 take(drawing.record(take(shot->engine.program_frame(playback)).scene, list, {{&staging, world, parameters, layers}, bounds, members, order, stack}));
                 raster::Surface cpu(W, H);
-                xrender::CpuRenderer reference;
+                mrender::CpuRenderer reference;
                 (void)reference.render(list, cpu, {}, {.background = ground});
                 const auto report = gpu.render(list, *target, {}, {.background = ground});
                 expect(report.has_value()) << (report ? "" : report.error().message);

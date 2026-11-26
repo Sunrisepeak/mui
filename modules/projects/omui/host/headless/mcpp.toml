@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
 separate = "library: the host without a window, for tests, agents and tools"
-reexports = ["mlibs.image", "omui.agent", "omui.core", "omui.semantic", "omui.view", "xrender.raster"]  # what its interface re-exports (lint module-closure)
+reexports = ["mlibs.image", "omui.agent", "omui.core", "omui.semantic", "omui.view", "mrender.raster"]  # what its interface re-exports (lint module-closure)
 kind = "host"
 agent = { part = "omui.agent" }
 
@@ -26,16 +26,16 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-xrender.text = { path = "../../../xrender/text" }
+mrender.text = { path = "../../../mrender/text" }
 omui.core     = { path = "../../core" }
 omui.view     = { path = "../../view" }
 omui.semantic = { path = "../../semantic" }
 omui.agent    = { path = "../../agent" }
 mlibs.compose = { path = "../../../../base/compose" }  # the agent surface's slot, read where a session opens
-xrender.raster   = { path = "../../../xrender/raster" }
-xrender.vector   = { path = "../../../xrender/vector" }
+mrender.raster   = { path = "../../../mrender/raster" }
+mrender.vector   = { path = "../../../mrender/vector" }
 # The frame's entry: the host hands its layers to the renderer, which composes, captures and traces (D-162).
-xrender.frame    = { path = "../../../xrender/frame" }
+mrender.frame    = { path = "../../../mrender/frame" }
 mlibs.text     = { path = "../../../../content/text" }
 mlibs.image    = { path = "../../../../base/image" }
 mlibs.utils    = { path = "../../../../base/utils" }

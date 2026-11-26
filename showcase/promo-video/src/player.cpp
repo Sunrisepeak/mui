@@ -112,7 +112,7 @@ Player::Player(const Film& film, const Cut& cut, PlayerOptions options) : film_(
     // never inferred from the frame drawn before (universal motion's morphs are for interfaces in use).
     overlay_host_->runtime().set_motion_level(MotionLevel::off);
     overlay_host_->mount("main", overlay_->view());
-    out_ = xrender::raster::Surface(width(), height());
+    out_ = mrender::raster::Surface(width(), height());
     store_ = options_.store ? options_.store : std::make_shared<FrameStore>();
     // The frames the `film` clips play back, kept as they are drawn.
     const mlibs::time::Flicks frame = cut.timeline.rate.frame_length();
@@ -173,12 +173,12 @@ std::expected<void, std::string> Player::draw_scene(const Shown& s) {
     return {};
 }
 
-std::expected<std::shared_ptr<const xrender::raster::Surface>, std::string> Player::played_back(std::int64_t frame) {
+std::expected<std::shared_ptr<const mrender::raster::Surface>, std::string> Player::played_back(std::int64_t frame) {
     if (const auto kept = store_->get(frame)) {
         auto img = mlibs::image::decode_png(*kept);
         if (!img) return std::unexpected(img.error());
         mlibs::image::premultiply(*img);
-        auto s = std::make_shared<xrender::raster::Surface>(img->width, img->height);
+        auto s = std::make_shared<mrender::raster::Surface>(img->width, img->height);
         std::memcpy(s->pixels().data(), img->rgba.data(), img->rgba.size());
         return s;
     }
@@ -186,7 +186,7 @@ std::expected<std::shared_ptr<const xrender::raster::Surface>, std::string> Play
     Player again(*film_, *cut_, PlayerOptions{options_.size, options_.scale, options_.subtitles, options_.timebar, options_.chapters, fonts_, {}, options_.parallel_raster});
     auto f = again.frame(frame);
     if (!f) return std::unexpected(f.error());
-    return std::make_shared<xrender::raster::Surface>(**f);
+    return std::make_shared<mrender::raster::Surface>(**f);
 }
 
 namespace {
@@ -199,32 +199,32 @@ constexpr std::uint32_t mul255(std::uint32_t a, std::uint32_t b) noexcept {
 
 }  // namespace
 
-std::expected<const xrender::raster::Surface*, std::string> Player::frame(std::int64_t i) {
+std::expected<const mrender::raster::Surface*, std::string> Player::frame(std::int64_t i) {
     if (i < 0 || i >= frames()) return std::unexpected(std::format("frame {}: the cut has {}", i, frames()));
     const auto s = shown(*cut_, i);
     last_ = s;
     const int w = width(), h = height();
-    std::optional<xrender::ImageRef> picture;
+    std::optional<mrender::ImageRef> picture;
     Runtime& ort = overlay_host_->runtime();
     if (shown_image_) {
         ort.images().remove(*shown_image_);
         shown_image_.reset();
     }
     if (!s) {
-        out_.clear(xrender::raster::Rgba8{0, 0, 0, 255});
+        out_.clear(mrender::raster::Rgba8{0, 0, 0, 255});
     } else if (s->film) {
         auto pic = played_back(cut_->timeline.rate.frame_at(s->source));
         if (!pic) return std::unexpected(pic.error());
         shown_image_ = ort.images().add(*pic);
         picture = shown_image_;
-        out_.clear(xrender::raster::Rgba8{0, 0, 0, 255});
+        out_.clear(mrender::raster::Rgba8{0, 0, 0, 255});
     } else {
         if (auto r = draw_scene(*s); !r) return std::unexpected(r.error());
-        const xrender::raster::Surface& px = scene_->host->pixels();
+        const mrender::raster::Surface& px = scene_->host->pixels();
         const auto level = static_cast<std::uint32_t>(std::lround(std::clamp(s->level, 0.0f, 1.0f) * 255));
         for (int y = 0; y < h; ++y) {
-            const xrender::raster::Rgba8* from = px.row(y);
-            xrender::raster::Rgba8* to = out_.row(y);
+            const mrender::raster::Rgba8* from = px.row(y);
+            mrender::raster::Rgba8* to = out_.row(y);
             if (level == 255) {
                 std::memcpy(to, from, static_cast<std::size_t>(w) * 4);
                 continue;
@@ -237,13 +237,13 @@ std::expected<const xrender::raster::Surface*, std::string> Player::frame(std::i
     }
     overlay_->at(ort, i, s, picture);
     ort.frame({hanim::seconds(cut_->seconds_of(i)), {}});
-    const xrender::raster::Surface& o = overlay_host_->pixels();
+    const mrender::raster::Surface& o = overlay_host_->pixels();
     // The overlay over the picture (both premultiplied; the picture opaque).
     for (int y = 0; y < h; ++y) {
-        const xrender::raster::Rgba8* over = o.row(y);
-        xrender::raster::Rgba8* to = out_.row(y);
+        const mrender::raster::Rgba8* over = o.row(y);
+        mrender::raster::Rgba8* to = out_.row(y);
         for (int x = 0; x < w; ++x) {
-            const xrender::raster::Rgba8 v = over[x];
+            const mrender::raster::Rgba8 v = over[x];
             if (v.a == 0) continue;
             if (v.a == 255) {
                 to[x] = v;
@@ -261,7 +261,7 @@ std::expected<const xrender::raster::Surface*, std::string> Player::frame(std::i
     return &out_;
 }
 
-std::expected<xrender::raster::Surface, std::string> Player::direct(std::int64_t i) {
+std::expected<mrender::raster::Surface, std::string> Player::direct(std::int64_t i) {
     Player fresh(*film_, *cut_, PlayerOptions{options_.size, options_.scale, options_.subtitles, options_.timebar, options_.chapters, fonts_, {}, options_.parallel_raster});
     auto f = fresh.frame(i);
     if (!f) return std::unexpected(f.error());
@@ -271,11 +271,11 @@ std::expected<xrender::raster::Surface, std::string> Player::direct(std::int64_t
 std::expected<mlibs::image::View, std::string> Frames::frame(std::int64_t index) {
     auto f = player_->frame(index);
     if (!f) return std::unexpected(f.error());
-    const xrender::raster::Surface& s = **f;
+    const mrender::raster::Surface& s = **f;
     return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4, mlibs::image::Alpha::premultiplied};
 }
 
-std::uint64_t pixel_hash(const xrender::raster::Surface& s) noexcept {
+std::uint64_t pixel_hash(const mrender::raster::Surface& s) noexcept {
     mlibs::hash::Fnv1a h;
     for (int y = 0; y < s.height(); ++y) h.bytes(std::as_bytes(std::span(s.row(y), static_cast<std::size_t>(s.width()))));
     return h.value();

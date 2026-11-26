@@ -20,7 +20,7 @@ export module omui.ui.canvas:textures;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import mlibs.text;
 import :scene;
 
@@ -45,7 +45,7 @@ public:
     // The texture to draw for a node this frame: the wanted level if ready,
     // else the nearest ready one (sharper first). `frame` marks it used.
     struct Pick {
-        xrender::ImageRef image;
+        mrender::ImageRef image;
         int              level = 0;
         bool             exact = false;
     };
@@ -60,7 +60,7 @@ public:
     // can draw: a lit material, a mesh, an external texture) — its textures
     // then, as before.
     struct Listed {
-        const xrender::DisplayList* list = nullptr;
+        const mrender::DisplayList* list = nullptr;
         std::uint64_t               serial = 0;  // the list's own number: another list, another number
         bool                        exact = false;
         bool                        unfit = false;
@@ -79,18 +79,18 @@ public:
     // The frame's candidates, by priority, as jobs (their content built here,
     // on the calling thread — a view as an element, laid out on the pool;
     // rasterised on the pool) in the theme given.
-    void issue(const Scene& scene, const xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme);
+    void issue(const Scene& scene, const mrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme);
 
     // What came back, into the store within the frame's upload budget, and
     // the budget of bytes kept; true when something new can be drawn. `wait`
     // (a deterministic run): every job issued is waited for first.
-    bool collect(xrender::ImageStore& images, std::uint64_t frame, bool wait = false);
+    bool collect(mrender::ImageStore& images, std::uint64_t frame, bool wait = false);
     // Every candidate made now, however many (frames drawn complete,
     // Services::complete_frames): issued at once, waited for, and entered
     // whatever the frame's upload budget.
-    void complete(const Scene& scene, xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme, std::uint64_t frame);
+    void complete(const Scene& scene, mrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme, std::uint64_t frame);
     // Every texture out of the store (the canvas goes, its scene or its theme changes).
-    void clear(xrender::ImageStore& images);
+    void clear(mrender::ImageStore& images);
 
     [[nodiscard]] bool busy() const;  // jobs in flight or results waiting
 
@@ -104,7 +104,7 @@ public:
 
 private:
     struct Level {
-        xrender::ImageRef image;
+        mrender::ImageRef image;
         std::size_t      bytes = 0;
         std::uint64_t    used = 0;
     };
@@ -112,10 +112,10 @@ private:
         std::uint64_t        revision = 0;
         std::map<int, Level> levels;
         // The content's list (Listed), the revision it is of, and the images it draws that entered the store with it.
-        std::shared_ptr<const xrender::DisplayList> list;
+        std::shared_ptr<const mrender::DisplayList> list;
         std::uint64_t                               list_revision = 0;
         std::uint64_t                               list_serial = 0;
-        std::vector<xrender::ImageRef>              list_images;
+        std::vector<mrender::ImageRef>              list_images;
         std::optional<std::uint64_t>                unfit;  // the revision found unfit
     };
     // A candidate's and a job's level when what is wanted is the list.

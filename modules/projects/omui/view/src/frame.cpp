@@ -5,8 +5,8 @@ module omui.view;
 import std;
 import omui.core;
 import mlibs.layout;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import mlibs.text;
 import mlibs.trace;
 import mlibs.pipeline;
@@ -586,7 +586,7 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
         if (s != 1 || rotation != 0) {
             const float cx = size.width / 2, cy = size.height / 2;
             Affine m = Affine::translate(cx, cy);
-            if (rotation != 0) m = m * xrender::rotate(rotation * degrees_to_radians);
+            if (rotation != 0) m = m * mrender::rotate(rotation * degrees_to_radians);
             if (s != 1) m = m * Affine::scale(s, s);
             local = local * m * Affine::translate(-cx, -cy);
         }
@@ -638,7 +638,7 @@ std::optional<Rect> Runtime::Impl::reach_of(NodeId id) const {
     if (!v.shadow.empty()) {
         const Theme& theme = theme_of(id);
         if (const auto it = theme.shadows.find(v.shadow); it != theme.shadows.end()) {
-            // A blur reaches about twice its radius before it is nothing (xrender's box_shadow).
+            // A blur reaches about twice its radius before it is nothing (mrender's box_shadow).
             const auto cast = [](Point offset, float blur, float spread) {
                 return std::max(std::abs(offset.x), std::abs(offset.y)) + std::max(0.0f, spread) + 2 * std::max(0.0f, blur);
             };
@@ -646,11 +646,11 @@ std::optional<Rect> Runtime::Impl::reach_of(NodeId id) const {
             if (const auto& ambient = it->second.ambient) out = std::max(out, past + cast(ambient->offset, ambient->blur, ambient->spread));
         }
     }
-    // An effect over its drawing: as far as the effect says it writes (xrender's output reach, else its capture reach),
+    // An effect over its drawing: as far as the effect says it writes (mrender's output reach, else its capture reach),
     // the effect that stands in for it below its tiers too; one moving, or that says nothing, anywhere.
     if (n.effect_moving(now(), !reduce_motion && motion_now() == MotionLevel::full)) return std::nullopt;
-    const auto effect_reach = [&](const xrender::EffectRef effect, std::span<const float> params) -> std::optional<float> {
-        const xrender::EffectInfo* info = xrender::effects().info(effect);
+    const auto effect_reach = [&](const mrender::EffectRef effect, std::span<const float> params) -> std::optional<float> {
+        const mrender::EffectInfo* info = mrender::effects().info(effect);
         if (!info || (info->identity && info->identity(params))) return 0.0f;
         if (info->output_reach) return info->output_reach(params);
         if (info->reach) return info->reach(params);
@@ -658,10 +658,10 @@ std::optional<Rect> Runtime::Impl::reach_of(NodeId id) const {
     };
     const auto effect = [&](const Node::PixelEffectState& fx) -> std::optional<float> {
         auto own = effect_reach(fx.effect, fx.params);
-        const xrender::EffectInfo* info = xrender::effects().info(fx.effect);
+        const mrender::EffectInfo* info = mrender::effects().info(fx.effect);
         if (own && info && !info->degrade.empty())
-            if (const auto instead = xrender::effects().find(info->degrade)) {
-                const auto stand_in = effect_reach(*instead, xrender::effects().params(*instead, {}));
+            if (const auto instead = mrender::effects().find(info->degrade)) {
+                const auto stand_in = effect_reach(*instead, mrender::effects().params(*instead, {}));
                 own = stand_in ? std::optional<float>(std::max(*own, *stand_in)) : std::nullopt;
             }
         return own;
@@ -726,7 +726,7 @@ void Runtime::Impl::paint() {
         else {
             history_range.first = list.size();
             if (fade_clip) list.push_clip(*fade_clip);  // a scope's: only its area
-            list.push_layer(static_cast<float>(1 - hanim::ease::standard(u)), xrender::BlendMode::normal);
+            list.push_layer(static_cast<float>(1 - hanim::ease::standard(u)), mrender::BlendMode::normal);
             list.append(*fading);
             list.pop_layer();
             if (fade_clip) list.pop_clip();
@@ -822,15 +822,15 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
     // panel — its background as it looks over the theme's, made solid.
     bool solid = false;
     if (fxs && reduce_transparency)
-        if (const xrender::EffectInfo* info = xrender::effects().info(fxs->effect); info && info->backdrop) fxs = nullptr, solid = true;
+        if (const mrender::EffectInfo* info = mrender::effects().info(fxs->effect); info && info->backdrop) fxs = nullptr, solid = true;
     // Below the tiers it runs on (performance tiers, D-94: the device's, or as low as the frame budget allows): what
     // stands in for it, its defaults; none — a backdrop's effect, its panel then drawn solid.
     if (fxs)
-        if (const xrender::EffectInfo* info = xrender::effects().info(fxs->effect); info && !(info->tiers & mlibs::pipeline::tier_bit(effects_now()))) {
-            const auto instead = info->degrade.empty() ? std::nullopt : xrender::effects().find(info->degrade);
+        if (const mrender::EffectInfo* info = mrender::effects().info(fxs->effect); info && !(info->tiers & mlibs::pipeline::tier_bit(effects_now()))) {
+            const auto instead = info->degrade.empty() ? std::nullopt : mrender::effects().find(info->degrade);
             solid = solid || info->backdrop;
             if (instead) {
-                n.stood_in = {.effect = *instead, .params = xrender::effects().params(*instead, {})};
+                n.stood_in = {.effect = *instead, .params = mrender::effects().params(*instead, {})};
                 fxs = &n.stood_in;
             } else {
                 fxs = nullptr;
@@ -875,13 +875,13 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
         // UI effect wrappers carry no opacity/blend of their own. An identity
         // needs no extra isolated group (which would reapply ancestor clips).
         // The node's actual opacity layer below remains independent.
-        if (const auto* info = xrender::effects().info(fxs->effect); info && info->identity && info->identity(fxs->params)) fxs = nullptr;
+        if (const auto* info = mrender::effects().info(fxs->effect); info && info->identity && info->identity(fxs->params)) fxs = nullptr;
     }
     const bool effected = fxs != nullptr;
     // More of its own over it (a list), each where it runs (performance tiers: below its tiers, left out).
     std::size_t more = 0;
     for (auto& fx : n.more_effects)
-        if (const xrender::EffectInfo* info = xrender::effects().info(fx.effect); info && (info->tiers & mlibs::pipeline::tier_bit(effects_now())) &&
+        if (const mrender::EffectInfo* info = mrender::effects().info(fx.effect); info && (info->tiers & mlibs::pipeline::tier_bit(effects_now())) &&
                                                                                !(info->backdrop && reduce_transparency)) {
             sample(fx);
             if (!info->identity || !info->identity(fx.params)) ++more;
@@ -890,7 +890,7 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
         // The layer's shapes: what the node paints as surfaces — its own
         // rounded box, and each child's that has a background or a border
         // (a group's members: what neon lights and metaball merges).
-        std::array<xrender::EffectShape, 8> shapes{};
+        std::array<mrender::EffectShape, 8> shapes{};
         std::size_t count = 0;
         if (n.type->effect_shapes) {
             const Insets pad = content_insets_of(layout.style(n.layout));
@@ -911,20 +911,20 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
             if (shapes[i].radii.smoothing == 0 && !shapes[i].radii.zero()) shapes[i].radii.smoothing = theme.corner_smoothing;
         // The last of the list outermost: pushed first.
         for (auto it = n.more_effects.rbegin(); it != n.more_effects.rend(); ++it) {
-            const xrender::EffectInfo* info = xrender::effects().info(it->effect);
+            const mrender::EffectInfo* info = mrender::effects().info(it->effect);
             if (!info || !(info->tiers & mlibs::pipeline::tier_bit(effects_now())) || (info->backdrop && reduce_transparency)) continue;
             if (info->identity && info->identity(it->params)) continue;
-            list.push_layer(1, xrender::BlendMode::normal, it->effect, it->params, box, std::span(shapes.data(), count));
+            list.push_layer(1, mrender::BlendMode::normal, it->effect, it->params, box, std::span(shapes.data(), count));
         }
         if (effected) {
-            list.push_layer(1, xrender::BlendMode::normal, fxs->effect, fxs->params, box, std::span(shapes.data(), count));
+            list.push_layer(1, mrender::BlendMode::normal, fxs->effect, fxs->params, box, std::span(shapes.data(), count));
         }
     }
-    if (layer) list.push_layer(opacity, xrender::BlendMode::normal, {}, {}, box);
+    if (layer) list.push_layer(opacity, mrender::BlendMode::normal, {}, {}, box);
     // Disabled, of a kind that draws no disabled state of its own: drawn whole at the theme's disabled opacity (the
     // change moves as every change of a drawing does, by the kind's motion).
     const bool dimmed = n.state.disabled && !n.type->draws_disabled && theme.disabled_opacity < 1;
-    if (dimmed) list.push_layer(theme.disabled_opacity, xrender::BlendMode::normal, {}, {}, box);
+    if (dimmed) list.push_layer(theme.disabled_opacity, mrender::BlendMode::normal, {}, {}, box);
 
     const CornerRadii radii = v.corners(size).smoothed(theme.corner_smoothing);
     Size constraint = this->size;
@@ -943,15 +943,15 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
             bg = {under.r + (bg.r - under.r) * bg.a, under.g + (bg.g - under.g) * bg.a, under.b + (bg.b - under.b) * bg.a, 1};
         }
         if (radii.zero()) list.fill_rect(box, bg);
-        else list.fill_round_rect(box, radii, xrender::Paint::solid(bg));
+        else list.fill_round_rect(box, radii, mrender::Paint::solid(bg));
     }
     if (const float bw = v[Field::border_width]; bw > 0)
         if (const Color bc = v.border(); bc.a > 0) {
             const float h = bw / 2;
             CornerRadii inner = radii;
             for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - h);
-            // On the device's pixels: a 1 px border is one row of full pixels at any scale and origin (xrender::PixelAlign).
-            list.stroke_round_rect({h, h, size.width - bw, size.height - bw}, inner, bw, xrender::Paint::solid(bc), xrender::PixelAlign::device);
+            // On the device's pixels: a 1 px border is one row of full pixels at any scale and origin (mrender::PixelAlign).
+            list.stroke_round_rect({h, h, size.width - bw, size.height - bw}, inner, bw, mrender::Paint::solid(bc), mrender::PixelAlign::device);
         }
 
     const Insets in = content_insets_of(layout.style(n.layout));
@@ -1022,7 +1022,7 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
             CornerRadii r = radii;
             for (float* x : {&r.top_left, &r.top_right, &r.bottom_right, &r.bottom_left}) *x += gap + width / 2;
             list.stroke_round_rect({-gap - width / 2, -gap - width / 2, size.width + 2 * gap + width, size.height + 2 * gap + width},
-                                   r, width, xrender::Paint::solid(theme.color("focus", Color::hex(0x6366f1, 0.55f))));
+                                   r, width, mrender::Paint::solid(theme.color("focus", Color::hex(0x6366f1, 0.55f))));
         }
     }
 
@@ -1051,27 +1051,27 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
     };
     std::vector<Fill> fills;
     std::vector<std::size_t> at_index;
-    std::vector<std::span<const xrender::Glyph>> runs;
+    std::vector<std::span<const mrender::Glyph>> runs;
     std::vector<std::uint32_t> paragraphs;
     std::vector<std::uint32_t> open;  // the paragraphs of the descendants begun and not ended
     std::uint32_t next = 0;
     std::size_t kept = 0;  // the depth at which a descendant with its own motion began (0: none)
     const auto& commands = list.commands();
     for (std::size_t i = first; i < commands.size(); ++i) {
-        if (const auto* b = std::get_if<xrender::BeginNode>(&commands[i])) {
+        if (const auto* b = std::get_if<mrender::BeginNode>(&commands[i])) {
             open.push_back(++next);
             if (!kept && std::ranges::contains(glyph_movers, b->node)) kept = open.size();
-        } else if (std::holds_alternative<xrender::EndNode>(commands[i])) {
+        } else if (std::holds_alternative<mrender::EndNode>(commands[i])) {
             if (kept == open.size()) kept = 0;
             if (!open.empty()) open.pop_back();
-        } else if (const auto* g = std::get_if<xrender::DrawGlyphs>(&commands[i]); g && !kept) {
+        } else if (const auto* g = std::get_if<mrender::DrawGlyphs>(&commands[i]); g && !kept) {
             at_index.push_back(i);
             runs.push_back(g->glyphs);
             paragraphs.push_back(open.empty() ? 0 : open.back());
         } else if (!kept) {
             const std::uint32_t paragraph = open.empty() ? 0 : open.back();
-            if (const auto* r = std::get_if<xrender::FillRect>(&commands[i])) fills.push_back({i, r->rect, paragraph});
-            else if (const auto* rr = std::get_if<xrender::FillRoundRect>(&commands[i])) fills.push_back({i, rr->rect, paragraph});
+            if (const auto* r = std::get_if<mrender::FillRect>(&commands[i])) fills.push_back({i, r->rect, paragraph});
+            else if (const auto* rr = std::get_if<mrender::FillRoundRect>(&commands[i])) fills.push_back({i, rr->rect, paragraph});
         }
     }
     if (runs.empty()) return;
@@ -1085,14 +1085,14 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
         std::size_t count = 0;
         for (std::size_t k = 0; k < at_index.size(); ++k) {
             if (paragraphs[k] != fill.paragraph || f.styles[k].empty()) continue;
-            const auto& g = std::get<xrender::DrawGlyphs>(list.commands()[at_index[k]]);
+            const auto& g = std::get<mrender::DrawGlyphs>(list.commands()[at_index[k]]);
             if (fill.rect.height > 1.6f * g.size) continue;
             for (std::size_t j = 0; j < g.glyphs.size(); ++j) {
                 const Point pen{g.origin.x + g.glyphs[j].position.x, g.origin.y + g.glyphs[j].position.y};
                 const float middle = pen.y - 0.3f * g.size;
                 if (pen.x < fill.rect.x || pen.x >= fill.rect.x + fill.rect.width) continue;
                 if (std::abs(fill.rect.y + fill.rect.height / 2 - middle) > 0.6f * g.size) continue;
-                const xrender::GlyphStyle& st = f.styles[k][j];
+                const mrender::GlyphStyle& st = f.styles[k][j];
                 dx += st.transform.e;
                 dy += st.transform.f;
                 opacity += st.opacity;
@@ -1126,11 +1126,11 @@ void Runtime::Impl::collect_presentation() {
     for (std::size_t i = 0; i < commands.size(); ++i) {
         if (history_range.second > history_range.first && i == history_range.first) { i = history_range.second - 1; continue; }
         const auto& command = commands[i];
-        if (const auto* t = std::get_if<xrender::PushTransform>(&command)) presentation_transforms.push_back(presentation_transforms.back() * t->transform);
-        else if (std::holds_alternative<xrender::PopTransform>(command)) { if (presentation_transforms.size() > 1) presentation_transforms.pop_back(); }
-        else if (const auto* c = std::get_if<xrender::PushClipRect>(&command)) {
+        if (const auto* t = std::get_if<mrender::PushTransform>(&command)) presentation_transforms.push_back(presentation_transforms.back() * t->transform);
+        else if (std::holds_alternative<mrender::PopTransform>(command)) { if (presentation_transforms.size() > 1) presentation_transforms.pop_back(); }
+        else if (const auto* c = std::get_if<mrender::PushClipRect>(&command)) {
             PresentationClip clip; clip.rect = *c; clip.bounds = presentation_transforms.back().map(c->rect); add_clip(std::move(clip));
-        } else if (const auto* c = std::get_if<xrender::PushClipPath>(&command)) {
+        } else if (const auto* c = std::get_if<mrender::PushClipPath>(&command)) {
             PresentationClip clip; clip.path = *c;
             if (!c->path.points.empty()) {
                 Point first = presentation_transforms.back().apply(c->path.points.front());
@@ -1142,10 +1142,10 @@ void Runtime::Impl::collect_presentation() {
                 clip.bounds = {left, top, right - left, bottom - top};
             }
             add_clip(std::move(clip));
-        } else if (std::holds_alternative<xrender::PopClip>(command)) { if (presentation_clip_stack.size() > 1) presentation_clip_stack.pop_back(); }
-        else if (const auto* layer = std::get_if<xrender::PushLayer>(&command)) presentation_opacity.push_back(presentation_opacity.back() * layer->opacity);
-        else if (std::holds_alternative<xrender::PopLayer>(command)) { if (presentation_opacity.size() > 1) presentation_opacity.pop_back(); }
-        else if (const auto* frame = std::get_if<xrender::NodeFrame>(&command); frame && frame->node < by_index.size() && alive(by_index[frame->node])) {
+        } else if (std::holds_alternative<mrender::PopClip>(command)) { if (presentation_clip_stack.size() > 1) presentation_clip_stack.pop_back(); }
+        else if (const auto* layer = std::get_if<mrender::PushLayer>(&command)) presentation_opacity.push_back(presentation_opacity.back() * layer->opacity);
+        else if (std::holds_alternative<mrender::PopLayer>(command)) { if (presentation_opacity.size() > 1) presentation_opacity.pop_back(); }
+        else if (const auto* frame = std::get_if<mrender::NodeFrame>(&command); frame && frame->node < by_index.size() && alive(by_index[frame->node])) {
             Node& node = at(by_index[frame->node]);
             if (!(frame->opacity * presentation_opacity.back() > 0)) continue;
             const Rect border = presentation_transforms.back().map(frame->rect);
@@ -1207,12 +1207,12 @@ bool Runtime::Impl::presentation_contains(const Node& node, Point window) const 
             // not a separately approximated path or any GPU/pixel readback.
             const auto& path = clip.path->path;
             presentation_path_verbs.resize(path.verbs.size());
-            for (std::size_t i = 0; i < path.verbs.size(); ++i) presentation_path_verbs[i] = static_cast<xrender::raster::Verb>(path.verbs[i]);
-            const xrender::raster::PathData data{presentation_path_verbs, path.points};
+            for (std::size_t i = 0; i < path.verbs.size(); ++i) presentation_path_verbs[i] = static_cast<mrender::raster::Verb>(path.verbs[i]);
+            const mrender::raster::PathData data{presentation_path_verbs, path.points};
             const auto matrix = Affine::scale(scale, scale) * clip.world;
-            xrender::raster::flatten(data, matrix, presentation_path_polygons);
+            mrender::raster::flatten(data, matrix, presentation_path_polygons);
             const int x = static_cast<int>(window.x * scale), y = static_cast<int>(window.y * scale); // window is inside the nonnegative viewport
-            presentation_path_rasterizer.rasterize(presentation_path_polygons, static_cast<xrender::raster::FillRule>(clip.path->rule), {x, y, 1, 1}, presentation_path_coverage);
+            presentation_path_rasterizer.rasterize(presentation_path_polygons, static_cast<mrender::raster::FillRule>(clip.path->rule), {x, y, 1, 1}, presentation_path_coverage);
             if (presentation_path_coverage.empty() || (x < presentation_path_coverage.bounds.x || y < presentation_path_coverage.bounds.y || x >= presentation_path_coverage.bounds.x + presentation_path_coverage.bounds.width || y >= presentation_path_coverage.bounds.y + presentation_path_coverage.bounds.height) || presentation_path_coverage.at(x, y) < 128) return false;
         }
     }
@@ -1231,7 +1231,7 @@ NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {
     // An effect that moves what is drawn (a bulging screen): the point seen
     // is where it was drawn from, for this node and what is inside it.
     if (const Node::PixelEffectState* fx = n.pixel_effect ? &*n.pixel_effect : (n.styled_effect ? &*n.styled_effect : nullptr))
-        if (const xrender::EffectInfo* info = xrender::effects().info(fx->effect); info && info->source_of) {
+        if (const mrender::EffectInfo* info = mrender::effects().info(fx->effect); info && info->source_of) {
             p = info->source_of(p, {0, 0, n.frame.width, n.frame.height}, fx->params);
             window = (presented ? n.presented_world : n.world).apply(p);
         }

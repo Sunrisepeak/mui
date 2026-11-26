@@ -62,7 +62,7 @@ agent = {}
 # Runtime generation (omui.generate, preview): interface an agent makes while the application runs. An application
 # that asks for it (AppSpec::generation) in a program built without it runs, and says what it lacks.
 generate = {}
-# The GPU path of a desktop window: SDL_GPU's device and xrender's renderer (omui.host.sdl3.gpu). Without it the CPU
+# The GPU path of a desktop window: SDL_GPU's device and mrender's renderer (omui.host.sdl3.gpu). Without it the CPU
 # renderer draws every frame, as on a machine without a GPU.
 gpu = {}
 # The platform's accessibility service through AccessKit (omui.accessibility.bridge; 1.55 MB of example 01 on Linux).
@@ -95,10 +95,10 @@ mlibs.i18n        = { path = "../../../content/i18n" }
 "mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
 mcpplibs.os           = "0.4.4"
 # The development host (:devhost) draws the application's frames itself, glyphs too.
-xrender.vector        = { path = "../../xrender/vector" }
-xrender.frame         = { path = "../../xrender/frame" }
-xrender.raster        = { path = "../../xrender/raster" }
-xrender.text          = { path = "../../xrender/text" }
+mrender.vector        = { path = "../../mrender/vector" }
+mrender.frame         = { path = "../../mrender/frame" }
+mrender.raster        = { path = "../../mrender/raster" }
+mrender.text          = { path = "../../mrender/text" }
 mcpplibs.cmdline      = "0.0.3"
 
 # Where `omui::run` shows an application (D-84): a desktop window, on the

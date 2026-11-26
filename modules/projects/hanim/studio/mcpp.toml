@@ -14,7 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the hanim command and its studio"
-reexports = ["mlibs.agent", "mlibs.control", "xrender.raster"]  # what its interface re-exports (lint module-closure)
+reexports = ["mlibs.agent", "mlibs.control", "mrender.raster"]  # what its interface re-exports (lint module-closure)
 kind = "tool"
 agent = "tool"
 
@@ -32,9 +32,9 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 # `agent`: the stage as an agent's subject — this package's tests hold it to the agent contract (stage_test).
 sunrisepeak.hanim = { path = "..", features = ["render-vector", "control", "agent"] }
-# The hanim command writes frames as SVG (xrender.vector.svg).
-xrender.vector = { path = "../../xrender/vector" }
-xrender.raster = { path = "../../xrender/raster" }
+# The hanim command writes frames as SVG (mrender.vector.svg).
+mrender.vector = { path = "../../mrender/vector" }
+mrender.raster = { path = "../../mrender/raster" }
 mlibs.control  = { path = "../../../base/control" }
 # The command is the subject `document` behind the tool kernel's entries (mlibs.agent:host, T0).
 mlibs.agent    = { path = "../../../base/agent" }
@@ -53,7 +53,7 @@ mlibs.agent.cts = { path = "../../../base/agent/cts" }
 mlibs.json      = { path = "../../../base/json" }
 mlibs.utils = { path = "../../../base/utils" }
 mlibs.rhi = { path = "../../../gfx/rhi" }
-xrender.rhi.sdl = { path = "../../xrender/rhi/sdl" }
+mrender.rhi.sdl = { path = "../../mrender/rhi/sdl" }
 # rhi_sdl_test: hanim.rhi's suite on SDL_GPU. The owner runs its suite against a backend (D-161);
 # here, because hanim.rhi runs on the Web too and this backend does not.
 hanim.rhi = { path = "../rhi" }

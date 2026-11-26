@@ -2,7 +2,7 @@
 // Paint only describes endpoints. It contains no clock or interpolation code.
 import std;
 import omui.view;
-import xrender.raster;
+import mrender.raster;
 import mcpplibs.mtest;
 
 using namespace omui;
@@ -26,10 +26,10 @@ struct Probe {
             const bool circle = end.get();
             auto shape = painter({.id = "shape", .width = 320, .height = 240, .focusable = true,
                 .paint = [circle](PaintContext& ctx) {
-                    xrender::Path p;
+                    mrender::Path p;
                     if (circle) p.add_circle({220, 120}, 40);
                     else p.move_to({100, 80}).line_to({60, 160}).line_to({140, 160}).close();
-                    ctx.list.fill_path(p, xrender::FillRule::nonzero, xrender::Paint::solid(Color::white()));
+                    ctx.list.fill_path(p, mrender::FillRule::nonzero, mrender::Paint::solid(Color::white()));
                 }});
             shape.prop("motion", Source(recipe));
             return std::vector<Element>{std::move(shape)};
@@ -43,7 +43,7 @@ struct Probe {
         expect(runtime.hold_motion(node())); runtime.pause_motion(node()); runtime.seek_motion(node(), t); frame(now + .001);
     }
     std::uint64_t pixels() {
-        xrender::raster::Surface surface(320, 240); xrender::CpuRenderer renderer;
+        mrender::raster::Surface surface(320, 240); mrender::CpuRenderer renderer;
         const auto result = renderer.render(runtime.display_list(), surface, {}, {});
         expect(eq(result.invalid_paints, std::size_t{0}));
         return surface.hash();

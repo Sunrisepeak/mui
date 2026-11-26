@@ -8,7 +8,7 @@
 //
 // Text lays out the same on every platform with the default fonts (D-48):
 // positions come from HarfBuzz in font units. Glyphs leave as geometry
-// (FontCollection::outline, color_layers); xrender.text rasterises and draws
+// (FontCollection::outline, color_layers); mrender.text rasterises and draws
 // them, so text knows no renderer.
 export module mlibs.text.api;
 

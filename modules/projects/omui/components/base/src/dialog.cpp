@@ -80,7 +80,7 @@ void Dialog::paint(PaintContext& ctx) const {
     ctx.list.push_transform(Affine::translate(c.x, c.y) * Affine::scale(s, s) * Affine::translate(-c.x, -c.y));
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
         paint_shadow(ctx.list, box, r, it->second);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
     ctx.list.pop_transform();
     if (!title_.text().empty()) title_.paint(ctx, {pad, pad}, th.color("text"));
 }
@@ -168,10 +168,10 @@ void Tooltip::paint(PaintContext& ctx) const {
     const CornerRadii radii = CornerRadii::all(th.corner("small", 4));
     // Faded as one, its shadow with it: the layer holds the shadow's reach round the chip.
     constexpr float reach = 16;
-    ctx.list.push_layer(k, xrender::BlendMode::normal, {}, {}, {-reach, -reach, box.width + 2 * reach, box.height + 2 * reach});
+    ctx.list.push_layer(k, mrender::BlendMode::normal, {}, {}, {-reach, -reach, box.width + 2 * reach, box.height + 2 * reach});
     // Over the page as every overlay is: the theme's small layered shadow (B5).
     parts::shadow(ctx, "sm", box, radii);
-    ctx.list.fill_round_rect(box, radii, xrender::Paint::solid(th.color("tooltip")));
+    ctx.list.fill_round_rect(box, radii, mrender::Paint::solid(th.color("tooltip")));
     label_.paint(ctx, {ctx.content.x, ctx.content.y}, th.color("on_tooltip"));
     ctx.list.pop_layer();
 }

@@ -1,4 +1,4 @@
-// glTF's skins and animations (read by xrender.asset as numbers) made a skeleton and clips by hanim.skeleton.gltf:
+// glTF's skins and animations (read by mrender.asset as numbers) made a skeleton and clips by hanim.skeleton.gltf:
 // a document written here — a node above the skeleton, joints listed out of order, a rotation of 120° between two
 // linear keys (keys added so the normalised mix stays on the spherical path), keys that step, a cubic spline, a
 // channel of a node outside the skeleton — and Khronos' Fox when it is in the fidelity cache (its three clips
@@ -9,14 +9,14 @@ import mlibs.math;
 import mlibs.base64;
 import hanim.skeleton;
 import hanim.skeleton.gltf;
-import xrender.asset;
+import mrender.asset;
 import mlibs.image;
 import mcpplibs.mtest;
 import mcpplibs.os;
 
 using namespace mcpplibs::mtest;
 namespace skeleton = hanim::skeleton;
-namespace asset = xrender::asset;
+namespace asset = mrender::asset;
 
 namespace {
 
@@ -237,7 +237,7 @@ UTest cases{"hanim.skeleton.gltf", [] {
         }
         expect(made->rig.clip("Walk").has_value() && made->rig.clip("Run").has_value() && made->rig.clip("Survey").has_value());
 
-        // Walking, drawn: its mesh bent each frame by what the player gives, by xrender's one bending, and drawn by
+        // Walking, drawn: its mesh bent each frame by what the player gives, by mrender's one bending, and drawn by
         // the reference — four moments of the step, their outlines not the same.
         auto bent = skeleton::gltf::Bent::of(*imported, *made);
         expect(fatal(bent.has_value()));

@@ -3,7 +3,7 @@ module omui.ui.window;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import omui.ui.base;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -49,7 +49,7 @@ Color traffic_color(CaptionButtonKind k, bool active, const Theme& theme) {
     return theme.color("#28c840");
 }
 
-xrender::Paint solid(Color c) { return xrender::Paint::solid(c); }
+mrender::Paint solid(Color c) { return mrender::Paint::solid(c); }
 
 }  // namespace
 
@@ -143,7 +143,7 @@ void WindowFrame::paint(PaintContext& ctx) const {
         CornerRadii top = radii;
         top.bottom_left = top.bottom_right = 0;
         ctx.list.fill_round_rect(bar, top, solid(mix(t.color("surface_variant"), t.color("surface"), 1 - active)));
-        ctx.list.fill_rect({bar.x, bar.y + bar.height - 1, bar.width, 1}, t.color("border"), xrender::PixelAlign::device);
+        ctx.list.fill_rect({bar.x, bar.y + bar.height - 1, bar.width, 1}, t.color("border"), mrender::PixelAlign::device);
         const Color text = mix(t.color("text_muted"), t.color("text"), active);
         const Size s = title_.measure(ctx.services, text);
         // Centred on the window, as macOS and GNOME do; never under the buttons.
@@ -154,7 +154,7 @@ void WindowFrame::paint(PaintContext& ctx) const {
         if (!props.title.empty()) title_.paint(ctx, {std::max(bar.x + 8, x), bar.y + (bar.height - s.height) / 2}, text);
     }
     ctx.list.stroke_round_rect({edge.x + 0.5f, edge.y + 0.5f, edge.width - 1, edge.height - 1}, radii, 1,
-                               solid(mix(t.color("border"), t.color("border_strong"), active * 0.5f)), xrender::PixelAlign::device);
+                               solid(mix(t.color("border"), t.color("border_strong"), active * 0.5f)), mrender::PixelAlign::device);
 }
 
 void WindowFrame::semantics(SemanticsContext&, spec::SemanticNode& node) const {
@@ -276,13 +276,13 @@ void CaptionButton::paint(PaintContext& ctx) const {
         const float r = std::min(box.width, box.height) / 2;
         Color fill = traffic_color(props.kind, props.active || h > 0, t);
         if (ctx.state.pressed) fill = mix(fill, Color::black(), 0.2f);
-        ctx.list.fill_path(xrender::Path{}.add_circle(c, r), xrender::FillRule::nonzero, solid(fill));
-        ctx.list.stroke_path(xrender::Path{}.add_circle(c, r - 0.25f), {.width = 0.5f}, solid(mix(fill, Color::black(), 0.18f)));
+        ctx.list.fill_path(mrender::Path{}.add_circle(c, r), mrender::FillRule::nonzero, solid(fill));
+        ctx.list.stroke_path(mrender::Path{}.add_circle(c, r - 0.25f), {.width = 0.5f}, solid(mix(fill, Color::black(), 0.18f)));
         if (h > 0) {
             // The glyph shows while the pointer is over it.
             const Color g = Color{0, 0, 0, 0.55f * h};
             const float k = r * 0.45f;
-            xrender::Path p;
+            mrender::Path p;
             switch (props.kind) {
                 case CaptionButtonKind::close:
                     p.move_to({c.x - k, c.y - k}).line_to({c.x + k, c.y + k}).move_to({c.x + k, c.y - k}).line_to({c.x - k, c.y + k});
@@ -293,7 +293,7 @@ void CaptionButton::paint(PaintContext& ctx) const {
                     p.move_to({c.x - k, c.y}).line_to({c.x + k, c.y}).move_to({c.x, c.y - k}).line_to({c.x, c.y + k});
                     break;
             }
-            ctx.list.stroke_path(p, {.width = 1.2f, .cap = xrender::LineCap::round}, solid(g));
+            ctx.list.stroke_path(p, {.width = 1.2f, .cap = mrender::LineCap::round}, solid(g));
         }
     } else {
         const Color over = close ? t.color("danger") : t.color("surface_pressed");
@@ -302,7 +302,7 @@ void CaptionButton::paint(PaintContext& ctx) const {
         const Color g = close ? mix(base, t.color("on_danger"), h) : base;
         const float k = t.scaled(5);
         const float x0 = std::round(c.x) + 0.5f, y0 = std::round(c.y) + 0.5f;
-        xrender::Path p;
+        mrender::Path p;
         switch (props.kind) {
             case CaptionButtonKind::minimize: p.move_to({x0 - k, y0}).line_to({x0 + k, y0}); break;
             case CaptionButtonKind::maximize: p.add_rect({x0 - k, y0 - k, 2 * k, 2 * k}); break;

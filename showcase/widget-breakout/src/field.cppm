@@ -46,7 +46,7 @@ public:
     void prop_changed(FieldProp p);
     void style(const Theme& theme, mlibs::layout::Style& s) const;
     // The ghost behind every room (paint.cpp).
-    void haunt(xrender::DisplayList& out, const State& s, const Theme& theme) const;
+    void haunt(mrender::DisplayList& out, const State& s, const Theme& theme) const;
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -162,7 +162,7 @@ private:
         mutable std::unordered_map<std::uint64_t, mlibs::text::Paragraph> shaped;
     };
     Words                                words_;
-    mutable xrender::Path                 path_;                 // a frame's paths, built in one buffer
+    mutable mrender::Path                 path_;                 // a frame's paths, built in one buffer
 };
 
 }  // namespace omui::breakout

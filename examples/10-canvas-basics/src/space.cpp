@@ -4,7 +4,7 @@ import std;
 import mlibs.hash;
 import omui;
 import omui.ui.canvas;
-import xrender.text;
+import mrender.text;
 
 namespace space {
 
@@ -192,7 +192,7 @@ bool label(omui::world::DrawContext& d, Labels& labels, const std::string& key, 
     const auto& p = labels.get(*d.fonts, d.theme, key, std::move(text), size, weight, colour);
     const omui::Size s = p.size();
     if (at.x + s.width > within.right() || at.y + s.height > within.bottom()) return false;
-    xrender::text::paint(p, d.list, at);
+    mrender::text::paint(p, d.list, at);
     return true;
 }
 
@@ -268,9 +268,9 @@ void layout(const Entry& root, Scene& scene, double width, double height) {
                                                [labels](omui::world::DrawContext& d) {
                                                    const omui::Rect r = d.screen;
                                                    const float radius = static_cast<float>(d.scene.radius(d.node) * d.zoom);
-                                                   d.list.fill_round_rect(r, omui::CornerRadii::all(radius), xrender::Paint::solid(d.scene.fill(d.node)));
+                                                   d.list.fill_round_rect(r, omui::CornerRadii::all(radius), mrender::Paint::solid(d.scene.fill(d.node)));
                                                    d.list.stroke_round_rect(r, omui::CornerRadii::all(radius), 1,
-                                                                            xrender::Paint::solid(d.theme.color("border")));
+                                                                            mrender::Paint::solid(d.theme.color("border")));
                                                    // The header strip, when it is tall enough to read.
                                                    const auto w = d.scene.rect(d.node);
                                                    const float hdr = static_cast<float>(header_of({w.x, w.y, w.width, w.height}) * d.zoom);
@@ -287,7 +287,7 @@ void layout(const Entry& root, Scene& scene, double width, double height) {
                                              [labels](omui::world::DrawContext& d) {
                                                  const omui::Rect r = d.screen;
                                                  const float radius = static_cast<float>(d.scene.radius(d.node) * d.zoom);
-                                                 d.list.fill_round_rect(r, omui::CornerRadii::all(radius), xrender::Paint::solid(d.scene.fill(d.node)));
+                                                 d.list.fill_round_rect(r, omui::CornerRadii::all(radius), mrender::Paint::solid(d.scene.fill(d.node)));
                                                  const std::string key(d.scene.key(d.node));
                                                  const omui::Color ink = omui::Color::hex(0xffffff, 0.95f);
                                                  // The size only beside the name: a block is never just a number.

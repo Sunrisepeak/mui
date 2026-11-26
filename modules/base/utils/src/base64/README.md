@@ -1,6 +1,6 @@
 # mlibs.base64
 
-RFC 4648 base64 (the standard alphabet, padded), once for the whole repository: pictures carried in JSON (`ui.capture`), images inside SVG (`xrender.vector.svg`), and what the `omui` command reads back. An independent component (D-55): the standard library only.
+RFC 4648 base64 (the standard alphabet, padded), once for the whole repository: pictures carried in JSON (`ui.capture`), images inside SVG (`mrender.vector.svg`), and what the `omui` command reads back. An independent component (D-55): the standard library only.
 
 ```cpp
 import mlibs.base64;

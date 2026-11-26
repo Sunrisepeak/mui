@@ -65,7 +65,7 @@ float Toggle::baseline(MeasureContext& m, Size content) {
 }
 
 // Its surfaces for an effect: the track and the thumb where it is now.
-std::size_t Toggle::effect_shapes(Size, Rect content, std::span<xrender::EffectShape> out) const {
+std::size_t Toggle::effect_shapes(Size, Rect content, std::span<mrender::EffectShape> out) const {
     if (out.size() < 2) return 0;
     const float t = static_cast<float>(thumb_);
     const float y = content.y + (content.height - track_height_) / 2;
@@ -86,11 +86,11 @@ void Toggle::paint(PaintContext& ctx) const {
     const float k = std::clamp(t, 0.0f, 1.0f);
     const Rect content = ctx.content;
     const float y = content.y + (content.height - track_height_) / 2;
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
 
     Color track = mix(th.color("track"), th.color("accent"), k);
     track = mix(track, mix(track, Color::black(), 0.08f), static_cast<float>(hover_));
-    ctx.list.fill_round_rect({content.x, y, track_width_, track_height_}, CornerRadii::all(track_height_ / 2), xrender::Paint::solid(track));
+    ctx.list.fill_round_rect({content.x, y, track_width_, track_height_}, CornerRadii::all(track_height_ / 2), mrender::Paint::solid(track));
     const float d = track_height_ - 2 * thumb_inset_;
     const float x = content.x + thumb_inset_ + t * (track_width_ - 2 * thumb_inset_ - d);
     // Pressed, the thumb stretches towards where it will go (the theme's
@@ -101,7 +101,7 @@ void Toggle::paint(PaintContext& ctx) const {
     // `:pressed`, in the track's colour; none declared: none drawn).
     parts::depth(ctx, "switch_halo", thumb, CornerRadii::all(d / 2), hover_ > 0, ctx.state.pressed && !off, std::nullopt, track);
     parts::depth(ctx, "switch_thumb", thumb, CornerRadii::all(d / 2), hover_ > 0, ctx.state.pressed && !off, ShadowToken{{0, 1}, 2, 0, th.color("scrim").with_alpha(0.25f)});
-    ctx.list.fill_round_rect(thumb, CornerRadii::all(d / 2), xrender::Paint::solid(th.color("thumb")));
+    ctx.list.fill_round_rect(thumb, CornerRadii::all(d / 2), mrender::Paint::solid(th.color("thumb")));
 
     if (!label_.text().empty()) {
         const Color lc = label_color(th, false);
@@ -175,7 +175,7 @@ void Checkbox::paint(PaintContext& ctx) const {
     const Rect content = ctx.content;
     const Rect b{content.x, content.y + (content.height - box_size) / 2, box_size, box_size};
     const CornerRadii r = CornerRadii::all(th.corner("small", 4));
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
 
     // The state's halo, a circle round the box (`check_halo:hovered` / `:pressed`, in the accent).
     parts::depth(ctx, "check_halo", b, CornerRadii::all(box_size / 2), hover_ > 0, ctx.state.pressed && !off, std::nullopt, th.color("accent"));
@@ -183,33 +183,33 @@ void Checkbox::paint(PaintContext& ctx) const {
     std::optional<parts::Pressed> pressed;
     pressed.emplace(ctx, b, ctx.state.pressed && !off ? 1.0f : 0.0f);
     const Color empty = mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_));
-    ctx.list.fill_round_rect(b, r, xrender::Paint::solid(mix(empty, th.color("accent"), k)));
+    ctx.list.fill_round_rect(b, r, mrender::Paint::solid(mix(empty, th.color("accent"), k)));
     if (k < 1) {
         const Color strong = th.color("border_strong");
         const Color border = strong.with_alpha(strong.a * (1 - k));
         ctx.list.stroke_round_rect({b.x + 0.5f, b.y + 0.5f, b.width - 1, b.height - 1}, CornerRadii::all(r.top_left - 0.5f), 1,
-                                   xrender::Paint::solid(border), xrender::PixelAlign::device);
+                                   mrender::Paint::solid(border), mrender::PixelAlign::device);
     }
     if (k > 0) {
         const Color mark = th.color("on_accent");
         if (props.indeterminate) {
             const float w = 10 * k;
-            ctx.list.fill_round_rect({b.x + (box_size - w) / 2, b.y + box_size / 2 - 1, w, 2}, CornerRadii::all(1), xrender::Paint::solid(mark));
+            ctx.list.fill_round_rect({b.x + (box_size - w) / 2, b.y + box_size / 2 - 1, w, 2}, CornerRadii::all(1), mrender::Paint::solid(mark));
         } else {
             // The check draws itself in: a dash as long as the part of the path shown.
-            xrender::Path check;
+            mrender::Path check;
             const Point p0{b.x + 4.5f, b.y + 9.5f}, p1{b.x + 7.75f, b.y + 12.75f}, p2{b.x + 13.5f, b.y + 5.5f};
             check.move_to(p0).line_to(p1).line_to(p2);
             // sqrt is correctly rounded everywhere (hypot is not): the same pixels on every platform.
             auto dist = [](Point a, Point b) { return std::sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y)); };
             const float length = dist(p0, p1) + dist(p1, p2);
             const std::array<float, 2> dash{length * k, length};
-            xrender::StrokeStyle st;
+            mrender::StrokeStyle st;
             st.width = 2;
-            st.cap = xrender::LineCap::round;
-            st.join = xrender::LineJoin::round;
+            st.cap = mrender::LineCap::round;
+            st.join = mrender::LineJoin::round;
             st.dashes = dash;
-            ctx.list.stroke_path(check, st, xrender::Paint::solid(mark));
+            ctx.list.stroke_path(check, st, mrender::Paint::solid(mark));
         }
     }
     pressed.reset();  // the label keeps its size

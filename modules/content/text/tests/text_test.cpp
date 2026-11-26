@@ -1,6 +1,6 @@
 // The text engine: fallback, shaping, bidi, wrapping, alignment, ellipsis,
 // carets and selections, editing; glyphs as geometry. Their pixels are
-// xrender.text's (modules/projects/xrender/text/tests).
+// mrender.text's (modules/projects/mrender/text/tests).
 import std;
 import mlibs.geom;
 import mlibs.text;

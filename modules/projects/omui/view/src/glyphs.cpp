@@ -5,7 +5,7 @@ import mlibs.math;
 import mlibs.hash;
 import omui.core;
 import hanim.core;
-import xrender.vector;
+import mrender.vector;
 import :element;
 import :glyphs;
 
@@ -23,7 +23,7 @@ float signed_unit(std::uint64_t seed, std::uint64_t key, std::uint64_t component
     return static_cast<float>(static_cast<double>(h >> 11) * (1.0 / 9007199254740992.0)) * 2 - 1;
 }
 
-std::uint32_t key_of(GlyphDomain d, const xrender::Glyph& g, std::uint32_t sequence) noexcept {
+std::uint32_t key_of(GlyphDomain d, const mrender::Glyph& g, std::uint32_t sequence) noexcept {
     switch (d) {
         case GlyphDomain::glyph: return sequence;
         case GlyphDomain::grapheme: return g.grapheme;
@@ -39,8 +39,8 @@ GlyphPose lerp(const GlyphPose& a, const GlyphPose& b, float t) noexcept {
             Color{l(a.tint.r, b.tint.r), l(a.tint.g, b.tint.g), l(a.tint.b, b.tint.b), l(a.tint.a, b.tint.a)}};
 }
 
-xrender::GlyphStyle style_of(const GlyphPose& p) noexcept {
-    xrender::GlyphStyle s;
+mrender::GlyphStyle style_of(const GlyphPose& p) noexcept {
+    mrender::GlyphStyle s;
     const double c = hanim::dm::cos(p.rotate), sn = hanim::dm::sin(p.rotate);
     s.transform = Affine::translate(p.x, p.y) * Affine::rotation(static_cast<float>(c), static_cast<float>(sn)) * Affine::scale(p.scale, p.scale);
     if (p.rotate == 0) s.transform = Affine{p.scale, 0, 0, p.scale, p.x, p.y};  // exact: no rounding of cos(0)
@@ -196,12 +196,12 @@ Element animate_glyphs(Element e, const GlyphMotion& m) {
     return e;
 }
 
-GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<const std::span<const xrender::Glyph>> commands,
+GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<const std::span<const mrender::Glyph>> commands,
                        bool reduce_motion, std::span<const std::uint32_t> paragraphs) {
     GlyphFrame f;
     f.styles.resize(commands.size());
     // An element's key: its paragraph above, its place in the paragraph below.
-    auto keyed = [&](std::size_t command, const xrender::Glyph& g, std::uint32_t sequence) {
+    auto keyed = [&](std::size_t command, const mrender::Glyph& g, std::uint32_t sequence) {
         const std::uint64_t paragraph = command < paragraphs.size() ? paragraphs[command] : 0;
         return (paragraph << 32) | key_of(m.domain, g, sequence);
     };
@@ -209,7 +209,7 @@ GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<c
     std::vector<std::uint64_t> keys;
     std::uint32_t sequence = 0;
     for (std::size_t ci = 0; ci < commands.size(); ++ci)
-        for (const xrender::Glyph& g : commands[ci]) {
+        for (const mrender::Glyph& g : commands[ci]) {
             if (g.cluster >= m.begin && g.cluster < m.end) keys.push_back(keyed(ci, g, sequence));
             ++sequence;
         }
@@ -242,7 +242,7 @@ GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<c
         out.resize(commands[ci].size());
         bool any = false;
         for (std::size_t gi = 0; gi < commands[ci].size(); ++gi, ++sequence) {
-            const xrender::Glyph& g = commands[ci][gi];
+            const mrender::Glyph& g = commands[ci][gi];
             if (g.cluster < m.begin || g.cluster >= m.end) continue;
             const std::uint64_t key = keyed(ci, g, sequence);
             const std::size_t r = rank(key);
@@ -256,7 +256,7 @@ GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<c
                 j.rotate += m.jitter.rotate * signed_unit(m.seed, key, 3);
                 j.opacity += m.jitter.opacity * signed_unit(m.seed, key, 4);
             }
-            const xrender::GlyphStyle s = style_of(lerp(from, to, progress(elapsed.count() - begins - delay)));
+            const mrender::GlyphStyle s = style_of(lerp(from, to, progress(elapsed.count() - begins - delay)));
             out[gi] = s;
             any = any || !s.plain();
         }

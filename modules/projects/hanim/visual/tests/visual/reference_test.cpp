@@ -3,14 +3,14 @@
 import std;
 import hanim.core;
 import hanim.visual;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import mcpplibs.mtest;
 
 using namespace hanim::visual;
 using namespace mcpplibs::mtest;
-namespace rv=xrender;
-namespace ra=xrender::raster;
+namespace rv=mrender;
+namespace ra=mrender::raster;
 
 namespace {
 Rect slot(float width,bool right) {const float cell=(width-6)/2;return {right?3+cell:3,3,cell,26};}

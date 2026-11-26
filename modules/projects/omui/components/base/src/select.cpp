@@ -152,11 +152,11 @@ void Select::paint(PaintContext& ctx) const {
     hover_ = !off && ctx.state.hovered ? 1.0 : 0.0;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, box);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
     const bool open = expanded();
     const Color border = open ? th.color("accent") : th.color("border");
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(border), xrender::PixelAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, mrender::Paint::solid(border), mrender::PixelAlign::device);
     const Color c = props.value.empty() ? th.color("text_muted") : th.color("text");
     const Size t = label_.measure(ctx.services, c, ctx.content.width);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);
@@ -202,8 +202,8 @@ void SelectPopup::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
         paint_shadow(ctx.list, box, r, it->second);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, mrender::Paint::solid(th.color("border")), mrender::PixelAlign::device);
 }
 
 bool SelectPopup::on_event(EventContext&, const InputEvent& e) {
@@ -262,7 +262,7 @@ void SelectOption::paint(PaintContext& ctx) const {
     const bool chosen = selected();
     if (lit || chosen)
         ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("small", 4)),
-                                 xrender::Paint::solid(chosen ? th.color("accent_subtle") : th.color("surface_variant")));
+                                 mrender::Paint::solid(chosen ? th.color("accent_subtle") : th.color("surface_variant")));
     const Color c = chosen ? th.color("accent") : th.color("text");
     const Size t = label_.measure(ctx.services, c);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);

@@ -13,13 +13,13 @@ namespace {
 constexpr float field_h = 36, button_w = 32, default_w = 148;
 
 void sign(PaintContext& ctx, Point c, bool plus, Color color) {
-    xrender::Path p;
+    mrender::Path p;
     p.move_to({c.x - 5, c.y}).line_to({c.x + 5, c.y});
     if (plus) p.move_to({c.x, c.y - 5}).line_to({c.x, c.y + 5});
-    xrender::StrokeStyle st;
+    mrender::StrokeStyle st;
     st.width = 1.75f;
-    st.cap = xrender::LineCap::round;
-    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
+    st.cap = mrender::LineCap::round;
+    ctx.list.stroke_path(p, st, mrender::Paint::solid(color));
 }
 
 }  // namespace
@@ -77,17 +77,17 @@ void NumberInput::paint(PaintContext& ctx) const {
     const bool off = props.disabled || ctx.state.disabled;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, box);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
     const bool editing = ctx.state.focused;
     ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, editing ? 1.5f : 1,
-                               xrender::Paint::solid(editing ? th.color("accent") : th.color("border")), xrender::PixelAlign::device);
+                               mrender::Paint::solid(editing ? th.color("accent") : th.color("border")), mrender::PixelAlign::device);
     const double lo = std::min(props.min, props.max), hi = std::max(props.min, props.max);
     for (const bool plus : {false, true}) {
         const Rect b = plus ? plus_box(ctx.size) : minus_box(ctx.size);
         const bool at_end = plus ? props.value >= hi : props.value <= lo;
         if (!off && !at_end && hover_ == (plus ? 1 : -1))
-            ctx.list.fill_round_rect({b.x + 3, b.y + 3, b.width - 6, b.height - 6}, CornerRadii::all(6), xrender::Paint::solid(th.color("surface_variant")));
+            ctx.list.fill_round_rect({b.x + 3, b.y + 3, b.width - 6, b.height - 6}, CornerRadii::all(6), mrender::Paint::solid(th.color("surface_variant")));
         sign(ctx, b.center(), plus, at_end ? th.color("text_disabled") : th.color("text_muted"));
     }
     const Color c = draft_ ? th.color("text") : th.color("text");
@@ -180,7 +180,7 @@ void NumberInput::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     node.states.set(State::disabled, props.disabled).set(State::editable, !props.disabled);
 }
 
-std::size_t NumberInput::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
+std::size_t NumberInput::effect_shapes(Size size, Rect, std::span<mrender::EffectShape> out) const {
     if (out.empty()) return 0;
     out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(8).fitted(size)};
     return 1;

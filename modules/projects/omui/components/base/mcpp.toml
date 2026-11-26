@@ -33,8 +33,8 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/generated/*.
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-xrender.text = { path = "../../../xrender/text" }
-xrender.vector = { path = "../../../xrender/vector" }  # the window frame's and liquid glass's own drawing
+mrender.text = { path = "../../../mrender/text" }
+mrender.vector = { path = "../../../mrender/vector" }  # the window frame's and liquid glass's own drawing
 omui.core    = { path = "../../core" }
 omui.view    = { path = "../../view" }
 mlibs.unicode = { path = "../../../../base/unicode" }
@@ -54,7 +54,7 @@ programs = "directory"
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-xrender.text = { path = "../../../xrender/text" }
+mrender.text = { path = "../../../mrender/text" }
 omui.host.headless = { path = "../../host/headless" }
 # platform_styles_test: the platform packs (fluent, cupertino, material) over the components.
 omui.theme = { path = "../../theme" }

@@ -9,8 +9,8 @@ import std;
 
 import omui.ui.canvas;
 import omui.host.headless;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -53,9 +53,9 @@ std::int64_t act(Headless& h, std::string_view id, std::string_view action, Valu
     return e.exit_code().value_or(-1);
 }
 
-std::size_t count_rects(const xrender::DisplayList& l) {
+std::size_t count_rects(const mrender::DisplayList& l) {
     std::size_t n = 0;
-    for (const auto& c : l.commands()) n += std::holds_alternative<xrender::FillRect>(c) || std::holds_alternative<xrender::FillRoundRect>(c);
+    for (const auto& c : l.commands()) n += std::holds_alternative<mrender::FillRect>(c) || std::holds_alternative<mrender::FillRoundRect>(c);
     return n;
 }
 
@@ -182,7 +182,7 @@ UTest cases{"ui.canvas", [] {
         sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::custom}, {400, world::Tier::Draw::promote}},
                                     .draw = [&](world::DrawContext& d) {
                                         ++custom_draws;
-                                        d.list.fill_round_rect(d.screen, CornerRadii::all(6), xrender::Paint::solid(Color::hex(0x2563eb)));
+                                        d.list.fill_round_rect(d.screen, CornerRadii::all(6), mrender::Paint::solid(Color::hex(0x2563eb)));
                                     },
                                     .promote = [](const world::Scene& s, world::NodeRef n) -> Element {
                                         return column({.padding = 8}, {text({.id = "title", .text = std::string(s.text(n, "title"))})});
@@ -326,7 +326,7 @@ UTest cases{"ui.canvas", [] {
         sc.clear();
         std::atomic<int> built = 0;
         sc.kind("doc", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}},
-                                   .content = [&](const world::Scene& s, world::NodeRef n, xrender::DisplayList& dl) {
+                                   .content = [&](const world::Scene& s, world::NodeRef n, mrender::DisplayList& dl) {
                                        ++built;
                                        const auto r = s.rect(n);
                                        dl.fill_rect({0, 0, static_cast<float>(r.width), static_cast<float>(r.height)},
@@ -347,7 +347,7 @@ UTest cases{"ui.canvas", [] {
             return h.pixels().at(static_cast<int>(p.x), static_cast<int>(p.y));
         };
         const auto d5 = *sc.find("d5");
-        const xrender::raster::Rgba8 grey = xrender::raster::premultiply(Color::hex(0x94a3b8)), red = xrender::raster::premultiply(Color::hex(0xdc2626));
+        const mrender::raster::Rgba8 grey = mrender::raster::premultiply(Color::hex(0x94a3b8)), red = mrender::raster::premultiply(Color::hex(0xdc2626));
         expect(at(d5) == grey) << "a box until its texture is in";
         h.settle();
         expect(built.load() >= 12) << std::format("every visible node's content was built ({})", built.load());
@@ -358,16 +358,16 @@ UTest cases{"ui.canvas", [] {
         h.step();
         expect(at(d5) == red) << "the old texture meanwhile, not a box";
         h.settle();
-        expect(at(d5) == xrender::raster::premultiply(Color::hex(0x16a34a))) << "the new content";
+        expect(at(d5) == mrender::raster::premultiply(Color::hex(0x16a34a))) << "the new content";
         // Closer: a sharper level is asked for; the one in is stretched meanwhile, never a box.
         h.runtime().set(h.runtime().find("main/board"), "zoom", Value(2.5));
         h.runtime().set(h.runtime().find("main/board"), "x", Value(sc.rect(d5).x + 120));
         h.runtime().set(h.runtime().find("main/board"), "y", Value(sc.rect(d5).y + 100));
         h.step();
         const auto centre = h.pixels().at(400, 300);
-        expect(centre == xrender::raster::premultiply(Color::hex(0x16a34a))) << "the coarser texture, stretched, at once";
+        expect(centre == mrender::raster::premultiply(Color::hex(0x16a34a))) << "the coarser texture, stretched, at once";
         h.settle();
-        expect(h.pixels().at(400, 300) == xrender::raster::premultiply(Color::hex(0x16a34a))) << "and the sharper one when it is in";
+        expect(h.pixels().at(400, 300) == mrender::raster::premultiply(Color::hex(0x16a34a))) << "and the sharper one when it is in";
         h.runtime().set(h.runtime().find("main/board"), "zoom", Value(0.6));
         h.runtime().set(h.runtime().find("main/board"), "x", Value(570.0));
         h.runtime().set(h.runtime().find("main/board"), "y", Value(350.0));
@@ -418,7 +418,7 @@ UTest cases{"ui.canvas", [] {
         sc.clear();
         std::atomic<int> built = 0;
         sc.kind("doc", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}},
-                                   .content = [&](const world::Scene& s, world::NodeRef n, xrender::DisplayList& dl) {
+                                   .content = [&](const world::Scene& s, world::NodeRef n, mrender::DisplayList& dl) {
                                        ++built;
                                        const auto r = s.rect(n);
                                        dl.fill_rect({0, 0, static_cast<float>(r.width), static_cast<float>(r.height)},
@@ -446,14 +446,14 @@ UTest cases{"ui.canvas", [] {
             return h.pixels().at(static_cast<int>(p.x), static_cast<int>(p.y));
         };
         const auto d5 = *sc.find("d5");
-        const xrender::raster::Rgba8 red = xrender::raster::premultiply(Color::hex(0xdc2626)), blue = xrender::raster::premultiply(Color::hex(0x1d4ed8));
+        const mrender::raster::Rgba8 red = mrender::raster::premultiply(Color::hex(0xdc2626)), blue = mrender::raster::premultiply(Color::hex(0x1d4ed8));
         h.step();
         h.settle();
         const Canvas* c = h.runtime().component<Canvas>(h.runtime().find("main/board"));
         expect(c != nullptr);
         if (!c) return;
         expect(at(d5, 120, 100) == red && at(d5, 120, 10) == blue) << "the content's own drawing, under the camera";
-        expect(at(c0, 140, 20) == xrender::raster::premultiply(Color::hex(0x0ea5e9))) << "the view's band, from its list";
+        expect(at(c0, 140, 20) == mrender::raster::premultiply(Color::hex(0x0ea5e9))) << "the view's band, from its list";
         expect(c->stats().listed == 13 && c->stats().textured == 0) << std::format("lists, not textures: {} listed, {} textured", c->stats().listed, c->stats().textured);
         const int once = built.load();
         expect(once == 12) << std::format("each content built once ({})", once);
@@ -470,7 +470,7 @@ UTest cases{"ui.canvas", [] {
         sc.set(d5, "color", 0x16a34a);
         sc.touch(d5);
         h.step();
-        expect(at(d5, 120, 100) == xrender::raster::premultiply(Color::hex(0x16a34a))) << "the new content";
+        expect(at(d5, 120, 100) == mrender::raster::premultiply(Color::hex(0x16a34a))) << "the new content";
         expect(built.load() == once + 1) << "and only it was built again";
         world::drop_scene("lists");
     };
@@ -504,9 +504,9 @@ UTest cases{"ui.canvas", [] {
             return h.pixels().at(static_cast<int>(p.x), static_cast<int>(p.y));
         };
         const auto band = [&] { return at(sc.rect(c4).x + 140, sc.rect(c4).y + 20); };
-        expect(band() == xrender::raster::premultiply(Color::hex(0x94a3b8))) << "a box before its texture is in";
+        expect(band() == mrender::raster::premultiply(Color::hex(0x94a3b8))) << "a box before its texture is in";
         h.settle();
-        expect(band() == xrender::raster::premultiply(Color::hex(0x0ea5e9))) << "the view's band, from the texture";
+        expect(band() == mrender::raster::premultiply(Color::hex(0x0ea5e9))) << "the view's band, from the texture";
         // The texture is the view's own pixels: the same region drawn live (promoted, at 1:1) is the same bytes.
         const Rect region = [&] {
             const Rect r = cam.to_screen(sc.rect(c4), {800, 600});
@@ -525,7 +525,7 @@ UTest cases{"ui.canvas", [] {
         h.runtime().set_theme(Theme::dark_theme());
         h.settle();
         const auto dark = at(sc.rect(c4).x + 140, sc.rect(c4).y + 150);
-        expect(light == xrender::raster::premultiply(Theme::light().color("surface")) && dark == xrender::raster::premultiply(Theme::dark_theme().color("surface"))) << "the card's surface follows the theme";
+        expect(light == mrender::raster::premultiply(Theme::light().color("surface")) && dark == mrender::raster::premultiply(Theme::dark_theme().color("surface"))) << "the card's surface follows the theme";
     };
 
     "frames drawn complete: any frame rendered directly is the one playing to it gives — textures at their level, live nodes at once"_test = [] {

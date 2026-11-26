@@ -212,7 +212,7 @@ namespace omui::agent {
     std::vector<VectorIsland> islands;
   };
   using CaptureSvgFn = std::function<std::expected<VectorCapture, ViewFailure>(Rect window)>;
-  [[nodiscard]] std::expected<VectorCapture, ViewFailure> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale, std::optional<Color> background);
+  [[nodiscard]] std::expected<VectorCapture, ViewFailure> vector_capture(const Runtime& runtime, const mrender::Resources& resources, Rect region, float scale, std::optional<Color> background);
   [[nodiscard]] std::string tree_hash(semantic::Tree& tree);
   [[nodiscard]] std::expected<std::string, AgentFailure> pixels_hash(std::span<const std::uint8_t> png);
   struct ProtocolOptions {
@@ -254,7 +254,7 @@ namespace omui::agent {
     void (*stop)(Endpoint& endpoint) = nullptr;
     std::size_t (*pump)(Endpoint& endpoint) = nullptr;
     std::optional<AgentInput> (*take_input)(Endpoint& endpoint) = nullptr;
-    std::expected<VectorCapture, ViewFailure> (*vector_capture)(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale, std::optional<Color> background) = nullptr;
+    std::expected<VectorCapture, ViewFailure> (*vector_capture)(const Runtime& runtime, const mrender::Resources& resources, Rect region, float scale, std::optional<Color> background) = nullptr;
     std::expected<std::vector<std::uint8_t>, std::string> (*png)(const mlibs::image::View& pixels) = nullptr;
     TaskBroker* (*tasks)(Runtime& runtime) = nullptr;
     void (*end_tasks)(TaskBroker* tasks) noexcept = nullptr;

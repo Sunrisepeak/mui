@@ -1,0 +1,9 @@
+== mrender.rhi.webgl
+export import mrender.rhi.webgl.api;
+== mrender.rhi.webgl.api
+namespace mrender::rhi::webgl {
+  struct Options {
+    std::string canvas;
+  };
+  [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {…});
+}

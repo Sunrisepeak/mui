@@ -150,21 +150,21 @@ for (const file of readdirSync(dir).filter((name) => name.endsWith(".scene.json"
   writeFileSync(join(dir, `${scene.name}.resvg.png`), resvgPng);
 
   const reference = await pixels(skiaPng, width, height);
-  const ours = await pixels(readFileSync(join(dir, `${scene.name}.xrender.png`)), width, height);
+  const ours = await pixels(readFileSync(join(dir, `${scene.name}.mrender.png`)), width, height);
   const theirs = await pixels(resvgPng, width, height);
   console.log(JSON.stringify({ renderer: `skia (@napi-rs/canvas ${versions["@napi-rs/canvas"]})`, scene: scene.name, runs, ...skia }));
   console.log(JSON.stringify({ renderer: `resvg ${versions["@resvg/resvg-js"]}`, scene: scene.name, runs, ...tiny }));
-  console.log(JSON.stringify({ scene: scene.name, "xrender against skia": compare(reference, ours), "resvg against skia": compare(reference, theirs) }));
+  console.log(JSON.stringify({ scene: scene.name, "mrender against skia": compare(reference, ours), "resvg against skia": compare(reference, theirs) }));
   // Against the picture itself, as near as two renderers get it: Skia's and resvg's drawings at 8× the size, each
   // averaged back over its 64 samples a pixel, and the two averaged — no renderer's own approximation at 1× (Skia's
   // quadratic offsets, tiny-skia's 4×4 coverage) taken for the truth, Skia's included.
   // Where two renderers' errors differ by less than the references are apart, it does not tell them apart.
   const { exact, references_apart } = supersampled(scene, items);
-  console.log(JSON.stringify({ scene: scene.name, references_apart, "xrender against exact": compare(exact, ours), "resvg against exact": compare(exact, theirs), "skia against exact": compare(exact, reference) }));
-  // xrender's own SVG of the scene, drawn back by resvg and by Skia (its SVG
-  // module, through loadImage), against xrender's pixels.
-  const svg = readFileSync(join(dir, `${scene.name}.xrender.svg`));
+  console.log(JSON.stringify({ scene: scene.name, references_apart, "mrender against exact": compare(exact, ours), "resvg against exact": compare(exact, theirs), "skia against exact": compare(exact, reference) }));
+  // mrender's own SVG of the scene, drawn back by resvg and by Skia (its SVG
+  // module, through loadImage), against mrender's pixels.
+  const svg = readFileSync(join(dir, `${scene.name}.mrender.svg`));
   const backByResvg = await pixels(new Resvg(svg, { fitTo: { mode: "original" } }).render().asPng(), width, height);
   const backBySkia = await pixels(svg, width, height);
-  console.log(JSON.stringify({ scene: scene.name, svg_bytes: svg.length, "its SVG by resvg against xrender": compare(ours, backByResvg), "its SVG by skia against xrender": compare(ours, backBySkia) }));
+  console.log(JSON.stringify({ scene: scene.name, svg_bytes: svg.length, "its SVG by resvg against mrender": compare(ours, backByResvg), "its SVG by skia against mrender": compare(ours, backBySkia) }));
 }

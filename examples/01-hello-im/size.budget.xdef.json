@@ -89,12 +89,12 @@
     "openlifa.openas",
     "openlifa.openmui",
     "taskflow.taskflow",
-    "xrender.effect",
-    "xrender.frame",
-    "xrender.graph",
-    "xrender.raster",
-    "xrender.rhi.sdl",
-    "xrender.text",
-    "xrender.vector"
+    "mrender.effect",
+    "mrender.frame",
+    "mrender.graph",
+    "mrender.raster",
+    "mrender.rhi.sdl",
+    "mrender.text",
+    "mrender.vector"
   ]
 }

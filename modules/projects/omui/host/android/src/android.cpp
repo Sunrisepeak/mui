@@ -6,10 +6,10 @@ module omui.host.android;
 import std;
 import omui.core;
 import omui.view;
-import xrender.raster;
-import xrender.vector;
-import xrender.frame;
-import xrender.text;
+import mrender.raster;
+import mrender.vector;
+import mrender.frame;
+import mrender.text;
 import mlibs.text;
 import :native;
 
@@ -59,9 +59,9 @@ struct AndroidHost::Impl {
     AndroidOptions                               options;
     std::unique_ptr<mlibs::text::FontCollection> own_fonts;
     std::unique_ptr<Runtime>                     runtime;
-    std::unique_ptr<xrender::text::GlyphCache>   glyphs;
-    xrender::CpuFrame                            composed;  // the frame's entry (xrender.frame)
-    xrender::raster::Surface                     frame;
+    std::unique_ptr<mrender::text::GlyphCache>   glyphs;
+    mrender::CpuFrame                            composed;  // the frame's entry (mrender.frame)
+    mrender::raster::Surface                     frame;
     std::uint64_t                                shown = 0;
     std::size_t                                  frames_shown = 0;
     bool                                         has_window = false, resumed = true;
@@ -75,15 +75,15 @@ struct AndroidHost::Impl {
     }
 
     void show() {
-        const xrender::DisplayList& list = runtime->display_list();
+        const mrender::DisplayList& list = runtime->display_list();
         const float scale = runtime->scale();
         const int width = static_cast<int>(std::lround(runtime->size().width * scale));
         const int height = static_cast<int>(std::lround(runtime->size().height * scale));
         if (width <= 0 || height <= 0) return;
         if (list.hash() == shown && frame.width() == width && frame.height() == height) return;
-        if (frame.width() != width || frame.height() != height) frame = xrender::raster::Surface(width, height);
-        const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = {&runtime->images(), glyphs.get()}, .scale = scale};
-        xrender::FrameOptions how;
+        if (frame.width() != width || frame.height() != height) frame = mrender::raster::Surface(width, height);
+        const mrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = {&runtime->images(), glyphs.get()}, .scale = scale};
+        mrender::FrameOptions how;
         how.background = options.background;
         how.external = [this](std::uint64_t number) { return runtime->picture(number); };  // a world in a viewport
         (void)composed.render({&ui_layer, 1}, frame, how);
@@ -112,7 +112,7 @@ AndroidHost::AndroidHost(AndroidOptions options) : impl_(std::make_unique<Impl>(
             native::log(std::format("{}: the default fonts: {}", d.options.app, loaded.error()));
         fonts = d.own_fonts.get();
     }
-    d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
+    d.glyphs = std::make_unique<mrender::text::GlyphCache>(*fonts);
     RuntimeOptions ro;
     ro.theme = d.options.theme;
     ro.fonts = fonts;

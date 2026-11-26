@@ -378,7 +378,7 @@ export interface Video {
 /** `export default defineVideo({ width: 1280, height: 720, fps: 30, seconds: 3, from: { card: "sync" } })`. */
 export declare function defineVideo(video: Video): Defined<"video">;
 
-// ── a program's own effects (xrender.effect) and canvas behaviours ───────
+// ── a program's own effects (mrender.effect) and canvas behaviours ───────
 
 /** A parameter: its range and default (animatable like any property). */
 export interface EffectParam {
@@ -728,15 +728,15 @@ export interface ProjectPart {
  */
 export interface Project {
     name: string;
-    /** As people read it (`"xrender"`, `"omui"`). */
+    /** As people read it (`"mrender"`, `"omui"`). */
     display: string;
     /** What it is, in one sentence (its README's first line). */
     summary: string;
     /** An internal code name (D-208): it reaches no protocol and no persisted data. */
     codeName?: boolean;
-    /** Its packages' prefix (`"xrender"` → `xrender.vector`). */
+    /** Its packages' prefix (`"mrender"` → `mrender.vector`). */
     packages: string;
-    /** Its programs (`["xrender"]`). */
+    /** Its programs (`["mrender"]`). */
     programs?: string[];
     /** The directory its state lives in, in a user's project (`".omui"`). */
     stateDir?: string;
@@ -748,7 +748,7 @@ export interface Project {
     dependsOn: string[];
     parts?: ProjectPart[];
 }
-/** `export default defineProject({ name: "xrender", display: "xrender", summary: "…", packages: "xrender", tier: "foundation", dependsOn: ["mlibs"] })`. */
+/** `export default defineProject({ name: "mrender", display: "mrender", summary: "…", packages: "mrender", tier: "foundation", dependsOn: ["mlibs"] })`. */
 export declare function defineProject(project: Project): Defined<"project">;
 )ts";
 }

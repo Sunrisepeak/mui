@@ -6,7 +6,7 @@ module omui.view;
 import std;
 import omui.core;
 import mlibs.layout;
-import xrender.vector;
+import mrender.vector;
 import mlibs.pipeline;
 import :impl;
 
@@ -44,7 +44,7 @@ private:
 pl::Port tree() { return pl::port<FrameTree>(std::string(res::tree)); }
 pl::Port layout_port() { return pl::port<FrameLayout>(std::string(res::layout)); }
 pl::Port bounds_port() { return pl::port<FrameBounds>(std::string(res::bounds)); }
-pl::Port display() { return pl::port<xrender::DisplayList>(std::string(res::display)); }
+pl::Port display() { return pl::port<mrender::DisplayList>(std::string(res::display)); }
 pl::Port input_port() { return pl::port<FrameInput>(std::string(res::input)); }
 
 bool debugging(const Runtime::Impl& d) noexcept {

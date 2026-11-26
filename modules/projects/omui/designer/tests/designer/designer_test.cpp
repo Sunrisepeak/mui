@@ -794,13 +794,13 @@ static UTest cases{"designer", [] {
         call.args = Value{}.set("path", "logic/side.stub").set("text", page(true));
         expect(eq(h.runtime().verbs().invoke("design.edit", call).exit_code().value_or(-1), 0));
         // Nine moments over 0.8 s, side by side.
-        std::vector<xrender::raster::Surface> frames;
+        std::vector<mrender::raster::Surface> frames;
         for (int index = 0; index < 9; ++index) {
             if (index) (void)h.advance(seconds(0.1));
             else (void)h.step();
             frames.push_back(h.pixels());
         }
-        const auto differ = [](const xrender::raster::Surface& a, const xrender::raster::Surface& b) {
+        const auto differ = [](const mrender::raster::Surface& a, const mrender::raster::Surface& b) {
             for (int y = 0; y < a.height(); ++y)
                 for (int x = 0; x < a.width(); ++x)
                     if (!(a.at(x, y) == b.at(x, y))) return true;

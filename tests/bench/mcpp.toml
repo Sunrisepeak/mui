@@ -25,10 +25,10 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 # The measuring is mtest's (bench::laps): the scenes' loop is its, in the library and in its tests.
 mcpplibs.mtest = "0.8.4"
-xrender.text = { path = "../../modules/projects/xrender/text" }
-xrender.scene = { path = "../../modules/projects/xrender/scene" }
-"xrender.mesh"  = { path = "../../modules/projects/xrender/mesh" }
-"xrender.mesh.gpu" = { path = "../../modules/projects/xrender/mesh/gpu" }
+mrender.text = { path = "../../modules/projects/mrender/text" }
+mrender.scene = { path = "../../modules/projects/mrender/scene" }
+"mrender.mesh"  = { path = "../../modules/projects/mrender/mesh" }
+"mrender.mesh.gpu" = { path = "../../modules/projects/mrender/mesh/gpu" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
 mlibs.dynamics   = { path = "../../modules/base/dynamics" }
 meng.dynamics = { path = "../../modules/projects/meng/kernel/dynamics", features = ["rigid", "rigid3"] }
@@ -71,7 +71,7 @@ meng.world = { path = "../../modules/projects/meng/game/world" }
 "gongfu.present2d"      = { path = "../../modules/projects/gongfu/present2d" }
 omui.theme = { path = "../../modules/projects/omui/theme" }  # with its packs
 mlibs.rhi           = { path = "../../modules/gfx/rhi" }
-xrender.rhi.sdl       = { path = "../../modules/projects/xrender/rhi/sdl" }
+mrender.rhi.sdl       = { path = "../../modules/projects/mrender/rhi/sdl" }
 mcpplibs.os           = "0.4.4"
 
 

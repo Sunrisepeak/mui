@@ -3,9 +3,9 @@
 import std;
 import hanim.core;
 import mlibs.geom;
-import xrender.raster;
+import mrender.raster;
 import mlibs.math;
-import xrender.vector;
+import mrender.vector;
 import hanim.visual;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -47,66 +47,66 @@ struct Frame {
 };
 // A fixed bitmap font with real, immutable coverage. No approximate em box
 // is used to certify these nested cases, and concurrent reads are safe.
-struct FixedGlyphs final : xrender::GlyphSource {
-    xrender::raster::Coverage ink, blank;
+struct FixedGlyphs final : mrender::GlyphSource {
+    mrender::raster::Coverage ink, blank;
     FixedGlyphs() {
-        xrender::raster::PathBuilder path; path.rect({0, -12, 7, 13});
-        xrender::raster::fill_coverage(path.data(), Affine{}, xrender::raster::FillRule::nonzero, mlibs::geom::PixelRect{-64, -64, 128, 128}, ink);
+        mrender::raster::PathBuilder path; path.rect({0, -12, 7, 13});
+        mrender::raster::fill_coverage(path.data(), Affine{}, mrender::raster::FillRule::nonzero, mlibs::geom::PixelRect{-64, -64, 128, 128}, ink);
     }
-    xrender::GlyphMask mask(xrender::FontRef font, std::uint32_t glyph, float, mlibs::geom::Point) override {
+    mrender::GlyphMask mask(mrender::FontRef font, std::uint32_t glyph, float, mlibs::geom::Point) override {
         if (font.id == 77) return {};
         return {glyph == 0 ? &blank : &ink, nullptr, {}};
     }
-    xrender::raster::PathData outline(xrender::FontRef, std::uint32_t) override { return {}; }
+    mrender::raster::PathData outline(mrender::FontRef, std::uint32_t) override { return {}; }
 };
-struct OutlineGlyphs final : xrender::GlyphSource {
-    xrender::raster::PathBuilder path;
-    xrender::raster::Coverage ink;
+struct OutlineGlyphs final : mrender::GlyphSource {
+    mrender::raster::PathBuilder path;
+    mrender::raster::Coverage ink;
     OutlineGlyphs() {
         path.rect({0, -0.75f, 0.5f, 0.75f});
-        xrender::raster::fill_coverage(path.data(), Affine::scale(16, 16), xrender::raster::FillRule::nonzero, mlibs::geom::PixelRect{-64, -64, 128, 128}, ink);
+        mrender::raster::fill_coverage(path.data(), Affine::scale(16, 16), mrender::raster::FillRule::nonzero, mlibs::geom::PixelRect{-64, -64, 128, 128}, ink);
     }
-    xrender::GlyphMask mask(xrender::FontRef, std::uint32_t, float, mlibs::geom::Point) override { return {&ink, nullptr, {}}; }
-    xrender::raster::PathData outline(xrender::FontRef, std::uint32_t) override { return path.data(); }
+    mrender::GlyphMask mask(mrender::FontRef, std::uint32_t, float, mlibs::geom::Point) override { return {&ink, nullptr, {}}; }
+    mrender::raster::PathData outline(mrender::FontRef, std::uint32_t) override { return path.data(); }
 };
 mo::Resolver names() {
     return {.keys = [](std::uint32_t marker, std::string& key, std::string&) {
         key = marker == 1 ? "main/card" : marker == 2 ? "main/card/caption" : marker >= 9 ? std::format("main/card/control{}", marker) : "main/other";
     }, .nested = [](std::uint32_t marker) { return marker >= 9; }};
 }
-xrender::DisplayList drawing(const Frame& frame) {
-    xrender::DisplayList list;
+mrender::DisplayList drawing(const Frame& frame) {
+    mrender::DisplayList list;
     list.begin_node(1);
-    if (frame.effect) list.push_layer(1, xrender::BlendMode::normal, xrender::EffectRef{77}, {}, frame.carrier);
+    if (frame.effect) list.push_layer(1, mrender::BlendMode::normal, mrender::EffectRef{77}, {}, frame.carrier);
     if (frame.path_clip) {
-        xrender::Path path; path.move_to({0, 0}); path.line_to({220, 0}); path.line_to({220, 90}); path.line_to({0, 90}); path.close();
+        mrender::Path path; path.move_to({0, 0}); path.line_to({220, 0}); path.line_to({220, 90}); path.line_to({0, 90}); path.close();
         list.push_clip(path);
     } else if (frame.narrow_clip) list.push_clip(Rect{0, 0, 12, 12});
     if (frame.foreign) list.begin_node(3);
     if (!frame.no_carrier) {
         list.push_transform(frame.carrier_transform);
-        auto paint = xrender::Paint::solid(frame.background);
-        if (frame.gradient) paint.kind = xrender::Paint::Kind::gradient;
+        auto paint = mrender::Paint::solid(frame.background);
+        if (frame.gradient) paint.kind = mrender::Paint::Kind::gradient;
         list.push_layer(frame.carrier_opacity);
         list.fill_round_rect(frame.carrier, frame.radii, paint);
         list.pop_layer(); list.pop_transform();
     }
-    if (frame.stroke) list.stroke_round_rect(frame.carrier, frame.radii, 2, xrender::Paint::solid(Color::hex(0x64748b)));
+    if (frame.stroke) list.stroke_round_rect(frame.carrier, frame.radii, 2, mrender::Paint::solid(Color::hex(0x64748b)));
     if (frame.foreign) list.end_node();
-    if (frame.image) list.draw_image(xrender::ImageRef{1}, frame.carrier, frame.carrier);
+    if (frame.image) list.draw_image(mrender::ImageRef{1}, frame.carrier, frame.carrier);
     if (frame.overlay) list.fill_rect(frame.carrier, Color::hex(0x808080, 0.25f));
     list.begin_node(2);
     list.push_transform(frame.text_transform);
     list.push_layer(frame.text_opacity);
-    const std::array<xrender::Glyph, 3> glyphs{{
+    const std::array<mrender::Glyph, 3> glyphs{{
         {.id = 11, .position = {0, 0}, .cluster = 0},
         {.id = 12, .position = {10, 0}, .cluster = 1},
         {.id = frame.changed ? 19u : 13u, .position = {20, 0}, .cluster = 2}}};
-    const std::array<xrender::GlyphStyle, 3> styles{{
+    const std::array<mrender::GlyphStyle, 3> styles{{
         {.opacity = frame.glyph_opacity, .tint = frame.tint},
         {.opacity = frame.glyph_opacity, .tint = frame.tint},
         {.opacity = frame.glyph_opacity, .tint = frame.tint}}};
-    list.draw_glyphs(xrender::FontRef{1}, frame.text_size, frame.origin, glyphs, xrender::Paint::solid(frame.ink), styles);
+    list.draw_glyphs(mrender::FontRef{1}, frame.text_size, frame.origin, glyphs, mrender::Paint::solid(frame.ink), styles);
     list.pop_layer(); list.pop_transform(); list.end_node();
     for (int i = 0; i < frame.nested_count; ++i) {
         list.begin_node(static_cast<std::uint32_t>(9 + i));
@@ -128,16 +128,16 @@ mo::Morph transition(const Frame& a, const Frame& b, mo::Options o = options()) 
     const auto from = drawing(a), to = drawing(b);
     return mo::Morph(mo::Matter::extract(from, names()), mo::Matter::extract(to, names()), std::move(o), 0);
 }
-xrender::DisplayList at(const mo::Morph& motion, double time) {
-    xrender::DisplayList list; motion.draw(time, list); return list;
+mrender::DisplayList at(const mo::Morph& motion, double time) {
+    mrender::DisplayList list; motion.draw(time, list); return list;
 }
 struct Paints { Color background, ink; bool fill = false, text = false; };
-Paints paints(const xrender::DisplayList& list) {
+Paints paints(const mrender::DisplayList& list) {
     Paints result;
     for (const auto& command : list.commands()) {
-        if (const auto* fill = std::get_if<xrender::FillRect>(&command)) { result.background = fill->paint.color; result.fill = true; }
-        else if (const auto* fill = std::get_if<xrender::FillRoundRect>(&command)) { result.background = fill->paint.color; result.fill = true; }
-        else if (const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command)) { result.ink = glyphs->paint.color; result.text = true; }
+        if (const auto* fill = std::get_if<mrender::FillRect>(&command)) { result.background = fill->paint.color; result.fill = true; }
+        else if (const auto* fill = std::get_if<mrender::FillRoundRect>(&command)) { result.background = fill->paint.color; result.fill = true; }
+        else if (const auto* glyphs = std::get_if<mrender::DrawGlyphs>(&command)) { result.ink = glyphs->paint.color; result.text = true; }
     }
     return result;
 }
@@ -152,18 +152,18 @@ void readable(const mo::Morph& motion, double time) {
         expect(eq(frame.ink.a, 1.0f));
     }
 }
-Paints caption_paints(const xrender::DisplayList& list) {
+Paints caption_paints(const mrender::DisplayList& list) {
     Paints result;
     std::vector<std::uint32_t> nodes;
     for (const auto& command : list.commands()) {
-        if (const auto* node = std::get_if<xrender::BeginNode>(&command)) nodes.push_back(node->node);
-        else if (std::holds_alternative<xrender::EndNode>(command)) nodes.pop_back();
+        if (const auto* node = std::get_if<mrender::BeginNode>(&command)) nodes.push_back(node->node);
+        else if (std::holds_alternative<mrender::EndNode>(command)) nodes.pop_back();
         else if (!result.fill) {
-            if (const auto* fill = std::get_if<xrender::FillRect>(&command)) { result.background = fill->paint.color; result.fill = true; }
-            else if (const auto* fill = std::get_if<xrender::FillRoundRect>(&command)) { result.background = fill->paint.color; result.fill = true; }
+            if (const auto* fill = std::get_if<mrender::FillRect>(&command)) { result.background = fill->paint.color; result.fill = true; }
+            else if (const auto* fill = std::get_if<mrender::FillRoundRect>(&command)) { result.background = fill->paint.color; result.fill = true; }
         }
         if (!result.text && !nodes.empty() && nodes.back() == 2)
-            if (const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command)) { result.ink = glyphs->paint.color; result.text = true; }
+            if (const auto* glyphs = std::get_if<mrender::DrawGlyphs>(&command)) { result.ink = glyphs->paint.color; result.text = true; }
     }
     return result;
 }
@@ -171,14 +171,14 @@ Color over(Color surface, Color under) {
     return {surface.r * surface.a + under.r * (1 - surface.a), surface.g * surface.a + under.g * (1 - surface.a),
             surface.b * surface.a + under.b * (1 - surface.a), 1};
 }
-Color actual_carrier(const xrender::DisplayList& list) {
+Color actual_carrier(const mrender::DisplayList& list) {
     Color color; std::vector<std::uint32_t> nodes;
     for (const auto& command : list.commands()) {
-        if (const auto* node = std::get_if<xrender::BeginNode>(&command)) nodes.push_back(node->node);
-        else if (std::holds_alternative<xrender::EndNode>(command)) nodes.pop_back();
+        if (const auto* node = std::get_if<mrender::BeginNode>(&command)) nodes.push_back(node->node);
+        else if (std::holds_alternative<mrender::EndNode>(command)) nodes.pop_back();
         else if (!nodes.empty() && nodes.back() == 1) {
-            if (const auto* fill = std::get_if<xrender::FillRect>(&command)) color = fill->paint.color;
-            else if (const auto* fill = std::get_if<xrender::FillRoundRect>(&command)) color = fill->paint.color;
+            if (const auto* fill = std::get_if<mrender::FillRect>(&command)) color = fill->paint.color;
+            else if (const auto* fill = std::get_if<mrender::FillRoundRect>(&command)) color = fill->paint.color;
         }
     }
     return color;
@@ -281,10 +281,10 @@ UTest cases{"motion.text-contrast", [] {
     };
     "guard adds no scalar heap allocations to an identical warm draw sequence"_test = [&] {
         auto guarded = transition(light, dark), baseline = transition(light, dark, options(0));
-        xrender::DisplayList protected_list, plain_list;
+        mrender::DisplayList protected_list, plain_list;
         protected_list.reserve(64); plain_list.reserve(64);
         guarded.draw(0.5, protected_list); baseline.draw(0.5, plain_list);
-        auto count = [](const mo::Morph& motion, xrender::DisplayList& list) {
+        auto count = [](const mo::Morph& motion, mrender::DisplayList& list) {
             const auto before = scalar_allocations.load(std::memory_order_relaxed);
             for (int step = 1; step < 100; ++step) {
                 list.clear(); motion.draw(static_cast<double>(step) / 100, list);
@@ -308,19 +308,19 @@ UTest cases{"motion.text-contrast", [] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 1;
         auto policy = options();
-        policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+        policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy);
         auto raw = transition(a, b, options(0));
         expect(eq(motion.stats().text_contrast_runs, std::size_t{1}));
         for (const double time : {0.39, 0.5, 0.61}) {
             int calls = 0;
             const bool crossing = time == 0.5;
-            auto nested = [&](std::uint32_t marker, xrender::DisplayList& out) {
+            auto nested = [&](std::uint32_t marker, mrender::DisplayList& out) {
                 ++calls; out.begin_node(marker);
                 out.fill_rect(crossing ? Rect{20, 35, 28, 15} : Rect{140, 65, 20, 10}, Color::hex(0x34d399));
                 out.end_node();
             };
-            xrender::DisplayList output; motion.draw(time, output, nested);
+            mrender::DisplayList output; motion.draw(time, output, nested);
             expect(eq(calls, 1)); expect(output.balanced());
             const auto frame = caption_paints(output);
             if (crossing) near(frame.ink, caption_paints(at(raw, time)).ink);
@@ -333,20 +333,20 @@ UTest cases{"motion.text-contrast", [] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 1;
         auto policy = options();
-        policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+        policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy), raw = transition(a, b, options(0));
         const auto expected = caption_paints(at(raw, 0.5)).ink;
         for (int variant = 0; variant < 3; ++variant) {
             int calls = 0;
-            xrender::DisplayList output;
-            motion.draw(0.5, output, [&](std::uint32_t marker, xrender::DisplayList& out) {
+            mrender::DisplayList output;
+            motion.draw(0.5, output, [&](std::uint32_t marker, mrender::DisplayList& out) {
                 ++calls; out.begin_node(marker);
-                if (variant == 0) out.push_layer(1, xrender::BlendMode::normal, xrender::EffectRef{77}, {}, {140, 65, 20, 10});
+                if (variant == 0) out.push_layer(1, mrender::BlendMode::normal, mrender::EffectRef{77}, {}, {140, 65, 20, 10});
                 if (variant == 0) out.fill_rect({140, 65, 20, 10}, Color::black());
                 else {
-                    const std::array<xrender::Glyph, 1> text{{{.id = 11}}};
-                    const std::array<xrender::GlyphStyle, 1> styles{{{.transform = variant == 2 ? Affine::rotation(0.8f, 0.6f) : Affine{}}}};
-                    out.draw_glyphs(xrender::FontRef{variant == 1 ? 77u : 1u}, 16, {140, 75}, text, xrender::Paint::solid(Color::black()), styles);
+                    const std::array<mrender::Glyph, 1> text{{{.id = 11}}};
+                    const std::array<mrender::GlyphStyle, 1> styles{{{.transform = variant == 2 ? Affine::rotation(0.8f, 0.6f) : Affine{}}}};
+                    out.draw_glyphs(mrender::FontRef{variant == 1 ? 77u : 1u}, 16, {140, 75}, text, mrender::Paint::solid(Color::black()), styles);
                 }
                 if (variant == 0) out.pop_layer();
                 out.end_node();
@@ -357,20 +357,20 @@ UTest cases{"motion.text-contrast", [] {
     };
     "actual translated styled glyph masks are bounded without em approximations"_test = [] {
         FixedGlyphs source;
-        const std::array<xrender::Glyph, 1> glyphs{{{.id = 11}}};
-        const std::array<xrender::GlyphStyle, 1> translated{{{.transform = Affine::translate(40, 3)}}};
-        xrender::DisplayList list;
-        list.draw_glyphs(xrender::FontRef{1}, 16, {20, 48}, glyphs, xrender::Paint::solid(Color::black()), translated);
-        const auto& run = std::get<xrender::DrawGlyphs>(list.commands().front());
+        const std::array<mrender::Glyph, 1> glyphs{{{.id = 11}}};
+        const std::array<mrender::GlyphStyle, 1> translated{{{.transform = Affine::translate(40, 3)}}};
+        mrender::DisplayList list;
+        list.draw_glyphs(mrender::FontRef{1}, 16, {20, 48}, glyphs, mrender::Paint::solid(Color::black()), translated);
+        const auto& run = std::get<mrender::DrawGlyphs>(list.commands().front());
         const auto bounds = mo::glyph_ink_bounds(run, Affine{}, source);
         expect(bounds.has_value());
         if (bounds) { expect(near(bounds->x, 59, 0.001)); expect(near(bounds->y, 38, 0.001)); expect(near(bounds->width, 9, 0.001)); expect(near(bounds->height, 15, 0.001)); }
         expect(!mo::glyph_ink_bounds(run, Affine::rotation(0.8f, 0.6f), source));
         expect(!mo::glyph_ink_bounds(run, Affine::scale(1, 2), source));
-        const std::array<xrender::Glyph, 1> blank{{{.id = 0}}};
-        xrender::DisplayList blank_list;
-        blank_list.draw_glyphs(xrender::FontRef{1}, 16, {}, blank, xrender::Paint::solid(Color::black()));
-        const auto empty = mo::glyph_ink_bounds(std::get<xrender::DrawGlyphs>(blank_list.commands().front()), Affine{}, source);
+        const std::array<mrender::Glyph, 1> blank{{{.id = 0}}};
+        mrender::DisplayList blank_list;
+        blank_list.draw_glyphs(mrender::FontRef{1}, 16, {}, blank, mrender::Paint::solid(Color::black()));
+        const auto empty = mo::glyph_ink_bounds(std::get<mrender::DrawGlyphs>(blank_list.commands().front()), Affine{}, source);
         expect(empty && empty->empty()) << "known blank mask is distinct from missing geometry";
     };
     mcpplibs::mtest::test(std::string_view(threads ? "nested draw reentry and concurrent seeking keep independent proof scratch"
@@ -378,13 +378,13 @@ UTest cases{"motion.text-contrast", [] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 1;
         auto policy = options();
-        policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+        policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto outer = transition(a, b, policy), inner = transition(a, b, policy);
         auto draw_once = [&] {
-            xrender::DisplayList output;
-            outer.draw(0.5, output, [&](std::uint32_t marker, xrender::DisplayList& into) {
+            mrender::DisplayList output;
+            outer.draw(0.5, output, [&](std::uint32_t marker, mrender::DisplayList& into) {
                 into.begin_node(marker); into.push_transform(Affine::translate(300, 0));
-                inner.draw(0.5, into, [](std::uint32_t child, xrender::DisplayList& nested) {
+                inner.draw(0.5, into, [](std::uint32_t child, mrender::DisplayList& nested) {
                     nested.begin_node(child); nested.fill_rect({140, 65, 20, 10}, Color::black()); nested.end_node();
                 });
                 into.pop_transform(); into.end_node();
@@ -406,11 +406,11 @@ UTest cases{"motion.text-contrast", [] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 65;
         auto policy = options();
-        policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+        policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy), raw = transition(a, b, options(0));
         int calls = 0;
-        xrender::DisplayList output;
-        motion.draw(0.5, output, [&](std::uint32_t marker, xrender::DisplayList& nested) {
+        mrender::DisplayList output;
+        motion.draw(0.5, output, [&](std::uint32_t marker, mrender::DisplayList& nested) {
             ++calls; nested.begin_node(marker); nested.fill_rect({140, 65, 20, 10}, Color::black()); nested.end_node();
         });
         expect(eq(calls, 65)); expect(output.balanced());
@@ -420,12 +420,12 @@ UTest cases{"motion.text-contrast", [] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 1;
         auto policy = options();
-        policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+        policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy);
-        xrender::DisplayList output;
-        std::function<void(int, xrender::DisplayList&)> draw_level;
-        draw_level = [&](int depth, xrender::DisplayList& into) {
-            motion.draw(0.5, into, [&](std::uint32_t marker, xrender::DisplayList& nested) {
+        mrender::DisplayList output;
+        std::function<void(int, mrender::DisplayList&)> draw_level;
+        draw_level = [&](int depth, mrender::DisplayList& into) {
+            motion.draw(0.5, into, [&](std::uint32_t marker, mrender::DisplayList& nested) {
                 nested.begin_node(marker); nested.push_transform(Affine::translate(300, 0));
                 if (depth < 9) draw_level(depth + 1, nested);
                 else nested.fill_rect({140, 65, 20, 10}, Color::black());
@@ -437,14 +437,14 @@ UTest cases{"motion.text-contrast", [] {
         const auto background = caption_paints(output).background;
         std::size_t texts = 0;
         for (const auto& command : output.commands())
-            if (const auto* text = std::get_if<xrender::DrawGlyphs>(&command)) {
+            if (const auto* text = std::get_if<mrender::DrawGlyphs>(&command)) {
                 if (texts < 8) expect(ratio(text->paint.color, background) >= 4.5 - 0.00001) << "eight independent leases retain their own patches";
                 else expect(ratio(text->paint.color, background) < 1.01) << "overflow draws honestly without claiming protection";
                 ++texts;
             }
         expect(eq(texts, std::size_t{10}));
-        xrender::DisplayList again;
-        motion.draw(0.5, again, [](std::uint32_t marker, xrender::DisplayList& nested) {
+        mrender::DisplayList again;
+        motion.draw(0.5, again, [](std::uint32_t marker, mrender::DisplayList& nested) {
             nested.begin_node(marker); nested.fill_rect({140, 65, 20, 10}, Color::black()); nested.end_node();
         });
         const auto frame = caption_paints(again);
@@ -455,11 +455,11 @@ UTest cases{"motion.text-contrast", [] {
         Frame a = light, b = dark; a.background.a = b.background.a = 0.94f;
         for (const float scale : {1.0f, 2.0f}) for (const auto under : {Color::white(), Color::black(), Color::hex(0x23395b), Color::hex(0xf0a060)}) {
             auto policy = options(); policy.proof_scale = scale;
-            policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+            policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
             auto motion = transition(a, b, policy);
             expect(eq(motion.stats().text_contrast_runs, std::size_t{1}));
             for (int step = 0; step <= 100; step += 2) {
-                xrender::DisplayList output;
+                mrender::DisplayList output;
                 output.push_transform(Affine::translate(37, 19) * Affine::scale(1.25f, 1.25f));
                 output.fill_rect({-500, -500, 1000, 1000}, under);
                 motion.draw(static_cast<double>(step) / 100, output); output.pop_transform();
@@ -474,21 +474,21 @@ UTest cases{"motion.text-contrast", [] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.background.a = b.background.a = 0.94f;
         auto policy = options();
-        policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+        policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy), raw = transition(a, b, options(0));
         const auto expected = caption_paints(at(raw, 0.5)).ink;
         for (int variant = 0; variant < 7; ++variant) {
-            xrender::DisplayList output;
+            mrender::DisplayList output;
             if (variant) output.fill_rect({-500, -500, 1000, 1000}, Color::white());
-            if (variant == 1) output.draw_image(xrender::ImageRef{1}, {0, 0, 220, 90}, {0, 0, 220, 90});
+            if (variant == 1) output.draw_image(mrender::ImageRef{1}, {0, 0, 220, 90}, {0, 0, 220, 90});
             if (variant == 2) {
-                xrender::Paint gradient; gradient.kind = xrender::Paint::Kind::gradient;
+                mrender::Paint gradient; gradient.kind = mrender::Paint::Kind::gradient;
                 output.fill_rect({0, 0, 220, 90}, gradient);
             }
             if (variant == 3) output.fill_rect({20, 0, 12, 90}, Color::black());
             if (variant == 4) output.push_clip(Rect{0, 0, 30, 240});
             if (variant == 5) output.push_layer(0.5f);
-            if (variant == 6) output.push_layer(1, xrender::BlendMode::normal, xrender::EffectRef{999999}, {}, {0, 0, 220, 90});
+            if (variant == 6) output.push_layer(1, mrender::BlendMode::normal, mrender::EffectRef{999999}, {}, {0, 0, 220, 90});
             motion.draw(0.5, output);
             if (variant == 4) output.pop_clip();
             if (variant >= 5) output.pop_layer();
@@ -496,8 +496,8 @@ UTest cases{"motion.text-contrast", [] {
         }
         // Opaque parent recovery is valid even when a still earlier image
         // was unknown: the later solid really covers every selected pixel.
-        xrender::DisplayList recovered;
-        recovered.draw_image(xrender::ImageRef{1}, {0, 0, 220, 90}, {0, 0, 220, 90});
+        mrender::DisplayList recovered;
+        recovered.draw_image(mrender::ImageRef{1}, {0, 0, 220, 90}, {0, 0, 220, 90});
         recovered.fill_rect({-500, -500, 1000, 1000}, Color::hex(0x23395b));
         motion.draw(0.5, recovered);
         expect(ratio(caption_paints(recovered).ink, over(actual_carrier(recovered), Color::hex(0x23395b))) >= 4.5 - 0.00001);
@@ -506,20 +506,20 @@ UTest cases{"motion.text-contrast", [] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.background.a = b.background.a = 0.94f; a.nested_count = b.nested_count = 1;
         auto policy = options();
-        policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+        policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy), raw = transition(a, b, options(0));
-        const auto effect = xrender::effects().find("liquid_glass"); expect(effect.has_value()); if (!effect) return;
+        const auto effect = mrender::effects().find("liquid_glass"); expect(effect.has_value()); if (!effect) return;
         const auto expected = caption_paints(at(raw, 0.5)).ink;
-        auto params = xrender::effects().params(*effect, {});
+        auto params = mrender::effects().params(*effect, {});
         // Large sampling reach is not the effect's generated write region.
         params[0] = 100; params[10] = 0;
         for (int variant = 0; variant < 3; ++variant) {
-            xrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white());
+            mrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white());
             int calls = 0;
-            motion.draw(0.5, output, [&](std::uint32_t marker, xrender::DisplayList& nested) {
+            motion.draw(0.5, output, [&](std::uint32_t marker, mrender::DisplayList& nested) {
                 ++calls; nested.begin_node(marker);
                 const Rect declared = variant == 1 ? Rect{20, 35, 28, 15} : Rect{140, 65, 20, 10};
-                nested.push_layer(1, xrender::BlendMode::normal, *effect, params, declared);
+                nested.push_layer(1, mrender::BlendMode::normal, *effect, params, declared);
                 // Even when declared bounds are far away, source content
                 // outside them remains part of the actual write envelope.
                 nested.fill_rect(variant == 2 ? Rect{20, 35, 28, 15} : declared, Color::black());
@@ -536,33 +536,33 @@ UTest cases{"motion.text-contrast", [] {
         float scale = 1; int reads = 0; float greatest_matrix = 0;
         auto policy = options(); policy.proof_scale = 1;
         policy.current_proof_scale = [&] { ++reads; return scale; };
-        policy.glyph_bounds = [&](const xrender::DrawGlyphs& run, const Affine& transform) {
+        policy.glyph_bounds = [&](const mrender::DrawGlyphs& run, const Affine& transform) {
             greatest_matrix = std::max(greatest_matrix, transform.a);
             return mo::glyph_ink_bounds(run, transform, glyphs);
         };
         auto motion = transition(a, b, policy), raw = transition(a, b, options(0));
         for (const float dpi : {1.0f, 2.0f, 1.0f}) {
             scale = dpi; reads = 0; greatest_matrix = 0;
-            xrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white()); motion.draw(0.5, output);
+            mrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white()); motion.draw(0.5, output);
             expect(eq(reads, 1)); expect(near(greatest_matrix, dpi, 0.0001));
             expect(ratio(caption_paints(output).ink, over(actual_carrier(output), Color::white())) >= 4.5 - 0.00001);
         }
         for (const float invalid : {0.0f, -1.0f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
             scale = invalid; reads = 0;
-            xrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white()); motion.draw(0.5, output);
+            mrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white()); motion.draw(0.5, output);
             expect(eq(reads, 1)); near(caption_paints(output).ink, caption_paints(at(raw, 0.5)).ink);
         }
     };
     "styled vector glyph bounds use the actual outline and complete affine"_test = [] {
         OutlineGlyphs source;
-        const std::array<xrender::Glyph, 1> glyphs{{{.id = 11}}};
+        const std::array<mrender::Glyph, 1> glyphs{{{.id = 11}}};
         const Affine device = Affine::translate(7, 11) * Affine::scale(2, 2);
         for (const bool rotated : {false, true}) {
-            const std::array<xrender::GlyphStyle, 1> styles{{{.transform = rotated
+            const std::array<mrender::GlyphStyle, 1> styles{{{.transform = rotated
                 ? Affine{0, 1, -1, 0, 4, 3} : Affine::translate(4, 3) * Affine::scale(1.5f, 0.5f)}}};
-            xrender::DisplayList drawing;
-            drawing.draw_glyphs(xrender::FontRef{1}, 16, {20, 48}, glyphs, xrender::Paint::solid(Color::black()), styles);
-            const auto bounds = mo::glyph_ink_bounds(std::get<xrender::DrawGlyphs>(drawing.commands().front()), device, source);
+            mrender::DisplayList drawing;
+            drawing.draw_glyphs(mrender::FontRef{1}, 16, {20, 48}, glyphs, mrender::Paint::solid(Color::black()), styles);
+            const auto bounds = mo::glyph_ink_bounds(std::get<mrender::DrawGlyphs>(drawing.commands().front()), device, source);
             expect(bounds.has_value());
             if (bounds) {
                 expect(near(bounds->x, 54, 0.0001)); expect(near(bounds->y, rotated ? 112 : 100, 0.0001));
@@ -574,11 +574,11 @@ UTest cases{"motion.text-contrast", [] {
         OutlineGlyphs glyphs;
         Frame a = light, b = dark; a.text_size = 13; b.text_size = 12; a.background.a = b.background.a = 0.94f;
         auto policy = options();
-        policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+        policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy);
         expect(eq(motion.stats().text_contrast_runs, std::size_t{1}));
         for (const double time : {0.0, 0.25, 0.5, 0.75, 1.0}) {
-            xrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white()); motion.draw(time, output);
+            mrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white()); motion.draw(time, output);
             expect(ratio(caption_paints(output).ink, over(actual_carrier(output), Color::white())) >= 4.5 - 0.00001);
         }
     };
@@ -587,17 +587,17 @@ UTest cases{"motion.text-contrast", [] {
         Frame a = light, b = dark; a.text_size = 13; b.text_size = 12; a.background.a = b.background.a = 0.94f;
         a.nested_count = b.nested_count = 1;
         auto policy = options();
-        policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
+        policy.glyph_bounds = [&glyphs](const mrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy);
-        xrender::DisplayList prefix;
+        mrender::DisplayList prefix;
         prefix.begin_node(3); prefix.push_transform(Affine::translate(37, 19)); prefix.push_clip(Rect{-500, -500, 1000, 1000});
         prefix.fill_rect({-500, -500, 1000, 1000}, Color::white());
         int calls = 0;
-        const auto nested = [&](std::uint32_t marker, xrender::DisplayList& out) {
+        const auto nested = [&](std::uint32_t marker, mrender::DisplayList& out) {
             ++calls; out.begin_node(marker); out.fill_rect({140, 65, 20, 10}, Color::black()); out.end_node();
         };
         const auto screen = [&](double time) {
-            xrender::DisplayList out;
+            mrender::DisplayList out;
             for (const auto& command : prefix.commands()) out.append_command(command);
             motion.draw(time, out, nested); out.pop_clip(); out.pop_transform(); out.end_node();
             return out;
@@ -622,8 +622,8 @@ UTest cases{"motion.text-contrast", [] {
         const auto own_hash = snapshot.hash(); prefix.clear(); expect(eq(snapshot.hash(), own_hash));
         const auto isolated = motion.snapshot(0.63, nested);
         expect(ratio(caption_paints(isolated.list()).ink, over(actual_carrier(isolated.list()), Color::white())) < 4.5) << "the compatible isolated API does not invent an opaque page backdrop";
-        xrender::DisplayList unknown;
-        unknown.draw_image(xrender::ImageRef{1}, {0, 0, 220, 90}, {0, 0, 220, 90});
+        mrender::DisplayList unknown;
+        unknown.draw_image(mrender::ImageRef{1}, {0, 0, 220, 90}, {0, 0, 220, 90});
         const auto unproved = motion.snapshot(0.63, nested, mo::SnapshotContext{unknown.commands()});
         near(caption_paints(unproved.list()).ink, caption_paints(isolated.list()).ink);
     };

@@ -9,7 +9,7 @@
 namespace   = "omui"
 name        = "bench.competitors"
 version     = "0.1.0"
-description = "omui's side of the competitor benchmarks: hanim's motion and its Lottie-like playback, xrender's vector raster and mlibs.markdown, native and on the Web"
+description = "omui's side of the competitor benchmarks: hanim's motion and its Lottie-like playback, mrender's vector raster and mlibs.markdown, native and on the Web"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 
@@ -38,8 +38,8 @@ main = "src/markdown.cpp"
 mcpplibs.cmdline = "0.0.3"
 hanim.core = { path = "../../../modules/projects/hanim/core" }
 sunrisepeak.hanim = { path = "../../../modules/projects/hanim", features = ["render-vector"] }
-xrender.vector = { path = "../../../modules/projects/xrender/vector" }
-xrender.raster = { path = "../../../modules/projects/xrender/raster" }
+mrender.vector = { path = "../../../modules/projects/mrender/vector" }
+mrender.raster = { path = "../../../modules/projects/mrender/raster" }
 mlibs.geom = { path = "../../../modules/base/geom" }
 mlibs.utils = { path = "../../../modules/base/utils" }
 mlibs.math = { path = "../../../modules/base/math" }

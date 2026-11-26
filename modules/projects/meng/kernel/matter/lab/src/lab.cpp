@@ -16,7 +16,7 @@ import meng.matter.appearance;
 import meng.cellular.matter.agent;
 import meng.cellular.present;
 import meng.matter.appearance;
-import xrender.frame;
+import mrender.frame;
 import :text;
 
 namespace meng::matter::lab {
@@ -238,15 +238,15 @@ std::string Lab::difference(const cellular::matter_agent::World& then, const cel
 // ── the picture ─────────────────────────────────────────────────────────────
 
 struct Lab::Screen {
-    xrender::ImageStore                     images;
+    mrender::ImageStore                     images;
     std::optional<cellular::FieldPresenter> presenter;
-    xrender::DisplayList                    list;
-    xrender::raster::Surface                surface;
-    xrender::CpuFrame                       frame;
+    mrender::DisplayList                    list;
+    mrender::raster::Surface                surface;
+    mrender::CpuFrame                       frame;
 
     // The cells through the renderer's frame entry into `target`: one layer, the field's image and — where
     // the look gives light — its glow.
-    std::expected<void, std::string> paint(std::span<const std::uint32_t> cells, xrender::raster::Surface& target, xrender::CpuFrame& into, int scale) {
+    std::expected<void, std::string> paint(std::span<const std::uint32_t> cells, mrender::raster::Surface& target, mrender::CpuFrame& into, int scale) {
         if (auto shown = presenter->present(cells); !shown) return std::unexpected(shown.error());
         const mlibs::geom::Rect whole{0, 0, static_cast<float>(target.width()), static_cast<float>(target.height())};
         list.clear();
@@ -254,7 +254,7 @@ struct Lab::Screen {
         presenter->draw(list, whole);
         if (presenter->glows()) presenter->draw_glow(list, whole, 2.0f * static_cast<float>(scale), 0.9f);
         list.end_node();
-        const xrender::FrameLayer layer{.name = "field", .list = &list, .resources = {&images, nullptr}, .object_ids = true};
+        const mrender::FrameLayer layer{.name = "field", .list = &list, .resources = {&images, nullptr}, .object_ids = true};
         (void)into.render({&layer, 1}, target, {.background = backdrop});
         return {};
     }
@@ -436,7 +436,7 @@ void Lab::install(Built built, Texts texts) {
     auto screen = std::make_unique<Screen>();
     auto presenter = cellular::FieldPresenter::make(screen->images, shape_, static_cast<std::uint32_t>(world_.matter->program().channels().size()), look_.shade(), {16, 16});
     if (presenter) screen->presenter.emplace(std::move(*presenter));
-    screen->surface = xrender::raster::Surface(static_cast<int>(shape_.width) * options_.scale, static_cast<int>(shape_.height) * options_.scale);
+    screen->surface = mrender::raster::Surface(static_cast<int>(shape_.width) * options_.scale, static_cast<int>(shape_.height) * options_.scale);
     screen_ = std::move(screen);
     drawn_ = 0;
     picture_.show(screen_->frame, screen_->surface, [this] { draw(); });
@@ -567,15 +567,15 @@ std::expected<std::vector<std::uint8_t>, std::string> Lab::png(int scale) {
     if (!screen_ || !screen_->presenter) return std::unexpected("the look is not one the lattice shades");
     const int cell = scale <= 0 ? options_.scale : scale;
     if (cell < 1 || cell > 16) return std::unexpected("`scale` is 1 … 16 pixels a cell");
-    const auto encoded = [](const xrender::raster::Surface& picture) {
+    const auto encoded = [](const mrender::raster::Surface& picture) {
         return mlibs::image::encode_png({reinterpret_cast<const std::uint8_t*>(picture.pixels().data()), picture.width(), picture.height(), picture.width() * 4});
     };
     if (cell == options_.scale) {
         draw();
         return encoded(screen_->surface);
     }
-    xrender::raster::Surface target(static_cast<int>(shape_.width) * cell, static_cast<int>(shape_.height) * cell);
-    xrender::CpuFrame frame;
+    mrender::raster::Surface target(static_cast<int>(shape_.width) * cell, static_cast<int>(shape_.height) * cell);
+    mrender::CpuFrame frame;
     const auto painted = screen_->paint(world_.field->state().cells, target, frame, cell);
     drawn_ = 0;  // the list is this picture's: the lab's own is drawn again when next asked for
     if (!painted) return std::unexpected(painted.error());

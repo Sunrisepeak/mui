@@ -27,7 +27,7 @@ public:
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     // Its surface for an effect: the rounded box it paints (a neon tube follows its corners).
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
 
     ActResult activate(ActContext& ctx);
 

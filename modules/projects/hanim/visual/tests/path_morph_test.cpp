@@ -3,8 +3,8 @@
 import std;
 import hanim.core;
 import mlibs.geom;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 import hanim.visual;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -12,8 +12,8 @@ import mcpplibs.mtest;
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
 namespace mo = hanim::visual;
-namespace render = xrender;
-namespace raster = xrender::raster;
+namespace render = mrender;
+namespace raster = mrender::raster;
 namespace geom = mlibs::geom;
 namespace { std::atomic<std::size_t> allocations{0}; }
 void* operator new(std::size_t size) {

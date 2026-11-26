@@ -1,7 +1,7 @@
 // Arbitrary registered effect parameters use hanim, with real offscreen pixels.
 import std;
 import omui.view;
-import xrender.raster;
+import mrender.raster;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -31,15 +31,15 @@ struct Probe {
     void seek(double t) { runtime.seek_time(seconds(t)); frame(10); }
     void effect(Value fx) { runtime.set(node(), "pixel_effect", std::move(fx)); frame(0); }
     std::vector<float> params(std::string_view name = "pixelate") const {
-        const auto ref = *xrender::effects().find(name);
+        const auto ref = *mrender::effects().find(name);
         for (const auto& command : runtime.display_list().commands())
-            if (const auto* layer = std::get_if<xrender::PushLayer>(&command); layer && layer->effect.id == ref.id)
+            if (const auto* layer = std::get_if<mrender::PushLayer>(&command); layer && layer->effect.id == ref.id)
                 return {layer->params.begin(), layer->params.end()};
         return {};
     }
-    xrender::raster::Surface pixels(float scale = 1) {
-        xrender::raster::Surface out(static_cast<int>(120 * scale), static_cast<int>(80 * scale));
-        xrender::CpuRenderer renderer;
+    mrender::raster::Surface pixels(float scale = 1) {
+        mrender::raster::Surface out(static_cast<int>(120 * scale), static_cast<int>(80 * scale));
+        mrender::CpuRenderer renderer;
         const auto report = renderer.render(runtime.display_list(), out, {}, {.scale = scale, .background = Color::hex(0xf8fafc)});
         expect(report.effects_skipped == 0 && report.invalid_paints == 0);
         return out;
@@ -83,7 +83,7 @@ static UTest cases{"view.effect-animation", [] {
         Probe probe; const auto id = probe.node();
         probe.runtime.focus(id); probe.frame(0); const auto plain = probe.pixels(2);
         probe.effect(animation());
-        std::vector<xrender::raster::Surface> frames; frames.reserve(61);
+        std::vector<mrender::raster::Surface> frames; frames.reserve(61);
         Value::List observations;
         for (int step = 0; step <= 60; ++step) {
             const double time = static_cast<double>(step) / 60.;
@@ -104,7 +104,7 @@ static UTest cases{"view.effect-animation", [] {
             probe.seek(static_cast<double>(step) / 60.);
             expect(probe.pixels(2).hash() == frames[static_cast<std::size_t>(step)].hash()) << "reverse seeking reproduces the full sampled process";
         }
-        const auto view = [](const xrender::raster::Surface& f) {
+        const auto view = [](const mrender::raster::Surface& f) {
             return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(f.pixels().data()), f.width(), f.height(), f.width() * 4};
         };
         const auto out = scratch_dir("effect-animation");
@@ -115,7 +115,7 @@ static UTest cases{"view.effect-animation", [] {
         }
         expect(mlibs::image::save_animated_webp(out / "process.webp", views, {.delay_num = 1, .delay_den = 60, .loops = 1, .lossless = true}).has_value());
         const std::array indices{0, 3, 9, 18, 30, 42, 54, 60};
-        xrender::raster::Surface sheet(4 * plain.width(), 2 * plain.height());
+        mrender::raster::Surface sheet(4 * plain.width(), 2 * plain.height());
         for (std::size_t k = 0; k < indices.size(); ++k) {
             const auto& f = frames[static_cast<std::size_t>(indices[k])];
             const int x0 = static_cast<int>(k % 4) * f.width(), y0 = static_cast<int>(k / 4) * f.height();

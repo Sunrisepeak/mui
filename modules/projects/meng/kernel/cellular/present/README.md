@@ -1,6 +1,6 @@
 # meng.cellular.present
 
-A cellular field on screen as one image (D-132): its cells coloured by a palette — or by a shade that computes each (D-168) — into one image of an xrender `ImageStore`, a pixel a cell, drawn by one command however large the field — and only the tiles that changed recoloured, re-uploaded and redrawn.
+A cellular field on screen as one image (D-132): its cells coloured by a palette — or by a shade that computes each (D-168) — into one image of an mrender `ImageStore`, a pixel a cell, drawn by one command however large the field — and only the tiles that changed recoloured, re-uploaded and redrawn.
 
 ```cpp
 import meng.cellular.present;
@@ -19,7 +19,7 @@ view->draw(list, {x, y, width, height});                                // one D
 - **Immutable while drawn.** Two surfaces take turns: the one the store holds is never written. One still held elsewhere (a snapshot on another thread) is left as it is and a new one made.
 - **Lifetimes.** The image stays in the store until `release()`; a presenter that outlives its store never touches it.
 
-**On the device.** A field stepped on the GPU (`meng.cellular.rhi`'s `Kernel`) is painted there too: `Painter::prepare(device, view->pixels(), view->fallback_pixel(), channels)` takes this presenter's palette as pixels, `record(list, cells, texture)` writes each cell's pixel into an rgba8 texture, and the GPU renderer draws it as one external texture (`list.external_texture(id, dest, 1, Sampling::nearest)`, `GpuOptions::external`) — the field never read back. Both paths keep one rule (`pixel_of` in the cellular core); the backend's test (`xrender.rhi.sdl`'s `field_present_test`) draws a field both ways every ten ticks and finds the same pixels.
+**On the device.** A field stepped on the GPU (`meng.cellular.rhi`'s `Kernel`) is painted there too: `Painter::prepare(device, view->pixels(), view->fallback_pixel(), channels)` takes this presenter's palette as pixels, `record(list, cells, texture)` writes each cell's pixel into an rgba8 texture, and the GPU renderer draws it as one external texture (`list.external_texture(id, dest, 1, Sampling::nearest)`, `GpuOptions::external`) — the field never read back. Both paths keep one rule (`pixel_of` in the cellular core); the backend's test (`mrender.rhi.sdl`'s `field_present_test`) draws a field both ways every ten ticks and finds the same pixels.
 
 The renderer knows no cells and the rules know no drawing: this package is the small adapter between them.
 

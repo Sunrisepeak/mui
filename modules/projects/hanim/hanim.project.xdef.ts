@@ -8,5 +8,5 @@ export default defineProject({
     packages: "hanim",
     programs: ["hanim", "hanim-timeline"],
     tier: "foundation",
-    dependsOn: ["mlibs", "xrender", "meng.sim"],
+    dependsOn: ["mlibs", "mrender", "meng.sim"],
 });

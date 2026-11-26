@@ -20,7 +20,7 @@ and max and its counters, and under a runner they are in the run's record
 
 Against the competitors: [competitors](competitors) (`omui.bench.competitors`)
 does the same work in our engines and in the best of each field — hanim
-beside GSAP, xrender's CPU renderer beside Skia and resvg — natively and as
+beside GSAP, mrender's CPU renderer beside Skia and resvg — natively and as
 WebAssembly, with the method and the numbers.
 
 | Benchmark | What it measures |

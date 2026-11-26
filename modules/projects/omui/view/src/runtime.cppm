@@ -17,8 +17,8 @@ import std;
 import omui.core;
 import mlibs.agent;
 import mlibs.layout;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import mlibs.rhi;
 import mlibs.pipeline;
 import mlibs.text;
@@ -111,7 +111,7 @@ inline constexpr std::string_view input = "frame";     // FrameInput, from the c
 inline constexpr std::string_view tree = "tree";       // FrameTree, from the caller
 inline constexpr std::string_view layout = "layout";   // FrameLayout
 inline constexpr std::string_view bounds = "bounds";   // FrameBounds
-inline constexpr std::string_view display = "display"; // xrender::DisplayList
+inline constexpr std::string_view display = "display"; // mrender::DisplayList
 }  // namespace frame_resource
 
 // A style's effect on what a selector names (D-69): "window" (the whole
@@ -168,7 +168,7 @@ struct resource_type<omui::FrameBounds> {
     static constexpr std::string_view name = "omui.FrameBounds";
 };
 template <>
-struct resource_type<xrender::DisplayList> {
+struct resource_type<mrender::DisplayList> {
     static constexpr std::string_view name = "render.DisplayList";
 };
 }  // namespace mlibs::pipeline
@@ -194,7 +194,7 @@ struct FrameStats {
 
 
 struct FrameOutput {
-    const xrender::DisplayList* list = nullptr;  // the runtime's list, valid until the next frame
+    const mrender::DisplayList* list = nullptr;  // the runtime's list, valid until the next frame
     bool                       repainted = false;
     bool                       animating = false;  // another frame is wanted
     std::uint64_t              revision = 0;       // semantic revision after the frame
@@ -223,7 +223,7 @@ inline constexpr std::size_t history_limit = 200;
 
 // The process's task pool (Tasks::shared) as the CPU renderer's Parallel:
 // hosts draw bands of rows at the same time, with the bytes of a serial render.
-[[nodiscard]] xrender::Parallel& raster_parallel() noexcept;
+[[nodiscard]] mrender::Parallel& raster_parallel() noexcept;
 
 // The runtime's frame pipeline for a level: H0 (semantics) is timers, input,
 // regions and animations; H1 (layout) adds layout and bounds; H2 (paint)
@@ -269,7 +269,7 @@ struct PresentationState {
     std::size_t image_effects=0,image_parameters=0;
 };
 struct PresentationImageLayer {
-    xrender::EffectRef effect;
+    mrender::EffectRef effect;
     std::uint64_t generation=0;
     std::span<const float> parameters;
 };
@@ -369,7 +369,7 @@ public:
 
     // ── frames ──
     FrameOutput frame(const FrameInput& input = {});
-    [[nodiscard]] const xrender::DisplayList& display_list() const noexcept;
+    [[nodiscard]] const mrender::DisplayList& display_list() const noexcept;
     [[nodiscard]] std::expected<PresentationLease,PresentationFailure> acquire_presentation(std::span<const PresentationTarget>);
     [[nodiscard]] std::optional<PresentationState> presentation(NodeId) const noexcept;
     void resize(Size size, float scale);
@@ -695,11 +695,11 @@ public:
     [[nodiscard]] std::span<mlibs::agent::Subject* const> subjects() const noexcept;
     // The pictures components show from elsewhere (Services::add_picture): what a host that draws on the CPU
     // gives its renderer for external_texture() commands (`CpuOptions::external`). Whatever its content's count.
-    std::uint64_t add_picture(std::function<std::optional<xrender::raster::ImageView>()> pixels) override;
+    std::uint64_t add_picture(std::function<std::optional<mrender::raster::ImageView>()> pixels) override;
     // And those drawn on the host's device: what a host that draws on it gives its renderer (`GpuFrameOptions::external`).
     std::uint64_t add_device_picture(std::function<std::optional<mlibs::rhi::Texture>()> texture) override;
     void remove_picture(std::uint64_t number) override;
-    [[nodiscard]] std::optional<xrender::raster::ImageView> picture(std::uint64_t number) const;
+    [[nodiscard]] std::optional<mrender::raster::ImageView> picture(std::uint64_t number) const;
     [[nodiscard]] std::optional<mlibs::rhi::Texture> device_picture(std::uint64_t number) const;
     // The device the host draws on (none: the CPU) — the host's to say, once it has one; it outlives the runtime's components.
     void set_device(mlibs::rhi::Device* device) noexcept;
@@ -727,7 +727,7 @@ public:
     // The display's refresh rate, as the host last said (0: unknown).
     [[nodiscard]] double display_hz() const noexcept;
     [[nodiscard]] mlibs::text::FontCollection& fonts() override;
-    [[nodiscard]] xrender::ImageStore& images() override;
+    [[nodiscard]] mrender::ImageStore& images() override;
     [[nodiscard]] hanim::seconds now() const override;
     [[nodiscard]] bool time_paused() const override;
     [[nodiscard]] Rect bounds(NodeId node) const override;

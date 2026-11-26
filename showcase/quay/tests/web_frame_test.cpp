@@ -8,12 +8,12 @@
 // p99 is held to it.
 import std;
 import mlibs.rhi;
-import xrender.rhi.webgpu;
+import mrender.rhi.webgpu;
 import omui.showcase.quay.picture;
 import mcpplibs.os;
 import mcpplibs.mtest;
 
-namespace webgpu = xrender::rhi::webgpu;
+namespace webgpu = mrender::rhi::webgpu;
 namespace rhi = mlibs::rhi;
 
 using namespace mcpplibs::mtest;

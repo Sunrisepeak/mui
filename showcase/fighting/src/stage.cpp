@@ -427,14 +427,14 @@ void Stage::paint(PaintContext& ctx) const {
     const Roster& r = roster();
     p2::Scene scene;
     scene.stage = stage_ ? &*stage_ : nullptr;
-    xrender::DisplayList& frame = frame_;
+    mrender::DisplayList& frame = frame_;
     frame.clear();
     // Each side in its own palette: the first for the left, the second for the right.
     const p2::Look& left = looks_[0];
     const p2::Look& right = looks_[1];
     painter_.draw(*match_, left, right, effects_, scene, frame);
 
-    const auto art = [&](std::string_view file) { return art_ ? art_->picture(file) : xrender::ImageRef{}; };
+    const auto art = [&](std::string_view file) { return art_ ? art_->picture(file) : mrender::ImageRef{}; };
     hud::versus(frame, *match_, effects_, {art("hud/frames.webp"), art("hud/type.webp"), art("hud/names.webp"), art("hud/fill.webp")}, {&left, &right},
                 {r.names[left_], r.names[right_]}, props.mode == "training" ? std::array<std::int32_t, 2>{} : wins_, to_win());
     // Training's overlays, but not over a super's flash or a cinematic (those are the picture), nor under the card.

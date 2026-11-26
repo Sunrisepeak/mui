@@ -1,0 +1,7 @@
+// The pass's shader (shaders/mesh.slang) becomes the partition mrender.mesh.gpu:mesh_shaders, for the formats
+// this build's target takes.
+import std;
+import mcpp;
+import mlibs.shader.rules;
+
+int main() { return mlibs::shader::rules::shaders({.module = "mrender.mesh.gpu", .ns = "mrender::mesh::gpu::shaders"}) ? 0 : 1; }

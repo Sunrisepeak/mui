@@ -13,8 +13,8 @@ import hanim.effect;
 import hanim.engine;
 import mlibs.hash;
 import mlibs.pipeline;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import mlibs.text;
 import hanim.visual;
 import :element;
@@ -23,7 +23,7 @@ import :theme;
 import :model;
 import :component;
 import :runtime;
-import xrender.text;
+import mrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::memory::SlotMap;
@@ -204,7 +204,7 @@ struct Node {
     // Named scalar animation is prepared by hanim.effect. The legacy
     // duration-only form binds the ordinary `progress` parameter.
     struct PixelEffectState {
-        xrender::EffectRef  effect;
+        mrender::EffectRef  effect;
         std::vector<float> params;
         struct Animation {
             hanim::PreparedEffects plan;
@@ -276,7 +276,7 @@ struct Node {
         Point anchor{.5f,.5f};
         bool has_frame=false,applied=false;
         std::optional<PresentationError> error;
-        struct ImageLayer {xrender::EffectRef effect;std::uint64_t generation;std::size_t offset,count;};
+        struct ImageLayer {mrender::EffectRef effect;std::uint64_t generation;std::size_t offset,count;};
         struct Images {
             std::vector<ImageLayer> layers;
             std::vector<float> parameters;
@@ -350,9 +350,9 @@ struct Runtime::Impl {
     Theme                                 theme;
     std::unique_ptr<mlibs::text::FontCollection> own_fonts;
     mlibs::text::FontCollection*                 fonts = nullptr;
-    std::unique_ptr<xrender::text::GlyphCache>      motion_glyphs;
+    std::unique_ptr<mrender::text::GlyphCache>      motion_glyphs;
     std::mutex                              motion_glyph_mutex;
-    xrender::ImageStore                    images;
+    mrender::ImageStore                    images;
     hanim::Clock                           clock;
     bool                                   complete_frames = false;
     bool                                   on_device = false;
@@ -376,7 +376,7 @@ struct Runtime::Impl {
     std::set<std::string, std::less<>>                                in_outlet;
     // Moves views between the top level and the outlets that claim them.
     void reconcile_outlets();
-    xrender::DisplayList                   list;
+    mrender::DisplayList                   list;
     std::unordered_map<std::string, NodeId> path_index;
     bool                                  paths_dirty = true;
     // Something takes gamepad input (a component that says so, a `gamepad_*` handler): once true, it stays.
@@ -408,7 +408,7 @@ struct Runtime::Impl {
     std::vector<mlibs::agent::Subject*>   subjects;  // beside the interface, for agents (Services::add_subject)
     struct ShownPicture {
         std::uint32_t                                                 handle = 0;
-        std::function<std::optional<xrender::raster::ImageView>()>    pixels;   // or
+        std::function<std::optional<mrender::raster::ImageView>()>    pixels;   // or
         std::function<std::optional<mlibs::rhi::Texture>()>           texture;  // on the host's device
     };
     std::vector<ShownPicture>             pictures;  // drawn elsewhere, shown here (Services::add_picture)
@@ -568,7 +568,7 @@ struct Runtime::Impl {
     // A style's effects by window, type or role (D-69), and the cross-fade
     // from the frame before a change.
     std::vector<EffectRule>                               effect_rules;
-    std::optional<xrender::DisplayList>                    fading;
+    std::optional<mrender::DisplayList>                    fading;
     seconds                                               fade_start{0}, fade_length{0};
     std::optional<Rect>                                   fade_clip;  // a scope's cross-fade: its area only
     // Theme scopes (Runtime::set_scope): [0] is unused (the runtime's own
@@ -625,10 +625,10 @@ struct Runtime::Impl {
     // morphs (what a change moves from), and who drew each marker in it; a
     // scratch list the morphs are drawn into; what invalidates the nodes'
     // resolved slots; the nodes with a morph under way.
-    xrender::DisplayList                         previous_list, morph_scratch;
+    mrender::DisplayList                         previous_list, morph_scratch;
     // The projection is a presentation result. Automatic state morphs retain
     // the unprojected source, so a published offset cannot be animated twice.
-    xrender::DisplayList                         presentation_source;
+    mrender::DisplayList                         presentation_source;
     bool                                        presentation_source_valid=false;
     std::pair<std::size_t,std::size_t>            presentation_source_history{};
     std::uint64_t                               next_presentation_token=1;
@@ -678,8 +678,8 @@ struct Runtime::Impl {
         Affine world;
         std::optional<Affine> inverse;
         Rect bounds;
-        std::optional<xrender::PushClipRect> rect;
-        std::optional<xrender::PushClipPath> path;
+        std::optional<mrender::PushClipRect> rect;
+        std::optional<mrender::PushClipPath> path;
     };
     std::uint64_t presentation_epoch = 0;
     std::vector<PresentationClip> presentation_clips;
@@ -687,10 +687,10 @@ struct Runtime::Impl {
     std::vector<Affine> presentation_transforms;
     std::vector<int> presentation_clip_stack;
     std::vector<float> presentation_opacity;
-    mutable std::vector<xrender::raster::Verb> presentation_path_verbs;
-    mutable xrender::raster::Polygons presentation_path_polygons;
-    mutable xrender::raster::Rasterizer presentation_path_rasterizer;
-    mutable xrender::raster::Coverage presentation_path_coverage;
+    mutable std::vector<mrender::raster::Verb> presentation_path_verbs;
+    mutable mrender::raster::Polygons presentation_path_polygons;
+    mutable mrender::raster::Rasterizer presentation_path_rasterizer;
+    mutable mrender::raster::Coverage presentation_path_coverage;
     void collect_presentation();
     [[nodiscard]] bool presentation_contains(const Node& node, Point window) const;
     void run_motion();
@@ -705,7 +705,7 @@ struct Runtime::Impl {
     [[nodiscard]] bool moves_on_change(NodeId id) {
         return slot_motion(id, 0) || slot_motion(id, 3, false) || slot_motion(id, 4, false) || slot_motion(id, 5, false);
     }
-    void emit_motion_range(std::size_t begin, std::size_t end, xrender::DisplayList& out, double t);
+    void emit_motion_range(std::size_t begin, std::size_t end, mrender::DisplayList& out, double t);
     seconds                     last_slow_log{-1e9};  // slow frames are logged at most once a second
 
     explicit Impl(Runtime& r) : self(r) {}

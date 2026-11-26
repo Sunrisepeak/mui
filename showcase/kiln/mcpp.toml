@@ -45,8 +45,8 @@ meng.cellular = { path = "../../modules/projects/meng/kernel/cellular", features
 "meng.cellular.present" = { path = "../../modules/projects/meng/kernel/cellular/present", features = ["world"] }
 meng.matter   = { path = "../../modules/projects/meng/kernel/matter", features = ["appearance"] }
 meng.audio    = { path = "../../modules/projects/meng/kernel/audio" }
-xrender.vector   = { path = "../../modules/projects/xrender/vector" }
-xrender.raster   = { path = "../../modules/projects/xrender/raster" }
+mrender.vector   = { path = "../../modules/projects/mrender/vector" }
+mrender.raster   = { path = "../../modules/projects/mrender/raster" }
 mlibs.pipeline   = { path = "../../modules/base/pipeline" }
 mlibs.geom       = { path = "../../modules/base/geom" }
 mlibs.agent      = { path = "../../modules/base/agent" }

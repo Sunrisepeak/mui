@@ -28,7 +28,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 omui.core          = { path = "../../core" }
 omui.view          = { path = "../../view" }
-xrender.vector = { path = "../../../xrender/vector" }
+mrender.vector = { path = "../../../mrender/vector" }
 omui.ui.base       = { path = "../base" }
 hanim.timeline      = { path = "../../../hanim/timeline" }
 

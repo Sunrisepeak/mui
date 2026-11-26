@@ -42,4 +42,4 @@ inspect the same typed data without a window.
 
 The feature `boolean` ([src/boolean](src/boolean), `import mlibs.geom.boolean;`): solids combined (`united`, `without`, `common`), their attributes carried, the same bytes everywhere — Manifold through its wrap, carried only by what asks for the feature.
 
-Conventions are `mlibs.math`'s: right-handed, +Y up, triangles counter-clockwise seen from their front, depth 0 … 1. `clustered` cuts triangles in the order they are in, or by the sizes it is given: an optimiser that has put near triangles together (`xrender.asset`'s `optimised`, over meshoptimizer) names the runs, and the bounds and cones are worked out here all the same — a cluster is the same thing whoever cut it.
+Conventions are `mlibs.math`'s: right-handed, +Y up, triangles counter-clockwise seen from their front, depth 0 … 1. `clustered` cuts triangles in the order they are in, or by the sizes it is given: an optimiser that has put near triangles together (`mrender.asset`'s `optimised`, over meshoptimizer) names the runs, and the bounds and cones are worked out here all the same — a cluster is the same thing whoever cut it.

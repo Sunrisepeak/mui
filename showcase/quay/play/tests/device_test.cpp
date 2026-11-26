@@ -1,5 +1,5 @@
 // Quay's picture on a device (SDL_GPU: lavapipe in Linux CI, the real GPU by omui-devtools gpu --real): the frames of
-// a game the guide plays — from the start, a warden near, the beacon lit — drawn by xrender.mesh.gpu as the
+// a game the guide plays — from the start, a warden near, the beacon lit — drawn by mrender.mesh.gpu as the
 // reference draws them (the wardens bent on the device, shadows by maps for the reference's traced ones, the
 // glow), each within the tolerance of the harbour's own case. With OMUI_REQUIRE_GPU=1 a missing device fails;
 // otherwise it is said and the case passes vacuously. The device's pictures are kept beside the reference's. A test
@@ -7,7 +7,7 @@
 import std;
 import mlibs.rhi;
 import mlibs.image;
-import xrender.rhi.sdl;
+import mrender.rhi.sdl;
 import omui.showcase.quay.picture;
 import mcpplibs.mtest;
 
@@ -50,12 +50,12 @@ void keep(std::span<const std::byte> rgba, std::string_view name) {
 
 UTest cases{"quay.picture.device", [] {
     "the frames of a played game on the device are the reference's: from the start, a warden near, the beacon lit"_test = [] {
-        xrender::rhi::sdl::Options options;
-        options.formats = xrender::mesh::gpu::Pass::shader_formats();
+        mrender::rhi::sdl::Options options;
+        options.formats = mrender::mesh::gpu::Pass::shader_formats();
         options = environment_options(std::move(options));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
-        auto device = xrender::rhi::sdl::create(options);
+        auto device = mrender::rhi::sdl::create(options);
         if (!device) {
-            if (xrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
+            if (mrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", device.error().message);
             return;
         }

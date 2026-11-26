@@ -373,7 +373,7 @@ static UTest cases{"ui.base.default-motion", [] {
         const auto scaled = [&] {
             float least = 1, most = 1;
             for (const auto& command : h.runtime().display_list().commands())
-                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && push->transform.b == 0 && push->transform.a == push->transform.d)
+                if (const auto* push = std::get_if<mrender::PushTransform>(&command); push && push->transform.b == 0 && push->transform.a == push->transform.d)
                     least = std::min(least, push->transform.a), most = std::max(most, push->transform.a);
             return std::pair{least, most};
         };
@@ -444,7 +444,7 @@ static UTest cases{"ui.base.default-motion", [] {
         h.advance(seconds(0.45 / 6));  // the press's first crest
         float pressed = 1;
         for (const auto& command : h.runtime().display_list().commands())
-            if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && push->transform.b == 0 && push->transform.a < 1)
+            if (const auto* push = std::get_if<mrender::PushTransform>(&command); push && push->transform.b == 0 && push->transform.a < 1)
                 pressed = std::min(pressed, push->transform.a);
         expect(pressed < .955f) << std::format("pressed in past the button's own press: {} ({} motions)", pressed, h.runtime().motions().size());
         h.advance(seconds(1));
@@ -464,7 +464,7 @@ static UTest cases{"ui.base.default-motion", [] {
         for (int sample = 0; sample < 10; ++sample) {
             h.advance(seconds(0.02));
             for (const auto& command : h.runtime().display_list().commands())
-                if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                if (const auto* run = std::get_if<mrender::DrawGlyphs>(&command))
                     for (const auto& style : run->styles) {
                         if (style.opacity <= 0.01f) continue;
                         if (style.transform.f < -0.2f) up = true;
@@ -477,7 +477,7 @@ static UTest cases{"ui.base.default-motion", [] {
         h.settle();
         bool still = true;
         for (const auto& command : h.runtime().display_list().commands())
-            if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+            if (const auto* run = std::get_if<mrender::DrawGlyphs>(&command))
                 for (const auto& style : run->styles) still = still && std::abs(style.transform.f) < 0.01f;
         expect(still) << "at rest, in its place";
     };
@@ -510,7 +510,7 @@ static UTest cases{"ui.base.default-motion", [] {
             rest.mount("main", column({.padding = 24}, {stepper({.id = "steps", .free = true, .steps = std::vector<std::string>{"Cart", "Address", "Payment"}, .value = std::int64_t{1}})}));
             rest.settle();
             for (const auto& command : rest.runtime().display_list().commands())
-                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.height == 2 && fill->rect.width > 8 && fill->paint.color.r == accent.r &&
+                if (const auto* fill = std::get_if<mrender::FillRect>(&command); fill && fill->rect.height == 2 && fill->rect.width > 8 && fill->paint.color.r == accent.r &&
                                                                                  fill->paint.color.g == accent.g && fill->paint.color.b == accent.b && !row)
                     row = fill->rect;
             // From the stepper's coordinates to the window's.
@@ -525,7 +525,7 @@ static UTest cases{"ui.base.default-motion", [] {
         for (int sample = 0; sample < 12; ++sample) {
             h.advance(seconds(0.02));
             for (const auto& command : h.runtime().display_list().commands())
-                if (const auto* stroke = std::get_if<xrender::StrokePath>(&command); stroke && stroke->style.trim_end > 0.05f && stroke->style.trim_end < 0.95f)
+                if (const auto* stroke = std::get_if<mrender::StrokePath>(&command); stroke && stroke->style.trim_end > 0.05f && stroke->style.trim_end < 0.95f)
                     partway = true;
             seen.push_back(accent_run());
         }
@@ -534,7 +534,7 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(full > 8 && std::ranges::any_of(seen, [&](int run) { return run > 2 && run < full - 2; }))
             << std::format("the connector's fill flows toward the next step: {} of {} px on the way", seen, full);
         const auto whole = std::ranges::none_of(h.runtime().display_list().commands(), [](const auto& command) {
-            const auto* stroke = std::get_if<xrender::StrokePath>(&command);
+            const auto* stroke = std::get_if<mrender::StrokePath>(&command);
             return stroke && stroke->style.trim_end < 1;
         });
         expect(whole) << "at rest, whole";
@@ -556,7 +556,7 @@ static UTest cases{"ui.base.default-motion", [] {
         const auto turned = [&] {
             std::optional<float> most;
             for (const auto& command : h.runtime().display_list().commands())
-                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) > 1e-3f) {
+                if (const auto* push = std::get_if<mrender::PushTransform>(&command); push && std::abs(push->transform.b) > 1e-3f) {
                     const float angle = std::atan2(push->transform.b, push->transform.a) * 180 / std::numbers::pi_v<float>;
                     if (!most || angle > *most) most = angle;
                 }
@@ -634,12 +634,12 @@ static UTest cases{"ui.base.default-motion", [] {
         for (int sample = 0; sample < 12; ++sample) {
             h.advance(seconds(0.02));
             for (const auto& command : h.runtime().display_list().commands()) {
-                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) > 0.05f)
+                if (const auto* push = std::get_if<mrender::PushTransform>(&command); push && std::abs(push->transform.b) > 0.05f)
                     seen.push_back(std::atan2(push->transform.b, push->transform.a) * 180 / std::numbers::pi_v<float>);
-                if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && std::abs(push->transform.b) < 1e-3f &&
+                if (const auto* push = std::get_if<mrender::PushTransform>(&command); push && std::abs(push->transform.b) < 1e-3f &&
                                                                                         std::abs(push->transform.f) > 4 && std::abs(push->transform.f) < 30)
                     moved.push_back(push->transform.f);
-                if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                if (const auto* run = std::get_if<mrender::DrawGlyphs>(&command))
                     for (const auto& style : run->styles)
                         if (std::abs(style.transform.f) > 4 && std::abs(style.transform.f) < 30) moved.push_back(style.transform.f);
             }
@@ -657,7 +657,7 @@ static UTest cases{"ui.base.default-motion", [] {
         expect(ways(true) >= 3 && ways(false) >= 3) << std::format("the rows part-way to their new places, one down, one up: {}", moved);
         h.settle();
         const bool down = std::ranges::any_of(h.runtime().display_list().commands(), [](const auto& command) {
-            const auto* push = std::get_if<xrender::PushTransform>(&command);
+            const auto* push = std::get_if<mrender::PushTransform>(&command);
             return push && push->transform.a < -0.99f && push->transform.d < -0.99f;
         });
         expect(down) << "at rest, pointing down";
@@ -674,7 +674,7 @@ static UTest cases{"ui.base.default-motion", [] {
         const auto shown = [&] {
             float level = 0;
             for (const auto& command : h.runtime().display_list().commands())
-                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && std::abs(fill->rect.width - 1.5f) < 1e-3f &&
+                if (const auto* fill = std::get_if<mrender::FillRect>(&command); fill && std::abs(fill->rect.width - 1.5f) < 1e-3f &&
                                                                                  fill->paint.color.r == accent.r && fill->paint.color.g == accent.g)
                     level = std::max(level, fill->paint.color.a / accent.a);
             return level;

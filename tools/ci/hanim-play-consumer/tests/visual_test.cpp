@@ -2,15 +2,15 @@
 import std;
 import hanim.engine;
 import hanim.render.vector;
-import xrender.raster;
+import mrender.raster;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
 using namespace hanim;
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
-namespace render = xrender;
-namespace raster = xrender::raster;
+namespace render = mrender;
+namespace raster = mrender::raster;
 namespace geom = mlibs::geom;
 template<class T,class E> T take(std::expected<T,E> value) {
     expect(value.has_value()); if (!value) std::abort(); return std::move(*value);

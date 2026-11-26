@@ -6,7 +6,7 @@ module omui.host.sdl3;
 import std;
 import mcpplibs.mwrap.sdl3;
 import omui.core;
-import xrender.raster;
+import mrender.raster;
 import omui.view;
 import mcpplibs.os;
 import :platform;
@@ -637,7 +637,7 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
     return out;
 }
 
-void present(Window& w, const xrender::raster::Surface& frame) {
+void present(Window& w, const mrender::raster::Surface& frame) {
     if (frame.width() <= 0 || frame.height() <= 0) return;
     if (w.framebuffer) {
         // The frame's bytes (R, G, B, A) as the window's surface keeps its pixels (X11's: B, G, R, x), then shown.
@@ -884,12 +884,12 @@ void synthesize(Window& w, std::span<const InputEvent> events) {
     }
 }
 
-std::expected<xrender::raster::Surface, std::string> read_back(Window& w) {
+std::expected<mrender::raster::Surface, std::string> read_back(Window& w) {
     if (w.framebuffer) {
         // The window's surface keeps the frame shown last: its pixels back as R, G, B, A.
         SDL_Surface* surface = w.shown ? SDL_GetWindowSurface(w.window) : nullptr;
         if (!surface) return std::unexpected("nothing shown yet");
-        xrender::raster::Surface out(surface->w, surface->h);
+        mrender::raster::Surface out(surface->w, surface->h);
         const bool locked = SDL_MUSTLOCK(surface) && SDL_LockSurface(surface);
         const bool converted = SDL_ConvertPixels(surface->w, surface->h, surface->format, surface->pixels, surface->pitch,
                                                  SDL_PIXELFORMAT_RGBA32, out.row(0), surface->w * 4);
@@ -907,7 +907,7 @@ std::expected<xrender::raster::Surface, std::string> read_back(Window& w) {
     SDL_Surface* rgba = SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32);
     SDL_DestroySurface(s);
     if (!rgba) return std::unexpected(std::format("SDL_ConvertSurface: {}", SDL_GetError()));
-    xrender::raster::Surface out(rgba->w, rgba->h);
+    mrender::raster::Surface out(rgba->w, rgba->h);
     for (int y = 0; y < rgba->h; ++y)
         std::memcpy(out.row(y), static_cast<const std::uint8_t*>(rgba->pixels) + static_cast<std::ptrdiff_t>(y) * rgba->pitch,
                     static_cast<std::size_t>(rgba->w) * 4);

@@ -42,7 +42,7 @@ programs = "directory"  # tests/gen/: one program, each file run and filtered as
 [dev-dependencies]
 mcpplibs.os = "0.4.4"  # the test program's own image (size_test)
 mcpplibs.mtest = "0.8.4"
-xrender.text = { path = "../../../xrender/text" }
+mrender.text = { path = "../../../mrender/text" }
 mlibs.text    = { path = "../../../../content/text" }
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major

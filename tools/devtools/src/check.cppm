@@ -33,7 +33,7 @@
 //           into target/toy and held to its sha256. Every package's sizes are said; Toy's hard limit, index.html at
 //           most 1 MiB, is the packer's error and the doctor's. Nothing is published (the maintainer's
 //           `toy create`). The packages are copied to target/toy/<target>/ with <target>.toy.xdef.json beside.
-// tools-e2e the products' commands as an Agent uses them (convergence plan §10.3): hanim's, xrender's and the
+// tools-e2e the products' commands as an Agent uses them (convergence plan §10.3): hanim's, mrender's and the
 //           timeline's, each operation through its real command line, its exit status and JSON answer held.
 // agent-e2e M1 acceptance ②: omui agent operating example 07 as its own process (needs-answer for an irreversible
 //           action), the development operations, the MCP server over real pipes, and the Reaction lab's verbs as
@@ -56,7 +56,7 @@
 //           the browser too); the page halves' JavaScript under node's test runner with a fake DOM, WebGPU and WebGL2;
 //           the yard's bytes held to their budget (size); then browser.
 // browser   what only a real page can check (D-84 §6.3), where a headless Chromium is found (omui.devtools.browser):
-//           xrender.rhi.webgpu's and .webgl's suites, their consumers' WebGPU suites run by their owners (hanim.rhi,
+//           mrender.rhi.webgpu's and .webgl's suites, their consumers' WebGPU suites run by their owners (hanim.rhi,
 //           the cellular kernel), the mesh pass's contract on both, Quay's frame, host.web drawing on each (its fonts
 //           preloaded), and every WGSL and ESSL entry point the Web build wrote, compiled by the browser. Without a
 //           Chromium the checks are said to be skipped, a failure only with OMUI_REQUIRE_BROWSER=1.

@@ -1,6 +1,6 @@
 // A field drawn with no interface anywhere in the program (D-162): an agent
 // places sand and steps the field through the agent kernel, the field is put
-// on screen through the renderer's own frame entry (xrender.frame), and the
+// on screen through the renderer's own frame entry (mrender.frame), and the
 // same agent reads the picture — its layers, a pixel traced back, the pixels
 // as a PNG. Two subjects in one session: `field` and `frame`.
 import std;
@@ -12,7 +12,7 @@ import mlibs.testing;
 import meng.cellular;
 import meng.cellular.agent;
 import meng.cellular.present;
-import xrender.frame;
+import mrender.frame;
 import mcpplibs.mtest;
 
 using namespace mlibs::testing;
@@ -20,7 +20,7 @@ using namespace mcpplibs::mtest;
 namespace agent = mlibs::agent;
 namespace ca = meng::cellular;
 namespace geom = mlibs::geom;
-namespace raster = xrender::raster;
+namespace raster = mrender::raster;
 
 namespace {
 
@@ -40,12 +40,12 @@ ca::Program sand() {
 // What the program holds: a field an agent operates, its picture, the frame it is drawn into.
 struct Sandbox {
     ca::agent::Field       field;
-    xrender::ImageStore    images;
+    mrender::ImageStore    images;
     ca::FieldPresenter     presenter;
-    xrender::DisplayList   list;
+    mrender::DisplayList   list;
     raster::Surface        surface{static_cast<int>(shape.width) * cell, static_cast<int>(shape.height) * cell};
-    xrender::CpuFrame      frame;
-    xrender::FrameSubject  picture;
+    mrender::CpuFrame      frame;
+    mrender::FrameSubject  picture;
     agent::SubjectSession  session;
 
     Sandbox()
@@ -61,7 +61,7 @@ struct Sandbox {
         list.begin_node(1);
         presenter.draw(list, {0, 0, static_cast<float>(surface.width()), static_cast<float>(surface.height())});
         list.end_node();
-        const xrender::FrameLayer layer{.name = "field", .list = &list, .resources = {&images, nullptr}, .object_ids = true};
+        const mrender::FrameLayer layer{.name = "field", .list = &list, .resources = {&images, nullptr}, .object_ids = true};
         (void)frame.render({&layer, 1}, surface, {.background = geom::Color::black()});
         picture.show(frame, surface);
     }

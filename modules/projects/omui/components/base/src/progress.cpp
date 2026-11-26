@@ -35,7 +35,7 @@ void Progress::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const Rect track{0, (ctx.size.height - bar_h) / 2, ctx.size.width, bar_h};
     const CornerRadii round = CornerRadii::all(bar_h / 2);
-    ctx.list.fill_round_rect(track, round, xrender::Paint::solid(th.color("track")));
+    ctx.list.fill_round_rect(track, round, mrender::Paint::solid(th.color("track")));
     if (props.value < 0) {
         // Indeterminate: a segment sweeps across, on the runtime's clock — or,
         // with less motion, holds still in the middle.
@@ -44,7 +44,7 @@ void Progress::paint(PaintContext& ctx) const {
         const float w = track.width * 0.3f;
         const float x = static_cast<float>(phase) * (track.width + w) - w;
         ctx.list.push_clip(track, round);
-        ctx.list.fill_round_rect({x, track.y, w, bar_h}, round, xrender::Paint::solid(th.color("accent")));
+        ctx.list.fill_round_rect({x, track.y, w, bar_h}, round, mrender::Paint::solid(th.color("accent")));
         ctx.list.pop_clip();
         if (!still) {
             ctx.services.invalidate_paint(ctx.node);
@@ -53,7 +53,7 @@ void Progress::paint(PaintContext& ctx) const {
         return;
     }
     const float f = static_cast<float>(std::clamp(fill_, 0.0, 1.0));
-    if (f > 0) ctx.list.fill_round_rect({0, track.y, track.width * f, bar_h}, round, xrender::Paint::solid(th.color("accent")));
+    if (f > 0) ctx.list.fill_round_rect({0, track.y, track.width * f, bar_h}, round, mrender::Paint::solid(th.color("accent")));
 }
 
 void Progress::semantics(SemanticsContext&, spec::SemanticNode& node) const {
@@ -103,22 +103,22 @@ void Radio::paint(PaintContext& ctx) const {
     const float k = static_cast<float>(std::clamp(dot_, 0.0, 1.0));
     const Rect content = ctx.content;
     const Rect c{content.x, content.y + (content.height - circle) / 2, circle, circle};
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     // The state's halo round the circle (`check_halo:hovered` / `:pressed`, in the accent), as a checkbox has it;
     // pressed, the circle is a little smaller (its label keeps its size).
     parts::depth(ctx, "check_halo", c, CornerRadii::all(circle / 2), hover_ > 0, ctx.state.pressed && !off, std::nullopt, th.color("accent"));
     std::optional<parts::Pressed> pressed;
     pressed.emplace(ctx, c, ctx.state.pressed && !off ? 1.0f : 0.0f);
     ctx.list.fill_round_rect(c, CornerRadii::all(circle / 2),
-                             xrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
+                             mrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
     const Color ring = mix(th.color("border_strong"), th.color("accent"), k);
     const float rw = 1.5f + 0.5f * k;
     ctx.list.stroke_round_rect({c.x + rw / 2, c.y + rw / 2, circle - rw, circle - rw}, CornerRadii::all(circle / 2 - rw / 2), rw,
-                               xrender::Paint::solid(ring));
+                               mrender::Paint::solid(ring));
     if (k > 0) {
         const float r = 4.5f * k;
         const Point m = c.center();
-        ctx.list.fill_round_rect({m.x - r, m.y - r, 2 * r, 2 * r}, CornerRadii::all(r), xrender::Paint::solid(th.color("accent")));
+        ctx.list.fill_round_rect({m.x - r, m.y - r, 2 * r, 2 * r}, CornerRadii::all(r), mrender::Paint::solid(th.color("accent")));
     }
     pressed.reset();
     if (!label_.text().empty()) {

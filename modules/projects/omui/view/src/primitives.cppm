@@ -16,7 +16,7 @@ export module omui.view:primitives;
 import std;
 import omui.core;
 import mlibs.layout;
-import xrender.vector;
+import mrender.vector;
 import mlibs.text;
 import :element;
 import :theme;

@@ -1,14 +1,14 @@
 module omui.bench;
 
 import std;
-import xrender.vector;
+import mrender.vector;
 import omui.showcase.fighting;
 import gongfu;
 import gongfu.present2d;
 import omui.showcase.widget_breakout.sim;
 import meng.world;
 import omui.showcase.quay.picture;
-import xrender.rhi.sdl;
+import mrender.rhi.sdl;
 import mlibs.rhi;
 
 namespace omui::bench {
@@ -123,10 +123,10 @@ void add_game_benchmarks() {
         [](State& s) {
             namespace rhi = mlibs::rhi;
             constexpr std::uint32_t width = 1920, height = 1080;
-            xrender::rhi::sdl::Options options;
-            options.formats = xrender::mesh::gpu::Pass::shader_formats();
+            mrender::rhi::sdl::Options options;
+            options.formats = mrender::mesh::gpu::Pass::shader_formats();
             options = environment_options(std::move(options));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
-            auto device = xrender::rhi::sdl::create(options);
+            auto device = mrender::rhi::sdl::create(options);
             if (!device) {
                 s.skip(std::format("no GPU device ({})", device.error().message));
                 return;
@@ -256,7 +256,7 @@ void add_game_benchmarks() {
         p2::Effects effects;
         const p2::Scene scene;
         const auto& looks = fighting::roster().looks;
-        xrender::DisplayList dl;
+        mrender::DisplayList dl;
         dl.reserve(512);  // as a game's frame list does: its frames vary in size
         p2::Painter painter;
         // Warm: the painter's paths and the list's arena reach the size of a busy frame.

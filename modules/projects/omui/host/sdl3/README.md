@@ -37,14 +37,14 @@ int main() {
 }
 ```
 
-Frames are drawn by the GPU renderer (xrender.vector's `GpuRenderer` on an
+Frames are drawn by the GPU renderer (mrender.vector's `GpuRenderer` on an
 omui.rhi device that claimed the window) into a texture the swapchain shows,
 or by the CPU renderer into a surface streamed to an SDL renderer's texture —
-the same pixels, which xrender.vector's tests hold together.
+the same pixels, which mrender.vector's tests hold together.
 The GPU path is a provider's, installed at this package's slot `omui.host.sdl3.gpu`
 (`omui::gpu_slot`, `GpuService`; [`mlibs.compose`](../../../../base/compose), a preview,
 `lower` in the manifest): [`gpu`](gpu) (`omui.host.sdl3.gpu`) has SDL_GPU's device,
-xrender's renderer and the effect library, and `omui.sdk` installs it. A program that installs none —
+mrender's renderer and the effect library, and `omui.sdk` installs it. A program that installs none —
 an application built `lean` — draws every frame with the CPU renderer, as a machine
 without a GPU does, and `renderer = gpu` is refused naming the slot and how to have
 it. This package's tests draw with the CPU and hold that refusal; the device's are
@@ -60,7 +60,7 @@ acceleration (not yet timed on a display: only the first frame, offscreen, which
 when the machine has one and the CPU renderer when the only device is a
 software rasteriser (lavapipe, WARP), which the CPU renderer outruns; `cpu`
 and `gpu` insist. `DesktopOptions::effects` names a directory of
-`*.effect.xdef.ts` or `.json` (xrender.effect): loaded with the window, loaded again
+`*.effect.xdef.ts` or `.json` (mrender.effect): loaded with the window, loaded again
 between frames when a file in it — or a file its shader imports — changes, so
 a shader saved while the program runs shows on the next frame; a file that
 no longer loads is reported where it is wrong and the effect stays as it was.

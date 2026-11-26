@@ -21,7 +21,7 @@ constexpr std::array skip_dirs{"target", ".git", ".mcpp", ".xlings", ".claude", 
 // so one project may span layers (hanim.core is base, hanim is gfx). A layer may depend on the layers
 // listed for it (path dependencies in [dependencies] and target dependencies).
 //
-// The independent components (mlibs, hanim, xrender, meng's kernels below the UI) know nothing of omui
+// The independent components (mlibs, hanim, mrender, meng's kernels below the UI) know nothing of omui
 // (D-55); omui never depends on the game layer (meng/game, D-161); gongfu's core depends on the standard
 // library alone, so that it can leave the repository unchanged, and the rest of gongfu on no UI.
 constexpr std::pair<std::string_view, std::string_view> path_layers[]{
@@ -36,13 +36,13 @@ constexpr std::pair<std::string_view, std::string_view> path_layers[]{
     {"modules/projects/hanim/core", "base"},
     {"modules/projects/hanim/timeline", "base"},  // tracks of clips, their file and edits: hanim.core and mlibs alone
     {"modules/projects/hanim", "gfx"},
-    {"modules/projects/xrender", "gfx"},
-    {"modules/projects/xrender/text", "content"},  // text as the renderer draws it: above mlibs.text
+    {"modules/projects/mrender", "gfx"},
+    {"modules/projects/mrender/text", "content"},  // text as the renderer draws it: above mlibs.text
     {"modules/base/dynamics", "base"},  // the solver core (hanim and the engine use it, D-133, D-231)
     {"modules/projects/meng/kernel/dynamics", "base"},  // the engine's families on it (cellular and matter use them)
     {"modules/projects/meng/kernel/cellular", "base"},  // its CPU part
     {"modules/projects/meng/kernel/cellular/rhi", "gfx"},
-    {"modules/projects/meng/kernel/cellular/present", "gfx"},  // cells to an xrender image
+    {"modules/projects/meng/kernel/cellular/present", "gfx"},  // cells to an mrender image
     {"modules/projects/meng/kernel/audio", "media"},
     {"modules/projects/meng/kernel/video", "media"},
     {"modules/projects/meng/kernel/matter", "base"},     // materials, their states and laws (D-165)

@@ -2,7 +2,7 @@ module omui.showcase.quay.window;
 
 import std;
 import mlibs.rhi;
-import xrender.raster;
+import mrender.raster;
 
 namespace quay::window {
 
@@ -77,9 +77,9 @@ void Harbour::mount(omui::Services& services, omui::NodeId node) {
         }
     }
     if (!on_device_)
-        shown.pixels = [this]() -> std::optional<xrender::raster::ImageView> {
+        shown.pixels = [this]() -> std::optional<mrender::raster::ImageView> {
             if (!picture_ || picture_->shown().empty()) return std::nullopt;
-            return xrender::raster::ImageView{reinterpret_cast<const xrender::raster::Rgba8*>(picture_->shown().data()), cpu_width, cpu_height, cpu_width};
+            return mrender::raster::ImageView{reinterpret_cast<const mrender::raster::Rgba8*>(picture_->shown().data()), cpu_width, cpu_height, cpu_width};
         };
     view_.show(std::move(shown));
     if (const Hearing hearing = options().hearing; hearing != Hearing::none) {

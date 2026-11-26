@@ -21,7 +21,7 @@ struct Place {
 };
 constexpr std::array<Place, 7> places{{
     {"mlibs", "modules/base/README.md", {"modules/base", "modules/gfx", "modules/content"}},
-    {"xrender", "modules/projects/xrender/README.md", {"modules/projects/xrender", "", ""}},
+    {"mrender", "modules/projects/mrender/README.md", {"modules/projects/mrender", "", ""}},
     {"hanim", "modules/projects/hanim/README.md", {"modules/projects/hanim", "", ""}},
     {"omui", "modules/projects/omui/README.md", {"modules/projects/omui", "", ""}},
     {"meng", "modules/projects/meng/README.md", {"modules/projects/meng", "", ""}},
@@ -32,8 +32,8 @@ constexpr std::array<Place, 7> places{{
 // A bench scene's first segment → the project that owns what it measures.
 constexpr std::array<std::pair<std::string_view, std::string_view>, 18> bench_owners{{
     {"agent", "omui"}, {"audio", "meng"}, {"canvas", "omui"}, {"canvas-kit", "omui"}, {"dynamics", "meng"},
-    {"game", "meng"}, {"glass", "xrender"}, {"gongfu", "gongfu"}, {"log", "mlibs"}, {"markdown", "omui"},
-    {"motion", "hanim"}, {"public-motion", "hanim"}, {"render", "xrender"}, {"simulation", "meng"},
+    {"game", "meng"}, {"glass", "mrender"}, {"gongfu", "gongfu"}, {"log", "mlibs"}, {"markdown", "omui"},
+    {"motion", "hanim"}, {"public-motion", "hanim"}, {"render", "mrender"}, {"simulation", "meng"},
     {"styles", "omui"}, {"text", "mlibs"}, {"trace", "mlibs"}, {"ui", "omui"},
 }};
 

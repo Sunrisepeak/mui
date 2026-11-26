@@ -1,9 +1,9 @@
 // omui:present — an application drawn in another process's window
 // (W16, D-154: in development the host owns the window, the input, the
 // designer and its history; the application is a render target). The
-// application sends each frame's display list (xrender.vector:wire) and the
+// application sends each frame's display list (mrender.vector:wire) and the
 // images it refers to, once per revision; the host draws them with the same
-// xrender — the same pixels as the application drawing itself — and sends
+// mrender — the same pixels as the application drawing itself — and sends
 // the person's input back. A font is named by what it is (its face's bytes'
 // hash, weight, slant); the host says which faces it has, and a face it lacks
 // (one the application loaded itself) is sent once.
@@ -31,7 +31,7 @@ import std;
 import mcpplibs.os;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import mlibs.text;
 
 export namespace omui {
@@ -75,9 +75,9 @@ public:
     explicit Presentation(mcpplibs::os::ipc::connection connection, mlibs::text::FontCollection* fonts = nullptr);
     // The next frame's list (the images it refers to stored first); none when
     // nothing came within `wait`, or the application is gone (gone()).
-    [[nodiscard]] const xrender::DisplayList* receive(std::chrono::milliseconds wait);
-    [[nodiscard]] const xrender::DisplayList& list() const noexcept { return list_; }
-    [[nodiscard]] xrender::ImageStore& images() noexcept { return images_; }
+    [[nodiscard]] const mrender::DisplayList* receive(std::chrono::milliseconds wait);
+    [[nodiscard]] const mrender::DisplayList& list() const noexcept { return list_; }
+    [[nodiscard]] mrender::ImageStore& images() noexcept { return images_; }
     [[nodiscard]] bool gone() const noexcept { return gone_; }
     [[nodiscard]] std::uint64_t frames() const noexcept { return frames_; }
     bool send_input(std::span<const InputEvent> events);
@@ -98,8 +98,8 @@ public:
 private:
     mcpplibs::os::ipc::connection connection_;
     std::string                   pending_;
-    xrender::DisplayList          list_;
-    xrender::ImageStore           images_;
+    mrender::DisplayList          list_;
+    mrender::ImageStore           images_;
     bool                          gone_ = false;
     std::uint64_t                 frames_ = 0;
     std::optional<Value>          state_;

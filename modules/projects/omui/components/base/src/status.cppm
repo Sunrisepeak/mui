@@ -24,7 +24,7 @@ public:
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     // Its surface for an effect: the pill.
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
 
     // What it shows: the count (max+ past max), else the text.
     [[nodiscard]] std::string shown() const;
@@ -42,7 +42,7 @@ public:
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
 
     // The initials of a name: the first letters of its first and last words ("Ada Lovelace": AL); one word, its
     // first two letters' first (Ada: A); a name in a script without case (林黛玉): its first character.
@@ -61,7 +61,7 @@ public:
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     // Its bones, for an effect (a style's shimmer reads them).
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
 
 private:
     // The bones' rectangles in a size.

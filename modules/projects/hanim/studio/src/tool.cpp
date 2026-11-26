@@ -10,7 +10,7 @@ import mlibs.hash;
 import mlibs.json;
 import mcpplibs.os;
 import nlohmann.json;
-import xrender.vector.svg;
+import mrender.vector.svg;
 
 namespace hanim::studio {
 
@@ -90,7 +90,7 @@ bool written(Answer& answer, const std::string& name, std::string_view bytes) {
     return true;
 }
 
-mlibs::image::View view(const xrender::raster::Surface& surface) {
+mlibs::image::View view(const mrender::raster::Surface& surface) {
     return {reinterpret_cast<const std::uint8_t*>(surface.pixels().data()), surface.width(), surface.height(), surface.width() * 4, mlibs::image::Alpha::premultiplied};
 }
 
@@ -121,8 +121,8 @@ void vary(Answer& answer, const std::string& file, const std::string& text, cons
     if (times.size() > 24) return wrong(answer, "24 moments at most");
     const int width = static_cast<int>(document.width), height = static_cast<int>(document.height), gap = 4;
     const int columns = static_cast<int>(times.size()), rows = static_cast<int>(variants->size());
-    xrender::raster::Surface sheet(columns * width, rows * height + (rows - 1) * gap);
-    sheet.clear(xrender::raster::Rgba8{96, 96, 96, 255});
+    mrender::raster::Surface sheet(columns * width, rows * height + (rows - 1) * gap);
+    sheet.clear(mrender::raster::Rgba8{96, 96, 96, 255});
     Json list = Json::array();
     for (std::size_t row = 0; row < variants->size(); ++row) {
         const auto& variant = (*variants)[row];
@@ -146,7 +146,7 @@ void vary(Answer& answer, const std::string& file, const std::string& text, cons
         one["duration"] = std::isfinite(opened.duration().count()) ? Json(round3(opened.duration().count())) : Json("forever");
         Json pixels = Json::array();
         for (std::size_t column = 0; column < times.size(); ++column) {
-            xrender::raster::Surface surface(width, height);
+            mrender::raster::Surface surface(width, height);
             if (auto drawn = opened.render(hanim::seconds(times[column]), surface); !drawn) return failed(answer, drawn.error());
             pixels.push_back(std::format("{:016x}", surface.hash()));
             for (int y = 0; y < height; ++y) std::copy_n(surface.row(y), width, sheet.row(static_cast<int>(row) * (height + gap) + y) + static_cast<int>(column) * width);
@@ -180,10 +180,10 @@ void render(Answer& answer, const std::string& file, Studio& opened, const Docum
     }
     if (times.size() > 240) return wrong(answer, "240 frames at most");
     const int width = static_cast<int>(document.width), height = static_cast<int>(document.height);
-    std::vector<xrender::raster::Surface> pictures;
+    std::vector<mrender::raster::Surface> pictures;
     Json list = Json::array();
     for (std::size_t index = 0; index < times.size(); ++index) {
-        xrender::raster::Surface surface(width, height);
+        mrender::raster::Surface surface(width, height);
         if (auto drawn = opened.render(hanim::seconds(times[index]), surface); !drawn) return failed(answer, drawn.error());
         const auto at = opened.state(hanim::seconds(times[index]));
         if (!at) return failed(answer, at.error());
@@ -199,7 +199,7 @@ void render(Answer& answer, const std::string& file, Studio& opened, const Docum
             const auto drawn = opened.display(hanim::seconds(times[index]));
             if (!drawn) return failed(answer, drawn.error());
             const auto& background = document.background;
-            const auto picture = xrender::svg::write(**drawn, {}, {.view = {0, 0, static_cast<float>(document.width), static_cast<float>(document.height)},
+            const auto picture = mrender::svg::write(**drawn, {}, {.view = {0, 0, static_cast<float>(document.width), static_cast<float>(document.height)},
                 .background = mlibs::geom::Color{background.r, background.g, background.b, background.a},
                 .encode_png = [](std::span<const std::uint8_t> rgba, int across, int down) {
                     return mlibs::image::encode_png({rgba.data(), across, down, across * 4, mlibs::image::Alpha::premultiplied});
@@ -216,7 +216,7 @@ void render(Answer& answer, const std::string& file, Studio& opened, const Docum
     // The frames side by side, at most eight a row: the whole course at a glance.
     const int columns = static_cast<int>(std::min<std::size_t>(8, pictures.size()));
     const int rows = static_cast<int>((pictures.size() + columns - 1) / columns);
-    xrender::raster::Surface strip(columns * width, rows * height);
+    mrender::raster::Surface strip(columns * width, rows * height);
     for (std::size_t index = 0; index < pictures.size(); ++index)
         for (int y = 0; y < height; ++y)
             std::copy_n(pictures[index].row(y), width, strip.row(static_cast<int>(index) / columns * height + y) + static_cast<int>(index) % columns * width);

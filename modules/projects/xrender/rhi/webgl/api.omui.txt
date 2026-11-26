@@ -1,9 +1,0 @@
-== xrender.rhi.webgl
-export import xrender.rhi.webgl.api;
-== xrender.rhi.webgl.api
-namespace xrender::rhi::webgl {
-  struct Options {
-    std::string canvas;
-  };
-  [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {…});
-}

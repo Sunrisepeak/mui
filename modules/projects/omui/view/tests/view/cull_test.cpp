@@ -21,7 +21,7 @@ RuntimeOptions options(Size size) {
 std::set<std::string> drawn_rows(const Runtime& runtime, std::string_view parent = "main/list/") {
     std::set<std::string> out;
     for (const auto& command : runtime.display_list().commands())
-        if (const auto* begin = std::get_if<xrender::BeginNode>(&command)) {
+        if (const auto* begin = std::get_if<mrender::BeginNode>(&command)) {
             const NodeId id = runtime.node_at_index(begin->node);
             if (!runtime.valid(id)) continue;
             const std::string path = runtime.path(id);

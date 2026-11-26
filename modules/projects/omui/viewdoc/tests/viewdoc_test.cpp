@@ -8,9 +8,9 @@ import mlibs.math;
 import omui.viewdoc;
 import omui.ui.base;
 import omui.semantic;
-import xrender.vector;
-import xrender.raster;
-import xrender.text;
+import mrender.vector;
+import mrender.raster;
+import mrender.text;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -111,9 +111,9 @@ public:
         step({move, down, up});
         return true;
     }
-    const xrender::raster::Surface& pixels() {
-        surface_ = xrender::raster::Surface(static_cast<int>(size_.width), static_cast<int>(size_.height));
-        xrender::CpuOptions drawing;
+    const mrender::raster::Surface& pixels() {
+        surface_ = mrender::raster::Surface(static_cast<int>(size_.width), static_cast<int>(size_.height));
+        mrender::CpuOptions drawing;
         drawing.background = Color::white();
         (void)renderer_.render(runtime_.display_list(), surface_, {&runtime_.images(), &glyphs_}, drawing);
         return surface_;
@@ -123,9 +123,9 @@ private:
     Size                        size_;
     Runtime                     runtime_;
     semantic::Tree              tree_;
-    xrender::text::GlyphCache   glyphs_;
-    xrender::CpuRenderer        renderer_;
-    xrender::raster::Surface    surface_{1, 1};
+    mrender::text::GlyphCache   glyphs_;
+    mrender::CpuRenderer        renderer_;
+    mrender::raster::Surface    surface_{1, 1};
     std::int64_t                frame_ = 0;
 };
 

@@ -19,7 +19,7 @@ namespace matter = meng::matter;
 namespace ca = meng::cellular;
 namespace bodies = meng::cellular::rigid;
 namespace geom = mlibs::geom;
-namespace raster = xrender::raster;
+namespace raster = mrender::raster;
 
 namespace {
 constexpr int scale = 6;
@@ -57,10 +57,10 @@ std::unique_ptr<bodies::MatterWorld> hearth() {
 }
 // docs: shown
 struct Shown {
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     ca::WorldPicture picture;
-    xrender::DisplayList list;
-    xrender::CpuRenderer renderer;
+    mrender::DisplayList list;
+    mrender::CpuRenderer renderer;
     explicit Shown(ca::Light best = ca::Light::glow, bool alive = true)
         : picture(*ca::WorldPicture::make(images, standard(), look(), {96, 56}, {.fill = "air", .seed = 9, .best_light = best, .scenery_alive = alive})) {
         picture.scenery({23, 46, 10, 4}, material("wood"));  // a hedge beside the post

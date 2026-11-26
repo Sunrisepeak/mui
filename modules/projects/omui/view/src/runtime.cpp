@@ -6,7 +6,7 @@ import std;
 import omui.core;
 import mlibs.agent;
 import mlibs.layout;
-import xrender.vector;
+import mrender.vector;
 import mlibs.text;
 import :impl;
 
@@ -19,7 +19,7 @@ namespace omui {
 
 namespace {
 
-struct TasksParallel final : xrender::Parallel {
+struct TasksParallel final : mrender::Parallel {
     void run(std::size_t count, FunctionRef<void(std::size_t)> body) override {
         Tasks::shared().parallel_for(count, 1, [&](std::size_t begin, std::size_t end) {
             for (std::size_t i = begin; i < end; ++i) body(i);
@@ -29,7 +29,7 @@ struct TasksParallel final : xrender::Parallel {
 
 }  // namespace
 
-xrender::Parallel& raster_parallel() noexcept {
+mrender::Parallel& raster_parallel() noexcept {
     static TasksParallel p;
     return p;
 }
@@ -406,7 +406,7 @@ NodeId Runtime::node_at_index(std::uint32_t index) const {
     return index < d.by_index.size() ? d.by_index[index] : NodeId{};
 }
 
-const xrender::DisplayList& Runtime::display_list() const noexcept { return impl_->list; }
+const mrender::DisplayList& Runtime::display_list() const noexcept { return impl_->list; }
 
 void Runtime::resize(Size size, float scale) {
     Impl& d = *impl_;
@@ -511,7 +511,7 @@ const std::vector<EffectRule>& Runtime::effect_rules() const noexcept { return i
 void Runtime::crossfade(seconds length) {
     Impl& d = *impl_;
     if (!(length.count() > 0) || d.list.commands().empty()) return;
-    xrender::DisplayList before;
+    mrender::DisplayList before;
     // Keep the visible snapshot's original markers for renderer ownership.
     // paint records it as one historical range; motion never indexes that
     // range as current nodes, even if this snapshot interrupts another fade.
@@ -733,7 +733,7 @@ void Runtime::add_subject(mlibs::agent::Subject& subject) {
 }
 void Runtime::remove_subject(mlibs::agent::Subject& subject) { std::erase(impl_->subjects, &subject); }
 std::span<mlibs::agent::Subject* const> Runtime::subjects() const noexcept { return impl_->subjects; }
-std::uint64_t Runtime::add_picture(std::function<std::optional<xrender::raster::ImageView>()> pixels) {
+std::uint64_t Runtime::add_picture(std::function<std::optional<mrender::raster::ImageView>()> pixels) {
     if (!pixels) return 0;
     const std::uint32_t handle = impl_->next_picture++;
     impl_->pictures.push_back({.handle = handle, .pixels = std::move(pixels)});
@@ -742,7 +742,7 @@ std::uint64_t Runtime::add_picture(std::function<std::optional<xrender::raster::
 void Runtime::remove_picture(std::uint64_t number) {
     std::erase_if(impl_->pictures, [&](const Impl::ShownPicture& one) { return one.handle == static_cast<std::uint32_t>(number >> 32); });
 }
-std::optional<xrender::raster::ImageView> Runtime::picture(std::uint64_t number) const {
+std::optional<mrender::raster::ImageView> Runtime::picture(std::uint64_t number) const {
     for (const Impl::ShownPicture& one : impl_->pictures)
         if (one.handle == static_cast<std::uint32_t>(number >> 32)) return one.pixels ? one.pixels() : std::nullopt;
     return std::nullopt;
@@ -765,7 +765,7 @@ bool Runtime::reduce_motion() const noexcept { return impl_->reduce_motion; }
 
 const Theme& Runtime::theme() const { return impl_->current_theme ? *impl_->current_theme : impl_->theme; }
 mlibs::text::FontCollection& Runtime::fonts() { return *impl_->fonts; }
-xrender::ImageStore& Runtime::images() { return impl_->images; }
+mrender::ImageStore& Runtime::images() { return impl_->images; }
 hanim::seconds Runtime::now() const { return impl_->now(); }
 Rect Runtime::bounds(NodeId node) const { return valid(node) ? impl_->at(node).bounds : Rect{}; }
 Rect Runtime::screen_bounds(NodeId node) const { return valid(node) ? impl_->at(node).screen : Rect{}; }
@@ -1242,7 +1242,7 @@ std::optional<Rect> Runtime::text_input_rect() const noexcept {
 std::optional<mlibs::rhi::Texture> ShownPictures::texture(const Runtime& runtime, mlibs::rhi::Device& device, std::uint64_t number) {
     failed_.clear();
     if (const auto drawn_here = runtime.device_picture(number)) return drawn_here;  // drawn on this device: as it is
-    const std::optional<xrender::raster::ImageView> picture = runtime.picture(number);
+    const std::optional<mrender::raster::ImageView> picture = runtime.picture(number);
     if (!picture || !picture->pixels || picture->width <= 0 || picture->height <= 0) return std::nullopt;
     const auto handle = static_cast<std::uint32_t>(number >> 32);
     const auto wide = static_cast<std::uint32_t>(picture->width), high = static_cast<std::uint32_t>(picture->height);

@@ -30,15 +30,15 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/native/*.cpp"
 discover = ["tests/**/*.cpp", "tests/**/*.c"]
 
 [dependencies]
-xrender.text = { path = "../../xrender/text" }
+mrender.text = { path = "../../mrender/text" }
 openlifa.openmui = { path = "../../../../spec" }
 omui.core     = { path = "../core" }
 omui.view     = { path = "../view" }
 omui.viewdoc  = { path = "../viewdoc" }
 omui.semantic = { path = "../semantic" }
 omui.agent    = { path = "../agent" }
-xrender.vector   = { path = "../../xrender/vector" }
-xrender.raster   = { path = "../../xrender/raster" }
+mrender.vector   = { path = "../../mrender/vector" }
+mrender.raster   = { path = "../../mrender/raster" }
 mlibs.text     = { path = "../../../content/text" }
 omui.native   = { path = "../native" }
 omui.theme    = { path = "../theme" }

@@ -19,7 +19,7 @@ import std;
 import omui.core;
 import omui.view;
 import omui.semantic;
-import xrender.vector;
+import mrender.vector;
 import mlibs.image;
 import mlibs.error;
 
@@ -60,7 +60,7 @@ using CaptureSvgFn = std::function<std::expected<VectorCapture, ViewFailure>(Rec
 // What every rendering host gives as its CaptureSvgFn: the runtime's current
 // display list as SVG over `region` (logical pixels), each node named by its
 // path, islands drawn at `scale` device pixels per logical one.
-[[nodiscard]] std::expected<VectorCapture, ViewFailure> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region,
+[[nodiscard]] std::expected<VectorCapture, ViewFailure> vector_capture(const Runtime& runtime, const mrender::Resources& resources, Rect region,
                                                                        float scale, std::optional<Color> background);
 
 // What a replay (W12) must end as: the semantic tree's hash (its snapshot,

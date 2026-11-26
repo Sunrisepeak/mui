@@ -7,17 +7,17 @@ import omui.view;
 import omui.semantic;
 import omui.host.headless;
 import meng.ui;
-import xrender.mesh;
-import xrender.raster;
-import xrender.text;
+import mrender.mesh;
+import mrender.raster;
+import mrender.text;
 import mlibs.agent;
 import mlibs.control;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
 using namespace omui;
-namespace mesh = xrender::mesh;
-namespace scene = xrender::scene;
+namespace mesh = mrender::mesh;
+namespace scene = mrender::scene;
 namespace math = mlibs::math;
 namespace geom = mlibs::geom;
 
@@ -49,7 +49,7 @@ struct Drawn {
     scene::Scene world;
     mesh::Pass pass;
     mesh::Targets targets;
-    xrender::raster::Surface picture{320, 180};
+    mrender::raster::Surface picture{320, 180};
     Drawn() {
         made.push_back(*geom::clustered(geom::sheet(200, 200, 4, 4)));
         made.push_back(*geom::clustered(geom::sphere(1, 32, 64), 32));
@@ -97,7 +97,7 @@ static UTest viewport_cases{"meng.ui.viewport", [] {
         Drawn yard;
         World world;
         yard.draw();
-        shown->show({.label = "the yard", .subject = &world, .pixels = [&]() -> std::optional<xrender::raster::ImageView> { return yard.picture.view(); }, .width = 320, .height = 180});
+        shown->show({.label = "the yard", .subject = &world, .pixels = [&]() -> std::optional<mrender::raster::ImageView> { return yard.picture.view(); }, .width = 320, .height = 180});
         host.step();
         // Where the node is, the frame is the picture (scaled 320 → 360 across): the ball's blue at the box's middle.
         const auto frame_at = [&](float share_x, float share_y) { return host.pixels().at(static_cast<int>(box.x + box.width * share_x), static_cast<int>(box.y + box.height * share_y)); };
@@ -123,7 +123,7 @@ static UTest viewport_cases{"meng.ui.viewport", [] {
         expect(eq(host.runtime().subjects().size(), beside + 1) && std::ranges::contains(host.runtime().subjects(), static_cast<mlibs::agent::Subject*>(&world)));
         // What drew a pixel of the interface, asked on through the node to the world: its subject, the place in
         // its picture, and what the world says is there — here the instance the reference's id buffer names.
-        shown->show({.label = "the yard", .subject = &world, .pixels = [&]() -> std::optional<xrender::raster::ImageView> { return yard.picture.view(); }, .width = 320, .height = 180,
+        shown->show({.label = "the yard", .subject = &world, .pixels = [&]() -> std::optional<mrender::raster::ImageView> { return yard.picture.view(); }, .width = 320, .height = 180,
                      .describe = [&](float across, float down) {
                          const int x = std::min(static_cast<int>(across * 320), 319), y = std::min(static_cast<int>(down * 180), 179);
                          const mesh::Pixel who = yard.targets.ids[static_cast<std::size_t>(y) * 320 + x];

@@ -19,8 +19,8 @@ import meng.input;
 import mlibs.simulation;
 import mlibs.agent;
 import mlibs.layout;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 import mlibs.rhi;
 
 export namespace meng::ui {
@@ -76,7 +76,7 @@ struct Viewport {
     struct Shown {
         std::string            label;               // what a person is told it is
         mlibs::agent::Subject* subject = nullptr;   // the world's own subject: found beside the interface while this is mounted
-        std::function<std::optional<xrender::raster::ImageView>()> pixels;  // its picture (premultiplied); none: nothing yet
+        std::function<std::optional<mrender::raster::ImageView>()> pixels;  // its picture (premultiplied); none: nothing yet
         // Or its picture drawn on the host's device (`omui::Services::device`): the texture, shown as it is. Taken
         // where the host draws on a device; elsewhere `pixels` is.
         std::function<std::optional<mlibs::rhi::Texture>()> texture;

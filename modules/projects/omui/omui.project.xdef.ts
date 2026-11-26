@@ -10,5 +10,5 @@ export default defineProject({
     stateDir: ".omui",
     metadata: "package.metadata.openmui",
     tier: "framework",
-    dependsOn: ["mlibs", "xrender", "meng.sim", "hanim", "meng.media", "spec"],
+    dependsOn: ["mlibs", "mrender", "meng.sim", "hanim", "meng.media", "spec"],
 });

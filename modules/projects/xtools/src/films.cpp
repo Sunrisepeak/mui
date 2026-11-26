@@ -62,7 +62,7 @@ public:
         if (index != next_) return std::unexpected(std::format("a view's frames come in order (frame {} after {})", index, next_ - 1));
         headless_.step();
         ++next_;
-        const xrender::raster::Surface& s = headless_.pixels();
+        const mrender::raster::Surface& s = headless_.pixels();
         return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4, mlibs::image::Alpha::premultiplied};
     }
 

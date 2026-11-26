@@ -8,7 +8,7 @@ import std;
 export namespace omui::devtools::members {
 
 struct Member {
-    std::string path;               // "modules/projects/xrender/mesh", as the workspace lists it
+    std::string path;               // "modules/projects/mrender/mesh", as the workspace lists it
     std::vector<std::string> uses;  // members it depends on by `path` (dependencies of every kind)
 };
 

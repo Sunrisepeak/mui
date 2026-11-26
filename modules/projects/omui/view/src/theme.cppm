@@ -10,7 +10,7 @@ export module omui.view:theme;
 import std;
 import omui.core;
 import :element;
-import xrender.vector;
+import mrender.vector;
 
 export namespace omui {
 
@@ -241,6 +241,6 @@ public:
 // light's — every box, menu and dialog paints its shadow so. `opacity`
 // scales both (a menu fading in); `object`, the colour of what casts it,
 // tints both by the token's tint.
-void paint_shadow(xrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity = 1,
+void paint_shadow(mrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity = 1,
                   Color object = Color::transparent());
 }  // namespace omui

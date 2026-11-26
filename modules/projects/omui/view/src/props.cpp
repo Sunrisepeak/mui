@@ -578,13 +578,13 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
 std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& value, std::string_view where, const Theme* theme) {
     const Value* fx = value.get("name");
     if (!fx || !value.map()) return std::nullopt;
-    const auto ref = xrender::effects().find(fx->as_string());
+    const auto ref = mrender::effects().find(fx->as_string());
     if (!ref) {
-        warn("{}: no effect is named '{}' (xrender::effects().names())", where, fx->as_string());
+        warn("{}: no effect is named '{}' (mrender::effects().names())", where, fx->as_string());
         return std::nullopt;
     }
     std::vector<std::pair<std::string_view, float>> given;
-    const xrender::EffectInfo* about = xrender::effects().info(*ref);
+    const mrender::EffectInfo* about = mrender::effects().info(*ref);
     const auto param = [&](std::string_view n) -> std::string_view {  // its name as the effect keeps it (lives as long as the effect)
         if (about)
             for (const auto& ep : about->params)
@@ -605,7 +605,7 @@ std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& v
     }
     Node::PixelEffectState st;
     st.effect = *ref;
-    st.params = xrender::effects().params(*ref, given);
+    st.params = mrender::effects().params(*ref, given);
     st.start = now();
     const auto bad = [&](std::string_view reason) -> std::optional<Node::PixelEffectState> {
         warn("{}: {}", where, reason); return std::nullopt;
@@ -637,7 +637,7 @@ std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& v
     hanim::EffectSpec recipe{std::string(fx->as_string()), {}};
     std::vector<std::size_t> indices;
     const auto animate = [&](std::string_view name, double from, double to) {
-        const auto it = std::ranges::find(about->params, name, &xrender::EffectParam::name);
+        const auto it = std::ranges::find(about->params, name, &mrender::EffectParam::name);
         if (it == about->params.end() || !std::isfinite(from) || !std::isfinite(to) ||
             from < it->min || from > it->max || to < it->min || to > it->max) return false;
         indices.push_back(static_cast<std::size_t>(it - about->params.begin()));

@@ -14,22 +14,22 @@
 | hanim | motion.playback.ms | — | rive, lottie-web | — | planned |
 | hanim | motion.gpu.morph-1m.ms | — | hanim-cpu | — | unverified |
 | hanim | playback.lottie-200.median_ms | hanim 2.099 | thorvg 1.666 | 0.79× [0.79, 0.80] | behind |
-| xrender | raster.fills-1000.median_ms | xrender 18.158 | skia 23.147 | 1.27× [1.25, 1.28] | ahead |
-| xrender | raster.gradients-200.median_ms | xrender 11.723 | skia 11.632 | 0.99× [0.99, 1.00] | par |
-| xrender | raster.small-5000.median_ms | xrender 3.867 | resvg 12.905 | 3.35× [3.34, 3.38] | ahead |
-| xrender | raster.strokes-500.median_ms | xrender 21.689 | skia 19.67 | 0.92× [0.91, 0.93] | behind |
-| xrender | raster.joins-300.median_ms | xrender 19.87 | skia 19.551 | 0.99× [0.97, 0.99] | par |
-| xrender | raster.fills-1000.error | xrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | ahead |
-| xrender | raster.gradients-200.error | xrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | par |
-| xrender | raster.small-5000.error | xrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | ahead |
-| xrender | raster.strokes-500.error | xrender 0.922 | resvg 0.741 | 0.80× [0.80, 0.80] | behind |
-| xrender | raster.joins-300.error | xrender 0.383 | resvg 0.597 | 1.56× [1.56, 1.56] | ahead |
-| xrender | raster.small-5000.exact_error | xrender 0.034 | resvg 0.187 | 5.50× [5.50, 5.50] | ahead |
-| xrender | raster.strokes-500.exact_error | xrender 0.238 | resvg 0.839 | 3.53× [3.53, 3.53] | ahead |
-| xrender | raster.cjk-5000.median_ms | — | skia | — | planned |
-| xrender | raster.web.submit-5000.ms | — | canvaskit | — | planned |
-| xrender | raster.wasm.bytes | — | thorvg | — | planned |
-| xrender | gpu.fills-1000.ms | — | vello, graphite | — | unverified |
+| mrender | raster.fills-1000.median_ms | mrender 18.158 | skia 23.147 | 1.27× [1.25, 1.28] | ahead |
+| mrender | raster.gradients-200.median_ms | mrender 11.723 | skia 11.632 | 0.99× [0.99, 1.00] | par |
+| mrender | raster.small-5000.median_ms | mrender 3.867 | resvg 12.905 | 3.35× [3.34, 3.38] | ahead |
+| mrender | raster.strokes-500.median_ms | mrender 21.689 | skia 19.67 | 0.92× [0.91, 0.93] | behind |
+| mrender | raster.joins-300.median_ms | mrender 19.87 | skia 19.551 | 0.99× [0.97, 0.99] | par |
+| mrender | raster.fills-1000.error | mrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | ahead |
+| mrender | raster.gradients-200.error | mrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | par |
+| mrender | raster.small-5000.error | mrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | ahead |
+| mrender | raster.strokes-500.error | mrender 0.922 | resvg 0.741 | 0.80× [0.80, 0.80] | behind |
+| mrender | raster.joins-300.error | mrender 0.383 | resvg 0.597 | 1.56× [1.56, 1.56] | ahead |
+| mrender | raster.small-5000.exact_error | mrender 0.034 | resvg 0.187 | 5.50× [5.50, 5.50] | ahead |
+| mrender | raster.strokes-500.exact_error | mrender 0.238 | resvg 0.839 | 3.53× [3.53, 3.53] | ahead |
+| mrender | raster.cjk-5000.median_ms | — | skia | — | planned |
+| mrender | raster.web.submit-5000.ms | — | canvaskit | — | planned |
+| mrender | raster.wasm.bytes | — | thorvg | — | planned |
+| mrender | gpu.fills-1000.ms | — | vello, graphite | — | unverified |
 | omui | ui.cold-start.ms | — | slint, flutter, nsh | — | planned |
 | omui | web.first-paint.mobile.ms | — | flutter-web, react-ssr | — | planned |
 | omui | web.interactive.mobile.ms | — | flutter-web | — | planned |
@@ -94,9 +94,9 @@
 | hanim | hanim.one-engine 一个引擎服务 UI、视频和游戏，三处逐位一致 | craft | planned | — |
 | hanim | hanim.morph 跨表示、拓扑对齐的形变 | craft | evidence | ahead |
 | hanim | hanim.composable 可组合：叶子、组合、配方同一种值；配方 id 进入规范 | foundation | planned | — |
-| xrender | B.pixels 为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图 | build-reliably | evidence | ahead |
-| xrender | xrender.same-source CPU 与 GPU 同源：CPU 参考逐位，GPU 差 ≤ 1/255 | craft | evidence | — |
-| xrender | xrender.web-first Web 优先：每次提交只跨一次 wasm 边界 | craft | planned | — |
+| mrender | B.pixels 为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图 | build-reliably | evidence | ahead |
+| mrender | mrender.same-source CPU 与 GPU 同源：CPU 参考逐位，GPU 差 ≤ 1/255 | craft | evidence | — |
+| mrender | mrender.web-first Web 优先：每次提交只跨一次 wasm 边界 | craft | planned | — |
 | meng | G Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩 | together | evidence | ahead |
 | meng | meng.equal-play 人与 Agent 平等游玩：同一套感知和反应约束，逐位回放 | together | evidence | ahead |
 | meng | meng.native 原生胜过适配：场景是数据、编辑是事务、模拟确定、离屏同源 | build-reliably | planned | — |
@@ -117,7 +117,7 @@
 | C: transactions, undo and dry_run as protocol operations, any application | omui | webmcp: app-defined, playwright-mcp: none, app-intents: partial, a2ui: none | ahead | `tools/mcp/tests/mcp_test.cpp` |
 | C: actions only a person may take: refused to every request over the bus, whatever actor it names | omui | webmcp: partial, playwright-mcp: none, app-intents: partial | ahead | `tools/mcp/tests/mcp_test.cpp` |
 | meng.equal-play: an agent player at a declared human tier (reaction, rate, what it sees), its record replayed to the same checksum | meng | godot: none, unity-ml-agents: partial | ahead | `showcase/widget-breakout/tests/agent_player_test.cpp` |
-| B.pixels: a frame as SVG, every shape a group named by its node, what SVG cannot say a marked pixel island | xrender | skia: partial, resvg: none | ahead | `modules/projects/xrender/vector/tests/vector/svg_test.cpp` |
+| B.pixels: a frame as SVG, every shape a group named by its node, what SVG cannot say a marked pixel island | mrender | skia: partial, resvg: none | ahead | `modules/projects/mrender/vector/tests/vector/svg_test.cpp` |
 | hanim.morph: topology-aligned morphs between shapes of different contour and hole counts, strokes and fills, CPU and GPU the same frames | hanim | gsap-morphsvg: partial, flubber: partial | ahead | `modules/projects/hanim/studio/tests/signature_test.cpp` |
 | gongfu.rollback-kernel: fixed-point fighting kernel: 10,000 random-depth rollbacks byte-identical, extractable whole | gongfu | ggpo: app-defined, ggrs: app-defined | ahead | `modules/projects/gongfu/tests/gongfu_test.cpp` |
 | A: any application's steps previewed before they are allowed: run unseen and taken back (no journal, no history, motion off), the pictures before and after and the semantic changes; a step that asks the person shown, not done | omui | webmcp: none, playwright-mcp: none, mcp-apps: none, app-intents: app-defined | ahead | `tools/mcp/tests/mcp_test.cpp` |

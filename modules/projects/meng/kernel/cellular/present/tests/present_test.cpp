@@ -10,7 +10,7 @@ import mcpplibs.mtest;
 using namespace mcpplibs::mtest;
 namespace ca = meng::cellular;
 namespace geom = mlibs::geom;
-namespace raster = xrender::raster;
+namespace raster = mrender::raster;
 
 namespace {
 // A spark that spreads along a path (channel 0: path, 1: burning 0 none, 1 burning, 2 burnt; 2: age).
@@ -33,7 +33,7 @@ std::vector<std::uint32_t> field(ca::Shape shape) {
     cells[area + (shape.height / 2) * shape.width + 2] = 1;                                                 // lit at its left end
     return cells;
 }
-bool image_is(const xrender::ImageStore& store, const ca::FieldPresenter& view, std::span<const std::uint32_t> cells) {
+bool image_is(const mrender::ImageStore& store, const ca::FieldPresenter& view, std::span<const std::uint32_t> cells) {
     const raster::Surface* image = store.get(view.image());
     if (!image) return false;
     for (std::uint32_t y = 0; y < view.shape().height; ++y)
@@ -54,7 +54,7 @@ mlibs::math::color::Shade shade() {
     out.tints.push_back({.channel = 2, .from = 0, .to_by_row = {0, 3}, .color = 0xff28b4ff, .emits = true});
     return out;
 }
-bool images_are(const xrender::ImageStore& store, const ca::FieldPresenter& view, std::span<const std::uint32_t> cells, const mlibs::math::color::Shade& by) {
+bool images_are(const mrender::ImageStore& store, const ca::FieldPresenter& view, std::span<const std::uint32_t> cells, const mlibs::math::color::Shade& by) {
     const raster::Surface* image = store.get(view.image());
     const raster::Surface* light = store.get(view.light());
     if (!image || !light) return false;
@@ -78,7 +78,7 @@ UTest cases{"simulation.cellular.present", [] {
         const auto program = ca::Program::prepare(3, rule_list);
         expect(program.has_value());
         if (!program) return;
-        xrender::ImageStore store;
+        mrender::ImageStore store;
         auto view = ca::FieldPresenter::make(store, shape, 3, palette(), {16, 16});
         expect(view.has_value()) << (view ? "" : view.error());
         if (!view) return;
@@ -118,14 +118,14 @@ UTest cases{"simulation.cellular.present", [] {
         const ca::Shape shape{120, 90};
         const auto rule_list = rules();
         const auto program = ca::Program::prepare(3, rule_list);
-        xrender::ImageStore store;
+        mrender::ImageStore store;
         auto view = ca::FieldPresenter::make(store, shape, 3, palette());
         auto cells = field(shape), next = cells;
         std::vector<std::uint8_t> mask(ca::tiles(shape, {32, 32}).width * ca::tiles(shape, {32, 32}).height);
         (void)view->present(cells);
         constexpr int W = 480, H = 360;
-        const xrender::Resources resources{&store, nullptr};
-        xrender::DisplayList list;
+        const mrender::Resources resources{&store, nullptr};
+        mrender::DisplayList list;
         const auto scene = [&] {
             list.clear();
             list.fill_rect({0, 0, W, H}, geom::Color::hex(0x0b1016));
@@ -134,8 +134,8 @@ UTest cases{"simulation.cellular.present", [] {
         scene();
         expect(eq(list.commands().size(), std::size_t{2}));
         raster::Surface incremental(W, H);
-        xrender::CpuRenderer renderer;
-        xrender::DamageTracker tracker;
+        mrender::CpuRenderer renderer;
+        mrender::DamageTracker tracker;
         (void)renderer.render(list, incremental, resources, {.rows = tracker.update(list, W, H, 1, resources)});
         std::size_t most = 0;
         for (int step = 0; step < 40; ++step) {
@@ -149,7 +149,7 @@ UTest cases{"simulation.cellular.present", [] {
             most = std::max(most, rows);
             (void)renderer.render(list, incremental, resources, {.rows = spans});
             raster::Surface full(W, H);
-            xrender::CpuRenderer fresh;
+            mrender::CpuRenderer fresh;
             (void)fresh.render(list, full, resources);
             expect(std::ranges::equal(incremental.bytes(), full.bytes())) << std::format("step {}: the incremental frame is the full one", step);
         }
@@ -161,7 +161,7 @@ UTest cases{"simulation.cellular.present", [] {
         const auto rule_list = rules();
         const auto program = ca::Program::prepare(3, rule_list);
         expect(fatal(program.has_value()));
-        xrender::ImageStore store;
+        mrender::ImageStore store;
         const mlibs::math::color::Shade by = shade();
         auto view = ca::FieldPresenter::make(store, shape, 3, by, {16, 16});
         expect(fatal(view.has_value())) << (view ? "" : view.error());
@@ -191,8 +191,8 @@ UTest cases{"simulation.cellular.present", [] {
         // On screen: the field, then its light blurred and added. A cell beside the fire is brighter for the glow;
         // far from it nothing changes; and redrawing only the damaged rows gives the full frame byte for byte.
         constexpr int W = 400, H = 280;
-        const xrender::Resources resources{&store, nullptr};
-        xrender::DisplayList list;
+        const mrender::Resources resources{&store, nullptr};
+        mrender::DisplayList list;
         const auto scene = [&](bool glow) {
             list.clear();
             list.fill_rect({0, 0, W, H}, geom::Color::hex(0x0b1016));
@@ -204,10 +204,10 @@ UTest cases{"simulation.cellular.present", [] {
         raster::Surface plain(W, H), glowing(W, H);
         {
             scene(false);
-            xrender::CpuRenderer renderer;
+            mrender::CpuRenderer renderer;
             (void)renderer.render(list, plain, resources);
             scene(true);
-            xrender::CpuRenderer again;
+            mrender::CpuRenderer again;
             (void)again.render(list, glowing, resources);
         }
         std::size_t brighter = 0, darker = 0, unlit_brighter = 0;
@@ -225,8 +225,8 @@ UTest cases{"simulation.cellular.present", [] {
         expect(brighter < static_cast<std::size_t>(W) * H / 4) << std::format("{} of {} pixels: the glow stays near the fire", brighter, W * H);
 
         raster::Surface incremental(W, H);
-        xrender::CpuRenderer renderer;
-        xrender::DamageTracker tracker;
+        mrender::CpuRenderer renderer;
+        mrender::DamageTracker tracker;
         scene(true);
         (void)renderer.render(list, incremental, resources, {.rows = tracker.update(list, W, H, 1, resources)});
         for (int step = 0; step < 12; ++step) {
@@ -236,7 +236,7 @@ UTest cases{"simulation.cellular.present", [] {
             scene(true);
             (void)renderer.render(list, incremental, resources, {.rows = tracker.update(list, W, H, 1, resources)});
             raster::Surface full(W, H);
-            xrender::CpuRenderer fresh;
+            mrender::CpuRenderer fresh;
             (void)fresh.render(list, full, resources);
             expect(std::ranges::equal(incremental.bytes(), full.bytes())) << std::format("step {}: the incremental frame with its glow is the full one", step);
         }
@@ -269,7 +269,7 @@ UTest cases{"simulation.cellular.present", [] {
 
     "a snapshot holding the image keeps its pixels; a new palette recolours everything; bad input is refused"_test = [] {
         const ca::Shape shape{40, 30};
-        xrender::ImageStore store;
+        mrender::ImageStore store;
         auto view = ca::FieldPresenter::make(store, shape, 3, palette(), {8, 8});
         auto cells = field(shape);
         (void)view->present(cells);

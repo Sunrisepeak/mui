@@ -23,8 +23,8 @@ export import gongfu;
 export import gongfu.data;
 import hanim.core;
 import mlibs.geom;
-import xrender.vector;
-import xrender.sprite;
+import mrender.vector;
+import mrender.sprite;
 
 export namespace gongfu::present2d {
 
@@ -375,7 +375,7 @@ struct CinematicLook {
         Color color = Color::hex(0xffffff, 0.8f);
     } cracks;
     // Time standing still (刻's): over the frames [from, to) the picture is
-    // drawn grey (toward `tint`, xrender's `tone`), the struck stands
+    // drawn grey (toward `tint`, mrender's `tone`), the struck stands
     // as it was when time stopped, and the sparks and effects of hits in it
     // hang where they are, a few frames in; blows landing in it take effect
     // from `to` (the bell), when everything goes on and the colour is back.
@@ -461,7 +461,7 @@ struct Picture {
     std::string                name;
     std::string                file;
     std::int32_t               width = 0, height = 0;
-    xrender::ImageRef     ref;
+    mrender::ImageRef     ref;
     struct Relief {
         float        bevel = 12, detail = 0;
         std::int32_t smooth = 2;
@@ -469,7 +469,7 @@ struct Picture {
         friend constexpr bool operator==(const Relief&, const Relief&) noexcept = default;
     };
     std::optional<Relief>      relief;
-    xrender::ImageRef     normal;
+    mrender::ImageRef     normal;
 };
 
 struct Look {
@@ -557,7 +557,7 @@ struct Look {
     // bands, their edges' softness, the shadow's and the rim's strengths (the
     // light's place and colours are the stage's, else these). Stylised per
     // fighter: ink's two soft washes, neon's hard bands and a bright rim.
-    std::map<std::string, xrender::Material, std::less<>> materials;
+    std::map<std::string, mrender::Material, std::less<>> materials;
     // A super's flash, by its move's name: a cut-in over the freeze (frames of
     // it), instead of the band of the accent colour.
     std::map<std::string, CinematicLook::Panel, std::less<>> cutins;
@@ -768,48 +768,48 @@ class Painter {
 public:
     // The frame: the stage, both fighters, the sparks of recent events and the
     // shake of a heavy hit, into `out` (picture coordinates, y down).
-    void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, xrender::DisplayList& out);
+    void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, mrender::DisplayList& out);
     // One fighter's body as `draw` draws it, through `camera` (a studio's
     // contact sheet, a character select); `clip`/`t` to play a clip by name instead.
     void body(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, const Scene& scene, const Camera& camera,
-              xrender::DisplayList& out, std::string_view clip = {}, std::int32_t t = 0, std::optional<Color> tint = std::nullopt);
+              mrender::DisplayList& out, std::string_view clip = {}, std::int32_t t = 0, std::optional<Color> tint = std::nullopt);
     // A glyph written to `progress` (0–1 of its strokes' total length) at `centre`, `size` pixels square;
     // its strokes `thicken` times as wide (a halo behind it).
-    void glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, xrender::DisplayList& out,
+    void glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, mrender::DisplayList& out,
                float thicken = 1);
     // A glyph whose stroke k is written over the frames up to ends[k], from `from`, at `frame`.
     // An effect of `look` at `age` frames, from `origin` (stage units), mirrored by `facing`.
     // `paint`: every piece drawn as its shape in that colour (a counter's tier).
     void fx(const Look& look, const Fx& fx, double age, Point origin, double facing, float scale, const Scene& scene, const Camera& camera,
-            xrender::DisplayList& out, float alpha = 1, std::optional<Color> paint = std::nullopt);
+            mrender::DisplayList& out, float alpha = 1, std::optional<Color> paint = std::nullopt);
     // A cut-in panel of `look` at the cinematic's frame `t`; `facing` the attacker's (it enters from behind them).
-    void panel(const Look& look, const CinematicLook::Panel& p, std::int32_t t, double facing, const Scene& scene, xrender::DisplayList& out);
+    void panel(const Look& look, const CinematicLook::Panel& p, std::int32_t t, double facing, const Scene& scene, mrender::DisplayList& out);
     void glyph_by_frames(const std::vector<Stroke>& strokes, std::span<const std::int32_t> ends, std::int32_t from, std::int32_t frame, Point centre,
-                         float size, Color color, xrender::DisplayList& out);
+                         float size, Color color, mrender::DisplayList& out);
 
     // A stage's layers (behind the fighters, or in front of them) through
     // `camera`, at the match's frame, `alpha` of their opacity; `middle` the
     // stage's (a layer moves `parallax` of the camera's way from it). A
     // stage editor's view, and a frame's.
     void stage_layers(const Stage& stage, bool front, const Scene& scene, const Camera& camera, double middle, std::int32_t frame, float alpha,
-                      xrender::DisplayList& out);
+                      mrender::DisplayList& out);
 
 private:
     // A whole-body drawing at the fighter's place (its pivot over the root on the ground; mirrored facing left).
     void draw_cel(const Look& look, const Cel& cel, const FighterState& s, const Scene& scene, const Camera& camera, std::optional<Color> tint,
-                  xrender::DisplayList& out);
+                  mrender::DisplayList& out);
     void picture_part(const Look& look, const Part& part, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,
-                      std::optional<Color> tint, xrender::DisplayList& out);
+                      std::optional<Color> tint, mrender::DisplayList& out);
     Pose                     pose_, past_, rest_, held_;
-    xrender::sprite::Mesh               mesh_;   // a textured mesh's corners, where each is in the picture, its triangles: reused
-    std::vector<xrender::sprite::Posed> bends_;  // the bones a part bends to, as drawn and as posed
+    mrender::sprite::Mesh               mesh_;   // a textured mesh's corners, where each is in the picture, its triangles: reused
+    std::vector<mrender::sprite::Posed> bends_;  // the bones a part bends to, as drawn and as posed
     std::vector<double>      follow_;  // each bone's secondary motion this frame, degrees
     std::vector<std::size_t> order_;
-    xrender::Path       path_;
-    xrender::Path       ring_;  // the contact shadows' rings
+    mrender::Path       path_;
+    mrender::Path       ring_;  // the contact shadows' rings
 };
 
 // One frame with a painter of its own (the same picture; allocates).
-void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, xrender::DisplayList& out);
+void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, mrender::DisplayList& out);
 
 }  // namespace gongfu::present2d

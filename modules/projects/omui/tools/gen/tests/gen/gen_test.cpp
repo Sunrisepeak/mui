@@ -221,14 +221,14 @@ static UTest cases{"gen", [] {
         expect(seen >= 2) << "default and compact at least";
     };
 
-    "the effect template the renderer carries is current (modules/projects/xrender/vector)"_test = [] {
-        const auto render = spec_dir().parent_path() / "modules" / "projects" / "xrender" / "vector";
+    "the effect template the renderer carries is current (modules/projects/mrender/vector)"_test = [] {
+        const auto render = spec_dir().parent_path() / "modules" / "projects" / "mrender" / "vector";
         std::ifstream in(render / "effects" / "lib" / "openmui_effect.slang", std::ios::binary);
         const std::string text{std::istreambuf_iterator<char>(in), {}};
         expect(!text.empty()) << "effects/lib/openmui_effect.slang";
         expect(read(render / "src" / "generated" / "effect_template.cppm") ==
-                  mlibs::xdef::emit_embed(text, "openmui_effect.slang", "xrender.vector.api", "xrender", "effect_template")) << "modules/projects/xrender/vector: run xdef embed modules/projects/xrender/vector/effects/lib/openmui_effect.slang --module xrender.vector.api "
-              "--name effect_template --namespace xrender --out modules/projects/xrender/vector/src/generated";
+                  mlibs::xdef::emit_embed(text, "openmui_effect.slang", "mrender.vector.api", "mrender", "effect_template")) << "modules/projects/mrender/vector: run xdef embed modules/projects/mrender/vector/effects/lib/openmui_effect.slang --module mrender.vector.api "
+              "--name effect_template --namespace mrender --out modules/projects/mrender/vector/src/generated";
     };
 
     "every matter definition's and appearance's committed snapshot is what its data module stands for (D-139)"_test = [] {

@@ -21,7 +21,7 @@ bool Drawing::record(PaintContext& ctx, hanim::Engine& engine, hanim::PlaybackRe
     }
     staging_.clear();
     bool recorded = false;
-    ctx.part({.role = role, .kind = xrender::PartKind::content}, [&] {
+    ctx.part({.role = role, .kind = mrender::PartKind::content}, [&] {
         recorded = drawn_->record(frame->geometry, frame->effect_values, ctx.list, {&staging_, world_, parameters_, layers_}).has_value();
     });
     return recorded;

@@ -87,7 +87,7 @@ constexpr Words chinese{
     "每一条是该模块 README 的 Experimental 一节（英文原文）：目标、现状、差距、局限，以及到预览的毕业条件。",
     "包", "README", "由 `omui-devtools docs` 从实验包的 README 生成，不要手改。", "没有标为实验的包。", "："};
 
-constexpr std::array<std::string_view, 7> project_order{"omui", "hanim", "xrender", "meng", "gongfu", "xtools", "mlibs"};
+constexpr std::array<std::string_view, 7> project_order{"omui", "hanim", "mrender", "meng", "gongfu", "xtools", "mlibs"};
 
 std::string project_title(std::string_view project, bool zh) {
     static const std::map<std::string_view, std::pair<std::string_view, std::string_view>> titles{

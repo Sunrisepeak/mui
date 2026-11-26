@@ -3,7 +3,7 @@
 import std;
 import hanim.core;
 import mlibs.geom;
-import xrender.vector;
+import mrender.vector;
 import hanim.visual;
 import mcpplibs.mtest;
 
@@ -22,26 +22,26 @@ mo::Options linear() {
     o.curve.ease = hanim::ease::linear;
     return o;
 }
-std::vector<xrender::Glyph> glyphs(std::initializer_list<std::uint32_t> ids) {
-    std::vector<xrender::Glyph> result;
+std::vector<mrender::Glyph> glyphs(std::initializer_list<std::uint32_t> ids) {
+    std::vector<mrender::Glyph> result;
     for (const auto id : ids) {
         const auto n = static_cast<std::uint32_t>(result.size());
         result.push_back({.id = id, .position = {static_cast<float>(n) * 10, 0}, .cluster = n, .grapheme = n});
     }
     return result;
 }
-xrender::DisplayList drawing(std::span<const xrender::Glyph> g, xrender::GlyphStyle style = {},
+mrender::DisplayList drawing(std::span<const mrender::Glyph> g, mrender::GlyphStyle style = {},
                             mlibs::geom::Affine parent = {}, float size = 20, mlibs::geom::Point origin = {20, 40}) {
-    xrender::DisplayList list;
+    mrender::DisplayList list;
     list.begin_node(1);
     list.push_transform(parent);
-    std::vector<xrender::GlyphStyle> styles(g.size(), style);
-    list.draw_glyphs(xrender::FontRef{1}, size, origin, g, xrender::Paint::solid(mlibs::geom::Color::hex(0x182030)), styles);
+    std::vector<mrender::GlyphStyle> styles(g.size(), style);
+    list.draw_glyphs(mrender::FontRef{1}, size, origin, g, mrender::Paint::solid(mlibs::geom::Color::hex(0x182030)), styles);
     list.pop_transform();
     list.end_node();
     return list;
 }
-mo::Morph transition(xrender::DisplayList a, xrender::DisplayList b, mo::Options options = linear()) {
+mo::Morph transition(mrender::DisplayList a, mrender::DisplayList b, mo::Options options = linear()) {
     return mo::Morph(mo::Matter::extract(a, resolver()), mo::Matter::extract(b, resolver()), std::move(options), 0);
 }
 struct VisibleGlyph {
@@ -50,15 +50,15 @@ struct VisibleGlyph {
     float opacity;
     mlibs::geom::Color tint;
 };
-std::vector<VisibleGlyph> visible(const xrender::DisplayList& list) {
+std::vector<VisibleGlyph> visible(const mrender::DisplayList& list) {
     std::vector<VisibleGlyph> result;
     std::vector<mlibs::geom::Affine> transforms{mlibs::geom::Affine{}};
     for (const auto& command : list.commands()) {
-        if (const auto* p = std::get_if<xrender::PushTransform>(&command)) transforms.push_back(transforms.back() * p->transform);
-        else if (std::holds_alternative<xrender::PopTransform>(command)) transforms.pop_back();
-        else if (const auto* g = std::get_if<xrender::DrawGlyphs>(&command)) {
+        if (const auto* p = std::get_if<mrender::PushTransform>(&command)) transforms.push_back(transforms.back() * p->transform);
+        else if (std::holds_alternative<mrender::PopTransform>(command)) transforms.pop_back();
+        else if (const auto* g = std::get_if<mrender::DrawGlyphs>(&command)) {
             for (std::size_t i = 0; i < g->glyphs.size(); ++i) {
-                const auto style = g->styles.empty() ? xrender::GlyphStyle{} : g->styles[i];
+                const auto style = g->styles.empty() ? mrender::GlyphStyle{} : g->styles[i];
                 const auto pen = mlibs::geom::Point{g->origin.x + g->glyphs[i].position.x, g->origin.y + g->glyphs[i].position.y};
                 result.push_back({g->glyphs[i].id,
                                   transforms.back() * mlibs::geom::Affine::translate(pen.x, pen.y) * style.transform * mlibs::geom::Affine::scale(g->size, g->size),
@@ -68,8 +68,8 @@ std::vector<VisibleGlyph> visible(const xrender::DisplayList& list) {
     }
     return result;
 }
-xrender::DisplayList at(const mo::Morph& morph, double t) {
-    xrender::DisplayList list;
+mrender::DisplayList at(const mo::Morph& morph, double t) {
+    mrender::DisplayList list;
     morph.draw(t, list);
     return list;
 }
@@ -87,10 +87,10 @@ void near(const mlibs::geom::Color& a, const mlibs::geom::Color& b, double toler
 static UTest cases{"motion.text-transition", [] {
     "kept glyph keeps source affine, opacity and tint at zero plus"_test = [] {
         const auto g = glyphs({7});
-        const xrender::GlyphStyle source{
+        const mrender::GlyphStyle source{
             .transform = mlibs::geom::Affine::translate(40, 8) * mlibs::geom::Affine::rotation(0.8f, 0.6f) * mlibs::geom::Affine::scale(1.4f, 0.7f),
             .opacity = 0.35f, .tint = {0.9f, 0.15f, 0.1f, 0.8f}};
-        const xrender::GlyphStyle target{.transform = mlibs::geom::Affine::rotation(0.6f, -0.8f), .opacity = 0.9f, .tint = {0.1f, 0.2f, 0.8f, 0.4f}};
+        const mrender::GlyphStyle target{.transform = mlibs::geom::Affine::rotation(0.6f, -0.8f), .opacity = 0.9f, .tint = {0.1f, 0.2f, 0.8f, 0.4f}};
         auto morph = transition(drawing(g, source, mlibs::geom::Affine::translate(7, 5), 17),
                                 drawing(g, target, mlibs::geom::Affine::translate(90, 12) * mlibs::geom::Affine::scale(0.8f, 1.2f), 29));
         const auto start = visible(at(morph, 0));
@@ -224,11 +224,11 @@ static UTest cases{"motion.text-transition", [] {
         const auto b = glyphs({4, 5, 6, 7});
         const auto c = glyphs({8, 9});
         auto clipped = [&](const auto& glyphs) {
-            xrender::DisplayList list;
+            mrender::DisplayList list;
             list.begin_node(1);
             list.push_transform(mlibs::geom::Affine::translate(9, 6));
             list.push_clip(mlibs::geom::Rect{12, 15, 95, 32});
-            list.draw_glyphs(xrender::FontRef{1}, 20, {20, 40}, glyphs, xrender::Paint::solid(mlibs::geom::Color::hex(0x182030)));
+            list.draw_glyphs(mrender::FontRef{1}, 20, {20, 40}, glyphs, mrender::Paint::solid(mlibs::geom::Color::hex(0x182030)));
             list.pop_clip(); list.pop_transform(); list.end_node();
             return list;
         };

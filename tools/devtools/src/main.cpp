@@ -330,7 +330,7 @@ cmd::App app() {
                                         .description("The games packed for Bilibili Toy and checked by Toy's own doctor (pinned)")
                                         .arg(Arg("package").help("the games (default: the fighting game and the breakout)")))
                         .subcommand(cmd::App("tools-e2e")
-                                        .description("hanim's, xrender's and the timeline's commands as an Agent uses them: exit statuses and answers held")
+                                        .description("hanim's, mrender's and the timeline's commands as an Agent uses them: exit statuses and answers held")
                                         .option(Option("profile").takes_value().value_name("P")))
                         .subcommand(cmd::App("agent-e2e")
                                         .description("omui agent and omui mcp against example 07 and the Reaction lab, each a process of its own")

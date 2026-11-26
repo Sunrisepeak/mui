@@ -4,7 +4,7 @@ module omui.host.sdl3:platform;
 
 import std;
 import omui.core;
-import xrender.raster;
+import mrender.raster;
 import omui.view;
 
 namespace omui::platform {
@@ -89,7 +89,7 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
 // Whether a present waits for the display's refresh, as a renderer's and a GPU's do when vsync is asked: a window's
 // own framebuffer shows a frame at once, and the loop holds itself to the rate.
 [[nodiscard]] bool held_to_refresh(Window& w);
-void present(Window& w, const xrender::raster::Surface& frame);
+void present(Window& w, const mrender::raster::Surface& frame);
 void text_input(Window& w, std::optional<Rect> caret);
 void cursor(Window& w, std::string_view shape);
 [[nodiscard]] std::string clipboard();
@@ -118,6 +118,6 @@ void start_gamepads();
 // tags (SDL's preferred locales: the settings on Windows and macOS).
 [[nodiscard]] std::vector<std::string> preferred_locales();
 void synthesize(Window& w, std::span<const InputEvent> events);
-std::expected<xrender::raster::Surface, std::string> read_back(Window& w);
+std::expected<mrender::raster::Surface, std::string> read_back(Window& w);
 
 }  // namespace omui::platform

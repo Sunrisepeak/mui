@@ -4,8 +4,8 @@ import std;
 import gongfu;
 import gongfu.present2d;
 import mlibs.geom;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import mlibs.image;
 
 namespace gongfu::studio {
@@ -13,7 +13,7 @@ namespace gongfu::studio {
 namespace {
 
 namespace p2 = gongfu::present2d;
-namespace render = xrender;
+namespace render = mrender;
 using mlibs::geom::Color;
 
 }  // namespace
@@ -98,8 +98,8 @@ std::expected<Sheet, std::string> sheet(const Fighter& fighter, const p2::Look& 
         dl.pop_clip();
         ++k;
     }
-    xrender::raster::Surface px(out.width, out.height);
-    xrender::CpuRenderer{}.render(dl, px, {o.images, nullptr}, {.scale = 1});
+    mrender::raster::Surface px(out.width, out.height);
+    mrender::CpuRenderer{}.render(dl, px, {o.images, nullptr}, {.scale = 1});
     const mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(px.row(0)), px.width(), px.height(), px.width() * 4,
                                 mlibs::image::Alpha::premultiplied};
     auto png = mlibs::image::encode_png(v);

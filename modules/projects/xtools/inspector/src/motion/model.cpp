@@ -127,7 +127,7 @@ Fit fit(Size stage, Rect dest) {
 }
 }  // namespace
 
-void Session::draw(xrender::DisplayList& list, Rect dest) {
+void Session::draw(mrender::DisplayList& list, Rect dest) {
     if (!impl_->opened) return;
     const auto drawn = impl_->opened->display(hanim::seconds(time.peek()));
     if (!drawn) return;

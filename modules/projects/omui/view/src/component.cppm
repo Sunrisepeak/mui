@@ -14,8 +14,8 @@ import omui.core;
 import mlibs.agent;
 import hanim.engine;
 import mlibs.layout;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import mlibs.rhi;
 import mlibs.text;
 import :element;
@@ -277,7 +277,7 @@ public:
     // names it by — `external_texture(number, where)`. The number says what is shown: when the picture's
     // content changes, draw it by `picture_changed(number)` from then on, so whoever keeps a frame by its list
     // sees that it changed. 0: this host shows no such pictures. Whoever adds it removes it before it goes.
-    virtual std::uint64_t add_picture(std::function<std::optional<xrender::raster::ImageView>()>) { return 0; }
+    virtual std::uint64_t add_picture(std::function<std::optional<mrender::raster::ImageView>()>) { return 0; }
     // The same, drawn on the host's own device (`device()`): its texture (rgba8, sampled; none while it has
     // nothing), shown as it is — nothing copied, nothing read back. 0: this host draws on no device. Removed as a
     // picture of pixels is.
@@ -314,7 +314,7 @@ public:
     [[nodiscard]] virtual FrameDemandLease demand_frames(FrameDemand d) { (void)d; return {}; }
     virtual void release_frames(std::uint64_t token) noexcept { (void)token; }
     [[nodiscard]] virtual mlibs::text::FontCollection& fonts() = 0;
-    [[nodiscard]] virtual xrender::ImageStore& images() = 0;
+    [[nodiscard]] virtual mrender::ImageStore& images() = 0;
     [[nodiscard]] virtual hanim::seconds now() const = 0;
     // The frames the host showed, and who draws them ("cpu", "webgpu",
     // "webgl", "vulkan"…; empty: not said): what a frame meter shows.
@@ -470,12 +470,12 @@ struct PaintPart {
     std::string_view role, id, reference;
     Rect allocation;
     Point anchor{0.5f,0.5f};
-    xrender::PartKind kind = xrender::PartKind::content;
+    mrender::PartKind kind = mrender::PartKind::content;
 };
 
 struct PaintContext {
     Services&            services;
-    xrender::DisplayList& list;
+    mrender::DisplayList& list;
     NodeId               node;
     Size                 size;     // the node's border box; drawing is in its local coordinates
     Rect                 content;  // the content box (inside padding and border), local coordinates
@@ -484,8 +484,8 @@ struct PaintContext {
     template <class Draw> requires std::invocable<Draw&>
     void part(const PaintPart& part, Draw&& draw) {
         if (!part.reference.empty()) list.reference_box(0,part.reference,part.allocation);
-        const xrender::ReferenceWeight reference{part.reference,1};
-        const auto lineage = part.reference.empty() ? std::span<const xrender::ReferenceWeight>{} : std::span<const xrender::ReferenceWeight>(&reference,1);
+        const mrender::ReferenceWeight reference{part.reference,1};
+        const auto lineage = part.reference.empty() ? std::span<const mrender::ReferenceWeight>{} : std::span<const mrender::ReferenceWeight>(&reference,1);
         list.begin_part({0,part.role,part.id,part.allocation,part.anchor,part.kind,lineage});
         std::invoke(draw);
         list.end_part();
@@ -609,7 +609,7 @@ struct ComponentType {
     // The surfaces it paints itself (a switch's track and thumb), for an
     // effect over it (neon lights them, metaball merges them, D-69); none:
     // its box. Answers how many it wrote.
-    std::size_t (*effect_shapes)(const void*, Size, Rect content, std::span<xrender::EffectShape> out) = nullptr;
+    std::size_t (*effect_shapes)(const void*, Size, Rect content, std::span<mrender::EffectShape> out) = nullptr;
     // A window's frame (D-75): what a point of its box is — its title bar
     // moves the window, its edges resize it — or nothing, for what is beneath.
     std::optional<WindowArea> (*window_area)(const void*, Point local, Size) = nullptr;
@@ -725,8 +725,8 @@ template <class C>
             x.baseline = [](void* p, MeasureContext& m, Size s) { return static_cast<C*>(p)->baseline(m, s); };
         if constexpr (requires(const C& c, PaintContext& ctx) { c.paint(ctx); })
             x.paint = [](const void* p, PaintContext& ctx) { static_cast<const C*>(p)->paint(ctx); };
-        if constexpr (requires(const C& c, Size sz, Rect r, std::span<xrender::EffectShape> o) { { c.effect_shapes(sz, r, o) } -> std::same_as<std::size_t>; })
-            x.effect_shapes = [](const void* p, Size sz, Rect r, std::span<xrender::EffectShape> o) { return static_cast<const C*>(p)->effect_shapes(sz, r, o); };
+        if constexpr (requires(const C& c, Size sz, Rect r, std::span<mrender::EffectShape> o) { { c.effect_shapes(sz, r, o) } -> std::same_as<std::size_t>; })
+            x.effect_shapes = [](const void* p, Size sz, Rect r, std::span<mrender::EffectShape> o) { return static_cast<const C*>(p)->effect_shapes(sz, r, o); };
         if constexpr (requires(const C& c, Point p, Size sz) { { c.window_area(p, sz) } -> std::same_as<std::optional<WindowArea>>; })
             x.window_area = [](const void* p, Point at, Size sz) { return static_cast<const C*>(p)->window_area(at, sz); };
         if constexpr (requires(const C& c, Point p, Size sz) { { c.hits(p, sz) } -> std::same_as<bool>; })

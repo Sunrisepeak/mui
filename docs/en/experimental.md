@@ -17,7 +17,7 @@ Packages: `meng.particles` · [README](../../modules/projects/meng/kernel/partic
 
 - **Target**: flying matter (sparks, drops, grit) under the standard laws, on the CPU reference and, bit for bit where it holds authority, on the GPU (D-184).
 - **Now**: CPU: gravity, drag, collision against triangles, ageing; each particle an instance of matter beside its neighbours and the air.
-- **Gap**: no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is xrender.particle's, a picture).
+- **Gap**: no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is mrender.particle's, a picture).
 - **Graduation to preview**: a contract suite on every tier-1 row, a second consumer, the magnitudes within tolerance.
 
 ## meng.field

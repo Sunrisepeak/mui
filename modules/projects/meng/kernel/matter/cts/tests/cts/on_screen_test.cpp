@@ -17,7 +17,7 @@ using namespace mcpplibs::mtest;
 namespace matter = meng::matter;
 namespace ca = meng::cellular;
 namespace geom = mlibs::geom;
-namespace raster = xrender::raster;
+namespace raster = mrender::raster;
 
 namespace {
 
@@ -30,10 +30,10 @@ struct Scene {
     ca::Shape shape;
     std::vector<std::uint32_t> cells, next, outside;
     std::uint64_t tick = 0;
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     mlibs::math::color::Shade shade;
     ca::FieldPresenter view;
-    xrender::DisplayList list;
+    mrender::DisplayList list;
 
     Scene(matter::Program of, const matter::Look& look, ca::Shape size)
         : program(std::move(of)), plan(*ca::lower(program, {.seed = 7})), shape(size), cells(program.fresh(area(), *program.material("air"))), next(cells.size()),
@@ -68,7 +68,7 @@ struct Scene {
         view.draw(list, {0, 0, width, height});
         if (glow) view.draw_glow(list, {0, 0, width, height}, 2.0f * scale, 0.9f);
         raster::Surface out(static_cast<int>(shape.width) * scale, static_cast<int>(shape.height) * scale);
-        xrender::CpuRenderer renderer;
+        mrender::CpuRenderer renderer;
         (void)renderer.render(list, out, {&images, nullptr});
         return out;
     }

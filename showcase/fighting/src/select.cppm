@@ -76,7 +76,7 @@ private:
     std::shared_ptr<void>             heard_;                 // the program's device on sounds_ (let go first)
     std::int32_t                      heard_from_ = 0;        // the frame the theme was last started on (the cues' frame 0)
     mutable gongfu::present2d::Painter painter_;
-    mutable xrender::DisplayList       list_;
+    mutable mrender::DisplayList       list_;
     FrameDemandLease                  pace_;
     bool                              mounting_ = false, focus_pending_ = false;
     std::uint64_t                     timer_ = 0;

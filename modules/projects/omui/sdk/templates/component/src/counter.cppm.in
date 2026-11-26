@@ -16,7 +16,7 @@ public:
     }
     void paint(omui::PaintContext& ctx) const {
         ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, omui::CornerRadii::all(8),
-                                 xrender::Paint::solid(ctx.theme.color("surface_variant")));
+                                 mrender::Paint::solid(ctx.theme.color("surface_variant")));
     }
     void semantics(omui::SemanticsContext&, omui::spec::SemanticNode& node) const {
         if (node.name.empty()) node.name = props.label;

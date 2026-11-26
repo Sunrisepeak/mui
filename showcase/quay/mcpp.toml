@@ -4,7 +4,7 @@
 #                 for bit; wardens on meng.nav, bodies on meng.dynamics (rigid3), sound events as the world's.
 #   src/headless  the simulation as meng.runtime plays it: stepped without omui, sought back and branched ahead,
 #                 played by an agent as a person plays.
-#   src/picture   the harbour at night from the watchkeeper's eye, drawn from the state by xrender (the mesh pass and
+#   src/picture   the harbour at night from the watchkeeper's eye, drawn from the state by mrender (the mesh pass and
 #                 particles on a device), the wardens skinned (hanim.skeleton); it reads the state, changes nothing.
 #   src/sound     the world's events as sounds in a place, at the watchkeeper's ears, through the containers' steel;
 #                 its sounds (sounds/*.sound.xdef.ts) carried in the program (build.mcpp).
@@ -37,11 +37,11 @@ meng.nav      = { path = "../../modules/projects/meng/game/nav" }
 meng.runtime  = { path = "../../modules/projects/meng/game/runtime" }
 meng.dynamics = { path = "../../modules/projects/meng/kernel/dynamics", features = ["rigid3"] }
 meng.audio    = { path = "../../modules/projects/meng/kernel/audio" }
-xrender.mesh     = { path = "../../modules/projects/xrender/mesh" }
-"xrender.mesh.gpu" = { path = "../../modules/projects/xrender/mesh/gpu" }
-xrender.particle = { path = "../../modules/projects/xrender/particle" }
-"xrender.particle.gpu" = { path = "../../modules/projects/xrender/particle/gpu" }
-xrender.scene    = { path = "../../modules/projects/xrender/scene" }
+mrender.mesh     = { path = "../../modules/projects/mrender/mesh" }
+"mrender.mesh.gpu" = { path = "../../modules/projects/mrender/mesh/gpu" }
+mrender.particle = { path = "../../modules/projects/mrender/particle" }
+"mrender.particle.gpu" = { path = "../../modules/projects/mrender/particle/gpu" }
+mrender.scene    = { path = "../../modules/projects/mrender/scene" }
 hanim.skeleton   = { path = "../../modules/projects/hanim/skeleton" }
 mlibs.rhi        = { path = "../../modules/gfx/rhi" }
 mlibs.simulation = { path = "../../modules/base/simulation" }
@@ -59,4 +59,4 @@ mlibs.agent      = { path = "../../modules/base/agent" }
 mlibs.json       = { path = "../../modules/base/json" }
 mlibs.image      = { path = "../../modules/base/image" }
 meng.playtest = { path = "../../modules/projects/meng/game/playtest" }
-xrender.rhi.webgpu = { path = "../../modules/projects/xrender/rhi/webgpu" }
+mrender.rhi.webgpu = { path = "../../modules/projects/mrender/rhi/webgpu" }

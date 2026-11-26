@@ -1,6 +1,6 @@
 // hanim's side of py/lottie.py: one animation, made here from a seed, written as a Lottie file for ThorVG and rlottie,
 // Lottie's native players, there, and played by hanim here (its objects and programs, the engine sought, the frame
-// recorded as a display list and drawn by xrender's CPU renderer). 200 rounded rectangles, each moving through three places, turning, scaling and fading, on
+// recorded as a display list and drawn by mrender's CPU renderer). 200 rounded rectangles, each moving through three places, turning, scaling and fading, on
 // the same cubic-bezier eases, 2 s at 60 frames a second on a 512 × 512 stage; every frame drawn whole on one thread,
 // the frames visited in a scrambled order (frame 37·k mod 120: a seek each time, never the next frame), the clock round
 // the seek and the drawing.
@@ -8,7 +8,7 @@
 //   omui-bench-lottie --out DIR [--runs N]      DIR/lottie-200.json, DIR/lottie-200.hanim.rgba (frame 60); one JSON line
 //   omui-bench-lottie --compare DIR             frame 60 of each player (DIR/lottie-200.<player>.rgba) beside hanim's
 //   omui-bench-lottie --out DIR --phases        where a frame's time goes: hanim's seek and evaluation, the display
-//                                               list recorded, xrender's drawing (each part's median over the frames);
+//                                               list recorded, mrender's drawing (each part's median over the frames);
 //                                               and inside the evaluation: the program's sample, the animation's, the
 //                                               source's, and the four eases an object alone; the drawing's
 //                                               background alone
@@ -18,8 +18,8 @@ import mlibs.math;
 import mlibs.geom;
 import hanim;
 import hanim.render.vector;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 
 namespace {
 
@@ -204,11 +204,11 @@ int main(int argc, char** argv) {
     std::vector<float> parameters(needs.buffers.backend_parameters);
     std::vector<mlibs::geom::Rect> layers(needs.buffers.effect_layers), bounds(needs.tracks + needs.scopes);
     std::vector<std::size_t> members(needs.scopes), order(needs.tracks), stack(needs.scope_depth);
-    xrender::DisplayList list, staging;
-    xrender::CpuRenderer renderer;
-    xrender::raster::Surface surface(side, side);
+    mrender::DisplayList list, staging;
+    mrender::CpuRenderer renderer;
+    mrender::raster::Surface surface(side, side);
     // A frame: sought, recorded, drawn; with `parts`, each part's time in milliseconds (hanim's seek and evaluation,
-    // the display list recorded, xrender's drawing).
+    // the display list recorded, mrender's drawing).
     const auto draw = [&](int frame, std::array<double, 3>* parts = nullptr) -> bool {
         using clock = std::chrono::steady_clock;
         const auto begun = clock::now();
@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
         std::println(R"({{"inside":"evaluate","program_sample_ms":{:.3f},"animation_ms":{:.3f},"source_ms":{:.3f},"four_eases_ms":{:.3f},"parts":{},"cubics":{},"values":{},"checksum":{:.1f}}})",
                      median(inside[0]), median(inside[1]), median(inside[2]), median(inside[3]), most.parts, most.cubics, most.values, eased);
         // The drawing's floor: the stage alone, its background, with nothing on it.
-        const xrender::DisplayList nothing;
+        const mrender::DisplayList nothing;
         std::vector<double> background;
         for (int run = 0; run < (1 + runs) * frames; ++run) {
             const auto begun = clock::now();

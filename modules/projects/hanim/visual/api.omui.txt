@@ -48,9 +48,9 @@ namespace hanim::visual {
     std::string role, id;
     Rect allocation;
     Point anchor{…};
-    xrender::PartKind kind = xrender::PartKind::content;
-    std::vector<xrender::ReferenceWeight> lineage;
-    [[nodiscard]] xrender::PartFrame view(std::uint32_t owner) const;
+    mrender::PartKind kind = mrender::PartKind::content;
+    std::vector<mrender::ReferenceWeight> lineage;
+    [[nodiscard]] mrender::PartFrame view(std::uint32_t owner) const;
   };
   struct ClipEntry {
     int parent = -1;
@@ -79,9 +79,9 @@ namespace hanim::visual {
     Matter& operator=(Matter&&) noexcept = default;
     Matter(const Matter&) = delete;
     Matter& operator=(const Matter&) = delete;
-    [[nodiscard]] static Matter extract(const xrender::DisplayList& source, std::size_t begin, std::size_t end, const Resolver& resolver);
-    [[nodiscard]] static Matter extract(const xrender::DisplayList& source, const Resolver& resolver);
-    [[nodiscard]] const xrender::DisplayList& list() const noexcept;
+    [[nodiscard]] static Matter extract(const mrender::DisplayList& source, std::size_t begin, std::size_t end, const Resolver& resolver);
+    [[nodiscard]] static Matter extract(const mrender::DisplayList& source, const Resolver& resolver);
+    [[nodiscard]] const mrender::DisplayList& list() const noexcept;
     [[nodiscard]] std::span<const Piece> pieces() const noexcept;
     [[nodiscard]] std::span<const Frame> frames() const noexcept;
     [[nodiscard]] std::span<const Reference> references() const noexcept;
@@ -94,9 +94,9 @@ namespace hanim::visual {
     [[nodiscard]] Rect bounds() const noexcept;
     void follow_layout(Matter& target, std::span<const std::string> scopes = {…});
   };
-  [[nodiscard]] std::optional<std::size_t> wrapper_of(std::span<const xrender::Command> commands, std::size_t begin, std::size_t end);
-  [[nodiscard]] std::optional<PieceClass> class_of(const xrender::Command& c) noexcept;
-  [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const xrender::Command> commands, std::uint32_t marker, std::size_t from = 0);
+  [[nodiscard]] std::optional<std::size_t> wrapper_of(std::span<const mrender::Command> commands, std::size_t begin, std::size_t end);
+  [[nodiscard]] std::optional<PieceClass> class_of(const mrender::Command& c) noexcept;
+  [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const mrender::Command> commands, std::uint32_t marker, std::size_t from = 0);
 }
 == hanim.visual:morph
 namespace hanim::visual {
@@ -113,10 +113,10 @@ namespace hanim::visual {
   };
   enum class Order : std::uint8_t { together, document, distance, reverse };
   enum class TextTransition : std::uint8_t { glyphs, replace, automatic };
-  using GlyphBounds = std::function<std::optional<Rect>(const xrender::DrawGlyphs&, const Affine&)>;
-  [[nodiscard]] std::optional<Rect> glyph_ink_bounds(const xrender::DrawGlyphs& run, const Affine& transform, xrender::GlyphSource& source);
-  using GlyphOutline = std::function<std::optional<xrender::Path>(const xrender::DrawGlyphs&, std::size_t glyph)>;
-  [[nodiscard]] std::optional<xrender::Path> glyph_outline(const xrender::DrawGlyphs& run, std::size_t glyph, xrender::GlyphSource& source);
+  using GlyphBounds = std::function<std::optional<Rect>(const mrender::DrawGlyphs&, const Affine&)>;
+  [[nodiscard]] std::optional<Rect> glyph_ink_bounds(const mrender::DrawGlyphs& run, const Affine& transform, mrender::GlyphSource& source);
+  using GlyphOutline = std::function<std::optional<mrender::Path>(const mrender::DrawGlyphs&, std::size_t glyph)>;
+  [[nodiscard]] std::optional<mrender::Path> glyph_outline(const mrender::DrawGlyphs& run, std::size_t glyph, mrender::GlyphSource& source);
   struct Options {
     Curve curve;
     Order order = Order::together;
@@ -138,7 +138,7 @@ namespace hanim::visual {
     bool local_presence = false;
     float stretch = 0;
     struct Travel {
-      xrender::EffectRef effect;
+      mrender::EffectRef effect;
       std::vector<float> params;
       int param = -1;
       float peak = 0;
@@ -178,17 +178,17 @@ namespace hanim::visual {
     PathMorphIssue issue = PathMorphIssue::none;
     std::optional<hanim::ShapeMorphError> geometry_error;
     PathMaterialMode material_mode = PathMaterialMode::interpolated;
-    std::optional<xrender::PaintMixError> material_error;
+    std::optional<mrender::PaintMixError> material_error;
   };
-  using NestedDraw = std::function<void(std::uint32_t marker, xrender::DisplayList& out)>;
+  using NestedDraw = std::function<void(std::uint32_t marker, mrender::DisplayList& out)>;
   struct SnapshotContext {
-    std::span<const xrender::Command> prefix;
+    std::span<const mrender::Command> prefix;
   };
   class Morph {
     Morph(Matter from, Matter to, Options options, double start);
     Morph(Morph&&) noexcept = default;
     Morph& operator=(Morph&&) noexcept = default;
-    void draw(double t, xrender::DisplayList& out, const NestedDraw& nested = {…}, const xrender::PushLayer* live = nullptr) const;
+    void draw(double t, mrender::DisplayList& out, const NestedDraw& nested = {…}, const mrender::PushLayer* live = nullptr) const;
     [[nodiscard]] Matter snapshot(double t, const NestedDraw& nested = {…}) const;
     [[nodiscard]] Matter snapshot(double t, const NestedDraw& nested, const SnapshotContext& context) const;
     [[nodiscard]] double start() const noexcept;

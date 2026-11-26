@@ -6,7 +6,7 @@ export module omui.view;
 
 export import omui.core;
 export import mlibs.layout;
-export import xrender.vector;
+export import mrender.vector;
 export import mlibs.pipeline;
 export import mlibs.text;
 export import mlibs.i18n;

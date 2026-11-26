@@ -195,20 +195,20 @@
     },
     {
       "id": "B.pixels",
-      "project": "xrender",
+      "project": "mrender",
       "line": "build-reliably",
       "title": "为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图",
       "status": "evidence",
-      "scene": "modules/projects/xrender/vector/tests/vector/svg_test.cpp",
+      "scene": "modules/projects/mrender/vector/tests/vector/svg_test.cpp",
       "competitors": [
         "skia",
         "resvg"
       ],
-      "doc": "--- xrender ----------------------------------------------------------------"
+      "doc": "--- mrender ----------------------------------------------------------------"
     },
     {
-      "id": "xrender.same-source",
-      "project": "xrender",
+      "id": "mrender.same-source",
+      "project": "mrender",
       "line": "craft",
       "title": "CPU 与 GPU 同源：CPU 参考逐位，GPU 差 ≤ 1/255",
       "status": "evidence",
@@ -219,8 +219,8 @@
       ]
     },
     {
-      "id": "xrender.web-first",
-      "project": "xrender",
+      "id": "mrender.web-first",
+      "project": "mrender",
       "line": "craft",
       "title": "Web 优先：每次提交只跨一次 wasm 边界",
       "status": "planned",

@@ -1,6 +1,6 @@
 # meng/kernel
 
-The engine kernels below the interface (D-161): what the game layer, hanim and omui may all use. A package here depends on `mlibs`, on [xrender](../../xrender) where it draws or runs on a device, and on its neighbours here; never on [the game layer](../game), never on omui. The day the projects part, this directory is not in the game layer's repository.
+The engine kernels below the interface (D-161): what the game layer, hanim and omui may all use. A package here depends on `mlibs`, on [mrender](../../mrender) where it draws or runs on a device, and on its neighbours here; never on [the game layer](../game), never on omui. The day the projects part, this directory is not in the game layer's repository.
 
 | Kernel | Layer | |
 |---|---|---|

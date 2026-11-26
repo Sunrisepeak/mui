@@ -12,7 +12,7 @@ import omui.lang.ts;
 import hanim.timeline;
 import meng.audio.timeline;
 import meng.audio;
-import xrender.vector;
+import mrender.vector;
 import mlibs.image;
 import omui.host.headless;
 import omui.ui.base;
@@ -63,7 +63,7 @@ int automation(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream
     const auto wav=au::wav(pcm,mixer.rate(),true);
     const auto clock=mixer.clock(),begun=mixer.begun();
     constexpr int width=384,height=256,inside=352;
-    std::vector<xrender::raster::Surface> frames;frames.reserve(static_cast<std::size_t>(duration*fps+1));
+    std::vector<mrender::raster::Surface> frames;frames.reserve(static_cast<std::size_t>(duration*fps+1));
     Value::List observations;
     std::array<float,inside> curve{};
     float plot_max=1;
@@ -101,8 +101,8 @@ int automation(const mlibs::agent::Arguments& a, std::ostream& out, std::ostream
         frames.push_back(pixels);
     }
     if(mixer.clock()!=clock || mixer.begun()!=begun)return fail("visual inspection changed live audio");
-    const auto view=[](const xrender::raster::Surface& surface) {return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(surface.pixels().data()),surface.width(),surface.height(),surface.width()*4,mlibs::image::Alpha::premultiplied};};
-    xrender::raster::Surface sheet(4*width,2*height);
+    const auto view=[](const mrender::raster::Surface& surface) {return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(surface.pixels().data()),surface.width(),surface.height(),surface.width()*4,mlibs::image::Alpha::premultiplied};};
+    mrender::raster::Surface sheet(4*width,2*height);
     for(std::size_t k=0;k<8;++k) {
         const auto& frame=frames[(frames.size()-1)*k/7];
         for(int y=0;y<height;++y)std::copy_n(frame.row(y),width,sheet.row(static_cast<int>(k/4)*height+y)+static_cast<int>(k%4)*width);

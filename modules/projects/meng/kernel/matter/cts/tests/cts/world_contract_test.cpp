@@ -63,7 +63,7 @@ struct Cavern {
 };
 
 struct Shown {
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     ca::WorldPicture picture;
     Shown() : picture(*ca::WorldPicture::make(images, standard(), *matter::standard_look(standard()), {96, 56}, {.fill = "air", .seed = 9})) {
         picture.scenery({23, 46, 10, 4}, material("wood"));

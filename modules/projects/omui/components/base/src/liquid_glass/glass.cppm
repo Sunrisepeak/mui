@@ -12,7 +12,7 @@ export module omui.ui.liquid_glass:glass;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import :liquid_glass_contract;
 import :glass_group_contract;
 
@@ -40,7 +40,7 @@ public:
 
     // The members' shapes, in the group's coordinates (at most 8: the
     // effect's): each liquid_glass child's laid-out box and radius.
-    [[nodiscard]] std::vector<xrender::EffectShape> shapes() const;
+    [[nodiscard]] std::vector<mrender::EffectShape> shapes() const;
 };
 
 // Registers liquid_glass and glass_group by name, for view documents and

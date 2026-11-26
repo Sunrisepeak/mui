@@ -24,7 +24,7 @@ export module omui.view:glyphs;
 import std;
 import omui.core;
 import hanim.core;
-import xrender.vector;
+import mrender.vector;
 import :element;
 
 export namespace omui {
@@ -86,11 +86,11 @@ struct GlyphMotion {
 // paragraph); elements go in paragraph order, then reading order. Answers
 // when the motion ends (infinity when it repeats forever).
 struct GlyphFrame {
-    std::vector<std::vector<xrender::GlyphStyle>> styles;  // per command
+    std::vector<std::vector<mrender::GlyphStyle>> styles;  // per command
     hanim::seconds                                ends{0};
     bool                                         moving = false;
 };
-[[nodiscard]] GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<const std::span<const xrender::Glyph>> commands,
+[[nodiscard]] GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<const std::span<const mrender::Glyph>> commands,
                                      bool reduce_motion = false, std::span<const std::uint32_t> paragraphs = {});
 
 }  // namespace omui

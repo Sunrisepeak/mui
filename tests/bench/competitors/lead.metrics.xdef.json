@@ -92,7 +92,7 @@
     {
       "project": "hanim",
       "id": "playback.lottie-200.median_ms",
-      "about": "a Lottie animation of 200 rounded rectangles (move, turn, scale, fade on cubic-bezier eases), every frame sought and drawn on one CPU thread at 512²: hanim's engine and xrender against ThorVG playing the Lottie file (the same picture: 0.002 % of pixels apart); rlottie draws it differently (no turn or scale) and is not compared",
+      "about": "a Lottie animation of 200 rounded rectangles (move, turn, scale, fade on cubic-bezier eases), every frame sought and drawn on one CPU thread at 512²: hanim's engine and mrender against ThorVG playing the Lottie file (the same picture: 0.002 % of pixels apart); rlottie draws it differently (no turn or scale) and is not compared",
       "better": "lower",
       "key": "lottie-200",
       "field": "median_ms",
@@ -104,28 +104,28 @@
       "doc": "--- hanim: Lottie-like playback, native CPU ----------------------------------"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.fills-1000.median_ms",
       "about": "1000 translucent blobs of six cubics",
       "better": "lower",
       "key": "fills-1000",
       "field": "median_ms",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "skia",
         "resvg"
       ],
       "status": "measured",
-      "doc": "--- xrender: the CPU raster, five seeded scenes at 1024², one thread -------"
+      "doc": "--- mrender: the CPU raster, five seeded scenes at 1024², one thread -------"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.gradients-200.median_ms",
       "about": "200 blobs with two-stop linear gradients",
       "better": "lower",
       "key": "gradients-200",
       "field": "median_ms",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "skia",
         "resvg"
@@ -133,13 +133,13 @@
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.small-5000.median_ms",
       "about": "5000 opaque triangles of 2–8 px",
       "better": "lower",
       "key": "small-5000",
       "field": "median_ms",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "skia",
         "resvg"
@@ -147,13 +147,13 @@
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.strokes-500.median_ms",
       "about": "open cubics 1–12 px wide, round caps and joins",
       "better": "lower",
       "key": "strokes-500",
       "field": "median_ms",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "skia",
         "resvg"
@@ -161,13 +161,13 @@
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.joins-300.median_ms",
       "about": "polylines with sharp corners, every join and cap",
       "better": "lower",
       "key": "joins-300",
       "field": "median_ms",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "skia",
         "resvg"
@@ -175,78 +175,78 @@
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.fills-1000.error",
       "about": "quality: mean channel difference from Skia's picture (resvg's the competitor; Skia is the reference)",
       "better": "lower",
       "key": "fills-1000",
       "field": "error_vs_skia",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "resvg"
       ],
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.gradients-200.error",
       "about": "quality, as fills-1000.error",
       "better": "lower",
       "key": "gradients-200",
       "field": "error_vs_skia",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "resvg"
       ],
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.small-5000.error",
       "about": "quality, as fills-1000.error",
       "better": "lower",
       "key": "small-5000",
       "field": "error_vs_skia",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "resvg"
       ],
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.strokes-500.error",
       "about": "quality, as fills-1000.error",
       "better": "lower",
       "key": "strokes-500",
       "field": "error_vs_skia",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "resvg"
       ],
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.joins-300.error",
       "about": "quality, as fills-1000.error",
       "better": "lower",
       "key": "joins-300",
       "field": "error_vs_skia",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "resvg"
       ],
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.small-5000.exact_error",
       "about": "quality: mean channel difference from the picture itself (Skia's and resvg's drawings at 8×, box-filtered, averaged; vector.mjs prints how far the two are apart, and a scene where that exceeds the renderers' margin is not a metric: fills, gradients and joins)",
       "better": "lower",
       "key": "small-5000",
       "field": "error_vs_exact",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "resvg",
         "skia"
@@ -254,13 +254,13 @@
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.strokes-500.exact_error",
       "about": "quality, as small-5000.exact_error",
       "better": "lower",
       "key": "strokes-500",
       "field": "error_vs_exact",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "resvg",
         "skia"
@@ -268,44 +268,44 @@
       "status": "measured"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.cjk-5000.median_ms",
       "about": "5000 CJK glyphs",
       "better": "lower",
-      "ours": "xrender",
+      "ours": "mrender",
       "competitors": [
         "skia"
       ],
       "status": "planned"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.web.submit-5000.ms",
       "about": "5000 draws a frame from WebAssembly: boundary crossings and JavaScript time",
       "better": "lower",
-      "ours": "xrender-wasm",
+      "ours": "mrender-wasm",
       "competitors": [
         "canvaskit"
       ],
       "status": "planned"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "raster.wasm.bytes",
       "about": "the raster core as WebAssembly (gzip)",
       "better": "lower",
-      "ours": "xrender-wasm",
+      "ours": "mrender-wasm",
       "competitors": [
         "thorvg"
       ],
       "status": "planned"
     },
     {
-      "project": "xrender",
+      "project": "mrender",
       "id": "gpu.fills-1000.ms",
       "about": "the five scenes on a real GPU",
       "better": "lower",
-      "ours": "xrender-gpu",
+      "ours": "mrender-gpu",
       "competitors": [
         "vello",
         "graphite"

@@ -3,9 +3,9 @@
 import std;
 import omui.view;
 import hanim.visual;
-import xrender.raster;
+import mrender.raster;
 import mcpplibs.mtest;
-import xrender.text;
+import mrender.text;
 
 using namespace omui;
 using namespace mcpplibs::mtest;
@@ -24,11 +24,11 @@ PointerEvent pointer(PointerKind kind, Point point) {
 bool near(Rect a, Rect b, float tolerance = 0.02f) {
     return std::abs(a.x - b.x) <= tolerance && std::abs(a.y - b.y) <= tolerance && std::abs(a.width - b.width) <= tolerance && std::abs(a.height - b.height) <= tolerance;
 }
-bool pixels_equal(const xrender::raster::Surface& a, const xrender::raster::Surface& b) { return a.width() == b.width() && a.height() == b.height() && std::ranges::equal(a.pixels(), b.pixels()); }
+bool pixels_equal(const mrender::raster::Surface& a, const mrender::raster::Surface& b) { return a.width() == b.width() && a.height() == b.height() && std::ranges::equal(a.pixels(), b.pixels()); }
 struct Fixture {
     mlibs::text::FontCollection fonts;
     Runtime runtime{options(fonts)};
-    xrender::text::GlyphCache glyphs{fonts};
+    mrender::text::GlyphCache glyphs{fonts};
     Signal<float> x = signal(10.0f);
     int presses = 0;
     Point local{-1, -1};
@@ -46,7 +46,7 @@ struct Fixture {
     void move(double sample = 1.4) { x.set(140); frame(1); frame(sample); }
     void click(Point point, double time) { expect(runtime.frame({seconds(time), {pointer(PointerKind::move, point), pointer(PointerKind::down, point), pointer(PointerKind::up, point)}}).failure.empty()); }
     Rect ink() {
-        xrender::raster::Surface surface(260, 180); xrender::CpuRenderer renderer; xrender::CpuOptions opts; opts.object_ids = true;
+        mrender::raster::Surface surface(260, 180); mrender::CpuRenderer renderer; mrender::CpuOptions opts; opts.object_ids = true;
         const auto report = renderer.render(runtime.display_list(), surface, {&runtime.images(), &glyphs}, opts); expect(report.missing_glyphs == 0);
         const auto owners = renderer.object_ids();
         int left = 260, top = 180, right = -1, bottom = -1;
@@ -55,13 +55,13 @@ struct Fixture {
         return right < left ? Rect{} : Rect{static_cast<float>(left), static_cast<float>(top), static_cast<float>(right - left + 1), static_cast<float>(bottom - top + 1)};
     }
 };
-xrender::DisplayList drawing(bool frames, bool end) {
-    xrender::DisplayList list; list.begin_node(1);
+mrender::DisplayList drawing(bool frames, bool end) {
+    mrender::DisplayList list; list.begin_node(1);
     if (frames) list.node_frame(1, {0, 0, 180, 120});
     for (std::uint32_t i = 0; i < 3; ++i) {
         list.begin_node(i + 2); list.push_transform(Affine::translate(end ? 60.0f : static_cast<float>(i) * 45, end ? static_cast<float>(i) * 30 : 10));
         if (frames) list.node_frame(i + 2, {0, 0, end ? 30.0f : 20.0f, 20});
-        list.fill_round_rect({0, 0, end ? 30.0f : 20.0f, 20}, CornerRadii::all(4), xrender::Paint::solid(Color::hex(0xe11d48)));
+        list.fill_round_rect({0, 0, end ? 30.0f : 20.0f, 20}, CornerRadii::all(4), mrender::Paint::solid(Color::hex(0xe11d48)));
         list.pop_transform(); list.end_node();
     }
     list.end_node(); return list;
@@ -81,8 +81,8 @@ static UTest cases{"view.presentation_geometry", [] {
             mo::Morph plain(std::move(plain_a), std::move(plain_b), config, 0), meta(std::move(meta_a), std::move(meta_b), config, 0);
             expect(plain.end() == meta.end() && plain.stats().matched == meta.stats().matched && plain.stats().from_only == meta.stats().from_only && plain.stats().to_only == meta.stats().to_only) << "metadata contributes neither matching statistics nor independent stagger ranks";
             for (const double time : {0.0, 0.02, 0.07, 0.2, 0.49, 0.8, 1.2, 2.0}) {
-                xrender::DisplayList p, m; plain.draw(time, p); meta.draw(time, m); expect(p.balanced() && m.balanced());
-                xrender::raster::Surface ps(180, 120), ms(180, 120); xrender::CpuRenderer renderer;
+                mrender::DisplayList p, m; plain.draw(time, p); meta.draw(time, m); expect(p.balanced() && m.balanced());
+                mrender::raster::Surface ps(180, 120), ms(180, 120); mrender::CpuRenderer renderer;
                 (void)renderer.render(p, ps, {}, {}); (void)renderer.render(m, ms, {}, {});
                 expect(pixels_equal(ps, ms)) << "enabling NodeFrame metadata preserves every native pixel at the same sampled time";
             }
@@ -115,7 +115,7 @@ static UTest cases{"view.presentation_geometry", [] {
         expect(near(f.runtime.drawn_bounds(id), f.runtime.screen_bounds(id)) && !f.runtime.motion_time(id)) << "settling restores the target border without a stale presented box";
     };
     "real row reflow and independently moving nested roots retain their actual pointer geometry"_test = [] {
-        mlibs::text::FontCollection fonts; Runtime runtime(options(fonts)); xrender::text::GlyphCache glyphs(fonts);
+        mlibs::text::FontCollection fonts; Runtime runtime(options(fonts)); mrender::text::GlyphCache glyphs(fonts);
         auto room = signal(230.0f), inside = signal(0.0f); int pressed = 0;
         auto control = box({.id = "control", .width = 70, .height = 30, .background = "#e11d48", .on = {{"press", [&](const Value&) { ++pressed; }}}});
         control.prop("translate_x", Source(derive([inside] { return Value(static_cast<double>(inside.get())); }))).prop("motion", Source(Value("morph motion.normal")));
@@ -129,7 +129,7 @@ static UTest cases{"view.presentation_geometry", [] {
         const auto id = runtime.find("main/flow/card/control");
         const auto actual = runtime.drawn_bounds(id), target = runtime.screen_bounds(id);
         expect(!near(actual, target) && runtime.hit_test(actual.center()) == id) << "a nested root hit follows sampled reflow instead of the new row/column allocation";
-        xrender::raster::Surface pixels(260, 180); xrender::CpuRenderer renderer; xrender::CpuOptions opts; opts.object_ids = true;
+        mrender::raster::Surface pixels(260, 180); mrender::CpuRenderer renderer; mrender::CpuOptions opts; opts.object_ids = true;
         (void)renderer.render(runtime.display_list(), pixels, {&runtime.images(), &glyphs}, opts);
         const auto point = actual.center(); const auto owner = renderer.object_ids()[static_cast<std::size_t>(static_cast<int>(point.y)) * 260 + static_cast<int>(point.x)];
         expect(runtime.node_at_index(owner) == id) << "the sampled border's center really belongs to the painted nested control";

@@ -3,19 +3,19 @@ module omui.host.sdl3.gpu;
 import std;
 import mlibs.compose;
 import mlibs.rhi;
-import xrender.rhi.sdl;
-import xrender.frame;
-import xrender.vector;
-import xrender.effect;
+import mrender.rhi.sdl;
+import mrender.frame;
+import mrender.vector;
+import mrender.effect;
 import omui.host.sdl3;
 
 namespace omui::host::sdl3::gpu {
 
 namespace {
 
-xrender::rhi::sdl::Options options_of(const GpuDeviceOptions& asked) {
-    xrender::rhi::sdl::Options options;
-    options.formats = xrender::gpu_shader_formats();
+mrender::rhi::sdl::Options options_of(const GpuDeviceOptions& asked) {
+    mrender::rhi::sdl::Options options;
+    options.formats = mrender::gpu_shader_formats();
     options.vulkan_library = asked.vulkan_library;
     options.video_driver = asked.video_driver;
     options.window = asked.window;
@@ -25,62 +25,62 @@ xrender::rhi::sdl::Options options_of(const GpuDeviceOptions& asked) {
 }
 
 struct Making final : GpuMaking {
-    explicit Making(xrender::rhi::sdl::Making making) : making_(std::move(making)) {}
+    explicit Making(mrender::rhi::sdl::Making making) : making_(std::move(making)) {}
     mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> get() override { return making_.get(); }
-    xrender::rhi::sdl::Making making_;
+    mrender::rhi::sdl::Making making_;
 };
 
 struct Renderer final : GpuRenderer {
-    explicit Renderer(xrender::GpuFrame frame) : frame_(std::move(frame)) {}
-    mlibs::rhi::Result<void> render(std::span<const xrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width, std::uint32_t height,
-                                    const xrender::GpuFrameOptions& options) override {
+    explicit Renderer(mrender::GpuFrame frame) : frame_(std::move(frame)) {}
+    mlibs::rhi::Result<void> render(std::span<const mrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width, std::uint32_t height,
+                                    const mrender::GpuFrameOptions& options) override {
         auto rendered = frame_.render(layers, target, width, height, options);
         if (!rendered) return std::unexpected(rendered.error());
         return {};
     }
-    xrender::GpuFrame frame_;
+    mrender::GpuFrame frame_;
 };
 
 std::unique_ptr<GpuMaking> begin(const GpuDeviceOptions& asked) {
-    return std::make_unique<Making>(xrender::rhi::sdl::create_async(options_of(asked)));
+    return std::make_unique<Making>(mrender::rhi::sdl::create_async(options_of(asked)));
 }
 
-mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> create(const GpuDeviceOptions& asked) { return xrender::rhi::sdl::create(options_of(asked)); }
+mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> create(const GpuDeviceOptions& asked) { return mrender::rhi::sdl::create(options_of(asked)); }
 
-mlibs::rhi::Result<void> claim(mlibs::rhi::Device& device, std::uint32_t window, bool vsync) { return xrender::rhi::sdl::claim(device, window, vsync); }
+mlibs::rhi::Result<void> claim(mlibs::rhi::Device& device, std::uint32_t window, bool vsync) { return mrender::rhi::sdl::claim(device, window, vsync); }
 
 mlibs::rhi::Result<std::unique_ptr<GpuRenderer>> renderer(mlibs::rhi::Device& device) {
-    auto frame = xrender::GpuFrame::create(device);
+    auto frame = mrender::GpuFrame::create(device);
     if (!frame) return std::unexpected(frame.error());
     return std::unique_ptr<GpuRenderer>(std::make_unique<Renderer>(std::move(*frame)));
 }
 
 struct Effects final : GpuEffects {
-    explicit Effects(xrender::effect::Options options) : library_(std::move(options)) {}
-    xrender::effect::Library& library() noexcept override { return library_; }
+    explicit Effects(mrender::effect::Options options) : library_(std::move(options)) {}
+    mrender::effect::Library& library() noexcept override { return library_; }
     std::vector<std::string> load(const std::filesystem::path& directory) override {
         std::vector<std::string> problems;
         if (auto loaded = library_.load_directory(directory); !loaded)
-            for (const xrender::effect::Diagnostic& problem : loaded.error()) problems.push_back(std::format("effect: {}", problem.text()));
+            for (const mrender::effect::Diagnostic& problem : loaded.error()) problems.push_back(std::format("effect: {}", problem.text()));
         return problems;
     }
     Reloaded reload() override {
         Reloaded out;
-        for (const xrender::effect::Reload& one : library_.poll()) {
+        for (const mrender::effect::Reload& one : library_.poll()) {
             if (one.ok()) {
                 out.reloaded.push_back(std::format("effect {} reloaded in {} ms", one.name, static_cast<double>(one.took.count()) / 1000.0));
             } else {
-                for (const xrender::effect::Diagnostic& problem : one.problems) out.problems.push_back(std::format("effect {}: {}", one.name, problem.text()));
+                for (const mrender::effect::Diagnostic& problem : one.problems) out.problems.push_back(std::format("effect {}: {}", one.name, problem.text()));
             }
         }
         return out;
     }
-    xrender::effect::Library library_;
+    mrender::effect::Library library_;
 };
 
 std::unique_ptr<GpuEffects> effects(const mlibs::rhi::Device* device, std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> data) {
     return std::make_unique<Effects>(
-        xrender::effect::Options{.formats = device ? device->caps().formats : xrender::gpu_shader_formats(), .data = std::move(data)});
+        mrender::effect::Options{.formats = device ? device->caps().formats : mrender::gpu_shader_formats(), .data = std::move(data)});
 }
 
 }  // namespace

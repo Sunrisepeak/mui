@@ -52,10 +52,10 @@ void Arena::mount(omui::Services& services, omui::NodeId node) {
     services_ = &services, node_ = node;
     view_.mount(services, node);
     game_.emplace(start(options().seed), meng::runtime::Options{.stepping = meng::runtime::Stepping::owner, .seat = meng::runtime::Seat::owner, .keep = 600, .record = true});
-    frame_ = xrender::raster::Surface(static_cast<int>(arena_width) * scale, static_cast<int>(arena_height) * scale);
+    frame_ = mrender::raster::Surface(static_cast<int>(arena_width) * scale, static_cast<int>(arena_height) * scale);
     view_.show({.label = "the arena",
                 .subject = &*game_,
-                .pixels = [this]() -> std::optional<xrender::raster::ImageView> { return frame_.view(); },
+                .pixels = [this]() -> std::optional<mrender::raster::ImageView> { return frame_.view(); },
                 .width = static_cast<float>(frame_.width()),
                 .height = static_cast<float>(frame_.height()),
                 .pixels_stay = true});

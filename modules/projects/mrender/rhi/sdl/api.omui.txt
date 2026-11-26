@@ -1,0 +1,35 @@
+== mrender.rhi.sdl
+export import mrender.rhi.sdl.api;
+== mrender.rhi.sdl.api
+namespace mrender::rhi::sdl {
+  struct Options {
+    ShaderFormats formats = mlibs::rhi::formats({…});
+    std::optional<Backend> backend;
+    bool debug = false;
+    bool prefer_low_power = false;
+    std::string vulkan_library;
+    std::string video_driver;
+    std::uint32_t window = 0;
+    bool vsync = true;
+    bool hardware_only = false;
+  };
+  struct VulkanDriverChoice {
+    std::string variable, globs;
+  };
+  [[nodiscard]] VulkanDriverChoice vulkan_driver_choice(std::span<const std::uint32_t> pci_vendors);
+  [[nodiscard]] std::vector<std::uint32_t> display_vendors();
+  [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {…});
+  class Making {
+    Making() = default;
+    Making(Making&&) noexcept;
+    Making& operator=(Making&&) noexcept;
+    ~Making();
+    [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] Result<std::unique_ptr<Device>> get();
+  };
+  [[nodiscard]] Making create_async(const Options& options = {…});
+  [[nodiscard]] Result<void> claim(Device& device, std::uint32_t window, bool vsync = true);
+  [[nodiscard]] Options environment_options(Options base = {…});
+  [[nodiscard]] bool device_required();
+  [[nodiscard]] std::vector<Backend> backends();
+}

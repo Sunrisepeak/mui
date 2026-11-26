@@ -4,7 +4,7 @@ module omui.ui.canvas.kit;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import omui.ui.canvas;
 import :parts;
 
@@ -83,7 +83,7 @@ public:
         return false;
     }
 
-    void paint_over(Host& h, xrender::DisplayList& list) override {
+    void paint_over(Host& h, mrender::DisplayList& list) override {
         const Color c = accent(h);
         Scene& s = h.scene();
         const WorldRect view = h.camera().visible(h.viewport());
@@ -93,12 +93,12 @@ public:
             if (!n || !s.rect(*n).overlaps(view)) continue;
             const Rect r = grow(screen_of(h, s.rect(*n)), 2);
             const float radius = static_cast<float>(s.radius(*n) * zoom) + 2;
-            list.stroke_round_rect(r, CornerRadii::all(radius), 2, xrender::Paint::solid(c));
+            list.stroke_round_rect(r, CornerRadii::all(radius), 2, mrender::Paint::solid(c));
         }
         if (active_) {
             const Rect m = marquee(h);
             list.fill_rect(m, c.with_alpha(0.12f));
-            list.stroke_round_rect(m, {}, 1, xrender::Paint::solid(c.with_alpha(0.8f)));
+            list.stroke_round_rect(m, {}, 1, mrender::Paint::solid(c.with_alpha(0.8f)));
         }
     }
 

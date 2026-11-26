@@ -35,7 +35,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mlibs.text.fonts = { path = "../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
-xrender.text = { path = "../../modules/projects/xrender/text" }
+mrender.text = { path = "../../modules/projects/mrender/text" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk                         = { path = "../../modules/projects/omui/sdk" }

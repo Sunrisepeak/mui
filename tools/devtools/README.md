@@ -54,11 +54,11 @@ omui-devtools check atspi                                         # CI's Linux x
 
 ## api
 
-A package's exported surface as text: the declarations its module interface units export, a class's public members, re-exported modules; bodies, initialisers and raw strings left out, one declaration a line. Committed beside a stable package as `api.omui.txt` (release plan §2.1: its API is v1), a change to the surface is a change to that file in the same commit; the tool's test holds every committed file to its package. It reads text, not the compiler's model. xrender's 2D packages (raster, vector, text, graph, frame, effect) hold theirs.
+A package's exported surface as text: the declarations its module interface units export, a class's public members, re-exported modules; bodies, initialisers and raw strings left out, one declaration a line. Committed beside a stable package as `api.omui.txt` (release plan §2.1: its API is v1), a change to the surface is a change to that file in the same commit; the tool's test holds every committed file to its package. It reads text, not the compiler's model. mrender's 2D packages (raster, vector, text, graph, frame, effect) hold theirs.
 
 ```sh
-omui-devtools api -p modules/projects/xrender/vector            # print
-omui-devtools api -p modules/projects/xrender/vector --write    # after a change meant to be one
+omui-devtools api -p modules/projects/mrender/vector            # print
+omui-devtools api -p modules/projects/mrender/vector --write    # after a change meant to be one
 ```
 
 ## split
@@ -132,8 +132,8 @@ A GPU for the device tests, with `OMUI_REQUIRE_GPU=1` so that a missing device f
 
 ```text
 omui-devtools gpu                                          # CI's rows: lavapipe or Metal, into $GITHUB_ENV
-omui-devtools gpu -- mcpp test -p xrender.rhi.sdl          # CI's device on this machine
-omui-devtools gpu --real -- mcpp test -p xrender.rhi.sdl   # this machine's GPU
+omui-devtools gpu -- mcpp test -p mrender.rhi.sdl          # CI's device on this machine
+omui-devtools gpu --real -- mcpp test -p mrender.rhi.sdl   # this machine's GPU
 ```
 
 ## site

@@ -41,7 +41,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.text.fonts = { path = "../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 mcpplibs.cmdline = "0.0.3"
-xrender.text = { path = "../../modules/projects/xrender/text" }
+mrender.text = { path = "../../modules/projects/mrender/text" }
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk           = { path = "../../modules/projects/omui/sdk" }
 omui.ui.canvas     = { path = "../../modules/projects/omui/components/canvas" }

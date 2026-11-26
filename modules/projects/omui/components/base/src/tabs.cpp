@@ -88,23 +88,23 @@ void Tabs::paint(PaintContext& ctx) const {
     if (props.variant != TabsVariant::bar) return;
     const Theme& th = ctx.theme;
     ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(ctx.size.height / 2),
-                             xrender::Paint::solid(th.color("bar", th.color("surface_variant"))));
+                             mrender::Paint::solid(th.color("bar", th.color("surface_variant"))));
     if (!current()) return;
     const Rect l = lens(ctx.size);
-    ctx.list.fill_round_rect(l, CornerRadii::all(l.height / 2), xrender::Paint::solid(th.color("tab_lens", th.color("accent_subtle"))));
+    ctx.list.fill_round_rect(l, CornerRadii::all(l.height / 2), mrender::Paint::solid(th.color("tab_lens", th.color("accent_subtle"))));
 }
 
 void Tabs::paint_over(PaintContext& ctx) const {
     if (props.variant == TabsVariant::bar) return;
     const Theme& th = ctx.theme;
-    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"), xrender::PixelAlign::device);
+    ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"), mrender::PixelAlign::device);
     if (!current()) return;
     const Rect u = under();
     ctx.list.fill_round_rect({u.x, ctx.size.height - indicator_h, u.width, indicator_h},
-                             CornerRadii::all(indicator_h / 2), xrender::Paint::solid(th.color("accent")));
+                             CornerRadii::all(indicator_h / 2), mrender::Paint::solid(th.color("accent")));
 }
 
-std::size_t Tabs::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
+std::size_t Tabs::effect_shapes(Size size, Rect, std::span<mrender::EffectShape> out) const {
     if (props.variant != TabsVariant::bar || out.size() < 2) return 0;
     out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(size.height / 2)};
     if (!current()) return 1;
@@ -157,10 +157,10 @@ void Tab::paint(PaintContext& ctx) const {
     // theme's pressed surface, the selected one too — the press answers the finger before the indicator moves.
     const Rect place{0, 4, ctx.size.width, ctx.size.height - 8};
     if (!off && ctx.state.pressed)
-        ctx.list.fill_round_rect(place, CornerRadii::all(th.corner("small", 4)), xrender::Paint::solid(th.color("surface_pressed")));
+        ctx.list.fill_round_rect(place, CornerRadii::all(th.corner("small", 4)), mrender::Paint::solid(th.color("surface_pressed")));
     else if (const Color hover = th.color("surface_variant"); h > 0)
         ctx.list.fill_round_rect(place, CornerRadii::all(th.corner("small", 4)),
-                                 xrender::Paint::solid(hover.with_alpha(hover.a * h * (selected() ? 0.0f : 1.0f))));
+                                 mrender::Paint::solid(hover.with_alpha(hover.a * h * (selected() ? 0.0f : 1.0f))));
     const Color c = off ? th.color("text_disabled") : selected() ? th.color("accent") : mix(th.color("text_muted"), th.color("text"), h);
     const Size t = label_.measure(ctx.services, c);
     label_.paint(ctx, {ctx.content.x + (ctx.content.width - t.width) / 2, ctx.content.y + (ctx.content.height - t.height) / 2}, c);

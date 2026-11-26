@@ -17,7 +17,7 @@ using namespace omui;
 
 namespace {
 
-std::uint64_t hash_of(const xrender::raster::Surface& pixels) {
+std::uint64_t hash_of(const mrender::raster::Surface& pixels) {
     Hash hash;
     for (int y = 0; y < pixels.height(); ++y) hash.bytes(std::as_bytes(std::span(pixels.row(y), static_cast<std::size_t>(pixels.width()))));
     return hash.value();
@@ -44,7 +44,7 @@ static UTest cases{"ui.base.platform_styles", [] {
         expect(fatal(themes::add_styles().has_value()));
         mlibs::text::FontCollection own;
         expect(own.add_defaults().has_value());
-        std::vector<xrender::raster::Surface> pictures;
+        std::vector<mrender::raster::Surface> pictures;
         std::vector<std::string> trees;
         for (const std::string_view pack : {"fluent", "cupertino", "material"}) {
             HeadlessOptions made;

@@ -78,11 +78,11 @@ std::string bytes_of(const fs::path& file) { return mcpplibs::os::fs::read(file)
 
 int tools_e2e(const fs::path& root, const std::vector<std::string>& profile_args) {
     // The products' commands as an Agent uses them (convergence plan §10.3): each operation of a catalogue through its
-    // real command line — hanim's animation tool, xrender's command (the GPU ones on the row's device: lavapipe or
+    // real command line — hanim's animation tool, mrender's command (the GPU ones on the row's device: lavapipe or
     // Metal, as omui-devtools gpu sets) and the timeline's (timelines edited and taken back to the very bytes).
-    std::vector<std::string> args{"-p", "hanim.studio", "-p", "xrender.tool", "-p", "hanim.timeline.tool", "-p", "mlibs.xdef.tool"};
+    std::vector<std::string> args{"-p", "hanim.studio", "-p", "mrender.tool", "-p", "hanim.timeline.tool", "-p", "mlibs.xdef.tool"};
     args.insert(args.end(), profile_args.begin(), profile_args.end());
-    const auto built = programs(root, std::move(args), {"hanim", "xrender", "hanim-timeline", "xdef"});
+    const auto built = programs(root, std::move(args), {"hanim", "mrender", "hanim-timeline", "xdef"});
     if (!built) return failed(built.error());
     const auto& bin = *built;
     const fs::path dir = scratch("omui-tools-e2e");
@@ -107,15 +107,15 @@ int tools_e2e(const fs::path& root, const std::vector<std::string>& profile_args
     expect.status(1, hanim, {"render"}) && expect.has(R"("code":"not-found")") && expect.has(R"("operation":"document.render")");
     expect.status(2, hanim, {"--file", document});
 
-    const std::string effects = "modules/projects/xrender/effect/tests/data", xrender = bin.at("xrender");
-    expect.status(0, xrender, {"device.describe"});
-    expect.status(0, xrender, {"effect.check", "--files", effects + "/scanlines.effect.xdef.json"}) && expect.has(R"("name":"strength")");
-    expect.status(1, xrender, {"effect.check", "--files", effects + "/greedy.effect.xdef.json"}) && expect.has("binds resources of its own");
-    expect.status(0, xrender, {"effect.preview", "--file", effects + "/scanlines.effect.xdef.json", "--out", at("scan.png"), "--param", "strength=0.7"}) &&
+    const std::string effects = "modules/projects/mrender/effect/tests/data", mrender = bin.at("mrender");
+    expect.status(0, mrender, {"device.describe"});
+    expect.status(0, mrender, {"effect.check", "--files", effects + "/scanlines.effect.xdef.json"}) && expect.has(R"("name":"strength")");
+    expect.status(1, mrender, {"effect.check", "--files", effects + "/greedy.effect.xdef.json"}) && expect.has("binds resources of its own");
+    expect.status(0, mrender, {"effect.preview", "--file", effects + "/scanlines.effect.xdef.json", "--out", at("scan.png"), "--param", "strength=0.7"}) &&
         expect.holds(fs::exists(dir / "scan.png") && fs::file_size(dir / "scan.png") > 0, "the preview was written");
-    expect.status(0, xrender, {"conformance.run", "--report", at("render.cts.xdef.json")}) && expect.has(R"("failed":\[\])");
-    expect.status(1, xrender, {"frobnicate"}) && expect.has(R"("code":"not-found")");
-    expect.status(2, xrender, {"--report", "x"});
+    expect.status(0, mrender, {"conformance.run", "--report", at("render.cts.xdef.json")}) && expect.has(R"("failed":\[\])");
+    expect.status(1, mrender, {"frobnicate"}) && expect.has(R"("code":"not-found")");
+    expect.status(2, mrender, {"--report", "x"});
 
     const fs::path timeline = dir / "short.timeline.xdef.json";
     const std::string tl = bin.at("hanim-timeline"), file = mcpplibs::os::fs::utf8(timeline);

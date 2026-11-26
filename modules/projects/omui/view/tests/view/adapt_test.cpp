@@ -30,9 +30,9 @@ RuntimeOptions options() {
 
 // Whether the frame's list draws a layer with the named effect.
 bool draws(Runtime& rt, std::string_view effect) {
-    const auto ref = xrender::effects().find(effect);
+    const auto ref = mrender::effects().find(effect);
     for (const auto& c : rt.display_list().commands())
-        if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) return true;
+        if (const auto* l = std::get_if<mrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) return true;
     return false;
 }
 
@@ -69,9 +69,9 @@ static UTest cases{"view.adapt", [] {
         // Nested: neon's layer outside noise's.
         int neon_at = -1, noise_at = -1, i = 0;
         for (const auto& c : rt.display_list().commands()) {
-            if (const auto* l = std::get_if<xrender::PushLayer>(&c)) {
-                if (l->effect.id == xrender::effects().find("neon")->id) neon_at = i;
-                if (l->effect.id == xrender::effects().find("noise")->id) noise_at = i;
+            if (const auto* l = std::get_if<mrender::PushLayer>(&c)) {
+                if (l->effect.id == mrender::effects().find("neon")->id) neon_at = i;
+                if (l->effect.id == mrender::effects().find("noise")->id) noise_at = i;
             }
             ++i;
         }

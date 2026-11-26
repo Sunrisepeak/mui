@@ -399,11 +399,11 @@ std::span<const Closure> repository_closures() {
     // `only`: nothing else may be reached; `never`: none of these (a name, or a name and the packages below it).
     static const std::vector<Closure> table{
         // the render graph: devices, handles and the small tools, nothing more
-        {"xrender.graph", {"xrender.graph", "mlibs.rhi", "mlibs.memory", "mlibs.utils"}, {}},
+        {"mrender.graph", {"mrender.graph", "mlibs.rhi", "mlibs.memory", "mlibs.utils"}, {}},
         // drawing vectors needs no effect loader and no shader compiler
-        {"xrender.vector", {}, {"xrender.effect", "mlibs.shader"}},
-        // text lays out and gives glyphs as geometry; xrender.text draws them
-        {"mlibs.text", {}, {"xrender"}},
+        {"mrender.vector", {}, {"mrender.effect", "mlibs.shader"}},
+        // text lays out and gives glyphs as geometry; mrender.text draws them
+        {"mlibs.text", {}, {"mrender"}},
         // the stepping substrate: the standard library and the small tools only, no solver (D-133)
         {"mlibs.simulation", {"mlibs.simulation", "mlibs.utils"}, {}},
         // the solver core (D-133, D-231): the small tools alone — no UI, game, renderer, GPU, agent kernel or table; what
@@ -412,35 +412,35 @@ std::span<const Closure> repository_closures() {
         // the engine's solved simulation: no UI, game, renderer, GPU or compiler (D-133); taken alone, no agent kernel
         // either — a body or a field as an agent's subject is their feature `agent`, so what the engine's kernels that take
         // a family link stays small; what a body is made of (meng.matter's table) is a feature too
-        {"meng.dynamics", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "xrender", "mlibs.rhi", "mlibs.shader",
+        {"meng.dynamics", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "mrender", "mlibs.rhi", "mlibs.shader",
                                   "meng.cellular", "mlibs.agent", "mlibs.json", "mlibs.control", "meng.matter"}},
-        {"meng.cellular", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "xrender", "mlibs.rhi", "mlibs.shader",
+        {"meng.cellular", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "mrender", "mlibs.rhi", "mlibs.shader",
                                   "mlibs.agent", "mlibs.json", "mlibs.control", "meng.matter"}},
         // hanim by default is its engine: control and the stage as an agent's subject are features a consumer asks for
-        {"sunrisepeak.hanim", {}, {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "xrender", "meng.matter", "meng.cellular"}},
-        // skeletal animation by default is its channels, ACL and the player: glTF (xrender.asset) and the subject are features
-        {"hanim.skeleton", {}, {"omui", "xrender", "mlibs.agent", "mlibs.json", "mlibs.control", "meng"}},
-        {"meng.cellular.rhi", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "xrender"}},
+        {"sunrisepeak.hanim", {}, {"omui", "mlibs.agent", "mlibs.json", "mlibs.control", "mrender", "meng.matter", "meng.cellular"}},
+        // skeletal animation by default is its channels, ACL and the player: glTF (mrender.asset) and the subject are features
+        {"hanim.skeleton", {}, {"omui", "mrender", "mlibs.agent", "mlibs.json", "mlibs.control", "meng"}},
+        {"meng.cellular.rhi", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "mrender"}},
         // the field on screen: the renderer's resources (and what they reach), no UI, game, animation, effect loader or shader compiler
         {"meng.cellular.present", {}, {"omui", "meng.world", "meng.input", "meng.net", "meng.ui", "meng.runtime", "hanim", "sunrisepeak.hanim", "mlibs.shader",
-                                          "xrender.effect"}},
+                                          "mrender.effect"}},
         // the agent kernel: below every engine, knowing none of them (D-173)
-        {"mlibs.agent", {}, {"omui", "meng", "hanim", "sunrisepeak.hanim", "xrender", "gongfu"}},
+        {"mlibs.agent", {}, {"omui", "meng", "hanim", "sunrisepeak.hanim", "mrender", "gongfu"}},
         // a game on its own: no interface, no bridge to one (D-162)
         {"meng.runtime", {}, {"omui", "meng.ui"}},
         // the frame's entry: the renderer and the agent kernel, no interface, game or animation (D-162)
-        {"xrender.frame", {}, {"omui", "meng", "hanim", "sunrisepeak.hanim"}},
+        {"mrender.frame", {}, {"omui", "meng", "hanim", "sunrisepeak.hanim"}},
         // three dimensions (M6.3): geometry, numbers and the device's interface — no interface, animation, display list or shader compiler
-        {"xrender.scene", {"xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
-        {"xrender.mesh", {"xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
-        {"xrender.mesh.gpu", {"xrender.mesh.gpu", "xrender.mesh", "xrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils", "mlibs.rhi", "mlibs.memory"}, {}},
+        {"mrender.scene", {"mrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
+        {"mrender.mesh", {"mrender.mesh", "mrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils"}, {}},
+        {"mrender.mesh.gpu", {"mrender.mesh.gpu", "mrender.mesh", "mrender.scene", "mlibs.geom", "mlibs.math", "mlibs.utils", "mlibs.rhi", "mlibs.memory"}, {}},
         // … and an application that draws in two dimensions links none of it (a world is shown as a picture its owner drew: meng.ui)
-        {"omui.sdk", {}, {"xrender.mesh", "xrender.scene"}},
-        {"omui.host.sdl3", {}, {"xrender.mesh", "xrender.scene"}},
-        {"omui.host.web", {}, {"xrender.mesh", "xrender.scene"}},
-        {"omui.host.headless", {}, {"xrender.mesh", "xrender.scene"}},
-        {"omui.site", {}, {"xrender.mesh", "xrender.scene"}},
-        {"meng.ui", {}, {"xrender.mesh", "xrender.scene"}},
+        {"omui.sdk", {}, {"mrender.mesh", "mrender.scene"}},
+        {"omui.host.sdl3", {}, {"mrender.mesh", "mrender.scene"}},
+        {"omui.host.web", {}, {"mrender.mesh", "mrender.scene"}},
+        {"omui.host.headless", {}, {"mrender.mesh", "mrender.scene"}},
+        {"omui.site", {}, {"mrender.mesh", "mrender.scene"}},
+        {"meng.ui", {}, {"mrender.mesh", "mrender.scene"}},
         // the breakout on its own: its simulation and the runtime, nothing of omui's interface
         {"omui.showcase.widget_breakout.headless", {}, {"omui.core", "omui.view", "omui.semantic", "omui.agent", "omui.viewdoc", "omui.player",
                                                         "omui.designer", "omui.sdk", "omui.host", "omui.ui", "omui.theme", "omui.lang", "meng.ui"}},

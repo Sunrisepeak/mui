@@ -32,7 +32,7 @@ omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
 meng.ui       = { path = "../../../modules/projects/meng/game/ui" }
 meng.input    = { path = "../../../modules/projects/meng/game/input" }
 meng.audio.device = { path = "../../../modules/projects/meng/kernel/audio/device" }
-xrender.raster   = { path = "../../../modules/projects/xrender/raster" }
+mrender.raster   = { path = "../../../modules/projects/mrender/raster" }
 mlibs.rhi        = { path = "../../../modules/gfx/rhi" }
 mcpplibs.cmdline = "0.0.3"
 mcpplibs.os      = "0.4.4"

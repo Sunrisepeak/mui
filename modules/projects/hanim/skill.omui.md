@@ -11,7 +11,7 @@ How an Agent (or a person at a terminal) does animation work with hanim without 
 
 1. **Prepare first** (`animation.prepare`, a read): the plan's tracks, segments, channels and duration come back before anything moves. Check the duration and the channels you meant.
 2. **Play** (`animation.play`): you get a playback. Note its id; everything after names it.
-3. **Look at the whole course, not its ends**: `animation.seek` (or `animation.seek-progress`) to the start, several middles and the end, reading `animation.inspect` and drawing each with the shared renderer (hanim.render.vector into xrender's CPU raster) — a motion is judged by its intermediate frames. Seeking is exact and repeatable: the same time, the same frame.
+3. **Look at the whole course, not its ends**: `animation.seek` (or `animation.seek-progress`) to the start, several middles and the end, reading `animation.inspect` and drawing each with the shared renderer (hanim.render.vector into mrender's CPU raster) — a motion is judged by its intermediate frames. Seeking is exact and repeatable: the same time, the same frame.
 4. **Steer** with `animation.pause` / `resume` / `reverse` / `rate`; each says its undo.
 5. **Finish**: `animation.cancel` (with `restore` to put the objects back) or `animation.release` when the playback is no longer needed. Both are irreversible.
 
@@ -33,4 +33,4 @@ The command's operations are [hanim.studio's catalog](studio/studio.ops.xdef.ts)
 
 ## Not here
 
-Authoring in code (writing a Program) is hanim's C++/script API; documents cover shapes and the common steps. Rendering is xrender's. Permission is the person's (mlibs.control and openas).
+Authoring in code (writing a Program) is hanim's C++/script API; documents cover shapes and the common steps. Rendering is mrender's. Permission is the person's (mlibs.control and openas).

@@ -20,8 +20,8 @@ bool primary(const PointerEvent& p) { return p.type != PointerType::mouse || p.b
 spec::Rect in_window(const Rect& node, const Rect& part) { return {node.x + part.x, node.y + part.y, part.width, part.height}; }
 
 // A five-pointed star filling `box`.
-xrender::Path star_path(const Rect& box) {
-    xrender::Path path;
+mrender::Path star_path(const Rect& box) {
+    mrender::Path path;
     const Point centre{box.x + box.width / 2, box.y + box.height * 0.53f};
     const float outer = box.width / 2, inner = outer * 0.42f;
     constexpr double pi = 3.14159265358979323846;
@@ -58,13 +58,13 @@ void Rating::paint(PaintContext& ctx) const {
     const Color filled = ctx.theme.color("rating", Color::hex(0xf59e0b)), empty = ctx.theme.color("border");
     for (std::int64_t index = 0; index < props.max; ++index) {
         const Rect box{static_cast<float>(index) * (star + star_gap), 0, star, star};
-        const xrender::Path shape = star_path(box);
-        ctx.list.fill_path(shape, xrender::FillRule::nonzero, xrender::Paint::solid(off ? empty.with_alpha(0.5f) : empty));
+        const mrender::Path shape = star_path(box);
+        ctx.list.fill_path(shape, mrender::FillRule::nonzero, mrender::Paint::solid(off ? empty.with_alpha(0.5f) : empty));
         const double part = std::clamp(shown - static_cast<double>(index), 0.0, 1.0);
         if (part <= 0) continue;
         // Filled as far as the value goes (half a star: its left half), lighter while only shown.
         ctx.list.push_clip(Rect{box.x, box.y, box.width * static_cast<float>(part), box.height});
-        ctx.list.fill_path(shape, xrender::FillRule::nonzero, xrender::Paint::solid(preview_ ? filled.with_alpha(0.6f) : filled));
+        ctx.list.fill_path(shape, mrender::FillRule::nonzero, mrender::Paint::solid(preview_ ? filled.with_alpha(0.6f) : filled));
         ctx.list.pop_clip();
     }
     if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, {-3, -3, ctx.size.width + 6, ctx.size.height + 6}, CornerRadii::all(6));
@@ -164,9 +164,9 @@ void OtpInput::paint(PaintContext& ctx) const {
         const Rect cell{static_cast<float>(index) * (cell_w + cell_gap), 0, cell_w, cell_h};
         const CornerRadii corners = CornerRadii::all(theme.corner("medium", 8));
         const bool current = typing && index == at;
-        ctx.list.fill_round_rect(cell, corners, xrender::Paint::solid(theme.color(off ? "surface_variant" : "surface")));
+        ctx.list.fill_round_rect(cell, corners, mrender::Paint::solid(theme.color(off ? "surface_variant" : "surface")));
         ctx.list.stroke_round_rect({cell.x + 0.5f, cell.y + 0.5f, cell.width - 1, cell.height - 1}, corners, current ? 2.0f : 1.0f,
-                                   xrender::Paint::solid(theme.color(current ? "accent" : "border")), xrender::PixelAlign::device);
+                                   mrender::Paint::solid(theme.color(current ? "accent" : "border")), mrender::PixelAlign::device);
         const Color ink = theme.color(off ? "text_muted" : "text");
         if (const Size text = cells_[index].measure(ctx.services, ink); !cells_[index].text().empty())
             cells_[index].paint(ctx, {cell.x + (cell.width - text.width) / 2, (cell.height - text.height) / 2}, ink);
@@ -345,28 +345,28 @@ void SearchBox::paint(PaintContext& ctx) const {
     const Theme& theme = ctx.theme;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii corners = CornerRadii::all(ctx.size.height / 2);
-    ctx.list.fill_round_rect(box, corners, xrender::Paint::solid(theme.color("surface_variant")));
+    ctx.list.fill_round_rect(box, corners, mrender::Paint::solid(theme.color("surface_variant")));
     // Its field focused: the pill's edge in the accent, as a text box's is.
     const auto children = services().children(node());
     if (!children.empty() && services().state(children.front()).focused)
-        ctx.list.stroke_round_rect({0.75f, 0.75f, box.width - 1.5f, box.height - 1.5f}, corners, 1.5f, xrender::Paint::solid(theme.color("accent")));
+        ctx.list.stroke_round_rect({0.75f, 0.75f, box.width - 1.5f, box.height - 1.5f}, corners, 1.5f, mrender::Paint::solid(theme.color("accent")));
     // The magnifier: a ring and its handle.
     const Color muted = theme.color("text_muted");
     const Point centre{search_icon / 2 + 1, ctx.size.height / 2 - 1};
-    xrender::Path lens;
+    mrender::Path lens;
     lens.add_circle(centre, 5.5f);
-    ctx.list.stroke_path(lens, {.width = 1.75f}, xrender::Paint::solid(muted));
-    xrender::Path handle;
+    ctx.list.stroke_path(lens, {.width = 1.75f}, mrender::Paint::solid(muted));
+    mrender::Path handle;
     handle.move_to({centre.x + 4, centre.y + 4}).line_to({centre.x + 8, centre.y + 8});
-    ctx.list.stroke_path(handle, {.width = 1.75f, .cap = xrender::LineCap::round}, xrender::Paint::solid(muted));
+    ctx.list.stroke_path(handle, {.width = 1.75f, .cap = mrender::LineCap::round}, mrender::Paint::solid(muted));
     // While it holds words: the × that clears them.
     if (!props.value.empty() && !props.disabled) {
         const Rect clear = clear_box(ctx.size);
         const Point mid{clear.x + clear.width / 2, clear.y + clear.height / 2};
         constexpr float arm = 4;
-        xrender::Path cross;
+        mrender::Path cross;
         cross.move_to({mid.x - arm, mid.y - arm}).line_to({mid.x + arm, mid.y + arm}).move_to({mid.x + arm, mid.y - arm}).line_to({mid.x - arm, mid.y + arm});
-        ctx.list.stroke_path(cross, {.width = 1.75f, .cap = xrender::LineCap::round}, xrender::Paint::solid(muted));
+        ctx.list.stroke_path(cross, {.width = 1.75f, .cap = mrender::LineCap::round}, mrender::Paint::solid(muted));
     }
 }
 
@@ -444,8 +444,8 @@ void ToggleGroup::paint(PaintContext& ctx) const {
     const bool off = props.disabled || ctx.state.disabled;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const float radius = theme.corner("medium", 8);
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, CornerRadii::all(radius).fitted(ctx.size), 1, xrender::Paint::solid(theme.color("border")), xrender::PixelAlign::device);
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, box);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, CornerRadii::all(radius).fitted(ctx.size), 1, mrender::Paint::solid(theme.color("border")), mrender::PixelAlign::device);
     at_.clear();
     float x = option_inset;
     for (std::size_t index = 0; index < labels_.size(); ++index) {
@@ -458,10 +458,10 @@ void ToggleGroup::paint(PaintContext& ctx) const {
         const CornerRadii corners = CornerRadii::all(radius - option_inset).fitted(r.size());
         const bool pressed = on(props.options[index]);
         if (pressed)
-            ctx.part({.role = "selection", .reference = props.options[index], .allocation = r, .kind = xrender::PartKind::box},
-                     [&] { ctx.list.fill_round_rect(r, corners, xrender::Paint::solid(theme.color("accent").with_alpha(0.14f))); });
+            ctx.part({.role = "selection", .reference = props.options[index], .allocation = r, .kind = mrender::PartKind::box},
+                     [&] { ctx.list.fill_round_rect(r, corners, mrender::Paint::solid(theme.color("accent").with_alpha(0.14f))); });
         else if (hover_ == static_cast<int>(index))
-            ctx.list.fill_round_rect(r, corners, xrender::Paint::solid(theme.color("surface_pressed").with_alpha(0.5f)));
+            ctx.list.fill_round_rect(r, corners, mrender::Paint::solid(theme.color("surface_pressed").with_alpha(0.5f)));
         const Color ink = pressed ? theme.color("accent") : theme.color("text");
         const Size text = labels_[index].measure(ctx.services, ink);
         labels_[index].paint(ctx, {r.x + (r.width - text.width) / 2, r.y + (r.height - text.height) / 2}, ink);
@@ -615,14 +615,14 @@ void FileDrop::paint(PaintContext& ctx) const {
     const bool lit = over_ && !off;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii corners = CornerRadii::all(theme.corner("large", 12)).fitted(ctx.size);
-    ctx.list.fill_round_rect(box, corners, xrender::Paint::solid(lit ? theme.color("accent").with_alpha(0.08f) : theme.color("surface_variant").with_alpha(0.5f)));
+    ctx.list.fill_round_rect(box, corners, mrender::Paint::solid(lit ? theme.color("accent").with_alpha(0.08f) : theme.color("surface_variant").with_alpha(0.5f)));
     // A dashed edge: where to let files go; solid in the accent while they are over it.
     static constexpr std::array<float, 2> dashes{6, 4};
-    xrender::Path edge;
+    mrender::Path edge;
     edge.add_rounded_rect({0.75f, 0.75f, box.width - 1.5f, box.height - 1.5f}, corners);
-    xrender::StrokeStyle line{.width = 1.5f};
+    mrender::StrokeStyle line{.width = 1.5f};
     if (!lit) line.dashes = dashes;
-    ctx.list.stroke_path(edge, line, xrender::Paint::solid(lit ? theme.color("accent") : theme.color(ctx.state.hovered && !off ? "border_strong" : "border")));
+    ctx.list.stroke_path(edge, line, mrender::Paint::solid(lit ? theme.color("accent") : theme.color(ctx.state.hovered && !off ? "border_strong" : "border")));
     const Color ink = theme.color(off ? "text_muted" : lit ? "accent" : "text");
     const Size text = label_.measure(ctx.services, ink);
     const Size note = note_.text().empty() ? Size{} : note_.measure(ctx.services, theme.color("text_muted"));

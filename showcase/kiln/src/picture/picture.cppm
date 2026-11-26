@@ -20,14 +20,14 @@ namespace ca = meng::cellular;
 class Picture {
 public:
     // `best_light`, `scenery_alive`: what this device shows at most.
-    [[nodiscard]] static std::expected<Picture, std::string> make(xrender::ImageStore& store, const Level& level, ca::Light best_light = ca::Light::glow, bool scenery_alive = true);
+    [[nodiscard]] static std::expected<Picture, std::string> make(mrender::ImageStore& store, const Level& level, ca::Light best_light = ca::Light::glow, bool scenery_alive = true);
 
     // The world's part, with its ladders (`ca::WorldPicture::ladders()` for a governor), set and describe().
     [[nodiscard]] ca::WorldPicture& world() noexcept { return *world_; }
     [[nodiscard]] const ca::WorldPicture& world() const noexcept { return *world_; }
     void show(const State& state);
     // The whole cavern into `dest` (a cell is dest.width / the cavern's width across).
-    void draw(xrender::DisplayList& list, mlibs::geom::Rect dest) const;
+    void draw(mrender::DisplayList& list, mlibs::geom::Rect dest) const;
 
 private:
     Picture() = default;

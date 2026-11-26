@@ -26,9 +26,9 @@ public:
     [[nodiscard]] bool drawable() const;
 
 private:
-    const xrender::Path* shape() const;  // its data as a path, parsed once a change
+    const mrender::Path* shape() const;  // its data as a path, parsed once a change
 
-    mutable std::optional<xrender::Path> shape_;
+    mutable std::optional<mrender::Path> shape_;
     mutable std::string                  shape_of_;  // the data it was parsed from
 };
 

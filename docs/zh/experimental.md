@@ -17,7 +17,7 @@
 
 - **目标**：flying matter (sparks, drops, grit) under the standard laws, on the CPU reference and, bit for bit where it holds authority, on the GPU (D-184).
 - **现状**：CPU: gravity, drag, collision against triangles, ageing; each particle an instance of matter beside its neighbours and the air.
-- **差距**：no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is xrender.particle's, a picture).
+- **差距**：no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is mrender.particle's, a picture).
 - **毕业条件**：a contract suite on every tier-1 row, a second consumer, the magnitudes within tolerance.
 
 ## meng.field

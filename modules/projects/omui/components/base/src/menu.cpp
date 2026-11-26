@@ -87,8 +87,8 @@ void Menu::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
         paint_shadow(ctx.list, box, r, it->second, k);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, mrender::Paint::solid(th.color("border")), mrender::PixelAlign::device);
 }
 
 void Menu::semantics(SemanticsContext&, spec::SemanticNode& node) const { node.states.set(State::expanded, props.open); }
@@ -126,7 +126,7 @@ void MenuItem::paint(PaintContext& ctx) const {
     const bool lit = !off && (ctx.state.hovered || ctx.state.focused || ctx.state.pressed);
     if (lit)
         ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(ctx.theme.corner("small", 4)),
-                                 xrender::Paint::solid(ctx.state.pressed ? th.color("surface_pressed") : th.color("surface_variant")));
+                                 mrender::Paint::solid(ctx.state.pressed ? th.color("surface_pressed") : th.color("surface_variant")));
     const Color c = off ? th.color("text_disabled") : th.color("text");
     const Size t = label_.measure(ctx.services, c);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);

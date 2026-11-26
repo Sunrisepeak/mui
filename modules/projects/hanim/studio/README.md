@@ -44,7 +44,7 @@ It keeps the design adapter's contract (mlibs.agent.sources@1, `tests/sources_te
 
 ## How it runs
 
-`Studio::open` makes the objects in an Engine of its own and the steps a hanim Program, then operates it through `hanim.control` — `animation.prepare`, `animation.play`, `animation.pause`, `animation.seek` — each call admitted by `mlibs.control` and listed in the answer. Any moment can be asked for in any order and gives the same numbers and the same pixels. Frames are drawn by `hanim.render.vector` into xrender's CPU raster.
+`Studio::open` makes the objects in an Engine of its own and the steps a hanim Program, then operates it through `hanim.control` — `animation.prepare`, `animation.play`, `animation.pause`, `animation.seek` — each call admitted by `mlibs.control` and listed in the answer. Any moment can be asked for in any order and gives the same numbers and the same pixels. Frames are drawn by `hanim.render.vector` into mrender's CPU raster.
 
 Tests (`mcpp test -p hanim.studio`): the example's whole course sampled (the fall, two bounces lower each time, the landing, the travel, the star's spring overshooting and settling, the morph into the box); frames differing through the course and repeating exactly; every kind of problem reported where it is.
 

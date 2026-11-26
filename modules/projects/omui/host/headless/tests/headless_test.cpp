@@ -8,7 +8,7 @@ import mlibs.agent.cts;
 import omui.ui.base;
 import mlibs.testing;
 import mcpplibs.mtest;
-import xrender.text;
+import mrender.text;
 
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
@@ -333,7 +333,7 @@ UTest cases{"headless", [] {
         const Value& frame = (*subjects->list())[1];
         expect(ui.get("name")->as_string() == "ui" && ui.get("interface")->as_string() == "openmui.tree@0.1");
         expect(ui.get("capabilities")->get("provenance")->as_bool()) << "this host draws: a pixel is traced";
-        expect(frame.get("name")->as_string() == "frame" && frame.get("interface")->as_string() == "xrender.frame@0.1");
+        expect(frame.get("name")->as_string() == "frame" && frame.get("interface")->as_string() == "mrender.frame@0.1");
         expect(!layers.empty() && layers.front().get("data") && layers.front().get("data")->get("layers")->list()->front().get("name")->as_string() == "ui")
             << "the frame's one layer is the interface";
         // A pixel of the button: the frame says which layer and which of its objects; the interface says which node that is.
@@ -456,12 +456,12 @@ UTest cases{"headless", [] {
                                    scroll({.id = "list", .y = offset, .height = 80, .gap = 2}, std::move(rows)),
                                }));
         h.settle();
-        xrender::text::GlyphCache glyphs(fonts());
+        mrender::text::GlyphCache glyphs(fonts());
         int frames = 0;
         auto same_as_full = [&](std::string_view what) {
-            const xrender::raster::Surface& inc = h.pixels();
-            xrender::raster::Surface full(inc.width(), inc.height());
-            xrender::CpuRenderer fresh;
+            const mrender::raster::Surface& inc = h.pixels();
+            mrender::raster::Surface full(inc.width(), inc.height());
+            mrender::CpuRenderer fresh;
             (void)fresh.render(h.runtime().display_list(), full, {&h.runtime().images(), &glyphs},
                                {.scale = o.scale, .background = o.background});
             ++frames;

@@ -14,7 +14,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: views and their frame for every host"
-reexports = ["mlibs.i18n", "mlibs.layout", "mlibs.pipeline", "mlibs.text", "omui.core", "xrender.vector"]  # what its interface re-exports (lint module-closure)
+reexports = ["mlibs.i18n", "mlibs.layout", "mlibs.pipeline", "mlibs.text", "omui.core", "mrender.vector"]  # what its interface re-exports (lint module-closure)
 kind = "runtime"
 agent = { part = "omui.agent" }
 
@@ -26,7 +26,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-xrender.text = { path = "../../xrender/text" }
+mrender.text = { path = "../../mrender/text" }
 mlibs.math = { path = "../../../base/math" }
 mlibs.utils = { path = "../../../base/utils" }
 omui.core     = { path = "../core" }
@@ -35,8 +35,8 @@ mlibs.memory   = { path = "../../../base/memory" }
 hanim.core            = { path = "../../hanim/core" }
 sunrisepeak.hanim     = { path = "../../hanim", default-features = false, features = ["engine"] }
 mlibs.layout   = { path = "../../../content/layout" }
-xrender.raster   = { path = "../../xrender/raster" }
-xrender.vector   = { path = "../../xrender/vector" }
+mrender.raster   = { path = "../../mrender/raster" }
+mrender.vector   = { path = "../../mrender/vector" }
 hanim.visual = { path = "../../hanim/visual" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.text     = { path = "../../../content/text" }

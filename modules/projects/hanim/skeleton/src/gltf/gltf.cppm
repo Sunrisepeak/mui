@@ -1,7 +1,7 @@
-// hanim.skeleton.gltf — a glTF document's skin and animations (as xrender.asset reads them: numbers, not played)
+// hanim.skeleton.gltf — a glTF document's skin and animations (as mrender.asset reads them: numbers, not played)
 // as a skeleton and its clips.
 //
-//     const auto asset = xrender::asset::gltf_file("Fox.glb");
+//     const auto asset = mrender::asset::gltf_file("Fox.glb");
 //     auto made = hanim::skeleton::gltf::rig(*asset, {.compress = hanim::skeleton::Compression{}});
 //     // made->rig.clips: "Survey", "Walk", "Run"; made->skin_joints: the skin's joint k is the skeleton's joint skin_joints[k]
 //
@@ -14,7 +14,7 @@ export module hanim.skeleton.gltf;
 
 import std;
 export import hanim.skeleton;
-export import xrender.asset;
+export import mrender.asset;
 
 export namespace hanim::skeleton::gltf {
 
@@ -29,13 +29,13 @@ struct Made {
     Rig                                rig;
     std::vector<std::uint32_t>         skin_joints;  // the skin's joint k is the skeleton's joint skin_joints[k]
     std::vector<std::uint32_t>         nodes;        // the skeleton's joint j is the document's node nodes[j]
-    std::vector<xrender::asset::Note>  notes;
+    std::vector<mrender::asset::Note>  notes;
 };
 
-[[nodiscard]] std::expected<Made, Error> rig(const xrender::asset::Imported& asset, const Options& options = {});
+[[nodiscard]] std::expected<Made, Error> rig(const mrender::asset::Imported& asset, const Options& options = {});
 
 // The document's instances its skin bends, kept bent by the skeleton's pose — what joins the two owners: hanim
-// plays, xrender draws (its `bend`, the one bending; D-93). Each frame:
+// plays, mrender draws (its `bend`, the one bending; D-93). Each frame:
 //
 //     player.step(dt);
 //     bent.bend(player.skin());                 // one a joint of the skeleton, as a player gives them
@@ -48,7 +48,7 @@ struct Made {
 class Bent {
 public:
     // The instances of `asset` that `made`'s skin (`Options::skin`, `skin`) bends.
-    [[nodiscard]] static std::expected<Bent, Error> of(const xrender::asset::Imported& asset, const Made& made, std::uint32_t skin = 0);
+    [[nodiscard]] static std::expected<Bent, Error> of(const mrender::asset::Imported& asset, const Made& made, std::uint32_t skin = 0);
     void bend(std::span<const Mat4> skin);
     [[nodiscard]] std::span<const mlibs::geom::ClusteredMesh* const> meshes() const noexcept { return meshes_; }
     [[nodiscard]] std::span<const mlibs::geom::ClusteredMesh* const> before() const noexcept { return before_; }

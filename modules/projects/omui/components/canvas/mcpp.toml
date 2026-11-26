@@ -32,12 +32,12 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/kit/*.cppm", "src/kit/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-xrender.text = { path = "../../../xrender/text" }
+mrender.text = { path = "../../../mrender/text" }
 omui.core   = { path = "../../core" }
 omui.view   = { path = "../../view" }
-xrender.vector = { path = "../../../xrender/vector" }
+mrender.vector = { path = "../../../mrender/vector" }
 mlibs.memory = { path = "../../../../base/memory" }
-xrender.raster = { path = "../../../xrender/raster" }
+mrender.raster = { path = "../../../mrender/raster" }
 mlibs.geom   = { path = "../../../../base/geom" }
 mlibs.text   = { path = "../../../../content/text" }
 hanim.core          = { path = "../../../hanim/core" }

@@ -6,7 +6,7 @@ import mlibs.hash;
 import omui;
 import omui.ui.canvas;
 import omui.ui.markdown;
-import xrender.text;
+import mrender.text;
 
 namespace omui::wall {
 
@@ -88,11 +88,11 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                          const omui::Rect r = d.screen;
                                          const omui::Color c = d.scene.fill(d.node);
                                          const float radius = static_cast<float>(24 * d.zoom);
-                                         d.list.fill_round_rect(r, omui::CornerRadii::all(radius), xrender::Paint::solid(c.with_alpha(0.07f)));
+                                         d.list.fill_round_rect(r, omui::CornerRadii::all(radius), mrender::Paint::solid(c.with_alpha(0.07f)));
                                          const float strip = static_cast<float>(g.label * d.zoom);
                                          d.list.fill_round_rect({r.x, r.y, r.width, std::min(strip, r.height)},
-                                                                omui::CornerRadii{radius, radius, 0, 0}, xrender::Paint::solid(c.with_alpha(0.16f)));
-                                         d.list.stroke_round_rect(r, omui::CornerRadii::all(radius), 1, xrender::Paint::solid(c.with_alpha(0.35f)));
+                                                                omui::CornerRadii{radius, radius, 0, 0}, mrender::Paint::solid(c.with_alpha(0.16f)));
+                                         d.list.stroke_round_rect(r, omui::CornerRadii::all(radius), 1, mrender::Paint::solid(c.with_alpha(0.35f)));
                                          // Its name, readable at any zoom: on the strip when it is tall enough, above the workspace when not.
                                          if (!d.fonts) return;
                                          const std::string key(d.scene.key(d.node));
@@ -103,7 +103,7 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                          const omui::Size s = p.size();
                                          if (s.width + 24 > r.width) return;
                                          const float y = strip >= s.height + 8 ? r.y + (strip - s.height) / 2 : r.y - s.height - 6;
-                                         xrender::text::paint(p, d.list, {r.x + 16, y});
+                                         mrender::text::paint(p, d.list, {r.x + 16, y});
                                      },
                                  .role = omui::Role::group,
                                  .title_bar = static_cast<float>(g.label),
@@ -118,9 +118,9 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                          // on screen, where there is room — each document known at any distance.
                                          const omui::Rect r = d.screen;
                                          const float radius = static_cast<float>(10 * d.zoom);
-                                         d.list.fill_round_rect(r, omui::CornerRadii::all(radius), xrender::Paint::solid(d.theme.color("surface")));
+                                         d.list.fill_round_rect(r, omui::CornerRadii::all(radius), mrender::Paint::solid(d.theme.color("surface")));
                                          d.list.fill_round_rect({r.x, r.y, r.width, std::max(1.0f, static_cast<float>(title_bar * d.zoom))},
-                                                                omui::CornerRadii{radius, radius, 0, 0}, xrender::Paint::solid(d.scene.fill(d.node)));
+                                                                omui::CornerRadii{radius, radius, 0, 0}, mrender::Paint::solid(d.scene.fill(d.node)));
                                          if (!d.fonts || r.width < 36 || r.height < 14) return;
                                          const std::string key(d.scene.key(d.node));
                                          // Near enough (a summary): the title larger, then the document's sections, then its path.
@@ -130,7 +130,7 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                          const omui::Size s = p.size();
                                          d.list.push_clip({r.x + 4, r.y, r.width - 8, r.height});
                                          const float top = r.y + std::min(r.height / 2 - s.height / 2, 4.0f + static_cast<float>(title_bar * d.zoom));
-                                         xrender::text::paint(p, d.list, {r.x + 8, top});
+                                         mrender::text::paint(p, d.list, {r.x + 8, top});
                                          if (summary) {
                                              float y = top + s.height + 8;
                                              for (auto part : std::views::split(d.scene.text(d.node, "outline"), '\n')) {
@@ -138,11 +138,11 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                                  if (line.empty()) continue;
                                                  const auto& q = labels->get(d, std::format("{}#{}", key, line), line, 12, 450, d.theme.color("text_muted"));
                                                  if (y + q.size().height > r.y + r.height - 22) break;
-                                                 xrender::text::paint(q, d.list, {r.x + 10, y});
+                                                 mrender::text::paint(q, d.list, {r.x + 10, y});
                                                  y += q.size().height + 3;
                                              }
                                              const auto& path = labels->get(d, key + "#p", std::string(d.scene.text(d.node, "path")), 10, 400, d.theme.color("text_muted"));
-                                             xrender::text::paint(path, d.list, {r.x + 8, r.y + r.height - path.size().height - 6});
+                                             mrender::text::paint(path, d.list, {r.x + 8, r.y + r.height - path.size().height - 6});
                                          }
                                          d.list.pop_clip();
                                      },

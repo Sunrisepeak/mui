@@ -25,7 +25,7 @@ export namespace omui::parts {
 // A view box laid into `into` as a path lays its data: its ratio kept, centred.
 [[nodiscard]] mlibs::geom::Affine fitted(const Rect& view_box, const Rect& into) noexcept;
 // SVG path data as a path to draw (a path's shape, a link's icon); none where it does not parse or draws nothing.
-[[nodiscard]] std::optional<xrender::Path> shape_of(std::string_view data);
+[[nodiscard]] std::optional<mrender::Path> shape_of(std::string_view data);
 
 // A small downward chevron (selects, menus), centred on `c`.
 void chevron(PaintContext& ctx, Point c, float size, Color color);
@@ -36,7 +36,7 @@ void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii);
 // Where an agent acts (agent presence, C2): four corners round `box`, each
 // arm `arm` long — the one mark of an agent's attention, wherever it is
 // drawn (the presence over a page, the promo's agent, a game's intent).
-void agent_corners(xrender::DisplayList& list, const Rect& box, Color ink, float arm, float width = 2);
+void agent_corners(mrender::DisplayList& list, const Rect& box, Color ink, float arm, float width = 2);
 
 // A small ×, centred on `c` (a close or a remove button).
 void cross(PaintContext& ctx, Point c, float size, Color color);

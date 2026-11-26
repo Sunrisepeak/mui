@@ -5,15 +5,15 @@
 import std;
 import hanim.engine;
 import hanim.render.vector;
-import xrender.raster;
+import mrender.raster;
 import mcpplibs.mtest;
 
 using namespace hanim;
 using namespace hanim::vector_render;
 using namespace mcpplibs::mtest;
-namespace render = xrender;
+namespace render = mrender;
 namespace geom = mlibs::geom;
-namespace raster = xrender::raster;
+namespace raster = mrender::raster;
 
 namespace {
 template <class T, class E>

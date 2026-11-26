@@ -81,7 +81,7 @@ namespace xtools::inspector::cellular {
     [[nodiscard]] std::string state_hash();
     [[nodiscard]] Size shape();
     [[nodiscard]] Color color(std::uint32_t x, std::uint32_t y);
-    void draw_field(xrender::DisplayList& list, xrender::ImageStore& store, Rect dest);
+    void draw_field(mrender::DisplayList& list, mrender::ImageStore& store, Rect dest);
     void pause();
   };
   [[nodiscard]] Value example_project();
@@ -126,7 +126,7 @@ namespace xtools::inspector::motion {
     Signal<std::string> selected = signal(std::string());
     Signal<std::string> problem = signal(std::string());
     [[nodiscard]] VerbResult perform(std::string_view operation, const Value& args = {…});
-    void draw(xrender::DisplayList& list, Rect dest);
+    void draw(mrender::DisplayList& list, Rect dest);
     [[nodiscard]] std::string object_at(Point at, Rect dest);
     [[nodiscard]] double duration() const;
     [[nodiscard]] Size stage() const;

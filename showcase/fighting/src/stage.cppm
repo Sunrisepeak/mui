@@ -149,7 +149,7 @@ private:
     std::optional<Saved>                  saved_;
     // What painting reuses from frame to frame (paint is const; these are its scratch).
     mutable gongfu::present2d::Painter    painter_;
-    mutable xrender::DisplayList           frame_;
+    mutable mrender::DisplayList           frame_;
     mutable hud::Words                    words_;
     FrameDemandLease                      pace_;
     double                                start_ = 0;   // the clock's time of frame 0 of the playing (seconds)

@@ -97,10 +97,10 @@ UTest cases{"showcase.styles", [] {
         App a("glass");
         // The glass layers in the frame (their params and shapes), from the display list.
         const auto glass_layers = [&] {
-            std::vector<xrender::PushLayer> out;
-            const auto glass = xrender::effects().find("liquid_glass");
+            std::vector<mrender::PushLayer> out;
+            const auto glass = mrender::effects().find("liquid_glass");
             for (const auto& c : a.h.runtime().display_list().commands())
-                if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && glass && l->effect.id == glass->id && !l->params.empty()) out.push_back(*l);
+                if (const auto* l = std::get_if<mrender::PushLayer>(&c); l && glass && l->effect.id == glass->id && !l->params.empty()) out.push_back(*l);
             return out;
         };
         // The buttons' glass: one shape each; their thicknesses.
@@ -152,7 +152,7 @@ UTest cases{"showcase.styles", [] {
         expect(eq(a.studio.current(), std::string("neon")));
         std::size_t fading = 0;
         for (const auto& c : a.h.runtime().display_list().commands())
-            if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && l->effect.id == 0 && l->opacity < 1) ++fading;
+            if (const auto* l = std::get_if<mrender::PushLayer>(&c); l && l->effect.id == 0 && l->opacity < 1) ++fading;
         expect(fading >= 1) << "the frame before, fading over";
         a.h.settle();
         const auto e = a.h.runtime().verbs().invoke("styles.show", as_agent(Value{}.set("name", Value("retro"))));

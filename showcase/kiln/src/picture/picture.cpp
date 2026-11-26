@@ -34,7 +34,7 @@ constexpr std::array<std::string_view, 10> mui{
 };
 }  // namespace
 
-std::expected<Picture, std::string> Picture::make(xrender::ImageStore& store, const Level& level, ca::Light best_light, bool scenery_alive) {
+std::expected<Picture, std::string> Picture::make(mrender::ImageStore& store, const Level& level, ca::Light best_light, bool scenery_alive) {
     const auto& program = matter();
     Picture picture;
     std::uint32_t width = 0;
@@ -60,7 +60,7 @@ void Picture::show(const State& state) {
     cat_ = state.cat, bolts_ = state.bolts, exit_ = state.exit, frame_ = state.frame, outcome_ = state.outcome;
 }
 
-void Picture::draw(xrender::DisplayList& list, geom::Rect dest) const {
+void Picture::draw(mrender::DisplayList& list, geom::Rect dest) const {
     const float across = dest.width / static_cast<float>(shape_.width), down = dest.height / static_cast<float>(shape_.height);
     list.fill_rect(dest, geom::Color::hex(0x0d1117));
     // The exit: a doorway of warm light behind the world.

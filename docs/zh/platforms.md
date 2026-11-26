@@ -5,9 +5,9 @@
 | 能力 | 标注 | Linux x64 (级 1) | Web (wasm32) (级 1) | macOS arm64 (级 1) | Windows x64 (级 1) | Linux arm64 (级 2) | Android (级 2) |
 |---|---|---|---|---|---|---|---|
 | CPU reference rendering, simulation and the semantic tree | 稳定 | 实机 | 实机 | 实机 | 实机 | 实机 | 软件 |
-| 2D on a GPU device (xrender, mlibs.rhi) | 稳定 | 实机 | 未验证 | 软件 | 软件 | 软件 | 未验证 |
-| 3D mesh pass on a device (xrender.mesh.gpu) | 预览 | 实机 | 软件 | 软件 | 软件 | 软件 | 未验证 |
-| Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu) | 预览 | 实机 | 软件 | 未验证 | 未验证 | 未验证 | 未验证 |
+| 2D on a GPU device (mrender, mlibs.rhi) | 稳定 | 实机 | 未验证 | 软件 | 软件 | 软件 | 未验证 |
+| 3D mesh pass on a device (mrender.mesh.gpu) | 预览 | 实机 | 软件 | 软件 | 软件 | 软件 | 未验证 |
+| Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu) | 预览 | 实机 | 软件 | 未验证 | 未验证 | 未验证 | 未验证 |
 | A window drawn by a device (quay.desktop) | 预览 | 软件 | 未验证 | 未验证 | 软件 | 软件 | 未验证 |
 | The Direct3D 12 device backend | 预览 | | | | 未验证 | | |
 | The accessibility bridge to the system's screen reader | 稳定 | 实机 | 未验证 | 未验证 | 未验证 | | |
@@ -30,24 +30,24 @@
 - **CPU reference rendering, simulation and the semantic tree**, Windows x64: CI row windows-2022
 - **CPU reference rendering, simulation and the semantic tree**, Linux arm64: CI row ubuntu-24.04-arm
 - **CPU reference rendering, simulation and the semantic tree**, Android: CI row android x86_64 (emulator; omui-devtools check android)
-- **2D on a GPU device (xrender, mlibs.rhi)**, Linux x64: RTX 4080 headless (omui-devtools gpu --real); lavapipe on CI (omui-devtools gpu)
-- **2D on a GPU device (xrender, mlibs.rhi)**, Web (wasm32): 缺: which WebGPU adapter omui-devtools check browser's headless Chromium runs on is not recorded; a real browser on a real GPU
-- **2D on a GPU device (xrender, mlibs.rhi)**, macOS arm64: CI row macos-15: the runner's Apple Paravirtual Metal device (omui-devtools gpu, cocoa)
-- **2D on a GPU device (xrender, mlibs.rhi)**, Windows x64: CI row windows-2022: lavapipe through SDL_GPU's Vulkan backend
-- **2D on a GPU device (xrender, mlibs.rhi)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
-- **2D on a GPU device (xrender, mlibs.rhi)**, Android: 缺: a device run; CI builds and runs the emulator without a GPU device case
-- **3D mesh pass on a device (xrender.mesh.gpu)**, Linux x64: RTX 4080 headless (omui-devtools gpu --real): quay.picture.device; lavapipe on CI
-- **3D mesh pass on a device (xrender.mesh.gpu)**, Web (wasm32): Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance); 缺: a real browser on a real GPU: web_frame_test through omui-devtools browser --headed under gpu --real where a display is (headless Chromium has no Vulkan on NVIDIA's driver)
-- **3D mesh pass on a device (xrender.mesh.gpu)**, macOS arm64: quay.picture.device on CI's Apple Paravirtual device (offscreen)
-- **3D mesh pass on a device (xrender.mesh.gpu)**, Windows x64: CI row windows-2022: lavapipe
-- **3D mesh pass on a device (xrender.mesh.gpu)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
-- **3D mesh pass on a device (xrender.mesh.gpu)**, Android: 缺: a device run
-- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Linux x64: mesh.blocks on an RTX 4080 (omui-devtools gpu --real): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light
-- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Web (wasm32): rhi.blocks on headless Chromium's WebGPU and WebGL2, all three kinds (omui-devtools check browser); 缺: mesh.blocks in the page's suite at the node; a real browser on a real GPU
-- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, macOS arm64: 缺: a CI run of mesh.blocks on the runner's Apple Paravirtual device
-- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Windows x64: 缺: a CI run of mesh.blocks on lavapipe (BC7)
-- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Linux arm64: 缺: a CI run of mesh.blocks on lavapipe (BC7)
-- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; xrender.mesh.gpu)**, Android: 缺: a device run (ASTC or ETC2)
+- **2D on a GPU device (mrender, mlibs.rhi)**, Linux x64: RTX 4080 headless (omui-devtools gpu --real); lavapipe on CI (omui-devtools gpu)
+- **2D on a GPU device (mrender, mlibs.rhi)**, Web (wasm32): 缺: which WebGPU adapter omui-devtools check browser's headless Chromium runs on is not recorded; a real browser on a real GPU
+- **2D on a GPU device (mrender, mlibs.rhi)**, macOS arm64: CI row macos-15: the runner's Apple Paravirtual Metal device (omui-devtools gpu, cocoa)
+- **2D on a GPU device (mrender, mlibs.rhi)**, Windows x64: CI row windows-2022: lavapipe through SDL_GPU's Vulkan backend
+- **2D on a GPU device (mrender, mlibs.rhi)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
+- **2D on a GPU device (mrender, mlibs.rhi)**, Android: 缺: a device run; CI builds and runs the emulator without a GPU device case
+- **3D mesh pass on a device (mrender.mesh.gpu)**, Linux x64: RTX 4080 headless (omui-devtools gpu --real): quay.picture.device; lavapipe on CI
+- **3D mesh pass on a device (mrender.mesh.gpu)**, Web (wasm32): Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance); 缺: a real browser on a real GPU: web_frame_test through omui-devtools browser --headed under gpu --real where a display is (headless Chromium has no Vulkan on NVIDIA's driver)
+- **3D mesh pass on a device (mrender.mesh.gpu)**, macOS arm64: quay.picture.device on CI's Apple Paravirtual device (offscreen)
+- **3D mesh pass on a device (mrender.mesh.gpu)**, Windows x64: CI row windows-2022: lavapipe
+- **3D mesh pass on a device (mrender.mesh.gpu)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
+- **3D mesh pass on a device (mrender.mesh.gpu)**, Android: 缺: a device run
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu)**, Linux x64: mesh.blocks on an RTX 4080 (omui-devtools gpu --real): BC7, 45 of 129,600 pixels past 6 levels, as the same picture as light
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu)**, Web (wasm32): rhi.blocks on headless Chromium's WebGPU and WebGL2, all three kinds (omui-devtools check browser); 缺: mesh.blocks in the page's suite at the node; a real browser on a real GPU
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu)**, macOS arm64: 缺: a CI run of mesh.blocks on the runner's Apple Paravirtual device
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu)**, Windows x64: 缺: a CI run of mesh.blocks on lavapipe (BC7)
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu)**, Linux arm64: 缺: a CI run of mesh.blocks on lavapipe (BC7)
+- **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu)**, Android: 缺: a device run (ASTC or ETC2)
 - **A window drawn by a device (quay.desktop)**, Linux x64: quay.desktop with lavapipe (SDL offscreen video driver)
 - **A window drawn by a device (quay.desktop)**, Web (wasm32): 缺: a real browser's WebGPU canvas
 - **A window drawn by a device (quay.desktop)**, macOS arm64: 缺: a CI run with RC0.3's fix (the case under cocoa, as the device tests run; red 98)

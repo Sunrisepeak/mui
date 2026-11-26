@@ -51,7 +51,7 @@ import gongfu;
 import gongfu.data;
 import hanim.core;
 import mlibs.geom;
-import xrender.vector;
+import mrender.vector;
 import tomlplusplus;
 
 namespace gongfu::present2d {
@@ -711,7 +711,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     continue;
                 }
                 r.only(*t, material_keys, what);
-                xrender::Material m;
+                mrender::Material m;
                 if (auto v = r.integer(t->get("bands"), std::format("{}'s `bands`", what), 0, 16)) m.bands = *v;
                 if (auto v = r.number(t->get("softness"), std::format("{}'s `softness`", what), 0, 1)) m.softness = static_cast<float>(*v);
                 if (auto c = r.colour(t->get("shadow"), std::format("{}'s `shadow`", what))) m.shadow = *c;

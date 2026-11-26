@@ -1,7 +1,7 @@
 // meng.cellular.present — a cellular field on screen (D-132).
 //
 // The field's cells, coloured by a palette (the first swatch whose tests the
-// cell passes), become the pixels of one image in an xrender ImageStore: a
+// cell passes), become the pixels of one image in an mrender ImageStore: a
 // pixel a cell, drawn by one command however large the field. A present
 // recolours only the tiles that changed — those a step's changed-tile mask
 // marks (Execution::changed_tiles), or those that differ from the cells
@@ -23,8 +23,8 @@ export module meng.cellular.present;
 
 import std;
 export import meng.cellular;
-export import xrender.vector;
-export import xrender.raster;
+export import mrender.vector;
+export import mrender.raster;
 export import mlibs.geom;
 export import mlibs.math;
 
@@ -55,11 +55,11 @@ public:
     // test naming a channel the field has not, or an empty tile. The image
     // stays in the store until release() (a presenter may outlive its store:
     // it never touches the store after it is gone unless asked to).
-    [[nodiscard]] static std::expected<FieldPresenter, std::string> make(xrender::ImageStore& store, Shape shape, std::uint32_t channels,
+    [[nodiscard]] static std::expected<FieldPresenter, std::string> make(mrender::ImageStore& store, Shape shape, std::uint32_t channels,
                                                                          Palette palette, Shape tile = {32, 32});
     // The same by a shade: each cell's colour computed (shade_of), and — where a tint emits — the field's
     // light as a second image in the store. Fails as above, and on a shade the field cannot be shaded by (check).
-    [[nodiscard]] static std::expected<FieldPresenter, std::string> make(xrender::ImageStore& store, Shape shape, std::uint32_t channels, mlibs::math::color::Shade shade,
+    [[nodiscard]] static std::expected<FieldPresenter, std::string> make(mrender::ImageStore& store, Shape shape, std::uint32_t channels, mlibs::math::color::Shade shade,
                                                                          Shape tile = {32, 32});
     FieldPresenter(FieldPresenter&&) noexcept;
     FieldPresenter& operator=(FieldPresenter&&) noexcept;
@@ -81,17 +81,17 @@ public:
     std::expected<void, std::string> reshade(mlibs::math::color::Shade shade);
 
     // The image, drawn into `dest` with nearest sampling: one command.
-    void draw(xrender::DisplayList& list, mlibs::geom::Rect dest, float opacity = 1) const;
+    void draw(mrender::DisplayList& list, mlibs::geom::Rect dest, float opacity = 1) const;
     // The field's light over `dest`, where the shade emits: blurred by `radius` logical pixels and added to
     // what is under it (a layer, the built-in blur, BlendMode::plus), `strength` of it. Nothing without light.
-    void draw_glow(xrender::DisplayList& list, mlibs::geom::Rect dest, float radius, float strength = 1) const;
+    void draw_glow(mrender::DisplayList& list, mlibs::geom::Rect dest, float radius, float strength = 1) const;
     // Cells off the grid — in flight — drawn where they are: a square of a cell at each centre (`centres`: x, y
     // in cells, pair after pair), shaded as a cell of the field is, from its channels (`values`: the field's
     // channels a cell, cell after cell). One rectangle a cell; nothing for a presenter by a palette.
-    void draw_loose(xrender::DisplayList& list, mlibs::geom::Rect dest, std::span<const float> centres, std::span<const std::uint32_t> values) const;
-    [[nodiscard]] xrender::ImageRef image() const noexcept;
+    void draw_loose(mrender::DisplayList& list, mlibs::geom::Rect dest, std::span<const float> centres, std::span<const std::uint32_t> values) const;
+    [[nodiscard]] mrender::ImageRef image() const noexcept;
     // The light's image; an empty reference where the presenter has none (a palette, or a shade no tint of which emits).
-    [[nodiscard]] xrender::ImageRef light() const noexcept;
+    [[nodiscard]] mrender::ImageRef light() const noexcept;
     [[nodiscard]] bool glows() const noexcept;
     // The shade of one cell of `cells` (what the two images hold there); nothing for a presenter by a palette.
     [[nodiscard]] mlibs::math::color::Shaded shaded(std::span<const std::uint32_t> cells, std::uint32_t x, std::uint32_t y) const noexcept;

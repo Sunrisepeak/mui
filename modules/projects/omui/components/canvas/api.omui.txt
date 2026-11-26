@@ -66,8 +66,8 @@ namespace omui::world {
     virtual Claim pointer(Host&, const PointerInput&);
     virtual bool tap(Host&, const PointerInput&);
     virtual bool key(Host&, const KeyEvent&);
-    virtual void paint_under(Host&, xrender::DisplayList&);
-    virtual void paint_over(Host&, xrender::DisplayList&);
+    virtual void paint_under(Host&, mrender::DisplayList&);
+    virtual void paint_over(Host&, mrender::DisplayList&);
     virtual void describe(Host&, NodeRef, spec::SemanticNode&);
     [[nodiscard]] virtual std::optional<ActResult> act(Host&, NodeRef, std::string_view action, const Value& args);
     virtual void unmounted(Host&);
@@ -125,7 +125,7 @@ namespace omui::world {
   struct DrawContext {
     const Scene& scene;
     NodeRef node;
-    xrender::DisplayList& list;
+    mrender::DisplayList& list;
     Rect screen;
     double zoom;
     std::size_t tier;
@@ -141,7 +141,7 @@ namespace omui::world {
     std::vector<Tier> tiers{…};
     std::function<void(DrawContext&)> draw;
     std::function<Element(const Scene&, NodeRef)> promote;
-    std::function<void(const Scene&, NodeRef, xrender::DisplayList&)> content;
+    std::function<void(const Scene&, NodeRef, mrender::DisplayList&)> content;
     std::function<Element(const Scene&, NodeRef)> view;
     Role role = Role::generic;
     std::string name_column = "title";
@@ -165,7 +165,7 @@ namespace omui::world {
   };
   class Labels {
     [[nodiscard]] const mlibs::text::Paragraph& get(const DrawContext& d, const std::string& key, std::string text, float size, float weight, Color colour, std::string_view style = "label");
-    static void paint(const mlibs::text::Paragraph& label, xrender::DisplayList& list, Point at);
+    static void paint(const mlibs::text::Paragraph& label, mrender::DisplayList& list, Point at);
     void clear() noexcept;
   };
   struct Hit {
@@ -244,13 +244,13 @@ namespace omui::world {
     Textures& operator=(const Textures&) = delete;
     void configure(const Options& o) noexcept;
     struct Pick {
-      xrender::ImageRef image;
+      mrender::ImageRef image;
       int level = 0;
       bool exact = false;
     };
     [[nodiscard]] std::optional<Pick> pick(std::string_view key, std::uint64_t revision, int level, std::uint64_t frame);
     struct Listed {
-      const xrender::DisplayList* list = nullptr;
+      const mrender::DisplayList* list = nullptr;
       std::uint64_t serial = 0;
       bool exact = false;
       bool unfit = false;
@@ -259,10 +259,10 @@ namespace omui::world {
     Listed list_now(const Scene& scene, NodeRef node, std::string_view key, std::uint64_t revision);
     void want_list(std::string_view key, std::uint64_t revision, NodeRef node, float priority);
     void want(std::string_view key, std::uint64_t revision, int level, NodeRef node, float priority);
-    void issue(const Scene& scene, const xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme);
-    bool collect(xrender::ImageStore& images, std::uint64_t frame, bool wait = false);
-    void complete(const Scene& scene, xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme, std::uint64_t frame);
-    void clear(xrender::ImageStore& images);
+    void issue(const Scene& scene, const mrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme);
+    bool collect(mrender::ImageStore& images, std::uint64_t frame, bool wait = false);
+    void complete(const Scene& scene, mrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme, std::uint64_t frame);
+    void clear(mrender::ImageStore& images);
     [[nodiscard]] bool busy() const;
     struct Stats {
       std::size_t textures = 0, bytes = 0, jobs = 0, waiting = 0, entered = 0, evicted = 0, lists = 0;

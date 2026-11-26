@@ -37,7 +37,7 @@ struct Mesh {
     std::vector<Vec4> colours;
     // What bends it (a skin): each position's four joints, by their numbers in the skin, and how much each moves
     // it (glTF's JOINTS_0 and WEIGHTS_0) — both, or neither; one a position. A renderer that is given the skin's
-    // matrices bends the positions, normals and tangents by them (xrender.mesh's `bend`).
+    // matrices bends the positions, normals and tangents by them (mrender.mesh's `bend`).
     std::vector<std::array<std::uint16_t, 4>> joints;
     std::vector<Vec4>                         weights;
     std::vector<std::uint32_t> indices;  // three a triangle
@@ -91,7 +91,7 @@ inline constexpr std::uint32_t most_cluster_triangles = 124;
 // after its positions have moved (a skin bent them) and its triangles have not. `corners` is room it reuses.
 void refit(ClusteredMesh& mesh, std::vector<Vec3>& corners);
 // The mesh in clusters of the sizes given, in the order its triangles are in: `runs[n]` triangles are cluster n.
-// For an optimiser that has put the triangles of a cluster together (meshlets: `xrender.asset`'s `optimised`);
+// For an optimiser that has put the triangles of a cluster together (meshlets: `mrender.asset`'s `optimised`);
 // the bounds and the cone are worked out here as above, so a cluster is the same thing whoever cut it. Refused
 // where `check` refuses the mesh, a run is 0, or the runs are not all of its triangles.
 [[nodiscard]] std::expected<ClusteredMesh, std::string> clustered(Mesh mesh, std::span<const std::uint32_t> runs);

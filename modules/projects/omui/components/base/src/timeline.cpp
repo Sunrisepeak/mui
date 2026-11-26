@@ -159,8 +159,8 @@ void Timeline::paint(PaintContext& ctx) const {
     const Course& laid = course(ctx.size);
     if (laid.points.size() < 2) return;
     const bool off = props.disabled || ctx.state.disabled;
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
-    xrender::Path path;
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    mrender::Path path;
     path.move_to(laid.points.front());
     for (std::size_t index = 1; index < laid.points.size(); ++index) path.line_to(laid.points[index]);
     if (laid.closed) path.close();
@@ -169,23 +169,23 @@ void Timeline::paint(PaintContext& ctx) const {
     // on it alone).
     if (props.line)
         ctx.part({.role = "track", .allocation = whole}, [&] {
-            ctx.list.stroke_path(path, {.width = track_width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round},
-                                 xrender::Paint::solid(th.color("track")));
+            ctx.list.stroke_path(path, {.width = track_width, .cap = mrender::LineCap::round, .join = mrender::LineJoin::round},
+                                 mrender::Paint::solid(th.color("track")));
         });
     const float played = fraction_of(props.value);
     if (props.line && played > 0)
         ctx.part({.role = "played", .allocation = whole}, [&] {
-            ctx.list.stroke_path(path, {.width = track_width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round, .trim_end = played},
-                                 xrender::Paint::solid(th.color("accent")));
+            ctx.list.stroke_path(path, {.width = track_width, .cap = mrender::LineCap::round, .join = mrender::LineJoin::round, .trim_end = played},
+                                 mrender::Paint::solid(th.color("accent")));
         });
     // Each step's mark, its id its number: reached ones in the accent.
     for (std::int64_t step = 1; step <= count(); ++step) {
         const Point at = point_at(static_cast<double>(step), ctx.size);
         const std::string id = std::to_string(step);
         const Rect mark{at.x - mark_diameter / 2, at.y - mark_diameter / 2, mark_diameter, mark_diameter};
-        ctx.part({.role = "mark", .id = id, .allocation = mark, .kind = xrender::PartKind::box}, [&] {
+        ctx.part({.role = "mark", .id = id, .allocation = mark, .kind = mrender::PartKind::box}, [&] {
             ctx.list.fill_round_rect(mark, CornerRadii::all(mark_diameter / 2),
-                                     xrender::Paint::solid(static_cast<double>(step) <= props.value ? th.color("accent") : th.color("track")));
+                                     mrender::Paint::solid(static_cast<double>(step) <= props.value ? th.color("accent") : th.color("track")));
         });
     }
     // The playhead at the step it is at; its focus ring when the keys reach it. On a line it is one thing carried
@@ -194,11 +194,11 @@ void Timeline::paint(PaintContext& ctx) const {
     const Point head = point_at(props.value, ctx.size);
     const Rect playhead{head.x - playhead_diameter / 2, head.y - playhead_diameter / 2, playhead_diameter, playhead_diameter};
     const std::string head_id = props.shape == "line" ? std::string() : std::to_string(std::lround(props.value));
-    ctx.part({.role = "playhead", .id = head_id, .allocation = playhead, .kind = xrender::PartKind::box}, [&] {
+    ctx.part({.role = "playhead", .id = head_id, .allocation = playhead, .kind = mrender::PartKind::box}, [&] {
         const CornerRadii round = CornerRadii::all(playhead_diameter / 2);
-        ctx.list.fill_round_rect(playhead, round, xrender::Paint::solid(th.color("thumb")));
+        ctx.list.fill_round_rect(playhead, round, mrender::Paint::solid(th.color("thumb")));
         ctx.list.stroke_round_rect({playhead.x + 1, playhead.y + 1, playhead_diameter - 2, playhead_diameter - 2}, CornerRadii::all(playhead_diameter / 2 - 1), 2,
-                                   xrender::Paint::solid(th.color("accent")));
+                                   mrender::Paint::solid(th.color("accent")));
     });
     if (!off && !dragging_ && ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, playhead, CornerRadii::all(playhead_diameter / 2));
     if (off) ctx.list.pop_layer();

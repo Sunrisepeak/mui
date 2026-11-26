@@ -143,7 +143,7 @@ Not here: a container that builds objects, services found by a string, providers
 | Slot | Owner | Provider | Root |
 |---|---|---|---|
 | `omui.accessibility.service` | `omui.accessibility` | `omui.accessibility.bridge` (AccessKit, by platform) | `omui.sdk` (feature `accessibility-bridge`) |
-| `omui.host.sdl3.gpu` | `omui.host.sdl3` | `omui.host.sdl3.gpu` (SDL_GPU's device, xrender's renderer, the effect library) | `omui.sdk` (feature `gpu`) |
+| `omui.host.sdl3.gpu` | `omui.host.sdl3` | `omui.host.sdl3.gpu` (SDL_GPU's device, mrender's renderer, the effect library) | `omui.sdk` (feature `gpu`) |
 | `omui.agent.endpoint` | `omui.agent` | `omui.agent` itself (the endpoint, the captures, background tasks, a replay's hashes) | `omui.sdk` (feature `agent`) |
 | `omui.sdk.generation` | `omui.sdk` | `omui.sdk` itself (runtime generation) | `omui.sdk` (feature `generate`) |
 

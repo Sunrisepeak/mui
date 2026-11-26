@@ -11,7 +11,7 @@ gongfu-studio roster.versus showcase/fighting/fighters --rounds 200   # bots pla
 gongfu-studio mcp                                        # the same operations to an MCP client
 ```
 
-The command is the library's subject `gongfu` behind the tool kernel (mlibs.agent's T0, as `omui`, `hanim` and `xrender` are): its operations are a catalog ([`gongfu.ops.xdef.ts`](gongfu.ops.xdef.ts), generated into [`src/catalog`](src/catalog)), words without names are an operation's parameters in the catalog's order, `gongfu-studio <operation> --help` describes one, and each report is a record a line; how an Agent makes and checks fighters with them is [`skill.omui.md`](skill.omui.md).
+The command is the library's subject `gongfu` behind the tool kernel (mlibs.agent's T0, as `omui`, `hanim` and `mrender` are): its operations are a catalog ([`gongfu.ops.xdef.ts`](gongfu.ops.xdef.ts), generated into [`src/catalog`](src/catalog)), words without names are an operation's parameters in the catalog's order, `gongfu-studio <operation> --help` describes one, and each report is a record a line; how an Agent makes and checks fighters with them is [`skill.omui.md`](skill.omui.md).
 
 - **Baking hurtboxes (G-5).**
   - Every frame of every move is posed by the look's clip for it.

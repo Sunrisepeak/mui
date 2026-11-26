@@ -6,7 +6,7 @@ module omui.ui.canvas.kit;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import omui.expr;
 import mlibs.xdef;
 import omui.ui.canvas;

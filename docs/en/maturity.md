@@ -16,7 +16,7 @@ A capability below its package's label is marked in its project's feature table 
 |---|---|---|---|
 | omui | 30 | 3 | 1 |
 | hanim | 5 | 4 | 0 |
-| xrender | 10 | 8 | 0 |
+| mrender | 10 | 8 | 0 |
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
@@ -81,28 +81,28 @@ A capability below its package's label is marked in its project's feature table 
 | `hanim.skeleton` | [modules/projects/hanim/skeleton](../../modules/projects/hanim/skeleton) | preview |
 | `hanim.skeleton.cts` | [modules/projects/hanim/skeleton/cts](../../modules/projects/hanim/skeleton/cts) | preview |
 
-### xrender
+### mrender
 
 | Package | Directory | Label |
 |---|---|---|
-| `xrender.raster` | [modules/projects/xrender/raster](../../modules/projects/xrender/raster) | stable |
-| `xrender.text` | [modules/projects/xrender/text](../../modules/projects/xrender/text) | stable |
-| `xrender.graph` | [modules/projects/xrender/graph](../../modules/projects/xrender/graph) | stable |
-| `xrender.cts` | [modules/projects/xrender/cts](../../modules/projects/xrender/cts) | stable |
-| `xrender.vector` | [modules/projects/xrender/vector](../../modules/projects/xrender/vector) | stable |
-| `xrender.frame` | [modules/projects/xrender/frame](../../modules/projects/xrender/frame) | stable |
-| `xrender.scene` | [modules/projects/xrender/scene](../../modules/projects/xrender/scene) | preview |
-| `xrender.mesh` | [modules/projects/xrender/mesh](../../modules/projects/xrender/mesh) | preview |
-| `xrender.particle` | [modules/projects/xrender/particle](../../modules/projects/xrender/particle) | preview |
-| `xrender.particle.gpu` | [modules/projects/xrender/particle/gpu](../../modules/projects/xrender/particle/gpu) | preview |
-| `xrender.mesh.gpu` | [modules/projects/xrender/mesh/gpu](../../modules/projects/xrender/mesh/gpu) | preview |
-| `xrender.mesh.gpu.cts` | [modules/projects/xrender/mesh/gpu/cts](../../modules/projects/xrender/mesh/gpu/cts) | preview |
-| `xrender.asset` | [modules/projects/xrender/asset](../../modules/projects/xrender/asset) | preview |
-| `xrender.effect` | [modules/projects/xrender/effect](../../modules/projects/xrender/effect) | stable |
-| `xrender.rhi.sdl` | [modules/projects/xrender/rhi/sdl](../../modules/projects/xrender/rhi/sdl) | stable |
-| `xrender.tool` | [modules/projects/xrender/tool](../../modules/projects/xrender/tool) | preview |
-| `xrender.rhi.webgpu` | [modules/projects/xrender/rhi/webgpu](../../modules/projects/xrender/rhi/webgpu) | stable |
-| `xrender.rhi.webgl` | [modules/projects/xrender/rhi/webgl](../../modules/projects/xrender/rhi/webgl) | stable |
+| `mrender.raster` | [modules/projects/mrender/raster](../../modules/projects/mrender/raster) | stable |
+| `mrender.text` | [modules/projects/mrender/text](../../modules/projects/mrender/text) | stable |
+| `mrender.graph` | [modules/projects/mrender/graph](../../modules/projects/mrender/graph) | stable |
+| `mrender.cts` | [modules/projects/mrender/cts](../../modules/projects/mrender/cts) | stable |
+| `mrender.vector` | [modules/projects/mrender/vector](../../modules/projects/mrender/vector) | stable |
+| `mrender.frame` | [modules/projects/mrender/frame](../../modules/projects/mrender/frame) | stable |
+| `mrender.scene` | [modules/projects/mrender/scene](../../modules/projects/mrender/scene) | preview |
+| `mrender.mesh` | [modules/projects/mrender/mesh](../../modules/projects/mrender/mesh) | preview |
+| `mrender.particle` | [modules/projects/mrender/particle](../../modules/projects/mrender/particle) | preview |
+| `mrender.particle.gpu` | [modules/projects/mrender/particle/gpu](../../modules/projects/mrender/particle/gpu) | preview |
+| `mrender.mesh.gpu` | [modules/projects/mrender/mesh/gpu](../../modules/projects/mrender/mesh/gpu) | preview |
+| `mrender.mesh.gpu.cts` | [modules/projects/mrender/mesh/gpu/cts](../../modules/projects/mrender/mesh/gpu/cts) | preview |
+| `mrender.asset` | [modules/projects/mrender/asset](../../modules/projects/mrender/asset) | preview |
+| `mrender.effect` | [modules/projects/mrender/effect](../../modules/projects/mrender/effect) | stable |
+| `mrender.rhi.sdl` | [modules/projects/mrender/rhi/sdl](../../modules/projects/mrender/rhi/sdl) | stable |
+| `mrender.tool` | [modules/projects/mrender/tool](../../modules/projects/mrender/tool) | preview |
+| `mrender.rhi.webgpu` | [modules/projects/mrender/rhi/webgpu](../../modules/projects/mrender/rhi/webgpu) | stable |
+| `mrender.rhi.webgl` | [modules/projects/mrender/rhi/webgl](../../modules/projects/mrender/rhi/webgl) | stable |
 
 ### meng
 

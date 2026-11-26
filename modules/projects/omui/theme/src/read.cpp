@@ -9,7 +9,7 @@ import mlibs.xdef;
 import mlibs.names;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import hanim.core;
 
 namespace omui::theme {
@@ -421,17 +421,17 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                         r.error(rule, std::format("the effect for `{}` names no `effect`", selector), R"({ effect: "neon", … })");
                         continue;
                     }
-                    const auto ref = xrender::effects().find(*effect_name);
+                    const auto ref = mrender::effects().find(*effect_name);
                     if (!ref) {
                         std::string_view best;
                         std::size_t nearest = std::max<std::size_t>(1, effect_name->size() / 3) + 1;
-                        for (std::string_view known : xrender::effects().names())
+                        for (std::string_view known : mrender::effects().names())
                             if (const std::size_t x = distance(*effect_name, known); x < nearest) nearest = x, best = known;
                         r.error(rule["effect"], std::format("no effect is named `{}`", *effect_name),
-                                best.empty() ? std::string("xrender::effects().names() lists them") : std::format("did you mean `{}`?", best));
+                                best.empty() ? std::string("mrender::effects().names() lists them") : std::format("did you mean `{}`?", best));
                         continue;
                     }
-                    const xrender::EffectInfo* info = xrender::effects().info(*ref);
+                    const mrender::EffectInfo* info = mrender::effects().info(*ref);
                     Value effect = Value{}.set("name", Value(*effect_name));
                     for (const auto& [param, pv] : rule.members_by_key()) {
                         if (param == "effect") continue;
@@ -447,7 +447,7 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                             if (!pv.map() || pv.map()->empty()) r.error(pv, "`animate` must be a nonempty object: { amount: [0, 1] }");
                             else for (const auto& [channel, endpoints] : pv.members()) {
                                 const Value::List* pair = endpoints.value->list();
-                                const auto entry = std::ranges::find(info->params, channel, &xrender::EffectParam::name);
+                                const auto entry = std::ranges::find(info->params, channel, &mrender::EffectParam::name);
                                 if (!pair || pair->size() != 2 || entry == info->params.end()) {
                                     r.error(endpoints, "animation needs a known effect parameter and two numeric endpoints"); continue;
                                 }
@@ -470,7 +470,7 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                         const bool control = std::ranges::find(effect_control_keys, param) != effect_control_keys.end();
                         // A colour by the theme's name (`color: "accent"`): its channels, `color_r` `color_g` `color_b`, follow the pack's colours.
                         const auto has = [&](std::string_view n) {
-                            return std::ranges::any_of(info->params, [&](const xrender::EffectParam& ep) { return ep.name == n; });
+                            return std::ranges::any_of(info->params, [&](const mrender::EffectParam& ep) { return ep.name == n; });
                         };
                         if (has(std::format("{}_r", param)) && has(std::format("{}_g", param)) && has(std::format("{}_b", param))) {
                             if (auto c = pv.text()) effect.set(param, Value(*c));

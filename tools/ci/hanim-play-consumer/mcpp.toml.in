@@ -15,7 +15,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 sunrisepeak.hanim = { path = {{engine_path}}, features = ["render-vector", "control"] }
-xrender.raster = { path = {{raster_path}} }
+mrender.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }
 mlibs.utils = { path = {{utils_path}} }
 mlibs.control = { path = {{control_path}} }

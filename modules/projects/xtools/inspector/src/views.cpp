@@ -5,7 +5,7 @@ module xtools.inspector;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import omui.ui.base;
 import omui;
 

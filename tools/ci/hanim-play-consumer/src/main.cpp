@@ -2,7 +2,7 @@
 import std;
 import hanim;
 import hanim.render.vector;
-import xrender.raster;
+import mrender.raster;
 import mlibs.image;
 import mlibs.hash;
 import mlibs.control;
@@ -13,8 +13,8 @@ import mcpplibs.cmdline;
 import nlohmann.json;
 
 using namespace hanim;
-namespace render = xrender;
-namespace raster = xrender::raster;
+namespace render = mrender;
+namespace raster = mrender::raster;
 namespace geom = mlibs::geom;
 using Json = nlohmann::json;
 

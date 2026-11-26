@@ -20,7 +20,7 @@ export module omui.ui.canvas:view;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import hanim.core;
 import :canvas_contract;
 import :scene;
@@ -118,7 +118,7 @@ private:
     void build_behaviors();
     [[nodiscard]] world::PointerInput pointer_input(const PointerEvent& p, Point at) const;
     spec::SemanticNode item(const world::Scene& s, world::NodeRef n, std::string_view path, Size vp, Rect bounds) const;
-    void paint_edges(const world::Scene& s, xrender::DisplayList& list, Size vp) const;
+    void paint_edges(const world::Scene& s, mrender::DisplayList& list, Size vp) const;
 
     // What behaviours see of the canvas.
     struct HostAdapter final : world::Host {
@@ -172,7 +172,7 @@ private:
     mutable world::Camera                               camera_before_{0, 0, 0};
     mutable std::vector<world::NodeRef>                 ahead_;
     mutable std::array<std::size_t, rehearsal_horizons> rehearse_at_{};
-    mutable xrender::DisplayList        rehearsal_;
+    mutable mrender::DisplayList        rehearsal_;
     mutable std::uint64_t                drawn_revision_ = 0;
     std::string                          focused_;
     std::uint64_t                        tick_ = 0;   // the pending step's timer

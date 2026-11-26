@@ -14,7 +14,7 @@ struct VectorEffects {
 struct VectorData {
     PreparedObjectAnimation geometry;
     VectorEffects effects;
-    std::vector<std::optional<xrender::PreparedPaintMix>> materials;
+    std::vector<std::optional<mrender::PreparedPaintMix>> materials;
 };
 struct VectorProgramData {
     PreparedProgram program;
@@ -28,7 +28,7 @@ struct VectorProgramData {
 
 namespace hanim::vector_render {
 namespace {
-namespace render = xrender;
+namespace render = mrender;
 namespace geom = mlibs::geom;
 constexpr auto no_source = std::numeric_limits<std::size_t>::max();
 constexpr mlibs::log::Log log{"hanim.render.vector"};

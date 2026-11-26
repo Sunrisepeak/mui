@@ -4,8 +4,8 @@ import std;
 import gongfu.data;
 import gongfu.present2d;
 import mlibs.image;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 
 namespace omui::fighting {
 
@@ -155,9 +155,9 @@ Registered::~Registered() {
     for (const auto& [file, ref] : normals) store->remove(ref);
 }
 
-xrender::ImageRef Registered::picture(std::string_view file) const {
+mrender::ImageRef Registered::picture(std::string_view file) const {
     const auto it = art.find(file);
-    return it == art.end() ? xrender::ImageRef{} : it->second;
+    return it == art.end() ? mrender::ImageRef{} : it->second;
 }
 
 void Registered::bind(std::vector<p2::Picture>& pictures, std::string_view prefix) const {
@@ -168,9 +168,9 @@ void Registered::bind(std::vector<p2::Picture>& pictures, std::string_view prefi
     }
 }
 
-std::shared_ptr<const Registered> registered(xrender::ImageStore& store) {
+std::shared_ptr<const Registered> registered(mrender::ImageStore& store) {
     // By store: one registration while anything holds it (the UI thread's, like the store) — again once more pictures arrived.
-    static std::map<xrender::ImageStore*, std::weak_ptr<const Registered>> held;
+    static std::map<mrender::ImageStore*, std::weak_ptr<const Registered>> held;
     if (auto alive = held[&store].lock(); alive && alive->generation == art_generation()) return alive;
     auto r = std::make_shared<Registered>();
     r->store = &store;

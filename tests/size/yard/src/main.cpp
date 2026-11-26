@@ -5,20 +5,20 @@ import mlibs.message;  // its lines without std::format: what std::println would
 import mlibs.rhi;
 import mlibs.geom;
 import mlibs.math;
-import xrender.mesh.gpu;
-import xrender.rhi.webgpu;
-import xrender.rhi.webgl;
+import mrender.mesh.gpu;
+import mrender.rhi.webgpu;
+import mrender.rhi.webgl;
 
-namespace mesh = xrender::mesh;
-namespace scene = xrender::scene;
+namespace mesh = mrender::mesh;
+namespace scene = mrender::scene;
 namespace math = mlibs::math;
 namespace geom = mlibs::geom;
 namespace rhi = mlibs::rhi;
 
 int main() {
     constexpr std::uint32_t width = 960, height = 540;
-    auto device = xrender::rhi::webgpu::create({.canvas = "#canvas"});
-    if (!device) device = xrender::rhi::webgl::create({.canvas = "#canvas"});
+    auto device = mrender::rhi::webgpu::create({.canvas = "#canvas"});
+    if (!device) device = mrender::rhi::webgl::create({.canvas = "#canvas"});
     if (!device) {
         std::puts(mlibs::message::format("no device on this page: {}", device.error().message).c_str());
         return 1;

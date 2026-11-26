@@ -4,12 +4,12 @@
 // every platform.
 import std;
 import omui.view;
-import xrender.raster;
+import mrender.raster;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mcpplibs.mtest;
-import xrender.text;
+import mrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::LogRecord;
@@ -61,10 +61,10 @@ void click(Runtime& rt, float x, float y) {
     rt.frame({std::nullopt, {pointer(PointerKind::down, x, y), pointer(PointerKind::up, x, y)}});
 }
 
-xrender::raster::Surface draw(Runtime& rt, xrender::text::GlyphCache& glyphs) {
-    xrender::raster::Surface s(static_cast<int>(rt.size().width * rt.scale()), static_cast<int>(rt.size().height * rt.scale()));
-    xrender::CpuRenderer r;
-    xrender::CpuOptions o;
+mrender::raster::Surface draw(Runtime& rt, mrender::text::GlyphCache& glyphs) {
+    mrender::raster::Surface s(static_cast<int>(rt.size().width * rt.scale()), static_cast<int>(rt.size().height * rt.scale()));
+    mrender::CpuRenderer r;
+    mrender::CpuOptions o;
     o.scale = rt.scale();
     o.background = Color::white();
     (void)r.render(rt.display_list(), s, {&rt.images(), &glyphs}, o);
@@ -547,7 +547,7 @@ static UTest cases{"view", [] {
                                     }));
         auto fill = [&]() -> std::optional<Color> {
             for (const auto& c : rt.display_list().commands())
-                if (const auto* r = std::get_if<xrender::FillRect>(&c)) return r->paint.color;
+                if (const auto* r = std::get_if<mrender::FillRect>(&c)) return r->paint.color;
             return std::nullopt;
         };
         rt.frame({seconds(0), {}});
@@ -624,10 +624,10 @@ static UTest cases{"view", [] {
 
         // A custom stage between paint and the debug overlay: it updates the display list.
         struct Badge final : mlibs::pipeline::Stage {
-            std::vector<mlibs::pipeline::Port> reads() const override { return {mlibs::pipeline::port<xrender::DisplayList>("display")}; }
-            std::vector<mlibs::pipeline::Port> writes() const override { return {mlibs::pipeline::port<xrender::DisplayList>("display")}; }
+            std::vector<mlibs::pipeline::Port> reads() const override { return {mlibs::pipeline::port<mrender::DisplayList>("display")}; }
+            std::vector<mlibs::pipeline::Port> writes() const override { return {mlibs::pipeline::port<mrender::DisplayList>("display")}; }
             std::expected<void, std::string> run(mlibs::pipeline::Context& c) override {
-                c.resources.get<xrender::DisplayList>("display")->fill_rect({0, 0, 4, 4}, Color::hex(0xff00ff));
+                c.resources.get<mrender::DisplayList>("display")->fill_rect({0, 0, 4, 4}, Color::hex(0xff00ff));
                 return {};
             }
         };
@@ -645,7 +645,7 @@ static UTest cases{"view", [] {
         auto out = rt.frame({seconds(0), {}});
         auto has_badge = [&] {
             for (const auto& c : rt.display_list().commands())
-                if (const auto* r = std::get_if<xrender::FillRect>(&c); r && r->paint.color == Color::hex(0xff00ff)) return true;
+                if (const auto* r = std::get_if<mrender::FillRect>(&c); r && r->paint.color == Color::hex(0xff00ff)) return true;
             return false;
         };
         expect(out.repainted && has_badge()) << "the custom stage drew into the frame's list";
@@ -668,8 +668,8 @@ static UTest cases{"view", [] {
         struct Flaky final : mlibs::pipeline::Stage {
             int* left;
             explicit Flaky(int* l) : left(l) {}
-            std::vector<mlibs::pipeline::Port> reads() const override { return {mlibs::pipeline::port<xrender::DisplayList>("display")}; }
-            std::vector<mlibs::pipeline::Port> writes() const override { return {mlibs::pipeline::port<xrender::DisplayList>("display")}; }
+            std::vector<mlibs::pipeline::Port> reads() const override { return {mlibs::pipeline::port<mrender::DisplayList>("display")}; }
+            std::vector<mlibs::pipeline::Port> writes() const override { return {mlibs::pipeline::port<mrender::DisplayList>("display")}; }
             std::expected<void, std::string> run(mlibs::pipeline::Context&) override {
                 if (*left > 0 && (*left)--) return std::unexpected(std::string("the device was lost"));
                 return {};
@@ -724,7 +724,7 @@ static UTest cases{"view", [] {
         const NodeId fade = rt.find("main/fade");
         auto opacity = [&] {
             for (const auto& c : rt.display_list().commands())
-                if (const auto* l = std::get_if<xrender::PushLayer>(&c)) return l->opacity;
+                if (const auto* l = std::get_if<mrender::PushLayer>(&c)) return l->opacity;
             return 1.0f;
         };
         on.set(true);
@@ -816,7 +816,7 @@ static UTest cases{"view", [] {
         // Paint shows the halfway opacity: a layer at 0.5.
         bool half = false;
         for (const auto& c : rt.display_list().commands())
-            if (const auto* l = std::get_if<xrender::PushLayer>(&c)) half = half || std::abs(l->opacity - 0.5f) < 1e-4f;
+            if (const auto* l = std::get_if<mrender::PushLayer>(&c)) half = half || std::abs(l->opacity - 0.5f) < 1e-4f;
         expect(half) << "the layer is at half opacity";
         auto settled = rt.frame({seconds(1.0), {}});
         expect(!sem().states.has(State::animating));
@@ -959,7 +959,7 @@ static UTest cases{"view", [] {
         rt.frame();
         auto color_of = [&] {
             for (const auto& c : rt.display_list().commands())
-                if (const auto* f = std::get_if<xrender::FillRect>(&c)) return f->paint.color;
+                if (const auto* f = std::get_if<mrender::FillRect>(&c)) return f->paint.color;
             return Color::transparent();
         };
         expect(color_of() == Theme::light().color("surface"));
@@ -997,13 +997,13 @@ static UTest cases{"view", [] {
         expect(rt.hit_test({15, 15}) == rt.find("main/dot"));
         expect(rt.hit_test({115, 35}) == rt.find("main/moved"));
         expect(rt.hit_test({15, 35}) == rt.find("main"));
-        xrender::text::GlyphCache glyphs(fonts());
+        mrender::text::GlyphCache glyphs(fonts());
         auto px = draw(rt, glyphs);
         auto p = px.at(15, 15);
         expect(p.g == 255 && p.r == 0) << "the painter's green";
-        xrender::CpuRenderer r;
-        xrender::raster::Surface s2(200, 100);
-        xrender::CpuOptions o;
+        mrender::CpuRenderer r;
+        mrender::raster::Surface s2(200, 100);
+        mrender::CpuOptions o;
         o.object_ids = true;
         (void)r.render(rt.display_list(), s2, {&rt.images(), &glyphs}, o);
         expect(rt.node_at_index(r.object_at(15, 15, 200)) == rt.find("main/dot")) << "a pixel traces back to its node";
@@ -1176,7 +1176,7 @@ static UTest cases{"view", [] {
                                     text({.text = "Body text wraps when it is longer than the line.", .max_lines = 1}),
                                 }));
         rt.frame();
-        xrender::text::GlyphCache glyphs(own);
+        mrender::text::GlyphCache glyphs(own);
         auto px = draw(rt, glyphs);
         Hash h;
         for (int y = 0; y < px.height(); ++y)
@@ -1217,7 +1217,7 @@ static UTest cases{"view", [] {
     };
 
     "glyph motion: any node's text, glyph by glyph, a function of time (D-68)"_test = [] {
-        xrender::text::GlyphCache glyphs(fonts());
+        mrender::text::GlyphCache glyphs(fonts());
         Runtime plain(options({260, 60}));
         plain.mount("main", column({.padding = 8}, {text({.id = "t", .text = "Hello glyph motion"})}));
         plain.frame({seconds(0), {}});
@@ -1262,7 +1262,7 @@ static UTest cases{"view", [] {
     };
 
     "theme scopes: a subtree drawn in a theme of its own, its hooks told it, the rest in the runtime's; set again, the runtime's changed, removed"_test = [] {
-        xrender::text::GlyphCache glyphs(fonts());
+        mrender::text::GlyphCache glyphs(fonts());
         Runtime rt(options({200, 60}));  // the light theme
         Color seen_ctx, seen_services;
         auto panel = [](std::string id, std::vector<Element> kids) {
@@ -1305,7 +1305,7 @@ static UTest cases{"view", [] {
     };
 
     "theme scopes: their own effect rules (\"window\" is the node that joins), and a cross-fade of their area only"_test = [] {
-        xrender::text::GlyphCache glyphs(fonts());
+        mrender::text::GlyphCache glyphs(fonts());
         auto make = [](Runtime& rt) {
             rt.mount("main", row({}, {box({.id = "out", .width = 100, .height = 60, .background = "accent"}, {box({.width = 30, .height = 30, .background = "surface"})}),
                                       box({.id = "in", .width = 100, .height = 60, .background = "accent"}, {box({.width = 30, .height = 30, .background = "surface"})})
@@ -1344,7 +1344,7 @@ static UTest cases{"view", [] {
     };
 
     "glyph motion takes the text's decorations along: an underline under the glyphs moves and fades with them, a background taller than a line and a fill beside them stay"_test = [] {
-        static const xrender::Glyph word[] = {{.id = 1, .position = {0, 0}}, {.id = 2, .position = {9, 0}}, {.id = 3, .position = {18, 0}}};
+        static const mrender::Glyph word[] = {{.id = 1, .position = {0, 0}}, {.id = 2, .position = {9, 0}}, {.id = 3, .position = {18, 0}}};
         GlyphMotion m;
         m.domain = GlyphDomain::glyph;
         m.from = {.y = 10, .opacity = 0};
@@ -1353,16 +1353,16 @@ static UTest cases{"view", [] {
         Runtime rt(options({200, 80}));
         rt.mount("main", column({}, {animate_glyphs(painter({.id = "p", .width = 200, .height = 60, .paint = [](PaintContext& c) {
                                                        c.list.fill_rect({0, 0, 200, 60}, Color::hex(0x202020));     // the whole box: no decoration
-                                                       c.list.draw_glyphs({}, 16, {10, 30}, word, xrender::Paint::solid(Color::hex(0xffffff)));
+                                                       c.list.draw_glyphs({}, 16, {10, 30}, word, mrender::Paint::solid(Color::hex(0xffffff)));
                                                        c.list.fill_rect({10, 32, 27, 1}, Color::hex(0xffffff));      // the underline
                                                        c.list.fill_rect({120, 20, 20, 12}, Color::hex(0xff0000));    // beside the text
                                                    }}),
                                                    m)}));
         rt.frame({seconds(0), {}});
         rt.frame({seconds(0.5), {}});
-        std::vector<xrender::FillRect> fills;
+        std::vector<mrender::FillRect> fills;
         for (const auto& c : rt.display_list().commands())
-            if (const auto* f = std::get_if<xrender::FillRect>(&c)) fills.push_back(*f);
+            if (const auto* f = std::get_if<mrender::FillRect>(&c)) fills.push_back(*f);
         expect(fills.size() == 3);
         if (fills.size() != 3) return;
         expect(fills[0].rect == Rect{0, 0, 200, 60} && fills[0].paint.color.a == 1) << "the box stays";
@@ -1372,11 +1372,11 @@ static UTest cases{"view", [] {
         expect(fills[2].rect == Rect{120, 20, 20, 12} && fills[2].paint.color.a == 1) << "the fill beside the text stays";
         rt.frame({seconds(2), {}});
         for (const auto& c : rt.display_list().commands())
-            if (const auto* f = std::get_if<xrender::FillRect>(&c); f && f->rect.height == 1) expect(f->rect.y == 32 && f->paint.color.a == 1) << "at rest, where it was drawn";
+            if (const auto* f = std::get_if<mrender::FillRect>(&c); f && f->rect.height == 1) expect(f->rect.y == 32 && f->paint.color.a == 1) << "at rest, where it was drawn";
     };
 
     "glyph motion on a container: its descendants' text, each a paragraph; one with its own motion keeps it"_test = [] {
-        xrender::text::GlyphCache glyphs(fonts());
+        mrender::text::GlyphCache glyphs(fonts());
         auto first = [] { return text({.id = "a", .text = "First paragraph"}); };
         auto second = [] { return text({.id = "b", .text = "Second paragraph"}); };
         auto at = [&](Element tree, double t) {
@@ -1405,7 +1405,7 @@ static UTest cases{"view", [] {
     };
 
     "pixel effects on any node: its whole drawing, driven by time (D-68)"_test = [] {
-        xrender::text::GlyphCache glyphs(fonts());
+        mrender::text::GlyphCache glyphs(fonts());
         auto card = [] {
             return box({.id = "card", .padding = 10, .background = "accent", .radius = 10},
                        {text({.id = "t", .text = "Burst into particles", .color = "on_accent"})});
@@ -1474,9 +1474,9 @@ static UTest cases{"view", [] {
     };
 
     "glyph motion: domains, ranges, orders, randomness, round trips"_test = [] {
-        std::vector<xrender::Glyph> g;
+        std::vector<mrender::Glyph> g;
         for (std::uint32_t i = 0; i < 6; ++i) g.push_back({1, {static_cast<float>(i) * 10, 0}, i, i, i / 3, 0});
-        const std::array<std::span<const xrender::Glyph>, 1> one{std::span<const xrender::Glyph>(g)};
+        const std::array<std::span<const mrender::Glyph>, 1> one{std::span<const mrender::Glyph>(g)};
         GlyphMotion m;
         m.domain = GlyphDomain::word;
         m.from = {.y = 10};
@@ -1672,10 +1672,10 @@ static UTest cases{"view", [] {
         expect(eq(stops, 1));
         rt.mount("main", column({.padding = 10}, {box({.id = "target", .width = 40, .height = 20})}));
         rt.frame();
-        xrender::text::GlyphCache glyphs(fonts());
+        mrender::text::GlyphCache glyphs(fonts());
         auto hash = [&] {
             Hash h;
-            const xrender::raster::Surface px = draw(rt, glyphs);
+            const mrender::raster::Surface px = draw(rt, glyphs);
             for (int y = 0; y < px.height(); ++y) h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
             return h.hex();
         };

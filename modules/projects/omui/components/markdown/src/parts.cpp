@@ -7,7 +7,7 @@ import omui.view;
 import mlibs.markdown;
 import :markdown_contract;
 import :parts;
-import xrender.text;
+import mrender.text;
 
 namespace omui::mdview {
 
@@ -256,7 +256,7 @@ Element element(std::shared_ptr<Data> data, std::string id) {
 
 void focus_ring(PaintContext& ctx, Rect r, float radius) {
     ctx.list.stroke_round_rect({r.x - 2, r.y - 2, r.width + 4, r.height + 4}, CornerRadii::all(radius + 2), 2,
-                               xrender::Paint::solid(ctx.theme.color("focus")));
+                               mrender::Paint::solid(ctx.theme.color("focus")));
 }
 
 // ── Text ──
@@ -338,7 +338,7 @@ void Text::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     if (b.kind == mlibs::markdown::Kind::table_cell) {
         if (b.header) ctx.list.fill_rect({0, 0, ctx.size.width, ctx.size.height}, th.color("surface_variant"));
-        ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"), xrender::PixelAlign::device);
+        ctx.list.fill_rect({0, ctx.size.height - 1, ctx.size.width, 1}, th.color("border"), mrender::PixelAlign::device);
     }
     mlibs::text::Paragraph& p = shaped(ctx.services);
     lay(ctx.content.width + 1.0f / 1024);
@@ -348,13 +348,13 @@ void Text::paint(PaintContext& ctx) const {
         if ((r.spans & mlibs::markdown::bit(mlibs::markdown::Span::code)) == 0) continue;
         for (const Rect& rr : p.selection(r.begin, r.end))
             ctx.list.fill_round_rect({origin_.x + rr.x - 2, origin_.y + rr.y + 1, rr.width + 4, rr.height - 2}, CornerRadii::all(4),
-                                     xrender::Paint::solid(th.color("surface_variant")));
+                                     mrender::Paint::solid(th.color("surface_variant")));
     }
     // The selection behind the text (its part of the window's one).
     if (const auto range = ctx.services.text_selection(node_))
         for (const Rect& rr : p.selection(range->first, range->second))
             ctx.list.fill_rect({origin_.x + rr.x, origin_.y + rr.y, rr.width, rr.height}, th.color("selection", th.color("accent").with_alpha(0.28f)));
-    xrender::text::paint(p, ctx.list, origin_);
+    mrender::text::paint(p, ctx.list, origin_);
 }
 
 std::string Text::selected() const {
@@ -471,7 +471,7 @@ void Link::paint(PaintContext& ctx) const {
     // The text is the paragraph's; a link only lights up while hovered or pressed.
     if (ctx.state.hovered || ctx.state.pressed)
         ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(3),
-                                 xrender::Paint::solid(ctx.theme.color("accent_subtle").with_alpha(ctx.state.pressed ? 0.8f : 0.5f)));
+                                 mrender::Paint::solid(ctx.theme.color("accent_subtle").with_alpha(ctx.state.pressed ? 0.8f : 0.5f)));
 }
 
 void Link::paint_over(PaintContext& ctx) const {
@@ -533,11 +533,11 @@ void Group::paint(PaintContext& ctx) const {
     const mlibs::markdown::Block& b = data->block;
     const Theme& th = ctx.theme;
     if (b.kind == mlibs::markdown::Kind::quote) {
-        ctx.list.fill_round_rect({0, 0, 3, ctx.size.height}, CornerRadii::all(1.5f), xrender::Paint::solid(th.color("border_strong")));
+        ctx.list.fill_round_rect({0, 0, 3, ctx.size.height}, CornerRadii::all(1.5f), mrender::Paint::solid(th.color("border_strong")));
         return;
     }
     if (b.kind == mlibs::markdown::Kind::table) {
-        ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, {}, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
+        ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, {}, 1, mrender::Paint::solid(th.color("border")), mrender::PixelAlign::device);
         return;
     }
     if (b.kind != mlibs::markdown::Kind::item || b.task != mlibs::markdown::Task::none) return;
@@ -555,12 +555,12 @@ void Group::paint(PaintContext& ctx) const {
             marker_.emplace(ctx.services.fonts(), std::format("{}{}", data->number, delim), ps);
             marker_->layout(ctx.content.x - 6);
         }
-        xrender::text::paint(*marker_, ctx.list, {0, 0});
+        mrender::text::paint(*marker_, ctx.list, {0, 0});
         return;
     }
     const float r = 2.75f;
     const Point c{bullet_w / 2 - 2, line / 2};
-    ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r), xrender::Paint::solid(th.color("text_muted")));
+    ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r), mrender::Paint::solid(th.color("text_muted")));
 }
 
 void Group::semantics(SemanticsContext&, spec::SemanticNode& n) const {
@@ -662,15 +662,15 @@ void Task::paint(PaintContext& ctx) const {
     const bool on = data->block.task == mlibs::markdown::Task::done;
     const Rect box{0, 0, 16, 16};
     if (on) {
-        ctx.list.fill_round_rect(box, CornerRadii::all(4), xrender::Paint::solid(th.color("accent")));
-        xrender::Path tick;
+        ctx.list.fill_round_rect(box, CornerRadii::all(4), mrender::Paint::solid(th.color("accent")));
+        mrender::Path tick;
         tick.move_to({4, 8.5f}).line_to({7, 11.5f}).line_to({12.5f, 5});
-        ctx.list.stroke_path(tick, {.width = 2, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round},
-                             xrender::Paint::solid(th.color("on_accent")));
+        ctx.list.stroke_path(tick, {.width = 2, .cap = mrender::LineCap::round, .join = mrender::LineJoin::round},
+                             mrender::Paint::solid(th.color("on_accent")));
     } else {
-        ctx.list.fill_round_rect(box, CornerRadii::all(4), xrender::Paint::solid(th.color("surface")));
+        ctx.list.fill_round_rect(box, CornerRadii::all(4), mrender::Paint::solid(th.color("surface")));
         ctx.list.stroke_round_rect({0.75f, 0.75f, 14.5f, 14.5f}, CornerRadii::all(3.5f), 1.5f,
-                                   xrender::Paint::solid(ctx.state.hovered ? th.color("accent") : th.color("border_strong")));
+                                   mrender::Paint::solid(ctx.state.hovered ? th.color("accent") : th.color("border_strong")));
     }
 }
 
@@ -736,14 +736,14 @@ Size Code::measure(MeasureContext& m, std::optional<float> w, std::optional<floa
 void Code::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("medium", 8)),
-                             xrender::Paint::solid(th.color("surface_variant")));
+                             mrender::Paint::solid(th.color("surface_variant")));
     mlibs::text::Paragraph& p = shaped(ctx.services);
     if (laid_ < 0) {
         p.layout(std::numeric_limits<float>::infinity());
         laid_ = 1;
     }
     ctx.list.push_clip(ctx.content);
-    xrender::text::paint(p, ctx.list, ctx.content.origin());
+    mrender::text::paint(p, ctx.list, ctx.content.origin());
     ctx.list.pop_clip();
 }
 
@@ -821,11 +821,11 @@ void Copy::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const Color bg = ctx.state.pressed ? th.color("surface_pressed") : ctx.state.hovered ? th.color("surface") : th.color("surface_variant");
     const CornerRadii r = CornerRadii::all(th.corner("small", 4));
-    ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, r, xrender::Paint::solid(bg));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, r, mrender::Paint::solid(bg));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, mrender::Paint::solid(th.color("border")), mrender::PixelAlign::device);
     mlibs::text::Paragraph& p = label(ctx.services);
     const Size s = p.size();
-    xrender::text::paint(p, ctx.list, {(ctx.size.width - s.width) / 2, (ctx.size.height - s.height) / 2});
+    mrender::text::paint(p, ctx.list, {(ctx.size.width - s.width) / 2, (ctx.size.height - s.height) / 2});
 }
 
 void Copy::paint_over(PaintContext& ctx) const {
@@ -846,6 +846,6 @@ void Rule::style(const Theme&, mlibs::layout::Style& s) const {
 
 void Rule::semantics(SemanticsContext&, spec::SemanticNode& n) const { n.origin = origin_of(*data->hub); }
 
-void Rule::paint(PaintContext& ctx) const { ctx.list.fill_rect({0, 0, ctx.size.width, 1}, ctx.theme.color("border"), xrender::PixelAlign::device); }
+void Rule::paint(PaintContext& ctx) const { ctx.list.fill_rect({0, 0, ctx.size.width, 1}, ctx.theme.color("border"), mrender::PixelAlign::device); }
 
 }  // namespace omui::mdview

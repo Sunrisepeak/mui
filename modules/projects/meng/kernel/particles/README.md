@@ -23,7 +23,7 @@ particles::Cloud branch = *cloud;          // a copy is a branch
 
 ## Agent surface
 
-A subject of its own, `particles` (the feature `agent`, module `meng.particles.agent`; catalog [particles.ops.xdef.ts](particles.ops.xdef.ts), order of use [skill.omui.md](skill.omui.md)): `observe` (the frame, the fingerprint, how many by material, what struck the world fastest first, within a budget), `list`, `near`, `emit` (a material by name, how many, a spread the same every run), `step`, `seek` (a copy of the cloud every 60 steps and the emissions since, played again — bit for bit), `branch` (what would be, the cloud untouched). Under the agent contract's suite in `meng.matter.cts` beside the lattice's subjects: everything it says it has passes; causes and the source of what it puts out are said unsupported. The cloud itself is a value: `at`, `velocity`, `ages`, `lives`, `ids`, `state`, `landed`, `events`, `fingerprint`; a branch is a copy (D-169). Drawn by [xrender.particle](../../../xrender/particle) (a particle's place, size and colour), which also says which one is at a point (`pick`) — the colour from the state by the appearance recipe (D-168).
+A subject of its own, `particles` (the feature `agent`, module `meng.particles.agent`; catalog [particles.ops.xdef.ts](particles.ops.xdef.ts), order of use [skill.omui.md](skill.omui.md)): `observe` (the frame, the fingerprint, how many by material, what struck the world fastest first, within a budget), `list`, `near`, `emit` (a material by name, how many, a spread the same every run), `step`, `seek` (a copy of the cloud every 60 steps and the emissions since, played again — bit for bit), `branch` (what would be, the cloud untouched). Under the agent contract's suite in `meng.matter.cts` beside the lattice's subjects: everything it says it has passes; causes and the source of what it puts out are said unsupported. The cloud itself is a value: `at`, `velocity`, `ages`, `lives`, `ids`, `state`, `landed`, `events`, `fingerprint`; a branch is a copy (D-169). Drawn by [mrender.particle](../../../mrender/particle) (a particle's place, size and colour), which also says which one is at a point (`pick`) — the colour from the state by the appearance recipe (D-168).
 
 ## Against the strongest
 
@@ -33,5 +33,5 @@ Engines' particle systems (Unreal's Niagara, Unity's VFX Graph, Godot's GPUParti
 
 - **Target**: flying matter (sparks, drops, grit) under the standard laws, on the CPU reference and, bit for bit where it holds authority, on the GPU (D-184).
 - **Now**: CPU: gravity, drag, collision against triangles, ageing; each particle an instance of matter beside its neighbours and the air.
-- **Gap**: no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is xrender.particle's, a picture).
+- **Gap**: no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is mrender.particle's, a picture).
 - **Graduation to preview**: a contract suite on every tier-1 row, a second consumer, the magnitudes within tolerance.

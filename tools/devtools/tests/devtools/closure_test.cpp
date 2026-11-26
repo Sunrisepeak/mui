@@ -22,7 +22,7 @@ static UTest cases{"devtools.closure", [] {
     "the committed pages are the tree's checklist, in both languages; every project counted"_test = [] {
         const auto report = closure::check(root());
         expect(fatal(report.has_value())) << (report ? "" : report.error());
-        expect(eq(report->projects.size(), std::size_t{7})) << "mlibs, xrender, hanim, omui, meng, gongfu, xtools";
+        expect(eq(report->projects.size(), std::size_t{7})) << "mlibs, mrender, hanim, omui, meng, gongfu, xtools";
         for (const auto& project : report->projects) {
             const auto spared = std::ranges::count(project.items, closure::Mark::not_required, &closure::Cell::mark);
             // An experimental project owes the four starred items only; the others owe all ten.

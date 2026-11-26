@@ -32,7 +32,7 @@ std::uint64_t bits(std::span<const std::uint8_t> shown) {
     return hash.value();
 }
 // Pixels drawn by instances with ids in [from, to).
-std::size_t drawn_by(const picture::Picture& drawn, xrender::scene::Id from, xrender::scene::Id to) {
+std::size_t drawn_by(const picture::Picture& drawn, mrender::scene::Id from, mrender::scene::Id to) {
     std::size_t count = 0;
     for (std::size_t pixel = 0; pixel < drawn.targets().ids.size(); ++pixel) {
         const auto id = drawn.instance_at(pixel);
@@ -202,7 +202,7 @@ UTest cases{"quay.picture", [] {
         // The rain from the start, and a frame later.
         for (int frame = 0; frame < 5; ++frame) quay::step(state, {});
         drawn->draw(state);
-        const xrender::particle::Drawn rained = drawn->rained();
+        const mrender::particle::Drawn rained = drawn->rained();
         const std::uint64_t before = bits(drawn->shown());
         const auto file = keep(*drawn, "quay-rain");
         quay::step(state, {});

@@ -3,9 +3,9 @@
 import std;
 import omui.view;
 import hanim.visual;
-import xrender.raster;
+import mrender.raster;
 import mcpplibs.mtest;
-import xrender.text;
+import mrender.text;
 
 using namespace omui;
 using namespace mcpplibs::mtest;
@@ -55,19 +55,19 @@ struct Responsive {
     }
 };
 mo::Resolver resolver() { return {.keys=[](std::uint32_t n, std::string& key, std::string&) {key=std::to_string(n);}}; }
-xrender::DisplayList drawing(bool target, bool resize = true, bool changing_stroke = false) {
+mrender::DisplayList drawing(bool target, bool resize = true, bool changing_stroke = false) {
     const float width = target && resize ? 180.0f : 100.0f;
-    xrender::DisplayList list; list.begin_node(1);
+    mrender::DisplayList list; list.begin_node(1);
     list.push_transform(Affine::translate(target?120:15, target?30:10));
     list.node_frame(1, {0,0,width,40},1,{}, {}, Affine::translate(target?20:5,0));
-    list.fill_round_rect({0,0,width,40},CornerRadii::all(target?8.0f:4.0f),xrender::Paint::solid(Color::hex(target?0x1d4ed8:0xe11d48)));
-    list.fill_rect({target?50.0f:10.0f,10,10,10},xrender::Paint::solid(Color::white()));
-    const xrender::Glyph glyph{.id=1,.position={0,0}};
-    xrender::GlyphStyle style; style.transform=Affine::translate(3,0);style.opacity=0.6f;
-    list.draw_glyphs({1},16,{target?70.0f:30.0f,24},std::span(&glyph,1),xrender::Paint::solid(Color::black()),std::span(&style,1));
-    list.draw_glyphs({1},16,{target?150.0f:70.0f,24},std::span(&glyph,1),xrender::Paint::solid(Color::black()));
+    list.fill_round_rect({0,0,width,40},CornerRadii::all(target?8.0f:4.0f),mrender::Paint::solid(Color::hex(target?0x1d4ed8:0xe11d48)));
+    list.fill_rect({target?50.0f:10.0f,10,10,10},mrender::Paint::solid(Color::white()));
+    const mrender::Glyph glyph{.id=1,.position={0,0}};
+    mrender::GlyphStyle style; style.transform=Affine::translate(3,0);style.opacity=0.6f;
+    list.draw_glyphs({1},16,{target?70.0f:30.0f,24},std::span(&glyph,1),mrender::Paint::solid(Color::black()),std::span(&style,1));
+    list.draw_glyphs({1},16,{target?150.0f:70.0f,24},std::span(&glyph,1),mrender::Paint::solid(Color::black()));
     const float stroke=changing_stroke?(target?2.0f:4.0f):1.0f;
-    list.stroke_round_rect({stroke/2,stroke/2,width-stroke,40-stroke},CornerRadii::all(4),stroke,xrender::Paint::solid(Color::black()));
+    list.stroke_round_rect({stroke/2,stroke/2,width-stroke,40-stroke},CornerRadii::all(4),stroke,mrender::Paint::solid(Color::black()));
     list.pop_transform(); list.end_node(); return list;
 }
 }
@@ -89,30 +89,30 @@ static UTest cases{"view.constraint_placement", [] {
         const auto& source=morph.from(); expect(source.frames().front().rect.width==180);
         expect(std::abs(source.frames().front().transform.e-105)<0.01f) << "new external origin 100 retains source visual translation 5";
         const auto commands=source.list().commands();
-        expect(std::get<xrender::FillRoundRect>(commands[source.pieces()[0].command]).rect.width==180) << "full border follows allocation immediately";
-        expect(std::get<xrender::FillRect>(commands[source.pieces()[1].command]).rect.x==10) << "internal state shape keeps source endpoint";
-        expect(std::get<xrender::DrawGlyphs>(commands[source.pieces()[2].command]).size==16) << "font size is never width-scaled";
-        const auto& label=std::get<xrender::DrawGlyphs>(commands[source.pieces()[2].command]);
+        expect(std::get<mrender::FillRoundRect>(commands[source.pieces()[0].command]).rect.width==180) << "full border follows allocation immediately";
+        expect(std::get<mrender::FillRect>(commands[source.pieces()[1].command]).rect.x==10) << "internal state shape keeps source endpoint";
+        expect(std::get<mrender::DrawGlyphs>(commands[source.pieces()[2].command]).size==16) << "font size is never width-scaled";
+        const auto& label=std::get<mrender::DrawGlyphs>(commands[source.pieces()[2].command]);
         expect(label.origin.x==70 && label.styles.front().transform.e==3 && label.styles.front().opacity==0.6f) << "centered whole-run alignment adopts current allocation without discarding glyph state";
-        expect(std::get<xrender::DrawGlyphs>(commands[source.pieces()[3].command]).origin.x==150) << "right aligned run also adopts its current origin";
-        expect(std::get<xrender::StrokeRoundRect>(commands[source.pieces()[4].command]).rect.width==179) << "half-stroke inset border follows the same allocation as its full fill";
-        xrender::DisplayList middle; morph.draw(0.5,middle); expect(middle.balanced());
+        expect(std::get<mrender::DrawGlyphs>(commands[source.pieces()[3].command]).origin.x==150) << "right aligned run also adopts its current origin";
+        expect(std::get<mrender::StrokeRoundRect>(commands[source.pieces()[4].command]).rect.width==179) << "half-stroke inset border follows the same allocation as its full fill";
+        mrender::DisplayList middle; morph.draw(0.5,middle); expect(middle.balanced());
         bool thumb=false, glyph=false;
         for(const auto& c:middle.commands()) {
-            if(const auto* f=std::get_if<xrender::FillRect>(&c); f && f->rect.width==10) thumb=f->rect.x>10 && f->rect.x<50;
-            if(const auto* g=std::get_if<xrender::DrawGlyphs>(&c)) glyph=g->size==16;
+            if(const auto* f=std::get_if<mrender::FillRect>(&c); f && f->rect.width==10) thumb=f->rect.x>10 && f->rect.x<50;
+            if(const auto* g=std::get_if<mrender::DrawGlyphs>(&c)) glyph=g->size==16;
         }
         expect(thumb && glyph) << "state shape still takes its real intermediate trajectory";
-        xrender::DisplayList endpoint; morph.draw(1,endpoint); expect(endpoint.balanced());
-        expect(std::ranges::none_of(endpoint.commands(),[](const xrender::Command& c){return std::holds_alternative<xrender::PushClipRect>(c);})) << "temporary outgoing text crop cannot clip target ink at an exact held endpoint";
+        mrender::DisplayList endpoint; morph.draw(1,endpoint); expect(endpoint.balanced());
+        expect(std::ranges::none_of(endpoint.commands(),[](const mrender::Command& c){return std::holds_alternative<mrender::PushClipRect>(c);})) << "temporary outgoing text crop cannot clip target ink at an exact held endpoint";
     };
     "allocation and border width can change together without an old inner line or outer overflow"_test = [] {
         auto a=drawing(false,true,true),b=drawing(true,true,true);mo::Options config;config.rebase_layout=true;
         config.curve.kind=mo::Curve::Kind::tween;config.curve.duration=1;config.curve.ease=hanim::ease::linear;
         mo::Morph morph(mo::Matter::extract(a,resolver()),mo::Matter::extract(b,resolver()),config,0);
         for(const double time:{0.0,0.3,0.7,1.0}) {
-            xrender::DisplayList out;morph.draw(time,out);expect(out.balanced());bool found=false;
-            for(const auto& command:out.commands()) if(const auto* border=std::get_if<xrender::StrokeRoundRect>(&command)) {
+            mrender::DisplayList out;morph.draw(time,out);expect(out.balanced());bool found=false;
+            for(const auto& command:out.commands()) if(const auto* border=std::get_if<mrender::StrokeRoundRect>(&command)) {
                 found=true;expect(std::abs(border->rect.x-border->width/2)<0.01f && std::abs(border->rect.right()+border->width/2-180)<0.01f) << "source half-width inset and target half-width inset keep the painted outer edge on the current allocation";
             }
             expect(found);
@@ -120,26 +120,26 @@ static UTest cases{"view.constraint_placement", [] {
     };
     "fractional interrupted snapshot preserves ownership of a half-stroke inset border"_test = [] {
         auto make=[](float width) {
-            xrender::DisplayList list;list.begin_node(1);list.node_frame(1,{0,0,width,40});
-            list.fill_round_rect({0,0,width,40},CornerRadii::all(4),xrender::Paint::solid(Color::white()));
-            list.stroke_round_rect({0.5f,0.5f,width-1,39},CornerRadii::all(4),1,xrender::Paint::solid(Color::black()));
+            mrender::DisplayList list;list.begin_node(1);list.node_frame(1,{0,0,width,40});
+            list.fill_round_rect({0,0,width,40},CornerRadii::all(4),mrender::Paint::solid(Color::white()));
+            list.stroke_round_rect({0.5f,0.5f,width-1,39},CornerRadii::all(4),1,mrender::Paint::solid(Color::black()));
             list.end_node();return list;
         };
         auto a=make(590.8328857421875f),b=make(443.1992492675781f),next=make(179.3f);
         mo::Options config;config.curve.kind=mo::Curve::Kind::tween;config.curve.duration=1;config.curve.ease=hanim::ease::linear;
         mo::Morph first(mo::Matter::extract(a,resolver()),mo::Matter::extract(b,resolver()),config,0);
         auto snapshot=first.snapshot(0.5336417886554939);
-        const auto& old_border=std::get<xrender::StrokeRoundRect>(snapshot.list().commands()[snapshot.pieces()[1].command]);
+        const auto& old_border=std::get<mrender::StrokeRoundRect>(snapshot.list().commands()[snapshot.pieces()[1].command]);
         expect(old_border.rect.width!=snapshot.frames().front().rect.width-1) << "fixture really exercises independently rounded frame and half-stroke interpolation";
         config.rebase_layout=true;
         mo::Morph second(std::move(snapshot),mo::Matter::extract(next,resolver()),config,1);
-        const auto& from=second.from();const auto& border=std::get<xrender::StrokeRoundRect>(from.list().commands()[from.pieces()[1].command]);
+        const auto& from=second.from();const auto& border=std::get<mrender::StrokeRoundRect>(from.list().commands()[from.pieces()[1].command]);
         expect(std::abs(border.rect.right()+border.width/2-179.3f)<0.01f) << "fractional interrupted inset border still belongs to its owner and follows the new allocation";
     };
     "a content/alignment change in an unchanged border retains its glyph trajectory"_test = [] {
         auto a=drawing(false,false), b=drawing(true,false);mo::Options config;config.rebase_layout=true;
         mo::Morph morph(mo::Matter::extract(a,resolver()),mo::Matter::extract(b,resolver()),config,0);
-        const auto& from=morph.from();const auto& run=std::get<xrender::DrawGlyphs>(from.list().commands()[from.pieces()[2].command]);
+        const auto& from=morph.from();const auto& run=std::get<mrender::DrawGlyphs>(from.list().commands()[from.pieces()[2].command]);
         expect(run.origin.x==30 && run.size==16 && run.styles.front().transform.e==3) << "unchanged allocation cannot snap text alignment/content motion to its target";
     };
     "default action follows sibling allocation while state colour still morphs"_test = [] {
@@ -244,10 +244,10 @@ static UTest cases{"view.constraint_placement", [] {
         rt.mount("main",moving(stack({.width=100,.height=60,.radius=10,.clip=true},{std::move(row_view)})));
         frame(rt,0);frame(rt,0.1);const auto id=rt.find("main/lane/control");
         prefix.set(20);rt.constraints_changed(rt.find("main"));frame(rt,1);
-        xrender::text::GlyphCache glyphs(fonts);
+        mrender::text::GlyphCache glyphs(fonts);
         for(const double time:{1.0,1.3}) {
             frame(rt,time);const Point painted{75,15};
-            xrender::raster::Surface surface(200,100);xrender::CpuRenderer renderer;xrender::CpuOptions cpu;cpu.object_ids=true;
+            mrender::raster::Surface surface(200,100);mrender::CpuRenderer renderer;mrender::CpuOptions cpu;cpu.object_ids=true;
             (void)renderer.render(rt.display_list(),surface,{&rt.images(),&glyphs},cpu);
             const auto owner=renderer.object_ids()[15*200+75];
             expect(rt.node_at_index(owner)==id) << "CPU body pixel is inside the current inherited clip";

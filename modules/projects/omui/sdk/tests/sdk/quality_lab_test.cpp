@@ -51,7 +51,7 @@ std::vector<Control> controls() {
 }
 
 // One control in one state under one theme: its pixels.
-xrender::raster::Surface shoot(const Control& control, Shown shown, bool dark) {
+mrender::raster::Surface shoot(const Control& control, Shown shown, bool dark) {
     Headless h(HeadlessOptions{.size = cell, .scale = scale});
     const std::vector<std::string> layers{dark ? "dark" : "light"};
     const auto applied = theme::apply(h.runtime(), layers);

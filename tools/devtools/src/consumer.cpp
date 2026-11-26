@@ -336,7 +336,7 @@ Outcome hanim_core(Probe& probe) {
 
 // Whether a repository source is of the independent layers hanim may bring: mlibs (base, gfx and, with `wider`,
 // content and media; mlibs.dynamics, the solver hanim shares with games, is base: D-131, D-133, D-231), and the
-// gfx-layer projects hanim and xrender. Nothing of the engine's tier.
+// gfx-layer projects hanim and mrender. Nothing of the engine's tier.
 bool independent(const fs::path& source, const fs::path& repo, bool wider) {
     if (!inside(source, repo)) return true;
     std::vector<std::string> parts;
@@ -345,7 +345,7 @@ bool independent(const fs::path& source, const fs::path& repo, bool wider) {
         return parts.size() >= prefix.size() && std::ranges::equal(prefix, std::span(parts).first(prefix.size()));
     };
     return starts({"modules", "base"}) || starts({"modules", "gfx"}) || (wider && (starts({"modules", "content"}) || starts({"modules", "media"}))) ||
-           starts({"modules", "projects", "hanim"}) || starts({"modules", "projects", "xrender"});
+           starts({"modules", "projects", "hanim"}) || starts({"modules", "projects", "mrender"});
 }
 
 Outcome hanim_api(Probe& probe) {
@@ -381,7 +381,7 @@ Outcome hanim_api(Probe& probe) {
             const std::string name = identity(entry["package"]);
             names.push_back(name);
             if (forbidden.contains(name) || std::ranges::any_of(std::initializer_list<std::string_view>{"omui.ui.", "omui.host.", "omui.site", "openmui.rhi", "mlibs.rhi",
-                                                                                                         "openmui.render", "xrender"},
+                                                                                                         "openmui.render", "mrender"},
                                                                 [&](std::string_view prefix) { return name.starts_with(prefix); }))
                 return std::unexpected("forbidden UI/renderer dependency: " + name);
             // The product's package is sunrisepeak.hanim (its namespace, 2026-11-20); the module stays hanim.
@@ -422,7 +422,7 @@ std::expected<json, std::string> play_audit(Probe& probe, const std::string& pro
     auto metadata = newest_metadata(probe.project);
     if (!metadata) return std::unexpected(metadata.error());
     const std::set<std::string> forbidden{"omui.core", "omui.sdk", "openmui.testing", "mlibs.testing", "openlifa.openmui", "openmui.spec"};
-    const std::set<std::string> required{"sunrisepeak.hanim", "hanim.core", "xrender.vector", "xrender.raster", "mlibs.image", "mlibs.control", "openlifa.openas"};
+    const std::set<std::string> required{"sunrisepeak.hanim", "hanim.core", "mrender.vector", "mrender.raster", "mlibs.image", "mlibs.control", "openlifa.openas"};
     std::vector<std::string> names;
     for (const auto& package : metadata->data["graph"]["packages"]) {
         const json& item = package["package"];
@@ -486,7 +486,7 @@ Outcome hanim_play(Probe& probe, const fs::path& openas) {
     fs::create_directories(probe.project / "src");
     std::string manifest = mcpplibs::os::fs::read(fixture / "mcpp.toml.in").value_or("");
     for (const auto& [key, relative] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
-             {"engine", "projects/hanim"}, {"raster", "projects/xrender/raster"}, {"image", "base/image"}, {"utils", "base/utils"}, {"control", "base/control"}}) {
+             {"engine", "projects/hanim"}, {"raster", "projects/mrender/raster"}, {"image", "base/image"}, {"utils", "base/utils"}, {"control", "base/control"}}) {
         const std::string mark = std::format("{{{{{}_path}}}}", key), value = json(text_of(probe.repo / "modules" / relative)).dump();
         for (std::size_t at = manifest.find(mark); at != std::string::npos; at = manifest.find(mark, at + value.size())) manifest.replace(at, mark.size(), value);
     }
@@ -698,8 +698,8 @@ Outcome omui_hanim(Probe& probe, bool web) {
     fs::create_directories(probe.project / "src");
     std::string manifest = mcpplibs::os::fs::read(fixture / "mcpp.toml.in").value_or("");
     for (const auto& [key, relative] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
-             {"view", "modules/projects/omui/view"}, {"components", "modules/projects/omui/components/base"}, {"raster", "modules/projects/xrender/raster"},
-             {"image", "modules/base/image"}, {"utils", "modules/base/utils"}, {"xrender_text", "modules/projects/xrender/text"}, {"hanim", "modules/projects/hanim"}}) {
+             {"view", "modules/projects/omui/view"}, {"components", "modules/projects/omui/components/base"}, {"raster", "modules/projects/mrender/raster"},
+             {"image", "modules/base/image"}, {"utils", "modules/base/utils"}, {"mrender_text", "modules/projects/mrender/text"}, {"hanim", "modules/projects/hanim"}}) {
         const std::string mark = std::format("{{{{{}_path}}}}", key), value = json(text_of(probe.repo / relative)).dump();
         for (std::size_t at = manifest.find(mark); at != std::string::npos; at = manifest.find(mark, at + value.size())) manifest.replace(at, mark.size(), value);
     }
@@ -996,7 +996,7 @@ Outcome hanim_features(Probe& probe) {
             std::ranges::any_of(std::initializer_list<std::string_view>{"omui.core", "omui.sdk", "mlibs.testing", "openlifa.openmui"},
                                 [&](std::string_view name) { return packages.contains(std::string(name)); }))
             return std::unexpected("a UI or test dependency in the public product");
-        if (item.name != "render-vector" && has_prefix({"openmui.render", "xrender", "mlibs.rhi", "xrender.raster", "mlibs.shader"}))
+        if (item.name != "render-vector" && has_prefix({"openmui.render", "mrender", "mlibs.rhi", "mrender.raster", "mlibs.shader"}))
             return std::unexpected("the renderer enabled without opting in");
         if ((item.name == "control") != packages.contains("mlibs.control")) return std::unexpected("the control dependency did not follow the selected feature");
         // hanim.core measures its contours with mlibs.geom; the engine's solver is mlibs.dynamics (D-131, D-133, D-231).

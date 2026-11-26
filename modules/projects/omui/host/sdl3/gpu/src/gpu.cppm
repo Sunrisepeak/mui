@@ -1,4 +1,4 @@
-// omui.host.sdl3.gpu — the GPU path of a desktop window (mlibs.compose): SDL_GPU's device and xrender's renderer
+// omui.host.sdl3.gpu — the GPU path of a desktop window (mlibs.compose): SDL_GPU's device and mrender's renderer
 // on it, installed at omui.host.sdl3's slot (`omui::gpu_slot`). A package of its own: an application built
 // without it draws with the CPU and carries neither the backend nor the renderer's shaders. omui.sdk installs it
 // (feature `gpu`, in the worlds `app` and `full`).

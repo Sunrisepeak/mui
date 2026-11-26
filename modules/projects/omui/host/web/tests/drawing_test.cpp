@@ -8,7 +8,7 @@
 import std;
 import omui.host.web;
 import mcpplibs.mtest;
-import xrender.text;
+import mrender.text;
 
 using namespace mcpplibs::mtest;
 using namespace omui;
@@ -20,12 +20,12 @@ bool     offscreen = false;              // --offscreen: drawn, not shown (a bro
 
 View page(Runtime& rt) {
     // A picture: a gradient with a checker, stored in the runtime's images.
-    xrender::raster::Surface pic(96, 64);
+    mrender::raster::Surface pic(96, 64);
     for (int y = 0; y < pic.height(); ++y)
         for (int x = 0; x < pic.width(); ++x)
-            pic.row(y)[x] = xrender::raster::Rgba8{static_cast<std::uint8_t>(x * 255 / 96), static_cast<std::uint8_t>(y * 255 / 64),
+            pic.row(y)[x] = mrender::raster::Rgba8{static_cast<std::uint8_t>(x * 255 / 96), static_cast<std::uint8_t>(y * 255 / 64),
                                           static_cast<std::uint8_t>(((x / 8 + y / 8) % 2) * 180), 255};
-    const auto ref = rt.images().add(std::make_shared<const xrender::raster::Surface>(std::move(pic)));
+    const auto ref = rt.images().add(std::make_shared<const mrender::raster::Surface>(std::move(pic)));
     const std::string source = std::format("image:{}", ref.id);
     return column({.padding = 12, .gap = 8, .background = "background"},
                   {text({.text = "Drawn on the page's GPU", .style = "heading"}),
@@ -68,21 +68,21 @@ int main(int argc, char** argv) {
         if (!gpu) return;
         // The CPU's reference: the same list, size and scale.
         Runtime& rt = w.runtime();
-        xrender::text::GlyphCache glyphs(rt.fonts());
-        xrender::raster::Surface ref(gpu->width(), gpu->height());
-        xrender::CpuRenderer cpu;
+        mrender::text::GlyphCache glyphs(rt.fonts());
+        mrender::raster::Surface ref(gpu->width(), gpu->height());
+        mrender::CpuRenderer cpu;
         (void)cpu.render(rt.display_list(), ref, {&rt.images(), &glyphs}, {.scale = rt.scale(), .background = Color::white()});
         // Its text drawn (the page gave it its fonts): dark pixels on the light page.
         std::size_t ink = 0;
         for (int y = 0; y < ref.height(); ++y)
             for (int x = 0; x < ref.width(); ++x)
-                if (const xrender::raster::Rgba8 c = ref.at(x, y); c.r < 100 && c.g < 100 && c.b < 120) ++ink;
+                if (const mrender::raster::Rgba8 c = ref.at(x, y); c.r < 100 && c.g < 100 && c.b < 120) ++ink;
         expect(ink > 800) << std::format("text drawn: {} dark pixels", ink);
         int worst = 0;
         std::size_t off = 0;
         for (int y = 0; y < ref.height(); ++y)
             for (int x = 0; x < ref.width(); ++x) {
-                const xrender::raster::Rgba8 c = ref.at(x, y), g = gpu->at(x, y);
+                const mrender::raster::Rgba8 c = ref.at(x, y), g = gpu->at(x, y);
                 const int d = std::max({std::abs(c.r - g.r), std::abs(c.g - g.g), std::abs(c.b - g.b), std::abs(c.a - g.a)});
                 worst = std::max(worst, d);
                 if (d > 1) ++off;

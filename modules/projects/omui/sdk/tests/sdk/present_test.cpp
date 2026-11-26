@@ -3,9 +3,9 @@
 // use once per revision, and the person's input travels back and is handled.
 import std;
 import omui;
-import xrender.vector;
-import xrender.raster;
-import xrender.text;
+import mrender.vector;
+import mrender.raster;
+import mrender.text;
 import mcpplibs.os;
 import mcpplibs.mtest;
 
@@ -42,23 +42,23 @@ struct Pair {
 // The application sends while the host reads, as their two processes do: a frame larger than the connection's
 // buffer (a font face: 187 KB of JetBrains Mono, where macOS gives a local socket 8 KB) waits in `send` for a reader,
 // which on one thread would never come (red 55). The last list the host received once the frame is all through.
-const xrender::DisplayList* sent_and_received(Presenter& presenter, const FrameOutput& frame, Presentation& host) {
+const mrender::DisplayList* sent_and_received(Presenter& presenter, const FrameOutput& frame, Presentation& host) {
     std::atomic<bool> done = false;
     bool sent = false;
     std::jthread sender([&] {
         sent = presenter.send(frame);
         done = true;
     });
-    const xrender::DisplayList* got = nullptr;
+    const mrender::DisplayList* got = nullptr;
     for (int tries = 0; tries < 2000 && (!done || !got); ++tries)
         if (const auto* list = host.receive(std::chrono::milliseconds(5))) got = list;
     sender.join();
     return sent ? got : nullptr;
 }
 
-xrender::raster::Surface drawn(const xrender::DisplayList& list, xrender::ImageStore& images) {
-    xrender::raster::Surface surface(160, 120);
-    xrender::CpuRenderer renderer;
+mrender::raster::Surface drawn(const mrender::DisplayList& list, mrender::ImageStore& images) {
+    mrender::raster::Surface surface(160, 120);
+    mrender::CpuRenderer renderer;
     (void)renderer.render(list, surface, {&images, nullptr});
     return surface;
 }
@@ -85,7 +85,7 @@ static UTest cases{"present", [] {
         FrameOutput first = rt.frame({seconds(0), {}});
         const auto first_hash = first.list->hash();  // the runtime's list is the next frame's after it
         expect(presenter.send(first));
-        const xrender::DisplayList* shown = host.receive(std::chrono::milliseconds(2000));
+        const mrender::DisplayList* shown = host.receive(std::chrono::milliseconds(2000));
         expect(shown && eq(shown->hash(), first.list->hash())) << "the same list";
         if (shown) expect(std::ranges::equal(drawn(*shown, host.images()).bytes(), drawn(*first.list, rt.images()).bytes())) << "the same pixels";
 
@@ -196,13 +196,13 @@ static UTest cases{"present", [] {
         expect(fatal(host_fonts.add_file(mlibs::text::FontCollection::default_directory() / "Inter.ttf").has_value()));
         Presentation host(std::move(ends.host), &host_fonts);
         Presenter presenter(rt, std::move(ends.application));
-        const xrender::DisplayList* got = sent_and_received(presenter, first, host);
+        const mrender::DisplayList* got = sent_and_received(presenter, first, host);
         expect(fatal(got != nullptr));
         expect(eq(host_fonts.face_count(), std::size_t{2})) << "the face it lacked, added";
-        const auto drawn_with = [](const xrender::DisplayList& list, mlibs::text::FontCollection& faces, xrender::ImageStore& images) {
-            xrender::text::GlyphCache glyphs(faces);
-            xrender::raster::Surface surface(200, 60);
-            xrender::CpuRenderer renderer;
+        const auto drawn_with = [](const mrender::DisplayList& list, mlibs::text::FontCollection& faces, mrender::ImageStore& images) {
+            mrender::text::GlyphCache glyphs(faces);
+            mrender::raster::Surface surface(200, 60);
+            mrender::CpuRenderer renderer;
             (void)renderer.render(list, surface, {&images, &glyphs});
             return std::vector<std::uint8_t>(surface.bytes().begin(), surface.bytes().end());
         };
@@ -214,7 +214,7 @@ static UTest cases{"present", [] {
         expect(inked > 50) << "text was drawn";
         // A frame after: the face is not sent again.
         rt.mount("main", column({.padding = 8}, {text({.id = "code", .text = "let answer = 43;", .style = "code"})}));
-        const xrender::DisplayList* again = sent_and_received(presenter, rt.frame({seconds(0.1), {}}), host);
+        const mrender::DisplayList* again = sent_and_received(presenter, rt.frame({seconds(0.1), {}}), host);
         expect(again != nullptr && host_fonts.face_count() == 2) << "sent once";
     };
 
@@ -226,10 +226,10 @@ static UTest cases{"present", [] {
             options.size = {160, 120};
             return options;
         }());
-        std::vector<xrender::raster::Rgba8> pixels(16, xrender::raster::Rgba8{200, 10, 10, 255});
-        const xrender::ImageRef picture = rt.images().add(4, 4, pixels);
-        xrender::DisplayList list;
-        list.draw_image(picture, {0, 0, 4, 4}, {10, 10, 40, 40}, xrender::Sampling::nearest);
+        std::vector<mrender::raster::Rgba8> pixels(16, mrender::raster::Rgba8{200, 10, 10, 255});
+        const mrender::ImageRef picture = rt.images().add(4, 4, pixels);
+        mrender::DisplayList list;
+        list.draw_image(picture, {0, 0, 4, 4}, {10, 10, 40, 40}, mrender::Sampling::nearest);
         Presenter presenter(rt, std::move(ends.application));
         Presentation host(std::move(ends.host));
         expect(presenter.send({.list = &list}));
@@ -237,11 +237,11 @@ static UTest cases{"present", [] {
         expect(shown && host.images().get(picture) && std::ranges::equal(host.images().get(picture)->bytes(), rt.images().get(picture)->bytes()));
         if (shown) expect(std::ranges::equal(drawn(*shown, host.images()).bytes(), drawn(list, rt.images()).bytes())) << "the picture drawn the same";
         // Changed in place: sent again at its new revision.
-        auto changed = std::make_shared<xrender::raster::Surface>(4, 4);
-        std::ranges::fill(changed->pixels(), xrender::raster::Rgba8{10, 10, 200, 255});
+        auto changed = std::make_shared<mrender::raster::Surface>(4, 4);
+        std::ranges::fill(changed->pixels(), mrender::raster::Rgba8{10, 10, 200, 255});
         expect(rt.images().update(picture, changed));
         expect(presenter.send({.list = &list}));
         shown = host.receive(std::chrono::milliseconds(2000));
-        expect(shown && host.images().get(picture) && host.images().get(picture)->at(0, 0) == xrender::raster::Rgba8{10, 10, 200, 255}) << "the new pixels";
+        expect(shown && host.images().get(picture) && host.images().get(picture)->at(0, 0) == mrender::raster::Rgba8{10, 10, 200, 255}) << "the new pixels";
     };
 }};

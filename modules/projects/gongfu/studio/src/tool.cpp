@@ -8,8 +8,8 @@ import gongfu.ai;
 import gongfu.data;
 import nlohmann.json;
 import mlibs.image;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 
 namespace {
 
@@ -171,9 +171,9 @@ int picture(const std::filesystem::path& file, const Arguments& args, std::ostre
 // `images` (premultiplied), each with its relief when it has one, as the
 // game makes it.
 std::expected<void, std::string> load_pictures(std::vector<gongfu::present2d::Picture>& pictures, const std::filesystem::path& dir,
-                                               xrender::ImageStore& images) {
+                                               mrender::ImageStore& images) {
     auto pixels = [](const mlibs::image::Image& i) {
-        std::vector<xrender::raster::Rgba8> px(static_cast<std::size_t>(i.width) * static_cast<std::size_t>(i.height));
+        std::vector<mrender::raster::Rgba8> px(static_cast<std::size_t>(i.width) * static_cast<std::size_t>(i.height));
         std::memcpy(px.data(), i.rgba.data(), i.rgba.size());
         return px;
     };
@@ -223,7 +223,7 @@ int sheet(const std::filesystem::path& dir, const Arguments& args, std::ostream&
     }
     gongfu::present2d::use_palette(*look, palette);
     // The look's drawn art: its pictures, from beside the look file.
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     if (auto loaded = load_pictures(look->pictures, dir, images); !loaded) {
         report["ok"] = false;
         report["problems"] = {loaded.error()};
@@ -289,7 +289,7 @@ int stage(const std::filesystem::path& dir, const Arguments& args, std::ostream&
         for (const auto& d : st.error()) problems.push_back(d.text());
         return fail(problems);
     }
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     if (auto loaded = load_pictures(st->pictures, dir, images); !loaded) return fail({loaded.error()});
     // Two fighters for scale (each its first palette), else the first fighter twice, standing.
     std::vector<gongfu::Fighter> fighters;
@@ -305,7 +305,7 @@ int stage(const std::filesystem::path& dir, const Arguments& args, std::ostream&
         fighters.push_back(std::move(*fighter));
         looks.push_back(std::move(*look));
     }
-    xrender::DisplayList dl;
+    mrender::DisplayList dl;
     gongfu::present2d::Scene scene{.stage = &*st};
     gongfu::present2d::Painter painter;
     if (!fighters.empty()) {
@@ -325,8 +325,8 @@ int stage(const std::filesystem::path& dir, const Arguments& args, std::ostream&
         painter.stage_layers(*st, false, scene, cam, 960, frame, 1, dl);
         painter.stage_layers(*st, true, scene, cam, 960, frame, 1, dl);
     }
-    xrender::raster::Surface px(static_cast<int>(scene.width), static_cast<int>(scene.height));
-    xrender::CpuRenderer{}.render(dl, px, {&images, nullptr}, {.scale = 1});
+    mrender::raster::Surface px(static_cast<int>(scene.width), static_cast<int>(scene.height));
+    mrender::CpuRenderer{}.render(dl, px, {&images, nullptr}, {.scale = 1});
     const mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(px.row(0)), px.width(), px.height(), px.width() * 4, mlibs::image::Alpha::premultiplied};
     auto png = mlibs::image::encode_png(v);
     if (!png) return fail({"the frame did not encode as PNG"});

@@ -10,20 +10,20 @@ namespace meng::cellular {
 
 namespace {
 namespace color = mlibs::math::color;
-using Surface = xrender::raster::Surface;
-using Pixel = xrender::raster::Rgba8;
+using Surface = mrender::raster::Surface;
+using Pixel = mrender::raster::Rgba8;
 }  // namespace
 
 struct FieldPresenter::Data {
-    xrender::ImageStore* store = nullptr;
-    xrender::ImageRef ref;
+    mrender::ImageStore* store = nullptr;
+    mrender::ImageRef ref;
     Shape shape, tile, grid;
     std::uint32_t channels = 0;
     Palette palette;
     std::vector<PixelSwatch> pixels;                // the palette as pixels (the rule pixel_of keeps)
     std::uint32_t fallback = 0;
     std::optional<color::Shade> shade;              // by a shade instead (shade_of)
-    xrender::ImageRef light_ref;                    // the field's light, where the shade emits
+    mrender::ImageRef light_ref;                    // the field's light, where the shade emits
     std::array<std::shared_ptr<Surface>, 2> lights; // taking turns with the surfaces
     std::vector<std::uint32_t> run, run_light;      // scratch: one row of a tile
     std::array<std::shared_ptr<Surface>, 2> surfaces;
@@ -74,8 +74,8 @@ struct FieldPresenter::Data {
                 if (test.channel >= channels) return std::unexpected(std::format("a swatch tests channel {}; the field has {}", test.channel, channels));
         palette = next;
         pixels.clear();
-        for (const auto& swatch : palette.swatches) pixels.push_back({swatch.when, std::bit_cast<std::uint32_t>(xrender::raster::premultiply(swatch.color))});
-        fallback = std::bit_cast<std::uint32_t>(xrender::raster::premultiply(palette.fallback));
+        for (const auto& swatch : palette.swatches) pixels.push_back({swatch.when, std::bit_cast<std::uint32_t>(mrender::raster::premultiply(swatch.color))});
+        fallback = std::bit_cast<std::uint32_t>(mrender::raster::premultiply(palette.fallback));
         everything = true;
         return {};
     }
@@ -102,7 +102,7 @@ namespace {
 }
 }  // namespace
 
-std::expected<FieldPresenter, std::string> FieldPresenter::make(xrender::ImageStore& store, Shape shape, std::uint32_t channels, Palette palette,
+std::expected<FieldPresenter, std::string> FieldPresenter::make(mrender::ImageStore& store, Shape shape, std::uint32_t channels, Palette palette,
                                                                 Shape tile) {
     if (auto fits = field_fits(shape, channels, tile); !fits) return std::unexpected(fits.error());
     auto data = std::make_unique<Data>();
@@ -123,7 +123,7 @@ std::expected<FieldPresenter, std::string> FieldPresenter::make(xrender::ImageSt
     return FieldPresenter(std::move(data));
 }
 
-std::expected<FieldPresenter, std::string> FieldPresenter::make(xrender::ImageStore& store, Shape shape, std::uint32_t channels, color::Shade shade, Shape tile) {
+std::expected<FieldPresenter, std::string> FieldPresenter::make(mrender::ImageStore& store, Shape shape, std::uint32_t channels, color::Shade shade, Shape tile) {
     if (auto fits = field_fits(shape, channels, tile); !fits) return std::unexpected(fits.error());
     auto data = std::make_unique<Data>();
     data->store = &store;
@@ -243,21 +243,21 @@ std::expected<void, std::string> FieldPresenter::reshade(color::Shade shade) {
     return d.prepare(std::move(shade));
 }
 
-void FieldPresenter::draw_glow(xrender::DisplayList& list, mlibs::geom::Rect dest, float radius, float strength) const {
+void FieldPresenter::draw_glow(mrender::DisplayList& list, mlibs::geom::Rect dest, float radius, float strength) const {
     const Data& d = *data_;
     if (!d.lights[0] || strength <= 0) return;
-    const auto blur = xrender::effects().find("blur");
+    const auto blur = mrender::effects().find("blur");
     if (!blur || radius <= 0) {
-        list.push_layer(strength, xrender::BlendMode::plus);
+        list.push_layer(strength, mrender::BlendMode::plus);
     } else {
         const std::array<float, 1> params{radius};
-        list.push_layer(strength, xrender::BlendMode::plus, *blur, params, dest);
+        list.push_layer(strength, mrender::BlendMode::plus, *blur, params, dest);
     }
-    list.draw_image(d.light_ref, {0, 0, static_cast<float>(d.shape.width), static_cast<float>(d.shape.height)}, dest, xrender::Sampling::linear, 1);
+    list.draw_image(d.light_ref, {0, 0, static_cast<float>(d.shape.width), static_cast<float>(d.shape.height)}, dest, mrender::Sampling::linear, 1);
     list.pop_layer();
 }
 
-xrender::ImageRef FieldPresenter::light() const noexcept { return data_->light_ref; }
+mrender::ImageRef FieldPresenter::light() const noexcept { return data_->light_ref; }
 bool FieldPresenter::glows() const noexcept { return data_->lights[0] != nullptr; }
 color::Shaded FieldPresenter::shaded(std::span<const std::uint32_t> cells, std::uint32_t x, std::uint32_t y) const noexcept {
     const Data& d = *data_;
@@ -265,12 +265,12 @@ color::Shaded FieldPresenter::shaded(std::span<const std::uint32_t> cells, std::
     return color::shade_of(*d.shade, cells, d.area(), static_cast<std::size_t>(y) * d.shape.width + x);
 }
 
-void FieldPresenter::draw(xrender::DisplayList& list, mlibs::geom::Rect dest, float opacity) const {
+void FieldPresenter::draw(mrender::DisplayList& list, mlibs::geom::Rect dest, float opacity) const {
     const Data& d = *data_;
-    list.draw_image(d.ref, {0, 0, static_cast<float>(d.shape.width), static_cast<float>(d.shape.height)}, dest, xrender::Sampling::nearest, opacity);
+    list.draw_image(d.ref, {0, 0, static_cast<float>(d.shape.width), static_cast<float>(d.shape.height)}, dest, mrender::Sampling::nearest, opacity);
 }
 
-void FieldPresenter::draw_loose(xrender::DisplayList& list, mlibs::geom::Rect dest, std::span<const float> centres, std::span<const std::uint32_t> values) const {
+void FieldPresenter::draw_loose(mrender::DisplayList& list, mlibs::geom::Rect dest, std::span<const float> centres, std::span<const std::uint32_t> values) const {
     const Data& d = *data_;
     if (!d.shade || !d.channels || centres.size() % 2 != 0 || values.size() != centres.size() / 2 * d.channels) return;
     const float across = dest.width / static_cast<float>(d.shape.width), down = dest.height / static_cast<float>(d.shape.height);
@@ -286,7 +286,7 @@ void FieldPresenter::draw_loose(xrender::DisplayList& list, mlibs::geom::Rect de
     }
 }
 
-xrender::ImageRef FieldPresenter::image() const noexcept { return data_->ref; }
+mrender::ImageRef FieldPresenter::image() const noexcept { return data_->ref; }
 std::span<const PixelSwatch> FieldPresenter::pixels() const noexcept { return data_->pixels; }
 std::uint32_t FieldPresenter::fallback_pixel() const noexcept { return data_->fallback; }
 Shape FieldPresenter::shape() const noexcept { return data_->shape; }

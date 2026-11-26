@@ -11,7 +11,7 @@ export module omui.ui.window:frame;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import omui.ui.base;
 import :window_frame_contract;
 import :caption_button_contract;

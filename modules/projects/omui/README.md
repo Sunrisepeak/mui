@@ -2,7 +2,7 @@
 
 A UI framework in which one semantic tree drives pixels, strong motion, accessibility, agents and tests (its motion is hanim's).
 
-The reference implementation of the [openmui](../../../spec) specification: a view, its semantics and its pixels come from one tree. Depends on the mlibs layers, [hanim](../hanim), [xrender](../xrender), [meng](../meng)'s media subsystems and [spec](../../../spec); never on a game layer.
+The reference implementation of the [openmui](../../../spec) specification: a view, its semantics and its pixels come from one tree. Depends on the mlibs layers, [hanim](../hanim), [mrender](../mrender), [meng](../meng)'s media subsystems and [spec](../../../spec); never on a game layer.
 
 **Signature features — candidates** (plan §9.5; none is claimed outside the repository before its evidence exists):
 

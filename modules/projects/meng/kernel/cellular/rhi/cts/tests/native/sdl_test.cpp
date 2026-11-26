@@ -5,7 +5,7 @@ import std;
 import mlibs.rhi;
 import mlibs.cts;
 import meng.cellular;
-import xrender.rhi.sdl;
+import mrender.rhi.sdl;
 import meng.cellular.rhi;
 import meng.cellular.rhi.cts;
 import mlibs.testing;
@@ -17,9 +17,9 @@ namespace gpu = meng::cellular::gpu;
 
 UTest cases{"cellular.rhi.sdl", [] {
     "CPU/GPU equality of every stage — rules, aggregates and terms, transfers, the exchange, matter's table and reactions — tick after tick, in resident batches and in a checkpoint's replay"_test = [] {
-        auto device = xrender::rhi::sdl::create(xrender::rhi::sdl::environment_options({.formats = gpu::shader_formats()}));
+        auto device = mrender::rhi::sdl::create(mrender::rhi::sdl::environment_options({.formats = gpu::shader_formats()}));
         if (!device) {
-            if (xrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
+            if (mrender::rhi::sdl::device_required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", device.error().message);
             else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", device.error().message);
             return;
         }
@@ -35,7 +35,7 @@ UTest cases{"cellular.rhi.sdl", [] {
     };
 
     "a program of more channels than the device's kernel holds is refused as unsupported, and says so"_test = [] {
-        auto device = xrender::rhi::sdl::create(xrender::rhi::sdl::environment_options({.formats = gpu::shader_formats()}));
+        auto device = mrender::rhi::sdl::create(mrender::rhi::sdl::environment_options({.formats = gpu::shader_formats()}));
         if (!device) return;  // said above
         namespace ca = meng::cellular;
         const std::vector<ca::Rule> none;

@@ -30,8 +30,8 @@ constexpr std::string_view deterministic[]{
     "modules/base/math",         "modules/base/utils",           "modules/projects/omui/native",   "modules/projects/meng/kernel/audio",
     "modules/projects/meng/kernel/video", "modules/base/dynamics", "modules/projects/meng/kernel/dynamics", "modules/projects/meng/kernel/particles",
     "modules/projects/meng/kernel/field", "showcase/widget-breakout/headless", "showcase/glade/headless", "modules/projects/hanim/core",
-    "modules/projects/hanim",    "modules/projects/xrender/raster", "modules/content/layout",       "modules/base/geom",
-    "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
+    "modules/projects/hanim",    "modules/projects/mrender/raster", "modules/content/layout",       "modules/base/geom",
+    "modules/projects/mrender/graph", "modules/projects/mrender/vector", "modules/projects/mrender/text", "modules/content/text",
     "modules/content/i18n",      "modules/projects/omui/view",    "showcase/promo-video"};
 
 // The forwarders M1 removed (D-106): code names the owner.
@@ -201,8 +201,10 @@ struct Patterns {
     std::regex removed_binding{R"(^omui\.(lang\.lua|lang\.python|entry\.python)(\.|:|$))"};
     // `(?<![\w])` in the script: std::regex has no look-behind, so the character before is matched.
     std::regex legacy_alias{R"((^|[^\w])omui::(cellular|effect|geom|hash|i18n|imageio|layout|math|md|pipeline|raster|render|rhi|session|shader|testing|trace|typeset|unicode)::)"};
-    // Renamed code names (D-208): the engine's was xengine (D-234).
+    // Renamed code names (D-208): the engine's was xengine (D-234), the renderer's xrender (D-276; X11's library is
+    // `compat.xrender`, no module and no namespace).
     std::regex renamed_engine{R"((^|[^\w])xengine(::|\.[a-z]))"};
+    std::regex renamed_renderer{R"((^|[^\w])xrender(::|\.[a-z]))"};
     std::regex testing_import{R"((export\s+)?import\s+(mlibs|openmui)\.testing\b)"};
     std::regex hand_parsed{R"(==\s*"--[A-Za-z]|starts_with\("--[A-Za-z]|\bargv\[[a-z_]\w*\])"};
     std::regex bare_mui{R"(\bmui(::|_[a-z])|\bMUI_|\bnamespace\s+mui\b|\bmodule\s+mui\b|import\s+mui\b)"};
@@ -270,6 +272,8 @@ void check_source(std::string_view rel, std::string_view text, const Patterns& r
             add("legacy-import", at(no), "an omui:: alias of another owner's namespace (D-106): name the owner");
         if (stripped.contains("xengine") && search(stripped, re.renamed_engine))
             add("legacy-import", at(no), "xengine is meng now (D-234): `meng.*` modules, `meng::` (omui-devtools rename did the rest)");
+        if (stripped.contains("xrender") && search(stripped, re.renamed_renderer))
+            add("legacy-import", at(no), "xrender is mrender now (D-276): `mrender.*` modules, `mrender::` (omui-devtools rename did the rest)");
         // Test programs (a package's tests/) are mtest's; the benchmark runners under tests/bench are programs.
         if ((line.contains("--") || line.contains("argv[")) && search(line, re.hand_parsed) && (!in_tests || rel.starts_with("tests/bench/")))
             add("cmdline", at(no),
@@ -551,6 +555,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
          "int main(int argc, char** argv) {\n    for (int i = 1; i < argc; ++i) if (std::string_view(argv[i]) == \"--json\") return 1;\n}\n"},
         {"legacy-import", "modules/ui/core/src/l.cpp", "module x;\nimport openmui.geom;\n"},
         {"legacy-import", "modules/ui/core/src/e.cpp", "module x;\nimport xengine.dynamics;\n"},
+        {"legacy-import", "modules/ui/core/src/r.cpp", "module x;\nimport xrender.vector;\n"},
         {"thirdparty", "modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"},
         // the manifests'
         {"toml", "modules/ui/core/mcpp.toml", "[package]\nnamespace = \"omui\"\nname = \"core\"\n[dependencies]\na.b = \"1\"\na.b.c = \"2\"\n"},

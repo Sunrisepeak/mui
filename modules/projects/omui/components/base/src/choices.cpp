@@ -55,8 +55,8 @@ void Segmented::paint(PaintContext& ctx) const {
     const bool off = props.disabled || ctx.state.disabled;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const float radius = th.corner("medium", 8);
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
-    ctx.list.fill_round_rect(box, CornerRadii::all(radius).fitted(ctx.size), xrender::Paint::solid(th.color("surface_variant")));
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, box);
+    ctx.list.fill_round_rect(box, CornerRadii::all(radius).fitted(ctx.size), mrender::Paint::solid(th.color("surface_variant")));
     // The segments share the width as their labels ask (any room left, evenly).
     float natural = 0;
     std::vector<float> widths;
@@ -77,13 +77,13 @@ void Segmented::paint(PaintContext& ctx) const {
         const Rect& r = at_[i];
         const CornerRadii rr = CornerRadii::all(radius - seg_inset).fitted(r.size());
         if (chosen == i) {
-            ctx.part({.role="selection",.reference=props.options[i],.allocation=r,.kind=xrender::PartKind::box},[&] {
+            ctx.part({.role="selection",.reference=props.options[i],.allocation=r,.kind=mrender::PartKind::box},[&] {
                 parts::shadow(ctx, "sm", r, rr);
-                ctx.list.fill_round_rect(r, rr, xrender::Paint::solid(th.color("surface")));
+                ctx.list.fill_round_rect(r, rr, mrender::Paint::solid(th.color("surface")));
             });
         } else if (hover_ == static_cast<int>(i)) {
-            ctx.part({.role="hover",.reference=props.options[i],.allocation=r,.kind=xrender::PartKind::box},[&] {
-                ctx.list.fill_round_rect(r, rr, xrender::Paint::solid(th.color("surface_pressed").with_alpha(0.5f)));
+            ctx.part({.role="hover",.reference=props.options[i],.allocation=r,.kind=mrender::PartKind::box},[&] {
+                ctx.list.fill_round_rect(r, rr, mrender::Paint::solid(th.color("surface_pressed").with_alpha(0.5f)));
             });
         }
         const Color c = chosen == i ? th.color("text") : th.color("text_muted");
@@ -216,11 +216,11 @@ void Chip::paint(PaintContext& ctx) const {
     const bool on = props.selectable && props.selected;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(ctx.size.height / 2);
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, box);
     Color fill = on ? th.color("accent_subtle") : th.color("surface");
     if (ctx.state.hovered && !off) fill = mix(fill, th.color("surface_pressed"), on ? 0.25f : 0.5f);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(fill));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(on ? th.color("accent") : th.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(fill));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, mrender::Paint::solid(on ? th.color("accent") : th.color("border")), mrender::PixelAlign::device);
     const Color text = on ? th.color("accent") : th.color("text");
     float x = chip_pad;
     if (on) {
@@ -232,7 +232,7 @@ void Chip::paint(PaintContext& ctx) const {
     label_.paint(ctx, {x, (ctx.size.height - t.height) / 2}, text);
     if (props.removable) {
         const Rect rb = remove_box(ctx.size);
-        if (hover_remove_) ctx.list.fill_round_rect(rb, CornerRadii::all(chip_icon / 2), xrender::Paint::solid(th.color("surface_pressed")));
+        if (hover_remove_) ctx.list.fill_round_rect(rb, CornerRadii::all(chip_icon / 2), mrender::Paint::solid(th.color("surface_pressed")));
         parts::cross(ctx, rb.center(), 7, th.color("text_muted"));
     }
     if (off) ctx.list.pop_layer();
@@ -336,24 +336,24 @@ void RangeSlider::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     size_ = ctx.size;
     const bool off = props.disabled || ctx.state.disabled;
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     const Rect t = track(ctx.size);
     const CornerRadii round = CornerRadii::all(range_track / 2);
-    ctx.list.fill_round_rect(t, round, xrender::Paint::solid(th.color("track")));
+    ctx.list.fill_round_rect(t, round, mrender::Paint::solid(th.color("track")));
     const float lo = x_of(props.low, ctx.size), hi = x_of(props.high, ctx.size);
-    ctx.list.fill_round_rect({lo, t.y, hi - lo, t.height}, round, xrender::Paint::solid(th.color("accent")));
+    ctx.list.fill_round_rect({lo, t.y, hi - lo, t.height}, round, mrender::Paint::solid(th.color("accent")));
     for (int i = 0; i < 2; ++i) {
         const Point c{i == 0 ? lo : hi, ctx.size.height / 2};
         if (!off && ((ctx.state.focused && ctx.state.focus_visible && focus_ == i) || dragging_ == i)) {
             const float r = range_thumb / 2 + 6;
-            ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r), xrender::Paint::solid(th.color("accent").with_alpha(0.18f)));
+            ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r), mrender::Paint::solid(th.color("accent").with_alpha(0.18f)));
         }
         const Rect thumb{c.x - range_thumb / 2, c.y - range_thumb / 2, range_thumb, range_thumb};
         parts::depth(ctx, "thumb", thumb, CornerRadii::all(range_thumb / 2), false, !off && dragging_ == i,
               ShadowToken{{0, 1}, 3, 0, th.color("scrim").with_alpha(0.3f)});
-        ctx.list.fill_round_rect(thumb, CornerRadii::all(range_thumb / 2), xrender::Paint::solid(th.color("thumb")));
+        ctx.list.fill_round_rect(thumb, CornerRadii::all(range_thumb / 2), mrender::Paint::solid(th.color("thumb")));
         ctx.list.stroke_round_rect({thumb.x + 1, thumb.y + 1, range_thumb - 2, range_thumb - 2}, CornerRadii::all(range_thumb / 2 - 1), 2,
-                                   xrender::Paint::solid(th.color("accent")));
+                                   mrender::Paint::solid(th.color("accent")));
     }
     if (off) ctx.list.pop_layer();
 }

@@ -7,8 +7,8 @@ import meng.input;
 import mlibs.simulation;
 import mlibs.agent;
 import mlibs.layout;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 
 namespace meng::ui {
 
@@ -128,8 +128,8 @@ void Viewport::paint(omui::PaintContext& ctx) const {
     size_ = ctx.size;
     const omui::Rect whole{0, 0, ctx.size.width, ctx.size.height};
     // Under the picture: what shows until there is one (and on a host that shows none).
-    ctx.list.fill_rect(whole, xrender::Paint::solid(ctx.theme.color("surface")));
-    if (number_ != 0) ctx.list.external_texture(number_, whole, 1, shown_.pixels_stay ? xrender::Sampling::nearest : xrender::Sampling::linear);
+    ctx.list.fill_rect(whole, mrender::Paint::solid(ctx.theme.color("surface")));
+    if (number_ != 0) ctx.list.external_texture(number_, whole, 1, shown_.pixels_stay ? mrender::Sampling::nearest : mrender::Sampling::linear);
 }
 void Viewport::semantics(omui::SemanticsContext&, omui::spec::SemanticNode& node) const {
     node.name = shown_.label;

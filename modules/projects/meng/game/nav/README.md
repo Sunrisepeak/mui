@@ -2,7 +2,7 @@
 
 Navigation for games: a navigation mesh built from triangles for walkers of a given size, paths across it, and crowds walking it — Recast & Detour (zlib, through mwrap's `mcpplibs.mwrap.recastnavigation`) under this package's contract: the mesh, its obstacles and links and every walker of a crowd are one world that steps, saves, restores and branches to the same bits.
 
-The game layer's (D-161): what moves where in a game is the game's; nothing here knows omui, xrender or a body's solver. The ground is given as data — triangles from a level, or a 3D rigid world's fixed shapes turned into triangles by the caller — so that navigation depends on no physics.
+The game layer's (D-161): what moves where in a game is the game's; nothing here knows omui, mrender or a body's solver. The ground is given as data — triangles from a level, or a 3D rigid world's fixed shapes turned into triangles by the caller — so that navigation depends on no physics.
 
 ## Agent surface
 

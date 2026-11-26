@@ -14,7 +14,7 @@
 import std;
 import mlibs.rhi;
 import mlibs.image;
-import xrender.rhi.sdl;
+import mrender.rhi.sdl;
 import omui.showcase.quay.picture;
 import omui.showcase.quay.window;
 import mcpplibs.cmdline;
@@ -69,10 +69,10 @@ int shot(const cmd::ParsedArgs& parsed) {
     std::unique_ptr<rhi::Device> device;
     std::optional<picture::OnDevice> on_device;
     if (!reference) {
-        xrender::rhi::sdl::Options options;
-        options.formats = xrender::mesh::gpu::Pass::shader_formats();
+        mrender::rhi::sdl::Options options;
+        options.formats = mrender::mesh::gpu::Pass::shader_formats();
         options = environment_options(std::move(options));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
-        auto created = xrender::rhi::sdl::create(options);
+        auto created = mrender::rhi::sdl::create(options);
         if (!created) return fail(std::format("no device ({}); --reference draws without one", created.error().message));
         device = std::move(*created);
         auto prepared = picture::OnDevice::make(*device, *drawn, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height));

@@ -33,8 +33,8 @@ void raised(PaintContext& ctx, std::string_view corner, float fallback) {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii corners = CornerRadii::all(theme.corner(corner, fallback)).fitted(ctx.size);
     parts::shadow(ctx, "lg", box, corners);
-    ctx.list.fill_round_rect(box, corners, xrender::Paint::solid(theme.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect(box, corners, mrender::Paint::solid(theme.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, corners, 1, mrender::Paint::solid(theme.color("border")), mrender::PixelAlign::device);
 }
 
 std::string lower(std::string_view text) {
@@ -342,12 +342,12 @@ void CommandPalette::paint(PaintContext& ctx) const {
     raised(ctx, "large", 12);
     const Theme& theme = ctx.theme;
     const float top = ctx.size.height - 8 - std::min(palette_rows, static_cast<float>(shown_.size())) * command_h - (outcome_.empty() ? 0.0f : 22.0f);
-    ctx.list.fill_rect({8, top - 4, ctx.size.width - 16, 1}, theme.color("border"), xrender::PixelAlign::device);
+    ctx.list.fill_rect({8, top - 4, ctx.size.width - 16, 1}, theme.color("border"), mrender::PixelAlign::device);
     for (std::size_t index = 0; index < shown_.size() && index < static_cast<std::size_t>(palette_rows); ++index) {
         const Rect row{8, top + static_cast<float>(index) * command_h, ctx.size.width - 16, command_h};
         if (index == chosen_)
-            ctx.part({.role = "selection", .reference = shown_[index].verb, .allocation = row, .kind = xrender::PartKind::box},
-                     [&] { ctx.list.fill_round_rect(row, CornerRadii::all(6), xrender::Paint::solid(theme.color("accent").with_alpha(0.12f))); });
+            ctx.part({.role = "selection", .reference = shown_[index].verb, .allocation = row, .kind = mrender::PartKind::box},
+                     [&] { ctx.list.fill_round_rect(row, CornerRadii::all(6), mrender::Paint::solid(theme.color("accent").with_alpha(0.12f))); });
         const Color ink = index == chosen_ ? theme.color("accent") : theme.color("text");
         const Size text = titles_[index].measure(ctx.services, ink);
         titles_[index].paint(ctx, {row.x + 10, row.y + (row.height - text.height) / 2}, ink);
@@ -520,10 +520,10 @@ void Sidebar::paint(PaintContext& ctx) const {
         const CornerRadii corners = CornerRadii::all(theme.corner("medium", 8)).fitted(row.size());
         const bool here = current == index;
         if (here)
-            ctx.part({.role = "current", .reference = props.items[index], .allocation = row, .kind = xrender::PartKind::box},
-                     [&] { ctx.list.fill_round_rect(row, corners, xrender::Paint::solid(theme.color("accent").with_alpha(0.14f))); });
+            ctx.part({.role = "current", .reference = props.items[index], .allocation = row, .kind = mrender::PartKind::box},
+                     [&] { ctx.list.fill_round_rect(row, corners, mrender::Paint::solid(theme.color("accent").with_alpha(0.14f))); });
         else if (hover_ == static_cast<int>(index))
-            ctx.list.fill_round_rect(row, corners, xrender::Paint::solid(theme.color("surface_pressed").with_alpha(0.6f)));
+            ctx.list.fill_round_rect(row, corners, mrender::Paint::solid(theme.color("surface_pressed").with_alpha(0.6f)));
         const Color ink = here ? theme.color("accent") : theme.color("text");
         parts::Label& shown = props.collapsed ? initials_[index] : labels_[index];
         const Size text = shown.measure(ctx.services, ink);
@@ -636,8 +636,8 @@ void Toolbar::style(const Theme&, mlibs::layout::Style& s) const {
 void Toolbar::paint(PaintContext& ctx) const {
     const Theme& theme = ctx.theme;
     const CornerRadii corners = CornerRadii::all(theme.corner("medium", 8)).fitted(ctx.size);
-    ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, corners, xrender::Paint::solid(theme.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, corners, 1, xrender::Paint::solid(theme.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, corners, mrender::Paint::solid(theme.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, corners, 1, mrender::Paint::solid(theme.color("border")), mrender::PixelAlign::device);
 }
 
 void Toolbar::semantics(SemanticsContext&, spec::SemanticNode& node) const {

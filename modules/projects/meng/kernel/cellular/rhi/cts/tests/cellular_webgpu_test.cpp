@@ -6,14 +6,14 @@
 import std;
 import mlibs.rhi;
 import mlibs.cts;
-import xrender.rhi.webgpu;
+import mrender.rhi.webgpu;
 import meng.cellular.rhi;
 import meng.cellular.rhi.cts;
 import mcpplibs.os;
 import mlibs.testing;
 import mcpplibs.mtest;
 
-namespace webgpu = xrender::rhi::webgpu;
+namespace webgpu = mrender::rhi::webgpu;
 namespace gpu = meng::cellular::gpu;
 
 using namespace mlibs::testing;

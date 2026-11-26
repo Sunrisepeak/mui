@@ -67,10 +67,10 @@ private:
     void classify();
     // Its icon's side (the text's line, or the box where it is alone) and the gap after it; 0 without one.
     [[nodiscard]] float icon_side(float line, Size box) const noexcept;
-    const xrender::Path* icon() const;  // its icon's data as a path, parsed once a change
+    const mrender::Path* icon() const;  // its icon's data as a path, parsed once a change
     mutable parts::Label                 label_;
     mutable std::string                  icon_of_;
-    mutable std::optional<xrender::Path> icon_;
+    mutable std::optional<mrender::Path> icon_;
 };
 
 class DescriptionList : public DescriptionListContract<DescriptionList> {

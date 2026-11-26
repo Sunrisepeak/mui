@@ -12,8 +12,8 @@
 //
 // Frames are drawn by the GPU renderer into a texture the window's swapchain
 // shows (omui.rhi on SDL_GPU), or by the CPU renderer into a surface
-// streamed to the window — the same pixels (xrender's tests hold the
-// two together). A directory of effect files (xrender.effect) is loaded with
+// streamed to the window — the same pixels (mrender's tests hold the
+// two together). A directory of effect files (mrender.effect) is loaded with
 // the window and loaded again, between frames, when a file in it changes:
 // an effect's shader edited while the program runs shows on the next frame.
 export module omui.host.sdl3;
@@ -24,8 +24,8 @@ export import omui.view;
 export import omui.semantic;
 export import omui.agent;
 export import omui.accessibility;
-export import xrender.raster;
-export import xrender.effect;
+export import mrender.raster;
+export import mrender.effect;
 export import :gpu;
 
 export namespace omui {
@@ -59,7 +59,7 @@ struct DesktopOptions {
     enum class Renderer : std::uint8_t { automatic, cpu, gpu };
     Renderer                renderer = Renderer::automatic;
     std::string             vulkan_library;   // the Vulkan loader the GPU device uses ("" the system's)
-    // A directory of effects (xrender.effect): `*.effect.xdef.json`, or
+    // A directory of effects (mrender.effect): `*.effect.xdef.json`, or
     // `*.effect.xdef.ts` read through `effect_data`; loaded with the window,
     // loaded again when a file changes. Effects are drawn by the GPU renderer;
     // the CPU renderer draws their layers without them.
@@ -116,7 +116,7 @@ public:
     // (automation, tests).
     void synthesize(std::span<const InputEvent> events);
     // What the window shows, read back (software rendering reads exactly).
-    [[nodiscard]] std::expected<xrender::raster::Surface, ViewFailure> window_pixels();
+    [[nodiscard]] std::expected<mrender::raster::Surface, ViewFailure> window_pixels();
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] agent::Endpoint* endpoint() noexcept;
     // The tree as assistive technology was last told it; the adapter
@@ -127,7 +127,7 @@ public:
     // Whether the GPU renderer draws the frames (after open()).
     [[nodiscard]] bool gpu() const noexcept;
     // The effect library of `effects` (null: none asked for).
-    [[nodiscard]] xrender::effect::Library* effects() noexcept;
+    [[nodiscard]] mrender::effect::Library* effects() noexcept;
 
     struct Impl;
 

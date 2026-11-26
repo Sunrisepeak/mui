@@ -31,23 +31,23 @@ struct Shows {
     static constexpr std::string_view name = "test_shows";
     Services* services = nullptr;
     NodeId node{};
-    xrender::raster::Surface picture{4, 4};
+    mrender::raster::Surface picture{4, 4};
     std::uint64_t number = 0;
     void mount(Services& s, NodeId n) {
         services = &s, node = n;
         fill({0, 0, 255, 255});
-        number = s.add_picture([this]() -> std::optional<xrender::raster::ImageView> { return picture.view(); });
+        number = s.add_picture([this]() -> std::optional<mrender::raster::ImageView> { return picture.view(); });
     }
     ~Shows() {
         if (services) services->remove_picture(number);
     }
-    void fill(xrender::raster::Rgba8 colour) {
+    void fill(mrender::raster::Rgba8 colour) {
         for (int y = 0; y < 4; ++y)
             for (int x = 0; x < 4; ++x) picture.at(x, y) = colour;
     }
     void changed() { number = Services::picture_changed(number), services->invalidate_paint(node); }
     Size measure(MeasureContext&, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) { return {40, 40}; }
-    void paint(PaintContext& ctx) const { ctx.list.external_texture(number, {0, 0, ctx.size.width, ctx.size.height}, 1, xrender::Sampling::nearest); }
+    void paint(PaintContext& ctx) const { ctx.list.external_texture(number, {0, 0, ctx.size.width, ctx.size.height}, 1, mrender::Sampling::nearest); }
 };
 
 DesktopOptions offscreen(std::string app = "sdl3-test") {
@@ -208,7 +208,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         d.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40, .background = Fill(Color::hex(0xff0000))})}));
         expect(d.step());
         expect(eq(d.frames_shown(), std::size_t{1}));
-        const auto pixel = [&](int x, int y) -> std::optional<xrender::raster::Rgba8> {
+        const auto pixel = [&](int x, int y) -> std::optional<mrender::raster::Rgba8> {
             auto px = d.window_pixels();
             expect(px.has_value()) << (px ? "" : px.error().text());
             if (!px) return std::nullopt;
@@ -228,7 +228,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         // edits (green, blue, green): the latency is the fastest of them — a
         // CI machine busy compiling other members adds its own time to some.
         std::vector<std::chrono::milliseconds> took;
-        for (const auto& [code, want] : std::array<std::pair<std::string_view, xrender::raster::Rgba8>, 3>{{
+        for (const auto& [code, want] : std::array<std::pair<std::string_view, mrender::raster::Rgba8>, 3>{{
                  {"uint4(0, s.a, 0, s.a)", {0, 255, 0, 255}}, {"uint4(0, 0, s.a, s.a)", {0, 0, 255, 255}}, {"uint4(0, s.a, 0, s.a)", {0, 255, 0, 255}}}}) {
             std::string edited = invert;
             edited.replace(edited.find("uint4(s.a - s.r, s.a - s.g, s.a - s.b, s.a)"), std::string_view("uint4(s.a - s.r, s.a - s.g, s.a - s.b, s.a)").size(), code);
@@ -266,10 +266,10 @@ float4 invert_fs(EffectPixel px) : SV_Target {
             shows.id = "world";
             d.mount("main", column({.padding = 20}, {std::move(shows)}));
             expect(d.step());
-            const auto pixel = [&](int x, int y) -> xrender::raster::Rgba8 {
+            const auto pixel = [&](int x, int y) -> mrender::raster::Rgba8 {
                 auto px = d.window_pixels();
                 expect(px.has_value()) << (px ? "" : px.error().text());
-                return px ? px->at(static_cast<int>(x * d.scale()), static_cast<int>(y * d.scale())) : xrender::raster::Rgba8{};
+                return px ? px->at(static_cast<int>(x * d.scale()), static_cast<int>(y * d.scale())) : mrender::raster::Rgba8{};
             };
             const auto first = pixel(40, 40), outside = pixel(5, 5);
             expect(first.r == 0 && first.g == 0 && first.b == 255) << std::format("{}: blue, the picture's: {} {} {}", on_gpu ? "gpu" : "cpu", first.r, first.g, first.b);

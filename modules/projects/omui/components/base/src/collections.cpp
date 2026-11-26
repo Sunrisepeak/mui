@@ -20,14 +20,14 @@ constexpr float grid_rubber = 16;     // dragged past the narrowest, drawn at mo
 void tree_chevron(PaintContext& ctx, std::string_view key, Point c, bool down, Color color) {
     const float s = 8;
     ctx.part({.role = "chevron", .id = key, .allocation = {c.x - s / 2, c.y - s / 2, s, s}}, [&] {
-        ctx.list.push_transform(Affine::translate(c.x, c.y) * xrender::rotate(down ? std::numbers::pi_v<float> / 2 : 0.0f));
-        xrender::Path p;
+        ctx.list.push_transform(Affine::translate(c.x, c.y) * mrender::rotate(down ? std::numbers::pi_v<float> / 2 : 0.0f));
+        mrender::Path p;
         p.move_to({-s / 4, -s / 2}).line_to({s / 4, 0}).line_to({-s / 4, s / 2});
-        xrender::StrokeStyle st;
+        mrender::StrokeStyle st;
         st.width = 1.6f;
-        st.cap = xrender::LineCap::round;
-        st.join = xrender::LineJoin::round;
-        ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
+        st.cap = mrender::LineCap::round;
+        st.join = mrender::LineJoin::round;
+        ctx.list.stroke_path(p, st, mrender::Paint::solid(color));
         ctx.list.pop_transform();
     });
 }
@@ -38,9 +38,9 @@ void triangle(PaintContext& ctx, std::string_view field, Point c, bool up, Color
     const float w = 7, h = 4.5f;
     ctx.part({.role = "sort", .id = field, .allocation = {c.x - w / 2, c.y - w / 2, w, w}}, [&] {
         ctx.list.push_transform(Affine::translate(c.x, c.y) * (up ? Affine{} : Affine::scale(-1, -1)));
-        xrender::Path p;
+        mrender::Path p;
         p.move_to({-w / 2, h / 2}).line_to({w / 2, h / 2}).line_to({0, -h / 2}).close();
-        ctx.list.fill_path(p, xrender::FillRule::nonzero, xrender::Paint::solid(color));
+        ctx.list.fill_path(p, mrender::FillRule::nonzero, mrender::Paint::solid(color));
         ctx.list.pop_transform();
     });
 }
@@ -197,8 +197,8 @@ void TreeView::paint(PaintContext& ctx) const {
         // The row (its fill, guides and label) is a part by its key: rows opened under it arrive one by one and those
         // below move down (`default.rows`; component quality B6). Its chevron is a part of its own, drawn after.
         ctx.part({.role = "row", .id = l.key, .allocation = r}, [&] {
-            if (chosen) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("accent_subtle")));
-            else if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("surface_variant")));
+            if (chosen) ctx.list.fill_round_rect(r, CornerRadii::all(6), mrender::Paint::solid(th.color("accent_subtle")));
+            else if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(6), mrender::Paint::solid(th.color("surface_variant")));
             for (int level = 0; level < l.depth; ++level) {
                 const bool lit = level == lit_level && i >= lit_from && i <= lit_to;
                 const float gx = std::round(r.x + 12 + static_cast<float>(level) * tree_indent);
@@ -503,13 +503,13 @@ void DataGrid::paint(PaintContext& ctx) const {
             x += widths[c];
         }
         });
-        ctx.list.fill_rect({0, rr.bottom() - 1, ctx.size.width, 1}, th.color("border"), xrender::PixelAlign::device);
+        ctx.list.fill_rect({0, rr.bottom() - 1, ctx.size.width, 1}, th.color("border"), mrender::PixelAlign::device);
     }
     // The header over them, each column's name and its sort; once rows have gone under it, it casts the theme's
     // small shadow on them (B6) — at the top, none.
     if (offset_ > 0) parts::shadow(ctx, "sm", {0, 0, ctx.size.width, grid_head}, {});
     ctx.list.fill_rect({0, 0, ctx.size.width, grid_head}, th.color("surface_variant"));
-    ctx.list.fill_rect({0, grid_head - 1, ctx.size.width, 1}, th.color("border_strong"), xrender::PixelAlign::device);
+    ctx.list.fill_rect({0, grid_head - 1, ctx.size.width, 1}, th.color("border_strong"), mrender::PixelAlign::device);
     headers_.resize(props.fields.size());
     float x = 0;
     for (std::size_t c = 0; c < props.fields.size(); ++c) {
@@ -528,7 +528,7 @@ void DataGrid::paint(PaintContext& ctx) const {
         if (edge_ == c) ctx.list.fill_rect({x - 1, 0, 2, resizing_ ? ctx.size.height : grid_head}, th.color("accent"));
     }
     ctx.list.pop_clip();
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, mrender::Paint::solid(th.color("border")), mrender::PixelAlign::device);
 }
 
 void DataGrid::paint_over(PaintContext& ctx) const {

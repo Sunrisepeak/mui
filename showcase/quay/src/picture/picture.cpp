@@ -428,8 +428,8 @@ void Picture::weather(const State& state) {
         const math::Vec3 light = light_at(at) * ((1 - age) * 1.4f);
         splashes_[number] = {.at = at, .size = 0.04f + 0.12f * age, .colour = {light.x, light.y, light.z, 1}, .id = number};
     }
-    batches_ = {xrender::particle::Batch{.particles = drops_, .blend = xrender::particle::Blend::add, .soft = 0.2f, .sprite = &streak_, .id = rain_id},
-                xrender::particle::Batch{.particles = splashes_, .blend = xrender::particle::Blend::add, .soft = 0.02f, .id = splash_id}};
+    batches_ = {mrender::particle::Batch{.particles = drops_, .blend = mrender::particle::Blend::add, .soft = 0.2f, .sprite = &streak_, .id = rain_id},
+                mrender::particle::Batch{.particles = splashes_, .blend = mrender::particle::Blend::add, .soft = 0.02f, .id = splash_id}};
 }
 
 void Picture::prepare(const State& state) {
@@ -463,7 +463,7 @@ const mesh::Targets& Picture::draw(const State& state, const Frame& frame) {
     mesh::Options options = options_;
     options.shadows = frame.shadows;
     pass_.draw(world_, seen_, view_, assets(frame.shadows), targets_, options);
-    rained_ = xrender::particle::draw(batches_, view_, targets_);
+    rained_ = mrender::particle::draw(batches_, view_, targets_);
     shown_ = targets_.colour;
     bright_ = frame.glow ? glow_.show(targets_.light, frame.width, frame.height, bloom(frame.width), shown_).bright : 0;
     return targets_;

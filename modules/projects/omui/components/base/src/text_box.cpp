@@ -4,7 +4,7 @@ import std;
 import omui.core;
 import omui.view;
 import mlibs.unicode;
-import xrender.text;
+import mrender.text;
 
 namespace omui {
 
@@ -269,12 +269,12 @@ void TextBox::paint(PaintContext& ctx) const {
 
     const bool focus = ctx.state.focused && !off;
     if (!bare_) {  // a bare field's surface and border are the component's it is part of
-        ctx.list.fill_round_rect(box, radii, xrender::Paint::solid(off ? th.color("surface_variant") : th.color("surface")));
+        ctx.list.fill_round_rect(box, radii, mrender::Paint::solid(off ? th.color("surface_variant") : th.color("surface")));
         const float bw = focus ? 2.0f : 1.0f;
         const Color border = focus ? th.color("accent") : (ctx.state.hovered && !off ? th.color("border_strong") : th.color("border"));
         CornerRadii inner = radii;
         for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - bw / 2);
-        ctx.list.stroke_round_rect({bw / 2, bw / 2, box.width - bw, box.height - bw}, inner, bw, xrender::Paint::solid(border));
+        ctx.list.stroke_round_rect({bw / 2, bw / 2, box.width - bw, box.height - bw}, inner, bw, mrender::Paint::solid(border));
     }
 
     mlibs::text::Paragraph& p = paragraph(ctx.services, ctx.content.width);
@@ -319,7 +319,7 @@ void TextBox::paint(PaintContext& ctx) const {
         const Color sc = th.color("selection");
         // In code, each line's run of the selection has softened corners.
         for (const Rect& r : p.selection(to_shown(sel.begin()), to_shown(sel.end()))) {
-            if (code) ctx.list.fill_round_rect(r.offset(origin), CornerRadii::all(std::min(3.0f, r.height / 2)), xrender::Paint::solid(sc));
+            if (code) ctx.list.fill_round_rect(r.offset(origin), CornerRadii::all(std::min(3.0f, r.height / 2)), mrender::Paint::solid(sc));
             else ctx.list.fill_rect(r.offset(origin), sc);
         }
     }
@@ -333,10 +333,10 @@ void TextBox::paint(PaintContext& ctx) const {
         ps.wrap = props.multiline;
         mlibs::text::Paragraph ph(ctx.services.fonts(), props.placeholder, std::move(ps));
         ph.layout(props.multiline ? ctx.content.width : std::numeric_limits<float>::infinity());
-        xrender::text::paint(ph, ctx.list, {ctx.content.x, origin.y});
+        mrender::text::paint(ph, ctx.list, {ctx.content.x, origin.y});
     } else {
-        if (off) ctx.list.push_layer(0.55f, xrender::BlendMode::normal, {}, {}, box);
-        xrender::text::paint(p, ctx.list, origin);
+        if (off) ctx.list.push_layer(0.55f, mrender::BlendMode::normal, {}, {}, box);
+        mrender::text::paint(p, ctx.list, origin);
         if (off) ctx.list.pop_layer();
     }
     if (editor_.composing()) {

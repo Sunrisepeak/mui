@@ -66,7 +66,7 @@ for (const Noise& noise : state.recent) {
 
 ## 先由 CPU 参考画出，再上设备
 
-`quay::Picture` 用 `xrender.mesh`（CPU 参考）从状态画出一帧：每台机器上像素相同。雨是 `xrender.particle`；辉光属于这一帧。`OnDevice` 在设备上画同一帧，并以这些像素为准。
+`quay::Picture` 用 `mrender.mesh`（CPU 参考）从状态画出一帧：每台机器上像素相同。雨是 `mrender.particle`；辉光属于这一帧。`OnDevice` 在设备上画同一帧，并以这些像素为准。
 
 <!-- code: showcase/quay/src/picture/picture.cpp#draw -->
 ```cpp
@@ -78,7 +78,7 @@ targets_.resize(frame.width, frame.height);
 mesh::Options options = options_;
 options.shadows = frame.shadows;
 pass_.draw(world_, seen_, view_, assets(frame.shadows), targets_, options);
-rained_ = xrender::particle::draw(batches_, view_, targets_);
+rained_ = mrender::particle::draw(batches_, view_, targets_);
 shown_ = targets_.colour;
 bright_ = frame.glow ? glow_.show(targets_.light, frame.width, frame.height, bloom(frame.width), shown_).bright : 0;
 return targets_;

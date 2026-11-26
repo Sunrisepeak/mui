@@ -86,15 +86,15 @@ void ChoicePopup::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     parts::shadow(ctx, "lg", box, r);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, mrender::Paint::solid(th.color("border")), mrender::PixelAlign::device);
     const Value::List* l = choices_.list();
     if (!l) return;
     const std::size_t n = std::min(l->size(), choice_rows);
     if (labels_.size() < n) labels_.resize(n);
     for (std::size_t i = 0; i < n; ++i) {
         const Rect row{choice_pad, choice_pad + static_cast<float>(i) * choice_row, ctx.size.width - 2 * choice_pad, choice_row};
-        if (static_cast<int>(i) == highlight_) ctx.list.fill_round_rect(row, CornerRadii::all(th.corner("small", 4)), xrender::Paint::solid(th.color("surface_variant")));
+        if (static_cast<int>(i) == highlight_) ctx.list.fill_round_rect(row, CornerRadii::all(th.corner("small", 4)), mrender::Paint::solid(th.color("surface_variant")));
         parts::Label& lab = labels_[i];
         lab.set_style("body");
         lab.set_max_lines(1);
@@ -348,8 +348,8 @@ void TagInput::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
-    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")), xrender::PixelAlign::device);
+    ctx.list.fill_round_rect(box, r, mrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, mrender::Paint::solid(th.color("border")), mrender::PixelAlign::device);
 }
 
 std::vector<Element> TagInput::compose() {

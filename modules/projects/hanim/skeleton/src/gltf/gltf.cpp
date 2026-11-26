@@ -7,7 +7,7 @@ namespace hanim::skeleton::gltf {
 
 namespace {
 
-namespace asset = xrender::asset;
+namespace asset = mrender::asset;
 namespace det = mlibs::math::det;
 
 // The rotation of a matrix whose columns are turned and scaled axes (no shear): its scale divided out.
@@ -241,7 +241,7 @@ void Bent::bend(std::span<const Mat4> skin) {
     for (std::size_t joint = 0; joint < skin_joints_.size(); ++joint) matrices_[joint] = skin_joints_[joint] < skin.size() ? skin[skin_joints_[joint]] : Mat4{};
     const std::size_t now = frames_ % 2;
     for (Kept& one : kept_) {
-        xrender::mesh::bend(*one.rest, matrices_, one.turns[now], room_);
+        mrender::mesh::bend(*one.rest, matrices_, one.turns[now], room_);
         meshes_[one.mesh] = &one.turns[now];
         before_[one.mesh] = frames_ ? &one.turns[1 - now] : nullptr;
     }

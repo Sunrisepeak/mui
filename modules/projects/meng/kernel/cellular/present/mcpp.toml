@@ -1,5 +1,5 @@
 # meng.cellular.present — a cellular field on screen (D-132):
-# its cells coloured by a palette, or by a shade that computes each (D-168), into one image of an xrender ImageStore,
+# its cells coloured by a palette, or by a shade that computes each (D-168), into one image of an mrender ImageStore,
 # a pixel a cell, drawn by one command; only the tiles that changed are
 # recoloured, re-uploaded and redrawn. Its own package: the renderer knows no
 # cells and the rules know no drawing.
@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: cellular worlds drawn, for games and tools"
-reexports = ["mlibs.geom", "mlibs.math", "xrender.raster", "xrender.vector"]  # what its interface re-exports (lint module-closure)
+reexports = ["mlibs.geom", "mlibs.math", "mrender.raster", "mrender.vector"]  # what its interface re-exports (lint module-closure)
 kind = "runtime"
 agent = { part = "meng.cellular" }
 
@@ -27,8 +27,8 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 meng.cellular = { path = ".." }
-xrender.vector = { path = "../../../../xrender/vector" }
-xrender.raster = { path = "../../../../xrender/raster" }
+mrender.vector = { path = "../../../../mrender/vector" }
+mrender.raster = { path = "../../../../mrender/raster" }
 mlibs.geom     = { path = "../../../../../base/geom" }
 mlibs.utils    = { path = "../../../../../base/utils" }
 mlibs.math     = { path = "../../../../../base/math" }
@@ -53,7 +53,7 @@ mlibs.utils = { path = "../../../../../base/utils" }
 # suite, and drawn through the frame's entry and read back with no interface in the program.
 meng.cellular = { path = "..", features = ["agent"] }
 "mlibs.agent.cts" = { path = "../../../../../base/agent/cts" }
-xrender.frame = { path = "../../../../xrender/frame" }
+mrender.frame = { path = "../../../../mrender/frame" }
 mlibs.agent   = { path = "../../../../../base/agent" }
 mlibs.json    = { path = "../../../../../base/json" }
 mlibs.image   = { path = "../../../../../base/image" }

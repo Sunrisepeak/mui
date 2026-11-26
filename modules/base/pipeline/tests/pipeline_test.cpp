@@ -213,9 +213,9 @@ UTest cases{"pipeline", [] {
     };
 
     "a description writes as JSON, a stage a line"_test = [] {
-        pl::Description d{"desktop", {{"raster", "xrender.cpu", {"damage"}, {{"parallel", true}, {"rows_per_task", std::int64_t{64}}, {"gamma", 2.0}, {"label", std::string("a \"b\"")}}}}};
+        pl::Description d{"desktop", {{"raster", "mrender.cpu", {"damage"}, {{"parallel", true}, {"rows_per_task", std::int64_t{64}}, {"gamma", 2.0}, {"label", std::string("a \"b\"")}}}}};
         expect(eq(pl::to_json(d), std::string(R"({"pipeline": {"name": "desktop", "stages": [
-  {"name": "raster", "plugin": "xrender.cpu", "after": ["damage"], "config": {"parallel": true, "rows_per_task": 64, "gamma": 2.0, "label": "a \"b\""}}
+  {"name": "raster", "plugin": "mrender.cpu", "after": ["damage"], "config": {"parallel": true, "rows_per_task": 64, "gamma": 2.0, "label": "a \"b\""}}
 ]}}
 )")));
     };

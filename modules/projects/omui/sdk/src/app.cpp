@@ -13,7 +13,7 @@ import omui.host.headless;
 import mlibs.trace;
 import mlibs.compose;
 import mlibs.image;
-import xrender.raster;
+import mrender.raster;
 import mlibs.i18n;
 import mlibs.i18n.cldr;
 import mcpplibs.os;
@@ -366,7 +366,7 @@ int replay(Headless& host, const AppSpec& app, const std::filesystem::path& file
     }
     if (const Value* expected = expect ? expect->get("pixels") : nullptr) {
         std::string got;
-        const xrender::raster::Surface& shown = host.pixels();
+        const mrender::raster::Surface& shown = host.pixels();
         const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(shown.row(0)), shown.width(), shown.height(), shown.width() * 4,
                                       mlibs::image::Alpha::premultiplied};
         if (auto png = surface->png(view)) {

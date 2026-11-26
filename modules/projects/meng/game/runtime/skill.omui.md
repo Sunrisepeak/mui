@@ -24,4 +24,4 @@ How an Agent plays, tests or examines a game that runs on its own (`meng.runtime
 
 ## Not here
 
-What the game draws is its renderer's (xrender) and, in a window, omui's; why a state is what it is comes with the kernels' records of causes. A game shown in omui is played through the same actions (`meng.ui`, the bridge).
+What the game draws is its renderer's (mrender) and, in a window, omui's; why a state is what it is comes with the kernels' records of causes. A game shown in omui is played through the same actions (`meng.ui`, the bridge).

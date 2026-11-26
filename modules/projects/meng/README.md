@@ -4,7 +4,7 @@ An agent-native game engine system in which people and agents develop and play a
 
 It is two halves with omui between them (D-161), each in a directory of its own, so that the projects have no cycle and can part:
 
-- [kernel](kernel) — the engine kernels **below** the interface: simulation (dynamics, cellular; matter next) and media (audio, video). hanim and omui may use them; they depend on `mlibs` and [xrender](../xrender), never on the game layer or omui. Domain subsystems that have not graduated into projects of their own live here (convergence plan §4.3).
+- [kernel](kernel) — the engine kernels **below** the interface: simulation (dynamics, cellular; matter next) and media (audio, video). hanim and omui may use them; they depend on `mlibs` and [mrender](../mrender), never on the game layer or omui. Domain subsystems that have not graduated into projects of their own live here (convergence plan §4.3).
 - [game](game) — the game layer **above** the interface: a game is the engine's (its world, steps, rules and scenes) and runs without omui, headless; only [ui](game/ui), the bridge, knows omui (D-162).
 
 **Signature features — candidates** (plan §9.5; none is claimed outside the repository before its evidence exists):
@@ -27,7 +27,7 @@ It is two halves with omui between them (D-161), each in a directory of its own,
 | game | [input](game/input) | game | Keys, gamepads and the pointer bound to a game's actions, sampled once a frame as plain data |
 | game | [ui](game/ui) | game | The bridge: a game inside omui — its steps paced on the runtime's clock, omui's keys and pointer given to its actions |
 
-The other engines of the system are projects of their own: [hanim](../hanim) (animation, and the timeline every editor shares: [hanim.timeline](../hanim/timeline)), [xrender](../xrender) (rendering) and [gongfu](../gongfu) (fighting games, built on the game layer's ideas but with a core that needs only the standard library). Convergence moves the timeline's animation tracks and audio gain automation onto hanim's channels (plan §6.5).
+The other engines of the system are projects of their own: [hanim](../hanim) (animation, and the timeline every editor shares: [hanim.timeline](../hanim/timeline)), [mrender](../mrender) (rendering) and [gongfu](../gongfu) (fighting games, built on the game layer's ideas but with a core that needs only the standard library). Convergence moves the timeline's animation tracks and audio gain automation onto hanim's channels (plan §6.5).
 
 ## Labels in 0.1 (release plan §2.3)
 

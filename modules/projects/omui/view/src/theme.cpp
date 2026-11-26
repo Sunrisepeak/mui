@@ -615,7 +615,7 @@ std::optional<std::vector<MotionSpec>> parse_motions(const Value& v, const Theme
     return out;
 }
 
-void paint_shadow(xrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity,
+void paint_shadow(mrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity,
                   Color object) {
     const float tint = object.a > 0 ? std::clamp(shadow.tint, 0.0f, 1.0f) : 0.0f;
     const auto shade = [&](Color color) {

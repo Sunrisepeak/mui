@@ -332,7 +332,7 @@ static UTest cases{"ui.base.more", [] {
         // The handle's line: lit while held, two pixels wide, as tall as the view.
         auto line_x = [&]() -> std::optional<float> {
             for (const auto& command : h.runtime().display_list().commands())
-                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.width == 2 && fill->rect.height >= 299) return fill->rect.x;
+                if (const auto* fill = std::get_if<mrender::FillRect>(&command); fill && fill->rect.width == 2 && fill->rect.height >= 299) return fill->rect.x;
             return std::nullopt;
         };
         const auto handle = *items(h, "main/split")[0].bounds;
@@ -498,7 +498,7 @@ static UTest cases{"ui.base.more", [] {
         auto guides = [&] {
             std::pair<int, int> count{0, 0};
             for (const auto& command : h.runtime().display_list().commands())
-                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.width == 1 && fill->rect.height == 30) {
+                if (const auto* fill = std::get_if<mrender::FillRect>(&command); fill && fill->rect.width == 1 && fill->rect.height == 30) {
                     if (same(fill->paint.color, theme.color("border_strong"))) ++count.second;
                     else if (same(fill->paint.color, theme.color("border"))) ++count.first;
                 }
@@ -560,7 +560,7 @@ static UTest cases{"ui.base.more", [] {
                                                            .label = "Many", .model = "many", .width = Dim(460.0f), .height = Dim(240.0f)})}));
         h.settle();
         auto shadows = [&] {
-            return std::ranges::count_if(h.runtime().display_list().commands(), [](const auto& command) { return std::holds_alternative<xrender::BoxShadow>(command); });
+            return std::ranges::count_if(h.runtime().display_list().commands(), [](const auto& command) { return std::holds_alternative<mrender::BoxShadow>(command); });
         };
         const auto top = shadows();
         const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/many"));
@@ -583,7 +583,7 @@ static UTest cases{"ui.base.more", [] {
         // The lit divider: two pixels wide; as tall as the header under the pointer, as the grid while dragged.
         auto divider = [&]() -> std::optional<Rect> {
             for (const auto& command : h.runtime().display_list().commands())
-                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && fill->rect.width == 2 && fill->rect.height >= 30) return fill->rect;
+                if (const auto* fill = std::get_if<mrender::FillRect>(&command); fill && fill->rect.width == 2 && fill->rect.height >= 30) return fill->rect;
             return std::nullopt;
         };
         const auto grid = h.runtime().screen_bounds(h.runtime().find("main/cols"));
@@ -776,13 +776,13 @@ static UTest cases{"ui.base.more", [] {
         // The band: a fill in the shade, a line tall, across the field.
         auto band = [&]() -> std::optional<Rect> {
             for (const auto& command : h.runtime().display_list().commands())
-                if (const auto* fill = std::get_if<xrender::FillRect>(&command); fill && same(fill->paint.color, shade) && fill->rect.height > 10 && fill->rect.height < 30 && fill->rect.width > 300)
+                if (const auto* fill = std::get_if<mrender::FillRect>(&command); fill && same(fill->paint.color, shade) && fill->rect.height > 10 && fill->rect.height < 30 && fill->rect.width > 300)
                     return fill->rect;
             return std::nullopt;
         };
         auto rounded_runs = [&] {
             return std::ranges::count_if(h.runtime().display_list().commands(), [&](const auto& command) {
-                const auto* fill = std::get_if<xrender::FillRoundRect>(&command);
+                const auto* fill = std::get_if<mrender::FillRoundRect>(&command);
                 return fill && same(fill->paint.color, chosen) && fill->radii.top_left > 0;
             });
         };

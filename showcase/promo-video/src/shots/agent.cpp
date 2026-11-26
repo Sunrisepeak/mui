@@ -12,7 +12,7 @@ import std;
 import hanim.core;
 import omui;
 import omui.theme;
-import xrender.text;
+import mrender.text;
 
 namespace omui::promo {
 
@@ -368,13 +368,13 @@ void Agent::paint_front(PaintContext& p, State& s) {
     // Behind the person's answer, the panel dims.
     if (s.asked >= 0) {
         const double up = s.timing["card.in"] * (1 - s.timing["card.out"]);
-        if (up > 0) list.fill_round_rect(s.panel, CornerRadii::all(12 * s.app_scale), xrender::Paint::solid(hex(0x020814, 0.55f * static_cast<float>(up))));
+        if (up > 0) list.fill_round_rect(s.panel, CornerRadii::all(12 * s.app_scale), mrender::Paint::solid(hex(0x020814, 0.55f * static_cast<float>(up))));
     }
     // The tree, as an inspector shows it: the rows about the node the agent is at.
     const Rect ta = s.tree_area;
-    list.fill_round_rect(ta, CornerRadii::all(10), xrender::Paint::solid(hex(ink::panel, 0.9f)));
-    list.stroke_round_rect(ta, CornerRadii::all(10), 1, xrender::Paint::solid(hex(ink::line, 0.8f)));
-    xrender::text::paint(s.labels.get(fonts, "SEMANTIC TREE · what the agent reads", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {ta.x + 20, ta.y + 16});
+    list.fill_round_rect(ta, CornerRadii::all(10), mrender::Paint::solid(hex(ink::panel, 0.9f)));
+    list.stroke_round_rect(ta, CornerRadii::all(10), 1, mrender::Paint::solid(hex(ink::line, 0.8f)));
+    mrender::text::paint(s.labels.get(fonts, "SEMANTIC TREE · what the agent reads", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {ta.x + 20, ta.y + 16});
     {
         const std::size_t room = static_cast<std::size_t>((ta.height - 66) / pitch);
         std::size_t lit = 0;
@@ -386,19 +386,19 @@ void Agent::paint_front(PaintContext& p, State& s) {
             const Row& r = s.rows[i];
             const float x = ta.x + 20 + static_cast<float>(r.depth) * 24;
             if (r.depth > 0) list.fill_rect({x - 16, y + 13, 9, 1.5f}, hex(ink::line));
-            if (r.lit) list.fill_round_rect({ta.x + 8, y - 4, ta.width - 16, pitch - 2}, CornerRadii::all(5), xrender::Paint::solid(hex(ink::cyan, 0.16f)));
+            if (r.lit) list.fill_round_rect({ta.x + 8, y - 4, ta.width - 16, pitch - 2}, CornerRadii::all(5), mrender::Paint::solid(hex(ink::cyan, 0.16f)));
             const auto& l = s.labels.get(fonts, r.label, type, hex(r.lit ? ink::ice : ink::muted), r.lit ? 600 : 450, "JetBrains Mono");
             list.push_clip({x, y - 4, ta.x + ta.width - 16 - x, pitch});
-            xrender::text::paint(l, list, {x, y});
+            mrender::text::paint(l, list, {x, y});
             list.pop_clip();
             y += pitch;
         }
     }
     // The protocol's records, each written out as it comes, wrapped to the panel; the latest kept in view.
     const Rect la = s.log_area;
-    list.fill_round_rect(la, CornerRadii::all(10), xrender::Paint::solid(hex(0x040d1f, 0.92f)));
-    list.stroke_round_rect(la, CornerRadii::all(10), 1, xrender::Paint::solid(hex(ink::line, 0.8f)));
-    xrender::text::paint(s.labels.get(fonts, "openmui.tree@0.1 · agent:promo", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {la.x + 20, la.y + 16});
+    list.fill_round_rect(la, CornerRadii::all(10), mrender::Paint::solid(hex(0x040d1f, 0.92f)));
+    list.stroke_round_rect(la, CornerRadii::all(10), 1, mrender::Paint::solid(hex(ink::line, 0.8f)));
+    mrender::text::paint(s.labels.get(fonts, "openmui.tree@0.1 · agent:promo", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {la.x + 20, la.y + 16});
     {
         const std::size_t columns = static_cast<std::size_t>((la.width - 40) / advance);
         struct Shown {
@@ -431,7 +431,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
         const std::size_t room = static_cast<std::size_t>((la.height - 66) / pitch);
         float y = la.y + 58;
         for (std::size_t i = lines.size() > room ? lines.size() - room : 0; i < lines.size(); ++i) {
-            xrender::text::paint(s.labels.get(fonts, lines[i].text, type, hex(lines[i].colour), 450, "JetBrains Mono"), list, {la.x + 20, y});
+            mrender::text::paint(s.labels.get(fonts, lines[i].text, type, hex(lines[i].colour), 450, "JetBrains Mono"), list, {la.x + 20, y});
             y += pitch;
         }
     }
@@ -448,7 +448,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
         // The framework's mark of an agent's attention (omui.ui.base, agent presence).
         parts::agent_corners(list, {at.x - 16, at.y - 16, 32, 32}, c, 9);
         const auto& tag = s.labels.get(fonts, "agent:promo", 18, c, 600, "JetBrains Mono");
-        xrender::text::paint(tag, list, {at.x + 22, at.y + 14});
+        mrender::text::paint(tag, list, {at.x + 22, at.y + 14});
     }
 }
 

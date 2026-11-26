@@ -96,11 +96,11 @@ void SplitView::paint_over(PaintContext& ctx) const {
     if (props.vertical) {
         ctx.list.fill_rect({h.x, h.center().y - (lit ? 1.0f : 0.5f), h.width, lit ? 2.0f : 1.0f}, line);
         const Rect grip{h.center().x - split_grip / 2, h.center().y - 3, split_grip, 6};
-        ctx.list.fill_round_rect(grip, CornerRadii::all(3), xrender::Paint::solid(lit ? th.color("accent") : th.color("border_strong")));
+        ctx.list.fill_round_rect(grip, CornerRadii::all(3), mrender::Paint::solid(lit ? th.color("accent") : th.color("border_strong")));
     } else {
         ctx.list.fill_rect({h.center().x - (lit ? 1.0f : 0.5f), h.y, lit ? 2.0f : 1.0f, h.height}, line);
         const Rect grip{h.center().x - 3, h.center().y - split_grip / 2, 6, split_grip};
-        ctx.list.fill_round_rect(grip, CornerRadii::all(3), xrender::Paint::solid(lit ? th.color("accent") : th.color("border_strong")));
+        ctx.list.fill_round_rect(grip, CornerRadii::all(3), mrender::Paint::solid(lit ? th.color("accent") : th.color("border_strong")));
     }
     if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, h, CornerRadii::all(3));
 }

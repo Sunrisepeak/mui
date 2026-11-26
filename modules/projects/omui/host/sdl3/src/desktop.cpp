@@ -7,20 +7,20 @@ import omui.semantic;
 import omui.agent;
 import omui.accessibility;
 import mcpplibs.mpal;
-import xrender.raster;
-import xrender.vector;
-import xrender.frame;
+import mrender.raster;
+import mrender.vector;
+import mrender.frame;
 import mlibs.text;
 import mlibs.image;
 import mlibs.trace;
 import mlibs.rhi;
 import mlibs.compose;
 import :gpu;
-import xrender.effect;
+import mrender.effect;
 import mcpplibs.os;
 import :platform;
 import :web;
-import xrender.text;
+import mrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::debug;
@@ -123,7 +123,7 @@ struct Desktop::Impl final : WindowHost {
     std::unique_ptr<Runtime>                 own_runtime;
     Runtime*                                 runtime = nullptr;  // own_runtime's, or the one adopted
     std::unique_ptr<semantic::Tree>          tree;
-    std::unique_ptr<xrender::text::GlyphCache>     glyphs;
+    std::unique_ptr<mrender::text::GlyphCache>     glyphs;
     agent::Served                            endpoint;  // through the agent surface's slot (agent::endpoint_slot)
     // Assistive technology's view of the tree (D-21).
     std::unique_ptr<accessibility::Mirror>   mirror;
@@ -133,9 +133,9 @@ struct Desktop::Impl final : WindowHost {
     platform::WindowPtr                      window;
     // Web pages in the system's own view over the window (D-141; macOS's WKWebView), gone before it.
     std::unique_ptr<web::Pages, void (*)(web::Pages*)> web_pages{nullptr, [](web::Pages*) {}};
-    xrender::CpuFrame                         composed;  // the frame's entry (xrender.frame): the host composes nothing itself
-    xrender::DamageTracker                    damage;     // what the next list changes
-    xrender::raster::Surface                          frame;
+    mrender::CpuFrame                         composed;  // the frame's entry (mrender.frame): the host composes nothing itself
+    mrender::DamageTracker                    damage;     // what the next list changes
+    mrender::raster::Surface                          frame;
     std::uint64_t                            shown = 0;   // the list hash on screen
     std::size_t                              frames_shown = 0;
     std::size_t                              failed_frames = 0;  // in a row: a stage failed, the last good frame kept on screen
@@ -280,7 +280,7 @@ struct Desktop::Impl final : WindowHost {
     }
 
     // The frame as shown, read back (the GPU's texture, or the CPU's surface).
-    std::expected<xrender::raster::Surface, ViewFailure> pixels() {
+    std::expected<mrender::raster::Surface, ViewFailure> pixels() {
         if (!gpu) {
             if (frame.width() <= 0) return std::unexpected(ViewFailure{ViewError::nothing_shown});
             return frame;
@@ -288,13 +288,13 @@ struct Desktop::Impl final : WindowHost {
         if (!gpu_frame) return std::unexpected(ViewFailure{ViewError::nothing_shown});
         auto bytes = device->read(gpu_frame, mlibs::rhi::Region{0, 0, gpu_w, gpu_h});
         if (!bytes) return std::unexpected(ViewFailure{ViewError::capture_failed, bytes.error().message});
-        xrender::raster::Surface out(static_cast<int>(gpu_w), static_cast<int>(gpu_h));
+        mrender::raster::Surface out(static_cast<int>(gpu_w), static_cast<int>(gpu_h));
         std::memcpy(out.pixels().data(), bytes->data(), bytes->size());
         return out;
     }
 
     void show() {
-        const xrender::DisplayList& list = runtime->display_list();
+        const mrender::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
         const float scale = runtime->scale();
         const int w = static_cast<int>(std::lround(runtime->size().width * scale));
@@ -304,14 +304,14 @@ struct Desktop::Impl final : WindowHost {
             return;
         }
         if (h == shown && frame.width() == w && frame.height() == hgt) return;
-        if (frame.width() != w || frame.height() != hgt) frame = xrender::raster::Surface(w, hgt);
+        if (frame.width() != w || frame.height() != hgt) frame = mrender::raster::Surface(w, hgt);
         {
             mlibs::trace::Span span("render", "host");
-            const xrender::Resources resources{&runtime->images(), glyphs.get()};
+            const mrender::Resources resources{&runtime->images(), glyphs.get()};
             // Only the rows the new list can change: the same bytes as a full render.
             const auto rows = damage.update(list, w, hgt, scale, resources);
-            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
-            xrender::FrameOptions how;
+            const mrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            mrender::FrameOptions how;
             how.background = options.background;
             how.rows = rows;
             if (options.parallel_raster) how.parallel = &raster_parallel();
@@ -333,7 +333,7 @@ struct Desktop::Impl final : WindowHost {
         return texture;
     }
 
-    void show_gpu(const xrender::DisplayList& list, std::uint64_t h, float scale, int w, int hgt) {
+    void show_gpu(const mrender::DisplayList& list, std::uint64_t h, float scale, int w, int hgt) {
         if (w <= 0 || hgt <= 0) return;
         const auto uw = static_cast<std::uint32_t>(w), uh = static_cast<std::uint32_t>(hgt);
         if (h == shown && uw == gpu_w && uh == gpu_h) return;
@@ -351,12 +351,12 @@ struct Desktop::Impl final : WindowHost {
         }
         {
             mlibs::trace::Span span("render", "host");
-            const xrender::Resources resources{&runtime->images(), glyphs.get()};
-            const xrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
-            xrender::GpuFrameOptions how;
+            const mrender::Resources resources{&runtime->images(), glyphs.get()};
+            const mrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
+            mrender::GpuFrameOptions how;
             how.background = options.background;
             how.external = [this](std::uint64_t number) { return shown_texture(number); };
-            how.glyph_masks = xrender::glyph_masks_a_live_frame;  // a window's frames: text is its outlines', in motion and at rest
+            how.glyph_masks = mrender::glyph_masks_a_live_frame;  // a window's frames: text is its outlines', in motion and at rest
             auto r = gpu->render({&ui_layer, 1}, gpu_frame, uw, uh, how);
             if (!r) {
                 if (r.error().code == mlibs::rhi::Errc::device_lost) return lost("the GPU renderer", r.error().message);
@@ -415,7 +415,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
         d.runtime->clock() = hanim::Clock::interactive();
         d.runtime->resize(d.options.size, d.runtime->scale());
         d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-        d.glyphs = std::make_unique<xrender::text::GlyphCache>(d.runtime->fonts());
+        d.glyphs = std::make_unique<mrender::text::GlyphCache>(d.runtime->fonts());
         return;
     }
     mlibs::text::FontCollection* fonts = d.options.fonts;
@@ -436,7 +436,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     d.own_runtime = std::make_unique<Runtime>(std::move(ro));
     d.runtime = d.own_runtime.get();
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-    d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
+    d.glyphs = std::make_unique<mrender::text::GlyphCache>(*fonts);
 }
 
 Desktop::~Desktop() {
@@ -586,7 +586,7 @@ std::expected<void, ViewFailure> Desktop::open() {
     const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot);
     if (surface)
         d.runtime->set_svg_capture([&d, surface](Rect region) -> std::expected<std::string, ViewFailure> {
-            const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+            const mrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
             auto capture = surface->vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
             if (!capture) return std::unexpected(capture.error());
             return std::move(capture->svg);
@@ -596,7 +596,7 @@ std::expected<void, ViewFailure> Desktop::open() {
         // The frame on screen, cut to the region (logical pixels).
         auto shown_frame = d.pixels();
         if (!shown_frame) return std::unexpected(shown_frame.error());
-        const xrender::raster::Surface& f = *shown_frame;
+        const mrender::raster::Surface& f = *shown_frame;
         const PixelRect r = mlibs::geom::snap(region, d.runtime->scale());
         const int x0 = std::clamp(r.x, 0, f.width()), y0 = std::clamp(r.y, 0, f.height());
         const int x1 = std::clamp(r.x + r.width, x0, f.width()), y1 = std::clamp(r.y + r.height, y0, f.height());
@@ -615,7 +615,7 @@ std::expected<void, ViewFailure> Desktop::open() {
         eo.protocol.input = d.options.agent_input;
         eo.protocol.capture = shown_png;
         eo.protocol.capture_svg = [&d, surface](Rect region) {
-            const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+            const mrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
             return surface->vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
         };
         eo.wake = [] { platform::wake(); };
@@ -649,7 +649,7 @@ accessibility::Mirror* Desktop::accessibility_mirror() noexcept { return impl_->
 accessibility::Adapter* Desktop::accessibility_adapter() noexcept { return impl_->access.get(); }
 std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
 bool Desktop::gpu() const noexcept { return impl_->gpu != nullptr; }
-xrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &impl_->effects->library() : nullptr; }
+mrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &impl_->effects->library() : nullptr; }
 float Desktop::scale() const noexcept { return impl_->runtime->scale(); }
 NodeId Desktop::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
 
@@ -792,7 +792,7 @@ void Desktop::synthesize(std::span<const InputEvent> events) {
     if (impl_->window) platform::synthesize(*impl_->window, events);
 }
 
-std::expected<xrender::raster::Surface, ViewFailure> Desktop::window_pixels() {
+std::expected<mrender::raster::Surface, ViewFailure> Desktop::window_pixels() {
     if (!impl_->window) return std::unexpected(ViewFailure{ViewError::not_open});
     if (impl_->gpu) return impl_->pixels();  // the frame the swapchain was given, exactly
     auto read = platform::read_back(*impl_->window);

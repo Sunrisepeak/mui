@@ -2,9 +2,9 @@
 // These probes deliberately combine a live node morph and a scoped crossfade.
 import std;
 import omui.view;
-import xrender.raster;
+import mrender.raster;
 import mcpplibs.mtest;
-import xrender.text;
+import mrender.text;
 
 using namespace omui;
 using namespace mcpplibs::mtest;
@@ -28,7 +28,7 @@ struct QualityOverlay {
 struct Probe {
     mlibs::text::FontCollection fonts;
     Runtime runtime{options(fonts)};
-    xrender::text::GlyphCache glyphs{fonts};
+    mrender::text::GlyphCache glyphs{fonts};
     Signal<float> x = signal(0.0f);
     std::vector<std::uint32_t> pixel_owners;
     explicit Probe(bool reduce = false, bool overlay = false) {
@@ -54,15 +54,15 @@ struct Probe {
     }
     void frame(double time) { expect(runtime.frame({seconds(time), {}}).failure.empty()); }
     void begin() { x.set(60); frame(1); frame(1.25); }
-    std::span<const xrender::Command> current_commands() const {
+    std::span<const mrender::Command> current_commands() const {
         const auto commands = runtime.display_list().commands();
         std::size_t depth = 0; bool root = false;
         for (std::size_t i = 0; i < commands.size(); ++i) {
-            if (const auto* n = std::get_if<xrender::BeginNode>(&commands[i])) {
+            if (const auto* n = std::get_if<mrender::BeginNode>(&commands[i])) {
                 const auto id = runtime.node_at_index(n->node);
                 if (!root && runtime.valid(id) && runtime.path(id) == "main") root = true;
                 if (root) ++depth;
-            } else if (root && std::holds_alternative<xrender::EndNode>(commands[i])) {
+            } else if (root && std::holds_alternative<mrender::EndNode>(commands[i])) {
                 if (depth && --depth == 0) return commands.first(i + 1);
             }
         }
@@ -70,7 +70,7 @@ struct Probe {
     }
     std::map<std::string, std::size_t> markers() const {
         std::map<std::string, std::size_t> out;
-        for (const auto& command : current_commands()) if (const auto* n = std::get_if<xrender::BeginNode>(&command)) {
+        for (const auto& command : current_commands()) if (const auto* n = std::get_if<mrender::BeginNode>(&command)) {
             const auto id = runtime.node_at_index(n->node);
             if (runtime.valid(id)) ++out[runtime.path(id)];
         }
@@ -82,29 +82,29 @@ struct Probe {
         std::vector<Affine> transforms(1); std::vector<bool> nodes;
         std::vector<float> out;
         for (const auto& command : current_commands()) {
-            if (const auto* t = std::get_if<xrender::PushTransform>(&command)) transforms.push_back(transforms.back() * t->transform);
-            else if (std::holds_alternative<xrender::PopTransform>(command)) { if (transforms.size() > 1) transforms.pop_back(); }
-            else if (const auto* n = std::get_if<xrender::BeginNode>(&command)) {
+            if (const auto* t = std::get_if<mrender::PushTransform>(&command)) transforms.push_back(transforms.back() * t->transform);
+            else if (std::holds_alternative<mrender::PopTransform>(command)) { if (transforms.size() > 1) transforms.pop_back(); }
+            else if (const auto* n = std::get_if<mrender::BeginNode>(&command)) {
                 const auto id = runtime.node_at_index(n->node);
                 nodes.push_back(runtime.valid(id) && runtime.path(id) == "main/pane/track/thumb");
-            } else if (std::holds_alternative<xrender::EndNode>(command)) { if (!nodes.empty()) nodes.pop_back(); }
+            } else if (std::holds_alternative<mrender::EndNode>(command)) { if (!nodes.empty()) nodes.pop_back(); }
             else if (!nodes.empty() && nodes.back()) {
-                if (const auto* f = std::get_if<xrender::FillRect>(&command); f && f->paint.color.r > 0.85f && f->paint.color.g < 0.2f)
+                if (const auto* f = std::get_if<mrender::FillRect>(&command); f && f->paint.color.r > 0.85f && f->paint.color.g < 0.2f)
                     out.push_back(transforms.back().apply({f->rect.x, f->rect.y}).x);
             }
         }
         return out;
     }
-    xrender::raster::Surface pixels() {
-        xrender::raster::Surface surface(260, 100);
-        xrender::CpuRenderer renderer; xrender::CpuOptions opts; opts.background = Color::white(); opts.object_ids = true;
+    mrender::raster::Surface pixels() {
+        mrender::raster::Surface surface(260, 100);
+        mrender::CpuRenderer renderer; mrender::CpuOptions opts; opts.background = Color::white(); opts.object_ids = true;
         const auto result = renderer.render(runtime.display_list(), surface, {&runtime.images(), &glyphs}, opts);
         expect(result.commands > 0 && result.missing_images == 0 && result.missing_glyphs == 0) << "the complete current/history display list renders natively";
         const auto owners = renderer.object_ids(); pixel_owners.assign(owners.begin(), owners.end());
         return surface;
     }
 };
-bool region_equal(const xrender::raster::Surface& a, const xrender::raster::Surface& b, int left = 0, int top = 0, int width = 260, int height = 100) {
+bool region_equal(const mrender::raster::Surface& a, const mrender::raster::Surface& b, int left = 0, int top = 0, int width = 260, int height = 100) {
     for (int y = top; y < top + height; ++y) for (int x = left; x < left + width; ++x) if (a.at(x, y) != b.at(x, y)) return false;
     return true;
 }

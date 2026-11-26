@@ -68,7 +68,7 @@ std::string renamed(std::string_view text, std::string_view from, std::string_vi
 }
 
 std::expected<Plan, std::string> plan(const std::filesystem::path& root, std::string_view from, std::string_view to) {
-    if (!code_name(from) || !code_name(to)) return std::unexpected("a code name is lowercase letters and digits, a letter first (D-208: xrender, xtools)");
+    if (!code_name(from) || !code_name(to)) return std::unexpected("a code name is lowercase letters and digits, a letter first (D-208: mrender, xtools)");
     if (from == to) return std::unexpected("the names are the same");
     auto paths = tracked(root);
     if (!paths) return std::unexpected(paths.error());

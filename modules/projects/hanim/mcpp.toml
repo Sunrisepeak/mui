@@ -57,7 +57,7 @@ mlibs.utils = { path = "../../base/utils" }
 mlibs.utils = { path = "../../base/utils" }
 
 [feature-deps.render-vector]
-xrender.vector = { path = "../xrender/vector" }
+mrender.vector = { path = "../mrender/vector" }
 mlibs.geom = { path = "../../base/geom" }
 
 [feature-deps.control]

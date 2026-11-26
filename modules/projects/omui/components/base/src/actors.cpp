@@ -156,7 +156,7 @@ void ActorLog::paint(PaintContext& ctx) const {
                         : state == "waiting"                      ? th.color("accent")
                         : state == "lost" || state == "expired"   ? th.color("warning")
                                                                   : th.color("text_disabled");
-        ctx.list.fill_round_rect({pad_x, y + (row_h - dot) / 2, dot, dot}, CornerRadii::all(dot / 2), xrender::Paint::solid(c));
+        ctx.list.fill_round_rect({pad_x, y + (row_h - dot) / 2, dot, dot}, CornerRadii::all(dot / 2), mrender::Paint::solid(c));
         status_.set_text(st);
         const Size t = status_.measure(ctx.services, th.color("text"), w - (2 * pad_x + dot + 8));
         status_.paint(ctx, {pad_x + dot + 8, y + (row_h - t.height) / 2}, th.color("text"));
@@ -187,7 +187,7 @@ void ActorLog::paint(PaintContext& ctx) const {
         const Rect r{0, y, w, row_h};
         rows_.push_back(r);
         shown_.push_back(e.id);
-        if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(4), xrender::Paint::solid(th.color("surface_variant")));
+        if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(4), mrender::Paint::solid(th.color("surface_variant")));
         // When (m:ss since the first), what, and its Undo while it is the last its history holds.
         parts::Label& when = times_[i];
         when.set_style("caption");
@@ -497,24 +497,24 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
         if (at.empty()) continue;
         const Rect box{at.x - 3, at.y - 3, at.width + 6, at.height + 6};
         const std::string held_id = std::format("{}|{}", now.actor, held.part);  // each holder's outline its own (one moves, the others stay)
-        ctx.part({.role = "claim", .id = held_id, .allocation = box, .kind = xrender::PartKind::box}, [&] {
-            ctx.list.fill_rect(box, xrender::Paint::solid(ink.with_alpha(0.06f)));
+        ctx.part({.role = "claim", .id = held_id, .allocation = box, .kind = mrender::PartKind::box}, [&] {
+            ctx.list.fill_rect(box, mrender::Paint::solid(ink.with_alpha(0.06f)));
             constexpr float dash = 6, gap = 4, line = 1.5f;
             for (float x = box.x; x < box.right(); x += dash + gap) {
                 const float length = std::min(dash, box.right() - x);
-                ctx.list.fill_rect({x, box.y, length, line}, xrender::Paint::solid(ink));
-                ctx.list.fill_rect({x, box.bottom() - line, length, line}, xrender::Paint::solid(ink));
+                ctx.list.fill_rect({x, box.y, length, line}, mrender::Paint::solid(ink));
+                ctx.list.fill_rect({x, box.bottom() - line, length, line}, mrender::Paint::solid(ink));
             }
             for (float y = box.y; y < box.bottom(); y += dash + gap) {
                 const float length = std::min(dash, box.bottom() - y);
-                ctx.list.fill_rect({box.x, y, line, length}, xrender::Paint::solid(ink));
-                ctx.list.fill_rect({box.right() - line, y, line, length}, xrender::Paint::solid(ink));
+                ctx.list.fill_rect({box.x, y, line, length}, mrender::Paint::solid(ink));
+                ctx.list.fill_rect({box.right() - line, y, line, length}, mrender::Paint::solid(ink));
             }
             tag_.set_text(std::format("{} holds{}{}", who(now.actor), held.property.empty() ? std::string() : " " + held.property,
                                       held.intent.empty() ? std::string() : " · " + held.intent));
             const Size t = tag_.measure(ctx.services, ink);
             const Rect label = apart({box.x, box.bottom() + 2, t.width + 8, t.height + 2});
-            ctx.list.fill_round_rect(label, th.radii(3), xrender::Paint::solid(th.color("surface").with_alpha(0.92f)));
+            ctx.list.fill_round_rect(label, th.radii(3), mrender::Paint::solid(th.color("surface").with_alpha(0.92f)));
             tag_.paint(ctx, {label.x + 4, label.y + 1}, ink);
         });
     }
@@ -524,7 +524,7 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
     std::vector<Point> stops;
     for (const PresenceStep& step : now.trail) stops.push_back(local(step.bounds).center());
     stops.push_back(local(now.now->bounds).center());
-    ctx.part({.role = "trail", .id = now.actor, .kind = xrender::PartKind::content}, [&] {
+    ctx.part({.role = "trail", .id = now.actor, .kind = mrender::PartKind::content}, [&] {
         for (std::size_t i = 0; i + 1 < stops.size(); ++i) {
             const float age = static_cast<float>(i + 1) / static_cast<float>(stops.size());
             const Point a = stops[i], b = stops[i + 1];
@@ -532,9 +532,9 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
             for (float d = 6; d < length - 6; d += 9) {
                 const float t = d / length;
                 ctx.list.fill_round_rect({a.x + (b.x - a.x) * t - 1.5f, a.y + (b.y - a.y) * t - 1.5f, 3, 3}, CornerRadii::all(1.5f),
-                                         xrender::Paint::solid(ink.with_alpha(0.25f + 0.35f * age)));
+                                         mrender::Paint::solid(ink.with_alpha(0.25f + 0.35f * age)));
             }
-            ctx.list.fill_round_rect({a.x - 4, a.y - 4, 8, 8}, CornerRadii::all(4), xrender::Paint::solid(ink.with_alpha(0.3f + 0.4f * age)));
+            ctx.list.fill_round_rect({a.x - 4, a.y - 4, 8, 8}, CornerRadii::all(4), mrender::Paint::solid(ink.with_alpha(0.3f + 0.4f * age)));
         }
     });
 
@@ -544,14 +544,14 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
     const Rect box{at.x - out, at.y - out, at.width + 2 * out, at.height + 2 * out};
     // Each actor's frame is its own part (its id the actor): from one node to the next the style's motion carries it
     // across, as one thing, rather than one frame vanishing and another appearing (D-160).
-    ctx.part({.role = "frame", .id = now.actor, .allocation = box, .kind = xrender::PartKind::box}, [&] {
+    ctx.part({.role = "frame", .id = now.actor, .allocation = box, .kind = mrender::PartKind::box}, [&] {
         parts::agent_corners(ctx.list, box, ink, arm);
         tag_.set_text(now.now->action.empty() ? std::string(who(now.actor)) : std::format("{} · {}", who(now.actor), now.now->action));
         const Size t = tag_.measure(ctx.services, th.color("on_accent", Color::white()));
         // Above the frame, or under it where the page's top leaves no room.
         const float above = box.y - t.height - 8;
         const Rect pill = apart({box.x, above >= 0 ? above : box.bottom() + 4, t.width + 12, t.height + 4});
-        ctx.list.fill_round_rect(pill, th.radii(pill.height / 2), xrender::Paint::solid(ink));
+        ctx.list.fill_round_rect(pill, th.radii(pill.height / 2), mrender::Paint::solid(ink));
         tag_.paint(ctx, {pill.x + 6, pill.y + 2}, th.color("on_accent", Color::white()));
     });
 
@@ -579,10 +579,10 @@ void AgentPresence::paint_one(PaintContext& ctx, const AgentPresenceState& now, 
             if (hidden == 0) break;
         }
         placed.push_back(card);
-        ctx.part({.role = "card", .id = now.actor, .allocation = card, .kind = xrender::PartKind::box}, [&] {
+        ctx.part({.role = "card", .id = now.actor, .allocation = card, .kind = mrender::PartKind::box}, [&] {
             if (auto it = th.shadows.find("md"); it != th.shadows.end()) paint_shadow(ctx.list, card, th.radii(10), it->second);
-            ctx.list.fill_round_rect(card, th.radii(10), xrender::Paint::solid(th.color("surface")));
-            ctx.list.fill_round_rect({card.x, card.y + 8, 3, card.height - 16}, CornerRadii::all(1.5f), xrender::Paint::solid(ink));
+            ctx.list.fill_round_rect(card, th.radii(10), mrender::Paint::solid(th.color("surface")));
+            ctx.list.fill_round_rect({card.x, card.y + 8, 3, card.height - 16}, CornerRadii::all(1.5f), mrender::Paint::solid(ink));
             card_.paint(ctx, {card.x + 14, card.y + 8}, th.color("text"));
         });
     }

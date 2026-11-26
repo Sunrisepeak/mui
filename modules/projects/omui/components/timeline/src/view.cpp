@@ -3,7 +3,7 @@ module omui.ui.timeline;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import omui.ui.base;
 import hanim.timeline;
 
@@ -304,7 +304,7 @@ void TimelineEditor::paint(PaintContext& ctx) const {
     for (std::size_t k = 0; k < model_.tracks.size(); ++k) {
         const tl::Track& track = model_.tracks[k];
         const float y = ruler + static_cast<float>(k) * track_height;
-        out.fill_rect({header, y + track_height - 1, w - header, 1}, line, xrender::PixelAlign::device);
+        out.fill_rect({header, y + track_height - 1, w - header, 1}, line, mrender::PixelAlign::device);
         const Color colour = kind_colour(theme, track.kind);
         for (std::size_t i = 0; i < track.clips.size(); ++i) {
             const tl::Clip& c = track.clips[i];
@@ -318,16 +318,16 @@ void TimelineEditor::paint(PaintContext& ctx) const {
                 else length += drag_.shift;
             }
             const Rect box{x_of(at), row + 4, std::max(2.0f, static_cast<float>(mlibs::time::to_seconds(length) * props.zoom)), track_height - 9};
-            out.fill_round_rect(box, CornerRadii::all(4), xrender::Paint::solid(colour.with_alpha(track.muted ? 0.35f : picked ? 1.0f : 0.78f)));
-            if (picked) out.stroke_round_rect(box, CornerRadii::all(4), 2, xrender::Paint::solid(theme.color(theme.dark ? "#ffffff" : "#0f172a")));
+            out.fill_round_rect(box, CornerRadii::all(4), mrender::Paint::solid(colour.with_alpha(track.muted ? 0.35f : picked ? 1.0f : 0.78f)));
+            if (picked) out.stroke_round_rect(box, CornerRadii::all(4), 2, mrender::Paint::solid(theme.color(theme.dark ? "#ffffff" : "#0f172a")));
             // Its fades: the level's ramps drawn as shade across its corners.
             auto ramp = [&](mlibs::time::Flicks span, bool start) {
                 if (span <= 0) return;
                 const float fw = static_cast<float>(mlibs::time::to_seconds(span) * props.zoom);
-                xrender::Path tri;
+                mrender::Path tri;
                 if (start) tri.move_to({box.x, box.y}).line_to({box.x + fw, box.y}).line_to({box.x, box.y + box.height}).close();
                 else tri.move_to({box.x + box.width, box.y}).line_to({box.x + box.width - fw, box.y}).line_to({box.x + box.width, box.y + box.height}).close();
-                out.fill_path(tri, xrender::FillRule::nonzero, xrender::Paint::solid(Color{0, 0, 0, 0.28f}));
+                out.fill_path(tri, mrender::FillRule::nonzero, mrender::Paint::solid(Color{0, 0, 0, 0.28f}));
             };
             ramp(c.fade.in, true);
             ramp(c.fade.out, false);
@@ -336,9 +336,9 @@ void TimelineEditor::paint(PaintContext& ctx) const {
                 for (const auto& key : p.keys.keys()) {
                     const float kx = x_of(at + mlibs::time::from_seconds(key.time.count())), ky = box.y + box.height - 6;
                     if (kx < box.x || kx > box.x + box.width) continue;
-                    xrender::Path d;
+                    mrender::Path d;
                     d.move_to({kx, ky - 3.5f}).line_to({kx + 3.5f, ky}).line_to({kx, ky + 3.5f}).line_to({kx - 3.5f, ky}).close();
-                    out.fill_path(d, xrender::FillRule::nonzero, xrender::Paint::solid(Color{1, 1, 1, 0.9f}));
+                    out.fill_path(d, mrender::FillRule::nonzero, mrender::Paint::solid(Color{1, 1, 1, 0.9f}));
                 }
             // Its name, when there is room.
             if (label >= names_.size()) names_.emplace_back();
@@ -355,16 +355,16 @@ void TimelineEditor::paint(PaintContext& ctx) const {
     for (const tl::Marker& m : model_.markers) {
         const float x = x_of(m.at);
         out.fill_rect({x, ruler, 1, h - ruler}, theme.color("#a855f7").with_alpha(0.5f));
-        xrender::Path flag;
+        mrender::Path flag;
         flag.move_to({x, 2}).line_to({x + 8, 6}).line_to({x, 10}).close();
-        out.fill_path(flag, xrender::FillRule::nonzero, xrender::Paint::solid(theme.color("#a855f7")));
+        out.fill_path(flag, mrender::FillRule::nonzero, mrender::Paint::solid(theme.color("#a855f7")));
     }
     // The playhead.
     const float px = x_of(rate.frame_time(props.frame));
     out.fill_rect({px - 1, 0, 2, h}, theme.color("#ef4444"));
-    xrender::Path head;
+    mrender::Path head;
     head.move_to({px - 6, 0}).line_to({px + 6, 0}).line_to({px, 8}).close();
-    out.fill_path(head, xrender::FillRule::nonzero, xrender::Paint::solid(theme.color("#ef4444")));
+    out.fill_path(head, mrender::FillRule::nonzero, mrender::Paint::solid(theme.color("#ef4444")));
     out.pop_clip();
     // The headers: each track's name and kind, over its band.
     out.fill_rect({0, 0, header, h}, theme.color(theme.dark ? "#121821" : "#e6e9ee"));

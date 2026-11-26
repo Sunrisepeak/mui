@@ -3,8 +3,8 @@ module omui.ui.canvas;
 import std;
 import omui.core;
 import omui.view;
-import xrender.vector;
-import xrender.raster;
+import mrender.vector;
+import mrender.raster;
 import hanim.core;
 import mlibs.trace;
 
@@ -566,7 +566,7 @@ void Canvas::paint(PaintContext& ctx) const {
                 const Color fill = s->fill(n);
                 if (fill.a > 0) {
                     const float r = static_cast<float>(s->radius(n) * camera_.zoom);
-                    if (r > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(r), xrender::Paint::solid(fill));
+                    if (r > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(r), mrender::Paint::solid(fill));
                     else ctx.list.fill_rect(screen, fill);
                 }
                 ++stats_.boxes;
@@ -604,7 +604,7 @@ void Canvas::paint(PaintContext& ctx) const {
                             ++stats_.listed;
                         } else {
                             const Color fill = s->fill(n);
-                            if (fill.a > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(static_cast<float>(s->radius(n) * camera_.zoom)), xrender::Paint::solid(fill));
+                            if (fill.a > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(static_cast<float>(s->radius(n) * camera_.zoom)), mrender::Paint::solid(fill));
                             ++stats_.boxes;
                         }
                         break;
@@ -616,15 +616,15 @@ void Canvas::paint(PaintContext& ctx) const {
                     const float centrality = 1.0f / (1.0f + (cx * cx + cy * cy) / (vp.width * vp.width + vp.height * vp.height));
                     textures_.want(key, rev, level, n, screen.width * screen.height * centrality);
                 }
-                const xrender::raster::Surface* img = pick ? services().images().get(pick->image) : nullptr;
+                const mrender::raster::Surface* img = pick ? services().images().get(pick->image) : nullptr;
                 if (img) {
                     ctx.list.draw_image(pick->image, {0, 0, static_cast<float>(img->width()), static_cast<float>(img->height())}, screen,
-                                        xrender::Sampling::linear);
+                                        mrender::Sampling::linear);
                     ++stats_.textured;
                     if (!pick->exact) ++stats_.stretched;
                 } else {
                     const Color fill = s->fill(n);
-                    if (fill.a > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(static_cast<float>(s->radius(n) * camera_.zoom)), xrender::Paint::solid(fill));
+                    if (fill.a > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(static_cast<float>(s->radius(n) * camera_.zoom)), mrender::Paint::solid(fill));
                     ++stats_.boxes;
                 }
                 break;
@@ -704,13 +704,13 @@ void Canvas::paint_over(PaintContext& ctx) const {
         constexpr float gap = 3, width = 2;
         const float radius = static_cast<float>(s->radius(*n) * camera_.zoom) + gap;
         ctx.list.stroke_round_rect({r.x - gap, r.y - gap, r.width + 2 * gap, r.height + 2 * gap}, CornerRadii::all(radius), width,
-                                   xrender::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
+                                   mrender::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
     }
 }
 
 // Edges between their nodes' facing sides: a curve, or a straight line when
 // far out; none when both ends are dots.
-void Canvas::paint_edges(const world::Scene& s, xrender::DisplayList& list, Size vp) const {
+void Canvas::paint_edges(const world::Scene& s, mrender::DisplayList& list, Size vp) const {
     const auto edges = s.edges();
     if (edges.empty()) return;
     const world::WorldRect view = camera_.visible(vp);
@@ -737,12 +737,12 @@ void Canvas::paint_edges(const world::Scene& s, xrender::DisplayList& list, Size
             p1 = {cb.x, dir > 0 ? sb.y : sb.bottom()};
             n0 = {0, dir}, n1 = {0, -dir};
         }
-        xrender::Path path;
+        mrender::Path path;
         path.move_to(p0);
         const float bend = std::hypot(p1.x - p0.x, p1.y - p0.y) * 0.4f;
         if (camera_.zoom < 0.15 || bend < 6) path.line_to(p1);
         else path.cubic_to({p0.x + n0.x * bend, p0.y + n0.y * bend}, {p1.x + n1.x * bend, p1.y + n1.y * bend}, p1);
-        list.stroke_path(path, {.width = std::max(1.0f, e.width * z), .cap = xrender::LineCap::round}, xrender::Paint::solid(e.color));
+        list.stroke_path(path, {.width = std::max(1.0f, e.width * z), .cap = mrender::LineCap::round}, mrender::Paint::solid(e.color));
     }
 }
 

@@ -42,7 +42,7 @@ std::string_view chapter_zh(std::string_view name) {
 struct Overlay::State {
     std::int64_t                    frame = 0;
     double                          seconds = 0;
-    std::optional<xrender::ImageRef> picture;  // the film's own frame, played back
+    std::optional<mrender::ImageRef> picture;  // the film's own frame, played back
     double                          speed = 1;
 };
 
@@ -126,13 +126,13 @@ View Overlay::view() {
                                    const float x0 = x_of(mlibs::time::to_seconds(c.at)) + 1, x1 = x_of(mlibs::time::to_seconds(c.end())) - 1;
                                    const bool film = c.source == "film";
                                    const Color col = film ? hex(ink::amber, 0.85f) : hex(i % 2 ? ink::line : 0x3b82c4, 0.9f);
-                                   p.list.fill_round_rect({x0, h / 2 - 3, std::max(1.0f, x1 - x0), 6}, CornerRadii::all(2), xrender::Paint::solid(col));
+                                   p.list.fill_round_rect({x0, h / 2 - 3, std::max(1.0f, x1 - x0), 6}, CornerRadii::all(2), mrender::Paint::solid(col));
                                }
                                for (const tl::Marker& m : cut->timeline.markers)
                                    if (m.name.starts_with("hit:")) p.list.fill_rect({std::round(x_of(mlibs::time::to_seconds(m.at))), 0, 1, 3}, hex(ink::cyan, 0.8f));
                                const float x = x_of(state->seconds);
                                p.list.fill_rect({0, h / 2 - 1, x, 2}, hex(ink::cyan, 0.85f));
-                               p.list.fill_round_rect({x - 1.5f, 0, 3, h}, CornerRadii::all(1.5f), xrender::Paint::solid(hex(ink::ice)));
+                               p.list.fill_round_rect({x - 1.5f, 0, 3, h}, CornerRadii::all(1.5f), mrender::Paint::solid(hex(ink::ice)));
                            }});
     // The film's own frame, played back: the tape's colours drifting apart, its rows wavering.
     Element playback = painter({.id = "playback",
@@ -141,10 +141,10 @@ View Overlay::view() {
                                 .role = Role::none,
                                 .paint = [state](PaintContext& p) {
                                     if (!state->picture) return;
-                                    const xrender::raster::Surface* img = p.services.images().get(*state->picture);
+                                    const mrender::raster::Surface* img = p.services.images().get(*state->picture);
                                     if (!img) return;
                                     p.list.draw_image(*state->picture, {0, 0, static_cast<float>(img->width()), static_cast<float>(img->height())},
-                                                      {0, 0, p.size.width, p.size.height}, xrender::Sampling::linear);
+                                                      {0, 0, p.size.width, p.size.height}, mrender::Sampling::linear);
                                     // A tracking band rolling up the picture.
                                     const float band = static_cast<float>(std::fmod(state->seconds * 2.3, 1.0)) * p.size.height;
                                     for (int k = 0; k < 3; ++k) {
@@ -177,7 +177,7 @@ View Overlay::view() {
     return root;
 }
 
-void Overlay::at(Runtime& rt, std::int64_t frame, const std::optional<Shown>& shown, std::optional<xrender::ImageRef> played_back) {
+void Overlay::at(Runtime& rt, std::int64_t frame, const std::optional<Shown>& shown, std::optional<mrender::ImageRef> played_back) {
     if (!found_) {
         line_nodes_.clear();
         chapter_nodes_.clear();

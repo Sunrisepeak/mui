@@ -4,8 +4,8 @@
 import std;
 import hanim.core;
 import mlibs.geom;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -13,8 +13,8 @@ import mcpplibs.os;
 
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
-namespace render = xrender;
-namespace raster = xrender::raster;
+namespace render = mrender;
+namespace raster = mrender::raster;
 namespace geom = mlibs::geom;
 namespace image = mlibs::image;
 namespace os = mcpplibs::os;

@@ -18,7 +18,7 @@ rhi::Result<OnDevice> OnDevice::make(rhi::Device& device, const Picture& picture
     auto glow = mesh::gpu::Glow::make(device);
     if (!glow) return std::unexpected(glow.error());
     made.glow_.emplace(std::move(*glow));
-    auto rain = xrender::particle::gpu::Pass::make(device);
+    auto rain = mrender::particle::gpu::Pass::make(device);
     if (!rain) return std::unexpected(rain.error());
     made.rain_.emplace(std::move(*rain));
     std::optional<rhi::Error> failed;

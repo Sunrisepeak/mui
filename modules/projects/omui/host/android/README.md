@@ -15,7 +15,7 @@ omui on Android (W10, G1): the framework draws every pixel (D-140) into the wind
   - Touches, as touch pointers.
   - Keys, as keys. Back is Escape: what is open closes, and when nothing changes the activity ends.
   - The platform conventions are Android's (`Platform::android`): a touch held asks for the context menu, and a scroll stops at its edge.
-- **Frames.** Each frame is drawn on the CPU (`xrender::CpuRenderer`) and shown in the window (`ANativeWindow`, RGBA). The host waits for events and does not spin: it draws while something moves, sleeps until the next timer, and draws nothing while paused or without a window.
+- **Frames.** Each frame is drawn on the CPU (`mrender::CpuRenderer`) and shown in the window (`ANativeWindow`, RGBA). The host waits for events and does not spin: it draws while something moves, sleeps until the next timer, and draws nothing while paused or without a window.
 - **Why a package of its own.** It is built for Android alone and needs the NDK's libraries (`libandroid`, `liblog`); the NDK's headers appear in `src/native/activity.cpp` alone.
 
 Not yet:

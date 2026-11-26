@@ -3,7 +3,7 @@ module omui.ui.base;
 import std;
 import omui.core;
 import omui.view;
-import xrender.text;
+import mrender.text;
 
 namespace omui::parts {
 
@@ -14,13 +14,13 @@ std::string segment(const Services& services, NodeId node) {
 }
 
 void chevron(PaintContext& ctx, Point c, float size, Color color) {
-    xrender::Path p;
+    mrender::Path p;
     p.move_to({c.x - size / 2, c.y - size / 4}).line_to({c.x, c.y + size / 4}).line_to({c.x + size / 2, c.y - size / 4});
-    xrender::StrokeStyle st;
+    mrender::StrokeStyle st;
     st.width = 1.5f;
-    st.cap = xrender::LineCap::round;
-    st.join = xrender::LineJoin::round;
-    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
+    st.cap = mrender::LineCap::round;
+    st.join = mrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, mrender::Paint::solid(color));
 }
 
 void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii) {
@@ -29,7 +29,7 @@ void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii) {
     CornerRadii ring = radii;
     for (float* x : {&ring.top_left, &ring.top_right, &ring.bottom_right, &ring.bottom_left}) *x += out;
     ctx.list.stroke_round_rect({r.x - out, r.y - out, r.width + 2 * out, r.height + 2 * out}, ring, width,
-                               xrender::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
+                               mrender::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
 }
 
 std::optional<Rect> view_box(std::string_view text) noexcept {
@@ -55,10 +55,10 @@ mlibs::geom::Affine fitted(const Rect& view_box, const Rect& into) noexcept {
     return mlibs::geom::Affine::translate(left, top) * mlibs::geom::Affine::scale(scale, scale);
 }
 
-std::optional<xrender::Path> shape_of(std::string_view data) {
+std::optional<mrender::Path> shape_of(std::string_view data) {
     const auto parsed = mlibs::geom::parse_path_data(data);
     if (!parsed || parsed->verbs.empty()) return std::nullopt;
-    xrender::Path made;
+    mrender::Path made;
     std::size_t at = 0;
     for (const mlibs::geom::PathVerb verb : parsed->verbs) {
         switch (verb) {
@@ -78,34 +78,34 @@ std::optional<xrender::Path> shape_of(std::string_view data) {
     return made;
 }
 
-void agent_corners(xrender::DisplayList& list, const Rect& box, Color ink, float arm, float width) {
-    xrender::Path corners;
+void agent_corners(mrender::DisplayList& list, const Rect& box, Color ink, float arm, float width) {
+    mrender::Path corners;
     const auto corner = [&](Point p, float dx, float dy) { corners.move_to({p.x + dx * arm, p.y}).line_to(p).line_to({p.x, p.y + dy * arm}); };
     corner({box.x, box.y}, 1, 1);
     corner({box.right(), box.y}, -1, 1);
     corner({box.x, box.bottom()}, 1, -1);
     corner({box.right(), box.bottom()}, -1, -1);
-    list.stroke_path(corners, {.width = width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, xrender::Paint::solid(ink));
+    list.stroke_path(corners, {.width = width, .cap = mrender::LineCap::round, .join = mrender::LineJoin::round}, mrender::Paint::solid(ink));
 }
 
 void cross(PaintContext& ctx, Point c, float size, Color color) {
-    xrender::Path p;
+    mrender::Path p;
     p.move_to({c.x - size / 2, c.y - size / 2}).line_to({c.x + size / 2, c.y + size / 2});
     p.move_to({c.x + size / 2, c.y - size / 2}).line_to({c.x - size / 2, c.y + size / 2});
-    xrender::StrokeStyle st;
+    mrender::StrokeStyle st;
     st.width = 1.5f;
-    st.cap = xrender::LineCap::round;
-    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
+    st.cap = mrender::LineCap::round;
+    ctx.list.stroke_path(p, st, mrender::Paint::solid(color));
 }
 
 void check_mark(PaintContext& ctx, Point c, float size, Color color, float width) {
-    xrender::Path p;
+    mrender::Path p;
     p.move_to({c.x - size / 2, c.y}).line_to({c.x - size / 8, c.y + size * 0.35f}).line_to({c.x + size / 2, c.y - size * 0.35f});
-    xrender::StrokeStyle st;
+    mrender::StrokeStyle st;
     st.width = width;
-    st.cap = xrender::LineCap::round;
-    st.join = xrender::LineJoin::round;
-    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
+    st.cap = mrender::LineCap::round;
+    st.join = mrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, mrender::Paint::solid(color));
 }
 
 void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r) {
@@ -191,7 +191,7 @@ float Label::baseline(Services& services, Color color) {
 
 void Label::paint(PaintContext& ctx, Point origin, Color color) {
     if (text_.empty()) return;
-    xrender::text::paint(shaped(ctx.services, color, width_ < 0 ? std::numeric_limits<float>::infinity() : width_), ctx.list, origin);
+    mrender::text::paint(shaped(ctx.services, color, width_ < 0 ? std::numeric_limits<float>::infinity() : width_), ctx.list, origin);
 }
 
 Pressed::Pressed(PaintContext& ctx, const Rect& box, float pressed) : ctx_(ctx) {

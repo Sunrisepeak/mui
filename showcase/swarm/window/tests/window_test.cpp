@@ -25,17 +25,17 @@ omui::InputEvent key(KeyKind kind, Key which) { return omui::KeyEvent{.kind = ki
 
 constexpr int width = static_cast<int>(swarm::arena_width) * swarm::window::Arena::scale, height = static_cast<int>(swarm::arena_height) * swarm::window::Arena::scale;
 
-xrender::raster::Surface drawn(const swarm::State& state) {
-    xrender::DisplayList list;
+mrender::raster::Surface drawn(const swarm::State& state) {
+    mrender::DisplayList list;
     swarm::picture::draw(state, list, {0, 0, static_cast<float>(width), static_cast<float>(height)});
-    xrender::raster::Surface frame(width, height);
-    xrender::CpuRenderer renderer;
+    mrender::raster::Surface frame(width, height);
+    mrender::CpuRenderer renderer;
     (void)renderer.render(list, frame, {});
     return frame;
 }
-std::uint64_t hash_of(const xrender::raster::Surface& frame) { return mlibs::hash::fnv1a(std::as_bytes(std::span(frame.pixels()))); }
+std::uint64_t hash_of(const mrender::raster::Surface& frame) { return mlibs::hash::fnv1a(std::as_bytes(std::span(frame.pixels()))); }
 // A pixel of the frame at a place of the arena.
-auto at(const xrender::raster::Surface& frame, swarm::Vec2 place) {
+auto at(const mrender::raster::Surface& frame, swarm::Vec2 place) {
     return frame.pixels()[static_cast<std::size_t>(place.y * swarm::window::Arena::scale) * static_cast<std::size_t>(width) + static_cast<std::size_t>(place.x * swarm::window::Arena::scale)];
 }
 

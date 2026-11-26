@@ -24,7 +24,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "platform: the browser page as a host, Web only"
-reexports = ["omui.core", "omui.native", "omui.semantic", "omui.view", "xrender.raster"]  # what its interface re-exports (lint module-closure)
+reexports = ["omui.core", "omui.native", "omui.semantic", "omui.view", "mrender.raster"]  # what its interface re-exports (lint module-closure)
 kind = "host"
 agent = { part = "omui.agent" }
 
@@ -43,19 +43,19 @@ sources = ["src/native/browser/*.cpp"]
 sources = ["src/native/elsewhere/*.cpp"]
 
 [dependencies]
-xrender.text = { path = "../../../xrender/text" }
+mrender.text = { path = "../../../mrender/text" }
 omui.core     = { path = "../../core" }
 omui.view     = { path = "../../view" }
 omui.semantic = { path = "../../semantic" }
 omui.agent    = { path = "../../agent" }
 omui.native       = { path = "../../native" }
-xrender.raster   = { path = "../../../xrender/raster" }
-xrender.vector = { path = "../../../xrender/vector" }
+mrender.raster   = { path = "../../../mrender/raster" }
+mrender.vector = { path = "../../../mrender/vector" }
 # The frame's entry: the host hands its layers to the renderer, which composes (D-162).
-xrender.frame = { path = "../../../xrender/frame" }
+mrender.frame = { path = "../../../mrender/frame" }
 mlibs.rhi         = { path = "../../../../gfx/rhi" }
-xrender.rhi.webgpu  = { path = "../../../xrender/rhi/webgpu" }
-xrender.rhi.webgl   = { path = "../../../xrender/rhi/webgl" }
+mrender.rhi.webgpu  = { path = "../../../mrender/rhi/webgpu" }
+mrender.rhi.webgl   = { path = "../../../mrender/rhi/webgl" }
 mlibs.text     = { path = "../../../../content/text" }
 mlibs.utils    = { path = "../../../../base/utils" }
 mlibs.image    = { path = "../../../../base/image" }

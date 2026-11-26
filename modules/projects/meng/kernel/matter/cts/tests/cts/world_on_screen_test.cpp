@@ -18,7 +18,7 @@ namespace matter = meng::matter;
 namespace ca = meng::cellular;
 namespace bodies = meng::cellular::rigid;
 namespace geom = mlibs::geom;
-namespace raster = xrender::raster;
+namespace raster = mrender::raster;
 
 namespace {
 constexpr int scale = 6;
@@ -29,9 +29,9 @@ const matter::Program& standard() {
 
 struct Scene {
     std::unique_ptr<bodies::MatterWorld> world;
-    xrender::ImageStore images;
+    mrender::ImageStore images;
     ca::FieldPresenter view;
-    xrender::DisplayList list;
+    mrender::DisplayList list;
     std::vector<float> centres;
     ca::Shape shape{128, 72};
 
@@ -67,7 +67,7 @@ struct Scene {
         view.draw_loose(list, {0, 0, width, height}, centres, world->flying().values());
         view.draw_glow(list, {0, 0, width, height}, 2.0f * scale, 0.9f);
         raster::Surface out(static_cast<int>(shape.width) * scale, static_cast<int>(shape.height) * scale);
-        xrender::CpuRenderer renderer;
+        mrender::CpuRenderer renderer;
         (void)renderer.render(list, out, {&images, nullptr});
         return out;
     }

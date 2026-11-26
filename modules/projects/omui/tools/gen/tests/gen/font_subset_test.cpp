@@ -7,7 +7,7 @@ import omui.gen.font_subset;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mlibs.text;
-import xrender.text;
+import mrender.text;
 
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
@@ -203,7 +203,7 @@ static UTest cases{"gen.font_subset", [] {
         expect(cut.has_value()) << (cut ? "" : cut.error()); if (!cut) return;
         mlibs::text::FontCollection full, small;
         expect(full.add_data(inter).has_value() && small.add_data(*cut).has_value());
-        xrender::text::GlyphCache full_cache(full), small_cache(small);
+        mrender::text::GlyphCache full_cache(full), small_cache(small);
         bool saw_substitution = false;
         for (const float weight : {400.0f, 600.0f}) for (const auto& sample : samples) {
             mlibs::text::ParagraphStyle style; style.style.size = 28; style.style.weight = weight;
@@ -220,8 +220,8 @@ static UTest cases{"gen.font_subset", [] {
                     for (std::size_t i = 0; i < ar[run].glyphs.size(); ++i) {
                         const auto& ag = ar[run].glyphs[i]; const auto& bg = br[run].glyphs[i];
                         expect(ag.id == bg.id && ag.position.x == bg.position.x && ag.position.y == bg.position.y) << std::format("{} at weight {} retains shaping", sample, weight);
-                        const auto am = full_cache.mask(xrender::text::font(ar[run].font), ag.id, ar[run].size, {});
-                        const auto bm = small_cache.mask(xrender::text::font(br[run].font), bg.id, br[run].size, {});
+                        const auto am = full_cache.mask(mrender::text::font(ar[run].font), ag.id, ar[run].size, {});
+                        const auto bm = small_cache.mask(mrender::text::font(br[run].font), bg.id, br[run].size, {});
                         expect(bool(am.coverage) == bool(bm.coverage));
                         if (am.coverage && bm.coverage) {
                             const auto ab = am.coverage->bounds, bb = bm.coverage->bounds;

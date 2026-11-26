@@ -17,10 +17,10 @@ module omui.view;
 import std;
 import omui.core;
 import mlibs.hash;
-import xrender.vector;
+import mrender.vector;
 import hanim.visual;
 import :impl;
-import xrender.text;
+import mrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -71,10 +71,10 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
     o.vertex_path = spec.vertex_path;
     o.translation_path = spec.translation_path;
     if (spec.travel)
-        if (const auto ref = xrender::effects().find(spec.travel->effect)) {
+        if (const auto ref = mrender::effects().find(spec.travel->effect)) {
             hanim::visual::Options::Travel t{.effect = *ref};
-            t.params = xrender::effects().params(*ref, {});
-            if (const xrender::EffectInfo* info = xrender::effects().info(*ref)) {
+            t.params = mrender::effects().params(*ref, {});
+            if (const mrender::EffectInfo* info = mrender::effects().info(*ref)) {
                 for (const auto& [k, x] : spec.travel->params)
                     for (std::size_t i = 0; i < info->params.size() && i < t.params.size(); ++i)
                         if (info->params[i].name == k) t.params[i] = x;
@@ -156,8 +156,8 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
     const mlibs::pipeline::Tier tier = effects_now();
     auto fits = [&](const MotionSpec& m) {
         if (!m.travel) return true;
-        const auto ref = xrender::effects().find(m.travel->effect);
-        const xrender::EffectInfo* info = ref ? xrender::effects().info(*ref) : nullptr;
+        const auto ref = mrender::effects().find(m.travel->effect);
+        const mrender::EffectInfo* info = ref ? mrender::effects().info(*ref) : nullptr;
         return info && (info->tiers & mlibs::pipeline::tier_bit(tier));
     };
     const MotionSpec* chosen = nullptr;
@@ -176,7 +176,7 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
     return chosen && chosen->kind == MotionSpec::Kind::morph ? chosen : nullptr;
 }
 
-void Runtime::Impl::emit_motion_range(std::size_t begin, std::size_t end, xrender::DisplayList& out, double t) {
+void Runtime::Impl::emit_motion_range(std::size_t begin, std::size_t end, mrender::DisplayList& out, double t) {
     const auto cmds = list.commands();
     for (std::size_t i = begin; i < end; ++i) {
         if (history_range.second > history_range.first && i == history_range.first) {
@@ -189,13 +189,13 @@ void Runtime::Impl::emit_motion_range(std::size_t begin, std::size_t end, xrende
             i = history_range.second - 1;
             continue;
         }
-        if (const auto* b = std::get_if<xrender::BeginNode>(&cmds[i]); b && b->node < marker_ranges.size() && marker_ranges[b->node].first == i) {
+        if (const auto* b = std::get_if<mrender::BeginNode>(&cmds[i]); b && b->node < marker_ranges.size() && marker_ranges[b->node].first == i) {
             const NodeId id = b->node < by_index.size() ? by_index[b->node] : NodeId{};
             if (alive(id) && at(id).morph) {
                 out.begin_node(b->node);
                 const std::size_t w = b->node < marker_wrapper.size() ? marker_wrapper[b->node] : none;
-                const auto* live = w != none ? std::get_if<xrender::PushLayer>(&cmds[w]) : nullptr;
-                at(id).morph->draw(at(id).clock.local(t), out, [this, t](std::uint32_t marker, xrender::DisplayList& into) {
+                const auto* live = w != none ? std::get_if<mrender::PushLayer>(&cmds[w]) : nullptr;
+                at(id).morph->draw(at(id).clock.local(t), out, [this, t](std::uint32_t marker, mrender::DisplayList& into) {
                     if (marker < marker_ranges.size() && marker_ranges[marker].first != none)
                         emit_motion_range(marker_ranges[marker].first, marker_ranges[marker].second, into, t);
                 }, live);
@@ -256,10 +256,10 @@ void Runtime::Impl::run_motion() {
             i = history_range.second - 1;
             continue;
         }
-        if (const auto* b = std::get_if<xrender::BeginNode>(&cmds[i])) {
+        if (const auto* b = std::get_if<mrender::BeginNode>(&cmds[i])) {
             if (b->node < markers) marker_ranges[b->node].first = i;
             marker_stack.push_back(b->node);
-        } else if (std::holds_alternative<xrender::EndNode>(cmds[i]) && !marker_stack.empty()) {
+        } else if (std::holds_alternative<mrender::EndNode>(cmds[i]) && !marker_stack.empty()) {
             const std::size_t m = marker_stack.back();
             marker_stack.pop_back();
             if (m < markers) marker_ranges[m].second = i + 1;
@@ -306,20 +306,20 @@ void Runtime::Impl::run_motion() {
             // Reference-driven allocation is live, while contents and state
             // retain their own animation. Position changes do not rebuild a
             // second easing plan for the same already sampled anchor motion.
-            if(n.live_anchor_placement && i==b+1)if(const auto* transform=std::get_if<xrender::PushTransform>(&cmds[i])) {
+            if(n.live_anchor_placement && i==b+1)if(const auto* transform=std::get_if<mrender::PushTransform>(&cmds[i])) {
                 auto local=*transform;local.transform=Affine::translate(-n.frame.x,-n.frame.y)*local.transform;
-                h=xrender::hash_command(xrender::Command(local),h);continue;
+                h=mrender::hash_command(mrender::Command(local),h);continue;
             }
             // An effect's numbers are left out: their own transition is not a change of the drawing.
-            if (const auto* l = std::get_if<xrender::PushLayer>(&cmds[i]); l && l->effect.id != 0) {
-                xrender::PushLayer bare = *l;
+            if (const auto* l = std::get_if<mrender::PushLayer>(&cmds[i]); l && l->effect.id != 0) {
+                mrender::PushLayer bare = *l;
                 bare.params = {};
-                h = xrender::hash_command(xrender::Command(bare), h);
+                h = mrender::hash_command(mrender::Command(bare), h);
                 continue;
             }
-            if (const auto* inner = std::get_if<xrender::BeginNode>(&cmds[i]); inner && i != b && inner->node < markers) {
+            if (const auto* inner = std::get_if<mrender::BeginNode>(&cmds[i]); inner && i != b && inner->node < markers) {
                 if (marker_flags[inner->node] & 1) {  // a nested root: its own
-                    h = xrender::hash_command(cmds[i], h);
+                    h = mrender::hash_command(cmds[i], h);
                     const NodeId child = by_index[inner->node];
                     if (alive(child)) {
                         const MotionSpec* spec = update_motion(child);
@@ -345,7 +345,7 @@ void Runtime::Impl::run_motion() {
                     states = states * 1099511628211ull ^ state_bits(at(who));
                 }
             }
-            h = xrender::hash_command(cmds[i], h);
+            h = mrender::hash_command(cmds[i], h);
         }
         // The resolver gives each marker its node's keys; a nested root's range is drawn whole.
         const std::size_t root_marker = m;
@@ -393,15 +393,15 @@ void Runtime::Impl::run_motion() {
             options.proof_scale = scale;
             options.current_proof_scale = [this] { return scale; };
             if (options.minimum_text_contrast > 0) {
-                if (!motion_glyphs) motion_glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
-                options.glyph_bounds = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const xrender::DrawGlyphs& run, const Affine& transform) {
+                if (!motion_glyphs) motion_glyphs = std::make_unique<mrender::text::GlyphCache>(*fonts);
+                options.glyph_bounds = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const mrender::DrawGlyphs& run, const Affine& transform) {
                     const std::scoped_lock guard(*lock);
                     return hanim::visual::glyph_ink_bounds(run, transform, *cache);
                 };
             }
             if (spec.reshape && level != MotionLevel::reduced) {
-                if (!motion_glyphs) motion_glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
-                options.glyph_outline = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const xrender::DrawGlyphs& run, std::size_t glyph) {
+                if (!motion_glyphs) motion_glyphs = std::make_unique<mrender::text::GlyphCache>(*fonts);
+                options.glyph_outline = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const mrender::DrawGlyphs& run, std::size_t glyph) {
                     const std::scoped_lock guard(*lock);
                     return hanim::visual::glyph_outline(run, glyph, *cache);
                 };
@@ -535,7 +535,7 @@ void Runtime::Impl::run_motion() {
         double velocity = 0;
         if (n.morph) {
             velocity = std::clamp(n.morph->rate(n.clock.local(t)), 0.0, 20.0);
-            from = n.morph->snapshot(n.clock.local(t), [this, t](std::uint32_t marker, xrender::DisplayList& into) {
+            from = n.morph->snapshot(n.clock.local(t), [this, t](std::uint32_t marker, mrender::DisplayList& into) {
                 if (marker < marker_ranges.size() && marker_ranges[marker].first != none)
                     emit_motion_range(marker_ranges[marker].first, marker_ranges[marker].second, into, t);
             }, snapshot_context(static_cast<std::uint32_t>(m)));

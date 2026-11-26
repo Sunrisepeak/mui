@@ -1,6 +1,6 @@
 # omui.host.sdl3.gpu
 
-The GPU path of a desktop window, for [`omui.host.sdl3`](..): SDL_GPU's device (`mlibs.rhi` over Vulkan, Metal or Direct3D 12, through `xrender.rhi.sdl`) xrender's renderer on it, and the library of a program's effect files (`xrender.effect`, which only the GPU renderer draws), installed at the host's slot `omui.host.sdl3.gpu` ([`mlibs.compose`](../../../../../base/compose); a preview, `lower` in the manifest).
+The GPU path of a desktop window, for [`omui.host.sdl3`](..): SDL_GPU's device (`mlibs.rhi` over Vulkan, Metal or Direct3D 12, through `mrender.rhi.sdl`) mrender's renderer on it, and the library of a program's effect files (`mrender.effect`, which only the GPU renderer draws), installed at the host's slot `omui.host.sdl3.gpu` ([`mlibs.compose`](../../../../../base/compose); a preview, `lower` in the manifest).
 
 ```cpp
 import omui.host.sdl3.gpu;

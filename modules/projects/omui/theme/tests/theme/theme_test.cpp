@@ -6,7 +6,7 @@ import mlibs.error;
 import omui.core;
 import omui.view;
 import omui.theme;
-import xrender.vector;
+import mrender.vector;
 import omui.lang.ts;
 import mcpplibs.mtest;
 
@@ -259,7 +259,7 @@ static UTest cases{"theme", [] {
         // Layers with effects: the window's crt at least, and the cross-fade's layer.
         std::size_t effect_layers = 0, plain_layers = 0;
         for (const auto& c : rt.display_list().commands())
-            if (const auto* l = std::get_if<xrender::PushLayer>(&c)) (l->effect.id != 0 ? effect_layers : plain_layers) += 1;
+            if (const auto* l = std::get_if<mrender::PushLayer>(&c)) (l->effect.id != 0 ? effect_layers : plain_layers) += 1;
         expect(effect_layers >= 2) << std::format("the window's effect and the text's: {} effect layers", effect_layers);
         expect(plain_layers >= 1) << "the cross-fade from the frame before";
         expect(rt.display_list().commands().size() > before) << "the old frame drawn over, fading";
@@ -274,7 +274,7 @@ static UTest cases{"theme", [] {
         rt.frame();
         std::size_t plain_after = 0;
         for (const auto& c : rt.display_list().commands())
-            if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && l->effect.id == 0) ++plain_after;
+            if (const auto* l = std::get_if<mrender::PushLayer>(&c); l && l->effect.id == 0) ++plain_after;
         expect(eq(plain_after, std::size_t{0}));
         // A style's mistakes, where they are, with the names meant.
         const char* wrong = R"json(

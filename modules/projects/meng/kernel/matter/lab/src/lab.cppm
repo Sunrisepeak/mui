@@ -34,7 +34,7 @@ import mlibs.control;
 import mlibs.json;
 export import meng.cellular.matter.agent;
 export import meng.matter.appearance;
-export import xrender.frame;
+export import mrender.frame;
 export import :catalog;
 
 export namespace meng::matter::lab {
@@ -180,7 +180,7 @@ private:
     bool                           scene_changed_ = false;
     std::unique_ptr<Screen>        screen_;
     std::uint64_t                  drawn_ = 0;  // the field's hash the picture is of (0: none drawn)
-    xrender::FrameSubject          picture_;
+    mrender::FrameSubject          picture_;
     mlibs::agent::History          history_;
     std::shared_ptr<mlibs::agent::Facts> facts_;
     mlibs::agent::HistoryOperations operations_;

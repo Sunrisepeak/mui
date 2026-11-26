@@ -1,4 +1,4 @@
-// Quay's picture: the harbour at night as the watchkeeper sees it, drawn from the game's state by xrender — the
+// Quay's picture: the harbour at night as the watchkeeper sees it, drawn from the game's state by mrender — the
 // quay wet after rain, rows of containers, crates, lamps on posts and a floodlight, the beacon at the end of the
 // breakwater (brighter as it is worked), the wardens bent by their skeletons as they walk, aim or lie where they
 // fell, their eyes the colour of their minds, the watchkeeper's gun and the flashes of shots, the marks shots left
@@ -6,7 +6,7 @@
 // and the glow of what is brighter than the display.
 //
 //   auto picture = quay::picture::Picture::make(quay::level::harbour());
-//   picture->draw(state);                        // the CPU reference (xrender.mesh's Pass), then the glow
+//   picture->draw(state);                        // the CPU reference (mrender.mesh's Pass), then the glow
 //   picture->shown();                            // rgba8, what a person sees
 //   picture->warden_at(pixel);                   // which warden drew a pixel (1 …), or 0: one tree, two views
 //
@@ -16,16 +16,16 @@ export module omui.showcase.quay.picture;
 
 import std;
 export import omui.showcase.quay.sim;
-export import xrender.mesh;
-export import xrender.mesh.gpu;
-export import xrender.particle;
-export import xrender.particle.gpu;
+export import mrender.mesh;
+export import mrender.mesh.gpu;
+export import mrender.particle;
+export import mrender.particle.gpu;
 export import hanim.skeleton;
 
 export namespace quay::picture {
 
-namespace mesh = xrender::mesh;
-namespace scene = xrender::scene;
+namespace mesh = mrender::mesh;
+namespace scene = mrender::scene;
 
 struct Frame {
     int  width = 480, height = 270;
@@ -67,9 +67,9 @@ public:
     [[nodiscard]] std::size_t bodies() const noexcept { return made_.size() - first_body_; }
     [[nodiscard]] std::uint32_t body_mesh(std::size_t warden) const noexcept { return static_cast<std::uint32_t>(first_body_ + warden); }
     // The rain this frame: the drops and the splashes, each lit by the lamps near it (drawn over the light).
-    [[nodiscard]] std::span<const xrender::particle::Batch> rain() const noexcept { return batches_; }
+    [[nodiscard]] std::span<const mrender::particle::Batch> rain() const noexcept { return batches_; }
     // What the reference drew of it the last frame.
-    [[nodiscard]] const xrender::particle::Drawn& rained() const noexcept { return rained_; }
+    [[nodiscard]] const mrender::particle::Drawn& rained() const noexcept { return rained_; }
 
 private:
     void pose(const State& state);
@@ -93,10 +93,10 @@ private:
     std::vector<mlibs::math::Vec3>                crate_halves_;
     std::vector<scene::Id>                        flashes_;  // the lights of this frame's shots
     bool                                          lookouts_ = false;  // the level's searchlights light it: two post lamps are out
-    std::vector<xrender::particle::Particle>      drops_, splashes_;
+    std::vector<mrender::particle::Particle>      drops_, splashes_;
     mesh::Texture                                 streak_;   // a drop's shape: a thin line down the middle
-    std::array<xrender::particle::Batch, 2>       batches_{};
-    xrender::particle::Drawn                      rained_;
+    std::array<mrender::particle::Batch, 2>       batches_{};
+    mrender::particle::Drawn                      rained_;
     scene::Scene                                  world_;
     scene::View                                   view_;
     scene::Extracted                              seen_;
@@ -108,7 +108,7 @@ private:
     std::uint32_t                                 bright_ = 0;
 };
 
-// The picture on a device (mlibs.rhi; xrender.mesh.gpu): the frame a `Picture` prepared, drawn by the pass the
+// The picture on a device (mlibs.rhi; mrender.mesh.gpu): the frame a `Picture` prepared, drawn by the pass the
 // reference is held to — the wardens bent on the device, the lamps' and the moon's shadows by maps, the glow — to
 // an rgba8 target of its own. What a window shows and the frame budget is measured on.
 class OnDevice {
@@ -133,7 +133,7 @@ private:
     mlibs::rhi::Device*            device_ = nullptr;
     std::optional<mesh::gpu::Pass> pass_;
     std::optional<mesh::gpu::Glow> glow_;
-    std::optional<xrender::particle::gpu::Pass> rain_;
+    std::optional<mrender::particle::gpu::Pass> rain_;
     mesh::gpu::Shadows             shadows_;
     mlibs::rhi::Texture            colour_, depth_, light_, one_, other_, surface_;
     std::uint32_t                  width_ = 0, height_ = 0;

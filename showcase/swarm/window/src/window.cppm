@@ -1,6 +1,6 @@
 // Swarm on screen (the release plan's RC2.13): the arena as a display list, and a window that shows it and is played.
 //
-//   xrender::DisplayList list;
+//   mrender::DisplayList list;
 //   swarm::picture::draw(game.state(), list, {0, 0, 960, 540});     // what the state looks like; changes nothing
 //   return omui::run(swarm::window::app({.record = "session.swarm"}), options);
 //
@@ -17,14 +17,14 @@ import std;
 export import omui;
 export import meng.ui;
 export import omui.showcase.swarm.headless;
-export import xrender.raster;
-export import xrender.vector;
+export import mrender.raster;
+export import mrender.vector;
 export import mlibs.geom;
 
 export namespace swarm::picture {
 
 // The state as a display list in `dest` (the whole arena, stretched to it): appended to `list`.
-void draw(const State& state, xrender::DisplayList& list, mlibs::geom::Rect dest);
+void draw(const State& state, mrender::DisplayList& list, mlibs::geom::Rect dest);
 
 }  // namespace swarm::picture
 
@@ -62,7 +62,7 @@ public:
 
     // The game as played so far (none before it is mounted).
     [[nodiscard]] const Standalone* game() const noexcept { return game_ ? &*game_ : nullptr; }
-    [[nodiscard]] const xrender::raster::Surface& picture() const noexcept { return frame_; }
+    [[nodiscard]] const mrender::raster::Surface& picture() const noexcept { return frame_; }
 
 private:
     void run(std::int32_t steps);
@@ -74,9 +74,9 @@ private:
     std::optional<Standalone> game_;
     meng::Sampler          sampler_;
     meng::ui::Pacer        pacer_;
-    xrender::DisplayList      list_;
-    xrender::CpuRenderer      renderer_;
-    xrender::raster::Surface  frame_{1, 1};
+    mrender::DisplayList      list_;
+    mrender::CpuRenderer      renderer_;
+    mrender::raster::Surface  frame_{1, 1};
 };
 
 // The application: the arena, and under it the lives, the score and the wave.

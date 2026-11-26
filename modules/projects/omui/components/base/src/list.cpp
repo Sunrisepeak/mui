@@ -190,7 +190,7 @@ void List::paint_over(PaintContext& ctx) const {
     const float h = std::max(24.0f, view * view / all);
     const float y = (view - h) * (offset_ / std::max(1.0f, all - view));
     ctx.list.fill_round_rect({ctx.size.width - bar - inset, y, bar, h}, CornerRadii::all(bar / 2),
-                             xrender::Paint::solid(ctx.theme.color("border_strong").with_alpha(0.7f)));
+                             mrender::Paint::solid(ctx.theme.color("border_strong").with_alpha(0.7f)));
 }
 
 // Its rows. Which are drawn is each item's (offscreen or not): the list's own node does not change while it scrolls —
@@ -320,10 +320,10 @@ void ListItem::paint(PaintContext& ctx) const {
     if (selected_) fill = th.color("accent_subtle");
     else if (ctx.state.pressed) fill = th.color("surface_pressed");
     else if (ctx.state.hovered) fill = th.color("surface_variant");
-    if (fill.a > 0) ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("small", 4)), xrender::Paint::solid(fill));
+    if (fill.a > 0) ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("small", 4)), mrender::Paint::solid(fill));
     if (ctx.state.focused && ctx.state.focus_visible)
         ctx.list.stroke_round_rect({1, 1, ctx.size.width - 2, ctx.size.height - 2}, CornerRadii::all(th.corner("small", 4)), 2,
-                                   xrender::Paint::solid(th.color("focus")));
+                                   mrender::Paint::solid(th.color("focus")));
 }
 
 void ListItem::semantics(SemanticsContext&, spec::SemanticNode& node) const {

@@ -4,11 +4,11 @@ import std;
 import hanim.engine;
 import omui.core;
 import mlibs.layout;
-import xrender.vector;
+import mrender.vector;
 import mlibs.text;
 import mlibs.image;
-import xrender.raster;
-import xrender.text;
+import mrender.raster;
+import mrender.text;
 import mlibs.trace;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -307,7 +307,7 @@ struct TextNode {
             for (const Rect& r : p.selection(range->first, range->second))
                 ctx.list.fill_rect({drawn_at.x + r.x, drawn_at.y + r.y, r.width, r.height}, ink);
         }
-        xrender::text::paint(p, ctx.list, drawn_at);
+        mrender::text::paint(p, ctx.list, drawn_at);
     }
     std::optional<std::size_t> text_offset(Point local) const {
         if (!selectable || !paragraph || laid < 0) return std::nullopt;
@@ -342,7 +342,7 @@ struct ImageNode {
     std::string fit = "contain";
     Services*   services = nullptr;
     NodeId      node;
-    xrender::ImageRef ref;
+    mrender::ImageRef ref;
     bool        owned = false;
     int         width = 0, height = 0;
 
@@ -371,7 +371,7 @@ struct ImageNode {
             std::uint32_t id = 0;
             std::from_chars(source.data() + 6, source.data() + source.size(), id);
             ref = {id};
-            if (const xrender::raster::Surface* s = services->images().get(ref)) {
+            if (const mrender::raster::Surface* s = services->images().get(ref)) {
                 width = s->width();
                 height = s->height();
                 services->emit(node, "loaded", Value{}.set("width", width).set("height", height));
@@ -386,7 +386,7 @@ struct ImageNode {
             return;
         }
         if (img->alpha == mlibs::image::Alpha::straight) mlibs::image::premultiply(*img);
-        std::vector<xrender::raster::Rgba8> px(static_cast<std::size_t>(img->width) * static_cast<std::size_t>(img->height));
+        std::vector<mrender::raster::Rgba8> px(static_cast<std::size_t>(img->width) * static_cast<std::size_t>(img->height));
         std::memcpy(px.data(), img->rgba.data(), px.size() * 4);
         width = img->width;
         height = img->height;
@@ -427,7 +427,7 @@ struct ImageNode {
             if (fit == "scale_down") s = std::min(1.0f, std::min(sx, sy));
             dest = {box.x + (box.width - iw * s) / 2, box.y + (box.height - ih * s) / 2, iw * s, ih * s};
         }
-        ctx.list.draw_image(ref, {0, 0, iw, ih}, dest, xrender::Sampling::linear, 1.0f);
+        ctx.list.draw_image(ref, {0, 0, iw, ih}, dest, mrender::Sampling::linear, 1.0f);
     }
 
     void semantics(SemanticsContext&, spec::SemanticNode& n) const {
@@ -744,13 +744,13 @@ struct ScrollNode {
             const float h = std::max(24.0f, view.height * view.height / c.height);
             const float y = (view.height - h) * (off.y / std::max(1.0f, c.height - view.height));
             ctx.list.fill_round_rect({ctx.size.width - bar - inset, y + ctx.content.y, bar, h}, CornerRadii::all(bar / 2),
-                                     xrender::Paint::solid(thumb));
+                                     mrender::Paint::solid(thumb));
         }
         if (horizontal && c.width > view.width && view.width > 0) {
             const float w = std::max(24.0f, view.width * view.width / c.width);
             const float x = (view.width - w) * (off.x / std::max(1.0f, c.width - view.width));
             ctx.list.fill_round_rect({x + ctx.content.x, ctx.size.height - bar - inset, w, bar}, CornerRadii::all(bar / 2),
-                                     xrender::Paint::solid(thumb));
+                                     mrender::Paint::solid(thumb));
         }
     }
 

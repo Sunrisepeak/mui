@@ -6,10 +6,10 @@ import omui.core;
 import omui.view;
 import omui.agent;
 import omui.semantic;
-import xrender.vector;
-import xrender.frame;
-import xrender.raster;
-import xrender.text;
+import mrender.vector;
+import mrender.frame;
+import mrender.raster;
+import mrender.text;
 import mlibs.text;
 import mcpplibs.os;
 
@@ -47,14 +47,14 @@ struct DevHost::Impl {
         (void)loaded.add_defaults();
         return loaded;
     }();
-    xrender::text::GlyphCache glyphs;
-    xrender::CpuFrame         composed;  // the frame's entry (xrender.frame)
+    mrender::text::GlyphCache glyphs;
+    mrender::CpuFrame         composed;  // the frame's entry (mrender.frame)
 
     // An application shown: its presentation, the last frame drawn as the host's image.
     struct Shown {
         int                                 number = 0;
         std::unique_ptr<Presentation> presentation;
-        xrender::ImageRef                   image;
+        mrender::ImageRef                   image;
         std::uint64_t                       frames_drawn = 0;
     };
     std::optional<Shown> current, next, leaving;
@@ -81,8 +81,8 @@ struct DevHost::Impl {
         shown.frames_drawn = shown.presentation->frames();
         const Size size = runtime.size();
         const float scale = runtime.scale();
-        auto surface = std::make_shared<xrender::raster::Surface>(static_cast<int>(std::ceil(size.width * scale)), static_cast<int>(std::ceil(size.height * scale)));
-        const xrender::FrameLayer application{.name = "application", .list = &shown.presentation->list(), .resources = {&shown.presentation->images(), &glyphs}, .scale = scale};
+        auto surface = std::make_shared<mrender::raster::Surface>(static_cast<int>(std::ceil(size.width * scale)), static_cast<int>(std::ceil(size.height * scale)));
+        const mrender::FrameLayer application{.name = "application", .list = &shown.presentation->list(), .resources = {&shown.presentation->images(), &glyphs}, .scale = scale};
         (void)composed.render({&application, 1}, *surface);
         if (shown.image.id == 0) shown.image = runtime.images().add(std::move(surface));
         else if (!runtime.images().update(shown.image, surface)) shown.image = runtime.images().add(std::move(surface));
@@ -159,7 +159,7 @@ struct DevHost::Impl {
             const auto* surface = runtime.images().get(shown->image);
             if (!surface) return;
             ctx.list.draw_image(shown->image, {0, 0, static_cast<float>(surface->width()), static_cast<float>(surface->height())}, whole,
-                                xrender::Sampling::linear, opacity);
+                                mrender::Sampling::linear, opacity);
         };
         if (leaving) {
             const double fade = options.fade.count() > 0 ? std::clamp((runtime.now() - fade_began).count() / options.fade.count(), 0.0, 1.0) : 1.0;

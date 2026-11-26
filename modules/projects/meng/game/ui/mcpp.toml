@@ -29,8 +29,8 @@ meng.input = { path = "../input" }
 mlibs.simulation = { path = "../../../../base/simulation" }
 mlibs.agent = { path = "../../../../base/agent" }
 mlibs.layout = { path = "../../../../content/layout" }
-xrender.raster = { path = "../../../xrender/raster" }
-xrender.vector = { path = "../../../xrender/vector" }
+mrender.raster = { path = "../../../mrender/raster" }
+mrender.vector = { path = "../../../mrender/vector" }
 mlibs.rhi = { path = "../../../../gfx/rhi" }
 
 [dev-dependencies]
@@ -38,9 +38,9 @@ mcpplibs.mtest = "0.8.4"
 mlibs.utils = { path = "../../../../base/utils" }
 omui.host.headless = { path = "../../../omui/host/headless" }
 omui.semantic = { path = "../../../omui/semantic" }
-xrender.mesh = { path = "../../../xrender/mesh" }
-xrender.scene = { path = "../../../xrender/scene" }
-xrender.text = { path = "../../../xrender/text" }
+mrender.mesh = { path = "../../../mrender/mesh" }
+mrender.scene = { path = "../../../mrender/scene" }
+mrender.text = { path = "../../../mrender/text" }
 mlibs.text = { path = "../../../../content/text" }
 mlibs.geom = { path = "../../../../base/geom" }
 mlibs.math = { path = "../../../../base/math" }

@@ -253,9 +253,9 @@ namespace omui {
   };
   class Presentation {
     explicit Presentation(mcpplibs::os::ipc::connection connection, mlibs::text::FontCollection* fonts = nullptr);
-    [[nodiscard]] const xrender::DisplayList* receive(std::chrono::milliseconds wait);
-    [[nodiscard]] const xrender::DisplayList& list() const noexcept;
-    [[nodiscard]] xrender::ImageStore& images() noexcept;
+    [[nodiscard]] const mrender::DisplayList* receive(std::chrono::milliseconds wait);
+    [[nodiscard]] const mrender::DisplayList& list() const noexcept;
+    [[nodiscard]] mrender::ImageStore& images() noexcept;
     [[nodiscard]] bool gone() const noexcept;
     [[nodiscard]] std::uint64_t frames() const noexcept;
     bool send_input(std::span<const InputEvent> events);

@@ -35,7 +35,7 @@ public:
     //   save {file?}                the document as it is now
     [[nodiscard]] VerbResult perform(std::string_view operation, const Value& args = {});
     // The stage at the moment shown, fitted into `dest`.
-    void draw(xrender::DisplayList& list, Rect dest);
+    void draw(mrender::DisplayList& list, Rect dest);
     // The object drawn at `at` (in `dest`'s coordinates, the stage fitted into it) at the moment shown.
     [[nodiscard]] std::string object_at(Point at, Rect dest);
     [[nodiscard]] double duration() const;

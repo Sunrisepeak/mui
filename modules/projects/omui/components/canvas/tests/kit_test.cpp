@@ -7,7 +7,7 @@ import std;
 
 import omui.ui.canvas.kit;
 import omui.host.headless;
-import xrender.vector;
+import mrender.vector;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -451,7 +451,7 @@ UTest cases{"ui.canvas.kit", [] {
             h.settle();
             // The lines along a row (one between the horizontal lines): a cell
             // apart, or two while the finer ones are still too faint to see.
-            const xrender::raster::Surface& px = h.pixels();
+            const mrender::raster::Surface& px = h.pixels();
             std::vector<int> lines;
             for (int row = 10; row < 60; ++row) {
                 std::vector<int> found;

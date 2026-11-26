@@ -37,7 +37,7 @@ constexpr std::string_view red_list = R"(# Status
 | 55 | macOS: `omui.host.sdl3`'s WKWebView case and the sdk's `present_test` | macOS | — | E | open |
 | 96 | `meng.nav`'s pinned crowd is other bits | Web, Windows | — | R | root cause: Detour's cosf |
 | 82 | Windows: `tests/bench` did not build, so its tests did not run | Windows | — | E | upstream |
-| 97 | `xrender.mesh`'s ball under light killed at 300 s | Linux x64 | — | F | open |
+| 97 | `mrender.mesh`'s ball under light killed at 300 s | Linux x64 | — | F | open |
 
 ## Next
 )";
@@ -118,7 +118,7 @@ static UTest cases{"devtools.ci", [] {
             const auto& bench = windows->members[1];
             expect(ci::known_in(ci::names_of(bench, bench.failures.at(0), "omui.bench"), reds).rows == std::vector<int>{82}) << "by its path";
         }
-        expect(ci::known_in(ci::Names{{"xrender"}, {}}, reds).rows.empty()) << "a name stands whole: `xrender` is not `xrender.mesh`";
+        expect(ci::known_in(ci::Names{{"mrender"}, {}}, reds).rows.empty()) << "a name stands whole: `mrender` is not `mrender.mesh`";
     };
 
     "one job's log as the API gives it (no job or step columns) is one row"_test = [] {

@@ -86,18 +86,18 @@ void Button::paint(PaintContext& ctx) const {
     corner_ = ctx.theme.corner("button", ctx.theme.corner("medium", 8));
     const CornerRadii radii = CornerRadii::all(corner_).fitted(ctx.size);
     const parts::Pressed pressed(ctx, box, p);
-    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
+    if (off) ctx.list.push_layer(0.5f, mrender::BlendMode::normal, {}, {}, box);
 
     Color fill = mix(c.base, c.hover, h);
     fill = mix(fill, c.pressed, std::clamp(p, 0.0f, 1.0f));
     // Its depth, the theme's: resting, lifted under the pointer, tighter pressed.
     if (!off && c.base.a > 0)
         parts::depth(ctx, props.variant == ButtonVariant::secondary ? "control" : "control_accent", box, radii, h > 0, p > 0, std::nullopt, c.base);
-    if (fill.a > 0) ctx.list.fill_round_rect(box, radii, xrender::Paint::solid(fill));
+    if (fill.a > 0) ctx.list.fill_round_rect(box, radii, mrender::Paint::solid(fill));
     if (c.border) {
         CornerRadii inner = radii;
         for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - 0.5f);
-        ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, inner, 1, xrender::Paint::solid(*c.border), xrender::PixelAlign::device);
+        ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, inner, 1, mrender::Paint::solid(*c.border), mrender::PixelAlign::device);
     }
     const Color text = off ? ctx.theme.color("text_disabled", c.text) : c.text;
     const Size t = label_.measure(ctx.services, text, std::max(ctx.content.width + 0.5f, std::ceil(label_.min_content(ctx.services, text)) + 0.5f));
@@ -116,7 +116,7 @@ void Button::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (props.disabled) node.states.set(State::disabled);
 }
 
-std::size_t Button::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
+std::size_t Button::effect_shapes(Size size, Rect, std::span<mrender::EffectShape> out) const {
     if (out.empty()) return 0;
     out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(corner_).fitted(size)};
     return 1;

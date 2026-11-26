@@ -1,0 +1,11 @@
+== mrender.rhi.webgpu
+export import mrender.rhi.webgpu.api;
+== mrender.rhi.webgpu.api
+namespace mrender::rhi::webgpu {
+  struct Options {
+    std::string canvas;
+  };
+  [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {…});
+  [[nodiscard]] bool available();
+  [[nodiscard]] bool can_wait();
+}

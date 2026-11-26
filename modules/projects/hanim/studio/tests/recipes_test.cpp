@@ -75,10 +75,10 @@ UTest cases{"hanim.studio.recipes", [] {
             const double length = opened->duration().count();
             expect(std::isfinite(length) && length > 0) << recipe.name << ": a course of " << length << " s";
             if (!(std::isfinite(length) && length > 0)) continue;
-            xrender::raster::Surface strip(width * moments, height);
+            mrender::raster::Surface strip(width * moments, height);
             std::set<std::vector<std::uint8_t>> distinct;
             for (int moment = 0; moment < moments; ++moment) {
-                xrender::raster::Surface frame(width, height);
+                mrender::raster::Surface frame(width, height);
                 const auto rendered = opened->render(hanim::seconds(length * moment / (moments - 1)), frame);
                 expect(rendered.has_value()) << recipe.name;
                 const auto* bytes = reinterpret_cast<const std::uint8_t*>(frame.pixels().data());

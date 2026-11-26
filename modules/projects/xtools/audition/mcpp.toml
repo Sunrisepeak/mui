@@ -36,7 +36,7 @@ omui.core               = { path = "../../omui/core" }
 omui.lang.ts            = { path = "../../omui/lang/ts" }
 omui.host.headless      = { path = "../../omui/host/headless" }
 omui.ui.base            = { path = "../../omui/components/base" }
-xrender.vector          = { path = "../../xrender/vector" }
+mrender.vector          = { path = "../../mrender/vector" }
 mcpplibs.os             = "0.4.4"
 
 [dev-dependencies]

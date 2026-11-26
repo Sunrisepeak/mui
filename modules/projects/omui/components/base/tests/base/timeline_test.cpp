@@ -36,7 +36,7 @@ bool near(Point point, Point expected, float within = 2.5f) {
     return std::abs(point.x - expected.x) <= within && std::abs(point.y - expected.y) <= within;
 }
 
-std::uint64_t hash_of(const xrender::raster::Surface& pixels) {
+std::uint64_t hash_of(const mrender::raster::Surface& pixels) {
     Hash hash;
     for (int row = 0; row < pixels.height(); ++row) hash.bytes(std::as_bytes(std::span(pixels.row(row), static_cast<std::size_t>(pixels.width()))));
     return hash.value();

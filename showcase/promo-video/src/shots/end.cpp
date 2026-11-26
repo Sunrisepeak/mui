@@ -25,7 +25,7 @@ struct State {
     float  advance = 20;  // a character of the command's font
     Point  line;       // the command's top left
     float  line_height = 40;
-    std::pair<xrender::ImageRef, xrender::ImageRef> refs;
+    std::pair<mrender::ImageRef, mrender::ImageRef> refs;
 };
 
 class End final : public Shot {

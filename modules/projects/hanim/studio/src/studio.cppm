@@ -10,7 +10,7 @@
 // column of a syntax error); `build` makes the objects in a host's Engine and
 // the program hanim plays. `Studio` operates it through hanim.control (each
 // call admitted by mlibs.control, recorded) and draws any moment with the
-// shared renderer (hanim.render.vector into xrender's CPU raster); `state`
+// shared renderer (hanim.render.vector into mrender's CPU raster); `state`
 // says where every object is and what it covers, so a check needs no pixels.
 //
 //     auto document = hanim::studio::read(text);          // or every problem
@@ -23,7 +23,7 @@ import std;
 export import hanim;
 export import hanim.control;
 export import hanim.render.vector;
-export import xrender.raster;
+export import mrender.raster;
 export import mlibs.control;
 export import mlibs.agent;
 export import :catalog;
@@ -172,9 +172,9 @@ public:
     [[nodiscard]] std::expected<std::vector<ObjectState>, Problems> state(seconds time);
     // The stage at `time` as the display list `render` draws (the studio's own,
     // valid until the next call): for other renderers, or SVG.
-    [[nodiscard]] std::expected<const xrender::DisplayList*, Problems> display(seconds time);
+    [[nodiscard]] std::expected<const mrender::DisplayList*, Problems> display(seconds time);
     // The stage at `time` drawn into `surface` (of the document's size).
-    [[nodiscard]] std::expected<void, Problems> render(seconds time, xrender::raster::Surface& surface);
+    [[nodiscard]] std::expected<void, Problems> render(seconds time, mrender::raster::Surface& surface);
 
 private:
     struct Data;

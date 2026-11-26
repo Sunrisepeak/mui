@@ -39,7 +39,7 @@ viewport->within(local_point);             // a place of the node as a place of 
 
 ![a headless interface's frame: a title, and under it a floor and a ball drawn by the mesh reference](media/viewport.png)
 
-Drawn by `tests/viewport_test.cpp` with no window and no device: the yard by `xrender.mesh`'s reference, shown in the headless host's frame — at 25 places the frame is the picture to the level; the pixel under the ball is the viewport's node; the semantic tree has the node by its label with the subject's name as its value.
+Drawn by `tests/viewport_test.cpp` with no window and no device: the yard by `mrender.mesh`'s reference, shown in the headless host's frame — at 25 places the frame is the picture to the level; the pixel under the ball is the viewport's node; the semantic tree has the node by its label with the subject's name as its value.
 
 **The pointer kept to the world** (R5). A viewport shown with `look` takes the pointer at a press: the host holds it (SDL's relative mode; the headless host always can), it no longer crosses the interface, and every pointer event goes to the viewport with how far the hand moved. The movement gathers until the game takes it:
 

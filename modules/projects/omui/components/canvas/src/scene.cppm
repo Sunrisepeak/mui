@@ -20,7 +20,7 @@ import std;
 import mlibs.memory;
 import omui.core;
 import omui.view;
-import xrender.vector;
+import mrender.vector;
 import mlibs.text;
 
 export namespace omui::world {
@@ -48,7 +48,7 @@ class Scene;
 struct DrawContext {
     const Scene&         scene;
     NodeRef              node;
-    xrender::DisplayList& list;
+    mrender::DisplayList& list;
     Rect                 screen;  // the node's rectangle in the canvas's pixels (logical)
     double               zoom;
     std::size_t          tier;
@@ -77,7 +77,7 @@ struct Kind {
     // Tier::Draw::texture: the node drawn in its own world units (0, 0, w,
     // h), on the UI thread; the canvas rasterises it elsewhere. Its textures
     // are drawn again when the node's content revision moves (Scene::touch).
-    std::function<void(const Scene&, NodeRef, xrender::DisplayList&)> content;
+    std::function<void(const Scene&, NodeRef, mrender::DisplayList&)> content;
     // Tier::Draw::texture from a view, when `content` is empty: the node as
     // an element — what promote() shows, so a texture and the live node have
     // one layout and one theme — laid out at the node's world size and
@@ -123,7 +123,7 @@ class Labels {
 public:
     [[nodiscard]] const mlibs::text::Paragraph& get(const DrawContext& d, const std::string& key, std::string text, float size, float weight, Color colour,
                                                     std::string_view style = "label");
-    static void paint(const mlibs::text::Paragraph& label, xrender::DisplayList& list, Point at);
+    static void paint(const mlibs::text::Paragraph& label, mrender::DisplayList& list, Point at);
     void clear() noexcept { shaped_.clear(); }
 
 private:

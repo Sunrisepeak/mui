@@ -43,14 +43,14 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.text.fonts = { path = "../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
 mcpplibs.cmdline = "0.0.3"
-xrender.text = { path = "../../modules/projects/xrender/text" }
+mrender.text = { path = "../../modules/projects/mrender/text" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
 omui.sdk      = { path = "../../modules/projects/omui/sdk" }
 "gongfu.data"      = { path = "../../modules/projects/gongfu/data" }
 "gongfu.present2d" = { path = "../../modules/projects/gongfu/present2d" }
 gongfu           = { path = "../../modules/projects/gongfu" }  # the core, its training mode and its computer opponent
 mlibs.image    = { path = "../../modules/base/image" }
-xrender.raster = { path = "../../modules/projects/xrender/raster" }
+mrender.raster = { path = "../../modules/projects/mrender/raster" }
 meng.audio  = { path = "../../modules/projects/meng/kernel/audio" }
 "meng.audio.device" = { path = "../../modules/projects/meng/kernel/audio/device" }
 

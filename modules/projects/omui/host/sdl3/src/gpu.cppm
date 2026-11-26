@@ -2,14 +2,14 @@
 // the renderer that draws a frame's layers on it. The host draws with it when a provider is installed and the
 // options and the machine say the GPU draws; without one — an application built without it, as its world says —
 // the CPU renderer draws every frame, as where a machine has no GPU. omui.host.sdl3.gpu provides SDL_GPU's
-// device (mlibs.rhi over Vulkan, Metal or Direct3D 12) and xrender's renderer; omui.sdk installs it.
+// device (mlibs.rhi over Vulkan, Metal or Direct3D 12) and mrender's renderer; omui.sdk installs it.
 export module omui.host.sdl3:gpu;
 
 import std;
 import mlibs.compose;
 import mlibs.rhi;
-import xrender.frame;
-import xrender.effect;
+import mrender.frame;
+import mrender.effect;
 
 export namespace omui {
 
@@ -21,7 +21,7 @@ struct GpuDeviceOptions {
     std::uint32_t window = 0;
     bool          vsync = true;
     // The renderer chosen by the host (automatic): only the drivers of the machine's GPUs loaded, none that draws on
-    // the CPU — the host's CPU renderer is the better one there (xrender.rhi.sdl's hardware_only).
+    // the CPU — the host's CPU renderer is the better one there (mrender.rhi.sdl's hardware_only).
     bool          hardware_only = false;
 };
 
@@ -36,16 +36,16 @@ public:
 class GpuRenderer {
 public:
     virtual ~GpuRenderer() = default;
-    [[nodiscard]] virtual mlibs::rhi::Result<void> render(std::span<const xrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width,
-                                                          std::uint32_t height, const xrender::GpuFrameOptions& options) = 0;
+    [[nodiscard]] virtual mlibs::rhi::Result<void> render(std::span<const mrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width,
+                                                          std::uint32_t height, const mrender::GpuFrameOptions& options) = 0;
 };
 
-// A program's effect files (xrender.effect), which the GPU renderer draws: loaded from a directory, and loaded
+// A program's effect files (mrender.effect), which the GPU renderer draws: loaded from a directory, and loaded
 // again when a file changes. What it says is the host's to log.
 class GpuEffects {
 public:
     virtual ~GpuEffects() = default;
-    [[nodiscard]] virtual xrender::effect::Library& library() noexcept = 0;
+    [[nodiscard]] virtual mrender::effect::Library& library() noexcept = 0;
     // The directory's effects loaded; a line for each problem.
     [[nodiscard]] virtual std::vector<std::string> load(const std::filesystem::path& directory) = 0;
     // The effects whose files changed, loaded again: a line for each that was (`reloaded`), a line for each
@@ -76,7 +76,7 @@ struct GpuService {
 
 inline constexpr mlibs::compose::Slot<GpuService> gpu_slot{
     {.id = "omui.host.sdl3.gpu",
-     .summary = "the GPU path of a desktop window: SDL_GPU's device and xrender's renderer on it",
+     .summary = "the GPU path of a desktop window: SDL_GPU's device and mrender's renderer on it",
      .absent = "build with omui.sdk's feature `gpu` (worlds `app` and `full` have it), or depend on omui.host.sdl3.gpu and call "
                "omui::host::sdl3::gpu::install() before a host is made; without it the CPU renderer draws"}};
 

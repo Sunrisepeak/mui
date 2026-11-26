@@ -14,7 +14,7 @@ A tool a designer would actually use to make a style pack, and, in using it, the
 |---|---|---|
 | Theme engine | `omui.theme` | themes, overlays and style packs as data (`*.style.xdef.ts`), composed; `apply_style` with a cross-fade |
 | The eight packs | `omui.theme.styles` | glass, neon, retro, ink, liquid, and the platforms' fluent, cupertino, material: data embedded in the program |
-| Effects | `xrender.effect`, Slang shaders | `liquid_glass`, `neon`, `wobble`, `metaball`, and the window's `crt` and `paper` |
+| Effects | `mrender.effect`, Slang shaders | `liquid_glass`, `neon`, `wobble`, `metaball`, and the window's `crt` and `paper` |
 | Components | `omui.ui.base` | each says which surfaces it paints (`effect_shapes`: a switch's track and thumb), so a pack's effect reaches the right shapes |
 | The application | `showcase/style-gallery` | the preview, the sidebar, the editor, the export, the verbs `styles.show` and `styles.export` |
 

@@ -1,7 +1,7 @@
 # mlibs.text — fonts, shaping, bidi, line breaking, paragraphs, glyphs as
 # geometry (outlines, colour layers) and the editing model, over HarfBuzz and
 # SheenBidi as C++ modules (mcpp-index's mwrap) and mlibs.unicode. It knows no
-# renderer: xrender.text rasterises and draws its glyphs (plan §5.3).
+# renderer: mrender.text rasterises and draws its glyphs (plan §5.3).
 [package]
 namespace   = "mlibs"
 name        = "text"

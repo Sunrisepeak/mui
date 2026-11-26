@@ -61,10 +61,10 @@ void Cavern::mount(omui::Services& services, omui::NodeId node) {
     game_.emplace(std::move(*started), meng::runtime::Options{.stepping = meng::runtime::Stepping::owner, .seat = meng::runtime::Seat::owner, .keep = 600, .record = true});
     if (auto made = Picture::make(images_, level)) picture_.emplace(std::move(*made));
     const auto& shape = game_->state().world->shape();
-    frame_ = xrender::raster::Surface(static_cast<int>(shape.width) * scale, static_cast<int>(shape.height) * scale);
+    frame_ = mrender::raster::Surface(static_cast<int>(shape.width) * scale, static_cast<int>(shape.height) * scale);
     view_.show({.label = "the cavern",
                 .subject = &*game_,
-                .pixels = [this]() -> std::optional<xrender::raster::ImageView> {
+                .pixels = [this]() -> std::optional<mrender::raster::ImageView> {
                     if (!picture_) return std::nullopt;
                     return frame_.view();
                 },

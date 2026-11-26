@@ -43,7 +43,7 @@ struct AppSpec {
     Theme                  theme = Theme::light();
     // A directory of the application's own effects (*.effect.xdef.ts, or their
     // JSON): loaded with the window, loaded again when one changes
-    // (xrender.effect). A module is read through `effect_data`.
+    // (mrender.effect). A module is read through `effect_data`.
     std::filesystem::path  effects;
     std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;
     // Called once the runtime exists, before the view mounts (timers, more slots).

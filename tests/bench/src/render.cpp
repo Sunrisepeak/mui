@@ -1,17 +1,17 @@
 module omui.bench;
 
 import std;
-import xrender.scene;
-import xrender.mesh;
-import xrender.mesh.gpu;
-import xrender.rhi.sdl;
+import mrender.scene;
+import mrender.mesh;
+import mrender.mesh.gpu;
+import mrender.rhi.sdl;
 import mlibs.rhi;
 
 namespace omui::bench {
 
 namespace {
 
-namespace scene = xrender::scene;
+namespace scene = mrender::scene;
 namespace math = mlibs::math;
 
 float unit(math::SplitMix64& random) { return static_cast<float>(math::unit24(random.next())); }
@@ -79,9 +79,9 @@ void add_render_benchmarks() {
             }
             s.note("scope", std::format("the tree keeps its shape and its boxes are refitted; after 64 refits a new one is made beside it, {} things looked at a frame, and takes its place: {} times in this run", scene::Spatial::rebuild_things, spatial.remade()));
         });
-    add("render/mesh-bend-16k", "a mesh a skin bends, bent for a frame: 16,641 corners on four joints each (a ball of 128 x 128 quads, its weights spread over 9 joints), positions, normals and tangents, then its 256 clusters' bounds and cones — what xrender.mesh's `bend` costs a character before a device is given it",
+    add("render/mesh-bend-16k", "a mesh a skin bends, bent for a frame: 16,641 corners on four joints each (a ball of 128 x 128 quads, its weights spread over 9 joints), positions, normals and tangents, then its 256 clusters' bounds and cones — what mrender.mesh's `bend` costs a character before a device is given it",
         [](State& s) {
-            namespace mesh = xrender::mesh;
+            namespace mesh = mrender::mesh;
             namespace geom = mlibs::geom;
             geom::ClusteredMesh rest = *geom::clustered(geom::sphere(1, 128, 128), 128);
             for (const math::Vec3& at : rest.mesh.positions) {
@@ -107,7 +107,7 @@ void add_render_benchmarks() {
         });
     add("render/mesh-reference-yard", "the CPU reference of the mesh pass: a floor, a box, two balls and a post (6,092 triangles in 256 clusters) drawn at 480x270 with colour, depth, normal, velocity and ids",
         [](State& s) {
-            namespace mesh = xrender::mesh;
+            namespace mesh = mrender::mesh;
             namespace geom = mlibs::geom;
             const std::array<geom::ClusteredMesh, 4> made{*geom::clustered(geom::box({1, 1, 1})), *geom::clustered(geom::sheet(200, 200, 4, 4)), *geom::clustered(geom::sphere(1, 32, 64), 32),
                                                           *geom::clustered(geom::cylinder(0.7f, 2, 48), 32)};
@@ -140,14 +140,14 @@ void add_render_benchmarks() {
     // `glass`: an amber pane and a ball of glass whose inside takes of the light by the way gone, drawn after what is
     // whole, which is kept at every size for them to read.
     const auto yard_on_device = [](State& s, bool panes, bool about, bool glass) {
-        namespace mesh = xrender::mesh;
+        namespace mesh = mrender::mesh;
         namespace geom = mlibs::geom;
         namespace rhi = mlibs::rhi;
         constexpr std::uint32_t width = 1920, height = 1080;
-        xrender::rhi::sdl::Options options;
+        mrender::rhi::sdl::Options options;
         options.formats = mesh::gpu::Pass::shader_formats();
         options = environment_options(std::move(options));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
-        auto device = xrender::rhi::sdl::create(options);
+        auto device = mrender::rhi::sdl::create(options);
         if (!device) {
             s.skip(std::format("no GPU device ({})", device.error().message));
             return;
@@ -270,24 +270,24 @@ void add_render_benchmarks() {
         static_cast<void>(on.wait_idle());
         for (const rhi::Texture made_one : textures) on.destroy(made_one);
     };
-    add("render/mesh-device-yard-1080p", "the mesh pass on this machine's device (xrender.mesh.gpu through SDL_GPU): the yard at 1920x1080 as a frame is made of it — the surface for occlusion, how open each place is (8 rays of 12 steps), the sun's map (2048²), a lamp's and a spot's six views (512²), the light, the glow and the display's curve — submitted and waited for",
+    add("render/mesh-device-yard-1080p", "the mesh pass on this machine's device (mrender.mesh.gpu through SDL_GPU): the yard at 1920x1080 as a frame is made of it — the surface for occlusion, how open each place is (8 rays of 12 steps), the sun's map (2048²), a lamp's and a spot's six views (512²), the light, the glow and the display's curve — submitted and waited for",
         [yard_on_device](State& s) { yard_on_device(s, false, false, false); });
-    add("render/mesh-device-panes-1080p", "the same frame with four panes of glass before the yard, each most of the picture across and up to four over one another (xrender.mesh.gpu's `Layers`): how deep what stops the eye is, four layers each drawn and put under the ones before, and all of them over the frame — submitted and waited for",
+    add("render/mesh-device-panes-1080p", "the same frame with four panes of glass before the yard, each most of the picture across and up to four over one another (mrender.mesh.gpu's `Layers`): how deep what stops the eye is, four layers each drawn and put under the ones before, and all of them over the frame — submitted and waited for",
         [yard_on_device](State& s) { yard_on_device(s, true, false, false); });
-    add("render/mesh-device-about-1080p", "the same frame, panes and all, lit by a picture of the surroundings (xrender.mesh.gpu's `load_surroundings`): what falls on each surface and what it mirrors read from the picture's squares on one sheet — at most five reads a pixel a layer more than the constant light takes",
+    add("render/mesh-device-about-1080p", "the same frame, panes and all, lit by a picture of the surroundings (mrender.mesh.gpu's `load_surroundings`): what falls on each surface and what it mirrors read from the picture's squares on one sheet — at most five reads a pixel a layer more than the constant light takes",
         [yard_on_device](State& s) { yard_on_device(s, true, true, false); });
-    add("render/mesh-device-glass-1080p", "the yard with an amber pane and a ball of glass whose inside takes of the light by the way gone (xrender.mesh's `Material::transmission`, `thickness`): what is whole drawn, its light kept at every size on one sheet (a copy and a pass a size), then the glass reading it where the eye's ray, bent in and gone its thickness, leaves — submitted and waited for",
+    add("render/mesh-device-glass-1080p", "the yard with an amber pane and a ball of glass whose inside takes of the light by the way gone (mrender.mesh's `Material::transmission`, `thickness`): what is whole drawn, its light kept at every size on one sheet (a copy and a pass a size), then the glass reading it where the eye's ray, bent in and gone its thickness, leaves — submitted and waited for",
         [yard_on_device](State& s) { yard_on_device(s, false, false, true); });
-    add("render/mesh-device-tiles-1080p", "a textured floor on this machine's device (xrender.mesh.gpu through SDL_GPU): tiles of a 64x64 texture of seven levels to the horizon at 1920x1080, every pixel up to eight places of its strip each one read between texels and between levels, under a sun",
+    add("render/mesh-device-tiles-1080p", "a textured floor on this machine's device (mrender.mesh.gpu through SDL_GPU): tiles of a 64x64 texture of seven levels to the horizon at 1920x1080, every pixel up to eight places of its strip each one read between texels and between levels, under a sun",
         [](State& s) {
-            namespace mesh = xrender::mesh;
+            namespace mesh = mrender::mesh;
             namespace geom = mlibs::geom;
             namespace rhi = mlibs::rhi;
             constexpr std::uint32_t width = 1920, height = 1080;
-            xrender::rhi::sdl::Options options;
+            mrender::rhi::sdl::Options options;
             options.formats = mesh::gpu::Pass::shader_formats();
             options = environment_options(std::move(options));  // OMUI_VULKAN_LIBRARY, OMUI_GPU_VIDEO_DRIVER
-            auto device = xrender::rhi::sdl::create(options);
+            auto device = mrender::rhi::sdl::create(options);
             if (!device) {
                 s.skip(std::format("no GPU device ({})", device.error().message));
                 return;
@@ -350,7 +350,7 @@ void add_render_benchmarks() {
         });
     add("render/mesh-reference-glow", "the CPU reference of the glow: a picture of light, 480x270 with a lamp's globe and its pool of light brighter than the display, spread by 7 pixels three times each way and shown",
         [](State& s) {
-            namespace mesh = xrender::mesh;
+            namespace mesh = mrender::mesh;
             constexpr int width = 480, height = 270;
             std::vector<math::Vec3> light(static_cast<std::size_t>(width) * height, math::Vec3{0.2f, 0.22f, 0.25f});
             // A globe of (9, 5, 1.6) and a pool of light under it a little over the display's white.

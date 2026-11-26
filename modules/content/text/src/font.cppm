@@ -3,7 +3,7 @@
 // A face is one font file (variable fonts have axes); a font is a face at a
 // weight and slant, the unit shaping and drawing refer to (FontRef). Glyphs
 // leave as geometry (outline, colour layers): rasterising and drawing them is
-// a renderer's (xrender.text), so text knows no renderer.
+// a renderer's (mrender.text), so text knows no renderer.
 // Fallback is per grapheme cluster: the family list first, then the
 // collection's fallback chain (CJK, Arabic, emoji, monospace), so mixed text
 // renders with no tofu and the same face choice on every platform.

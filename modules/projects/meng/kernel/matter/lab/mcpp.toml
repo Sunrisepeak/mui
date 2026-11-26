@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the matter lab, a program"
-reexports = ["meng.cellular", "xrender.frame"]  # what its interface re-exports (lint module-closure)
+reexports = ["meng.cellular", "mrender.frame"]  # what its interface re-exports (lint module-closure)
 kind = "tool"
 agent = "subject"
 
@@ -37,9 +37,9 @@ meng.matter   = { path = ".." }
 meng.cellular = { path = "../../cellular", features = ["matter-agent"] }
 # Its picture: cells shaded by the look into an image, drawn through the renderer's frame entry.
 "meng.cellular.present" = { path = "../../cellular/present" }
-xrender.frame    = { path = "../../../../xrender/frame" }
-xrender.vector   = { path = "../../../../xrender/vector" }
-xrender.raster   = { path = "../../../../xrender/raster" }
+mrender.frame    = { path = "../../../../mrender/frame" }
+mrender.vector   = { path = "../../../../mrender/vector" }
+mrender.raster   = { path = "../../../../mrender/raster" }
 mlibs.agent      = { path = "../../../../../base/agent" }
 mlibs.control    = { path = "../../../../../base/control" }
 mlibs.json       = { path = "../../../../../base/json" }

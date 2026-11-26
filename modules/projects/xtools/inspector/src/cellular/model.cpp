@@ -211,7 +211,7 @@ struct Session::Impl {
     Invocation authority;
     // The field on screen (D-132): made for a store and a project (its shape and palette).
     std::optional<ca::FieldPresenter> presenter;
-    const xrender::ImageStore* presenter_store=nullptr;
+    const mrender::ImageStore* presenter_store=nullptr;
     std::shared_ptr<const Project> presented_project;  // held: its address is never another project's
 };
 Session::Session() : impl_(std::make_unique<Impl>()) {}
@@ -259,7 +259,7 @@ Color Session::color(std::uint32_t x,std::uint32_t y) {
             return swatch.color;
     return Color{};
 }
-void Session::draw_field(xrender::DisplayList& list,xrender::ImageStore& store,Rect dest) {
+void Session::draw_field(mrender::DisplayList& list,mrender::ImageStore& store,Rect dest) {
     ensure();auto& d=*impl_;const auto& s=d.history->state();const auto& p=*s.project;
     if (!d.presenter || d.presenter_store!=&store || d.presented_project!=s.project) {
         ca::Palette palette;

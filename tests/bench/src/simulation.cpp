@@ -71,7 +71,7 @@ ca::Palette fire() {
 void add_simulation_benchmarks() {
     add("simulation/cellular-1024-present","1024x1024 cells on screen: the tiles one step of a spreading fire changed, recoloured and named in the image (D-132)",[](State& s) {
         auto f=spreading(1024,60);if(!f){s.fail("rule preparation failed");return;}
-        xrender::ImageStore store;
+        mrender::ImageStore store;
         auto view=ca::FieldPresenter::make(store,{1024,1024},3,fire());if(!view){s.fail(view.error());return;}
         (void)view->present(f->after);
         const auto changed=static_cast<std::size_t>(std::ranges::count(f->mask,1));
@@ -81,7 +81,7 @@ void add_simulation_benchmarks() {
     });
     add("simulation/cellular-1024-present-all","1024x1024 cells on screen, every tile changed: the whole field recoloured (the worst case)",[](State& s) {
         auto f=spreading(1024,1);if(!f){s.fail("rule preparation failed");return;}
-        xrender::ImageStore store;
+        mrender::ImageStore store;
         auto view=ca::FieldPresenter::make(store,{1024,1024},3,fire());if(!view){s.fail(view.error());return;}
         std::ranges::fill(f->mask,1);s.items(1024*1024);
         while(s.next()) (void)view->present(f->after,f->mask);
@@ -89,12 +89,12 @@ void add_simulation_benchmarks() {
     });
     add("simulation/cellular-1024-frame","1024x1024 cells drawn 1:1 after one step of a spreading fire: present, damage, incremental CPU raster of the changed rows",[](State& s) {
         auto f=spreading(1024,60);if(!f){s.fail("rule preparation failed");return;}
-        xrender::ImageStore store;
+        mrender::ImageStore store;
         auto view=ca::FieldPresenter::make(store,{1024,1024},3,fire());if(!view){s.fail(view.error());return;}
         (void)view->present(f->after);
-        const xrender::Resources resources{&store,nullptr};
-        xrender::DisplayList list;view->draw(list,{0,0,1024,1024});
-        xrender::raster::Surface surface(1024,1024);xrender::CpuRenderer renderer;xrender::DamageTracker tracker;
+        const mrender::Resources resources{&store,nullptr};
+        mrender::DisplayList list;view->draw(list,{0,0,1024,1024});
+        mrender::raster::Surface surface(1024,1024);mrender::CpuRenderer renderer;mrender::DamageTracker tracker;
         (void)renderer.render(list,surface,resources,{.rows=tracker.update(list,1024,1024,1,resources)});
         std::size_t rows=0;
         while(s.next()) {
@@ -682,15 +682,15 @@ void add_simulation_benchmarks() {
                 if (!lattice->step(shape, cells, cells_next, {.tile = tile, .boundary = ca::nothing_beyond, .tick = tick})) { s.fail("a step was refused"); return; }
                 cells.swap(cells_next);
             }
-            xrender::ImageStore store;
+            mrender::ImageStore store;
             auto view = ca::FieldPresenter::make(store, shape, static_cast<std::uint32_t>(program->channels().size()), look->shade(), tile);
             if (!view) { s.fail(view.error()); return; }
             const ca::Shape grid = ca::tiles(shape, tile);
             const std::vector<std::uint8_t> every(static_cast<std::size_t>(grid.width) * grid.height, 1);
             (void)view->present(cells, every);
             (void)view->present(cells, every);  // both surfaces of each image have been made
-            const xrender::raster::Surface* light = store.get(view->light());
-            const auto lit = light ? std::ranges::count_if(light->pixels(), [](xrender::raster::Rgba8 pixel) { return pixel.a != 0; }) : 0;
+            const mrender::raster::Surface* light = store.get(view->light());
+            const auto lit = light ? std::ranges::count_if(light->pixels(), [](mrender::raster::Rgba8 pixel) { return pixel.a != 0; }) : 0;
             s.items(area);
             while (s.next()) (void)view->present(cells, every);
             s.note("scope", std::format("{} states over {} materials, {} cells giving light; the pixel and the light of every cell, two images updated; the step, upload and drawing excluded",

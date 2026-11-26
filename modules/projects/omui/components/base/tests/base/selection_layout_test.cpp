@@ -4,7 +4,7 @@
 import std;
 import omui.ui.base;
 import mcpplibs.mtest;
-import xrender.text;
+import mrender.text;
 
 using namespace omui;
 using namespace mcpplibs::mtest;
@@ -24,7 +24,7 @@ struct Paint {
     std::vector<Rect> selected_glyphs;
     std::optional<Rect> selected_ink;
 };
-Paint painted(Runtime& runtime, xrender::text::GlyphCache& cache, NodeId node) {
+Paint painted(Runtime& runtime, mrender::text::GlyphCache& cache, NodeId node) {
     Paint result;
     const auto& theme=runtime.theme();
     Affine transform;
@@ -35,40 +35,40 @@ Paint painted(Runtime& runtime, xrender::text::GlyphCache& cache, NodeId node) {
     std::vector<std::optional<Rect>> clips;
     std::vector<NodeId> owners;
     for(const auto& command:runtime.display_list().commands()) {
-        if(const auto* c=std::get_if<xrender::BeginNode>(&command)) {
+        if(const auto* c=std::get_if<mrender::BeginNode>(&command)) {
             const auto owner=runtime.node_at_index(c->node);
             owners.push_back(runtime.valid(owner)?owner:owners.empty()?NodeId{}:owners.back());
-        } else if(std::holds_alternative<xrender::EndNode>(command)) {
+        } else if(std::holds_alternative<mrender::EndNode>(command)) {
             expect(!owners.empty());if(!owners.empty())owners.pop_back();
-        } else if(const auto* c=std::get_if<xrender::PushTransform>(&command)) {
+        } else if(const auto* c=std::get_if<mrender::PushTransform>(&command)) {
             transforms.push_back(transform);transform=transform*c->transform;
-        } else if(std::holds_alternative<xrender::PopTransform>(command)) {
+        } else if(std::holds_alternative<mrender::PopTransform>(command)) {
             expect(!transforms.empty());if(transforms.empty())continue;
             transform=transforms.back();transforms.pop_back();
-        } else if(const auto* c=std::get_if<xrender::PushLayer>(&command)) {
+        } else if(const auto* c=std::get_if<mrender::PushLayer>(&command)) {
             layers.push_back(opacity);opacity*=c->opacity;
-        } else if(std::holds_alternative<xrender::PopLayer>(command)) {
+        } else if(std::holds_alternative<mrender::PopLayer>(command)) {
             expect(!layers.empty());if(layers.empty())continue;
             opacity=layers.back();layers.pop_back();
-        } else if(const auto* c=std::get_if<xrender::PushClipRect>(&command)) {
+        } else if(const auto* c=std::get_if<mrender::PushClipRect>(&command)) {
             clips.push_back(clip);const auto rect=transform.map(c->rect);clip=clip?clip->intersection(rect):rect;
-        } else if(std::holds_alternative<xrender::PushClipPath>(command)) {
+        } else if(std::holds_alternative<mrender::PushClipPath>(command)) {
             // The production segmented has no path clip. Refuse to silently
             // replace a future arbitrary shape by an approximate rectangle.
             expect(false) << "selection sample requires an explicit path-clip oracle if production adds one";clips.push_back(clip);
-        } else if(std::holds_alternative<xrender::PopClip>(command)) {
+        } else if(std::holds_alternative<mrender::PopClip>(command)) {
             expect(!clips.empty());if(clips.empty())continue;
             clip=clips.back();clips.pop_back();
         } else if(!owners.empty() && owners.back()==node && opacity>0.05f) {
-            if(const auto* c=std::get_if<xrender::FillRoundRect>(&command);
-               c && c->paint.kind==xrender::Paint::Kind::solid && c->paint.color.a*opacity>0.05f && color_is(c->paint.color,theme.color("surface"))) {
+            if(const auto* c=std::get_if<mrender::FillRoundRect>(&command);
+               c && c->paint.kind==mrender::Paint::Kind::solid && c->paint.color.a*opacity>0.05f && color_is(c->paint.color,theme.color("surface"))) {
                 const auto raw=transform.map(c->rect);
                 if(clip) expect(inside(*clip,raw)) << "the actual selection lens itself is not hidden by allocation clipping";
                 result.lenses.push_back(raw);
-            } else if(const auto* c=std::get_if<xrender::DrawGlyphs>(&command);
-                      c && c->paint.kind==xrender::Paint::Kind::solid && color_is(c->paint.color,theme.color("text"))) {
+            } else if(const auto* c=std::get_if<mrender::DrawGlyphs>(&command);
+                      c && c->paint.kind==mrender::Paint::Kind::solid && color_is(c->paint.color,theme.color("text"))) {
                 for(std::size_t i=0;i<c->glyphs.size();++i) {
-                    const auto style=c->styles.empty()?xrender::GlyphStyle{}:c->styles[i];
+                    const auto style=c->styles.empty()?mrender::GlyphStyle{}:c->styles[i];
                     if(opacity*style.opacity*c->paint.color.a<=0.05f)continue;
                     const auto& glyph=c->glyphs[i];const auto mask=cache.mask(c->font,glyph.id,c->size,{});
                     expect(mask.coverage!=nullptr) << "the selected text is measured using an actual font glyph, never a guessed advance box";
@@ -91,7 +91,7 @@ Paint painted(Runtime& runtime, xrender::text::GlyphCache& cache, NodeId node) {
 struct Fixture {
     mlibs::text::FontCollection fonts;
     Runtime runtime;
-    xrender::text::GlyphCache glyphs;
+    mrender::text::GlyphCache glyphs;
     Signal<float> width=signal(320.0f);
     Signal<std::string> value;
     Fixture(std::string initial)
@@ -167,7 +167,7 @@ static UTest cases{"ui.base.selection-layout", [] {
     "an explicit parent reorder owns default Button allocation and stagger without losing label ink"_test = [] {
         auto fonts=Fixture::make_fonts();auto options=Fixture::make_options(fonts);options.size={300,240};
         options.theme.motion["motion.normal"]=Transition::tween(seconds(1),hanim::ease::linear);
-        Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);
+        Runtime runtime(options);mrender::text::GlyphCache glyphs(fonts);
         auto order=signal(std::vector<std::string>{"alpha","beta","gamma"});
         auto list=column({.id="list",.width=200,.gap=12},{dynamic([order]{
             std::vector<Element> children;

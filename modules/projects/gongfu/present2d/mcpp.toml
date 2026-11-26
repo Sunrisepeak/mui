@@ -33,10 +33,10 @@ mlibs.math = { path = "../../../base/math" }
 marzer.tomlplusplus   = "3.4.0"
 hanim.core                 = { path = "../../hanim/core" }
 mlibs.geom          = { path = "../../../base/geom" }
-xrender.vector = { path = "../../xrender/vector", features = ["sprite"] }  # xrender.sprite
+mrender.vector = { path = "../../mrender/vector", features = ["sprite"] }  # mrender.sprite
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 mlibs.utils = { path = "../../../base/utils" }
-xrender.raster  = { path = "../../xrender/raster" }
+mrender.raster  = { path = "../../mrender/raster" }
 mlibs.image   = { path = "../../../base/image" }

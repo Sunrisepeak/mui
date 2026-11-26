@@ -15,7 +15,7 @@ export import gongfu.data;
 export import gongfu.present2d;
 export import :catalog;
 export import :tool;
-import xrender.vector;
+import mrender.vector;
 
 export namespace gongfu::studio {
 
@@ -70,7 +70,7 @@ struct SheetOptions {
     std::vector<std::string>    clips;          // empty: every clip
     std::vector<std::int32_t>   frames;         // empty: one cell a clip
     bool                        boxes = true;
-    const xrender::ImageStore* images = nullptr;
+    const mrender::ImageStore* images = nullptr;
 };
 struct Sheet {
     std::vector<std::uint8_t> png;

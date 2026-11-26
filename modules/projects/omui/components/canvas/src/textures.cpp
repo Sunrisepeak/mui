@@ -5,11 +5,11 @@ import omui.core;
 import omui.view;
 import hanim.core;
 import mlibs.geom;
-import xrender.raster;
-import xrender.vector;
+import mrender.raster;
+import mrender.vector;
 import mlibs.text;
 import mlibs.trace;
-import xrender.text;
+import mrender.text;
 
 namespace omui::world {
 
@@ -20,11 +20,11 @@ struct Textures::Done {
     std::uint64_t                    revision;
     int                              level;
     std::uint64_t                    epoch;
-    std::shared_ptr<xrender::raster::Surface> surface;
+    std::shared_ptr<mrender::raster::Surface> surface;
     // A list wanted (Textures::list_level): what the view painted, and the images it draws, held
     // from its runtime's store.
-    std::shared_ptr<xrender::DisplayList> list;
-    std::vector<std::pair<xrender::ImageRef, std::shared_ptr<const xrender::raster::Surface>>> images;
+    std::shared_ptr<mrender::DisplayList> list;
+    std::vector<std::pair<mrender::ImageRef, std::shared_ptr<const mrender::raster::Surface>>> images;
 };
 
 // Where jobs put what they made; shared with them, so a job that outlives
@@ -102,7 +102,7 @@ namespace {
 
 // A view laid out at `size` (its world units) and painted, settled: what an
 // offscreen runtime draws of it once its animations have ended.
-void paint_view(Runtime& rt, const Element& view, xrender::DisplayList& out) {
+void paint_view(Runtime& rt, const Element& view, mrender::DisplayList& out) {
     rt.mount("content", view);
     FrameOutput f = rt.frame();
     for (int i = 0; i < 8 && f.animating; ++i) {
@@ -119,30 +119,30 @@ void paint_view(Runtime& rt, const Element& view, xrender::DisplayList& out) {
 // they are its own nodes', not the page's. None when it holds what only its
 // own runtime can draw.
 template <class Image>
-std::shared_ptr<xrender::DisplayList> for_camera(const xrender::DisplayList& from, Image&& image) {
-    auto out = std::make_shared<xrender::DisplayList>();
+std::shared_ptr<mrender::DisplayList> for_camera(const mrender::DisplayList& from, Image&& image) {
+    auto out = std::make_shared<mrender::DisplayList>();
     bool fit = true;
-    for (const xrender::Command& command : from.commands())
+    for (const mrender::Command& command : from.commands())
         std::visit(
             [&](const auto& cmd) {
                 using T = std::decay_t<decltype(cmd)>;
-                constexpr bool drawn = std::same_as<T, xrender::FillRect> || std::same_as<T, xrender::FillRoundRect> || std::same_as<T, xrender::StrokeRoundRect> ||
-                                       std::same_as<T, xrender::BoxShadow> || std::same_as<T, xrender::FillPath> || std::same_as<T, xrender::StrokePath> ||
-                                       std::same_as<T, xrender::DrawImage> || std::same_as<T, xrender::DrawGlyphs>;
-                constexpr bool state = std::same_as<T, xrender::PushClipRect> || std::same_as<T, xrender::PushClipPath> || std::same_as<T, xrender::PopClip> ||
-                                       std::same_as<T, xrender::PushTransform> || std::same_as<T, xrender::PopTransform> || std::same_as<T, xrender::PushLayer> ||
-                                       std::same_as<T, xrender::PopLayer>;
+                constexpr bool drawn = std::same_as<T, mrender::FillRect> || std::same_as<T, mrender::FillRoundRect> || std::same_as<T, mrender::StrokeRoundRect> ||
+                                       std::same_as<T, mrender::BoxShadow> || std::same_as<T, mrender::FillPath> || std::same_as<T, mrender::StrokePath> ||
+                                       std::same_as<T, mrender::DrawImage> || std::same_as<T, mrender::DrawGlyphs>;
+                constexpr bool state = std::same_as<T, mrender::PushClipRect> || std::same_as<T, mrender::PushClipPath> || std::same_as<T, mrender::PopClip> ||
+                                       std::same_as<T, mrender::PushTransform> || std::same_as<T, mrender::PopTransform> || std::same_as<T, mrender::PushLayer> ||
+                                       std::same_as<T, mrender::PopLayer>;
                 if constexpr (drawn) {
                     T copy = cmd;
-                    if constexpr (std::same_as<T, xrender::DrawImage>) copy.image = image(cmd.image);
+                    if constexpr (std::same_as<T, mrender::DrawImage>) copy.image = image(cmd.image);
                     if constexpr (requires { cmd.paint; }) {
                         if (cmd.paint.material) fit = false;
-                        if (cmd.paint.kind == xrender::Paint::Kind::image || cmd.paint.kind == xrender::Paint::Kind::image_mask) copy.paint.image = image(cmd.paint.image);
+                        if (cmd.paint.kind == mrender::Paint::Kind::image || cmd.paint.kind == mrender::Paint::Kind::image_mask) copy.paint.image = image(cmd.paint.image);
                     }
-                    out->append_command(xrender::Command{copy});
+                    out->append_command(mrender::Command{copy});
                 } else if constexpr (state) {
-                    out->append_command(xrender::Command{cmd});
-                } else if constexpr (std::same_as<T, xrender::ExternalTexture>) {
+                    out->append_command(mrender::Command{cmd});
+                } else if constexpr (std::same_as<T, mrender::ExternalTexture>) {
                     fit = false;  // its runtime's own texture
                 }
             },
@@ -151,14 +151,14 @@ std::shared_ptr<xrender::DisplayList> for_camera(const xrender::DisplayList& fro
 }
 
 // The images a display list draws, by reference.
-void images_of(const xrender::DisplayList& dl, std::vector<xrender::ImageRef>& out) {
-    for (const xrender::Command& c : dl.commands())
+void images_of(const mrender::DisplayList& dl, std::vector<mrender::ImageRef>& out) {
+    for (const mrender::Command& c : dl.commands())
         std::visit(
             [&](const auto& cmd) {
                 using T = std::decay_t<decltype(cmd)>;
-                if constexpr (std::same_as<T, xrender::DrawImage>) out.push_back(cmd.image);
+                if constexpr (std::same_as<T, mrender::DrawImage>) out.push_back(cmd.image);
                 if constexpr (requires { cmd.paint; }) {
-                    if (cmd.paint.kind == xrender::Paint::Kind::image || cmd.paint.kind == xrender::Paint::Kind::image_mask) out.push_back(cmd.paint.image);
+                    if (cmd.paint.kind == mrender::Paint::Kind::image || cmd.paint.kind == mrender::Paint::Kind::image_mask) out.push_back(cmd.paint.image);
                     if (cmd.paint.material && cmd.paint.material->normal.id != 0) out.push_back(cmd.paint.material->normal);  // its normal map
                 }
             },
@@ -170,14 +170,14 @@ void images_of(const xrender::DisplayList& dl, std::vector<xrender::ImageRef>& o
 // collection's id, never its address: a collection made where a freed one
 // was must not find the freed one's glyphs (its fonts' ids mean other fonts);
 // the caches of collections gone are dropped.
-xrender::GlyphSource* glyphs_for(mlibs::text::FontCollection* fonts) {
+mrender::GlyphSource* glyphs_for(mlibs::text::FontCollection* fonts) {
     if (!fonts) return nullptr;
-    thread_local std::map<std::uint64_t, std::unique_ptr<xrender::text::GlyphCache>> caches;
+    thread_local std::map<std::uint64_t, std::unique_ptr<mrender::text::GlyphCache>> caches;
     const std::uint64_t id = fonts->id();
     auto it = caches.find(id);
     if (it == caches.end()) {
         std::erase_if(caches, [](const auto& kv) { return !mlibs::text::FontCollection::alive(kv.first); });
-        it = caches.emplace(id, std::make_unique<xrender::text::GlyphCache>(*fonts)).first;
+        it = caches.emplace(id, std::make_unique<mrender::text::GlyphCache>(*fonts)).first;
     }
     return it->second.get();
 }
@@ -243,10 +243,10 @@ Textures::Listed Textures::listed(std::string_view key, std::uint64_t revision) 
 Textures::Listed Textures::list_now(const Scene& scene, NodeRef node, std::string_view key, std::uint64_t revision) {
     const Kind& k = scene.kind_of(node);
     if (!k.content) return listed(key, revision);
-    xrender::DisplayList built;
+    mrender::DisplayList built;
     k.content(scene, node, built);
     Entry& e = entries_[std::string(key)];
-    if (auto list = for_camera(built, [](xrender::ImageRef image) { return image; })) {
+    if (auto list = for_camera(built, [](mrender::ImageRef image) { return image; })) {
         e.list = std::move(list);
         e.list_serial = next_list_serial();
         e.list_revision = revision;
@@ -264,7 +264,7 @@ void Textures::want(std::string_view key, std::uint64_t revision, int level, Nod
     candidates_.push_back({std::string(key), revision, level, node, priority});
 }
 
-void Textures::issue(const Scene& scene, const xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme) {
+void Textures::issue(const Scene& scene, const mrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme) {
     const std::size_t limit = options_.jobs ? options_.jobs : 2 * std::max(1u, Tasks::shared().threads());
     {
         std::scoped_lock g(offscreen_->lock);
@@ -290,14 +290,14 @@ void Textures::issue(const Scene& scene, const xrender::ImageStore& images, mlib
         if (largest > options_.max_side) s *= options_.max_side / largest;
         const int pw = std::max(1, static_cast<int>(std::ceil(r.width * s))), ph = std::max(1, static_cast<int>(std::ceil(r.height * s)));
         // Built here, on the scene's thread: a display list, or a view to lay out on the pool.
-        auto dl = std::make_shared<xrender::DisplayList>();
+        auto dl = std::make_shared<mrender::DisplayList>();
         std::shared_ptr<const Element> view;
-        auto snapshot = std::make_shared<xrender::ImageStore>();
+        auto snapshot = std::make_shared<mrender::ImageStore>();
         if (k.content) {
             k.content(scene, c.node, *dl);
-            std::vector<xrender::ImageRef> used;
+            std::vector<mrender::ImageRef> used;
             images_of(*dl, used);
-            for (xrender::ImageRef i : used) snapshot->put(i, images.shared(i), images.revision(i));
+            for (mrender::ImageRef i : used) snapshot->put(i, images.shared(i), images.revision(i));
         } else {
             view = std::make_shared<const Element>(k.view(scene, c.node));
         }
@@ -317,28 +317,28 @@ void Textures::issue(const Scene& scene, const xrender::ImageStore& images, mlib
                 ~Leave() { in.leave(); }
             } leave{*inbox};
             mlibs::trace::Span span("canvas.texture", "canvas");
-            auto surface = std::make_shared<xrender::raster::Surface>(pw, ph);
-            xrender::CpuRenderer r;
-            xrender::CpuOptions o;
+            auto surface = std::make_shared<mrender::raster::Surface>(pw, ph);
+            mrender::CpuRenderer r;
+            mrender::CpuOptions o;
             o.transform = mlibs::geom::Affine::scale(sx, sy);
             o.background = Color::transparent();
             if (view) {
                 // Laid out and painted here; its images are its runtime's.
                 auto lease = offscreen->take(world);
-                xrender::DisplayList painted;
+                mrender::DisplayList painted;
                 {
                     mlibs::trace::Span layout("canvas.texture.view", "canvas");
                     paint_view(*lease.runtime, *view, painted);
                 }
                 if (level == list_level) {
                     // The list itself is what was asked for: with the images it draws, held from this runtime's store.
-                    Done done{order, key, rev, level, epoch, nullptr, std::make_shared<xrender::DisplayList>(), {}};
+                    Done done{order, key, rev, level, epoch, nullptr, std::make_shared<mrender::DisplayList>(), {}};
                     done.list->append(painted);
-                    std::vector<xrender::ImageRef> used;
+                    std::vector<mrender::ImageRef> used;
                     images_of(painted, used);
-                    std::ranges::sort(used, {}, &xrender::ImageRef::id);
-                    used.erase(std::unique(used.begin(), used.end(), [](xrender::ImageRef a, xrender::ImageRef b) { return a.id == b.id; }), used.end());
-                    for (xrender::ImageRef image : used)
+                    std::ranges::sort(used, {}, &mrender::ImageRef::id);
+                    used.erase(std::unique(used.begin(), used.end(), [](mrender::ImageRef a, mrender::ImageRef b) { return a.id == b.id; }), used.end());
+                    for (mrender::ImageRef image : used)
                         if (auto pixels = lease.runtime->images().shared(image)) done.images.emplace_back(image, std::move(pixels));
                     offscreen->give_back(std::move(lease));
                     inbox->done_with(std::move(done));
@@ -355,7 +355,7 @@ void Textures::issue(const Scene& scene, const xrender::ImageStore& images, mlib
     candidates_.clear();
 }
 
-bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wait) {
+bool Textures::collect(mrender::ImageStore& images, std::uint64_t frame, bool wait) {
     std::vector<Done> done;
     {
         std::unique_lock g(inbox_->lock);
@@ -378,8 +378,8 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
             // And its glyphs within the frame's budget of them: lists that come back together enter over a
             // few frames, in the order asked for, so no one frame makes all their instances.
             std::size_t glyphs = 0;
-            for (const xrender::Command& command : d.list->commands())
-                if (const auto* drawn = std::get_if<xrender::DrawGlyphs>(&command)) glyphs += drawn->glyphs.size();
+            for (const mrender::Command& command : d.list->commands())
+                if (const auto* drawn = std::get_if<mrender::DrawGlyphs>(&command)) glyphs += drawn->glyphs.size();
             if ((entered > 0 && entered + image_bytes > options_.upload) || (lists_in > 0 && glyphs_in + glyphs > options_.glyphs)) {
                 later.push_back(std::move(d));
                 continue;
@@ -388,11 +388,11 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
             glyphs_in += glyphs;
             in_flight_.erase({d.key, d.revision, d.level});
             Entry& e = entries_[d.key];
-            std::vector<std::pair<std::uint32_t, xrender::ImageRef>> now;
+            std::vector<std::pair<std::uint32_t, mrender::ImageRef>> now;
             for (const auto& [was, pixels] : d.images) now.emplace_back(was.id, images.add(pixels));
-            auto list = for_camera(*d.list, [&](xrender::ImageRef image) {
-                const auto found = std::ranges::find(now, image.id, &std::pair<std::uint32_t, xrender::ImageRef>::first);
-                return found != now.end() ? found->second : xrender::ImageRef{};
+            auto list = for_camera(*d.list, [&](mrender::ImageRef image) {
+                const auto found = std::ranges::find(now, image.id, &std::pair<std::uint32_t, mrender::ImageRef>::first);
+                return found != now.end() ? found->second : mrender::ImageRef{};
             });
             if (!list) {
                 for (const auto& [was, image] : now) images.remove(image);
@@ -400,7 +400,7 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
                 changed = true;
                 continue;
             }
-            for (xrender::ImageRef image : e.list_images) images.remove(image);
+            for (mrender::ImageRef image : e.list_images) images.remove(image);
             e.list_images.clear();
             for (const auto& [was, image] : now) e.list_images.push_back(image);
             e.list = std::move(list);
@@ -433,7 +433,7 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
             images.remove(old->second.image);
             bytes_ -= old->second.bytes;
         }
-        e.levels[d.level] = {images.add(std::shared_ptr<const xrender::raster::Surface>(std::move(d.surface))), bytes, frame};
+        e.levels[d.level] = {images.add(std::shared_ptr<const mrender::raster::Surface>(std::move(d.surface))), bytes, frame};
         bytes_ += bytes;
         entered += bytes;
         ++last_.entered;
@@ -466,7 +466,7 @@ bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wa
     return changed;
 }
 
-void Textures::complete(const Scene& scene, xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme, std::uint64_t frame) {
+void Textures::complete(const Scene& scene, mrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme, std::uint64_t frame) {
     if (candidates_.empty()) return;
     const Options kept = options_;
     options_.jobs = std::max<std::size_t>(1, candidates_.size() + in_flight_.size());
@@ -477,7 +477,7 @@ void Textures::complete(const Scene& scene, xrender::ImageStore& images, mlibs::
     options_ = kept;
 }
 
-void Textures::clear(xrender::ImageStore& images) {
+void Textures::clear(mrender::ImageStore& images) {
     ++inbox_->epoch;
     {
         // The views are laid out again, in the theme the next frame gives.
@@ -486,7 +486,7 @@ void Textures::clear(xrender::ImageStore& images) {
     }
     for (auto& [key, e] : entries_) {
         for (auto& [lv, l] : e.levels) images.remove(l.image);
-        for (xrender::ImageRef image : e.list_images) images.remove(image);
+        for (mrender::ImageRef image : e.list_images) images.remove(image);
     }
     entries_.clear();
     in_flight_.clear();

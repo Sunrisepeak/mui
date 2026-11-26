@@ -2,7 +2,7 @@
 import std;
 import hanim.core;
 import mlibs.geom;
-import xrender.vector;
+import mrender.vector;
 import hanim.visual;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -32,8 +32,8 @@ mo::Resolver names() {
             }, .nested = [](std::uint32_t marker) { return marker == 2; }};
 }
 
-xrender::DisplayList frame(float offset, std::size_t level) {
-    xrender::DisplayList list;
+mrender::DisplayList frame(float offset, std::size_t level) {
+    mrender::DisplayList list;
     list.begin_node(1);
     for (std::size_t i = 0; i < fills_per_level; ++i)
         list.fill_rect({offset + static_cast<float>(i), static_cast<float>(level * 4), 2, 3},
@@ -55,7 +55,7 @@ struct Chain {
             options.curve.duration = 1;
             options.curve.ease = hanim::ease::linear;
             if (effects) options.travel = mo::Options::Travel{
-                .effect = xrender::EffectRef{static_cast<std::uint32_t>(900 + level)},
+                .effect = mrender::EffectRef{static_cast<std::uint32_t>(900 + level)},
                 .params = {static_cast<float>(level + 1), static_cast<float>(level + 20)},
                 .param = 0, .peak = static_cast<float>(level + 4)};
             auto a = frame(0, level), b = frame(10, level);
@@ -63,27 +63,27 @@ struct Chain {
                                                         mo::Matter::extract(b, names()), options, 0));
         }
     }
-    void draw_level(std::size_t level, double time, xrender::DisplayList& out) const {
+    void draw_level(std::size_t level, double time, mrender::DisplayList& out) const {
         struct Call { const Chain* chain; std::size_t level; double time; } call{this, level, time};
         // One-pointer callback stays in std::function's small buffer. Thus the
         // warm allocation probe includes traversal instead of hiding callback
         // heap allocations outside the measured region.
-        motions[reuse_same ? 0 : level]->draw(time, out, [&call](std::uint32_t marker, xrender::DisplayList& into) {
+        motions[reuse_same ? 0 : level]->draw(time, out, [&call](std::uint32_t marker, mrender::DisplayList& into) {
             if (marker == 2 && call.level + 1 < call.chain->motions.size())
                 call.chain->draw_level(call.level + 1, call.time, into);
         });
     }
-    xrender::DisplayList draw(double time) const {
-        xrender::DisplayList list;
+    mrender::DisplayList draw(double time) const {
+        mrender::DisplayList list;
         draw_level(0, time, list);
         return list;
     }
 };
 
-std::vector<xrender::FillRect> fills(const xrender::DisplayList& list) {
-    std::vector<xrender::FillRect> found;
+std::vector<mrender::FillRect> fills(const mrender::DisplayList& list) {
+    std::vector<mrender::FillRect> found;
     for (const auto& command : list.commands())
-        if (const auto* fill = std::get_if<xrender::FillRect>(&command)) found.push_back(*fill);
+        if (const auto* fill = std::get_if<mrender::FillRect>(&command)) found.push_back(*fill);
     return found;
 }
 
@@ -101,7 +101,7 @@ void verify(const Chain& effected, const Chain& plain, double time, bool moving)
     }
     std::size_t layers = 0;
     for (const auto& command : actual.commands()) {
-        const auto* layer = std::get_if<xrender::PushLayer>(&command);
+        const auto* layer = std::get_if<mrender::PushLayer>(&command);
         if (!layer || layer->effect.id < 900) continue;
         const std::size_t level = layer->effect.id - 900;
         expect(level < effected.motions.size()) << "travel identity belongs to this chain";
@@ -141,7 +141,7 @@ UTest cases{"nested travel scratch lifetime", [] {
     };
     "warmed recursive travel reuses every depth list and parameter buffer"_test = [] {
         Chain actual(4, true);
-        xrender::DisplayList out;
+        mrender::DisplayList out;
         for (double time : {0.2, 0.5, 0.8}) { out.clear(); actual.draw_level(0, time, out); }
         const auto before = allocations.load(std::memory_order_relaxed);
         for (int i = 0; i < 40; ++i) {

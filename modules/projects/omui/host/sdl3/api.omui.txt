@@ -4,8 +4,8 @@ export import omui.view;
 export import omui.semantic;
 export import omui.agent;
 export import omui.accessibility;
-export import xrender.raster;
-export import xrender.effect;
+export import mrender.raster;
+export import mrender.effect;
 export import :gpu;
 namespace omui {
   struct DesktopOptions {
@@ -53,14 +53,14 @@ namespace omui {
     void close();
     [[nodiscard]] bool closing() const noexcept;
     void synthesize(std::span<const InputEvent> events);
-    [[nodiscard]] std::expected<xrender::raster::Surface, ViewFailure> window_pixels();
+    [[nodiscard]] std::expected<mrender::raster::Surface, ViewFailure> window_pixels();
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] agent::Endpoint* endpoint() noexcept;
     [[nodiscard]] accessibility::Mirror* accessibility_mirror() noexcept;
     [[nodiscard]] accessibility::Adapter* accessibility_adapter() noexcept;
     [[nodiscard]] std::size_t frames_shown() const noexcept;
     [[nodiscard]] bool gpu() const noexcept;
-    [[nodiscard]] xrender::effect::Library* effects() noexcept;
+    [[nodiscard]] mrender::effect::Library* effects() noexcept;
     struct Impl;
   };
   [[nodiscard]] std::vector<std::string> preferred_locales();
@@ -80,11 +80,11 @@ namespace omui {
   };
   class GpuRenderer {
     virtual ~GpuRenderer() = default;
-    [[nodiscard]] virtual mlibs::rhi::Result<void> render(std::span<const xrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width, std::uint32_t height, const xrender::GpuFrameOptions& options) = 0;
+    [[nodiscard]] virtual mlibs::rhi::Result<void> render(std::span<const mrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width, std::uint32_t height, const mrender::GpuFrameOptions& options) = 0;
   };
   class GpuEffects {
     virtual ~GpuEffects() = default;
-    [[nodiscard]] virtual xrender::effect::Library& library() noexcept = 0;
+    [[nodiscard]] virtual mrender::effect::Library& library() noexcept = 0;
     [[nodiscard]] virtual std::vector<std::string> load(const std::filesystem::path& directory) = 0;
     struct Reloaded {
       std::vector<std::string> reloaded;

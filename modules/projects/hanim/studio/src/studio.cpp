@@ -1,7 +1,7 @@
 // A document opened: its shapes made objects of an Engine, its steps made a
 // hanim Program, operated through hanim.control — prepared, played, paused
 // and sought, each call admitted by mlibs.control and recorded — and drawn
-// by hanim.render.vector into xrender's CPU raster.
+// by hanim.render.vector into mrender's CPU raster.
 module hanim.studio;
 
 import std;
@@ -235,8 +235,8 @@ struct Studio::Data {
     std::vector<double> enters_at;
     // Drawn object by object in the document's order (its z order), each segment bound once.
     std::map<std::size_t, vector_render::PreparedVector> bindings;
-    xrender::CpuRenderer renderer;
-    xrender::DisplayList list, recording;
+    mrender::CpuRenderer renderer;
+    mrender::DisplayList list, recording;
     std::vector<mlibs::geom::Affine> world;
     std::vector<float> parameters;
     std::vector<mlibs::geom::Rect> layers;
@@ -408,7 +408,7 @@ std::expected<std::vector<ObjectState>, Problems> Studio::state(seconds time) {
     return states;
 }
 
-std::expected<const xrender::DisplayList*, Problems> Studio::display(seconds time) {
+std::expected<const mrender::DisplayList*, Problems> Studio::display(seconds time) {
     if (auto sought = data_->seek(time); !sought) return std::unexpected(sought.error());
     const auto frame = data_->engine.program_frame(data_->playback);
     if (!frame) return std::unexpected(Problems{{"", frame.error().text()}});
@@ -434,7 +434,7 @@ std::expected<const xrender::DisplayList*, Problems> Studio::display(seconds tim
     return &d.list;
 }
 
-std::expected<void, Problems> Studio::render(seconds time, xrender::raster::Surface& surface) {
+std::expected<void, Problems> Studio::render(seconds time, mrender::raster::Surface& surface) {
     const auto list = display(time);
     if (!list) return std::unexpected(list.error());
     auto& d = *data_;

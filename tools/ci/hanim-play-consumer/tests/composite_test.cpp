@@ -2,7 +2,7 @@
 import std;
 import hanim.engine;
 import hanim.render.vector;
-import xrender.raster;
+import mrender.raster;
 import mlibs.image;
 import mlibs.trace;
 import mlibs.testing;
@@ -11,9 +11,9 @@ using namespace hanim;
 using namespace hanim::vector_render;
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
-namespace render=xrender;
+namespace render=mrender;
 namespace geom=mlibs::geom;
-namespace raster=xrender::raster;
+namespace raster=mrender::raster;
 namespace {
 std::atomic<std::size_t> allocations{0};
 void* allocate(std::size_t size) noexcept {allocations.fetch_add(1);return std::malloc(size?size:1);}

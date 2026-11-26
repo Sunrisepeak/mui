@@ -193,7 +193,7 @@ Ownership around it (convergence plan §6.10, D-132; D-165): materials and
 what they do are [meng.matter](../matter)'s definitions — data — lowered to
 this kernel's table and reactions, not rules inside it;
 putting a field on screen is a small adapter between this package and
-xrender's resources, [present](present): one `ImageStore` image a pixel a
+mrender's resources, [present](present): one `ImageStore` image a pixel a
 cell, recoloured, re-uploaded and redrawn only where `Execution::changed_tiles`
 says a tile changed, drawn by one command (the GPU kernel's output as one
 `ExternalTexture` is next). What a cell's colour is, this kernel says as it

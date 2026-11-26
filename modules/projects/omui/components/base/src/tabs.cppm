@@ -20,7 +20,7 @@ public:
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     // A bar's surfaces, for a style's effect (liquid glass): its capsule and the lens under the selected tab.
-    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<mrender::EffectShape> out) const;
 
     ActResult next(ActContext& ctx);
     ActResult previous(ActContext& ctx);

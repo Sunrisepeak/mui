@@ -3,7 +3,7 @@ module omui.agent;
 import std;
 import mlibs.compose;
 import mlibs.image;
-import xrender.vector;
+import mrender.vector;
 
 namespace omui::agent {
 
@@ -15,7 +15,7 @@ std::expected<void, AgentFailure> start(Endpoint& endpoint) { return endpoint.st
 void stop(Endpoint& endpoint) { endpoint.stop(); }
 std::size_t pump(Endpoint& endpoint) { return endpoint.pump(); }
 std::optional<AgentInput> take_input(Endpoint& endpoint) { return endpoint.take_input(); }
-std::expected<VectorCapture, ViewFailure> capture(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale,
+std::expected<VectorCapture, ViewFailure> capture(const Runtime& runtime, const mrender::Resources& resources, Rect region, float scale,
                                                   std::optional<Color> background) {
     return vector_capture(runtime, resources, region, scale, background);
 }

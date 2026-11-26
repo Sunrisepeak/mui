@@ -201,7 +201,7 @@ Element code_block(std::string id, std::string_view code, std::string_view langu
 
 // ── drawing ─────────────────────────────────────────────────────────────
 
-void paint_paper(xrender::DisplayList& list, Size size, Point offset, float scale, float grid) {
+void paint_paper(mrender::DisplayList& list, Size size, Point offset, float scale, float grid) {
     list.fill_rect({0, 0, size.width, size.height}, hex(ink::paper));
     if (grid > 0 && scale > 0.05f) {
         auto lines = [&](float step, float alpha) {
@@ -216,17 +216,17 @@ void paint_paper(xrender::DisplayList& list, Size size, Point offset, float scal
         lines(120, 0.09f);
     }
     // Darker towards the corners: the light is on the middle of the sheet.
-    const std::array<xrender::GradientStop, 3> stops{{{0, hex(ink::paper_deep, 0)}, {0.62f, hex(ink::paper_deep, 0.18f)}, {1, hex(ink::paper_deep, 0.72f)}}};
-    xrender::Paint p;
-    p.kind = xrender::Paint::Kind::gradient;
-    p.gradient.kind = xrender::GradientKind::radial;
+    const std::array<mrender::GradientStop, 3> stops{{{0, hex(ink::paper_deep, 0)}, {0.62f, hex(ink::paper_deep, 0.18f)}, {1, hex(ink::paper_deep, 0.72f)}}};
+    mrender::Paint p;
+    p.kind = mrender::Paint::Kind::gradient;
+    p.gradient.kind = mrender::GradientKind::radial;
     p.gradient.start = p.gradient.end = {size.width / 2, size.height / 2};
     p.gradient.radius = static_cast<float>(hanim::dm::sqrt(static_cast<double>(size.width) * size.width + static_cast<double>(size.height) * size.height)) / 2;
     p.gradient.stops = stops;
     list.fill_rect({0, 0, size.width, size.height}, p);
 }
 
-void paint_ticks(xrender::DisplayList& list, Rect r, Color c, float tick, float width, float hairline) {
+void paint_ticks(mrender::DisplayList& list, Rect r, Color c, float tick, float width, float hairline) {
     const float x0 = r.x, y0 = r.y, x1 = r.x + r.width, y1 = r.y + r.height;
     const std::array<std::array<float, 4>, 8> bars{{{x0 - width, y0 - width, tick, width},
                                                     {x0 - width, y0 - width, width, tick},
@@ -237,17 +237,17 @@ void paint_ticks(xrender::DisplayList& list, Rect r, Color c, float tick, float 
                                                     {x1 - tick + width, y1, tick, width},
                                                     {x1, y1 - tick + width, width, tick}}};
     for (const auto& b : bars) list.fill_rect({b[0], b[1], b[2], b[3]}, c);
-    if (hairline > 0) list.stroke_round_rect(r, CornerRadii::all(0), 1, xrender::Paint::solid(c.with_alpha(c.a * hairline)));
+    if (hairline > 0) list.stroke_round_rect(r, CornerRadii::all(0), 1, mrender::Paint::solid(c.with_alpha(c.a * hairline)));
 }
 
-void paint_line(xrender::DisplayList& list, Point a, Point b, Color c, float width) {
-    xrender::Path path;
+void paint_line(mrender::DisplayList& list, Point a, Point b, Color c, float width) {
+    mrender::Path path;
     path.move_to(a);
     path.line_to(b);
-    xrender::StrokeStyle st;
+    mrender::StrokeStyle st;
     st.width = width;
-    st.cap = xrender::LineCap::round;
-    list.stroke_path(path, st, xrender::Paint::solid(c));
+    st.cap = mrender::LineCap::round;
+    list.stroke_path(path, st, mrender::Paint::solid(c));
 }
 
 namespace {

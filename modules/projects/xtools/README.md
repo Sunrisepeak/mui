@@ -20,7 +20,7 @@ This project only wires those toolkits into one session of the tool kernel (mlib
 | [omui.cli](../omui/tools/cli) | `omui` | `omui` (the project's commands), the protocol's catalogs (`omui agent`, `omui page`) | omui |
 | [hanim.studio](../hanim/studio) | `hanim` | `document` | hanim |
 | [hanim.timeline.tool](../hanim/timeline/tool) | `hanim-timeline` | `timeline` | hanim |
-| [xrender.tool](../xrender/tool) | `xrender` | `xrender` | xrender |
+| [mrender.tool](../mrender/tool) | `mrender` | `mrender` | mrender |
 | [gongfu.studio](../gongfu/studio) | `gongfu-studio` | `gongfu` | gongfu |
 | [meng.video.tool](../meng/kernel/video/tool) | `video` | `video` (here with omui's sources, composed by xtools' `films()`: a view's film, data modules anywhere; `omui design film` runs it) | meng |
 

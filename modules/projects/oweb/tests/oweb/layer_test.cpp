@@ -173,8 +173,9 @@ static UTest cases{"oweb.layer", [] {
                             ++words_seen;
                             const double x = piece.get("x")->as_double(), w = piece.get("w")->as_double();
                             // The space a line broke at is its last word's and hangs past the line's end (a line's
-                            // width is its words'): a third of the line's height is more than any space.
-                            const double hangs = piece.get("t")->as_string().ends_with(' ') ? box[3].as_double() / 3 : 0;
+                            // width is its words'): half the line's height is more than any space — a monospace
+                            // face's is 0.6 of its size (8.1 px in a table's cell of code, whose line is 19.6).
+                            const double hangs = piece.get("t")->as_string().ends_with(' ') ? box[3].as_double() / 2 : 0;
                             expect(x >= along - 0.5 && w >= 0 && x >= -0.5 && (node.role == Role::code || x + w <= box[2].as_double() + 0.75 + hangs))
                                 << name << ": " << node.id << " a word off its line: " << piece.json() << " of " << line.get("box")->json();
                             along = x;

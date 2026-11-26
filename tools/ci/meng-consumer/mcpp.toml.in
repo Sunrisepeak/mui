@@ -1,0 +1,23 @@
+# Materialized outside the repository workspace by omui-devtools consumer meng.
+# Only meng's public packages and the foundation's they need are dependencies; no dev dependencies, no omui.
+[package]
+namespace = "meng.validation"
+name = "consumer"
+version = "0.1.0"
+license = "Apache-2.0"
+
+[targets.meng-consumer]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+meng.runtime  = { path = {{runtime_path}} }
+meng.input    = { path = {{input_path}} }
+meng.cellular = { path = {{cellular_path}} }
+mlibs.agent   = { path = {{agent_path}} }
+mlibs.json    = { path = {{json_path}} }
+mlibs.utils   = { path = {{utils_path}} }

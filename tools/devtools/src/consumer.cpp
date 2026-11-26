@@ -14,7 +14,7 @@ namespace process = mcpplibs::os::process;
 using json = nlohmann::json;
 using Outcome = std::expected<void, std::string>;
 
-constexpr std::array<std::string_view, 5> probe_names{"hanim-core", "hanim-api", "hanim-play", "omui-hanim", "hanim-features"};
+constexpr std::array<std::string_view, 6> probe_names{"hanim-core", "hanim-api", "hanim-play", "omui-hanim", "hanim-features", "meng"};
 
 bool write_text(const fs::path& path, std::string_view text) {
     std::error_code error;
@@ -328,6 +328,73 @@ Outcome hanim_core(Probe& probe) {
                                         {"actual_package_names", identities}, {"metadata_command", probe.report["commands"].back()["argv"]},
                                         {"resolution", text_of(snapshot)}, {"toolchain", metadata->data["toolchain"]}, {"compiled_sources", sources}});
         if (digest(probe.project / "mcpp.lock") != temporary_lock) return std::unexpected("a locked run changed the temporary resolution");
+    }
+    return {};
+}
+
+// ---- meng ------------------------------------------------------------------------------------------------------
+
+// A game on meng's own packages, outside the repository (closure item 9): built from paths in two profiles, played,
+// and its actual graph audited — meng's kernel and game layers and the foundation, nothing of omui's tier or above,
+// no renderer or animation engine; the same hash in both profiles.
+Outcome meng_consumer(Probe& probe) {
+    const fs::path fixture = probe.repo / "tools/ci/meng-consumer";
+    fs::create_directories(probe.project / "src");
+    std::string manifest = mcpplibs::os::fs::read(fixture / "mcpp.toml.in").value_or("");
+    for (const auto& [key, path] : {std::pair{"runtime_path", probe.repo / "modules/projects/meng/game/runtime"},
+                                    std::pair{"input_path", probe.repo / "modules/projects/meng/game/input"},
+                                    std::pair{"cellular_path", probe.repo / "modules/projects/meng/kernel/cellular"},
+                                    std::pair{"agent_path", probe.repo / "modules/base/agent"}, std::pair{"json_path", probe.repo / "modules/base/json"},
+                                    std::pair{"utils_path", probe.repo / "modules/base/utils"}}) {
+        const std::string mark = std::format("{{{{{}}}}}", key), value = json(mcpplibs::os::fs::generic_utf8(path)).dump();
+        for (std::size_t at = manifest.find(mark); at != std::string::npos; at = manifest.find(mark, at + value.size())) manifest.replace(at, mark.size(), value);
+    }
+    write_text(probe.project / "mcpp.toml", manifest);
+    copy_file_to(fixture / "src/main.cpp", probe.project / "src/main.cpp");
+    copy_file_to(probe.project / "mcpp.toml", probe.artifacts / "consumer.mcpp.toml");
+    if (auto done = probe.run("bootstrap", {.argv = {"build", "--profile", "dev"}, .bootstrap = true}); !done) return std::unexpected(done.error());
+    // What meng may bring: its own two layers and the foundation (D-231's tiers: mlibs below the engines).
+    const std::vector<fs::path> allowed{probe.project, probe.repo / "modules/projects/meng/kernel", probe.repo / "modules/projects/meng/game",
+                                        probe.repo / "modules/base"};
+    std::string hash;
+    for (const std::string profile : {"dev", "release"}) {
+        auto ran = probe.run(profile, {.argv = {"run", "--locked", "--profile", profile}, .headless = true});
+        if (!ran) return std::unexpected(ran.error());
+        std::vector<json> results;
+        for (const auto& row : json_lines(*ran, true))
+            if (row.value("kind", "") == "meng-consumer") results.push_back(row);
+        if (results.size() != 1 || !results.front().value("ok", false)) return std::unexpected(profile + ": no successful result line");
+        const json& result = results.front();
+        for (const std::string_view field : {"same_bits", "branch_untouched", "seek_equal"})
+            if (result.value(std::string(field), false) != true) return std::unexpected(std::format("{}: {} did not hold", profile, field));
+        const std::string played = result.value("hash", "");
+        if (!hash.empty() && played != hash) return std::unexpected(std::format("{}: the hash {} is not the other profile's {}", profile, played, hash));
+        hash = played;
+        if (auto done = probe.run(profile + "-metadata", {.argv = {"build", "--locked", "--profile", profile, "--configure-only"}}); !done) return std::unexpected(done.error());
+        auto metadata = newest_metadata(probe.project);
+        if (!metadata) return std::unexpected(profile + ": " + metadata.error());
+        std::set<std::string> identities;
+        for (const auto& package : metadata->data["graph"]["packages"]) {
+            const std::string name = identity(package["package"]);
+            identities.insert(name);
+            for (const std::string_view above : {"omui", "hanim", "sunrisepeak.hanim", "mrender", "openlifa.openmui", "gongfu"})
+                if (name == above || name.starts_with(std::string(above) + "."))
+                    return std::unexpected(std::format("{}: {} is in meng's graph (the engine's tier holds none of it)", profile, name));
+        }
+        json sources = json::array();
+        bool consumer = false;
+        for (const auto& entry : metadata->entries) {
+            const fs::path source = source_of(entry, probe.project);
+            sources.push_back(text_of(source));
+            consumer = consumer || source == real(probe.project / "src/main.cpp");
+            if (inside(source, probe.repo) && std::ranges::none_of(allowed, [&](const fs::path& root) { return inside(source, root); }))
+                return std::unexpected(std::format("{}: a repository source outside meng and the foundation was compiled: {}", profile, text_of(source)));
+        }
+        if (!consumer) return std::unexpected(profile + ": the consumer is missing from the actual compile database");
+        const fs::path snapshot = probe.artifacts / (profile + ".resolution.json");
+        copy_file_to(metadata->resolution, snapshot);
+        probe.report["profiles"].push_back({{"profile", profile}, {"result", result}, {"actual_package_names", identities}, {"resolution", text_of(snapshot)},
+                                            {"compiled_sources", sources.size()}});
     }
     return {};
 }
@@ -1249,7 +1316,20 @@ int probe(const fs::path& root, std::string_view name, const Options& options) {
         const json count = probe.report["cases"].size();
         return probe.finish(std::move(outcome), options.keep_project, "source_lock_after", {{"cases", count}});
     }
-    std::cerr << std::format("omui-devtools consumer: no probe {} (hanim-core, hanim-api, hanim-play, omui-hanim, hanim-features)\n", name);
+    if (name == "meng") {
+        Probe probe(root, output_of("target/meng-consumer/report.xdef.json"), "meng-consumer-");
+        probe.report = {{"format", "meng.independent-consumer@0.1"}, {"ok", false}, {"project", text_of(probe.project)}, {"source_commit", git_head(probe.repo)},
+                        {"source_lock_before", probe.lock_before}, {"commands", json::array()}, {"profiles", json::array()},
+                        {"fixture_sha256", {{"mcpp.toml.in", digest(probe.repo / "tools/ci/meng-consumer/mcpp.toml.in")},
+                                            {"src/main.cpp", digest(probe.repo / "tools/ci/meng-consumer/src/main.cpp")}}},
+                        {"limits", {"meng's packages by path from this checkout; from published packages once the channel (RL2) publishes them.",
+                                    "A game on meng.runtime over a meng.cellular field, played through the agent kernel: no window, sound or GPU.",
+                                    "No performance claim."}}};
+        Outcome outcome = meng_consumer(probe);
+        const json profiles = probe.report["profiles"].size();
+        return probe.finish(std::move(outcome), options.keep_project, "source_lock_after", {{"profiles", profiles}});
+    }
+    std::cerr << std::format("omui-devtools consumer: no probe {} (hanim-core, hanim-api, hanim-play, omui-hanim, hanim-features, meng)\n", name);
     return 2;
 }
 

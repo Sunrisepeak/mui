@@ -111,6 +111,6 @@ UTest consumer_cases{"devtools.consumer", [] {
         expect(!consumer::png_size("GIF89a").has_value());
         const auto outputs = consumer::ninja_outputs("rule cxx\nbuild obj/a.o obj/a.d: cxx ../src/a.cpp\nbuild bin/app: link obj/a.o\n  flags = x\n");
         expect(outputs == std::set<std::string>{"obj/a.o", "obj/a.d", "bin/app"});
-        expect(eq(consumer::names().size(), std::size_t{5}));
+        expect(eq(consumer::names().size(), std::size_t{6}) && std::ranges::contains(consumer::names(), std::string_view("meng")));  // with meng's (EN3)
     };
 }};

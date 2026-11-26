@@ -179,11 +179,12 @@ The CI steps that were shell scripts (D-206), each a subcommand whose verdict is
 
 ## consumer
 
-The out-of-tree consumer probes (`hanim-core`, `hanim-api`, `hanim-play`, `omui-hanim [--web]`, `hanim-features`): a fresh project outside the repository made from its fixture under `tools/ci/`, built and run through mcpp as a user's project is (its own lock, then `--locked`), and what mcpp resolved and compiled audited — the closure a product brings, the sources it compiles, nothing of the UI or the test harness where it must not be. The repository's own lock must not change. A report and the commands' logs stay under `target/probe/<name>/`.
+The out-of-tree consumer probes (`hanim-core`, `hanim-api`, `hanim-play`, `omui-hanim [--web]`, `hanim-features`, `meng`): a fresh project outside the repository made from its fixture under `tools/ci/`, built and run through mcpp as a user's project is (its own lock, then `--locked`), and what mcpp resolved and compiled audited — the closure a product brings, the sources it compiles, nothing of the UI or the test harness where it must not be. The repository's own lock must not change. A report and the commands' logs stay under `target/probe/<name>/`.
 
 ```sh
 omui-devtools consumer hanim-api
 omui-devtools consumer omui-hanim --web
+omui-devtools consumer meng               # a game on meng's own packages: nothing of omui's tier in its graph
 ```
 
 ## eval

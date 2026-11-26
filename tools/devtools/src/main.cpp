@@ -27,7 +27,7 @@
 //         toy (Bilibili Toy), size (a page's WebAssembly bytes, held to a budget), atspi (examples 03 and 07 on a private bus).
 //   browser  a wasm test program in a real page of headless Chromium (mlibs.http's framing on the loopback).
 //   media the showcases' and the site's README media, made by their tests: copied in, or (--check) held to them.
-//   consumer  an out-of-tree consumer probe (hanim-core, hanim-api, hanim-play, omui-hanim, hanim-features):
+//   consumer  an out-of-tree consumer probe (hanim-core, hanim-api, hanim-play, omui-hanim, hanim-features, meng):
 //         a fresh project as a user's, what mcpp resolved and compiled audited, a report kept.
 //   site  the website: built for the Web, pre-rendered, split by its first screen (build), checked for what it
 //         carries (verify), split alone (split), its first screen profiled (profile), a page driven (drive).
@@ -301,7 +301,7 @@ cmd::App app() {
                         .option(Option("dry").help("say what would be compiled, and how")))
         .subcommand(cmd::App("consumer")
                         .description("An out-of-tree consumer probe: a fresh project built and run as a user's, what mcpp resolved and compiled audited")
-                        .arg(Arg("probe").required().help("hanim-core, hanim-api, hanim-play, omui-hanim or hanim-features"))
+                        .arg(Arg("probe").required().help("hanim-core, hanim-api, hanim-play, omui-hanim, hanim-features or meng"))
                         .option(Option("output").takes_value().value_name("FILE").help("the report (default under target/)"))
                         .option(Option("keep-project").help("leave the fresh project in the temporary directory"))
                         .option(Option("web").help("omui-hanim: on wasm32-emscripten too"))

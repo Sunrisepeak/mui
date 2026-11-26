@@ -32,6 +32,7 @@ Engines' particle systems (Unreal's Niagara, Unity's VFX Graph, Godot's GPUParti
 ## Experimental (release 0.1, D-199)
 
 - **Target**: flying matter (sparks, drops, grit) under the standard laws, on the CPU reference and, bit for bit where it holds authority, on the GPU (D-184).
-- **Now**: CPU: gravity, drag, collision against triangles, ageing; each particle an instance of matter beside its neighbours and the air.
-- **Gap**: no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is mrender.particle's, a picture).
+- **Now**: CPU: gravity, drag, collision against triangles, ageing; touching by position-based dynamics (sand heaps, water runs flat, oil comes up through water); each particle an instance of matter beside its neighbours and the air; an agent's subject under the matter contract's suite.
+- **Gap**: no GPU path; magnitudes not checked against hand physics; Glade the one work that uses it, beside meng.dynamics' `rigid3-scene` (Quay's fire is mrender.particle's, a picture).
+- **Limits**: one thread on the CPU; no curl noise or force fields; touching steps in substeps of at most a quarter of the smallest size.
 - **Graduation to preview**: a contract suite on every tier-1 row, a second consumer, the magnitudes within tolerance.

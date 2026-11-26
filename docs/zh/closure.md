@@ -22,6 +22,6 @@
 - **omui**, 8 并排对照: no claim in the ledger dated from 2026-11-15
 - **omui**, 9 独立消费: probe features-consumer builds from paths; from published packages once RC3.1 publishes them
 - **meng**, 8 并排对照: no claim in the ledger dated from 2026-11-15
-- **meng**, 9 独立消费: no out-of-tree probe (tools/ci/*/mcpp.toml.in)
+- **meng**, 9 独立消费: probe meng-consumer builds from paths; from published packages once RC3.1 publishes them
 - **xtools**, 8 并排对照: no claim in the ledger dated from 2026-11-15
 - **xtools**, 9 独立消费: no out-of-tree probe (tools/ci/*/mcpp.toml.in)

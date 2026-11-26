@@ -7,8 +7,9 @@ What ships in 0.1 labelled experimental (D-199): it builds on every tier-1 platf
 Packages: `omui.reflect` · [README](../../modules/projects/omui/reflect/README.md)
 
 - **Target**: forms and inspectors from C++ types with no contract written, once C++26 reflection is in the toolchains every tier-1 row builds with.
-- **Now**: `form(signal)` and its controls; built by GCC 16 with `-freflection` (omui-devtools check reflect), outside the rows' workspace run.
-- **Gap**: LLVM has no reflection in the toolchain the rows use; nothing else depends on it.
+- **Now**: `form(signal)` and its controls, `to_value` and `from_value`, `fields<T>()`, verified in standalone graphs only. Inside openmui's graph GCC 16.1 does not build it (V-08, above); `omui-devtools check reflect` builds the smallest graph with the conflict, warns while it fails, and runs the suite once it builds.
+- **Gap**: the basic gate itself, for a reason outside the project: no tier-1 toolchain builds C++26 reflection beside C headers (GCC 16.1: V-08; Clang 23 has no `-freflection`), so it builds on no row and its one headless check, the suite, waits; nothing else depends on it.
+- **Limits**: a form edits strings, bools, numbers, enums and structs of them (lists and optionals travel through `to_value`, no control edits them); its graph is built apart, in C++26.
 - **Graduation to preview**: every tier-1 row builds and tests it.
 
 ## meng.particles
@@ -16,8 +17,9 @@ Packages: `omui.reflect` · [README](../../modules/projects/omui/reflect/README.
 Packages: `meng.particles` · [README](../../modules/projects/meng/kernel/particles/README.md)
 
 - **Target**: flying matter (sparks, drops, grit) under the standard laws, on the CPU reference and, bit for bit where it holds authority, on the GPU (D-184).
-- **Now**: CPU: gravity, drag, collision against triangles, ageing; each particle an instance of matter beside its neighbours and the air.
-- **Gap**: no GPU path; magnitudes not checked against hand physics; Glade its one consumer (Quay's fire is mrender.particle's, a picture).
+- **Now**: CPU: gravity, drag, collision against triangles, ageing; touching by position-based dynamics (sand heaps, water runs flat, oil comes up through water); each particle an instance of matter beside its neighbours and the air; an agent's subject under the matter contract's suite.
+- **Gap**: no GPU path; magnitudes not checked against hand physics; Glade the one work that uses it, beside meng.dynamics' `rigid3-scene` (Quay's fire is mrender.particle's, a picture).
+- **Limits**: one thread on the CPU; no curl noise or force fields; touching steps in substeps of at most a quarter of the smallest size.
 - **Graduation to preview**: a contract suite on every tier-1 row, a second consumer, the magnitudes within tolerance.
 
 ## meng.field
@@ -25,8 +27,9 @@ Packages: `meng.particles` · [README](../../modules/projects/meng/kernel/partic
 Packages: `meng.field` · [README](../../modules/projects/meng/kernel/field/README.md)
 
 - **Target**: the ambient carrier of matter — air, heat, wetness and wind — giving physical magnitudes under the same laws as the other carriers, on the CPU reference and the GPU.
-- **Now**: the sparse lattice of 8³ blocks, buoyancy, semi-Lagrangian advection, a fixed count of pressure iterations; Glade its one consumer.
+- **Now**: the sparse lattice of 8³ blocks, buoyancy, semi-Lagrangian advection, a fixed count of pressure iterations; Glade the one work that uses it, beside meng.dynamics' `rigid3-matter`.
 - **Gap**: no radiation (R11b's P1 channel); magnitudes not checked against hand physics; no GPU path.
+- **Limits**: a coarse grid (1 m cells); bodies do not block the wind; a cell is one instance of matter (its heat capacity not by its volume); the CPU only.
 - **Graduation to preview**: R11's magnitudes within tolerance, a contract suite run on every tier-1 row, a second consumer.
 
 ## gongfu
@@ -34,9 +37,9 @@ Packages: `meng.field` · [README](../../modules/projects/meng/kernel/field/READ
 Packages: `gongfu`, `gongfu.data`, `gongfu.present2d`, `gongfu.rules`, `gongfu.studio` · [README](../../modules/projects/gongfu/README.md)
 
 - **Target**: a fighting framework at the level of the best (side by side with Street Fighter 6 on hit feel, readability and rollback), characters as data.
-- **Now**: the core is deterministic in fixed point — 10,000 random-depth rollbacks byte-identical; characters compile from data with diagnostics at line and column; six fighters play in `showcase/fighting` from the keyboard or an agent; a match is a game of meng.runtime (`showcase/fighting/headless`), which an agent plays through on a person's tier.
+- **Now**: the core is deterministic in fixed point — 10,000 random-depth rollbacks byte-identical; characters compile from data with diagnostics at line and column; seven fighters play in `showcase/fighting` from the keyboard, a gamepad or an agent; a match is a game of meng.runtime (`showcase/fighting/headless`), which an agent plays through on a person's tier.
 - **Gap**: presentation (supers, hit impact, interface) is behind SF6 in the side-by-side; drawing is 2D only; agents as remote rollback opponents are not done.
-- **Limits**: one stage, 2D; no network transport (meng.net has none).
+- **Limits**: one playfield — a flat floor between two walls (`stage_width`), the work's six stages pictures over it — and 2D; no network transport (meng.net has none).
 - **Graduation to preview**: two characters play a whole match from the release's packages; an agent plays one at a person's tier; the match's contract runs green on every tier-1 row; the SF6 comparison at par on hit feel and readability.
 
 ## xtools
@@ -44,7 +47,7 @@ Packages: `gongfu`, `gongfu.data`, `gongfu.present2d`, `gongfu.rules`, `gongfu.s
 Packages: `xtools` · [README](../../modules/projects/xtools/README.md)
 
 - **Target**: (plan §4.5, RC3.10): the toolchain's whole is one entry and one workbench: each project's toolkit reached the same way alone or composed, and the cross-project tools (the inspector, Live Design's composition of the UI and animation adapters) here as compositions.
-- **Now**: the unified command and MCP server over five toolkits; the Inspector composed here; Live Design's composition: the interface's and hanim's design adapters in one workspace under one history, headless (`tests/workspace_test.cpp`, RC3.10's bar), each adapter and the composition passing the adapter's contract (mlibs.agent.sources@1).
+- **Now**: the unified command and MCP server over six toolkits; the Inspector composed here; Live Design's composition: the interface's and hanim's design adapters in one workspace under one history, headless (`tests/workspace_test.cpp`, RC3.10's bar), each adapter and the composition passing the adapter's contract (mlibs.agent.sources@1).
 - **Gap**: the workbench (an omui application composing the toolkits' panels and the workspace's history); the workspace reached through `xtools` as operations; the interface's live script sources (the player's) as an adapter beside the view documents'.
 - **Limits**: nothing of its own beyond the wiring: a toolkit not linked into it is not reachable through it.
 - **Graduation to preview**: the workbench and both compositions here, with a headless case that designs a UI and an animation in one workspace (RC3.10's bar).
@@ -64,8 +67,9 @@ Packages: `xtools.audition` · [README](../../modules/projects/xtools/audition/R
 Packages: `omui.showcase.fighting`, `omui.showcase.fighting.headless` · [README](../../showcase/fighting/README.md)
 
 - **Target**: a fighting game of top independent quality, side by side with Street Fighter 6 (2D against 3D the only allowance).
-- **Now**: six fighters, title and select screens, training mode with boxes and a frame meter; gongfu's deterministic rollback core underneath; the fight on its own at the runtime, played through by an agent on a person's tier (`headless`).
+- **Now**: seven fighters, title and select screens, six home stages, training mode with boxes and a frame meter; gongfu's deterministic rollback core underneath; the fight on its own at the runtime, played through by an agent on a person's tier (`headless`).
 - **Gap**: supers, hit impact and the interface fall short of SF6 in the side-by-side; the art pipeline covers Mo fully, the others in part.
+- **Limits**: gongfu's (one playfield, 2D; no play over a network); from the keyboard, a gamepad or an agent, two at one machine.
 - **Graduation to preview**: gongfu's graduation (its README), and the work's own: installed from the release and played for a match (a round is played headless now; the release's packages are RC3's), an agent that wins at a person's tier (one plays through now and loses to the computer), the SF6 table at par.
 
 ## Glade
@@ -85,6 +89,7 @@ Packages: `omui.showcase.swarm.headless`, `omui.showcase.swarm.window` · [READM
 - **Target**: a game an agent makes from one prompt on the engine, as good as one made by hand (T2.8).
 - **Now**: the rules, the runtime, the program over lines, and a window that draws the arena (`swarm::picture`) and is played by a person; the one-prompt run took 538 s and 55 turns.
 - **Gap**: no sound, one arena, no aiming with a gamepad's right stick (the gun keeps where the pointer last pointed); the prompt not yet run on another engine side by side.
+- **Limits**: one player; the arena drawn on the CPU from the state each frame.
 - **Graduation to preview**: sound from the game's events (as Kiln's), the gamepad's aim, and the side-by-side run.
 
 Generated by `omui-devtools docs` from the experimental packages' READMEs; do not edit.

@@ -101,6 +101,26 @@ UTest cases{"headless", [] {
         expect(h.settle() == 1) << "already settled: one frame";
     };
 
+    "another thread's work waited for with the clock held: what it posts runs, no frame, however long it takes"_test = [] {
+        Headless h(at(HeadlessLevel::layout));
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        const std::int64_t frame = h.frame_index();
+        std::atomic<bool> done{false};
+        std::jthread other([&] {
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            h.runtime().queue().post([&] { c.count.set(5); });  // the runtime's thread runs it (a script's change)
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+            done = true;
+        });
+        expect(h.wait([&] { return done.load(); }));
+        expect(eq(c.count.peek(), 5) && eq(h.frame_index(), frame) && h.now() == seconds(0)) << "the clock where it stood";
+        h.step();
+        expect(essence(h.tree()).find("main/label text '5 clicks'") != std::string::npos) << "the next frame shows it";
+        expect(!h.wait([] { return false; }, std::chrono::milliseconds(20))) << "never done: false once the limit passes";
+    };
+
     "a gamepad, injected: to the focus as the keyboard's keys go, its handlers by name, from its JSON form"_test = [] {
         Headless h(at(HeadlessLevel::layout));
         std::vector<std::string> got;

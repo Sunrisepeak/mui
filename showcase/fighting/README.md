@@ -1,8 +1,8 @@
 # 格斗游戏 — the fighting game
 
-`omui-fight` is gongfu's match (`modules/projects/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its working title is 拳意. It opens on a title and a select screen. Six fighters, chosen there or by the stage's `player1` and `player2` properties:
+`omui-fight` is gongfu's match (`modules/projects/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its working title is 拳意. It opens on a title and a select screen. Seven fighters, chosen there or by the stage's `player1` and `player2` properties:
 - Kata, the training fighter;
-- the five designed ([characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md), [characters design 2](../../.agents/docs/2026-10-28-gongfu-characters-2-design.md)): 墨 (Mo), the ink brush-staff fighter — keep-away with waves of ink and a long reach (her art generated and skinned on bones: the [art pipeline](../../.agents/docs/2026-10-29-fighting-art-pipeline-design.md)); 霓 (Ni), the street fighter — rushdown; 璃 (Li), glass — set-ups with panes (rebuilt on generated art like 墨: a glass artisan with knife-hands, palms and glass bracers); 岳 (Yue), the giant — throws and armour; 刻 (Ke), time — rewinds and a clone.
+- the six designed ([characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md), [characters design 2](../../.agents/docs/2026-10-28-gongfu-characters-2-design.md)): 墨 (Mo), the ink brush-staff fighter — keep-away with waves of ink and a long reach (her art generated and skinned on bones: the [art pipeline](../../.agents/docs/2026-10-29-fighting-art-pipeline-design.md)); 霓 (Ni), the street fighter — rushdown; 璃 (Li), glass — set-ups with panes (rebuilt on generated art like 墨: a glass artisan with knife-hands, palms and glass bracers); 岳 (Yue), the giant — throws and armour; 刻 (Ke), time — rewinds and a clone; 坤 (Kun), the cold idol — Bajiquan's close bursts on a dancer's footwork, a ball only in his specials and supers.
 
 How it was made, layer by layer, and what making it taught: [dev story](dev-story.md). The bar it is held to: [quality design](../../.agents/docs/2026-10-29-fighting-indie-quality-design.md).
 
@@ -100,6 +100,7 @@ The feature `art-later` (off by default) matters only on the Web. There the figh
 ## Experimental (release 0.1, D-199)
 
 - **Target**: a fighting game of top independent quality, side by side with Street Fighter 6 (2D against 3D the only allowance).
-- **Now**: six fighters, title and select screens, training mode with boxes and a frame meter; gongfu's deterministic rollback core underneath; the fight on its own at the runtime, played through by an agent on a person's tier (`headless`).
+- **Now**: seven fighters, title and select screens, six home stages, training mode with boxes and a frame meter; gongfu's deterministic rollback core underneath; the fight on its own at the runtime, played through by an agent on a person's tier (`headless`).
 - **Gap**: supers, hit impact and the interface fall short of SF6 in the side-by-side; the art pipeline covers Mo fully, the others in part.
+- **Limits**: gongfu's (one playfield, 2D; no play over a network); from the keyboard, a gamepad or an agent, two at one machine.
 - **Graduation to preview**: gongfu's graduation (its README), and the work's own: installed from the release and played for a match (a round is played headless now; the release's packages are RC3's), an agent that wins at a person's tier (one plays through now and loses to the computer), the SF6 table at par.

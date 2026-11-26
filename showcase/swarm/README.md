@@ -55,4 +55,5 @@ Noted while making it; each is substituted inside this member, not copied from e
 - **Target**: a game an agent makes from one prompt on the engine, as good as one made by hand (T2.8).
 - **Now**: the rules, the runtime, the program over lines, and a window that draws the arena (`swarm::picture`) and is played by a person; the one-prompt run took 538 s and 55 turns.
 - **Gap**: no sound, one arena, no aiming with a gamepad's right stick (the gun keeps where the pointer last pointed); the prompt not yet run on another engine side by side.
+- **Limits**: one player; the arena drawn on the CPU from the state each frame.
 - **Graduation to preview**: sound from the game's events (as Kiln's), the gamepad's aim, and the side-by-side run.

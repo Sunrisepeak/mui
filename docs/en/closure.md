@@ -22,6 +22,6 @@ Each project's closure checklist (release plan §5.1, gate 3): stable and previe
 - **omui**, 8 side by side: no claim in the ledger dated from 2026-11-15
 - **omui**, 9 independent use: probe features-consumer builds from paths; from published packages once RC3.1 publishes them
 - **meng**, 8 side by side: no claim in the ledger dated from 2026-11-15
-- **meng**, 9 independent use: no out-of-tree probe (tools/ci/*/mcpp.toml.in)
+- **meng**, 9 independent use: probe meng-consumer builds from paths; from published packages once RC3.1 publishes them
 - **xtools**, 8 side by side: no claim in the ledger dated from 2026-11-15
 - **xtools**, 9 independent use: no out-of-tree probe (tools/ci/*/mcpp.toml.in)

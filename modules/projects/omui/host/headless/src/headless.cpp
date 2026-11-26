@@ -239,6 +239,16 @@ FrameOutput Headless::step(std::vector<InputEvent> events, std::optional<seconds
     return out;
 }
 
+bool Headless::wait(const std::function<bool()>& done, std::chrono::milliseconds limit) {
+    const auto deadline = std::chrono::steady_clock::now() + limit;
+    while (!done()) {
+        if (std::chrono::steady_clock::now() >= deadline) return false;
+        (void)impl_->runtime->queue().drain();  // what the other thread asks of this one; no frame, so nothing moves
+        std::this_thread::sleep_for(std::chrono::microseconds(250));
+    }
+    return true;
+}
+
 FrameOutput Headless::advance(seconds duration) {
     const seconds end = now() + duration;
     FrameOutput out = step();

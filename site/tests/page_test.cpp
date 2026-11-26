@@ -69,11 +69,10 @@ static UTest cases{"site", [] {
         player::Player page(host.runtime(), *manifest, {lang::js::typescript()});
         const auto started = page.start();
         expect(fatal(started.has_value())) << (started ? std::string() : started.error());
+        // Its scripts run on a thread of their own: waited for with the clock held, so how fast that thread is never
+        // shows in a picture (the waiting circle's breath at the same phase in every run, red 159).
         const auto settle = [&] {
-            for (int turn = 0; turn < 4000 && !page.idle(); ++turn) {
-                host.step();
-                std::this_thread::sleep_for(std::chrono::microseconds(250));
-            }
+            expect(host.wait([&] { return page.idle(); })) << "its scripts done";
             host.settle();
         };
         const auto set = [&](std::string_view state) {

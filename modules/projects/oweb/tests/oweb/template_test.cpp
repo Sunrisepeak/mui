@@ -190,6 +190,8 @@ static UTest cases{"oweb.template", [] {
                 if (!plain || !page) continue;
                 const auto parts = oweb::shell::read(projection_of(page->html), document_of(page->html));
                 expect(parts.has_value()) << route.path << ": " << (parts ? "" : parts.error());
+                // A picture is as large as its file says, in the page as it looks: read as the frame was drawn.
+                if (look && route.path == "/ui/") expect(page->html.contains("width:100px;height:auto;aspect-ratio:100/100;")) << "the mark's own size";
                 if (!parts) continue;
                 expect(parts->html && !parts->document.empty());
                 Headless host({.level = HeadlessLevel::layout, .size = {960, 1200}});

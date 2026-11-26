@@ -416,6 +416,7 @@ struct Runtime::Impl {
     bool                                   complete_frames = false;
     bool                                   draws_unseen = false;  // nothing left out of a frame for being out of sight
     bool                                   on_device = false;
+    PictureReader                          picture_reader;  // the host's own way to a picture (set_picture_reader)
     DrivenLanes                            anims;
     mlibs::layout::Engine                        layout;
     Verbs                                 verbs;

@@ -40,6 +40,7 @@ mlibs.agent    = { path = "../../base/agent" }
 mlibs.delivery = { path = "../../base/delivery" }  # the delivery manifest and its budgets (ST6)
 mlibs.control.gen = { path = "../../base/control/gen" }  # a catalog's reference page, generated at each build (ST3)
 mlibs.json     = { path = "../../base/json" }
+mlibs.image    = { path = "../../base/image" }  # a page's pictures read as its frame is drawn: their sizes are the page's
 mlibs.utils    = { path = "../../base/utils" }  # mlibs.names: the nearest field for a mistyped one
 mlibs.ts       = { path = "../../base/ts" }    # oweb.config.ts evaluated to its snapshot
 mlibs.xdef     = { path = "../../base/xdef" }  # a snapshot's format checked before it is read

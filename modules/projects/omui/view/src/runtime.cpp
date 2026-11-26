@@ -543,6 +543,13 @@ double Runtime::display_hz() const noexcept { return impl_->display_hz; }
 bool Runtime::deterministic() const { return impl_->clock.kind() != hanim::ClockKind::interactive; }
 bool Runtime::complete_frames() const { return impl_->complete_frames; }
 bool Runtime::on_device() const { return impl_->on_device; }
+
+void Runtime::set_picture_reader(PictureReader reader) { impl_->picture_reader = std::move(reader); }
+
+std::optional<std::expected<Picture, std::string>> Runtime::read_picture(std::string_view source) {
+    if (!impl_->picture_reader) return std::nullopt;
+    return impl_->picture_reader(source);
+}
 void Runtime::set_on_device(bool on) {
     if (impl_->on_device == on) return;
     impl_->on_device = on;

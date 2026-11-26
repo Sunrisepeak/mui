@@ -176,6 +176,12 @@ namespace omui {
     Value args;
     std::function<void()> run, again;
   };
+  struct Picture {
+    int width = 0, height = 0;
+    std::vector<std::uint8_t> rgba;
+    bool premultiplied = false;
+  };
+  using PictureReader = std::function<std::optional<std::expected<Picture, std::string>>(std::string_view source)>;
   class Services;
   struct ActionEntry {
     std::string path;
@@ -264,6 +270,7 @@ namespace omui {
     virtual void release_frames(std::uint64_t token) noexcept;
     [[nodiscard]] virtual mlibs::text::FontCollection& fonts() = 0;
     [[nodiscard]] virtual mrender::ImageStore& images() = 0;
+    [[nodiscard]] virtual std::optional<std::expected<Picture, std::string>> read_picture(std::string_view source);
     [[nodiscard]] virtual hanim::seconds now() const = 0;
     [[nodiscard]] virtual const ShownFrames& shown_frames() const = 0;
     [[nodiscard]] virtual std::string_view renderer() const;
@@ -1243,6 +1250,8 @@ namespace omui {
     [[nodiscard]] bool deterministic() const override;
     [[nodiscard]] bool complete_frames() const override;
     void set_on_device(bool on);
+    void set_picture_reader(PictureReader reader);
+    [[nodiscard]] std::optional<std::expected<Picture, std::string>> read_picture(std::string_view source) override;
     [[nodiscard]] bool on_device() const override;
     [[nodiscard]] FrameDemandLease demand_frames(FrameDemand d) override;
     void release_frames(std::uint64_t token) noexcept override;

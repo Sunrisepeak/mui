@@ -32,6 +32,8 @@ on:
       - 'modules/projects/omui/host/web/src/**'
       - 'modules/projects/omui/tools/gen/src/wasm_size.cpp'
       - 'modules/base/utils/src/http/**'
+      - 'modules/projects/oweb/**'
+      - 'modules/projects/omui/semantic/src/look.*'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -97,6 +99,17 @@ jobs:
         # 148 closes.
         continue-on-error: true
         run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site delivery --page target/site
+      - name: A site of documents with its engine (ST2) — each page's words where its program draws them
+        # The documents template built with the program its pages load (oweb.reader, packed as a world): the page a
+        # browser reads before the program and the page the program draws, word by word (UI5's bound: no word to
+        # another line, at most 2 px for nearly all, 1 px for half), at three widths, at the top and scrolled.
+        run: |
+          (cd modules/projects/oweb/reader && mcpp pack --target wasm32-emscripten --profile release --pkg-format dist-toy)
+          world="$PWD/$(dirname "$(ls -t target/.build-mcpp/out/*/oweb.reader/toy/oweb-reader/index.html | head -1)")"
+          mcpp run -p modules/projects/oweb --profile ci -- site.build --site modules/projects/oweb/templates/docs --out target/oweb-docs --engine "$world"
+          for route in /start/ /agent/ /ui/; do
+            mcpp run omui-devtools -p tools/devtools --profile ci -- check takeover --page target/oweb-docs --path "$route"
+          done
       - name: Keep the site's checks and pictures
         if: always()
         uses: actions/upload-artifact@v4
@@ -109,6 +122,7 @@ jobs:
             target/site-split/first.owners.md
             target/site-pictures/
             target/dist-toy-loading.report.xdef.json
+            target/takeover.report.xdef.json
           if-no-files-found: ignore
       - name: Keep the site the checks ran on, when they failed — its split and profiles, to run here as it ran there
         if: failure()

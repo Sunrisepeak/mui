@@ -388,6 +388,33 @@ struct ImageNode {
             }
             return;
         }
+        // The host's own, where it has the picture (a page's, a site's): its pixels as they are.
+        if (auto own = services->read_picture(source)) {
+            if (!*own) {
+                services->emit(node, "failed", Value{}.set("reason", own->error()));
+                return;
+            }
+            Picture& given = **own;
+            const std::size_t count = static_cast<std::size_t>(std::max(given.width, 0)) * static_cast<std::size_t>(std::max(given.height, 0));
+            if (count == 0 || given.rgba.size() < count * 4) {
+                services->emit(node, "failed", Value{}.set("reason", std::format("the picture {} has no pixels", source)));
+                return;
+            }
+            if (!given.premultiplied)
+                for (std::size_t at = 0; at < count; ++at) {
+                    const unsigned alpha = given.rgba[at * 4 + 3];
+                    for (std::size_t channel = 0; channel < 3; ++channel)
+                        given.rgba[at * 4 + channel] = static_cast<std::uint8_t>((given.rgba[at * 4 + channel] * alpha + 127) / 255);
+                }
+            std::vector<mrender::raster::Rgba8> px(count);
+            std::memcpy(px.data(), given.rgba.data(), count * 4);
+            width = given.width;
+            height = given.height;
+            ref = services->images().add(width, height, std::move(px));
+            owned = true;
+            services->emit(node, "loaded", Value{}.set("width", width).set("height", height));
+            return;
+        }
         // Read by the decoder the program installed (mlibs.image's slot): a terminal shows no pictures, and says so.
         const mlibs::image::Decoder* decoder = mlibs::image::decoder();
         if (!decoder || !decoder->load) {

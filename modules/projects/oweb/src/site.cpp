@@ -4,6 +4,7 @@ import std;
 import mcpplibs.os;
 import mlibs.control.gen;
 import mlibs.delivery;
+import mlibs.image;
 import mlibs.markdown;
 import omui.core;
 import omui.view;
@@ -168,6 +169,35 @@ std::expected<std::string, std::string> from_world(std::string page, const Fille
     return page;
 }
 
+// A drawing's own size as its file says it (SVG): its width and height where they are lengths in pixels, else its
+// view box's, else what a browser gives one that says neither.
+std::pair<int, int> drawing_size(std::string_view svg) {
+    const std::size_t open = svg.find("<svg");
+    const std::string_view tag = open == std::string_view::npos ? std::string_view{} : svg.substr(open, svg.find('>', open) - open);
+    const auto stated = [&](std::string_view name) -> std::string_view {
+        const std::string key = std::format(" {}=\"", name);
+        const std::size_t at = tag.find(key);
+        return at == std::string_view::npos ? std::string_view{} : tag.substr(at + key.size(), tag.find('"', at + key.size()) - at - key.size());
+    };
+    const auto pixels = [](std::string_view text) -> std::optional<float> {
+        float value = 0;
+        const auto read = std::from_chars(text.data(), text.data() + text.size(), value);
+        const std::string_view unit(read.ptr, static_cast<std::size_t>(text.data() + text.size() - read.ptr));
+        return read.ec == std::errc{} && value > 0 && (unit.empty() || unit == "px") ? std::optional(value) : std::nullopt;
+    };
+    std::array<float, 4> box{};
+    std::size_t count = 0;
+    for (const auto part : std::views::split(stated("viewBox"), ' '))
+        if (!std::ranges::empty(part) && count < 4) std::from_chars(std::ranges::data(part), std::ranges::data(part) + std::ranges::size(part), box[count++]);
+    const auto width = pixels(stated("width")), height = pixels(stated("height"));
+    const bool viewed = count == 4 && box[2] > 0 && box[3] > 0;
+    if (width && height) return {static_cast<int>(std::lround(*width)), static_cast<int>(std::lround(*height))};
+    if (width && viewed) return {static_cast<int>(std::lround(*width)), static_cast<int>(std::lround(*width * box[3] / box[2]))};
+    if (height && viewed) return {static_cast<int>(std::lround(*height * box[2] / box[3])), static_cast<int>(std::lround(*height))};
+    if (viewed) return {static_cast<int>(std::lround(box[2])), static_cast<int>(std::lround(box[3]))};
+    return {300, 150};
+}
+
 struct Evaluated {
     std::vector<Node> nodes;  // the whole page's, pre-order
     std::size_t       document = 0, document_end = 0;  // the document's subtree in them
@@ -319,6 +349,27 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         parts.turn = named_in(route.language).turn;
     }
     parts.document = std::string(page_text);
+    // The page's pictures: its own files, found from where the page is written. What the frame needs of one is its
+    // size (the page shows the file itself; with a program, the program takes the pixels the browser decoded): a
+    // drawing's from its file, without its pixels.
+    host.runtime().set_picture_reader([&](std::string_view source) -> std::optional<std::expected<omui::Picture, std::string>> {
+        if (source.contains("://") || source.starts_with("data:") || source.starts_with("image:")) return std::nullopt;
+        const std::filesystem::path from = (site / mcpplibs::os::fs::from_utf8(route.source)).parent_path();
+        const std::filesystem::path file = (source.starts_with('/') ? site / "pages" / mcpplibs::os::fs::from_utf8(source.substr(1)) : from / mcpplibs::os::fs::from_utf8(source)).lexically_normal();
+        std::error_code missing;
+        if (!std::filesystem::is_regular_file(file, missing)) return std::unexpected(std::format("{} is not there", utf8(file)));
+        if (file.extension() == ".svg") {
+            const auto text = read(file);
+            if (!text) return std::unexpected(text.error());
+            const auto [width, height] = drawing_size(*text);
+            return omui::Picture{width, height, std::vector<std::uint8_t>(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4, 0), true};
+        }
+        const mlibs::image::Decoder* decoder = mlibs::image::decoder();
+        if (!decoder || !decoder->load) return std::nullopt;
+        auto pixels = decoder->load(file);
+        if (!pixels) return std::unexpected(pixels.error());
+        return omui::Picture{pixels->width, pixels->height, std::move(pixels->rgba), pixels->alpha == mlibs::image::Alpha::premultiplied};
+    });
     host.mount(shell::mounted_at, shell::page(std::move(parts), {.scrolls = engine}));
     host.settle();
 

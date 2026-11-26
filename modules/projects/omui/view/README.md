@@ -43,7 +43,9 @@ The retained and immediate view runtime (plan §3–§5):
   lease is held and not drawn, what is placed against it placed by layout);
   pixel effects by name are mrender's
   (`mrender.vector.effects`), an image's file is read by mlibs.image's decoder
-  (`mlibs.image.decoder`). omui::run installs all three in every world that
+  (`mlibs.image.decoder`) — unless the host answers for the picture
+  (`Runtime::set_picture_reader`: a Web page's own `<img>`, decoded by its
+  browser; a site's files as its pages are written), which is asked first. omui::run installs all three in every world that
   draws pixels (omui.sdk's features `morphs`, `effects`, `images`), the
   headless host where none is. Absent is unsupported: a change shows at once,
   a node's effect is left out (both said once in the log, not on a terminal's

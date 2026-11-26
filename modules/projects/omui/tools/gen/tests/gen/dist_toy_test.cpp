@@ -250,6 +250,7 @@ static UTest cases{"gen.dist_toy", [] {
         expect(page.contains("await fetch(omuiRoot + a.url, {") && page.contains("new URL(omuiRoot + omuiLauncher, document.URL)")) << "every file of the world from its directory";
         expect(page.contains("function omuiArguments() {\n  return [];") && !page.contains("location.reload(); });")) << "what follows # is a place in the document: no flag, no reload";
         expect(page.contains("window.omuiFontLanguage = document.documentElement.lang;")) << "a language's font by the document's language";
+        expect(page.contains("document.querySelectorAll('[data-omui=static] img')") && page.contains("if (!left) return take();")) << "the program is taken once the document's pictures are there";
         expect(!page.contains("data-omui=\"faces\"") && !page.contains("user-scalable=no")) << "a page's look names its own faces; a reader may zoom a document";
         // One page of a site: made by replacing text, and nothing else of the world changes.
         std::string one = page;

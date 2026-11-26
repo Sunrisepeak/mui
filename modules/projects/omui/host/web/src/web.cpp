@@ -142,6 +142,14 @@ struct Web::Impl {
         runtime->set_device_tier(mlibs::pipeline::Tier::t2, "the Web");
         if (opened) runtime->set_governor(true);
         if (!opened) return;
+        // The pictures of the page's own document, decoded by its browser, before any file's (D-284: a written
+        // page is its own data — its program fetches no picture of its own).
+        runtime->set_picture_reader([](std::string_view source) -> std::optional<std::expected<Picture, std::string>> {
+            auto given = page::picture(source);
+            if (!given) return std::nullopt;
+            if (!*given) return std::unexpected(given->error());
+            return Picture{(*given)->width, (*given)->height, std::move((*given)->rgba), false};
+        });
         runtime->set_clipboard([] { return page::clipboard(); }, [](std::string_view t) { page::set_clipboard(t); });
         runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });
         runtime->set_file_offer([](const Runtime::OfferedFile& file) { return page::offer_file(file.name, file.type, file.bytes); });

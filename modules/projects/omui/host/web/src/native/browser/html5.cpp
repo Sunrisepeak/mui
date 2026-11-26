@@ -49,6 +49,7 @@ void omui_web_first_frame();
 void omui_web_reading();
 char* omui_web_projection();
 char* omui_web_projected(const char* id);
+std::uint8_t* omui_web_picture(const char* source, int* width, int* height);
 void omui_web_want_fonts(int code_point);
 void omui_web_want_face(const char* family, int code_point);
 }
@@ -413,6 +414,19 @@ void first_frame() { omui_web_first_frame(); }
 void reading() { omui_web_reading(); }
 std::string projection() { return taken(omui_web_projection()); }
 std::string projected(std::string_view id) { return taken(omui_web_projected(std::string(id).c_str())); }
+
+std::optional<std::expected<Pixels, std::string>> picture(std::string_view source) {
+    int width = 0, height = 0;
+    std::uint8_t* bytes = omui_web_picture(std::string(source).c_str(), &width, &height);
+    if (width < 0) return std::nullopt;  // not a picture of the page's document
+    if (!bytes || width == 0 || height == 0) {
+        std::free(bytes);
+        return std::unexpected(std::format("the page's picture {} did not load", source));
+    }
+    Pixels pixels{width, height, std::vector<std::uint8_t>(bytes, bytes + static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4)};
+    std::free(bytes);
+    return pixels;
+}
 void want_fonts(std::optional<char32_t> code_point) { omui_web_want_fonts(code_point ? static_cast<int>(*code_point) : -1); }
 void want_face(std::string_view family, char32_t code_point) { omui_web_want_face(std::string(family).c_str(), static_cast<int>(code_point)); }
 

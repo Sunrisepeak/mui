@@ -130,6 +130,16 @@ struct Inverse {
     std::function<void()> run, again;
 };
 
+// A picture as a host hands it over: 8-bit RGBA, rows top to bottom.
+struct Picture {
+    int                       width = 0, height = 0;
+    std::vector<std::uint8_t> rgba;                  // width × height × 4
+    bool                      premultiplied = false;  // by its alpha already
+};
+// How a picture's source becomes pixels where a host has them and no file does: a page's own pictures, which its
+// browser decoded; a site's, found from the page being written. Nothing: not this reader's — a file's decoder reads it.
+using PictureReader = std::function<std::optional<std::expected<Picture, std::string>>(std::string_view source)>;
+
 class Services;
 
 // One performed action, for audit (openas: who did what, with what result):
@@ -315,6 +325,12 @@ public:
     virtual void release_frames(std::uint64_t token) noexcept { (void)token; }
     [[nodiscard]] virtual mlibs::text::FontCollection& fonts() = 0;
     [[nodiscard]] virtual mrender::ImageStore& images() = 0;
+    // A picture's source as pixels where the host answers for it (Runtime::set_picture_reader): nothing where it
+    // does not — the source is a file then, read by the decoder installed (mlibs.image's slot).
+    [[nodiscard]] virtual std::optional<std::expected<Picture, std::string>> read_picture(std::string_view source) {
+        (void)source;
+        return std::nullopt;
+    }
     [[nodiscard]] virtual hanim::seconds now() const = 0;
     // The frames the host showed, and who draws them ("cpu", "webgpu",
     // "webgl", "vulkan"…; empty: not said): what a frame meter shows.

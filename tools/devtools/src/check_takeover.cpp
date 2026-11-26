@@ -141,8 +141,9 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
         }
         const auto bytes = mcpplibs::os::fs::read(directory / mcpplibs::os::fs::from_utf8(name));
         if (!bytes) return {.status = 404, .body = "", .type = ""};
-        const std::string_view type = name.ends_with(".html") ? "text/html; charset=utf-8" : name.ends_with(".js") ? "text/javascript" : name.ends_with(".wasm") ? "application/wasm"
-                                      : name.ends_with(".ttf") ? "font/ttf" : name.ends_with(".json") ? "application/json" : "application/octet-stream";
+        // A picture said to be what it is: one served as bytes of no kind is one the browser does not draw.
+        const std::size_t dot = name.rfind('.');
+        const std::string_view type = mlibs::http::media_type(dot == std::string::npos ? std::string_view{} : std::string_view(name).substr(dot));
         return {.status = 200, .body = mlibs::delivery::gzip(*bytes, 6), .type = std::string(type), .headers = {{"Content-Encoding", "gzip"}, {"Cache-Control", "no-store"}}};
     });
     if (!server) return failed(server.error());

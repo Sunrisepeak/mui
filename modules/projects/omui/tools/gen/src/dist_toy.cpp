@@ -751,6 +751,15 @@ document.getElementById('canvas').addEventListener('pointerdown', function () { 
     swap("  omuiStatus.style.display = 'none';\n  function start() {", "  if (!eager) omuiStatus.style.display = 'none';\n  function start() {", loader);
     swap("{value: idle ? 'idle' : 'interaction'}", "{value: omuiTakes}", loader);
     swap("  omuiPublish('waiting');\n})();", "  if (eager) start(); else omuiPublish('waiting');\n})();", loader);
+    // The program draws the document's pictures from the page's own (its browser decoded them): it is taken once
+    // they are there, or known not to come.
+    swap("    var script = document.createElement('script');\n    script.src = launcher;\n    document.body.appendChild(script);\n",
+         "    var take = function () {\n      var script = document.createElement('script');\n      script.src = launcher;\n      document.body.appendChild(script);\n    };\n"
+         "    var coming = [].filter.call(document.querySelectorAll('[data-omui=static] img'), function (picture) { return !picture.complete; });\n"
+         "    var left = coming.length;\n    if (!left) return take();\n"
+         "    coming.forEach(function (picture) {\n      var arrived = function () { if (--left === 0) take(); };\n"
+         "      picture.addEventListener('load', arrived);\n      picture.addEventListener('error', arrived);\n    });\n",
+         loader);
     swap("var response = await fetch(a.url, {", "var response = await fetch(omuiRoot + a.url, {");
     swap("  var launcher = new URL(omuiLauncher, document.URL).href;", "  var launcher = new URL(omuiRoot + omuiLauncher, document.URL).href;");
     swap("function omuiArguments() {\n", "function omuiArguments() {\n  return [];\n");

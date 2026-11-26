@@ -1249,6 +1249,31 @@ addToLibrary({
     var f = window.omuiWantFace;
     if (typeof f === 'function') f(UTF8ToString(family), codePoint);
   },
+  // A picture of the page's own document, by its source as written: its pixels as the browser decoded them (RGBA,
+  // straight alpha, its natural size), in memory the caller frees. Width -1: the document has no such picture;
+  // nothing with a width of 0: it has one that did not load.
+  omui_web_picture__deps: ['$UTF8ToString', 'malloc'],
+  omui_web_picture: function (source, width, height) {
+    var wanted = UTF8ToString(source), found = null;
+    var page = document.querySelector('[data-omui="static"]'), all = page && page.querySelectorAll ? page.querySelectorAll('img') : [];
+    for (var i = 0; i < all.length && !found; i++) if (all[i].getAttribute('src') === wanted) found = all[i];
+    HEAP32[width >> 2] = found ? 0 : -1;
+    HEAP32[height >> 2] = 0;
+    if (!found || !found.complete || !(found.naturalWidth > 0) || !(found.naturalHeight > 0)) return 0;
+    try {
+      var w = found.naturalWidth, h = found.naturalHeight, canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var context = canvas.getContext('2d');
+      context.drawImage(found, 0, 0, w, h);
+      var data = context.getImageData(0, 0, w, h).data, at = _malloc(data.length);
+      HEAPU8.set(data, at);
+      HEAP32[width >> 2] = w;
+      HEAP32[height >> 2] = h;
+      return at;
+    } catch (e) {
+      return 0;  // another origin's picture: its pixels are not the page's to read
+    }
+  },
   omui_web_projection__deps: ['$omuiPage', '$stringToNewUTF8'],
   omui_web_projection: function () { return stringToNewUTF8(omuiPage.projection()); },
   omui_web_projected__deps: ['$omuiPage', '$stringToNewUTF8', '$UTF8ToString'],

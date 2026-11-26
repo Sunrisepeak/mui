@@ -103,6 +103,14 @@ void reading();
 // before the first frame (the layer takes the elements over then); empty where there is no page or no document.
 [[nodiscard]] std::string projection();
 [[nodiscard]] std::string projected(std::string_view id);
+// A picture of the page's own document, as its browser decoded it: the `<img>` whose source is `source` as written,
+// straight-alpha RGBA at its natural size. Nothing: the page's document has no such picture (it is a file's then);
+// an error: it has one that did not load.
+struct Pixels {
+    int                       width = 0, height = 0;
+    std::vector<std::uint8_t> rgba;
+};
+[[nodiscard]] std::optional<std::expected<Pixels, std::string>> picture(std::string_view source);
 // The program needs a face the page deferred until asked (another
 // language's): one that draws `code_point`, or every one (none) — the page's
 // hook (window.omuiWantFonts); they arrive as later fonts do.

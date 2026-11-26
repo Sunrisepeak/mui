@@ -44,6 +44,7 @@ void first_frame() {}
 void reading() {}
 std::string projection() { return {}; }
 std::string projected(std::string_view) { return {}; }
+std::optional<std::expected<Pixels, std::string>> picture(std::string_view) { return std::nullopt; }
 void want_fonts(std::optional<char32_t>) {}
 void want_face(std::string_view, char32_t) {}
 

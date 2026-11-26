@@ -300,7 +300,9 @@ Element element(std::shared_ptr<Data> data, std::string id) {
                 stated.set("source", Value(written.href));
                 if (!written.title.empty()) stated.set("title", Value(written.title));
                 e.prop("properties", Source{std::move(stated), {}, {}});
+                // Its own size, narrowed to the column where it is wider: a small mark is not drawn the column wide.
                 e.prop("max_width", Source{Value("100%"), {}, {}});
+                e.prop("align_self", Source{Value("start"), {}, {}});
                 return e;
             }
             [[fallthrough]];

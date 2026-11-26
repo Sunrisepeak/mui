@@ -254,15 +254,22 @@ namespace omui::agent {
     void (*stop)(Endpoint& endpoint) = nullptr;
     std::size_t (*pump)(Endpoint& endpoint) = nullptr;
     std::optional<AgentInput> (*take_input)(Endpoint& endpoint) = nullptr;
-    std::expected<VectorCapture, ViewFailure> (*vector_capture)(const Runtime& runtime, const mrender::Resources& resources, Rect region, float scale, std::optional<Color> background) = nullptr;
-    std::expected<std::vector<std::uint8_t>, std::string> (*png)(const mlibs::image::View& pixels) = nullptr;
     TaskBroker* (*tasks)(Runtime& runtime) = nullptr;
     void (*end_tasks)(TaskBroker* tasks) noexcept = nullptr;
     std::string (*tree_hash)(semantic::Tree& tree) = nullptr;
-    std::expected<std::string, AgentFailure> (*pixels_hash)(std::span<const std::uint8_t> png) = nullptr;
   };
   inline constexpr mlibs::compose::Slot<EndpointService> endpoint_slot{…};
+  struct CaptureService {
+    std::string_view name;
+    std::expected<VectorCapture, ViewFailure> (*vector_capture)(const Runtime& runtime, const mrender::Resources& resources, Rect region, float scale, std::optional<Color> background) = nullptr;
+    std::expected<std::vector<std::uint8_t>, std::string> (*png)(const mlibs::image::View& pixels) = nullptr;
+    std::expected<mlibs::image::Image, std::string> (*decode)(std::span<const std::uint8_t> png) = nullptr;
+    std::expected<std::string, AgentFailure> (*pixels_hash)(std::span<const std::uint8_t> png) = nullptr;
+  };
+  inline constexpr mlibs::compose::Slot<CaptureService> captures_slot{…};
   void install();
+  void install_endpoint();
+  [[nodiscard]] const CaptureService* captures() noexcept;
   class Served {
     Served() = default;
     Served(const EndpointService& service, Runtime& runtime, EndpointOptions options) : service_(&service), endpoint_(service.make(runtime, std::move(options)));

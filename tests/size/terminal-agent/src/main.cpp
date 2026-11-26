@@ -8,7 +8,7 @@ import omui.ui.base;
 using namespace omui;
 
 int main() {
-    omui::agent::install();  // the endpoint: this program is its root
+    omui::agent::install_endpoint();  // the endpoint (a terminal captures no pixels): this program is its root
     const Signal<int> count = signal(0);
     Terminal terminal({.app = "omui-size-terminal-agent"});
     terminal.mount("main", column({.padding = 16, .gap = 16}, {

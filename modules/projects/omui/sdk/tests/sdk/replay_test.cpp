@@ -48,6 +48,8 @@ static UTest cases{"sdk.replay", [] {
         live.settle();
         expect(eq(live_count.peek(), std::int64_t{2}));
 
+        // This test makes its protocol itself: it installs the captures a recording's pixels are read by, as a root does.
+        agent::install();
         agent::Protocol protocol(live.runtime(), {.app = live_app.id, .capture = live.capture()});
         std::vector<Value> answer;
         // The person's own recording, shared: outside development they say yes (W12).

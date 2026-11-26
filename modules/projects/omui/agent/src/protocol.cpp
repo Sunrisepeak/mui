@@ -687,9 +687,10 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         scenario.set("app", options_.app);
         Value expect;
         expect.set("tree", tree_hash(tree_));
-        if (options_.capture)
+        // The pixels' hash where the program has captures (a terminal's has none: the tree alone).
+        if (const CaptureService* pictures = captures(); options_.capture && pictures)
             if (auto png = options_.capture(Rect{0, 0, runtime_.size().width, runtime_.size().height}))
-                if (auto hash = pixels_hash(*png)) expect.set("pixels", *hash);
+                if (auto hash = pictures->pixels_hash(*png)) expect.set("pixels", *hash);
         scenario.set("expect", std::move(expect));
         return e.data(std::move(scenario)).result(spec::exit_code::success);
     }
@@ -698,12 +699,14 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         // semantic changes (the reloader's), where the pixels changed (that region before and after) and the
         // motion it started, sampled over time with the clock held.
         const bool last = req.get("last") && req.get("last")->as_bool();
-        const bool pictures = static_cast<bool>(options_.capture) && !last && !(req.get("pictures") && !req.get("pictures")->as_bool());
+        // Pictures where the program has captures to read them with (a terminal's has none: the semantic changes alone).
+        const CaptureService* coder = captures();
+        const bool pictures = static_cast<bool>(options_.capture) && coder && !last && !(req.get("pictures") && !req.get("pictures")->as_bool());
         const Rect window{0, 0, runtime_.size().width, runtime_.size().height};
         mlibs::image::Image before;
         if (pictures)
             if (auto png = options_.capture(window))
-                if (auto decoded = mlibs::image::decode_png(*png)) before = std::move(*decoded);
+                if (auto decoded = coder->decode(*png)) before = std::move(*decoded);
         auto answer = runtime_.reload_sources(req);
         if (!answer) return failed(e, {answer.error().kind(), answer.error().message, std::string(answer.error().way())});
         const Value* reloaded = answer->get("reloaded");
@@ -1304,12 +1307,12 @@ std::optional<std::array<int, 4>> differing(const mlibs::image::Image& one, cons
     return std::array<int, 4>{left, top, right - left + 1, bottom - top + 1};
 }
 
-// A region of a picture as PNG, base64 (what a capture answers).
-Value region_png(const mlibs::image::Image& picture, const std::array<int, 4>& region) {
+// A region of a picture as PNG, base64 (what a capture answers), by the program's captures.
+Value region_png(const CaptureService& coder, const mlibs::image::Image& picture, const std::array<int, 4>& region) {
     const auto [x, y, width, height] = region;
     const mlibs::image::View view{.rgba = picture.rgba.data() + (static_cast<std::size_t>(y) * picture.width + x) * 4,
                                   .width = width, .height = height, .stride = picture.width * 4};
-    auto png = mlibs::image::encode_png(view);
+    auto png = coder.png(view);
     if (!png) return Value{}.set("error", png.error());
     return Value{}.set("format", "png").set("base64", mlibs::base64::encode(*png));
 }
@@ -1338,11 +1341,14 @@ void Protocol::poll_reloads() {
         for (const int value : region) out.emplace_back(std::round(value * scale * 100) / 100);
         return Value(std::move(out));
     };
+    // A reload samples pictures only where the program has captures (Reload's `pictures`).
+    const CaptureService* coder = captures();
+    if (!coder) return;
     std::vector<Reload> still;
     for (Reload& r : reloads_) {
         mlibs::image::Image now;
         if (auto png = options_.capture(window))
-            if (auto decoded = mlibs::image::decode_png(*png)) now = std::move(*decoded);
+            if (auto decoded = coder->decode(*png)) now = std::move(*decoded);
         const auto moved = now.empty() ? std::nullopt : differing(r.previous, now);
         r.samples.push_back(Value{}.set("at", std::round(r.at * 1000) / 1000).set("changed", moved ? logical(now, *moved) : Value{}));
         r.still = moved ? 0 : r.still + 1;
@@ -1358,8 +1364,8 @@ void Protocol::poll_reloads() {
         const auto changed = differing(r.before, r.previous);
         pixels.set("changed", changed ? logical(r.previous, *changed) : Value{});
         if (changed && changed->at(0) + changed->at(2) <= r.before.width && changed->at(1) + changed->at(3) <= r.before.height) {
-            pixels.set("before", region_png(r.before, *changed));
-            pixels.set("after", region_png(r.previous, *changed));
+            pixels.set("before", region_png(*coder, r.before, *changed));
+            pixels.set("after", region_png(*coder, r.previous, *changed));
         }
         Value data = r.answer;
         data.set("pixels", std::move(pixels));

@@ -584,15 +584,17 @@ std::expected<void, ViewFailure> Desktop::open() {
     // The agent surface is a provider's (agent::endpoint_slot): a program built without it has no captures and
     // serves no agent, as a platform without local endpoints does not.
     const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot);
-    if (surface)
-        d.runtime->set_svg_capture([&d, surface](Rect region) -> std::expected<std::string, ViewFailure> {
+    const agent::CaptureService* captures = agent::captures();  // installed with it (agent::install)
+    if (surface && captures)
+        d.runtime->set_svg_capture([&d, captures](Rect region) -> std::expected<std::string, ViewFailure> {
             const mrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
-            auto capture = surface->vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
+            auto capture = captures->vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
             if (!capture) return std::unexpected(capture.error());
             return std::move(capture->svg);
         });
     // The frame on screen as PNG, cut to a region: the runtime's capture_png and the agent's capture.
-    const auto shown_png = [&d, surface](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
+    const auto shown_png = [&d, captures](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
+        if (!captures) return std::unexpected(ViewFailure{ViewError::no_pixel_capture});
         // The frame on screen, cut to the region (logical pixels).
         auto shown_frame = d.pixels();
         if (!shown_frame) return std::unexpected(shown_frame.error());
@@ -602,11 +604,11 @@ std::expected<void, ViewFailure> Desktop::open() {
         const int x1 = std::clamp(r.x + r.width, x0, f.width()), y1 = std::clamp(r.y + r.height, y0, f.height());
         if (x1 <= x0 || y1 <= y0) return std::unexpected(ViewFailure{ViewError::empty_region, "the region is outside the window"});
         mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, mlibs::image::Alpha::premultiplied};
-        auto png = surface->png(v);
+        auto png = captures->png(v);
         if (!png) return std::unexpected(ViewFailure{ViewError::capture_failed, std::move(png.error())});
         return std::move(*png);
     };
-    if (surface) d.runtime->set_png_capture(shown_png);
+    if (surface && captures) d.runtime->set_png_capture(shown_png);
     if (d.options.agent && surface) {
         agent::EndpointOptions eo;
         eo.name = d.options.app;
@@ -614,9 +616,10 @@ std::expected<void, ViewFailure> Desktop::open() {
         eo.protocol.app = d.options.app;
         eo.protocol.input = d.options.agent_input;
         eo.protocol.capture = shown_png;
-        eo.protocol.capture_svg = [&d, surface](Rect region) {
+        eo.protocol.capture_svg = [&d, captures](Rect region) -> std::expected<agent::VectorCapture, ViewFailure> {
+            if (!captures) return std::unexpected(ViewFailure{ViewError::no_vector_capture});
             const mrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
-            return surface->vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
+            return captures->vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
         };
         eo.wake = [] { platform::wake(); };
         d.endpoint = agent::Served(*surface, *d.runtime, std::move(eo));

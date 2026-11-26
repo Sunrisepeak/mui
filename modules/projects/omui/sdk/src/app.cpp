@@ -70,6 +70,7 @@ void RunOptions::declare(cmdline::App& app) {
         .option(Option("cpu").help("draw on the CPU"))
         .option(Option("reduce-transparency").help("solid surfaces where styles would be translucent"))
         .option(Option("size").takes_value().value_name("WxH").help("the window's size, e.g. 800x600"))
+        .option(Option("position").takes_value().value_name("X,Y").help("where the window opens, in the screen's coordinates (default: where the system places it)"))
         .option(Option("debug").takes_value().value_name("LIST").help("overlays: bounds, repaints, inspector, hud"))
         .option(Option("log").takes_value().value_name("FILTER").help("log levels per category: layout=debug,*=info (also OMUI_LOG)"))
         .option(Option("profile").takes_value().value_name("FILE").help("record a trace of the run (Chrome / Perfetto JSON)"))
@@ -124,6 +125,14 @@ std::expected<RunOptions, Failure> RunOptions::from(const cmdline::ParsedArgs& p
             std::from_chars(v->data() + by + 1, v->data() + v->size(), height).ec != std::errc{} || width <= 0 || height <= 0)
             return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, "--size is WxH, e.g. 800x600"});
         o.size = Size{width, height};
+    }
+    if (auto v = parsed.value("position")) {
+        std::array<int, 2> at{};
+        const auto comma = v->find(',');
+        if (comma == std::string::npos || std::from_chars(v->data(), v->data() + comma, at[0]).ec != std::errc{} ||
+            std::from_chars(v->data() + comma + 1, v->data() + v->size(), at[1]).ec != std::errc{})
+            return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, "--position is X,Y, e.g. 60,1074"});
+        o.position = at;
     }
     if (auto v = parsed.value("debug")) {
         for (auto part : *v | std::views::split(',')) {

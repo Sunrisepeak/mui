@@ -11,6 +11,7 @@ namespace omui {
   struct DesktopOptions {
     std::string title = "openmui";
     Size size{…};
+    std::optional<std::array<int, 2>> position;
     bool resizable = true;
     std::string app = "openmui-app";
     bool agent = true;
@@ -21,6 +22,7 @@ namespace omui {
     mlibs::text::FontCollection* fonts = nullptr;
     bool reduce_motion = false;
     bool reduce_transparency = false;
+    bool follow_system = true;
     Color background = Color::white();
     bool vsync = true;
     std::string video_driver;
@@ -28,6 +30,8 @@ namespace omui {
     bool parallel_raster = true;
     enum class Renderer : std::uint8_t { automatic, cpu, gpu };
     Renderer renderer = Renderer::automatic;
+    enum class DeviceWhen : std::uint8_t { needed, first_frame };
+    DeviceWhen device_when = DeviceWhen::needed;
     std::string vulkan_library;
     std::filesystem::path effects;
     std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;

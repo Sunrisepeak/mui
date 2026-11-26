@@ -168,6 +168,7 @@ struct RunOptions {
     std::optional<bool>   gpu;  // --gpu / --cpu
     bool                  reduce_transparency = false;
     std::optional<Size>   size;
+    std::optional<std::array<int, 2>> position;  // --position X,Y: where the window opens, in the screen's coordinates
     DebugOptions          debug;
     std::string           log;
     std::filesystem::path profile;

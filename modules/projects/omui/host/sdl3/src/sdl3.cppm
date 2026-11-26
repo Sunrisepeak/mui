@@ -33,6 +33,9 @@ export namespace omui {
 struct DesktopOptions {
     std::string             title = "openmui";
     Size                    size{960, 640};   // logical pixels
+    // Where the window opens on the screen, in the system's units (X11's: the screen's pixels, every monitor in one
+    // space); none: where the system places it (a window manager: on the pointer's monitor).
+    std::optional<std::array<int, 2>> position;
     bool                    resizable = true;
     std::string             app = "openmui-app";  // the application id (the agent endpoint's name)
     bool                    agent = true;         // serve openmui.tree@0.1
@@ -48,6 +51,12 @@ struct DesktopOptions {
     mlibs::text::FontCollection* fonts = nullptr;
     bool                    reduce_motion = false;
     bool                    reduce_transparency = false;  // glass drawn as opaque panels
+    // The person's appearance and motion as the system says them, read when the window opens and followed while it
+    // runs: a dark appearance is Runtime::dark_preferred (a theme that follows it turns with it: omui.theme's schemes,
+    // an application's dark theme), less motion adds to `reduce_motion`. Said by SDL on Windows and macOS, by the
+    // desktop portal on Linux (mpal); where the system says nothing, light and full motion. Off: as the options say
+    // (a test, a picture taken of a given look).
+    bool                    follow_system = true;
     Color                   background = Color::white();
     bool                    vsync = true;
     std::string             video_driver;     // "" the platform's; "offscreen" in CI
@@ -58,6 +67,13 @@ struct DesktopOptions {
     // else the CPU; or either, insisted on (gpu: no device is an error).
     enum class Renderer : std::uint8_t { automatic, cpu, gpu };
     Renderer                renderer = Renderer::automatic;
+    // When an `automatic` window whose first frames the CPU draws (UI9) begins its device (UI10): once its frames
+    // need one (`needed`, the default) — the window has a megapixel or more (each full redraw sends 4 MB to the
+    // display), or three of its last ten frames in motion took the CPU more than half the display's interval to draw
+    // and show —, so that a window the CPU draws well enough (a dialog, a form, a counter) never loads the GPU's
+    // driver; or as soon as its first frame is shown (`first_frame`, UI9's).
+    enum class DeviceWhen : std::uint8_t { needed, first_frame };
+    DeviceWhen              device_when = DeviceWhen::needed;
     std::string             vulkan_library;   // the Vulkan loader the GPU device uses ("" the system's)
     // A directory of effects (mrender.effect): `*.effect.xdef.json`, or
     // `*.effect.xdef.ts` read through `effect_data`; loaded with the window,
@@ -126,8 +142,8 @@ public:
     [[nodiscard]] std::size_t frames_shown() const noexcept;
     // Whether the GPU renderer draws the frames (after open()).
     [[nodiscard]] bool gpu() const noexcept;
-    // Whether the CPU draws while a device is made that takes over when it is ready (UI9): the loop takes it between
-    // frames, woken by the device's thread.
+    // Whether a device is being made — or made, not yet taken — for a window whose frames the CPU draws meanwhile
+    // (UI9, UI10): the loop takes it over between frames, woken by the device's thread.
     [[nodiscard]] bool gpu_pending() const noexcept;
     // The effect library of `effects` (null: none asked for).
     [[nodiscard]] mrender::effect::Library* effects() noexcept;

@@ -23,6 +23,7 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     DesktopOptions d;
     d.title = app.title;
     d.size = o.size.value_or(app.size);
+    d.position = o.position;
     d.app = app.id;
     d.agent = o.agent;
     d.agent_input = o.agent_input.value_or(app.agent_input);

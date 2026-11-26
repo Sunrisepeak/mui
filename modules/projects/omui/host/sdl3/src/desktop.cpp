@@ -115,6 +115,110 @@ private:
     std::jthread                                     listener_;  // last: stopped first
 };
 
+// The person's appearance and motion as the system says them (mpal: Linux's desktop portal), read on a thread of its
+// own from the host's start — beside the fonts, the runtime and the window, off the first frame's path — and listened
+// to there while the window lives: one wait, no wakeups while nothing changes. A change wakes the loop, which takes it
+// between frames. None where mpal has no backend (Windows and macOS: SDL says the appearance there).
+class SystemPreferences {
+public:
+    static std::unique_ptr<SystemPreferences> start(std::function<void()> wake) {
+        if constexpr (mcpplibs::os::is_linux) {
+            auto preferences = std::make_unique<SystemPreferences>();
+            preferences->state_->wake = std::move(wake);
+            preferences->listener_ = std::thread([state = preferences->state_] { listen(state); });
+            return preferences;
+        }
+        return nullptr;
+    }
+
+    // The first reading, waited for at most `wait`; none when it has not come (taken later, when it does) or could
+    // not be read.
+    std::optional<mcpplibs::mpal::Preferences> first(std::chrono::milliseconds wait) {
+        std::unique_lock lock(state_->mutex);
+        if (!state_->read.wait_for(lock, wait, [&] { return state_->done; })) {
+            state_->late = true;
+            return std::nullopt;
+        }
+        state_->fresh = false;
+        return state_->latest;
+    }
+
+    // What the system said since it was last taken (none: nothing new).
+    std::optional<mcpplibs::mpal::Preferences> take() {
+        if (!state_->fresh.load(std::memory_order_acquire)) return std::nullopt;
+        const std::scoped_lock lock(state_->mutex);
+        state_->fresh = false;
+        return state_->latest;
+    }
+
+    ~SystemPreferences() {
+        bool done = false;
+        {
+            const std::scoped_lock lock(state_->mutex);
+            state_->stopping = true;
+            state_->wake = nullptr;
+            if (state_->watch) state_->watch->stop();
+            done = state_->done;
+        }
+        // Still reaching the bus (its connection, its reading): it ends by itself once it has, holding its own state.
+        if (done) listener_.join();
+        else listener_.detach();
+    }
+
+private:
+    struct State {
+        std::mutex                                 mutex;
+        std::condition_variable                    read;
+        bool                                       done = false;  // the first reading came, or could not be read
+        bool                                       late = false;  // it came after the window opened: the loop is woken
+        bool                                       stopping = false;
+        std::optional<mcpplibs::mpal::Preferences> latest;
+        std::atomic<bool>                          fresh{false};  // `latest` not taken yet
+        std::function<void()>                      wake;
+        mcpplibs::mpal::PreferenceWatch*           watch = nullptr;  // while it listens: stopped from the host
+    };
+
+    static void listen(const std::shared_ptr<State>& state) {
+        auto watch = mcpplibs::mpal::PreferenceWatch::open();
+        std::function<void()> wake;
+        {
+            const std::scoped_lock lock(state->mutex);
+            state->done = true;
+            if (state->stopping) return;
+            if (watch) {
+                state->latest = watch->now();
+                state->fresh = true;
+                state->watch = &*watch;
+                if (state->late) wake = state->wake;
+            } else {
+                debug("desktop: the system's appearance is not read ({}): light, full motion", watch.error().text);
+            }
+        }
+        state->read.notify_all();
+        if (!watch) return;
+        if (wake) wake();
+        while (true) {
+            auto changed = watch->next(std::chrono::hours(24));
+            {
+                const std::scoped_lock lock(state->mutex);
+                if (state->stopping || !changed) {
+                    if (!changed && !state->stopping) debug("desktop: the system's appearance is no longer heard ({})", changed.error().text);
+                    state->watch = nullptr;
+                    return;
+                }
+                if (!*changed) continue;
+                state->latest = **changed;
+                state->fresh = true;
+                wake = state->wake;
+            }
+            if (wake) wake();
+        }
+    }
+
+    std::shared_ptr<State> state_ = std::make_shared<State>();
+    std::thread            listener_;
+};
+
 }  // namespace
 
 struct Desktop::Impl final : WindowHost {
@@ -160,11 +264,37 @@ struct Desktop::Impl final : WindowHost {
     bool                                            taking_over = false;
     std::optional<std::chrono::steady_clock::time_point> ready_at;          // when the device was first seen ready
     bool                                            cpu_on_screen = false;  // taken over: the CPU's frame still shown
+    // UI10: what the CPU's frames cost — the last one drawn and shown (render and present), and whether each of the
+    // last ten in motion took more than half the display's interval — and whether the window needs its device.
+    double                                          cpu_frame_ms = 0;
+    std::span<const mrender::RowSpan>               changed_rows;  // the last update's bands (the tracker's, until its next)
+    std::array<bool, 10>                            over_budget{};
+    std::size_t                                     motion_frames = 0;
+    bool                                            device_needed = false;
     std::unique_ptr<GpuRenderer>                    gpu;
     mlibs::rhi::Texture                             gpu_frame;
     std::size_t                                     devices_lost = 0;  // how many times the device was lost and made again
     std::uint32_t                            gpu_w = 0, gpu_h = 0;
     std::unique_ptr<GpuEffects>                       effects;  // the GPU path's (gpu_slot)
+
+    // The person's appearance and motion as the system says them (follow_system): SDL's (Windows, macOS) and the
+    // desktop portal's (Linux, through mpal), applied to the runtime as each changes.
+    std::unique_ptr<SystemPreferences>       system_preferences;
+    std::optional<bool>                      sdl_dark;          // SDL's reading of the system's appearance
+    mcpplibs::mpal::Preferences              portal;            // the portal's
+    bool                                     program_reduce_motion = false;  // what the program asked, before the system's
+
+    // The system's reading in the runtime: a dark appearance where SDL or the portal says so (SDL first: the
+    // system's own interface), else light; less motion where the program asked for it or the portal says so (where
+    // the portal says nothing of motion, the program's choice stands untouched).
+    void prefer() {
+        const bool dark = sdl_dark ? *sdl_dark : portal.dark.value_or(false);
+        const bool reduce = portal.reduce_motion ? program_reduce_motion || *portal.reduce_motion : runtime->reduce_motion();
+        if (dark != runtime->dark_preferred() || reduce != runtime->reduce_motion())
+            debug("desktop: the system prefers a {} appearance{}", dark ? "dark" : "light", reduce ? ", and less motion" : "");
+        runtime->set_dark_preferred(dark);
+        runtime->set_reduce_motion(reduce);
+    }
 
     // The window as a window (D-75): who draws its frame, and its close.
     bool                                     framework = false;
@@ -417,6 +547,36 @@ struct Desktop::Impl final : WindowHost {
         return out;
     }
 
+    // UI10: whether the frame just shown by the CPU says the window needs its device. A frame in motion has half the
+    // display's interval (4.2 ms at 120 Hz) for the CPU to draw and show it: D-187 holds the whole frame to the
+    // interval, the rest is the runtime's own work. Three of the last ten frames in motion above that: the device is
+    // begun. A window of a megapixel or more begins it with its first frame at that size (its full redraws alone
+    // are above the budget: below). No single frame decides it: a first frame is mostly what is done once (glyphs
+    // rasterised, the framebuffer made, the display's first round trips), and one sample of it is the machine's
+    // load as much as the window's. A window at rest, or one whose changes are small, never needs it.
+    void weigh_cpu_frame(bool in_motion, double display_hz) {
+        if (device_needed) return;
+        const double budget = 0.5 * 1000.0 / (display_hz > 0 ? display_hz : 60.0);
+        // A window of a megapixel or more sends 4 MB and more to the display with every full redraw (a scroll, a resize,
+        // a page): 4.4–18.9 ms for 7.8 MB on this machine's X server, more than a 120 Hz frame's whole budget. Its
+        // device is begun with its first frame at that size, so that its takeover comes at its first rest, not in its
+        // first scroll.
+        if (static_cast<double>(frame.width()) * static_cast<double>(frame.height()) >= 1.0e6)
+            return need_device(std::format("the window is {} x {}: every full redraw sends {:.1f} MB", frame.width(), frame.height(),
+                                           static_cast<double>(frame.width()) * frame.height() * 4 / 1.0e6));
+        if (frames_shown == 1 || !in_motion) return;  // the first frame is the window's, not its motion's
+        over_budget[motion_frames++ % over_budget.size()] = cpu_frame_ms > budget;
+        if (std::ranges::count(over_budget, true) >= 3)
+            need_device(std::format("three of its last ten frames in motion took the CPU more than {:.1f} ms (the last {:.1f})", budget, cpu_frame_ms));
+    }
+
+    // Once a window: a fact an agent reads among the recent records (ui.logs), not only in a debug log.
+    void need_device(std::string why) {
+        device_needed = true;
+        mlibs::trace::mark("device.needed", "host");
+        info("desktop: the window begins its GPU device: {}", why);
+    }
+
     void show() {
         const mrender::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
@@ -428,12 +588,14 @@ struct Desktop::Impl final : WindowHost {
             return;
         }
         if (h == shown && frame.width() == w && frame.height() == hgt) return;
+        const auto drawing = std::chrono::steady_clock::now();
         if (frame.width() != w || frame.height() != hgt) frame = mrender::raster::Surface(w, hgt);
         {
             mlibs::trace::Span span("render", "host");
             const mrender::Resources resources{&runtime->images(), glyphs.get()};
             // Only the rows the new list can change: the same bytes as a full render.
             const auto rows = damage.update(list, w, hgt, scale, resources);
+            changed_rows = rows;
             const mrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
             mrender::FrameOptions how;
             how.background = options.background;
@@ -444,10 +606,15 @@ struct Desktop::Impl final : WindowHost {
             how.external = [this](std::uint64_t number) { return runtime->picture(number); };  // a world in a viewport
             if (!rows.empty()) (void)composed.render({&ui_layer, 1}, frame, how);
         }
-        mlibs::trace::Span span("present", "host");
-        platform::present(*window, frame);
+        {
+            mlibs::trace::Span span("present", "host");
+            // The bands that changed, which is all the window's own framebuffer is sent (UI10: a small change costs
+            // the CPU little, however large the window); every row the first time and after a resize.
+            platform::present(*window, frame, damage.full() ? std::nullopt : std::optional(changed_rows));
+        }
         shown = h;
         ++frames_shown;
+        cpu_frame_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - drawing).count();
     }
 
     // A picture a component shows from elsewhere (Services::add_picture: a world in a viewport), as a texture of
@@ -507,6 +674,17 @@ struct Desktop::Impl final : WindowHost {
 Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
+    // The host brings what its renderers draw, where the program installed none (as the headless host does):
+    // mrender's pixel effects (a node's `pixel_effect`, a framework-drawn window's closing dissolve), hanim's morphs
+    // (a change moving), mlibs.image's picture reader (the view's `image`).
+    if (!mrender::installed_effects())
+        if (auto installed = mrender::install_effects(); !installed) warn("the pixel effects: {}", installed.error().message);
+    if (!morphs_installed())
+        if (auto installed = install_morphs(); !installed) warn("the morphs: {}", installed.error().message);
+    if (!mlibs::image::decoder())
+        if (auto installed = mlibs::image::install(); !installed) warn("the picture reader: {}", installed.error().message);
+    // The system's appearance read from now, beside everything that follows (the window opening takes it).
+    if (d.options.follow_system) d.system_preferences = SystemPreferences::start([] { platform::wake(); });
     // When the GPU may draw, SDL is brought up here and the device is made on a thread of its own. A window that
     // waits for it (the GPU insisted on, effects, a window with no framebuffer of its own) begins it at once, so the
     // driver's start overlaps the fonts, the runtime and the window (RC3.6). A window whose first frames the CPU draws
@@ -564,6 +742,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
 }
 
 Desktop::~Desktop() {
+    impl_->system_preferences.reset();  // no longer listened to: nothing wakes the loop from there
     if (omui::window().host() == impl_.get()) omui::window().detach();
     if (impl_->endpoint) impl_->endpoint.stop();
     // The adapter lets go of the window before the window goes.
@@ -606,6 +785,7 @@ std::expected<void, ViewFailure> Desktop::open() {
     d.framework = d.options.frame == DesktopOptions::Frame::framework;
     platform::WindowOptions wo{.title = d.options.title,
                                .size = d.options.size,
+                               .position = d.options.position,
                                .resizable = d.options.resizable,
                                .vsync = d.options.vsync,
                                .video_driver = d.options.video_driver,
@@ -649,6 +829,18 @@ std::expected<void, ViewFailure> Desktop::open() {
         if (d.effects && !d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
     }
     d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
+    // The person's appearance and motion as the system says them now — SDL's once its video is up, the portal's read
+    // since the host began (waited for a little at most: a portal being started is taken when it answers) — before
+    // the application prepares its theme and the first frame is drawn.
+    if (d.options.follow_system) {
+        d.program_reduce_motion = d.runtime->reduce_motion();
+        d.sdl_dark = platform::system_dark();
+        if (d.system_preferences) {
+            mlibs::trace::Span waited("start.preferences", "host");  // the reading's wait, if it had not come yet
+            if (auto read = d.system_preferences->first(std::chrono::milliseconds(100))) d.portal = *read;
+        }
+        d.prefer();
+    }
     // Who draws, and the machine's tier (told again when a device takes over); the governor on: these frames are a person's.
     d.tell_renderer();
     d.runtime->set_governor(true);
@@ -769,7 +961,7 @@ accessibility::Mirror* Desktop::accessibility_mirror() noexcept { return impl_->
 accessibility::Adapter* Desktop::accessibility_adapter() noexcept { return impl_->access.get(); }
 std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
 bool Desktop::gpu() const noexcept { return impl_->gpu != nullptr; }
-bool Desktop::gpu_pending() const noexcept { return impl_->taking_over; }
+bool Desktop::gpu_pending() const noexcept { return impl_->taking_over && impl_->making != nullptr; }
 mrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &impl_->effects->library() : nullptr; }
 float Desktop::scale() const noexcept { return impl_->runtime->scale(); }
 NodeId Desktop::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
@@ -827,6 +1019,20 @@ bool Desktop::step(bool wait) {
     platform::Polled polled = platform::poll(*d.window, sleep, timeout);
     d.take_over(was_idle && polled.events.empty());  // the device, when it became ready meanwhile (UI9)
     if (polled.state) omui::window().set_state(*polled.state);
+    // The system's appearance changed (SDL told it, or the portal's listener woke the loop): the runtime has it now.
+    if (d.options.follow_system) {
+        bool changed = false;
+        if (polled.appearance) {
+            d.sdl_dark = platform::system_dark();
+            changed = true;
+        }
+        if (d.system_preferences)
+            if (auto read = d.system_preferences->take()) {
+                d.portal = *read;
+                changed = true;
+            }
+        if (changed) d.prefer();
+    }
     if (polled.quit || d.close_requested) {
         d.close_requested = false;
         polled.quit = false;
@@ -907,9 +1113,16 @@ bool Desktop::step(bool wait) {
     platform::text_input(*d.window, d.runtime->text_input_rect());
     platform::cursor(*d.window, d.runtime->cursor());
     d.idle = !out.animating && out.demand.idle() && !d.closed_at;
-    // The first frame shown by the CPU: the device begun now, off its path (UI9).
-    if (d.taking_over && !d.making && d.frames_shown > 0)
-        if (const GpuService* service = mlibs::compose::process().get(gpu_slot)) d.making = service->begin(d.device_options);
+    // The device begun off the first frame's path (UI9): once the window needs it (UI10, `needed`: what the CPU's
+    // frames cost says so), or once the first frame is shown (`first_frame`).
+    if (d.taking_over && !d.making && d.frames_shown > 0) {
+        if (d.frames_shown != before && !d.gpu) d.weigh_cpu_frame(!was_idle, display);
+        if (d.device_needed || d.options.device_when == DesktopOptions::DeviceWhen::first_frame)
+            if (const GpuService* service = mlibs::compose::process().get(gpu_slot)) {
+                mlibs::trace::Span begun("device.begin", "host");
+                d.making = service->begin(d.device_options);
+            }
+    }
     return !d.quitting;
 }
 

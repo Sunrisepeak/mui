@@ -10,6 +10,7 @@ import omui.host.sdl3;
 import omui.ui.base;  // a button in the first frame
 import omui.host.sdl3.gpu;  // the GPU path, installed as an application's SDK installs it
 import mlibs.testing;
+import mlibs.trace;
 import mcpplibs.mtest;
 
 using namespace mlibs::testing;
@@ -70,6 +71,7 @@ DesktopOptions offscreen(std::string app = "sdl3-test") {
     o.agent = false;
     o.accessibility = false;  // its own test
     o.renderer = DesktopOptions::Renderer::cpu;  // the CPU frame, read back exactly
+    o.follow_system = false;  // the options' look, whatever the machine's person prefers
     return o;
 }
 
@@ -127,6 +129,7 @@ UTest cases{"host.sdl3.gpu.host", [] {
     "UI9: the GPU window's first frames are the CPU's while its device is made; the device takes over when ready without drawing the same picture again, and draws it within the pinned bound of the CPU's"_test = [] {
         DesktopOptions o = offscreen("sdl3-takeover");
         o.renderer = DesktopOptions::Renderer::automatic;
+        o.device_when = DesktopOptions::DeviceWhen::first_frame;  // the device begun after the first frame, needed or not
         o.render_driver.clear();  // the window's own framebuffer, as an application's
         if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
         if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
@@ -205,6 +208,7 @@ UTest cases{"host.sdl3.gpu.host", [] {
     "UI9: a window that keeps moving is taken over too — a second after its device is ready, not at rest, which never comes"_test = [] {
         DesktopOptions o = offscreen("sdl3-takeover-moving");
         o.renderer = DesktopOptions::Renderer::automatic;
+        o.device_when = DesktopOptions::DeviceWhen::first_frame;
         o.render_driver.clear();
         if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
         if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
@@ -246,6 +250,86 @@ UTest cases{"host.sdl3.gpu.host", [] {
             (void)d.step(true);
         }
         expect(eq(d.frames_shown(), shown + 10)) << "and the GPU draws them after";
+    };
+
+    "UI10: a window the CPU draws well enough makes no device — at rest, and through small changes in motion"_test = [] {
+        DesktopOptions o = offscreen("sdl3-no-device");
+        o.renderer = DesktopOptions::Renderer::automatic;
+        o.render_driver.clear();
+        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+        mlibs::trace::start();
+        Desktop d(o);
+        expect(fatal(d.open().has_value()));
+        auto colour = signal(std::string("#2563eb"));
+        d.mount("main", column({.padding = 20, .gap = 8},
+                               {text({.id = "hello", .text = "Hello, world"}), button({.id = "go", .text = "Go"}),
+                                box({.id = "swatch", .width = 40, .height = 40,
+                                     .background = Prop<Fill>(Source{std::nullopt, [colour] { return Value(colour.get()); }, {}})})}));
+        expect(d.step(false));
+        {
+            // A second of small changes at 60 frames a second: a swatch, as a hover or a press would change it.
+            auto lease = d.runtime().demand_frames({.min_hz = 60, .max_hz = 60, .preferred_hz = 60, .reason = "test"});
+            colour.set("#16a34a");
+            (void)d.step(false);  // the frame that takes the lease: from it on, frames are wanted
+            for (int frame = 0; frame < 60; ++frame) {
+                colour.set(frame % 2 ? "#dc2626" : "#2563eb");
+                (void)d.step(true);
+            }
+        }
+        for (int rest = 0; rest < 20; ++rest) (void)d.step(false);
+        std::this_thread::sleep_for(std::chrono::milliseconds(300));
+        (void)d.step(false);
+        const auto spans = mlibs::trace::stop().summary();
+        const bool begun = std::ranges::any_of(spans, [](const mlibs::trace::Stat& stat) { return stat.name == "device.begin"; });
+        std::println("  {} frames by the CPU, no device begun: {}", d.frames_shown(), !begun);
+        expect(!begun && !d.gpu() && !d.gpu_pending()) << "no device for a window whose frames the CPU draws within its budget";
+        expect(gt(d.frames_shown(), std::size_t{50})) << "the frames were drawn (by the CPU)";
+    };
+
+    "UI10: a window whose frames cost the CPU more than half the display's interval begins its device; a hardware one takes over"_test = [] {
+        DesktopOptions o = offscreen("sdl3-needs-device");
+        o.renderer = DesktopOptions::Renderer::automatic;
+        o.render_driver.clear();
+        o.size = {3840, 2160};  // a whole window changed every frame: a scroll or a page at full size on a 4K screen
+        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+        mlibs::trace::start();
+        Desktop d(o);
+        expect(fatal(d.open().has_value()));
+        auto colour = signal(std::string("#2563eb"));
+        d.mount("main", box({.id = "page", .width = 3840, .height = 2160,
+                             .background = Prop<Fill>(Source{std::nullopt, [colour] { return Value(colour.get()); }, {}})}));
+        auto lease = d.runtime().demand_frames({.min_hz = 60, .max_hz = 60, .preferred_hz = 60, .reason = "test"});
+        bool red = false;
+        const auto from = std::chrono::steady_clock::now();
+        expect(d.step(false));
+        for (int frame = 0; frame < 12 && !d.gpu_pending() && !d.gpu(); ++frame) {
+            red = !red;
+            colour.set(red ? "#dc2626" : "#2563eb");
+            (void)d.step(true);
+        }
+        const bool pending = d.gpu_pending();
+        while (d.gpu_pending() && std::chrono::steady_clock::now() - from < std::chrono::seconds(20)) {
+            red = !red;
+            colour.set(red ? "#dc2626" : "#2563eb");
+            (void)d.step(true);
+        }
+        const auto spans = mlibs::trace::stop().summary();
+        double frame_ms = 0;  // the CPU's render of a frame, the middle of them
+        for (const mlibs::trace::Stat& stat : spans)
+            if (stat.name == "render") frame_ms = stat.p50_ms;
+        const bool begun = std::ranges::any_of(spans, [](const mlibs::trace::Stat& stat) { return stat.name == "device.begin"; });
+        if (!begun) {
+            // The CPU drew and showed it within the budget here (its render alone is no more than that): nothing needs a device.
+            std::println("  a whole 3840 x 2160 window changed every frame, the CPU's render {:.1f} ms a frame: within the budget here, no device", frame_ms);
+            expect(le(frame_ms, 0.5 * 1000.0 / 60.0)) << "a window whose render alone is above the budget begins its device";
+            return;
+        }
+        std::println("  a whole 3840 x 2160 window changed every frame (the CPU's render {:.1f} ms a frame): its device begun, {}", frame_ms,
+                     d.gpu() ? "and it took over" : "none took over (none here, or a software one: the CPU draws on)");
+        expect(pending || d.gpu()) << "the device was being made once it was begun";
+        expect(!d.gpu_pending()) << "taken, or let go, within 20 s";
     };
 
     "no device to be made: the CPU's frames go into the window's own framebuffer — shown, read back exactly, at the rate the loop wants"_test = [] {

@@ -484,3 +484,138 @@ UTest picking{"mpal.pick", [] {
         expect(!mcpplibs::mpal::path_of_uri("https://example.org/x").has_value());
     };
 }};
+
+// The person's preferences through the desktop portal's settings, against a portal of the test's own.
+UTest preferring{"mpal.preferences", [] {
+    // A setting as ReadAll lists it: {key, <value>}.
+    const auto setting = [](std::string key, std::string signature, Value value) {
+        return Value{std::vector<Value>{Value::of(std::move(key)), variant_of(std::move(signature), std::move(value))}};
+    };
+    const auto changed = [](std::uint32_t serial, std::string space, std::string key, std::string signature, Value value) {
+        return signal_at(serial, "/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings", "SettingChanged", "ssv",
+                         std::array{Value::of(std::move(space)), Value::of(std::move(key)), variant_of(std::move(signature), std::move(value))});
+    };
+
+    "read: the standard colour scheme, GNOME's animations where the standard says nothing of motion; then each change heard"_test = [&] {
+        std::uint32_t serial = 100;
+        std::optional<FakeBus> bus;
+        bus.emplace(4, [&](const dbus::Message& read) {
+            if (read.member == "Hello") return reply_bytes(++serial, read.serial, "s", std::array{Value::of(":1.7")});
+            if (read.member == "AddMatch") return reply_bytes(++serial, read.serial, "", {});
+            // ReadAll: a dark scheme asked for, animations off (GNOME's "Reduce animation"), a key not read here.
+            const std::vector<Value> spaces{
+                Value{std::vector<Value>{Value::of("org.freedesktop.appearance"), Value{std::vector<Value>{setting("color-scheme", "u", Value{std::uint32_t{1}})}}}},
+                Value{std::vector<Value>{Value::of("org.gnome.desktop.interface"),
+                                         Value{std::vector<Value>{setting("clock-format", "s", Value::of("24h")), setting("enable-animations", "b", Value{false})}}}}};
+            std::string out = reply_bytes(++serial, read.serial, "a{sa{sv}}", std::array{Value{spaces}});
+            out += changed(++serial, "org.gnome.desktop.interface", "clock-format", "s", Value::of("12h"));  // not read here: no change
+            out += changed(++serial, "org.freedesktop.appearance", "color-scheme", "u", Value{std::uint32_t{2}});  // light
+            out += changed(++serial, "org.freedesktop.appearance", "color-scheme", "u", Value{std::uint32_t{2}});  // the same again: none
+            out += changed(++serial, "org.freedesktop.appearance", "reduced-motion", "u", Value{std::uint32_t{0}});  // the standard's, now said
+            out += changed(++serial, "org.gnome.desktop.interface", "enable-animations", "b", Value{true});  // the standard's wins: none
+            out += changed(++serial, "org.freedesktop.appearance", "color-scheme", "u", Value{std::uint32_t{0}});  // no preference
+            return out;
+        });
+        auto connected = dbus::Bus::at(bus->dir, "bus");
+        expect(fatal(connected.has_value()));
+        auto watch = mcpplibs::mpal::PreferenceWatch::on(std::move(*connected));
+        expect(fatal(watch.has_value())) << (watch ? std::string() : watch.error().text);
+        expect(watch->now().dark == std::optional(true) && watch->now().reduce_motion == std::optional(true)) << "dark; less motion (animations off)";
+        const auto light = watch->next(std::chrono::milliseconds(2000));
+        expect(light && *light && (*light)->dark == std::optional(false) && (*light)->reduce_motion == std::optional(true))
+            << "a key not read passed over; then light";
+        const auto standard = watch->next(std::chrono::milliseconds(2000));
+        expect(standard && *standard && (*standard)->reduce_motion == std::optional(false)) << "the same scheme again is no change; the standard's motion said";
+        const auto none = watch->next(std::chrono::milliseconds(2000));
+        expect(none && *none && !(*none)->dark && (*none)->reduce_motion == std::optional(false))
+            << "GNOME's animations under the standard's key change nothing; no preference: none";
+        const auto quiet = watch->next(std::chrono::milliseconds(50));
+        expect(quiet && !*quiet) << "nothing more";
+        bus->end();
+        expect(fatal(bus->heard.size() == 4));
+        for (const std::size_t at : {std::size_t{1}, std::size_t{2}})
+            expect(bus->heard[at].member == "AddMatch" && std::get<std::string>(bus->heard[at].body[0].data).contains("member='SettingChanged'") &&
+                   std::get<std::string>(bus->heard[at].body[0].data).contains("arg0='org."))
+                << "changes asked for by namespace, before the read";
+        expect(bus->heard[3].member == "ReadAll" && bus->heard[3].interface == "org.freedesktop.portal.Settings" &&
+               bus->heard[3].destination == "org.freedesktop.portal.Desktop");
+    };
+
+    "no portal on the bus: unavailable, said"_test = [&] {
+        std::uint32_t serial = 100;
+        std::optional<FakeBus> bus;
+        bus.emplace(2, [&](const dbus::Message& read) {
+            if (read.member == "Hello") return reply_bytes(++serial, read.serial, "s", std::array{Value::of(":1.7")});
+            return message_bytes(dbus::Kind::error, ++serial,
+                                 {field(4, "s", Value::of("org.freedesktop.DBus.Error.ServiceUnknown")), field(5, "u", Value{read.serial})}, "s",
+                                 std::array{Value::of("The name is not activatable")});
+        });
+        auto connected = dbus::Bus::at(bus->dir, "bus");
+        expect(fatal(connected.has_value()));
+        const auto read = mcpplibs::mpal::preferences_on(*connected);
+        expect(!read && read.error().code == mcpplibs::mpal::Error::Code::unavailable) << (read ? std::string("read") : read.error().text);
+        bus->end();
+    };
+
+    "a watch waits as long as there may be changes; stopped from another thread, its wait ends at once"_test = [&] {
+        std::uint32_t serial = 100;
+        std::optional<FakeBus> bus;
+        bus.emplace(4, [&](const dbus::Message& read) {
+            if (read.member == "Hello") return reply_bytes(++serial, read.serial, "s", std::array{Value::of(":1.7")});
+            if (read.member == "AddMatch") return reply_bytes(++serial, read.serial, "", {});
+            return reply_bytes(++serial, read.serial, "a{sa{sv}}", std::array{Value{std::vector<Value>{}}});  // nothing said
+        });
+        auto connected = dbus::Bus::at(bus->dir, "bus");
+        expect(fatal(connected.has_value()));
+        auto watch = mcpplibs::mpal::PreferenceWatch::on(std::move(*connected));
+        expect(fatal(watch.has_value())) << (watch ? std::string() : watch.error().text);
+        expect(!watch->now().dark && !watch->now().reduce_motion) << "the system says nothing: none";
+        const auto began = std::chrono::steady_clock::now();
+        std::expected<std::optional<mcpplibs::mpal::Preferences>, mcpplibs::mpal::Error> heard = std::optional<mcpplibs::mpal::Preferences>{};
+        std::jthread waiting([&] { heard = watch->next(std::chrono::hours(1)); });
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        watch->stop();
+        waiting.join();
+        const auto waited = std::chrono::steady_clock::now() - began;
+        expect(heard.has_value() && !*heard) << (heard ? std::string() : heard.error().text);
+        expect(waited < std::chrono::seconds(5)) << std::format("woken, not timed out ({} ms)", std::chrono::duration_cast<std::chrono::milliseconds>(waited).count());
+        const auto later = watch->next(std::chrono::hours(1));
+        expect(later.has_value() && !*later) << "and every later wait answers at once";
+        bus->end();
+    };
+
+    "against a real bus (dbus-daemon) with no portal on it: unavailable, as the daemon says the name is unknown"_test = [&] {
+        namespace os = mcpplibs::os;
+        const auto daemon = os::env::find_executable("dbus-daemon");
+        const auto sender = os::env::find_executable("dbus-send");
+        if (!daemon || !sender) skip("no dbus-daemon here");
+        const auto dir = std::filesystem::temp_directory_path() / std::format("mpal-prefs-bus-{}", std::random_device{}());
+        std::filesystem::create_directories(dir);
+        const std::string socket = os::fs::utf8(dir / "bus");
+        (void)os::fs::write_atomic(dir / "session.conf", std::format(R"(<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig><type>session</type><listen>unix:path={}</listen><auth>EXTERNAL</auth>
+<policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy></busconfig>)", socket));
+        os::process::spawn_options options;
+        options.program = *daemon;
+        options.args = {std::format("--config-file={}", os::fs::utf8(dir / "session.conf")), "--nofork", "--print-address"};
+        options.out = os::process::stdio::pipe;
+        options.err = os::process::stdio::null;
+        options.bound_lifetime = true;
+        auto bus_process = os::process::process::spawn(options);
+        expect(fatal(bus_process.has_value()));
+        (void)bus_process->read_output_for(std::chrono::milliseconds(5000));
+        std::optional<dbus::Bus> connected;
+        for (int tries = 0; tries < 50 && !connected; ++tries) {
+            if (auto bus = dbus::Bus::at(dir, "bus")) connected.emplace(std::move(*bus));
+            else std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        expect(fatal(connected.has_value()));
+        const auto unread = mcpplibs::mpal::PreferenceWatch::on(std::move(*connected));
+        expect(!unread && unread.error().code == mcpplibs::mpal::Error::Code::unavailable) << (unread ? std::string("read") : unread.error().text);
+        (void)bus_process->kill();
+        (void)bus_process->wait();
+        std::error_code ignored;
+        std::filesystem::remove_all(dir, ignored);
+    };
+}};

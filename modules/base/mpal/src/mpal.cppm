@@ -7,3 +7,4 @@ export import :error;
 export import :dbus;
 export import :notify;
 export import :pick;
+export import :preferences;

@@ -85,6 +85,10 @@ struct Launch {
     std::optional<double> idle_cpu_percent, idle_wakeups, idle_frames;
     std::map<std::string, double> idle_waking;  // at rest: each thread's name, its switches a second (those that woke)
     std::map<std::string, double> idle_cpu_by_thread;  // at rest: each thread's share of a core (%), "main" the first
+    // At rest while the pointer moves elsewhere on the screen (red 158; the harness's own server only): each thread's
+    // switches a second, as idle_waking.
+    std::map<std::string, double> elsewhere_waking;
+    std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> memory_parts;  // at rest: unique, private dirty (B)
     std::vector<double> clicks;
     bool click_changed = true;
     std::vector<double> presents;  // in motion: the intervals between presented frames (ms)
@@ -440,6 +444,71 @@ std::vector<std::string_view> lines(std::string_view text) {
     for (auto part : std::views::split(text, '\n'))
         out.emplace_back(part.begin(), part.end());
     return out;
+}
+
+// A process's memory by what holds it (UI10), from `pmap -XX`'s mappings: each part's unique pages (private, clean
+// and dirty) and its private dirty pages. Files by what they are — the GPU driver's (NVIDIA's, Mesa's, the Vulkan
+// loader's, a device node), fonts, the program itself, other libraries —, then the heap and the anonymous rest
+// (whose owner a mapping cannot say: the A/B of two runs that differ in one part does).
+std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> memory_parts(const fs::path& root, std::uint64_t pid,
+                                                                             std::string_view program) {
+    std::map<std::string, std::pair<std::uint64_t, std::uint64_t>> parts;
+    const auto out = run::output(root, "pmap", {"-XX", std::to_string(pid)});
+    if (!out)
+        return parts;
+    const auto part_of = [&](std::string_view name) -> std::string {
+        const auto has = [&](std::string_view word) { return name.find(word) != std::string_view::npos; };
+        if (name.empty() || name.starts_with("[anon"))
+            return "anonymous";
+        if (name == "[heap]")
+            return "heap";
+        if (name.starts_with("["))
+            return "kernel and stacks";
+        if (has("nvidia") || has("libvulkan") || has("libGLX") || has("libEGL") || has("libGL.") || has("mesa") ||
+            has("libLLVM") || has("libdrm") || has("lvp_") || has("vulkan") || name.starts_with("card") ||
+            name.starts_with("renderD"))
+            return "driver";
+        if (name.ends_with(".ttf") || name.ends_with(".otf") || name.ends_with(".ttc"))
+            return "fonts";
+        if (name == program)
+            return "program";
+        if (has(".so"))
+            return "libraries";
+        return "other files";
+    };
+    std::vector<std::string> header;
+    for (const auto line : lines(*out)) {
+        const auto split = words(line);
+        if (split.size() > 2 && split[0] == "Address" && split[1] == "Perm") {
+            header = split;
+            continue;
+        }
+        const auto flags = std::ranges::find(header, "VmFlags");
+        if (header.empty() || flags == header.end() || split.empty() || split.back() == "KB")
+            continue;
+        const auto fixed = static_cast<std::size_t>(flags - header.begin());  // the columns before VmFlags
+        if (split.size() < fixed)
+            continue;
+        const auto column = [&](std::string_view name) -> std::uint64_t {
+            const auto at = static_cast<std::size_t>(std::ranges::find(header, name) - header.begin());
+            std::uint64_t kib = 0;
+            if (at < fixed)
+                (void)std::from_chars(split[at].data(), split[at].data() + split[at].size(), kib);
+            return kib * 1024;
+        };
+        // After the fixed columns: VmFlags' two-letter words, then the mapping's name (none: anonymous).
+        std::size_t at = fixed;
+        while (at < split.size() && split[at].size() == 2 && std::ranges::all_of(split[at], [](char c) { return c >= 'a' && c <= 'z'; }))
+            ++at;
+        std::string name;
+        for (; at < split.size(); ++at)
+            name += (name.empty() ? "" : " ") + split[at];
+        auto& [unique, dirty] = parts[part_of(name)];
+        const std::uint64_t clean = column("Private_Clean"), written = column("Private_Dirty");
+        unique += clean + written;
+        dirty += written;
+    }
+    return parts;
 }
 
 // A process's memory, its children's added (`ps --ppid`, `pmap -XX`).
@@ -945,9 +1014,14 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
               const Environment& environment, bool cold, bool whole, const fs::path& shot = {}) {
     Launch out;
     // The pointer out of every window (on a desktop: on the monitor the window is to open on, borrowed until the window
-    // is there); nothing left over from the last program.
-    Borrowed placing(display, settings.desktop);
-    (void)display.pointer(settings.park[0], settings.park[1]);
+    // is there); nothing left over from the last program. An omui side on a desktop is told where its window opens
+    // (`--position`, the window's own placement): the pointer stays its person's, untouched.
+    const bool places_itself = settings.desktop && side.build == "omui";
+    std::optional<Borrowed> placing;
+    if (!places_itself) {
+        placing.emplace(display, settings.desktop);
+        (void)display.pointer(settings.park[0], settings.park[1]);
+    }
     while (true) {
         auto pending = display.next(milliseconds{0});
         if (!pending || !*pending)
@@ -963,6 +1037,8 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         variables.insert(variables.end(), environment.omui.begin(), environment.omui.end());
     variables.insert(variables.end(), side.env.begin(), side.env.end());
     std::vector<std::string> args = side.args;
+    if (places_itself)
+        args.insert(args.end(), {"--position", std::format("{},{}", settings.monitor.x + 60, settings.monitor.y + 60)});
     if (whole && side.build == "omui" && !settings.trace.empty())
         args.insert(args.end(), {"--profile", utf8(settings.trace / std::format("{}-{}.trace.json",
                                                                                side.series, side.app))});
@@ -997,7 +1073,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         end();
         return out;
     }
-    placing.give_back();  // the window is where it opened: the pointer is its person's again
+    if (placing) placing->give_back();  // the window is where it opened: the pointer is its person's again
     const auto frames = watch.frames();
     if (!frames) {
         out.failure = frames.error();
@@ -1048,6 +1124,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         return out;
     }
     out.memory = memory_now(root, pid);
+    out.memory_parts = memory_parts(root, pid, utf8(side.executable.filename()));
     // At rest: the processor (mcpplibs.os), the switches a second (pidstat), the frames drawn.
     const auto before = process::describe(pid);
     const auto threads_before = process::threads(pid);
@@ -1102,6 +1179,34 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         (void)switches->wait();
         out.idle_wakeups = switches_of(said);
         out.idle_waking = waking_of(said);
+    }
+    // At rest while the pointer moves elsewhere on the screen (red 158): in the corner it is parked in, never over the
+    // window, 120 steps a second, as a hand moves a mouse — what the program's threads do with motion that is not
+    // theirs. On the harness's own server only: on a desktop the pointer is its person's.
+    if (!settings.desktop && side.motion.empty()) {
+        if (const auto pidstat = mcpplibs::os::env::find_executable("pidstat")) {
+            process::spawn_options watching{.program = *pidstat,
+                                            .args = {"-w", "-t", "-p", std::to_string(pid),
+                                                     std::to_string(settings.idle.count() / 1000), "1"},
+                                            .env = {{"LC_ALL", "C"}}};
+            watching.err = process::stdio::null;
+            if (auto elsewhere = process::process::spawn(watching)) {
+                const auto until = Clock::now() + settings.idle + milliseconds{200};
+                for (int step = 0; Clock::now() < until; ++step) {
+                    (void)display.pointer(settings.park[0] - 4 - step % 24, settings.park[1] - 4 - (step / 24) % 2 * 6);
+                    std::this_thread::sleep_for(std::chrono::microseconds{8333});
+                }
+                (void)display.pointer(settings.park[0], settings.park[1]);
+                std::string said;
+                while (auto chunk = elsewhere->read_output()) {
+                    if (chunk->empty())
+                        break;
+                    said += *chunk;
+                }
+                (void)elsewhere->wait();
+                out.elsewhere_waking = waking_of(said);
+            }
+        }
     }
     // The clicks: pointer onto the button, pressed, let go; from letting go to the next frame on
     // the window.
@@ -1716,6 +1821,9 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                 mine.wakeups.push_back(*cold.idle_wakeups);
             if (!cold.idle_waking.empty()) sample["idle_waking"] = cold.idle_waking;
             if (!cold.idle_cpu_by_thread.empty()) sample["idle_cpu_by_thread"] = cold.idle_cpu_by_thread;
+            if (!cold.elsewhere_waking.empty()) sample["elsewhere_waking"] = cold.elsewhere_waking;
+            for (const auto& [part, held] : cold.memory_parts)
+                sample["memory_parts"][part] = {{"uss_bytes", held.first}, {"private_dirty_bytes", held.second}};
             if (cold.idle_frames)
                 sample["idle_frames_per_s"] = *cold.idle_frames,
                 mine.frames.push_back(*cold.idle_frames);
@@ -1760,6 +1868,18 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                                            ran == cold.idle_cpu_by_thread.end() ? 0.0 : ran->second);
                 }
                 std::cout << std::format("    at rest:{}\n", threads) << std::flush;
+            }
+            if (!cold.memory_parts.empty()) {
+                std::string held;
+                for (const auto& [part, bytes] : cold.memory_parts)
+                    held += std::format("  {} {:.1f}/{:.1f}", part, static_cast<double>(bytes.first) / 1048576.0,
+                                        static_cast<double>(bytes.second) / 1048576.0);
+                std::cout << std::format("    memory by part (unique/private dirty, MiB):{}\n", held) << std::flush;
+            }
+            if (!cold.elsewhere_waking.empty()) {
+                std::string threads;
+                for (const auto& [name, rate] : cold.elsewhere_waking) threads += std::format("  {} {:.1f}/s", name, rate);
+                std::cout << std::format("    at rest, the pointer moving elsewhere:{}\n", threads) << std::flush;
             }
         }
     }

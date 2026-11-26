@@ -70,6 +70,22 @@ omui agent act hello main/click activate       # 按那个按钮
 
 窗口里的计数加了一。Agent 用的是和你一样的按钮，不是坐标。
 
+## 5. 按发布的样子：共用运行时上的数据
+
+TypeScript 应用是数据：它的 `mcpp.toml`、`omui.config.ts` 和 `app/`，几 KB。清单在 `[package.metadata.openmui.runtime]` 里写它要运行时提供什么：`openmui = "0.4"`，脚本按哪个规范版本写；`needs = ["agent"]`，用到的能力（`agent`、`generate`、`gpu`、`accessibility-bridge`）；只有必须时才钉一个确切的运行时，`runtime = "=0.1.0"`。模板写好了第一项。
+
+几个版本的运行时并存安装，每个版本一个目录。运行时的包把 `omui-launch` 放上 PATH，它在已装的运行时里选满足声明的最新一个启动应用；有满足的时，`omui run` 也经由它。
+
+```sh
+omui-launch --which .         # 会在哪个运行时上启动（runtime@1），或者为什么没有
+omui-launch . -- --headless   # 在它上面启动；-- 之后的参数交给播放器
+omui doctor                   # 按启动器的读法检查这一节，并说出会用哪个运行时
+```
+
+已装的运行时都不满足时，`omui-launch` 说出每一个不满足的原因和装一个的命令（`xlings install omui-runtime@0.1`），退出码 2。
+
+共用运行时要求机器上有 xlings：它服务开发者、工具和同一台机器上的多个 omui 应用。面向普通用户的应用、应用商店和 Web 用自带运行时（`omui package`、`omui build --web`）。现在还没有发布，所以运行时也还没有发布出去。
+
 ## 出了问题怎么办
 
 - **缺工具**：`omui doctor` 逐个列出缺少的工具和它的用途；`omui tools install` 经 xlings 装上工程点名的工具。

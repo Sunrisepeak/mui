@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure): films() is an mlibs.agent Subject
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the omui command"
-lower = ["mlibs.project"]  # lower-labelled parts it uses, each marked in its README
+lower = ["mlibs.project", "omui.entry.launcher"]  # lower-labelled parts it uses, each marked in its README
 kind = "tool"
 agent = { part = "omui.agent" }  # the `omui` command: the agent operations of omui.agent's catalog, at the application's endpoint (D-174)
 
@@ -43,6 +43,7 @@ omui.ui.markdown = { path = "../../components/markdown" }
 omui.host.headless = { path = "../../host/headless" }
 mcpplibs.os      = "0.4.4"
 mlibs.project = { path = "../../../../base/project" }  # omui doctor: the project's health (general rules, omui's profiles)
+omui.entry.launcher = { path = "../../entry/launcher" }  # omui doctor: a declared runtime read as omui-launch reads it, and the one it takes
 marzer.tomlplusplus = "3.4.0"
 
 [test]

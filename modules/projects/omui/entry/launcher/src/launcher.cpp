@@ -113,6 +113,11 @@ std::vector<Runtime> installed(const fs::path& xlings_home) {
     return out;
 }
 
+fs::path xlings_home() {
+    const auto home_variable = os::env::get("XLINGS_HOME");
+    return home_variable && !home_variable->empty() ? os::fs::from_utf8(*home_variable) : os::dirs::home().value_or(fs::current_path()) / ".xlings";
+}
+
 Choice choose(const Declared& wanted, std::span<const Runtime> runtimes) {
     Choice out;
     std::string reasons;
@@ -157,11 +162,7 @@ int launch(const Launch& what) {
         refused(std::format("omui-launch: {}: {}", os::fs::utf8(application / "mcpp.toml"), wanted.error()));
         return 2;
     }
-    // xlings' home: $XLINGS_HOME, else .xlings in the person's home (each system's own, mcpplibs.os).
-    const auto home_variable = os::env::get("XLINGS_HOME");
-    const fs::path home = home_variable && !home_variable->empty() ? os::fs::from_utf8(*home_variable)
-                                                                   : os::dirs::home().value_or(fs::current_path()) / ".xlings";
-    const std::vector<Runtime> runtimes = installed(home);
+    const std::vector<Runtime> runtimes = installed(xlings_home());
     const Choice choice = choose(*wanted, runtimes);
     if (!choice.chosen) {
         refused(std::format("omui-launch: {}\n  install one: {}", choice.why, choice.install));

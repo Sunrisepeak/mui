@@ -112,6 +112,45 @@ static UTest cases{"cli.project", [] {
             << ran.out;
     };
 
+    "omui doctor reads a declared runtime as omui-launch does (E3b): what it would refuse is a finding; else the runtime it takes"_test = [] {
+        const auto app = temp_dir() / "runtime-app";
+        std::filesystem::create_directories(app);
+        const auto doctor = [&](std::string_view runtime_section) {
+            std::ofstream(app / "mcpp.toml", std::ios::binary) << "[package]\nname = \"runtime-app\"\n[package.metadata.openmui]\nkind = \"app\"\n"
+                                                               << "[package.metadata.openmui.runtime]\n" << runtime_section;
+            return invoke({"omui", "doctor", "--dir", mcpplibs::os::fs::utf8(app)});
+        };
+        const auto finding = [](const Ran& ran) -> std::optional<Value> {
+            for (auto& record : records(ran.out))
+                if (record.get("rule") && record.get("rule")->as_string() == "app.runtime") return record;
+            return std::nullopt;
+        };
+        const auto runtime_record = [](const Ran& ran) -> std::optional<Value> {
+            for (auto& record : records(ran.out))
+                if (record.get("tool") && record.get("tool")->as_string() == "omui-runtime") return record;
+            return std::nullopt;
+        };
+        // What the profile's presence check passes and the launcher refuses: each a finding with the launcher's words.
+        for (const auto& [section, said] : {std::pair{std::string_view("openmui = \"0.4\"\nruntime = \"0.1.0\"\n"), std::string_view("runtime = \"=0.1.0\"")},
+                                            std::pair{std::string_view("openmui = \"4\"\n"), std::string_view("major and minor")},
+                                            std::pair{std::string_view("openmui = \"0.4\"\nneeds = [1]\n"), std::string_view("a list of capabilities")}}) {
+            const auto ran = doctor(section);
+            const auto found = finding(ran);
+            expect(ran.code == 1 && found && found->get("problem")->as_string().contains(said) && found->get("fix")) << section << ran.out;
+            expect(!runtime_record(ran)) << "no runtime is chosen for a declaration the launcher refuses";
+        }
+        // A sound one: no finding of it, and the runtime it takes — the directory of one installed, or why none is and
+        // the command that installs one; never required (omui run falls back to the tool's player).
+        const auto sound = doctor("openmui = \"0.4\"\nneeds = [\"agent\"]\n");
+        const auto record = runtime_record(sound);
+        expect(!finding(sound) && record.has_value()) << sound.out;
+        if (!record) return;
+        expect(record->get("required") && !record->get("required")->as_bool()) << record->json();
+        const bool found = record->get("found") && record->get("found")->type() == Value::Type::text && record->get("version");
+        expect(found || (record->get("install") && record->get("install")->as_string() == "xlings install omui-runtime@0.1" && record->get("why")))
+            << record->json();
+    };
+
     "the help names the project commands first"_test = [] {
         const auto ran = invoke({"omui"});
         expect(eq(ran.code, 0));

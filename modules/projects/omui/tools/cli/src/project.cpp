@@ -14,6 +14,7 @@ import mcpplibs.os;
 import tomlplusplus;
 import omui.lang.ts;
 import omui.core;
+import omui.entry.launcher;
 
 namespace omui::cli {
 
@@ -484,6 +485,32 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
             for (const auto& finding : mlibs::project::check(*project, all)) {
                 ++findings;
                 out << Value{}.set("rule", finding.rule).set("where", finding.where).set("problem", finding.text).set("fix", finding.fix).json() << '\n';
+            }
+            // The runtime a script application declares (E3b), read as omui-launch reads it: where the launcher would
+            // refuse it, a finding; else a record as a tool's is, the installed runtime it would start on, or why none
+            // does and the command that installs one (not required: `omui run` falls back to the tool's own player).
+            if (const auto manifest = mcpplibs::os::fs::read(dir / "mcpp.toml"); manifest && declares_runtime(*manifest)) {
+                if (const auto wanted = omui::launcher::declared(*manifest); !wanted) {
+                    ++findings;
+                    out << Value{}
+                               .set("rule", "app.runtime")
+                               .set("where", "mcpp.toml")
+                               .set("problem", wanted.error())
+                               .set("fix", "[package.metadata.openmui.runtime] as omui-launch reads it: openmui = \"0.4\", needs = [\"agent\", …], and "
+                                           "runtime = \"=0.1.0\" only to pin one")
+                               .json()
+                        << '\n';
+                } else {
+                    const auto choice = omui::launcher::choose(*wanted, omui::launcher::installed(omui::launcher::xlings_home()));
+                    Value record = Value{}
+                                       .set("tool", "omui-runtime")
+                                       .set("found", choice.chosen ? Value(mcpplibs::os::fs::utf8(choice.chosen->directory)) : Value{})
+                                       .set("required", false)
+                                       .set("for", "starting this application as it ships, as data on a shared runtime (omui-launch; omui run)");
+                    if (choice.chosen) record.set("version", choice.chosen->version);
+                    else record.set("why", choice.why).set("install", choice.install);
+                    out << record.json() << '\n';
+                }
             }
             if (findings) err << std::format("{} finding{} in the project\n", findings, findings == 1 ? "" : "s");
         }

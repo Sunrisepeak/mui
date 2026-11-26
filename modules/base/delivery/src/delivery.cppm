@@ -45,6 +45,8 @@ struct Budget {
     std::string    pattern;  // the files it is over
     Measure        measure = Measure::sent;
     Over           over = Over::each;
+    // The most it may weigh. 0: none stated — a share of the delivery, counted (what a part of it weighs: a site's
+    // program, its faces) and held to nothing.
     std::uintmax_t most = 0;
 };
 

@@ -92,8 +92,11 @@ void site_build(Reply& reply, const mlibs::agent::Arguments& args, const shell::
                               .set("files", number(verdict.files))
                               .set("within", verdict.within));
         if (!verdict.within && over.empty())
-            over = std::format("{}: {} sends {} bytes, over the budget of {} — shorten the page, or state the budget it is held to with --readable", verdict.budget.name, verdict.where,
-                               verdict.found, verdict.budget.most);
+            over = verdict.budget.over == mlibs::delivery::Over::each
+                       ? std::format("{}: {} sends {} bytes, over the budget of {} — shorten the page, or state the budget it is held to with --readable", verdict.budget.name,
+                                     verdict.where, verdict.found, verdict.budget.most)
+                       : std::format("{}: {} send {} bytes in all, over the budget of {} the site states (oweb.config.ts, budgets) — a smaller program, or the budget it is held to",
+                                     verdict.budget.name, verdict.budget.pattern, verdict.found, verdict.budget.most);
     }
     Value data = Value{}
                      .set("ok", over.empty())

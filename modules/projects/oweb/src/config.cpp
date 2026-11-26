@@ -16,7 +16,7 @@ namespace {
 constexpr std::array<std::string_view, 8> site_fields{"title", "url", "languages", "routes", "budgets", "look", "engine", "load"};
 constexpr std::array<std::string_view, 5> route_fields{"path", "source", "reference", "title", "load"};
 constexpr std::array<std::string_view, 3> loads{"eager", "idle", "interaction"};
-constexpr std::array<std::string_view, 1> budget_fields{"readable"};
+constexpr std::array<std::string_view, 2> budget_fields{"readable", "program"};
 
 }  // namespace
 
@@ -114,6 +114,10 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
         if (const auto readable = budgets["readable"]) {
             if (!readable.is_integer() || *readable.integer() < 0) return problem(readable, "the budget is a number of bytes (0 holds none)", "readable: 100000");
             options.readable = static_cast<std::uintmax_t>(*readable.integer());
+        }
+        if (const auto program = budgets["program"]) {
+            if (!program.is_integer() || *program.integer() < 0) return problem(program, "the budget is a number of bytes (0 holds none)", "program: 1200000");
+            options.program = static_cast<std::uintmax_t>(*program.integer());
         }
     }
     return options;

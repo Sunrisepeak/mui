@@ -103,6 +103,8 @@ static UTest cases{"oweb.config", [] {
         expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md"},{"path":"/a/","source":"pages/b.md"}]})", "/site/routes/1/path", "stated twice"));
         expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md","nav":true}]})", "/site/routes/0/nav", "`path`"));
         expect(says(R"({"budgets":{"readable":-1}})", "/site/budgets/readable", "number of bytes"));
+        expect(of(R"({"budgets":{"program":1200000}})").has_value() && of(R"({"budgets":{"program":1200000}})")->program == 1'200'000u) << "the program's budget, stated";
+        expect(says(R"({"budgets":{"program":"small"}})", "/site/budgets/program", "number of bytes"));
         expect(of(R"({"routes":[{"path":"/ops/","reference":"../tool/tool.ops.xdef.ts"}]})").has_value()) << "a route that is a catalog's reference";
         expect(says(R"({"routes":[{"path":"/ops/","source":"pages/ops.md","reference":"tool.ops.xdef.ts"}]})", "/site/routes/0/reference", "not both"));
         expect(says(R"({"routes":[{"path":"/ops/","reference":"tool.md"}]})", "/site/routes/0/reference", "an operation catalog"));

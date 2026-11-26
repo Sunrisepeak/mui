@@ -110,6 +110,15 @@ jobs:
           for route in /start/ /agent/ /ui/ /live/; do
             mcpp run omui-devtools -p tools/devtools --profile ci -- check takeover --page target/oweb-docs --path "$route"
           done
+      - name: The documents template beside the site (ST6) — published with it, at templates/docs/
+        # The same site built for where it is served (its sitemap's addresses), into the directory Pages publishes:
+        # a site of documents with its engine on a static host, under a path that is not the host's top.
+        run: |
+          world="$PWD/$(dirname "$(ls -t target/.build-mcpp/out/*/oweb.reader/toy/oweb-reader/index.html | head -1)")"
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          mcpp run -p modules/projects/oweb --profile ci -- site.build --site modules/projects/oweb/templates/docs --out target/site/templates/docs --engine "$world" \
+            --url "https://$owner.github.io/${{ github.event.repository.name }}/templates/docs/"
+          test -f target/site/templates/docs/start/index.html && test -f target/site/templates/docs/site.delivery.xdef.json
       - name: Keep the site's checks and pictures
         if: always()
         uses: actions/upload-artifact@v4
@@ -163,3 +172,20 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: The documents template is served (ST6) — its tables, a route's page and its Markdown, as published
+        # What a reader, a search engine and an agent each fetch, from the host itself (a deployment takes a moment
+        # to be served: asked again for a minute).
+        run: |
+          base="${{ steps.deployment.outputs.page_url }}templates/docs/"
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS "${base}site.routes.xdef.json" -o routes.json && grep -q '"\$format":"routes@1"' routes.json; then break; fi
+            sleep 10
+          done
+          grep -q '"\$format":"routes@1"' routes.json
+          curl -fsS "${base}start/index.md" | head -1 | grep -q '^# Start'
+          curl -fsS "${base}start/" | grep -q 'data-omui-target='
+          curl -fsS "${base}site.search.xdef.json" | grep -q '"\$format":"search@1"'
+          curl -fsS "${base}llms.txt" | grep -q 'site.routes.xdef.json'
+          program="$(curl -fsS "${base}start/" | sed -n 's/^var omuiWasm = "\(.*\)";$/\1/p' | head -1)"
+          test -n "$program" && curl -fsSI "${base}engine/${program}" | grep -qi '^content-type: application/wasm'
+          echo "served: ${base} (routes, a page, its Markdown, the search index, llms.txt, the program)"

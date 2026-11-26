@@ -835,6 +835,14 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     if (auto written = write(".nojekyll", ""); !written) return std::unexpected(written.error());
     std::vector<mlibs::delivery::Budget> budgets;
     if (options.readable > 0) budgets.push_back({"a route readable", "**/index.html", mlibs::delivery::Measure::sent, mlibs::delivery::Over::each, options.readable});
+    // The engine's share, where the site has one: what a visitor downloads once for the site's pages to be drawn
+    // and operated — the program (its launcher and its code), held to what the site states (none: counted); and,
+    // counted, the faces: the cuts its pages are set in (fetched with a page) and the whole ones (when text asks).
+    if (!options.engine.empty()) {
+        budgets.push_back({"the program", "engine/*", mlibs::delivery::Measure::sent, mlibs::delivery::Over::sum, options.program});
+        budgets.push_back({"the pages' faces", "assets/*.ttf", mlibs::delivery::Measure::sent, mlibs::delivery::Over::sum, 0});
+        budgets.push_back({"the whole faces, on demand", "engine/assets/**", mlibs::delivery::Measure::sent, mlibs::delivery::Over::sum, 0});
+    }
     built.delivery = mlibs::delivery::held(std::move(files), budgets);
     // The manifest is of the site, not of itself: written last and not listed.
     {

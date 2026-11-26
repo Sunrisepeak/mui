@@ -59,6 +59,9 @@ struct SiteOptions {
     // The most a route sends before it reads: its index.html as a static host sends it (gzip) — the page carries its
     // style and needs nothing else to read. 100 KB is the plan's assumed budget (0.1.0 plan §6); 0 holds none.
     std::uintmax_t           readable = 100'000;
+    // The most the site's program weighs as it is sent — its launcher and its code, fetched once for every page
+    // (`engine/*`). 0: none stated; its weight is counted in the delivery manifest all the same, beside the faces'.
+    std::uintmax_t           program = 0;
     // Stated routes: these pages and no others, in this order — the navigation's. Empty: every page of pages/, by
     // address.
     std::vector<Declared>    routes;

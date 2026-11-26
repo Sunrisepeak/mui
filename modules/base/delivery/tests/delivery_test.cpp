@@ -51,7 +51,8 @@ static UTest cases{"mlibs.delivery", [] {
 
         const std::array budgets{delivery::Budget{"a page readable", "**/index.html", delivery::Measure::sent, delivery::Over::each, 400},
                                  delivery::Budget{"the pages", "**/index.html", delivery::Measure::bytes, delivery::Over::sum, 10'000},
-                                 delivery::Budget{"scripts", "**/*.js", delivery::Measure::sent, delivery::Over::sum, 0}};
+                                 delivery::Budget{"scripts", "**/*.js", delivery::Measure::sent, delivery::Over::sum, 0},
+                                 delivery::Budget{"pictures", "*.png", delivery::Measure::sent, delivery::Over::sum, 0}};
         const auto manifest = delivery::measure(directory, budgets);
         expect(manifest.has_value()) << (manifest ? "" : manifest.error());
         if (!manifest) return;
@@ -61,7 +62,8 @@ static UTest cases{"mlibs.delivery", [] {
         const delivery::File& home = manifest->files[1];
         expect(home.compressed && home.sent() == home.gzip && home.gzip < home.bytes / 10);
         expect(manifest->sent == manifest->files[0].gzip + home.gzip + 3000u && manifest->bytes == page.size() * 3 + 3000u);
-        expect(manifest->verdicts.size() == 3u);
+        expect(manifest->verdicts.size() == 4u);
+        expect(manifest->verdicts[3].within && manifest->verdicts[3].found == 3000u && manifest->verdicts[3].files == 1u) << "a share: none stated, counted and held to nothing";
         expect(manifest->verdicts[0].within && manifest->verdicts[0].files == 2u && manifest->verdicts[0].where == "guide/start/index.html") << "each: the largest named";
         expect(!manifest->verdicts[1].within && manifest->verdicts[1].found == page.size() * 3 && manifest->verdicts[1].where.empty()) << "a sum over its budget";
         expect(manifest->verdicts[2].within && manifest->verdicts[2].files == 0u) << "nothing of the kind is within any budget";

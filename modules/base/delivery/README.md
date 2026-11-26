@@ -1,8 +1,8 @@
 # mlibs.delivery
 
-A built directory as a static host sends it: every file's bytes and its bytes as gzip, what a visitor downloads (compressed where the host compresses the kind, as stored where not), budgets over patterns of paths and their verdicts, and the manifest of it all as data (`delivery@1`).
+A built directory as a static host sends it: every file's bytes and its bytes as gzip, what a visitor downloads (compressed where the host compresses the kind, as stored where not), budgets over patterns of paths and their verdicts — a budget that states no most is a share: counted and held to nothing — and the manifest of it all as data (`delivery@1`).
 
-Label: **preview**. A tool's shared library (0.1.0 plan RL7 §3.2: T1 of the toolchain): `oweb` writes a site's manifest with it; the repository's tool (`check size`, `check site delivery`, its Pages-like server's gzip) and `omui build` adopt it with RL8 — until then the repository's tool has its own copy of the gzip unit. Its own package because zlib is a dependency a library below it should not carry (D-99: dependency isolation).
+Label: **preview**. A tool's shared library (0.1.0 plan RL7 §3.2: T1 of the toolchain): `oweb` writes a site's manifest with it; the repository's tool serves and measures with it (its Pages-like server's gzip, `check takeover`, `check dist-toy-loading`, the site's split); `check size` and `omui build` adopt it with RL8. Its own package because zlib is a dependency a library below it should not carry (D-99: dependency isolation).
 
 ```cpp
 const auto manifest = mlibs::delivery::measure("dist", std::array{

@@ -201,6 +201,28 @@ static UTest cases{"oweb.site", [] {
                read(out / "engine/assets/89ab.ttf") == "a face" && !std::filesystem::exists(out / "engine/index.html"))
             << "the program's files, not the page they waited in";
         expect(std::ranges::any_of(built->delivery.files, [](const auto& file) { return file.path == "engine/reader-4567.wasm"; })) << "counted in the delivery";
+        {
+            // The engine's share: the program (its launcher and its code, as sent) counted and held to what the
+            // site states — nothing here; the faces counted beside it, the pages' cuts and the whole ones apart.
+            const auto share = [&](std::string_view name) { return std::ranges::find(built->delivery.verdicts, name, [](const auto& verdict) { return std::string_view(verdict.budget.name); }); };
+            const auto program = share("the program"), cuts = share("the pages' faces"), whole = share("the whole faces, on demand");
+            expect(program != built->delivery.verdicts.end() && cuts != built->delivery.verdicts.end() && whole != built->delivery.verdicts.end());
+            if (program == built->delivery.verdicts.end() || cuts == built->delivery.verdicts.end() || whole == built->delivery.verdicts.end()) return;
+            const auto sent_of = [&](std::string_view path) { return std::ranges::find(built->delivery.files, path, &mlibs::delivery::File::path)->sent(); };
+            expect(program->files == 2u && program->found == sent_of("engine/reader-0123.js") + sent_of("engine/reader-4567.wasm") && program->budget.most == 0u && program->within)
+                << program->files << " " << program->found;
+            expect(whole->files == 1u && whole->found == sent_of("engine/assets/89ab.ttf") && cuts->files >= 1u && cuts->found > 0u && cuts->within && whole->within);
+            expect(built->delivery.within() && read(out / "site.delivery.xdef.json").contains("\"name\":\"the program\"")) << "counted is not held";
+            // Stated, it is held: a byte under what the program sends is over, and the answer names the share.
+            const auto tight = oweb::build(data() / "docs", scratch("docs-engine-tight"), {.languages = {"en", "zh"}, .program = program->found - 1, .engine = world.string(), .load = "idle"});
+            expect(tight.has_value() && !tight->delivery.within());
+            if (tight) {
+                const auto held = std::ranges::find(tight->delivery.verdicts, std::string_view("the program"), [](const auto& verdict) { return std::string_view(verdict.budget.name); });
+                expect(held != tight->delivery.verdicts.end() && !held->within && held->found == program->found && held->budget.most == program->found - 1);
+            }
+            expect(!read(looked_out / "site.delivery.xdef.json").contains("the program"))
+                << "a site without a program has no such share";
+        }
         expect(read(out / "site.routes.xdef.json").contains("\"load\":\"idle\"") && !read(looked_out / "site.routes.xdef.json").contains("\"load\"")) << "a route's load, where the site has a program";
         // The page scrolls in a view of the window's size (a canvas is not scrolled by its window); the page for a
         // lost address takes no program.

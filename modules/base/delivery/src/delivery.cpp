@@ -91,7 +91,7 @@ Manifest held(std::vector<File> files, std::span<const Budget> budgets) {
         }
         verdict.found = budget.over == Over::each ? largest : sum;
         if (budget.over == Over::sum) verdict.where.clear();
-        verdict.within = verdict.found <= budget.most;
+        verdict.within = budget.most == 0 || verdict.found <= budget.most;  // none stated: a share, counted and held to nothing
         manifest.verdicts.push_back(std::move(verdict));
     }
     manifest.files = std::move(files);

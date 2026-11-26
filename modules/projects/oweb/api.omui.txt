@@ -51,7 +51,8 @@ namespace oweb {
     std::string title;
     std::vector<std::string> languages{…};
     std::string url;
-    std::uintmax_t readable = 100'000; // Stated routes: these pages and no others, in this order — the navigation's. Empty: every page of pages/, by std::vector<Declared> routes;
+    std::uintmax_t readable = 100'000; // The most the site's program weighs as it is sent — its launcher and its code, fetched once for every page std::uintmax_t program = 0;
+    std::vector<Declared> routes;
     bool look = false;
     std::string engine;
     std::string load = "eager";

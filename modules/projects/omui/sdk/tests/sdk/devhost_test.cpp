@@ -3,6 +3,7 @@
 // person's press handled by it, a new build taking over with what the person
 // set and fading in, a build's problems shown.
 import std;
+import mlibs.text.harfbuzz;
 import omui;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -49,7 +50,7 @@ struct Application {
 
     static mlibs::text::FontCollection& fonts() {
         static mlibs::text::FontCollection collection = [] {
-            mlibs::text::FontCollection made;
+            mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
             (void)made.add_defaults();
             return made;
         }();

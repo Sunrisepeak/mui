@@ -3,6 +3,7 @@
 // the limits and how open generation is; previewed with nothing left of it;
 // committed as versions undo takes back.
 import std;
+import mlibs.text.harfbuzz;
 import omui.agent;
 import omui.generate;
 import omui.viewdoc;
@@ -18,7 +19,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         (void)made.add_defaults();
         return made;
     }();

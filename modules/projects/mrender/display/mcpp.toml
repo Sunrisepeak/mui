@@ -1,0 +1,34 @@
+# mrender.display — the display list of contract ⑤ (spec §7): what a frame
+# draws, as plain data in an arena. Split from mrender.vector so that what only
+# draws into a list, or reads one into a terminal's cells (mrender.cells), takes
+# the types without a renderer (terminal design §9 step 3).
+[package]
+namespace   = "mrender"
+name        = "display"
+version     = "0.1.0"
+description = "The display list: paths, paints, strokes, clips, transforms, layers, glyph runs, images and node markers as plain data"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: the display list as it was in mrender.vector, moved (D-189: the label is the capability's)
+separate = "closure: the display list without a renderer (lint `closure`: geometry, numbers and memory alone), for what only draws into one or reads it as cells (terminal design §9)"
+kind = "backend"
+agent = { part = "mrender.frame" }
+
+[targets.mrender-display]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.math   = { path = "../../../base/math" }
+mlibs.utils  = { path = "../../../base/utils" }
+mlibs.geom   = { path = "../../../base/geom" }
+mlibs.memory = { path = "../../../base/memory" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

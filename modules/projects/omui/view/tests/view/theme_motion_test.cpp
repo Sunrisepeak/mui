@@ -1,6 +1,7 @@
 // Theme history is visual content, not another set of current node identities.
 // These probes deliberately combine a live node morph and a scoped crossfade.
 import std;
+import mlibs.text.harfbuzz;
 import omui.view;
 import mrender.raster;
 import mcpplibs.mtest;
@@ -26,7 +27,7 @@ struct QualityOverlay {
     void paint(PaintContext& context) const { context.list.fill_rect({0, 0, context.size.width, context.size.height}, context.theme.color("accent")); }
 };
 struct Probe {
-    mlibs::text::FontCollection fonts;
+    mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
     Runtime runtime{options(fonts)};
     mrender::text::GlyphCache glyphs{fonts};
     Signal<float> x = signal(0.0f);
@@ -157,7 +158,7 @@ static UTest cases{"view.theme_motion", [] {
     };
     "an ambient slot's breath: scaled about its centre by a wave of the time since it was first drawn; its frames ambient; at rest under reduced motion (M-7)"_test = [] {
         const auto drawn = [](bool reduce) {
-            mlibs::text::FontCollection fonts;
+            mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
             Runtime runtime{options(fonts, reduce)};
             auto o = box({.id = "o", .width = 100, .height = 50, .background = "accent"});
             o.prop("motion", Source(Value{}.set("ambient", "breathe")));

@@ -4,6 +4,7 @@
 // undone and redone exactly, the document after each handed out; a document
 // that does not read says why; the same pixels on every platform.
 import std;
+import mlibs.text.harfbuzz;
 
 import omui.ui.timeline;
 import hanim.timeline;
@@ -20,7 +21,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

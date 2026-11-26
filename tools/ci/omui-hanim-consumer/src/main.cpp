@@ -1,4 +1,5 @@
 import std;
+import mlibs.text.harfbuzz;
 import omui.hanim;
 import hanim.control;
 import omui.ui.base;
@@ -322,7 +323,7 @@ void driver_checks(mlibs::text::FontCollection& fonts,const std::filesystem::pat
 int main(int argc,char** argv) {
     if(!check(argc==2,"output_directory_argument"))return finish();
     const auto output=mcpplibs::os::fs::from_utf8(argv[1]);
-    mlibs::text::FontCollection fonts;const auto loaded=fonts.add_defaults();
+    mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};const auto loaded=fonts.add_defaults();
     if(!check(loaded && fonts.face_count()>0,"font_resources_loaded")) {
         if(!loaded)std::println(std::cerr,"{}",loaded.error());return finish();
     }

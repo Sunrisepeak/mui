@@ -5,6 +5,7 @@
 // external effect: it answers) and closed with the node; and, where the host
 // has no web view, a card that opens the system's browser.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
@@ -18,7 +19,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         (void)made.add_defaults();
         return made;
     }();

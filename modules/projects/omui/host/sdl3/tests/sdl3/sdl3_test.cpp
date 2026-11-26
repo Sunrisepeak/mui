@@ -6,6 +6,7 @@
 // the GPU renderer's frame, and a program's effect file, edited while it
 // runs, shows on the next frame.
 import std;
+import mlibs.text.harfbuzz;
 import mcpplibs.os;
 import mcpplibs.mwrap.sdl3;  // a virtual gamepad (the gamepad test)
 import omui.host.sdl3;
@@ -23,7 +24,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

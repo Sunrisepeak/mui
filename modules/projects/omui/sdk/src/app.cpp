@@ -563,7 +563,8 @@ std::expected<CommandLine, int> command_line(cmdline::App line, int argc, char**
 std::vector<std::string> capabilities() {
     hosting::install_services();
     // A capability by the slot its provider is installed at (the manifest's installs, feature by feature).
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 4> named{{{"omui.agent.endpoint", "agent"},
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 5> named{{{"mlibs.text.shaper", "shaping"},
+                                                                                           {"omui.agent.endpoint", "agent"},
                                                                                            {"omui.sdk.generation", "generate"},
                                                                                            {"omui.host.sdl3.gpu", "gpu"},
                                                                                            {"omui.accessibility.service", "accessibility-bridge"}}};

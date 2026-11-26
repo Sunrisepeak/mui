@@ -1,7 +1,9 @@
-// mrender.vector:display — contract ⑤, what a frame draws (spec §7).
+// mrender.display — contract ⑤, what a frame draws (spec §7).
 //
 // Components paint into a display list; a renderer (the CPU reference raster
-// or the GPU renderer) turns it into pixels. The list is plain data: commands
+// or the GPU renderer of mrender.vector, the cell renderer of mrender.cells)
+// turns it into pixels or a terminal's cells. A package of its own: what
+// draws needs only these types, and no renderer comes with them. The list is plain data: commands
 // whose variable parts (path points, glyphs, gradient stops) live in the
 // list's arena, so building a frame's list of the same shape as the last
 // allocates nothing, and two lists can be compared or hashed for caching.
@@ -9,7 +11,7 @@
 // `begin_node`/`end_node` bracket what a node drew: the renderer can write an
 // object-id buffer from them, which is how devtools trace a pixel to the node
 // and the source line that produced it.
-export module mrender.vector.api:display;
+export module mrender.display;
 
 import std;
 import mlibs.geom;

@@ -3,6 +3,7 @@
 // turned on, the slider moved, where a list was scrolled to and the focus —
 // not a step anyone takes back.
 import std;
+import mlibs.text.harfbuzz;
 import omui.agent;
 import omui.ui.base;
 import mcpplibs.mtest;
@@ -15,7 +16,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         (void)made.add_defaults();
         return made;
     }();

@@ -40,6 +40,7 @@ mcpplibs.cmdline    = "0.0.3"
 programs = "directory"  # tests/gen/: one program, each file run and filtered as before
 
 [dev-dependencies]
+"mlibs.text.harfbuzz" = { path = "../../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
 mcpplibs.os = "0.4.4"  # the test program's own image (size_test)
 mcpplibs.mtest = "0.8.4"
 mrender.text = { path = "../../../mrender/text" }

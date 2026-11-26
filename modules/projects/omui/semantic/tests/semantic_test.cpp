@@ -2,6 +2,7 @@
 // id, wait conditions, the spec's checks; recording a session and replaying
 // it to the same tree.
 import std;
+import mlibs.text.harfbuzz;
 import omui.semantic;
 import mcpplibs.mtest;
 
@@ -13,7 +14,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

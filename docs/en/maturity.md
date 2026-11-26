@@ -16,11 +16,11 @@ A capability below its package's label is marked in its project's feature table 
 |---|---|---|---|
 | omui | 30 | 3 | 1 |
 | hanim | 5 | 4 | 0 |
-| mrender | 10 | 8 | 0 |
+| mrender | 11 | 8 | 0 |
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 31 | 5 | 0 |
+| mlibs | 32 | 5 | 0 |
 | examples | 12 | 0 | 0 |
 | build plugins (mcpp) | 1 | 0 | 0 |
 | works (showcase) | 0 | 10 | 5 |
@@ -89,6 +89,7 @@ A capability below its package's label is marked in its project's feature table 
 | `mrender.text` | [modules/projects/mrender/text](../../modules/projects/mrender/text) | stable |
 | `mrender.graph` | [modules/projects/mrender/graph](../../modules/projects/mrender/graph) | stable |
 | `mrender.cts` | [modules/projects/mrender/cts](../../modules/projects/mrender/cts) | stable |
+| `mrender.display` | [modules/projects/mrender/display](../../modules/projects/mrender/display) | stable |
 | `mrender.vector` | [modules/projects/mrender/vector](../../modules/projects/mrender/vector) | stable |
 | `mrender.frame` | [modules/projects/mrender/frame](../../modules/projects/mrender/frame) | stable |
 | `mrender.scene` | [modules/projects/mrender/scene](../../modules/projects/mrender/scene) | preview |
@@ -185,6 +186,7 @@ A capability below its package's label is marked in its project's feature table 
 | `mlibs.layout` | [modules/content/layout](../../modules/content/layout) | stable |
 | `mlibs.markdown` | [modules/content/markdown](../../modules/content/markdown) | stable |
 | `mlibs.text` | [modules/content/text](../../modules/content/text) | stable |
+| `mlibs.text.harfbuzz` | [modules/content/text/harfbuzz](../../modules/content/text/harfbuzz) | stable |
 | `mlibs.text.fonts` | [modules/content/text/fonts](../../modules/content/text/fonts) | stable |
 | `mlibs.text.fonts.han` | [modules/content/text/fonts/han](../../modules/content/text/fonts/han) | stable |
 | `mlibs.text.fonts.arabic` | [modules/content/text/fonts/arabic](../../modules/content/text/fonts/arabic) | stable |

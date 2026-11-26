@@ -5,6 +5,7 @@
 // same rest. Built generically from the registered types (viewdoc::make), so
 // no component gets a fixture of its own.
 import std;
+import mlibs.text.harfbuzz;
 import omui.viewdoc;
 import omui.ui.base;
 import omui.host.headless;
@@ -19,7 +20,7 @@ namespace vd = omui::viewdoc;
 namespace {
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

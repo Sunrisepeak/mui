@@ -36,6 +36,14 @@ void append_utf8(std::string& out, char32_t cp);
 [[nodiscard]] bool extended_pictographic(char32_t cp) noexcept;
 [[nodiscard]] bool unassigned(char32_t cp) noexcept;
 
+// How many character cells a grapheme cluster takes in a terminal's grid: 2
+// for East Asian Wide and Fullwidth (UAX #11), an emoji presentation sequence
+// (a pictograph with U+FE0F, or joined by ZWJ) and a flag; 0 for a control
+// (CR, LF, tab and the rest of Cc) and for nothing; 1 otherwise — Ambiguous
+// too, as a terminal outside an East Asian locale shows it. What a terminal
+// measures text by, and draws it at (the cell measure, the cell renderer).
+[[nodiscard]] int columns(std::u32string_view grapheme) noexcept;
+
 enum class Break : std::uint8_t { none, allowed, mandatory };
 
 // Boundaries, as offsets into `text`: always 0 first and text.size() last

@@ -699,7 +699,8 @@ Outcome omui_hanim(Probe& probe, bool web) {
     std::string manifest = mcpplibs::os::fs::read(fixture / "mcpp.toml.in").value_or("");
     for (const auto& [key, relative] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
              {"view", "modules/projects/omui/view"}, {"components", "modules/projects/omui/components/base"}, {"raster", "modules/projects/mrender/raster"},
-             {"image", "modules/base/image"}, {"utils", "modules/base/utils"}, {"mrender_text", "modules/projects/mrender/text"}, {"hanim", "modules/projects/hanim"}}) {
+             {"image", "modules/base/image"}, {"utils", "modules/base/utils"}, {"mrender_text", "modules/projects/mrender/text"}, {"hanim", "modules/projects/hanim"},
+             {"harfbuzz", "modules/content/text/harfbuzz"}}) {
         const std::string mark = std::format("{{{{{}_path}}}}", key), value = json(text_of(probe.repo / relative)).dump();
         for (std::size_t at = manifest.find(mark); at != std::string::npos; at = manifest.find(mark, at + value.size())) manifest.replace(at, mark.size(), value);
     }

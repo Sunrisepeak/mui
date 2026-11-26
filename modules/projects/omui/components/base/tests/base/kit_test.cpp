@@ -5,6 +5,7 @@
 // a component as a node of its own), their semantics, their history, and a
 // gallery whose pixels are pinned for every platform.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.hash;
@@ -19,7 +20,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();
@@ -329,7 +330,7 @@ static UTest cases{"ui.base.kit", [] {
     };
 
     "the gallery: the ten, the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions o = options({440, 360});
         o.fonts = &own;

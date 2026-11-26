@@ -5,6 +5,7 @@
 // short tween; settled, exactly the drawing as it is; the same at the same
 // time, seekable.
 import std;
+import mlibs.text.harfbuzz;
 import omui.view;
 import mrender.raster;
 import mcpplibs.mtest;
@@ -17,7 +18,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         if (auto r = c.add_defaults(); !r) std::println("fonts: {}", r.error());
         return c;
     }();

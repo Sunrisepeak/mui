@@ -3,6 +3,7 @@
 // rules of spec §3.3, transitions, scrolling, themes; and pixels pinned for
 // every platform.
 import std;
+import mlibs.text.harfbuzz;
 import omui.view;
 import mrender.raster;
 import mlibs.image;
@@ -28,7 +29,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         if (auto r = c.add_defaults(); !r) std::println("fonts: {}", r.error());
         return c;
     }();
@@ -1160,7 +1161,7 @@ static UTest cases{"view", [] {
     "pixels are the same on every platform"_test = [] {
         // Its own fonts: font references are numbered in the order they are
         // first used, and the list hash includes them.
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         RuntimeOptions o = options({240, 120});
         o.fonts = &own;

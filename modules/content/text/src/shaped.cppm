@@ -1,7 +1,6 @@
-// openmui.text:shaped — a paragraph after shaping, before line layout. Plain
-// data shared by the shaping unit (HarfBuzz, SheenBidi) and the layout unit;
-// exported to no one.
-module mlibs.text.api:shaped;
+// mlibs.text:shaped — a paragraph after shaping, before line layout: plain data a shaper fills (its `shape`, the
+// slot's contract, :shaper) and the layout unit reads. A shaper's units are the only writers outside this module.
+export module mlibs.text.api:shaped;
 
 import std;
 import mlibs.geom;
@@ -9,7 +8,7 @@ import mlibs.unicode;
 import :font;
 import :paragraph;
 
-namespace mlibs::text {
+export namespace mlibs::text {
 
 struct ShapedGlyph {
     std::uint32_t id = 0;
@@ -52,13 +51,17 @@ struct Paragraph::Shaped {
     float                      ellipsis_width = 0;
 };
 
-// Shapes `text`: bidi levels, the shaper's runs, then words and line-break opportunities (shape.cpp).
+// The style a byte is in: 0 the paragraph's, i + 1 the range i's (a shaper's runs do not cross a style).
+[[nodiscard]] std::size_t style_at(const Paragraph::Shaped& shaped, std::size_t byte) noexcept;
+
+}  // namespace mlibs::text
+
+namespace mlibs::text {
+
+// Shapes `text`: bidi levels, the collection's shaper's runs, then words and line-break opportunities (shape.cpp).
 void shape(Paragraph::Shaped& s);
 // Each byte's bidi level (UBA, rule L1's paragraph part applied) into `level_at`; the paragraph's base level, 0 or 1
 // (native/bidi.cpp, over SheenBidi).
 std::uint8_t bidi_levels(std::string_view text, TextDirection direction, std::vector<std::uint8_t>& level_at);
-// The shaper's part, given each byte's bidi level and `s.base_level`: the runs, their glyphs and metrics, the
-// graphemes with their advances (their words left to shape()), the ellipsis (native/shape.cpp, over HarfBuzz).
-void shape_runs(Paragraph::Shaped& s, std::span<const std::uint8_t> level_at);
 
 }  // namespace mlibs::text

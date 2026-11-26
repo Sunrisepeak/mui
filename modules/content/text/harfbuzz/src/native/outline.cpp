@@ -1,13 +1,15 @@
 // A glyph as geometry: its outline through hb_font_draw_glyph, its colour
 // layers through the OT COLR/CPAL API. Rasterising them is a renderer's.
-module mlibs.text.api;
+module mlibs.text.harfbuzz;
 
 import std;
 import mlibs.geom;
+import mlibs.text;
 import mcpplibs.mwrap.harfbuzz;
+import :native;
 using namespace mcpplibs::mwrap::harfbuzz::macros;
 
-namespace mlibs::text {
+namespace mlibs::text::harfbuzz {
 
 namespace {
 
@@ -51,18 +53,18 @@ hb_draw_funcs_t* draw_funcs() {
 
 }  // namespace
 
-GlyphOutline FontCollection::outline(FontRef font, std::uint32_t glyph) const {
+GlyphOutline Font::outline(std::uint32_t glyph) const {
     GlyphOutline out;
     Sink sink{&out};
-    hb_font_draw_glyph(static_cast<hb_font_t*>(hb_font(font)), glyph, draw_funcs(), &sink);
+    hb_font_draw_glyph(font_, glyph, draw_funcs(), &sink);
     // Font units to ems.
-    const float k = 1.0f / static_cast<float>(face(face_of(font)).units_per_em);
+    const float k = 1.0f / static_cast<float>(units_per_em_);
     for (geom::Point& p : out.points) p = {p.x * k, p.y * k};
     return out;
 }
 
-std::vector<ColorLayer> FontCollection::color_layers(FontRef font, std::uint32_t glyph) const {
-    hb_face_t* face = hb_font_get_face(static_cast<hb_font_t*>(hb_font(font)));
+std::vector<ColorLayer> Font::color_layers(std::uint32_t glyph) const {
+    hb_face_t* face = hb_font_get_face(font_);
     unsigned count = hb_ot_color_glyph_get_layers(face, glyph, 0, nullptr, nullptr);
     if (count == 0) return {};
     std::vector<hb_ot_color_layer_t> layers(count);
@@ -82,4 +84,4 @@ std::vector<ColorLayer> FontCollection::color_layers(FontRef font, std::uint32_t
     return out;
 }
 
-}  // namespace mlibs::text
+}  // namespace mlibs::text::harfbuzz

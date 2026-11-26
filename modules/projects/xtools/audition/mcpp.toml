@@ -19,6 +19,11 @@ kind = "tool"
 reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
 agent = "tool"
 
+# It makes its own headless host (a composition root: the host brings its text measure, terminal design §9); it has
+# no worlds of its own to bring back into a graph.
+[package.metadata.openmui.compose]
+root = true
+
 [targets.xtools-audition]
 kind = "lib"
 

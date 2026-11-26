@@ -22,7 +22,7 @@ export module mrender.vector.api:damage;
 
 import std;
 import mlibs.geom;
-import :display;
+import mrender.display;
 import :resources;
 
 export namespace mrender {

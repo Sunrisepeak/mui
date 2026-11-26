@@ -6,6 +6,7 @@
 // The platform is chosen here, so the same input does the same on every
 // machine; the process's own is the host's to set.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
@@ -19,7 +20,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         (void)made.add_defaults();
         return made;
     }();

@@ -3,6 +3,7 @@
 module omui.showcase.promo_video;
 
 import std;
+import mlibs.text.harfbuzz;
 import mlibs.hash;
 import hanim.core;
 import omui;
@@ -94,7 +95,7 @@ Player::Player(const Film& film, const Cut& cut, PlayerOptions options) : film_(
                 : Size{static_cast<float>(cut.timeline.width), static_cast<float>(cut.timeline.height)};
     fonts_ = options_.fonts;
     if (!fonts_) {
-        own_fonts_ = std::make_unique<mlibs::text::FontCollection>();
+        own_fonts_ = std::make_unique<mlibs::text::FontCollection>(mlibs::text::harfbuzz::shaper());
         if (auto r = own_fonts_->add_defaults(); !r) warn("promo: the default fonts did not load: {}", r.error());
         fonts_ = own_fonts_.get();
     }

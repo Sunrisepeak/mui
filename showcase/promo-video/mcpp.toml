@@ -39,6 +39,7 @@ mrender.text = { path = "../../modules/projects/mrender/text" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk                         = { path = "../../modules/projects/omui/sdk" }
+mlibs.text.harfbuzz              = { path = "../../modules/content/text/harfbuzz" }  # the shaper its shots' fonts are read with
 omui.theme                     = { path = "../../modules/projects/omui/theme" }
 hanim.timeline                    = { path = "../../modules/projects/hanim/timeline" }
 meng.video                     = { path = "../../modules/projects/meng/kernel/video" }

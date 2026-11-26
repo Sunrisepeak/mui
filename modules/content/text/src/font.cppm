@@ -16,6 +16,10 @@ export namespace mlibs::text {
 
 using FaceId = std::uint32_t;
 
+// The shaper a collection reads its faces with, and a font as it made it (:shaper).
+struct Shaper;
+class ShaperFont;
+
 // A face at a weight and slant, interned by its collection: what shaping and
 // drawing refer to (a renderer's font reference carries the same id).
 struct FontRef {
@@ -82,7 +86,10 @@ inline constexpr std::array<DefaultFont, 5> default_fonts{{
 
 class FontCollection {
 public:
+    // Over the shaper installed at the process's `shaper_slot` (none: a collection with no faces, whose
+    // `add_defaults` and `add_file` say how to install one), or over the one given.
     FontCollection();
+    explicit FontCollection(const Shaper& shaper);
     ~FontCollection();
     FontCollection(FontCollection&&) noexcept;
     FontCollection& operator=(FontCollection&&) noexcept;
@@ -168,8 +175,10 @@ public:
     [[nodiscard]] GlyphOutline outline(FontRef font, std::uint32_t glyph) const;
     [[nodiscard]] std::vector<ColorLayer> color_layers(FontRef font, std::uint32_t glyph) const;
 
-    // The native object, for the shaping and outline units of this package.
-    [[nodiscard]] void* hb_font(FontRef font) const;  // hb_font_t*, scaled to units per em
+    // The shaper it reads its faces with (null: none was installed when it was made).
+    [[nodiscard]] const Shaper* shaper() const noexcept;
+    // A font as its shaper made it, for that shaper's own units (null: a reference this collection never made).
+    [[nodiscard]] const ShaperFont* shaper_font(FontRef font) const noexcept;
 
 private:
     struct Impl;

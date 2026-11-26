@@ -3,6 +3,7 @@
 // drive them (a secondary press, pointing, typing, keys, actions, items),
 // their semantics, and a gallery whose pixels are pinned for every platform.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
@@ -16,7 +17,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         (void)made.add_defaults();
         return made;
     }();
@@ -211,7 +212,7 @@ static UTest cases{"ui.base.navigating", [] {
     };
 
     "the gallery: a sidebar, a toolbar and an open command palette over them — the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions made = options({560, 360});
         made.fonts = &own;

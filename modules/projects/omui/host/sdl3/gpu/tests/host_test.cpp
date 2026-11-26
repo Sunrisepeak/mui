@@ -4,6 +4,7 @@
 // picture drawn elsewhere shows in the window by both. On the machine's GPU (lavapipe in CI; required with
 // OMUI_REQUIRE_GPU=1). They live here, not with the host: a slot's owner cannot depend on its provider.
 import std;
+import mlibs.text.harfbuzz;
 import mcpplibs.os;
 import omui.host.sdl3;
 import omui.ui.base;  // a button in the first frame
@@ -19,7 +20,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

@@ -3,6 +3,7 @@
 // corners, type and shadows — and their gallery's pixels pinned for every
 // platform.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import omui.theme;
@@ -42,7 +43,7 @@ static UTest cases{"ui.base.platform_styles", [] {
 
     "fluent, cupertino and material: the same tree under each, each platform's shape — the same pixels on every platform"_test = [] {
         expect(fatal(themes::add_styles().has_value()));
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         std::vector<mrender::raster::Surface> pictures;
         std::vector<std::string> trees;

@@ -5,6 +5,7 @@
 // (maximized: no shadow, a restore button), names its buttons in the
 // person's language, and draws the same pixels on every platform.
 import std;
+import mlibs.text.harfbuzz;
 
 import omui.ui.window;
 import omui.host.headless;
@@ -33,7 +34,7 @@ struct FakeHost final : WindowHost {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

@@ -1,4 +1,4 @@
-module mrender.vector.api;
+module mrender.display;
 
 import std;
 import mlibs.memory;
@@ -673,6 +673,26 @@ void DisplayList::clear() noexcept {
     kept_runs_.clear();
     arena_.reset();
     material_.at = nullptr;
+}
+
+// A mixture of leaf paints is flat, its weights finite in [0, 1] and summing to one (checked where a list records it).
+std::expected<void, PaintMixError> validate_paint_mix(const Paint& paint) noexcept {
+    if (paint.kind != Paint::Kind::mix) return {};
+    if (paint.mix.empty() || paint.mix.size() > max_paint_mix_terms) return std::unexpected(PaintMixError::term_budget);
+    if (!std::isfinite(paint.mix_opacity) || paint.mix_opacity < 0 || paint.mix_opacity > 1)
+        return std::unexpected(PaintMixError::invalid_weight);
+    double total = 0;
+    for (const auto& term : paint.mix) {
+        if (term.paint.kind == Paint::Kind::mix) return std::unexpected(PaintMixError::nested_mix);
+        if (term.paint.kind != Paint::Kind::solid && term.paint.kind != Paint::Kind::gradient &&
+            term.paint.kind != Paint::Kind::image && term.paint.kind != Paint::Kind::image_mask)
+            return std::unexpected(PaintMixError::invalid_leaf);
+        if (!std::isfinite(term.weight) || term.weight < 0 || term.weight > 1)
+            return std::unexpected(PaintMixError::invalid_weight);
+        total += term.weight;
+    }
+    if (std::abs(total - 1) > 1e-5) return std::unexpected(PaintMixError::not_normalized);
+    return {};
 }
 
 }  // namespace mrender

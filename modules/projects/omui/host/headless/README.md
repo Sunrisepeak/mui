@@ -29,4 +29,6 @@ h.settle();
 h.save_png("after-save.png");
 ```
 
+Its text measure is the host's to bring (terminal design §9): where the program installed no shaper at [mlibs.text](../../../../content/text)'s slot `mlibs.text.shaper`, it installs HarfBuzz ([mlibs.text.harfbuzz](../../../../content/text/harfbuzz)) before it makes its fonts — so it is a composition root in its manifest (it has no worlds). A program that installed the cell measure gets a headless host that measures in cells.
+
 The endpoint of a session (H3) is the application's agent surface's: this host reads the slot `omui.agent.endpoint` ([`mlibs.compose`](../../../../base/compose), a preview, `lower` in the manifest) where a session opens, and makes the endpoint and what it captures through its table. A program whose root installed none (`omui::agent::install()`; `omui.sdk` does, by its feature `agent`) has no endpoint at H3, as where local endpoints are not supported. `png()` and `svg()` are whoever calls them's.

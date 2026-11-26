@@ -1,6 +1,7 @@
 // Public text recipes: configuration, policy overrides, motion levels and
 // font-cache lifetime. Real label matching belongs to the site quality probe.
 import std;
+import mlibs.text.harfbuzz;
 import hanim.core;
 import omui.view;
 import mlibs.math;
@@ -14,7 +15,7 @@ using namespace mcpplibs::mtest;
 namespace {
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection result;
+        mlibs::text::FontCollection result{mlibs::text::harfbuzz::shaper()};
         if (auto loaded = result.add_defaults(); !loaded) std::println("fonts: {}", loaded.error());
         return result;
     }();

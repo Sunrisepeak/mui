@@ -3,6 +3,7 @@
 // whole text, Ctrl+C the clipboard's; a press elsewhere lets it go; a control
 // never starts one; an agent selects through a node that offers it.
 import std;
+import mlibs.text.harfbuzz;
 import omui.view;
 import mcpplibs.mtest;
 
@@ -13,7 +14,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         if (auto added = made.add_defaults(); !added) std::println("fonts: {}", added.error());
         return made;
     }();

@@ -151,4 +151,17 @@ UTest cases{"unicode", [] {
         auto w = uc::word_at("hello, world", 9);
         expect(w.first == 7 && w.second == 12);
     };
+
+    "a grapheme's cells in a terminal: wide, fullwidth and emoji sequences two, controls none"_test = [] {
+        expect(eq(uc::columns(U"a"), 1));
+        expect(eq(uc::columns(U"é"), 1)) << "a base and its mark: one cell";
+        expect(eq(uc::columns(U"中"), 2));
+        expect(eq(uc::columns(U"Ａ"), 2)) << "fullwidth";
+        expect(eq(uc::columns(U"\U0001F600"), 2)) << "an emoji that presents as one by default (W)";
+        expect(eq(uc::columns(U"❤️"), 2)) << "a text-default pictograph with the emoji selector";
+        expect(eq(uc::columns(U"❤"), 1)) << "the same pictograph as text";
+        expect(eq(uc::columns(U"\U0001F1E8\U0001F1F3"), 2)) << "a flag";
+        expect(eq(uc::columns(U"\n"), 0) && eq(uc::columns(U"\t"), 0) && eq(uc::columns(U""), 0));
+        expect(eq(uc::columns(U"·"), 1)) << "ambiguous: one, outside an East Asian locale";
+    };
 }};

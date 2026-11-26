@@ -12,7 +12,7 @@
 export module mrender.vector.api:wire;
 
 import std;
-import :display;
+import mrender.display;
 
 export namespace mrender {
 

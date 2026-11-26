@@ -9,6 +9,7 @@
 // (`omui-promo render promo --out promo.webm`); the tests draw what CI can
 // afford: pinned frames, short stretches, sampled frames at a quarter scale.
 import std;
+import mlibs.text.harfbuzz;
 import omui;
 import hanim.timeline;
 import meng.audio;
@@ -49,7 +50,7 @@ std::string hex(std::uint64_t h) { return std::format("{:016x}", h); }
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

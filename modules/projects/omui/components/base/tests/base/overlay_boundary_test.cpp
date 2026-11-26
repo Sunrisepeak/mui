@@ -1,6 +1,7 @@
 // Local overlay placement is a runtime capability, exercised here with the
 // production dialog/drawer/popover/toast, actual pixels and pointer hits.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
@@ -12,7 +13,7 @@ using namespace mcpplibs::mtest;
 
 namespace {
 mlibs::text::FontCollection& fonts() {
-    static mlibs::text::FontCollection f = [] { mlibs::text::FontCollection v; (void)v.add_defaults(); return v; }();
+    static mlibs::text::FontCollection f = [] { mlibs::text::FontCollection v{mlibs::text::harfbuzz::shaper()}; (void)v.add_defaults(); return v; }();
     return f;
 }
 HeadlessOptions options(Size size = {760, 460}) {

@@ -3,6 +3,7 @@
 // again — and the window's frame shows it where the harbour's node is. With OMUI_REQUIRE_GPU=1 a missing device
 // fails; otherwise it is said and the case passes vacuously. The window's frame is kept for a person to look at.
 import std;
+import mlibs.text.harfbuzz;
 import omui;
 import omui.host.sdl3;
 import omui.host.sdl3.gpu;
@@ -17,7 +18,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection made = [] {
-        mlibs::text::FontCollection collection;
+        mlibs::text::FontCollection collection{mlibs::text::harfbuzz::shaper()};
         (void)collection.add_defaults();
         return collection;
     }();

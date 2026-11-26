@@ -404,6 +404,8 @@ std::span<const Closure> repository_closures() {
         {"mrender.vector", {}, {"mrender.effect", "mlibs.shader"}},
         // text lays out and gives glyphs as geometry; mrender.text draws them
         {"mlibs.text", {}, {"mrender"}},
+        // the display list: plain data, no renderer (terminal design §9 step 3)
+        {"mrender.display", {"mrender.display", "mlibs.geom", "mlibs.math", "mlibs.memory", "mlibs.utils"}, {}},
         // the stepping substrate: the standard library and the small tools only, no solver (D-133)
         {"mlibs.simulation", {"mlibs.simulation", "mlibs.utils"}, {}},
         // the solver core (D-133, D-231): the small tools alone — no UI, game, renderer, GPU, agent kernel or table; what

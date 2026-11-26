@@ -2,6 +2,7 @@
 // Sample production paint and real font coverage; semantic target boxes alone
 // cannot detect a lens still travelling through the previous allocation.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import mcpplibs.mtest;
 import mrender.text;
@@ -89,7 +90,7 @@ Paint painted(Runtime& runtime, mrender::text::GlyphCache& cache, NodeId node) {
     return result;
 }
 struct Fixture {
-    mlibs::text::FontCollection fonts;
+    mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
     Runtime runtime;
     mrender::text::GlyphCache glyphs;
     Signal<float> width=signal(320.0f);
@@ -105,7 +106,7 @@ struct Fixture {
         expect(runtime.motions().empty()) << "the initial selected value is actually settled";
     }
     static mlibs::text::FontCollection make_fonts() {
-        mlibs::text::FontCollection f;expect(f.add_defaults().has_value()) << "actual default TTF is available";return f;
+        mlibs::text::FontCollection f{mlibs::text::harfbuzz::shaper()};expect(f.add_defaults().has_value()) << "actual default TTF is available";return f;
     }
     static RuntimeOptions make_options(mlibs::text::FontCollection& fonts) {
         RuntimeOptions o;o.fonts=&fonts;o.theme=Theme::light();o.size={360,120};return o;

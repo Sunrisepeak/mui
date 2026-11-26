@@ -19,6 +19,11 @@ reexports = ["mlibs.image", "omui.agent", "omui.core", "omui.semantic", "omui.vi
 kind = "host"
 agent = { part = "omui.agent" }
 
+# A host chooses its text measure (terminal design §9): it installs HarfBuzz at mlibs.text's slot when the program
+# installed no shaper, so it depends on that provider as a root does. It has no worlds of its own.
+[package.metadata.openmui.compose]
+root = true
+
 [targets.openmui-host-headless]
 kind = "lib"
 
@@ -37,6 +42,8 @@ mrender.vector   = { path = "../../../mrender/vector" }
 # The frame's entry: the host hands its layers to the renderer, which composes, captures and traces (D-162).
 mrender.frame    = { path = "../../../mrender/frame" }
 mlibs.text     = { path = "../../../../content/text" }
+# The text measure it brings where a program installed none (terminal design §9: the host installs its shaper).
+"mlibs.text.harfbuzz" = { path = "../../../../content/text/harfbuzz" }
 mlibs.image    = { path = "../../../../base/image" }
 mlibs.utils    = { path = "../../../../base/utils" }
 

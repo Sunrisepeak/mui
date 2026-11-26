@@ -4,6 +4,8 @@ export import mlibs.text.api;
 export import :font;
 export import :paragraph;
 export import :edit;
+export import :shaped;
+export import :shaper;
 == mlibs.text.api:edit
 namespace mlibs::text {
   struct Selection {
@@ -48,6 +50,8 @@ namespace mlibs::text {
 == mlibs.text.api:font
 namespace mlibs::text {
   using FaceId = std::uint32_t;
+  struct Shaper;
+  class ShaperFont;
   struct FontRef {
     std::uint32_t id = 0;
     friend constexpr bool operator==(FontRef a, FontRef b) noexcept;
@@ -89,6 +93,7 @@ namespace mlibs::text {
   inline constexpr std::array<DefaultFont, 5> default_fonts{…};
   class FontCollection {
     FontCollection();
+    explicit FontCollection(const Shaper& shaper);
     ~FontCollection();
     FontCollection(FontCollection&&) noexcept;
     FontCollection& operator=(FontCollection&&) noexcept;
@@ -127,7 +132,8 @@ namespace mlibs::text {
     [[nodiscard]] Metrics metrics(FontRef font, float size) const;
     [[nodiscard]] GlyphOutline outline(FontRef font, std::uint32_t glyph) const;
     [[nodiscard]] std::vector<ColorLayer> color_layers(FontRef font, std::uint32_t glyph) const;
-    [[nodiscard]] void* hb_font(FontRef font) const;
+    [[nodiscard]] const Shaper* shaper() const noexcept;
+    [[nodiscard]] const ShaperFont* shaper_font(FontRef font) const noexcept;
   };
 }
 == mlibs.text.api:paragraph
@@ -239,4 +245,83 @@ namespace mlibs::text {
     GlyphOutline outline;
   };
   [[nodiscard]] std::vector<PlacedOutline> outlines(const Paragraph& paragraph, const FontCollection& fonts);
+}
+== mlibs.text.api:shaped
+namespace mlibs::text {
+  struct ShapedGlyph {
+    std::uint32_t id = 0;
+    std::uint32_t cluster = 0;
+    float advance = 0;
+    float x_offset = 0, y_offset = 0;
+  };
+  struct ShapedRun {
+    std::size_t begin = 0, end = 0;
+    std::uint8_t level = 0;
+    FontRef font;
+    std::size_t style = 0;
+    std::vector<ShapedGlyph> glyphs;
+    Metrics metrics;
+  };
+  struct Grapheme {
+    std::size_t begin = 0, end = 0;
+    std::uint32_t word = 0;
+    float advance = 0;
+    std::size_t run = 0;
+    bool space = false;
+    bool newline = false;
+    float gap_after = 0;
+    float line_start_trim = 0;
+  };
+  struct Paragraph::Shaped {
+    FontCollection* fonts = nullptr;
+    std::string text;
+    ParagraphStyle paragraph;
+    std::vector<TextStyle> styles;
+    std::vector<StyledRange> ranges;
+    std::uint8_t base_level = 0;
+    std::vector<ShapedRun> runs;
+    std::vector<Grapheme> graphemes;
+    std::vector<std::uint8_t> break_before;
+    ShapedRun ellipsis;
+    float ellipsis_width = 0;
+  };
+  [[nodiscard]] std::size_t style_at(const Paragraph::Shaped& shaped, std::size_t byte) noexcept;
+}
+== mlibs.text.api:shaper
+namespace mlibs::text {
+  class ShaperFace {
+    virtual ~ShaperFace() = default;
+    [[nodiscard]] virtual bool covers(char32_t code_point) const = 0;
+    [[nodiscard]] virtual std::span<const std::uint8_t> bytes() const = 0;
+    [[nodiscard]] virtual std::size_t held() const = 0;
+  };
+  class ShaperFont {
+    virtual ~ShaperFont() = default;
+    [[nodiscard]] virtual Metrics metrics(float size) const = 0;
+    [[nodiscard]] virtual GlyphOutline outline(std::uint32_t glyph) const = 0;
+    [[nodiscard]] virtual std::vector<ColorLayer> color_layers(std::uint32_t glyph) const = 0;
+  };
+  struct ShaperFaceMade {
+    FaceInfo info;
+    std::unique_ptr<ShaperFace> face;
+  };
+  struct Shaper {
+    std::string_view name;
+    std::expected<ShaperFaceMade, std::string> (*file)(const std::filesystem::path& file) = nullptr;
+    std::expected<ShaperFaceMade, std::string> (*data)(std::vector<std::uint8_t> data) = nullptr;
+    std::unique_ptr<ShaperFont> (*font)(const ShaperFace& face, const FaceInfo& info, float weight, Slant slant) = nullptr;
+    void (*shape)(Paragraph::Shaped& shaped, std::span<const std::uint8_t> level_at) = nullptr;
+    std::expected<void, std::string> (*defaults)(FontCollection& fonts, const std::filesystem::path& directory) = nullptr;
+  };
+  inline constexpr compose::Slot<Shaper> shaper_slot{…};
+  namespace cells {
+    struct Grid {
+      float column = 8;
+      float row = 16;
+      float baseline = 12;
+    };
+    [[nodiscard]] const Shaper& shaper();
+    std::expected<void, compose::Error> install(Grid grid = {…});
+    [[nodiscard]] Grid grid() noexcept;
+  }
 }

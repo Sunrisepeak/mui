@@ -9,6 +9,7 @@
 module omui.showcase.promo_video;
 
 import std;
+import mlibs.text.harfbuzz;
 import hanim.core;
 import omui;
 import omui.abi;
@@ -56,7 +57,7 @@ std::string_view source_of(std::string_view language) {
 // Each version run once a process, at a scale: its host, its script.
 Tally run_tally(std::string_view language, float scale) {
     Tally out;
-    mlibs::text::FontCollection fonts;
+    mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
     if (auto r = fonts.add_defaults(); !r) warn("promo: the default fonts did not load: {}", r.error());
     Headless h(HeadlessOptions{.size = tally_size, .scale = scale, .background = hex(ink::paper), .theme = blueprint(), .fonts = &fonts, .app = "openmui-promo-tally",
                                .complete_frames = true});

@@ -1,0 +1,6 @@
+== mlibs.text.harfbuzz
+export import mlibs.text;
+namespace mlibs::text::harfbuzz {
+  [[nodiscard]] const Shaper& shaper();
+  std::expected<void, compose::Error> install();
+}

@@ -13,7 +13,8 @@ A CPU/GPU same-source, Web-first renderer whose pixels agents can review (D-276:
 | Package | |
 |---|---|
 | [graph](graph) | `mrender.graph`: the render graph and the texture pool (below) |
-| [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer; pictures on bones in 2D (feature `sprite`) |
+| [display](display) | The display list of contract ⑤ as plain data, without a renderer: what draws into a list, or reads one into cells, takes these types alone |
+| [vector](vector) | 2D vector rendering: the display list's CPU reference renderer and its GPU renderer; pictures on bones in 2D (feature `sprite`) |
 | [scene](scene) | `mrender.scene`: what there is to draw in three dimensions and what a view of it sees — instances and lights by stable id, a change list a mirror follows, deterministic culling, sorting and batching; no device |
 | [mesh](mesh) | `mrender.mesh`: meshes drawn, the CPU reference — colour, depth, normal, velocity and an id buffer down to the triangle, the same bits everywhere; what the GPU path is compared with |
 | [particle](particle) | `mrender.particle`: particles drawn, the CPU reference — squares facing the eye over a frame's light, added or laid over (the farthest first), soft at the surfaces behind them; which particle is at a point without a frame |

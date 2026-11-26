@@ -1,4 +1,5 @@
 import std;
+import mlibs.text.harfbuzz;
 import omui.view;
 import mrender.raster;
 import mlibs.image;
@@ -24,7 +25,7 @@ PointerEvent pointer(PointerKind kind,Point at) {
     event.buttons=kind==PointerKind::down?1u:0u;return event;
 }
 mlibs::text::FontCollection& default_fonts() {
-    static mlibs::text::FontCollection value=[]{mlibs::text::FontCollection fonts;(void)fonts.add_defaults();return fonts;}();
+    static mlibs::text::FontCollection value=[]{mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};(void)fonts.add_defaults();return fonts;}();
     return value;
 }
 struct Fixture {

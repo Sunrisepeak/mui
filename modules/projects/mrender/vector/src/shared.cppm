@@ -8,7 +8,7 @@ module mrender.vector.api:shared;
 import std;
 import mlibs.geom;
 import mrender.raster;
-import :display;
+import mrender.display;
 
 namespace mrender {
 

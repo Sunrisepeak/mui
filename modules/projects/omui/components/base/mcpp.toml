@@ -53,6 +53,7 @@ openlifa.openmui = { path = "../../../../../spec" }  # its registry/: what the c
 programs = "directory"
 
 [dev-dependencies]
+mlibs.text.harfbuzz = { path = "../../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
 mcpplibs.mtest = "0.8.4"
 mrender.text = { path = "../../../mrender/text" }
 omui.host.headless = { path = "../../host/headless" }

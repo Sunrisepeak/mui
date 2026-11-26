@@ -4,6 +4,7 @@
 // reloads that keep state, components defined by documents, the schema and
 // the canonical format, and random documents that never crash the reader.
 import std;
+import mlibs.text.harfbuzz;
 import mlibs.math;
 import omui.viewdoc;
 import omui.ui.base;
@@ -32,7 +33,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

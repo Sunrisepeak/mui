@@ -93,4 +93,18 @@ bool unassigned(char32_t cp) noexcept {
     return (tables::lookup(tables::grapheme_stage1, tables::grapheme_stage2, cp) & 0x80) != 0;
 }
 
+int columns(std::u32string_view grapheme) noexcept {
+    if (grapheme.empty()) return 0;
+    const char32_t first = grapheme.front();
+    const Gcb kind = grapheme_class(first);
+    if (kind == Gcb::Control || kind == Gcb::CR || kind == Gcb::LF) return 0;
+    const Ea width = east_asian_width(first);
+    if (width == Ea::W || width == Ea::F) return 2;
+    if (kind == Gcb::Regional_Indicator && grapheme.size() > 1) return 2;  // a flag: two indicators
+    if (extended_pictographic(first))
+        for (const char32_t next : grapheme.substr(1))
+            if (next == 0xFE0F || next == 0x200D) return 2;  // emoji presentation, or a joined sequence
+    return 1;
+}
+
 }  // namespace mlibs::unicode

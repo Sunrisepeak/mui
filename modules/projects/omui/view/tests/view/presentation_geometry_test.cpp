@@ -1,6 +1,7 @@
 // The actual sampled border box is shared by pixels, hit testing and semantics.
 // NodeFrame is metadata only; it cannot become another visible staggered piece.
 import std;
+import mlibs.text.harfbuzz;
 import omui.view;
 import hanim.visual;
 import mrender.raster;
@@ -26,7 +27,7 @@ bool near(Rect a, Rect b, float tolerance = 0.02f) {
 }
 bool pixels_equal(const mrender::raster::Surface& a, const mrender::raster::Surface& b) { return a.width() == b.width() && a.height() == b.height() && std::ranges::equal(a.pixels(), b.pixels()); }
 struct Fixture {
-    mlibs::text::FontCollection fonts;
+    mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
     Runtime runtime{options(fonts)};
     mrender::text::GlyphCache glyphs{fonts};
     Signal<float> x = signal(10.0f);
@@ -115,7 +116,7 @@ static UTest cases{"view.presentation_geometry", [] {
         expect(near(f.runtime.drawn_bounds(id), f.runtime.screen_bounds(id)) && !f.runtime.motion_time(id)) << "settling restores the target border without a stale presented box";
     };
     "real row reflow and independently moving nested roots retain their actual pointer geometry"_test = [] {
-        mlibs::text::FontCollection fonts; Runtime runtime(options(fonts)); mrender::text::GlyphCache glyphs(fonts);
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()}; Runtime runtime(options(fonts)); mrender::text::GlyphCache glyphs(fonts);
         auto room = signal(230.0f), inside = signal(0.0f); int pressed = 0;
         auto control = box({.id = "control", .width = 70, .height = 30, .background = "#e11d48", .on = {{"press", [&](const Value&) { ++pressed; }}}});
         control.prop("translate_x", Source(derive([inside] { return Value(static_cast<double>(inside.get())); }))).prop("motion", Source(Value("morph motion.normal")));
@@ -158,7 +159,7 @@ static UTest cases{"view.presentation_geometry", [] {
         expect(f.runtime.drawn_bounds(f.node()).empty() && f.runtime.hit_test(old.center()) != f.node()) << "a node absent from the new current frame cannot be hit through its old border";
     };
     "layout-only pipelines retain target fallback without requiring a renderer or metadata pass"_test = [] {
-        mlibs::text::FontCollection fonts; Runtime runtime(options(fonts, Stages::layout));
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()}; Runtime runtime(options(fonts, Stages::layout));
         runtime.mount("main", box({.width = 60, .height = 30, .translate_x = 25})); runtime.frame({seconds(0), {}});
         const auto id = runtime.find("main"); expect(near(runtime.drawn_bounds(id), runtime.screen_bounds(id)));
         expect(runtime.hit_test(runtime.drawn_bounds(id).center()) == id && runtime.semantic_node(id).bounds.has_value());

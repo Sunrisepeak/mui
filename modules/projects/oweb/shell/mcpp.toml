@@ -1,0 +1,31 @@
+# oweb.shell — a page's shell: what stands around a route's document (the site's pages, the page's own sections, the
+# page before and after) as one view, built the same from what the site's routes say (as the site is built) and
+# from what the page's own HTML says (when the program arrives in a browser, D-284). The builder and the program
+# that reads a site share it, so a node has one id in the page as written and in the page as drawn.
+[package]
+namespace   = "oweb"
+name        = "shell"
+version     = "0.1.0"
+description = "A site page's shell as a view: the pages, the sections, the page before and after around the document — from the routes, or read back from the page's own projection"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "build-stage: the program a site's pages load carries the shell and nothing of the builder (the TypeScript evaluator, the headless host, the tool kernel)"
+kind = "lib"
+agent = { part = "omui.agent" }  # a page that runs is an application: its nodes — these — are read and operated at omui.agent's endpoint (D-174)
+
+[targets.oweb-shell]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.json       = { path = "../../../base/json" }  # the page's projection as its host hands it over
+omui.core        = { path = "../../omui/core" }
+omui.view        = { path = "../../omui/view" }
+omui.ui.base     = { path = "../../omui/components/base" }
+omui.ui.markdown = { path = "../../omui/components/markdown" }

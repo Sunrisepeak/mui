@@ -59,6 +59,11 @@ Not yet here (0.1.0's tasks ST2–ST7): pages written as views (`*.ts`), layouts
 
 The subject `oweb` (interface `oweb@1`) behind the tool kernel's three entries — the command line, MCP (`oweb mcp`) and the protocol. Its operations are a catalog ([`oweb.ops.xdef.ts`](oweb.ops.xdef.ts), listed in [`src/catalog`](src/catalog)): `site.build` (reversible: delete what was written), `routes.list`, `page.read` and `docs.search` (read). Every answer is data; a failure says why and what the site's routes are. How an agent uses them is [`skill.omui.md`](skill.omui.md). A built site is itself an agent surface: `llms.txt`, each route's `index.md`, `site.routes.xdef.json`, `site.search.xdef.json` and `site.delivery.xdef.json` need no engine and no script.
 
+## Packages
+
+- `oweb` (this directory): the builder, the command and its catalog.
+- [`oweb.shell`](shell): a page's shell as a view — one function for the builder and for the program a page loads, so a node has one id in the page as written and as drawn.
+
 ## Dependencies
 
 omui (`omui.view`, `omui.semantic`, the headless host, the base and Markdown components) and the foundation under it (`mlibs.markdown`, `mlibs.agent`, `mlibs.text.fonts`). Nothing of meng.

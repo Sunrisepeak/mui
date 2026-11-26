@@ -44,8 +44,9 @@ mlibs.utils    = { path = "../../base/utils" }  # mlibs.names: the nearest field
 mlibs.ts       = { path = "../../base/ts" }    # oweb.config.ts evaluated to its snapshot
 mlibs.xdef     = { path = "../../base/xdef" }  # a snapshot's format checked before it is read
 mlibs.markdown = { path = "../../content/markdown" }
-mlibs.text.fonts = { path = "../../content/text/fonts" }
-mlibs.text.subset = { path = "../../content/text/subset" }  # a site's faces cut to the characters its pages show (UI5, CF3)  # every script a page shows carried with it (D-214)
+mlibs.text.fonts = { path = "../../content/text/fonts" }  # every script a page shows carried with it (D-214)
+mlibs.text.subset = { path = "../../content/text/subset" }  # a site's faces cut to the characters its pages show (UI5, CF3)
+oweb.shell         = { path = "shell" }  # a page's shell: one view for the builder and for the program a page loads
 omui.core          = { path = "../omui/core" }
 omui.view          = { path = "../omui/view" }
 omui.semantic      = { path = "../omui/semantic" }

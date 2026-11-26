@@ -1,0 +1,24 @@
+== oweb.shell
+namespace oweb::shell {
+  struct Link {
+    std::string id;
+    std::string href;
+    std::string text;
+  };
+  struct Parts {
+    std::string site;
+    std::vector<Link> pages;
+    std::string contents;
+    std::vector<Link> sections;
+    std::string turn;
+    std::vector<Link> beside;
+    std::string document;
+    bool html = false;
+  };
+  struct Layout {
+    bool scrolls = false;
+  };
+  [[nodiscard]] omui::Element page(Parts parts, Layout layout = {…});
+  [[nodiscard]] std::expected<Parts, std::string> read(std::string_view projection, std::string_view document);
+  [[nodiscard]] std::string_view document_id(Layout layout = {…});
+}

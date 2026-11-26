@@ -12,6 +12,7 @@ import mlibs.text.subset;
 import omui.host.headless;
 import omui.ui.base;
 import omui.ui.markdown;
+import oweb.shell;
 import :site;
 
 namespace oweb {
@@ -220,45 +221,34 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         host.runtime().set_draws_unseen(true);
         host.runtime().set_theme_by_preference([](bool dark) { return dark ? Theme::dark_theme() : Theme::light(); });
     }
-    std::vector<Element> parts;
+    shell::Parts parts;
     if (routes.size() > 1) {
-        std::vector<Element> links;
-        for (std::size_t index = 0; index < routes.size(); ++index) {
-            // The site's own language first, then each language's pages together.
-            if (routes[index].language != route.language) continue;
-            links.push_back(link({.id = std::format("r{}", index), .href = relative(route.path, routes[index].path), .text = routes[index].title}));
-        }
+        const auto page_link = [&](const Route& to) {
+            return shell::Link{std::format("r{}", &to - routes.data()), relative(route.path, to.path), to.title};
+        };
+        // The site's own language first, then each language's pages together.
+        for (const Route& other : routes)
+            if (other.language == route.language) parts.pages.push_back(page_link(other));
         // Each other language: this page in it where the site has it, that language's first page where not.
         for (const std::string& language : options.languages) {
             if (language == route.language) continue;
             const Route* there = translated(routes, route, language, options);
             if (!there) there = std::ranges::find(routes, language, &Route::language) == routes.end() ? nullptr : &*std::ranges::find(routes, language, &Route::language);
-            if (there) links.push_back(link({.id = std::format("r{}", there - routes.data()), .href = relative(route.path, there->path), .text = there->title}));
+            if (there) parts.pages.push_back(page_link(*there));
         }
-        Element navigation = row({.id = "nav", .gap = 16, .wrap = "wrap"}, std::move(links));  // onto more lines in a narrow window
-        navigation.prop("role", Source{Value("navigation"), {}, {}});
-        navigation.prop("label", Source{Value(options.title.empty() ? std::string("Pages") : options.title), {}, {}});
-        parts.push_back(std::move(navigation));
+        parts.site = options.title.empty() ? std::string("Pages") : options.title;
     }
     // The page's own contents: its sections below its title, each a link to its anchor (a page of fewer than two has
     // nothing to choose between).
-    {
-        std::vector<Element> links;
+    if (!lost) {
         for (std::size_t index = 0; index < route.headings.size(); ++index) {
             const Heading& heading = route.headings[index];
             if (heading.level < 2 || heading.level > 3 || heading.anchor.empty()) continue;
-            links.push_back(link({.id = std::format("t{}", index), .href = std::format("#{}", heading.anchor), .text = heading.text}));
+            parts.sections.push_back({std::format("t{}", index), std::format("#{}", heading.anchor), heading.text});
         }
-        if (links.size() >= 2 && !lost) {
-            Element contents = column({.id = "toc", .gap = 4}, std::move(links));
-            contents.prop("role", Source{Value("navigation"), {}, {}});
-            contents.prop("label", Source{Value(std::string(named_in(route.language).contents)), {}, {}});
-            parts.push_back(std::move(contents));
-        }
+        if (parts.sections.size() < 2) parts.sections.clear();
+        parts.contents = named_in(route.language).contents;
     }
-    Element main = column({.id = "main"}, {markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = std::string(page_text)})});
-    main.prop("role", Source{Value("main"), {}, {}});
-    parts.push_back(std::move(main));
     // The page before and the page after, among its language's in the routes' order.
     if (routes.size() > 1 && !lost) {
         const Route* before = nullptr;
@@ -270,20 +260,12 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
             else if (!passed) before = &other;
             else if (!after) after = &other;
         }
-        std::vector<Element> links;
-        if (before) links.push_back(link({.id = "before", .href = relative(route.path, before->path), .text = std::format("← {}", before->title)}));
-        if (after) links.push_back(link({.id = "after", .href = relative(route.path, after->path), .text = std::format("{} →", after->title)}));
-        if (!links.empty()) {
-            Element turn = row({.id = "turn", .gap = 16, .wrap = "wrap"}, std::move(links));
-            turn.prop("role", Source{Value("navigation"), {}, {}});
-            turn.prop("label", Source{Value(std::string(named_in(route.language).turn)), {}, {}});
-            parts.push_back(std::move(turn));
-        }
+        if (before) parts.beside.push_back({"before", relative(route.path, before->path), std::format("← {}", before->title)});
+        if (after) parts.beside.push_back({"after", relative(route.path, after->path), std::format("{} →", after->title)});
+        parts.turn = named_in(route.language).turn;
     }
-    // One column a reader's eye can follow, in the middle of a wide window: as wide as the window up to that.
-    Element shell = column({.id = "page", .width = mlibs::layout::Length::percent(100), .max_width = 760, .padding = 24, .gap = 16}, std::move(parts));
-    shell.prop("justify_self", Source{Value("center"), {}, {}});
-    host.mount("page", std::move(shell));
+    parts.document = std::string(page_text);
+    host.mount("page", shell::page(std::move(parts)));
     host.settle();
 
     semantic::Snapshot snapshot = host.tree().snapshot({});

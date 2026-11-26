@@ -2,6 +2,11 @@
 // document; its reference is the catalog's; the questions asked of it are answered by its sections.
 import std;
 import oweb;
+import oweb.shell;
+import omui.core;
+import omui.view;
+import omui.semantic;
+import omui.host.headless;
 import mlibs.markdown;
 import mcpplibs.mtest;
 
@@ -34,6 +39,54 @@ std::string_view document_of(std::string_view html) {
     const std::size_t from = html.find("role=\"document\"");
     const std::size_t begin = html.rfind('<', from), end = html.rfind("</main>");
     return from == std::string_view::npos || end == std::string_view::npos ? std::string_view{} : html.substr(begin, end - begin);
+}
+
+// What a browser's page says of a written page (omui.host.web's page::projection): each written node's id, its
+// element's label and address, and the words of an element that holds only words.
+std::string projection_of(std::string_view html) {
+    const auto plain = [](std::string_view text) {
+        std::string out;
+        for (std::size_t at = 0; at < text.size(); ++at) {
+            bool named = false;
+            for (const auto& [entity, character] : {std::pair<std::string_view, char>{"&amp;", '&'}, {"&lt;", '<'}, {"&gt;", '>'}, {"&quot;", '"'}, {"&#39;", '\''}})
+                if (text.substr(at).starts_with(entity)) {
+                    out += character, at += entity.size() - 1, named = true;
+                    break;
+                }
+            if (!named) out += text[at];
+        }
+        return out;
+    };
+    const auto quoted = [](std::string_view text) {
+        std::string out = "\"";
+        for (const char character : text) {
+            if (character == '"' || character == '\\') out += '\\';
+            out += character;
+        }
+        return out + "\"";
+    };
+    std::string nodes;
+    const std::string_view mark = " data-omui-target=\"";
+    for (std::size_t at = html.find(mark); at != std::string_view::npos; at = html.find(mark, at + 1)) {
+        const std::size_t open = html.rfind('<', at), close = html.find('>', at);
+        const std::string_view tag = html.substr(open, close - open);
+        const auto stated = [&](std::string_view name) -> std::string {
+            const std::string key = std::format(" {}=\"", name);
+            const std::size_t from = tag.find(key);
+            return from == std::string_view::npos ? std::string() : plain(tag.substr(from + key.size(), tag.find('"', from + key.size()) - from - key.size()));
+        };
+        const std::size_t next = html.find('<', close);
+        const std::string_view words = html.substr(close + 1, next - close - 1);
+        const bool only_words = html.substr(next).starts_with("</");
+        nodes += std::format("{}{{\"id\":{},\"label\":{},\"href\":{},\"text\":{}}}", nodes.empty() ? "" : ",", quoted(stated("data-omui-target")), quoted(stated("aria-label")),
+                             quoted(stated("href")), quoted(only_words ? plain(words) : std::string()));
+    }
+    return std::format("{{\"nodes\":[{}]}}", nodes);
+}
+
+std::string_view body_of(std::string_view html) {
+    const std::size_t from = html.find("<body>\n"), to = html.rfind("</body>");
+    return from == std::string_view::npos || to == std::string_view::npos ? std::string_view{} : html.substr(from + 7, to - from - 7);
 }
 
 }  // namespace
@@ -112,6 +165,49 @@ static UTest cases{"oweb.template", [] {
         expect(agent.contains("align=\"right\"") && agent.contains("type=\"checkbox\" disabled checked") && agent.contains("type=\"checkbox\" disabled aria-label=")) << "a table's alignment; a task list, done and open";
         expect(start.contains("<!-- code: examples/13-live-design/design/start.ts#counter -->")) << "a comment of the source is kept, and shown by nothing";
         expect(read(out / "zh/index.html").contains("<html lang=\"zh\">") && read(out / "zh/start/index.md").contains("# 开始"));
+    };
+
+    "a page read back from its own HTML is the page as it was written: the program a page loads needs nothing else"_test = [] {
+        using namespace omui;
+        const auto site = package() / "templates" / "docs";
+        auto options = oweb::configured(site);
+        expect(options.has_value());
+        if (!options) return;
+        const auto routes = oweb::collect(site, *options);
+        expect(routes.has_value()) << (routes ? "" : routes.error());
+        if (!routes) return;
+        std::size_t compared = 0;
+        oweb::SiteOptions unstyled = *options;
+        unstyled.look = false;
+        for (const bool look : {false, true}) {
+            options->look = look;
+            for (const oweb::Route& route : *routes) {
+                // The page with its look says the same as the page without: its styles are no part of what it is.
+                if (look && route.path != "/ui/" && route.path != "/zh/start/") continue;
+                const auto plain = oweb::evaluate(site, *routes, route, unstyled);
+                const auto page = look ? oweb::evaluate(site, *routes, route, *options) : plain;
+                expect(plain.has_value() && page.has_value()) << route.path;
+                if (!plain || !page) continue;
+                const auto parts = oweb::shell::read(projection_of(page->html), document_of(page->html));
+                expect(parts.has_value()) << route.path << ": " << (parts ? "" : parts.error());
+                if (!parts) continue;
+                expect(parts->html && !parts->document.empty());
+                Headless host({.level = HeadlessLevel::layout, .size = {960, 1200}});
+                host.mount("page", oweb::shell::page(*parts));
+                host.settle();
+                semantic::Snapshot again = host.tree().snapshot({});
+                // As the builder writes it: without what a view adds to operate its document.
+                std::unordered_set<std::string> left_out;
+                for (const spec::SemanticNode& node : again.nodes)
+                    if (node.role == Role::button && node.id.starts_with("page/main/doc/")) left_out.insert(node.id);
+                for (spec::SemanticNode& node : again.nodes) std::erase_if(node.children, [&](const std::string& id) { return left_out.contains(id); });
+                std::erase_if(again.nodes, [&](const spec::SemanticNode& node) { return left_out.contains(node.id); });
+                const std::string written(body_of(plain->html)), read_back = semantic::static_html(again);
+                expect(read_back == written) << std::format("{} ({}):\n{}\n--- as written\n{}", route.path, look ? "with its look" : "plain", read_back, written);
+                ++compared;
+            }
+        }
+        expect(compared == routes->size() + 2) << compared;
     };
 
     "its reference is the catalog's, generated at the build: no page of its own, the catalog's own reference its text; pages link to it by its address"_test = [] {

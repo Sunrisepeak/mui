@@ -57,6 +57,13 @@ struct Look {
 // layout, its text, and what it drew over its own box — a fill, a gradient, a border, a shadow, its opacity.
 [[nodiscard]] Look html_look(const Runtime& runtime, const Snapshot& snapshot);
 
+// The rules a page with a look states once, for the element `static_html` marks `data-omui-look` and what it holds:
+// boxes sized by their borders, nothing of a browser's own margins, grounds, markers and scrollbars (each element
+// says its own), a face's own optical size (as the frame set it), and — a look of both schemes — each custom
+// property's dark value under the person's preference. A flex item's smallest size stays CSS's automatic one:
+// mlibs.layout computes the same (CSS Flexbox §4.5). One owner: the Web package's page and oweb's pages write this.
+[[nodiscard]] std::string look_sheet(const Look& look);
+
 // One look of two — the same tree drawn light and drawn dark: a declaration whose value differs takes a custom
 // property, valued for each scheme (`Look::light`, `Look::dark`), so a page follows the person's preference before
 // its program does.

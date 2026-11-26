@@ -47,6 +47,7 @@ namespace oweb {
     std::vector<std::string> languages{…};
     std::string url;
     std::uintmax_t readable = 100'000; // Stated routes: these pages and no others, in this order — the navigation's. Empty: every page of pages/, by std::vector<Declared> routes;
+    bool look = false;
   };
   struct Section {
     std::string route;
@@ -62,6 +63,7 @@ namespace oweb {
     std::size_t nodes = 0;
     std::vector<Section> sections;
     std::vector<std::string> problems;
+    std::vector<std::string> faces;
   };
   struct Hit {
     Section section;

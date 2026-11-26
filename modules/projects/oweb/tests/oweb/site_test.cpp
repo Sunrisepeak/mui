@@ -122,6 +122,32 @@ static UTest cases{"oweb.site", [] {
         expect(sitemap.contains("<loc>https://example.org/notes/</loc>") && sitemap.contains("<loc>https://example.org/notes/guide/start/</loc>")) << sitemap;
     };
 
+    "a site with a look: each page written as its frame looks, the frame's faces the site's; the same document, read back"_test = [] {
+        const auto out = scratch("docs-look"), plain_out = scratch("docs-plain");
+        const auto built = oweb::build(data() / "docs", out, {.languages = {"en", "zh"}, .look = true});
+        const auto plain = oweb::build(data() / "docs", plain_out, {.languages = {"en", "zh"}});
+        expect(built.has_value() && plain.has_value()) << (built ? "" : built.error());
+        if (!built || !plain) return;
+        const std::string home = read(out / "index.html"), deep = read(out / "guide/start/index.html");
+        // Its sheet is the look's, not the default one; every element says its node's layout and text.
+        expect(home.contains("[data-omui-look] *{box-sizing:border-box;") && !home.contains("max-width:46rem")) << "the look's sheet";
+        expect(home.contains("<div data-omui-target=\"app\" data-omui-look=\"") && home.contains("font-family:'omui-inter',system-ui,sans-serif;") && home.contains("max-width:760px;")) << home.substr(0, 3000);
+        expect(home.contains("@media (prefers-color-scheme:dark){[data-omui-look]{--o0:")) << "light and dark, one look";
+        // The faces: the site's own files, from wherever a page is served.
+        expect(home.contains("src:url('assets/omui-inter.ttf')") && deep.contains("src:url('../../assets/omui-inter.ttf')")) << "a face's address from each page";
+        expect(std::filesystem::file_size(out / "assets/omui-inter.ttf") > 100'000u) << "the face's file";
+        expect(std::ranges::any_of(built->delivery.files, [](const auto& file) { return file.path == "assets/omui-inter.ttf"; })) << "counted in the delivery";
+        expect(!home.contains("<script")) << "the page reads with no script";
+        // The same document as the page without a look: its HTML read back is the same.
+        for (const std::string_view route : {"", "guide/start/", "zh/"}) {
+            const std::string looked = md::to_html(md::from_html(document_of(read(out / route / "index.html"))));
+            expect(looked == md::to_html(md::from_html(document_of(read(plain_out / route / "index.html"))))) << "/" << route << ":\n" << looked;
+            expect(read(out / route / "index.md") == read(plain_out / route / "index.md")) << "/" << route << " as Markdown";
+        }
+        // A route's bytes before it reads are still within the budget.
+        for (const auto& verdict : built->delivery.verdicts) expect(verdict.within) << verdict.budget.name << ": " << verdict.found << " in " << verdict.where;
+    };
+
     "a site of one page: one route, no navigation, no sitemap without an address"_test = [] {
         const auto out = scratch("page");
         const auto built = oweb::build(data() / "page", out);

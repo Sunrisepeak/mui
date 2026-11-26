@@ -432,6 +432,8 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
         std::string css;
         if (const Style* style = runtime.layout_style(node)) css = layout_css(*style, in_stack(node));
         if (const auto own = painted.find(node.index); own != painted.end()) css += own->second;
+        // The window's own ground, where the root drew none over it: what a frame is cleared to before anything is drawn.
+        if (n == &snapshot.nodes.front() && !css.contains("background")) put(css, "background-color", colour(runtime.theme().color("background")));
         if (const auto text = drawn.find(node.index); text != drawn.end()) {
             // What holds text sets it in lines, as a block does: its runs and the links in them flow together.
             if (css.starts_with("display:flex;")) css.replace(0, 13, "display:block;");
@@ -509,6 +511,28 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
         }
     }
     return look;
+}
+
+std::string look_sheet(const Look& look) {
+    std::string sheet =
+        "[data-omui-look]{box-sizing:border-box;margin:0;font:16px/1.5 system-ui,sans-serif;font-optical-sizing:none}"
+        "[data-omui-look] *{box-sizing:border-box;margin:0;padding:0;border:0;list-style:none;font:inherit;color:inherit;background:none;scrollbar-width:none;text-decoration:none}"
+        "[data-omui-look] ::-webkit-scrollbar{display:none}[data-omui-look] a[href]{text-decoration:underline}"
+        "[data-omui-look] strong,[data-omui-look] b{font-weight:700}[data-omui-look] em,[data-omui-look] i{font-style:italic}"
+        // On paper the document is whole: nothing of it stays inside a view that scrolls or a box of the window's size.
+        "@media print{[data-omui-look],[data-omui-look] *{overflow:visible!important;height:auto!important;max-height:none!important}}";
+    if (!look.dark.empty()) {
+        // Over the light values the root states itself.
+        std::string values;
+        for (std::string_view rest = look.dark; !rest.empty();) {
+            const auto end = rest.find(';');
+            if (const std::string_view one = rest.substr(0, end); !one.empty()) values += std::format("{}!important;", one);
+            if (end == std::string_view::npos) break;
+            rest.remove_prefix(end + 1);
+        }
+        sheet += std::format("@media (prefers-color-scheme:dark){{[data-omui-look]{{{}}}}}", values);
+    }
+    return sheet;
 }
 
 Look by_schemes(Look light, const Look& dark) {

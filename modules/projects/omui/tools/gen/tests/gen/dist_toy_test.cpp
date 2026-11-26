@@ -177,6 +177,23 @@ static UTest cases{"gen.dist_toy", [] {
         expect(dusk.contains("<style>@media (prefers-color-scheme:dark){html,body{color-scheme:dark;background:#0b1120}}</style>")) << "dark from the first paint";
         expect(dusk.contains("color:#16161a") && dusk.contains("<style>@media (prefers-color-scheme:dark){[data-omui=static]{color:#f4f4f6}}</style>"))
             << "the document's text: dark on the light page, light on the dark one";
+        // A document with a look: its sheet is the page's, once, in the head; the document is laid out by it (the
+        // window's box its root's), not as plain text in a column.
+        auto looked = t.package(); looked.sdk = false; looked.out = t.root / "out" / "looked";
+        expect(gen::package_for_toy(looked).has_value());
+        put(t.root / "looked.html", "<style data-omui=\"look\">[data-omui-look]{margin:0}@media (prefers-color-scheme:dark){[data-omui-look]{--o0:#fff!important;}}</style>\n"
+                                    "<div data-omui-target=\"app\" data-omui-look=\"omui-inter\" style=\"--o0:#000;display:grid;\"><p data-omui-target=\"app/p\" style=\"color:var(--o0);\">Notes</p></div>\n");
+        expect(gen::adopt_document({.dir = looked.out, .static_html = t.root / "looked.html"}).has_value());
+        const std::string styled = read(looked.out / "index.html");
+        expect(styled.contains("<div data-omui=\"static\">\n<div data-omui-target=\"app\" data-omui-look=\"omui-inter\"")) << "the document without its sheet";
+        expect(styled.contains("[data-omui-look]{margin:0}@media (prefers-color-scheme:dark){[data-omui-look]{--o0:#fff!important;}}@media screen{[data-omui=static]>[data-omui-look]{width:100%!important;height:100%!important}}") &&
+               styled.find("[data-omui-look]{margin:0}") == styled.rfind("[data-omui-look]{margin:0}") && styled.find("[data-omui-look]{margin:0}") < styled.find("</head>"))
+            << "its sheet in the head, once";
+        expect(styled.contains("overflow:hidden;color:") && !styled.contains("calc((100vw - 760px) / 2)")) << "set by its look";
+        auto unended = t.package(); unended.sdk = false; unended.out = t.root / "out" / "unended";
+        expect(gen::package_for_toy(unended).has_value());
+        put(t.root / "unended.html", "<style data-omui=\"look\">[data-omui-look]{margin:0}<div data-omui-target=\"app\"></div>\n");
+        expect(!gen::adopt_document({.dir = unended.out, .static_html = t.root / "unended.html"}).has_value()) << "a sheet that does not end";
         // A projection runs nothing.
         auto q = t.package(); q.sdk = false; q.out = t.root / "out" / "other";
         expect(gen::package_for_toy(q).has_value());

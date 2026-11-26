@@ -558,6 +558,7 @@ addToLibrary({
           // How the page set it before the program (its look: margins, a face, a size) ends here: the layer places
           // it by the frame.
           el.removeAttribute('style');
+          el.removeAttribute('data-omui-look');
         }
       }
       if (!el) el = document.createElement(tag);

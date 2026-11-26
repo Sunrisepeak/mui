@@ -1098,6 +1098,16 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
     if (fragment->find_first_not_of(" \t\r\n") == std::string::npos) return std::unexpected(std::format("{}: empty", utf8(document.static_html)));
     if (fragment->contains("<script") || fragment->contains("<SCRIPT"))
         return std::unexpected(std::format("{}: a projection runs nothing (it holds a script)", utf8(document.static_html)));
+    // A document with a look (omui.semantic's: each element says its node's layout, face, colour and ground) comes
+    // with the look's sheet before it: the page's, in its head.
+    std::string look_sheet;
+    if (constexpr std::string_view opening = "<style data-omui=\"look\">", closing = "</style>"; fragment->starts_with(opening)) {
+        const auto end = fragment->find(closing);
+        if (end == std::string::npos) return std::unexpected(std::format("{}: its look's sheet does not end", utf8(document.static_html)));
+        look_sheet = fragment->substr(opening.size(), end - opening.size());
+        if (look_sheet.contains('<')) return std::unexpected(std::format("{}: its look's sheet holds markup", utf8(document.static_html)));
+        fragment->erase(0, fragment->find_first_not_of(" \t\r\n", end + closing.size()));
+    }
 
     // Body first (after the head): the inserts in the head shift nothing before them.
     const std::string_view colour = text_colour_on(html);
@@ -1123,18 +1133,14 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
     if (!document.image.empty()) meta += std::format("<meta property=\"og:image\" content=\"{}\">\n", escape_html(document.image));
     meta += std::format("<meta name=\"twitter:card\" content=\"{}\">\n", document.image.empty() ? "summary" : "summary_large_image");
     // Over the canvas's place until it steps aside; a document's own scrolling, selection and touch.
-    // A document with a look (omui.semantic's: each element says its node's layout, face and colour) is laid out
-    // by it, the window's box its root's; one without is set as plain text in a column.
-    const bool looked = fragment->contains(" data-omui-look=\"");
     // How the document is set: by its look where it has one — every box as its node's, the window's box its
     // root's, the scrolling its own views' — else as plain text in a column that scrolls.
+    const bool looked = !look_sheet.empty();
     const std::string set = looked
-        ? std::string("overflow:hidden;font:16px/1.5 system-ui,sans-serif;font-optical-sizing:none;")
+        ? std::string("overflow:hidden;")
         : std::string("overflow:auto;box-sizing:border-box;padding:32px max(24px,calc((100vw - 760px) / 2));font:16px/1.6 system-ui,sans-serif;");
     const std::string inside = looked
-        ? std::string("[data-omui=static] *{box-sizing:border-box;margin:0;padding:0;border:0;list-style:none;font:inherit;color:inherit;background:none;scrollbar-width:none;"
-                      "text-decoration:none}[data-omui=static] ::-webkit-scrollbar{display:none}[data-omui=static] a[href]{text-decoration:underline}[data-omui=static] strong,[data-omui=static] b{font-weight:700}"
-                      "[data-omui=static] em,[data-omui=static] i{font-style:italic}[data-omui=static]>[data-omui-look]{width:100%!important;height:100%!important}")
+        ? std::format("{}@media screen{{[data-omui=static]>[data-omui-look]{{width:100%!important;height:100%!important}}}}", look_sheet)
         : std::string("[data-omui=static] a{color:inherit}[data-omui=static] button{font:inherit;color:inherit;background:none;"
                       "border:1px solid currentColor;border-radius:8px;padding:4px 12px;margin:4px 8px 4px 0}");
     meta += std::format("<style>[data-omui=static]{{position:fixed;inset:0;z-index:1;{}color:{};background:inherit;"
@@ -1145,25 +1151,6 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
                         "@media print{{html,body{{height:auto!important;overflow:visible!important}}"
                         "[data-omui=static]{{position:static;overflow:visible;padding:0}}}}</style>\n",
                         set, colour, inside);
-    // A look read in both schemes: what differs is a custom property, its dark value said here (over the light
-    // one the document's root states).
-    if (constexpr std::string_view said = " data-omui-dark=\""; looked) {
-        const std::string_view root = std::string_view(*fragment).substr(0, fragment->find('>'));
-        if (const auto at = root.find(said); at != std::string_view::npos) {
-            std::string values(root.substr(at + said.size(), root.find('"', at + said.size()) - at - said.size()));
-            for (const auto& [entity, text] : std::initializer_list<std::pair<std::string_view, std::string_view>>{{"&quot;", "\""}, {"&#39;", "'"}, {"&lt;", "<"}, {"&gt;", ">"}, {"&amp;", "&"}})
-                for (auto found = values.find(entity); found != std::string::npos; found = values.find(entity, found + text.size())) values.replace(found, entity.size(), text);
-            std::string important;
-            for (std::string_view rest = values; !rest.empty();) {
-                const auto end = rest.find(';');
-                if (const std::string_view one = rest.substr(0, end); !one.empty()) important += std::format("{}!important;", one);
-                if (end == std::string_view::npos) break;
-                rest.remove_prefix(end + 1);
-            }
-            if (!important.empty() && !important.contains('<') && !important.contains('}'))
-                meta += std::format("<style>@media (prefers-color-scheme:dark){{[data-omui=static]>[data-omui-look]{{{}}}}}</style>\n", important);
-        }
-    }
     // Where the page is dark for a person who prefers dark, its document's text is readable on that too.
     if (const std::string_view dark = text_colour_on(html, "(prefers-color-scheme:dark){html,body{color-scheme:dark;background:#", {}); !dark.empty())
         meta += std::format("<style>@media (prefers-color-scheme:dark){{[data-omui=static]{{color:{}}}}}</style>\n", dark);

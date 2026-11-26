@@ -500,7 +500,9 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
         } else if (o.static_look) {
             look = omui::semantic::html_look(host.runtime(), snapshot);
         }
-        const std::string html = omui::semantic::static_html(snapshot, {.lang = lang, .look = o.static_look ? &look : nullptr});
+        std::string html = omui::semantic::static_html(snapshot, {.lang = lang, .look = o.static_look ? &look : nullptr});
+        // With a look: its sheet first, the page's to put in its head (the Web package does; dist-toy's adopt_document).
+        if (o.static_look) html = std::format("<style data-omui=\"look\">{}</style>\n{}", omui::semantic::look_sheet(look), html);
         if (auto w = mcpplibs::os::fs::write_atomic(o.static_html, html); !w) {
             error("{}: {}", utf8(o.static_html), w.error().message());
             return 1;

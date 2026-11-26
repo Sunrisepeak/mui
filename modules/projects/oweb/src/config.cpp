@@ -13,7 +13,7 @@ namespace oweb {
 
 namespace {
 
-constexpr std::array<std::string_view, 5> site_fields{"title", "url", "languages", "routes", "budgets"};
+constexpr std::array<std::string_view, 6> site_fields{"title", "url", "languages", "routes", "budgets", "look"};
 constexpr std::array<std::string_view, 4> route_fields{"path", "source", "reference", "title"};
 constexpr std::array<std::string_view, 1> budget_fields{"readable"};
 
@@ -46,6 +46,10 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
     if (const auto title = site["title"]) {
         if (!title.is_string()) return problem(title, "the site's title is text");
         options.title = *title.text();
+    }
+    if (const auto look = site["look"]) {
+        if (!look.is_boolean()) return problem(look, "whether the pages are written as their frames look is yes or no", "look: true");
+        options.look = *look.boolean();
     }
     if (const auto url = site["url"]) {
         if (!url.is_string() || !(url.text()->starts_with("https://") || url.text()->starts_with("http://")))

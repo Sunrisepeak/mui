@@ -213,7 +213,12 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
     const bool lost = !base.empty();
 
     // The page as an interface: the navigation the routes give (a site of one page has none) and its document.
-    Headless host({.level = HeadlessLevel::layout, .size = {960, 1200}});
+    Headless host({.level = options.look ? HeadlessLevel::pixels : HeadlessLevel::layout, .size = {960, 1200}});
+    if (options.look) {
+        // Its look is read from what the frame drew: all of it, in each scheme a reader may prefer.
+        host.runtime().set_draws_unseen(true);
+        host.runtime().set_theme_by_preference([](bool dark) { return dark ? Theme::dark_theme() : Theme::light(); });
+    }
     std::vector<Element> parts;
     if (routes.size() > 1) {
         std::vector<Element> links;
@@ -229,7 +234,7 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
             if (!there) there = std::ranges::find(routes, language, &Route::language) == routes.end() ? nullptr : &*std::ranges::find(routes, language, &Route::language);
             if (there) links.push_back(link({.id = std::format("r{}", there - routes.data()), .href = relative(route.path, there->path), .text = there->title}));
         }
-        Element navigation = row({.id = "nav", .gap = 16}, std::move(links));
+        Element navigation = row({.id = "nav", .gap = 16, .wrap = "wrap"}, std::move(links));  // onto more lines in a narrow window
         navigation.prop("role", Source{Value("navigation"), {}, {}});
         navigation.prop("label", Source{Value(options.title.empty() ? std::string("Pages") : options.title), {}, {}});
         parts.push_back(std::move(navigation));
@@ -268,13 +273,16 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         if (before) links.push_back(link({.id = "before", .href = relative(route.path, before->path), .text = std::format("← {}", before->title)}));
         if (after) links.push_back(link({.id = "after", .href = relative(route.path, after->path), .text = std::format("{} →", after->title)}));
         if (!links.empty()) {
-            Element turn = row({.id = "turn", .gap = 16}, std::move(links));
+            Element turn = row({.id = "turn", .gap = 16, .wrap = "wrap"}, std::move(links));
             turn.prop("role", Source{Value("navigation"), {}, {}});
             turn.prop("label", Source{Value(std::string(named_in(route.language).turn)), {}, {}});
             parts.push_back(std::move(turn));
         }
     }
-    host.mount("page", column({.id = "page", .padding = 24, .gap = 16}, std::move(parts)));
+    // One column a reader's eye can follow, in the middle of a wide window: as wide as the window up to that.
+    Element shell = column({.id = "page", .width = mlibs::layout::Length::percent(100), .max_width = 760, .padding = 24, .gap = 16}, std::move(parts));
+    shell.prop("justify_self", Source{Value("center"), {}, {}});
+    host.mount("page", std::move(shell));
     host.settle();
 
     semantic::Snapshot snapshot = host.tree().snapshot({});
@@ -406,7 +414,33 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         for (Node& node : written.nodes) std::erase_if(node.children, [&](const std::string& id) { return left_out.contains(id); });
         std::erase_if(written.nodes, [&](const Node& node) { return left_out.contains(node.id); });
     }
-    const std::string body = semantic::static_html(written, {});
+    semantic::Look look;
+    std::string faces;
+    if (options.look) {
+        const bool preferred = host.runtime().dark_preferred();
+        const auto read = [&](bool dark) {
+            host.runtime().set_dark_preferred(dark);
+            host.settle();
+            return semantic::html_look(host.runtime(), snapshot);
+        };
+        semantic::Look light = read(false);
+        look = semantic::by_schemes(std::move(light), read(true));
+        host.runtime().set_dark_preferred(preferred);
+        // The faces the frame set its text in: the site's own files, from wherever this page is served.
+        const std::string top = lost ? std::string() : relative(route.path, "/");
+        for (const semantic::Look::Font& font : look.fonts) {
+            if (std::ranges::contains(page.faces, font.family)) continue;
+            page.faces.push_back(font.family);
+            const std::string key = semantic::font_key(font.family);
+            faces += std::format("@font-face{{font-family:'{0}';src:url('{1}assets/{0}.ttf');font-weight:1 1000;font-display:swap}}", key, top == "./" ? std::string() : top);
+        }
+    }
+    const std::string body = semantic::static_html(written, {.look = options.look ? &look : nullptr});
+    // The page's sheet: the default one, or its look's — the document as tall as it is, the window scrolling it.
+    const std::string style = options.look
+                                  ? std::format("html{{color-scheme:light dark}}html,body{{margin:0}}{}{}[data-omui-look]{{width:auto!important;height:auto!important;min-height:100vh}}", faces,
+                                                semantic::look_sheet(look))
+                                  : std::string(sheet);
     // A route says where its Markdown is; the page for a lost address says where the site is, and is no page to index.
     std::string said = lost ? std::format("<base href=\"{}\">\n<meta name=\"robots\" content=\"noindex\">", escaped(base))
                             : std::string("<link rel=\"alternate\" type=\"text/markdown\" href=\"index.md\">");
@@ -426,7 +460,7 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         "<!doctype html>\n<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
         "<title>{}</title>\n<meta name=\"generator\" content=\"oweb\">\n{}\n<style>{}</style>\n"
         "</head>\n<body>\n{}</body>\n</html>\n",
-        escaped(route.language), escaped(options.title.empty() || options.title == route.title ? route.title : std::format("{} · {}", route.title, options.title)), said, sheet,
+        escaped(route.language), escaped(options.title.empty() || options.title == route.title ? route.title : std::format("{} · {}", route.title, options.title)), said, style,
         body);
     page.problems = std::move(problems);
     return page;
@@ -699,6 +733,22 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
         std::ranges::move(page.sections, std::back_inserter(sections));
     }
     if (auto written = write("404.html", lost->html); !written) return std::unexpected(written.error());
+    // With a look: the faces the pages' text is set in, once for the site.
+    if (options.look) {
+        std::vector<std::string> families = lost->faces;
+        for (const Page& page : pages)
+            for (const std::string& family : page.faces)
+                if (!std::ranges::contains(families, family)) families.push_back(family);
+        mlibs::text::FontCollection fonts;
+        if (auto loaded = fonts.add_defaults(); !loaded) return std::unexpected(std::format("the faces of the site's look: {}", loaded.error()));
+        for (const std::string& family : families) {
+            const auto face = fonts.find_family(family);
+            if (!face) return std::unexpected(std::format("the face `{}` a page is set in is not among the fonts here", family));
+            const std::span<const std::uint8_t> bytes = fonts.face_data(*face);
+            if (auto written = write(std::format("assets/{}.ttf", omui::semantic::font_key(family)), std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())); !written)
+                return std::unexpected(written.error());
+        }
+    }
     // What pages/ holds beside its pages (pictures, files to download), at the same place.
     std::error_code error;
     for (const auto& entry : std::filesystem::recursive_directory_iterator(site / "pages", error)) {

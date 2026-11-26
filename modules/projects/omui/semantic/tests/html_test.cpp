@@ -141,6 +141,8 @@ static UTest cases{"html", [] {
         const sem::Look look = sem::html_look(rt, snapshot);
         // What a node drew over its own box: its fill and its corners.
         expect(look.style("main/bar/add").contains("background-color:#") && look.style("main/bar/add").contains("border-radius:6px;")) << look.style("main/bar/add");
+        // The window's ground is the root's, where it drew none of its own.
+        expect(look.style("app").contains("background-color:#")) << look.style("app");
         // A view that scrolls: its bar is where it is scrolled to, not a picture of its box.
         expect(look.style("main/list").contains("overflow:") && !look.style("main/list").contains("url(") && !look.style("main/list").contains("gradient(")) << look.style("main/list");
         // Read light and read dark, one look: what differs is a custom property with a value for each scheme.
@@ -155,7 +157,13 @@ static UTest cases{"html", [] {
             sem::Snapshot one;
             one.nodes = {node("a", Role::group, "")};
             const std::string written = sem::static_html(one, {.look = &both});
-            expect(written.contains("data-omui-dark=\"--o0:#f8fafc;--o1:inset 0 0 0 1px #334155;\"") && written.contains("style=\"--o0:#0f172a;--o1:inset 0 0 0 1px #e2e8f0;color:var(--o0);")) << written;
+            expect(written.contains("style=\"--o0:#0f172a;--o1:inset 0 0 0 1px #e2e8f0;color:var(--o0);")) << written;
+            const std::string sheet = sem::look_sheet(both);
+            expect(sheet.starts_with("[data-omui-look]{box-sizing:border-box;") &&
+                   sheet.contains("@media print{[data-omui-look],[data-omui-look] *{overflow:visible!important;") &&
+                   sheet.ends_with("@media (prefers-color-scheme:dark){[data-omui-look]{--o0:#f8fafc!important;--o1:inset 0 0 0 1px #334155!important;}}"))
+                << sheet;
+            expect(!sem::look_sheet(look).contains("prefers-color-scheme")) << "one scheme: nothing by preference";
         }
         const std::string_view title = look.style("main/title"), add = look.style("main/bar/add");
         const Theme theme = Theme::light();

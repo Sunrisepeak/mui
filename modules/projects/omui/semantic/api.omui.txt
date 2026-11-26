@@ -66,6 +66,7 @@ namespace omui::semantic {
   };
   [[nodiscard]] std::string font_key(std::string_view family);
   [[nodiscard]] Look html_look(const Runtime& runtime, const Snapshot& snapshot);
+  [[nodiscard]] std::string look_sheet(const Look& look);
   [[nodiscard]] Look by_schemes(Look light, const Look& dark);
 }
 == omui.semantic:query

@@ -52,6 +52,10 @@ struct SiteOptions {
     // Stated routes: these pages and no others, in this order — the navigation's. Empty: every page of pages/, by
     // address.
     std::vector<Declared>    routes;
+    // Each page written as its frame looks (omui.semantic's look, 0.1.0 plan UI5): the view's layout, the faces and
+    // colours it drew — light and dark — in place of the default sheet, the faces' files beside the pages
+    // (`assets/`). What the canvas shows when the engine is there is then what the page showed before it.
+    bool                     look = false;
 };
 
 // A part of a page a reader can be sent to: a heading and what stands under it up to the next heading. What a
@@ -74,6 +78,8 @@ struct Page {
     // Links inside the site that lead nowhere: a page that is no route, an anchor its page has not, a file that is
     // not there. A build with any writes nothing.
     std::vector<std::string> problems;
+    // With a look: the families its text is set in — their files are the site's (`assets/<key>.ttf`).
+    std::vector<std::string> faces;
 };
 
 // A section a query found: how well, and the line of it that says so.

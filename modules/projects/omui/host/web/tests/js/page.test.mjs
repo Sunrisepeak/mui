@@ -398,6 +398,7 @@ test('the page\'s own projection goes on as the layer: the same elements, placed
   const root = make('div', 'app'), title = make('h1', 'doc/title', 'Notes'), para = make('p', 'doc/p', 'Read '), link = make('a', 'doc/p/link0', 'the guide'), save = make('button', 'doc/save', 'Save');
   para.appendChild(link);
   title.setAttribute('style', 'margin:8px 0 0 0;font-size:28px');  // how the page set it before the program (its look)
+  root.setAttribute('data-omui-look', 'omui-inter');
   [title, para, save].forEach((el) => root.appendChild(el));
   projection.appendChild(root);
   document.body.appendChild(projection);
@@ -421,6 +422,7 @@ test('the page\'s own projection goes on as the layer: the same elements, placed
   assert.ok(layer.contains(title) && layer.contains(link) && !projection.contains(title), 'moved over the canvas');
   assert.equal(title.style.left, '8px');
   assert.ok(!String(title.getAttribute('style') || '').includes('margin'), 'the look it had before the program ends where the layer places it');
+  assert.ok(!root.hasAttribute('data-omui-look'), 'and the look\'s rules no longer reach what the layer holds');
   assert.equal(para.textContent, 'Read the guide.', 'its text the tree\'s now, once');
   assert.equal(link.getAttribute('href'), 'guide/');
   // What a person operates is the program's over the canvas: the document's button stays behind.

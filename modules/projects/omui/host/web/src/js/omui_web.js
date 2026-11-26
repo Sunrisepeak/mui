@@ -320,9 +320,16 @@ addToLibrary({
     // element as markup.
     projection: function () {
       var page = document.querySelector('[data-omui="static"]'), nodes = [];
+      // Words only: no element in it but the look's own — a span that sets white space in the face the canvas set it
+      // in (omui.semantic's look), neither a node nor a mark.
+      var words = function (el) {
+        for (var child = el.firstElementChild; child; child = child.nextElementSibling)
+          if (child.tagName !== 'SPAN' || !child.hasAttribute('style') || child.hasAttribute('data-omui-target') || child.hasAttribute('data-omui-mark') || child.firstElementChild) return false;
+        return true;
+      };
       if (page && page.querySelectorAll) page.querySelectorAll('[data-omui-target]').forEach(function (el) {
         nodes.push({ id: el.getAttribute('data-omui-target'), label: el.getAttribute('aria-label') || '', href: el.getAttribute('href') || '',
-                     text: el.firstElementChild ? '' : el.textContent });
+                     text: words(el) ? el.textContent : '' });
       });
       return JSON.stringify({ lang: (document.documentElement && document.documentElement.lang) || '', nodes: nodes });
     },

@@ -37,6 +37,10 @@ struct Look {
     std::unordered_map<std::string, std::string>          styles;    // a semantic node's declarations, by its id
     std::unordered_map<std::string, std::vector<Wrapper>> wrappers;  // the unstated nodes between it and its semantic parent, outermost first
     std::unordered_map<std::string, std::vector<Span>>    spans;     // by the node's id, in the order drawn
+    // White space of a node's text the frame set in another face than a page would give it — the engine sets a
+    // space beside what it follows, a browser in the first of the listed faces that has it: each run of it written
+    // apart in its face (by the node's id, in the text's order).
+    std::unordered_map<std::string, std::vector<Span>>    apart;
     std::vector<Font>                                     fonts;     // in the order first drawn
     // Where the frame was read in both of a theme's schemes (`by_schemes`): what differs between them is a custom
     // property (`--o0`, `--o1`, …) in the declarations above; these say each one's value, light and dark.
@@ -46,6 +50,8 @@ struct Look {
     [[nodiscard]] std::span<const Wrapper> around(std::string_view id) const;
     // What the text of node `id` at byte `at` was drawn with that the node's own declarations do not say.
     [[nodiscard]] std::string_view within(std::string_view id, std::size_t at) const;
+    // The white space of node `id` its text writes apart (`apart`).
+    [[nodiscard]] std::span<const Span> set_apart(std::string_view id) const;
 };
 
 // The name a page gives a family's face (`omui-inter`, `omui-jetbrainsmono`: its letters and digits, lower case), so

@@ -3,6 +3,7 @@ module omui.semantic;
 import std;
 import omui.core;
 import omui.view;
+import mlibs.unicode;
 import :tree;
 import :look;
 
@@ -160,13 +161,14 @@ std::string colour(const Color& color) {
 }
 
 // A run of glyphs a node drew itself: its face, size and colour, the bytes of the node's text its glyphs set
-// (the first byte of the first cluster to that of the last) and how many glyphs.
+// (the first byte of the first cluster to that of the last), how many glyphs, and the first byte of each one's cluster.
 struct Run {
-    mlibs::text::FontRef font;
-    float                size = 0;
-    Color                color;
-    std::uint32_t        begin = 0, last = 0;
-    std::size_t          glyphs = 0;
+    mlibs::text::FontRef       font;
+    float                      size = 0;
+    Color                      color;
+    std::uint32_t              begin = 0, last = 0;
+    std::size_t                glyphs = 0;
+    std::vector<std::uint32_t> clusters;
     [[nodiscard]] bool same_colour(const Run& other) const { return color.r == other.color.r && color.g == other.color.g && color.b == other.color.b && color.a == other.color.a; }
     [[nodiscard]] bool same_as(const Run& other) const { return font.id == other.font.id && size == other.size && same_colour(other); }
 };
@@ -191,6 +193,14 @@ struct Own {
     std::vector<std::string> shadows;     // in the order drawn
     std::vector<std::string> rings;       // borders: strokes along the inside of the box's edge
 };
+
+// White space as Unicode's word segmentation says it, line feeds and tabs too: what the engine sets beside the text
+// it follows (mlibs.text's shaper), not by the faces its style names.
+bool white(char32_t character) {
+    using mlibs::unicode::Wb;
+    const Wb kind = mlibs::unicode::word_class(character);
+    return kind == Wb::WSegSpace || kind == Wb::CR || kind == Wb::LF || kind == Wb::Newline || character == U'\t' || character == U'\u00A0';
+}
 
 bool about(float a, float b) { return std::abs(a - b) <= 0.51f; }
 bool same_box(const Rect& a, const Rect& b) { return about(a.x, b.x) && about(a.y, b.y) && about(a.x + a.width, b.x + b.width) && about(a.y + a.height, b.y + b.height); }
@@ -348,6 +358,11 @@ std::string_view Look::within(std::string_view id, std::size_t at) const {
     return {};
 }
 
+std::span<const Look::Span> Look::set_apart(std::string_view id) const {
+    const auto found = apart.find(std::string(id));
+    return found == apart.end() ? std::span<const Span>{} : std::span<const Span>(found->second);
+}
+
 std::span<const Look::Wrapper> Look::around(std::string_view id) const {
     const auto found = wrappers.find(std::string(id));
     return found == wrappers.end() ? std::span<const Wrapper>{} : std::span<const Wrapper>(found->second);
@@ -389,10 +404,12 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
                 const NodeId node = runtime.node_at_index(open.back().first);
                 if (!node.valid()) continue;
                 own.parts_apart = true;
-                Run run{mlibs::text::FontRef{glyphs->font.id}, glyphs->size, glyphs->paint.color, glyphs->glyphs.front().cluster, glyphs->glyphs.front().cluster, glyphs->glyphs.size()};
+                Run run{mlibs::text::FontRef{glyphs->font.id}, glyphs->size, glyphs->paint.color, glyphs->glyphs.front().cluster, glyphs->glyphs.front().cluster, glyphs->glyphs.size(), {}};
+                run.clusters.reserve(glyphs->glyphs.size());
                 for (const mrender::Glyph& glyph : glyphs->glyphs) {
                     run.begin = std::min(run.begin, glyph.cluster);
                     run.last = std::max(run.last, glyph.cluster);
+                    run.clusters.push_back(glyph.cluster);
                 }
                 drawn[node.index].push_back(run);
             } else if (!own.frame || own.moved != 0) {
@@ -481,7 +498,65 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
                 }
             }
             const Look::Font font = font_of(*own);
-            put(css, "font-family", std::format("'{}',system-ui,sans-serif", font_key(font.family)));
+            // The character a glyph's cluster begins with, and its bytes (none where the node's text is not the text
+            // drawn: a control that draws its label, not its name).
+            const auto character_at = [&](std::uint32_t cluster) -> std::optional<mlibs::unicode::Decoded> {
+                if (cluster >= n->name.size()) return std::nullopt;
+                return mlibs::unicode::decode(n->name, cluster);
+            };
+            // The faces the runs of one setting (a size, a weight, a slant) were drawn in, in the order the engine
+            // tried them — the faces its style names, then the fallbacks: one face stands before another where it drew
+            // a character the other has (else the other would have drawn it). A browser that tries them in that order,
+            // character by character, sets each where the frame did: the Latin words of a Chinese paragraph in the
+            // Latin face, not in the Chinese face's own Latin letters (3 px along a line). White space says nothing of
+            // the order (the engine sets it beside what it follows; below). A face that cannot stand in one order with
+            // the run's own (each has what the other drew: code at the size of the prose around it) is not among them:
+            // its runs are parts of their own.
+            const auto setting = [&](const Run& run) { return std::tuple{run.size, fonts.weight_of(run.font), fonts.slant_of(run.font)}; };
+            const auto faces_in_order = [&](const Run& lead) {
+                struct Drawn {
+                    mlibs::text::FaceId   face = 0;
+                    std::size_t           glyphs = 0;
+                    std::vector<char32_t> characters;  // each once; only those the face has (what it drew of the text)
+                };
+                std::vector<Drawn> all{{fonts.face_of(lead.font), 0, {}}};
+                for (const Run& run : runs) {
+                    if (setting(run) != setting(lead)) continue;
+                    const mlibs::text::FaceId face = fonts.face_of(run.font);
+                    auto found = std::ranges::find(all, face, &Drawn::face);
+                    if (found == all.end()) found = all.insert(all.end(), Drawn{face, 0, {}});
+                    found->glyphs += run.glyphs;
+                    for (const std::uint32_t cluster : run.clusters) {
+                        const auto character = character_at(cluster);
+                        if (character && !white(character->cp) && fonts.covers(face, character->cp) && !std::ranges::contains(found->characters, character->cp))
+                            found->characters.push_back(character->cp);
+                    }
+                }
+                const auto before = [&](const Drawn& first, const Drawn& then) {
+                    return std::ranges::any_of(first.characters, [&](char32_t character) { return fonts.covers(then.face, character); });
+                };
+                std::stable_sort(all.begin() + 1, all.end(), [](const Drawn& one, const Drawn& other) { return one.glyphs > other.glyphs; });
+                std::vector<const Drawn*> left;
+                for (const Drawn& drawn : all)
+                    if (std::ranges::none_of(left, [&](const Drawn* kept) { return before(drawn, *kept) && before(*kept, drawn); })) left.push_back(&drawn);
+                std::vector<mlibs::text::FaceId> order;
+                while (!left.empty()) {
+                    auto next = std::ranges::find_if(left, [&](const Drawn* one) {
+                        return std::ranges::none_of(left, [&](const Drawn* other) { return other != one && before(*other, *one); });
+                    });
+                    if (next == left.end()) next = left.begin();  // three that each stand before the next: as drawn most
+                    order.push_back((*next)->face);
+                    left.erase(next);
+                }
+                return order;
+            };
+            const auto families = [&](std::span<const mlibs::text::FaceId> faces) {
+                std::string value;
+                for (const mlibs::text::FaceId face : faces) value += std::format("'{}',", font_key(fonts.face(face).family));
+                return value + "system-ui,sans-serif";
+            };
+            const std::vector<mlibs::text::FaceId> own_faces = faces_in_order(*own);
+            put(css, "font-family", families(own_faces));
             put(css, "font-size", px(own->size));
             put(css, "font-weight", std::format("{}", font.weight));
             if (font.italic) put(css, "font-style", "italic");
@@ -521,22 +596,44 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
                     }
                 }
             }
-            std::vector<Look::Span> parts;
+            std::vector<Look::Span> parts, apart;
             for (const Run& run : runs) {
-                if (run.same_as(*own)) continue;
-                const Look::Font other = font_of(run);
+                const Look::Font other = font_of(run);  // a face the page declares, the node's own faces' too
+                const mlibs::text::FaceId face = fonts.face_of(run.font);
+                const bool among_own = setting(run) == setting(*own) && std::ranges::contains(own_faces, face);
+                const std::vector<mlibs::text::FaceId> faces = among_own ? own_faces : faces_in_order(run);
+                // White space the frame set in another face than the page would — the first of the faces it is set in
+                // that has it — stands apart in its own: the engine sets a space beside what it follows (after Chinese
+                // text, the Chinese face's 3.4 px space), a browser by the faces' order (the Latin face's 4.2 px), and
+                // every word after it on the line would go 0.8 px further.
+                for (const std::uint32_t cluster : run.clusters) {
+                    const auto character = character_at(cluster);
+                    if (!character || !white(character->cp)) continue;
+                    const auto given = std::ranges::find_if(faces, [&](mlibs::text::FaceId one) { return fonts.covers(one, character->cp); });
+                    if (given == faces.end() || *given == face) continue;
+                    std::string style;
+                    put(style, "font-family", families(std::span(&face, 1)));
+                    put(style, "line-height", "0");  // its face's ascent adds no height to the line (as a part's below)
+                    if (!apart.empty() && apart.back().end == cluster && apart.back().style == style) apart.back().end += character->length;
+                    else apart.push_back({cluster, cluster + character->length, std::move(style)});
+                }
+                if (among_own && run.same_colour(*own)) continue;
                 std::string differs;
-                if (other.family != font.family) put(differs, "font-family", std::format("'{}',system-ui,sans-serif", font_key(other.family)));
+                if (faces != own_faces) put(differs, "font-family", families(faces));
                 if (run.size != own->size) put(differs, "font-size", px(run.size));
                 // A part in another face or size stands on the line its node set: in CSS its own ascent and descent
                 // would make that line taller (a line with code in it 2 px more), so its box adds no height of its own.
-                if (other.family != font.family || run.size != own->size) put(differs, "line-height", "0");
+                if (faces.front() != own_faces.front() || run.size != own->size) put(differs, "line-height", "0");
                 if (other.weight != font.weight) put(differs, "font-weight", std::format("{}", other.weight));
                 if (other.italic != font.italic) put(differs, "font-style", other.italic ? "italic" : "normal");
                 if (!run.same_colour(*own)) put(differs, "color", colour(run.color));
                 if (!differs.empty()) parts.push_back({run.begin, run.last + 1, std::move(differs)});
             }
             if (!parts.empty()) look.spans.emplace(n->id, std::move(parts));
+            if (!apart.empty()) {
+                std::ranges::sort(apart, {}, &Look::Span::begin);
+                look.apart.emplace(n->id, std::move(apart));
+            }
         }
         // A field holds no words a page sets — what it shows (its value, its placeholder) is drawn in it — so a
         // block of its style alone would be as short as its least height: it is as tall as the frame set it.
@@ -564,7 +661,9 @@ std::string look_sheet(const Look& look) {
         // The engine sets a glyph where its outline's own advance puts it; a browser that rounds each advance to a
         // whole pixel (Chromium on Linux with full hinting: a line of 16 px text 5 px shorter, of 13 px code 4 %
         // longer) is asked for the outline's geometry too — a control included, which the browser's own sheet resets.
-        "[data-omui-look]{box-sizing:border-box;margin:0;font:16px/1.5 system-ui,sans-serif;font-optical-sizing:none;text-rendering:geometricPrecision}"
+        // The engine puts an eighth of an em between an ideograph and a Latin letter or digit (mlibs.text's autospace,
+        // CSS Text 4's `normal`); a browser does so only when asked (Chromium's and Firefox's own value is none).
+        "[data-omui-look]{box-sizing:border-box;margin:0;font:16px/1.5 system-ui,sans-serif;font-optical-sizing:none;text-rendering:geometricPrecision;text-autospace:normal}"
         "[data-omui-look] *{box-sizing:border-box;margin:0;padding:0;border:0;list-style:none;font:inherit;text-rendering:inherit;color:inherit;background:none;scrollbar-width:none;text-decoration:none}"
         "[data-omui-look] ::-webkit-scrollbar{display:none}[data-omui-look] a[href]{text-decoration:underline}"
         "[data-omui-look] strong,[data-omui-look] b{font-weight:700}[data-omui-look] em,[data-omui-look] i{font-style:italic}"

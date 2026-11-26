@@ -1321,7 +1321,7 @@ namespace omui {
     bool command_web(std::uint64_t page, std::string_view command, std::string_view argument) override;
     void close_web(std::uint64_t page) override;
     [[nodiscard]] bool focusable(NodeId node) const override;
-    void set_url_opener(std::function<bool(std::string_view)> open);
+    void set_url_opener(std::function<bool(std::string_view)> open, bool relative = false);
     [[nodiscard]] const std::vector<std::string>& opened() const noexcept;
     struct OfferedFile {
       std::string name, type, bytes;

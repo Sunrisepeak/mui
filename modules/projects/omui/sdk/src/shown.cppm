@@ -35,5 +35,8 @@ void install_services();
 // Empty on a host that shows none.
 [[nodiscard]] std::string host_document();
 [[nodiscard]] std::string host_document(std::string_view id);
+// What that document says is at a relation to it, and a file of its own site fetched by the host that showed it.
+[[nodiscard]] std::string host_link(std::string_view relation);
+void host_file(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done);
 
 }  // namespace omui::hosting

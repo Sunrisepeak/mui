@@ -171,6 +171,14 @@ private:
 [[nodiscard]] std::string page_projection();
 [[nodiscard]] std::string page_projected(std::string_view id);
 
+// What the page's document says is at a relation to it (`<link rel="search" href>` in its head): the address as the document
+// says it (from where the page is: what `page_file` takes, and what a link of the page's own is written with);
+// empty where it says none, or off the Web. And a file of the page's own site by its address (from the page),
+// fetched by the page: `done` is called before a frame with its text, or with why it did not come — at once off
+// the Web; an address of another origin is refused.
+[[nodiscard]] std::string page_link(std::string_view relation);
+void page_file(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done);
+
 // The page's address: a parameter of its query (empty when absent or off
 // the Web), and the page loaded again with one set (empty: removed) —
 // false off the Web.

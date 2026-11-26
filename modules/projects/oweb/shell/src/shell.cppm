@@ -29,12 +29,29 @@ struct Parts {
     std::vector<Link> beside;    // the page before, the page after
     std::string       document;  // the page's document: Markdown, or
     bool              html = false;  // … its HTML, as the page wrote it
+    std::string       search;    // what the site's search is called, in the page's language; empty: the page has none
 };
+
+// A section a page's search found, as the page shows it: where it is from the page, its title, the headings it is
+// under and the line that holds the words.
+struct Found {
+    std::string href, title, trail, line;
+};
+// Who answers a page's search box: asked with the box's words at each change, it answers at once or later (the
+// site's index is fetched when it is first wanted) — and again only for the words asked last.
+using Finder = std::function<void(std::string query, std::function<void(std::vector<Found>)> answer)>;
 
 struct Layout {
     // The page in a view of the window's size that scrolls it: what a canvas needs (the window does not scroll a
     // canvas). Without: the page as tall as it is, for a window that scrolls it itself.
     bool scrolls = false;
+    // The page's search, where a program has the page: without one the box is there and finds nothing (a page as
+    // it is written — only a program answers a search).
+    Finder find;
+    // Who follows a link a reader pressed in the page's document (`../ui/`, `#install`, `https://…`): the program
+    // that has the page hands it to its runtime (`Runtime::open_url`: the page's own in this tab, another's as a
+    // browser opens it). Without: a link in the document is said and goes nowhere (a page as it is written).
+    std::function<void(std::string href)> follow;
 };
 
 // The page as a view, for where an application's view is mounted (`main`). Its ids there: `main/page` the column; in
@@ -51,13 +68,16 @@ using View = std::function<omui::Element(Parts, Layout)>;
 // What `page` is made of, for a view of one's own.
 // A part's own id, wherever the view places it: the site's pages, the page's sections, the page before and after,
 // the document.
-inline constexpr std::string_view pages_part = "nav", contents_part = "toc", turn_part = "turn", document_part = "doc";
+inline constexpr std::string_view pages_part = "nav", contents_part = "toc", turn_part = "turn", document_part = "doc", search_part = "search";
 // A part as a navigation: a landmark a reader's tools list and jump to, called `label`.
 [[nodiscard]] omui::Element navigation(omui::Element part, std::string_view label);
+// The site's search: a box called `label` and, under it, what `find` answers for its words — each section a link
+// (`h0`…) with the headings it is under and the line that holds the words. Nothing found says so.
+[[nodiscard]] omui::Element search_box(std::string label, Finder find);
 // A part's links, each by its own id.
 [[nodiscard]] std::vector<omui::Element> links(std::vector<Link> from);
 // The document, in the page's `main` landmark (`main` holding `doc`); `parts.document` is taken.
-[[nodiscard]] omui::Element document(Parts& parts);
+[[nodiscard]] omui::Element document(Parts& parts, const Layout& layout = {});
 // The view's root over what the page holds: a view of the window's size that scrolls it, or a column as tall as it
 // is (`Layout::scrolls`). Its id is the mount's (`main`), so what it holds is named the same either way.
 [[nodiscard]] omui::Element view(std::vector<omui::Element> held, Layout layout = {});
@@ -69,8 +89,40 @@ inline constexpr std::string_view mounted_at = "main";
 // written node's id, its element's label, address and words), and `markup`, the page's own markup of a node
 // (page::projected), asked for the document's. A part is known by its own id wherever the view placed it: the node
 // called `nav`, `toc` or `turn` names the part (its label), every link under it — at any depth — is one of the
-// part's, by its own id, in the page's order; the node called `doc` is the document. Or why the page is none of a
-// shell's (it has no document).
+// part's, by its own id, in the page's order; the node called `search` names the site's search; the node called
+// `doc` is the document. Or why the page is none of a shell's (it has no document).
 [[nodiscard]] std::expected<Parts, std::string> read(std::string_view projection, const std::function<std::string(std::string_view id)>& markup);
+
+// A part of a page a reader can be sent to: a heading and what stands under it up to the next heading. What a
+// person's search box and an agent's query both answer with (one index, made from the tree: 0.1.0 plan ST5).
+struct Section {
+    std::string              route;   // "/guide/start/"
+    std::string              anchor;  // the heading's; empty: the page's beginning
+    std::string              title;   // the heading's text; the page's title for what stands before any
+    std::vector<std::string> trail;   // the headings it is under, the page's first
+    std::string              text;    // what it holds, a line a block
+};
+
+// A section a query found: how well, and the line of it that says so.
+struct Hit {
+    Section     section;
+    double      score = 0;
+    std::string excerpt;
+};
+
+// The index every route's sections make (`search@1`): what a built site serves as site.search.xdef.json.
+[[nodiscard]] std::string search_json(std::span<const Section> sections);
+
+// The sections that hold every word of the query, best first: a word of Latin letters and digits matches whole or
+// as the start of a word, without case; text without spaces between words (Chinese, Japanese) matches by its
+// characters in a row. A word in a title or a trail counts more than one in the text.
+[[nodiscard]] std::vector<Hit> search(std::span<const Section> sections, std::string_view query, std::size_t limit = 8);
+
+// A finder over an index's sections: `search` asked for the words, each section's address from `top` (where the
+// site is, as the page finds it: "../", "https://example.org/docs/").
+[[nodiscard]] std::vector<Found> found_in(std::span<const Section> sections, std::string_view query, std::string_view top, std::size_t limit = 8);
+
+// The sections an index holds (what `search_json` wrote; a site's site.search.xdef.json), or why it is none.
+[[nodiscard]] std::expected<std::vector<Section>, std::string> sections_from(std::string_view index);
 
 }  // namespace oweb::shell

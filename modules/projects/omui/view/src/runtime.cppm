@@ -839,15 +839,18 @@ public:
     [[nodiscard]] NodeId pointer_locked_to() const override;
     // Opens an address outside the program (a document's link) where the
     // host can: the desktop's browser, a new tab on the Web. Only http,
-    // https and mailto; false when refused or nothing opens it. Every
-    // address asked for is kept, in order (`opened`: what a test reads).
+    // https and mailto — and, where the host shows a document that has an
+    // address of its own (a page: `set_url_opener`'s `relative`), an address
+    // without a scheme: one of that document's site, the host's to resolve
+    // and follow. False when refused or nothing opens it. Every address
+    // asked for is kept, in order (`opened`: what a test reads).
     bool open_url(std::string_view url) override;
     std::uint64_t open_web(std::string_view url, std::function<void(const WebPage&)> changed) override;
     void place_web(std::uint64_t page, Rect bounds, bool shown) override;
     bool command_web(std::uint64_t page, std::string_view command, std::string_view argument) override;
     void close_web(std::uint64_t page) override;
     [[nodiscard]] bool focusable(NodeId node) const override;
-    void set_url_opener(std::function<bool(std::string_view)> open);
+    void set_url_opener(std::function<bool(std::string_view)> open, bool relative = false);
     [[nodiscard]] const std::vector<std::string>& opened() const noexcept;
     // A file given to the person (an export: a picture, a document) where
     // the host can: the Web's download, the desktop's Downloads folder;

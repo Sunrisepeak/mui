@@ -182,6 +182,21 @@ static UTest cases{"oweb.site", [] {
         expect(home.contains("var omuiTakes = \"idle\";"));
         expect(home.contains("var omuiFaces = {\"omui-inter\":\"assets/omui-inter.ttf\"") && deep.contains("\"omui-inter\":\"../../assets/omui-inter.ttf\"") && !home.contains("var omuiFaces = null;"))
             << "the faces a page is set in, as the page finds them: the program's first";
+        expect(home.contains("<link rel=\"search\" type=\"application/json\" href=\"site.search.xdef.json\">") && deep.contains("href=\"../../site.search.xdef.json\">") &&
+               read(looked_out / "guide/start/index.html").contains("<link rel=\"search\" type=\"application/json\" href=\"../../site.search.xdef.json\">"))
+            << "where the site's index is, from each page — with a program or without";
+        expect(home.contains("data-omui-target=\"main/page/search/box\"") && chinese.contains("aria-label=\"搜索\" role=\"group\"") && !read(looked_out / "index.html").contains("main/page/search"))
+            << "the search box where a program answers it, named in the page's language; none where nothing would";
+        {
+            // The box as tall as the program draws it (a line of its words, its padding, its border): a field holds
+            // no words the page sets, and what stands under it must not move when the program takes the page.
+            const std::size_t box = home.find("data-omui-target=\"main/page/search/box\"");
+            const std::string_view tag = box == std::string::npos ? std::string_view() : std::string_view(home).substr(box, home.find('>', box) - box);
+            const std::size_t stated = tag.rfind("min-height:");
+            float tall = 0;
+            if (stated != std::string_view::npos) std::from_chars(tag.data() + stated + 11, tag.data() + tag.size(), tall);
+            expect(tall > 38 && tall < 42) << tag;
+        }
         expect(read(out / "engine/reader-0123.js") == "/* the launcher */" && std::filesystem::file_size(out / "engine/reader-4567.wasm") == 8u &&
                read(out / "engine/assets/89ab.ttf") == "a face" && !std::filesystem::exists(out / "engine/index.html"))
             << "the program's files, not the page they waited in";

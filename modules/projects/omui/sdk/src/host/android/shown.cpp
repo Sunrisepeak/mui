@@ -25,6 +25,10 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
 std::vector<std::string> host_locales() { return {}; }
 std::string host_document() { return {}; }
 std::string host_document(std::string_view) { return {}; }
+std::string host_link(std::string_view) { return {}; }
+void host_file(std::string_view, std::function<void(std::expected<std::string, std::string>)> done) {
+    if (done) done(std::unexpected(std::string("this host showed no document: there is no site to fetch a file of")));
+}
 
 int terminal(const AppSpec&, const RunOptions&, const Prepare&) {
     std::println(std::cerr, "--terminal: this platform has no terminal host (omui.host.terminal runs on Linux, macOS and Windows)");

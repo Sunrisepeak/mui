@@ -234,6 +234,12 @@ int run(AppSpec app, int argc, char** argv);
 // layer over the canvas takes the elements over at the first frame). Empty on a host that shows no document.
 [[nodiscard]] std::string shown_document();
 [[nodiscard]] std::string shown_document(std::string_view id);
+// What that document says is at a relation to it (a page's `<link rel="search" href>`: where its site's index is):
+// the address; empty where it says none. And a file of the document's own site by its address, fetched by the host
+// that showed the document (the page): `done` hears its text, or why it did not come — before a frame, on the
+// application's thread; at once on a host that showed no document. An address of another site is refused.
+[[nodiscard]] std::string shown_link(std::string_view relation);
+void shown_file(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done);
 
 // The capabilities this program carries — its world's, by the providers installed (agent, generate, gpu,
 // accessibility-bridge: the features of [package.metadata.openmui.compose.installs]) — installing them first as

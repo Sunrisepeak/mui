@@ -45,6 +45,8 @@ void reading() {}
 std::string projection() { return {}; }
 std::string projected(std::string_view) { return {}; }
 std::optional<std::expected<Pixels, std::string>> picture(std::string_view) { return std::nullopt; }
+std::string link(std::string_view) { return {}; }
+void fetch(std::string_view, int) {}
 void want_fonts(std::optional<char32_t>) {}
 void want_face(std::string_view, char32_t) {}
 

@@ -295,8 +295,11 @@ ActResult Link::activate(ActContext&) {
     if (props.disabled) return ActResult::fail("the link is disabled");
     // A verb is the runtime's to invoke (the node's `verb`); an address is the system's to open.
     if (props.verb.empty()) {
-        if (!opens(props.href)) return ActResult::fail(std::format("`{}` is not an address the system opens (http, https, mailto)", props.href));
-        if (attached() && !services().open_url(props.href)) return ActResult::fail(std::format("nothing here opens {}", props.href));
+        // Which addresses open is the runtime's to say: http, https and mailto anywhere, and one without a scheme
+        // where a document with an address of its own is shown (a page's own links).
+        if (attached() ? !services().open_url(props.href) : !opens(props.href))
+            return ActResult::fail(opens(props.href) ? std::format("nothing here opens {}", props.href)
+                                                     : std::format("`{}` is not an address the system opens (http, https, mailto)", props.href));
     }
     emit_activated(props.href);
     return ActResult::done();

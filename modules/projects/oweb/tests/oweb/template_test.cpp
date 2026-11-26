@@ -212,6 +212,116 @@ static UTest cases{"oweb.template", [] {
         expect(compared == routes->size() + 2) << compared;
     };
 
+    "the search box on a page: for the words typed it shows the sections the query answers, in its order, each led to; a late answer for other words is not shown"_test = [] {
+        using namespace omui;
+        namespace shell = oweb::shell;
+        const auto site = package() / "templates" / "docs";
+        const auto options = oweb::configured(site);
+        expect(options.has_value());
+        if (!options) return;
+        const auto sections = oweb::sections_of(site, *options);
+        expect(sections.has_value()) << (sections ? "" : sections.error());
+        if (!sections) return;
+        // The index a site serves, read back: the sections it was written from.
+        const auto served = shell::sections_from(shell::search_json(*sections));
+        expect(served.has_value() && served->size() == sections->size()) << (served ? "" : served.error());
+        if (!served) return;
+        expect(std::ranges::equal(*served, *sections, [](const shell::Section& one, const shell::Section& other) {
+            return one.route == other.route && one.anchor == other.anchor && one.title == other.title && one.trail == other.trail && one.text == other.text;
+        })) << "the index says every section as it is";
+        expect(!shell::sections_from("{\"$format\":\"other@1\"}").has_value() && !shell::sections_from("not an index").has_value());
+
+        // A link a reader presses in the page's document is handed to who follows it — a page of the site, a
+        // section, an address elsewhere alike; in a page as written (no one to follow) it goes nowhere.
+        {
+            std::vector<std::string> followed;
+            shell::Parts linked{.site = "Docs", .document = "# A page\n\nSee [the guide](../guide/), [below](#more) and [mcpp](https://example.org/mcpp).\n\n## More\n\nText.\n"};
+            Headless page({.level = HeadlessLevel::layout, .size = {960, 900}});
+            page.mount(shell::mounted_at, shell::page(std::move(linked), {.follow = [&](std::string href) { followed.push_back(std::move(href)); }}));
+            page.settle();
+            std::vector<std::string> links;
+            for (const spec::SemanticNode& node : page.tree().snapshot({}).nodes)
+                if (node.role == Role::link) links.push_back(node.id);
+            expect(links.size() == 3u) << links.size();
+            for (const std::string& id : links) expect(page.click(id)) << id;
+            expect(followed == std::vector<std::string>{"../guide/", "#more", "https://example.org/mcpp"}) << followed.size();
+        }
+        // A page with the box, its finder answering later (an index is fetched): each asking kept until answered.
+        std::vector<std::pair<std::string, std::function<void(std::vector<shell::Found>)>>> asked;
+        shell::Parts parts{.site = "Docs", .document = "# A page\n\nIts text.\n", .search = "Search"};
+        Headless host({.level = HeadlessLevel::layout, .size = {960, 900}});
+        host.mount(shell::mounted_at, shell::page(std::move(parts), {.find = [&](std::string words, std::function<void(std::vector<shell::Found>)> answer) {
+                                                                         asked.emplace_back(std::move(words), std::move(answer));
+                                                                     }}));
+        host.settle();
+        const auto part = host.tree().node(std::format("{}/page/{}", shell::mounted_at, shell::search_part));
+        expect(part && part->role == Role::group && part->name == "Search") << "the part by its own name";
+        // The page as written says its search by name; read back from its own HTML the part is there, written again the same.
+        {
+            const std::string written = semantic::static_html(host.tree().snapshot({}));
+            const auto again = shell::read(projection_of(written), [&](std::string_view) { return std::string("<h1>A page</h1>\n<p>Its text.</p>\n"); });
+            expect(again.has_value() && again->search == "Search" && again->pages.empty()) << (again ? again->search : again.error()) << ": the search read back, its box no link of the site's";
+            if (again) {
+                Headless second({.level = HeadlessLevel::layout, .size = {960, 900}});
+                second.mount(shell::mounted_at, shell::page(*again, {}));
+                second.settle();
+                expect(semantic::static_html(second.tree().snapshot({})) == written) << "the page as written, drawn from what it says";
+            }
+        }
+        const std::string box_id = std::format("{}/page/{}/box", shell::mounted_at, shell::search_part), results = std::format("{}/page/{}/results", shell::mounted_at, shell::search_part);
+        expect(host.tree().node(box_id) && host.tree().node(box_id)->role == Role::text_box && host.tree().node(box_id)->name == "Search") << "its box";
+        const auto shown = [&] {
+            std::vector<std::pair<std::string, std::string>> out;  // where each leads and what it is called
+            for (std::size_t at = 0;; ++at) {
+                const auto one = host.tree().node(std::format("{}/f{}/h{}", results, at, at));
+                if (!one) break;
+                const auto href = one->properties.get("href");
+                out.emplace_back(href ? std::string(href->as_string()) : std::string(), one->name);
+            }
+            return out;
+        };
+        host.runtime().focus(host.runtime().find(box_id));
+        std::size_t found_in_all = 0;
+        for (const std::string_view words : {"takes over", "live example", "搜索", "ops reference", "agent"}) {
+            const std::size_t before = asked.size();
+            host.key(Key::a, Modifiers(primary_modifier()));
+            host.type(words);
+            host.settle();
+            expect(asked.size() > before && asked.back().first == words) << words << ": asked for the words in the box";
+            if (asked.size() == before) continue;
+            asked.back().second(shell::found_in(*served, words, "https://example.org/docs/"));
+            host.settle();
+            const auto query = oweb::search(*sections, words);
+            const auto on_page = shown();
+            expect(on_page.size() == query.size()) << words << ": " << on_page.size() << " shown, " << query.size() << " answered";
+            std::println("    the box, \"{}\": {} section(s){}", words, on_page.size(), on_page.empty() ? std::string() : std::format(", first {} — {}", on_page[0].second, on_page[0].first));
+            found_in_all += on_page.size();
+            for (std::size_t at = 0; at < std::min(on_page.size(), query.size()); ++at)
+                expect(on_page[at].second == query[at].section.title &&
+                       on_page[at].first == std::format("https://example.org/docs/{}{}{}", query[at].section.route.substr(1), query[at].section.anchor.empty() ? "" : "#", query[at].section.anchor))
+                    << words << " " << at << ": " << on_page[at].first << " " << on_page[at].second;
+            if (query.empty()) expect(host.tree().node(results + "/none") && host.tree().node(results + "/none")->name == "Search · 0") << words << ": nothing found is said";
+        }
+        expect(found_in_all >= 5u && !shown().empty()) << found_in_all << ": the words found sections, the last too";
+        // An answer for words no longer in the box: not theirs, not shown.
+        const auto late = asked.front().second;
+        host.key(Key::a, Modifiers(primary_modifier()));
+        host.type("nothing-of-the-kind");
+        host.settle();
+        late(shell::found_in(*served, "takes over", ""));
+        host.settle();
+        expect(shown().empty() && !host.tree().node(results + "/none")) << "still waiting for its own answer";
+        asked.back().second({});
+        host.settle();
+        expect(shown().empty() && host.tree().node(results + "/none"));
+        // Emptied: nothing asked, nothing shown.
+        const std::size_t before = asked.size();
+        host.key(Key::a, Modifiers(primary_modifier()));
+        host.key(Key::backspace);
+        host.settle();
+        expect(asked.size() == before && shown().empty() && !host.tree().node(results + "/none"));
+    };
+
     "a navigation of one's own: the pages at the side, the contents under them, no turn — each route says the same document, and reads back as written"_test = [] {
         using namespace omui;
         namespace shell = oweb::shell;

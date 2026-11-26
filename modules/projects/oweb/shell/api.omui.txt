@@ -14,17 +14,41 @@ namespace oweb::shell {
     std::vector<Link> beside;
     std::string document;
     bool html = false;
+    std::string search;
   };
+  struct Found {
+    std::string href, title, trail, line;
+  };
+  using Finder = std::function<void(std::string query, std::function<void(std::vector<Found>)> answer)>;
   struct Layout {
     bool scrolls = false;
+    Finder find;
+    std::function<void(std::string href)> follow;
   };
   [[nodiscard]] omui::Element page(Parts parts, Layout layout = {…});
   using View = std::function<omui::Element(Parts, Layout)>;
-  inline constexpr std::string_view pages_part = "nav", contents_part = "toc", turn_part = "turn", document_part = "doc";
+  inline constexpr std::string_view pages_part = "nav", contents_part = "toc", turn_part = "turn", document_part = "doc", search_part = "search";
   [[nodiscard]] omui::Element navigation(omui::Element part, std::string_view label);
+  [[nodiscard]] omui::Element search_box(std::string label, Finder find);
   [[nodiscard]] std::vector<omui::Element> links(std::vector<Link> from);
-  [[nodiscard]] omui::Element document(Parts& parts);
+  [[nodiscard]] omui::Element document(Parts& parts, const Layout& layout = {…});
   [[nodiscard]] omui::Element view(std::vector<omui::Element> held, Layout layout = {…});
   inline constexpr std::string_view mounted_at = "main";
   [[nodiscard]] std::expected<Parts, std::string> read(std::string_view projection, const std::function<std::string(std::string_view id)>& markup);
+  struct Section {
+    std::string route;
+    std::string anchor;
+    std::string title;
+    std::vector<std::string> trail;
+    std::string text;
+  };
+  struct Hit {
+    Section section;
+    double score = 0;
+    std::string excerpt;
+  };
+  [[nodiscard]] std::string search_json(std::span<const Section> sections);
+  [[nodiscard]] std::vector<Hit> search(std::span<const Section> sections, std::string_view query, std::size_t limit = 8);
+  [[nodiscard]] std::vector<Found> found_in(std::span<const Section> sections, std::string_view query, std::string_view top, std::size_t limit = 8);
+  [[nodiscard]] std::expected<std::vector<Section>, std::string> sections_from(std::string_view index);
 }

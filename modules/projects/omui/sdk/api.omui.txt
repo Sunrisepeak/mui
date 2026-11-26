@@ -220,6 +220,8 @@ namespace omui {
   int run(AppSpec app, int argc, char** argv);
   [[nodiscard]] std::string shown_document();
   [[nodiscard]] std::string shown_document(std::string_view id);
+  [[nodiscard]] std::string shown_link(std::string_view relation);
+  void shown_file(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done);
   [[nodiscard]] std::vector<std::string> capabilities();
 }
 == omui:devhost

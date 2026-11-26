@@ -260,6 +260,31 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
             if (now && text(*now) != text(at(*shown, "text"))) ++answered;
         }
     }
+    // A link to another page of the site leads there once the program has the page: the first one the page shows
+    // (an address without a scheme, to another path), pressed where the canvas shows it — the browser is then at
+    // its address. A page whose program answers presses but follows nothing is a page one cannot leave.
+    int links = 0, followed = 0;
+    std::string led_to;
+    if (problem.empty()) {
+        const std::string link = "[...document.querySelectorAll('[data-omui=mirror] a[href]')].find((a) => { const h = a.getAttribute('href'); return !/^[a-z][a-z0-9+.-]*:/i.test(h) && "
+                                 "new URL(h, document.baseURI).pathname !== location.pathname; })";
+        const auto there = page.value(std::format("(() => {{ const a = {}; if (!a) return false; a.scrollIntoView({{block: 'center'}}); return true; }})()", link));
+        if (there && truthy(*there)) {
+            links = 1;
+            page.pump(std::chrono::milliseconds(700));
+            const auto shown = page.value(std::format("(() => {{ const a = {}; const r = a.getClientRects()[0]; return {{x: r.left + Math.min(8, r.width / 2), y: r.top + r.height / 2, to: new URL(a.getAttribute('href'), document.baseURI).href}}; }})()", link));
+            if (shown) {
+                const double x = number(at(*shown, "x")), y = number(at(*shown, "y"));
+                led_to = text(at(*shown, "to"));
+                page.post("Input.dispatchMouseEvent", {{"type", "mouseMoved"}, {"x", x}, {"y", y}});
+                page.pump(std::chrono::milliseconds(100));
+                page.post("Input.dispatchMouseEvent", {{"type", "mousePressed"}, {"x", x}, {"y", y}, {"button", "left"}, {"buttons", 1}, {"clickCount", 1}});
+                page.pump(std::chrono::milliseconds(60));
+                page.post("Input.dispatchMouseEvent", {{"type", "mouseReleased"}, {"x", x}, {"y", y}, {"button", "left"}, {"buttons", 0}, {"clickCount", 1}});
+                if (!wait(std::format("location.href === {}", json(led_to).dump()), 80, "the page the link leads to")) followed = 1;
+            }
+        }
+    }
     const std::string version = page.version();
     page.close();
     (*server)->close();
@@ -271,7 +296,8 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
                          {"bound", {{"median", median_bound}, {"most", most_bound}, {"lines", 0}, {"words", words_at_least}}},
                          {"rows", rows},
                          {"examples", {{"found", examples}, {"operated", operated}, {"answered", answered}}},
-                         {"ok", within && operated == answered}};
+                         {"links", {{"pressed", links}, {"followed", followed}, {"to", led_to}}},
+                         {"ok", within && operated == answered && links == followed}};
     std::error_code made;
     fs::create_directories(root / "target", made);
     std::ofstream(root / "target/takeover.report.xdef.json", std::ios::binary) << cdp::pretty(report, 2) << '\n';
@@ -282,8 +308,10 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
     if (examples > 0)
         std::cout << std::format("  {} {} live example{}: {} operated (its first button pressed on the canvas), {} answered\n", operated == answered ? "ok  " : "FAIL", examples, examples == 1 ? "" : "s", operated,
                                  answered);
+    if (links > 0) std::cout << std::format("  {} a link to another page of the site, pressed on the canvas: {} {}\n", followed == links ? "ok  " : "FAIL", followed == links ? "led to" : "did not lead to", led_to);
     if (!within) return failed("a word moved past the bound when the program took the page over (target/takeover.report.xdef.json)");
     if (operated != answered) return failed("a live example did not answer when its button was pressed (target/takeover.report.xdef.json)");
+    if (links != followed) return failed("a link to another page of the site led nowhere when pressed (target/takeover.report.xdef.json)");
     return 0;
 }
 

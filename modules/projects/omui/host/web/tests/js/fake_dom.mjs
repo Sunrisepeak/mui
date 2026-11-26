@@ -182,6 +182,7 @@ export class Document extends Target {
   createElement(tag) { return new Element(this, tag); }
   createTextNode(t) { return new Text(t); }
   querySelector(selector) { return this.body.matches(selector) ? this.body : this.body.querySelector(selector); }
+  querySelectorAll(selector) { return this.body.querySelectorAll(selector); }
   getElementById(id) { return this.querySelector('#' + id); }
   // Capture from the window down, the target, then bubbling back up.
   dispatch(target, event) {

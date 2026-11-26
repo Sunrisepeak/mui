@@ -527,6 +527,7 @@ struct Runtime::Impl {
     std::function<std::string()>            clipboard_read;
     std::function<void(std::string_view)>   clipboard_write;
     std::function<bool(std::string_view)>   url_opener;
+    bool                                    url_relative = false;  // the host resolves an address without a scheme
     std::function<bool(bool)>               pointer_lock;  // the host's (Runtime::set_pointer_lock)
     NodeId                                  locked;        // the node the pointer is kept to
     void unlock();

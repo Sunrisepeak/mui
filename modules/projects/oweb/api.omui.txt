@@ -55,13 +55,8 @@ namespace oweb {
     std::string load = "eager";
     shell::View view;
   };
-  struct Section {
-    std::string route;
-    std::string anchor;
-    std::string title;
-    std::vector<std::string> trail;
-    std::string text;
-  };
+  using shell::Hit;
+  using shell::Section;
   struct Page {
     Route route;
     std::string html;
@@ -72,11 +67,6 @@ namespace oweb {
     std::vector<std::string> examples;
     std::vector<std::string> faces;
     std::set<char32_t> characters;
-  };
-  struct Hit {
-    Section section;
-    double score = 0;
-    std::string excerpt;
   };
   struct Built {
     std::vector<Route> routes;
@@ -90,8 +80,8 @@ namespace oweb {
   [[nodiscard]] std::string routes_json(std::span<const Route> routes, const SiteOptions& options);
   [[nodiscard]] std::string llms_txt(std::span<const Route> routes, const SiteOptions& options);
   [[nodiscard]] std::string sitemap_xml(std::span<const Route> routes, const SiteOptions& options);
-  [[nodiscard]] std::string search_json(std::span<const Section> sections);
-  [[nodiscard]] std::vector<Hit> search(std::span<const Section> sections, std::string_view query, std::size_t limit = 8);
+  using shell::search;
+  using shell::search_json;
   [[nodiscard]] std::expected<std::vector<Section>, std::string> sections_of(const std::filesystem::path& site, const SiteOptions& options = {…});
   [[nodiscard]] std::string relative(std::string_view from, std::string_view to);
 }

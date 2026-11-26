@@ -1122,7 +1122,14 @@ void Runtime::set_clipboard(std::function<std::string()> read, std::function<voi
 
 bool Runtime::open_url(std::string_view url) {
     const bool allowed = url.starts_with("https://") || url.starts_with("http://") || url.starts_with("mailto:");
-    if (!allowed) return false;
+    // An address without a scheme (`../guide/`, `#install`) is one of the shown document's own site, where a host
+    // shows one: no scheme is what stands before the first `:` not being a scheme's name (`javascript:`, `file:`).
+    const auto schemed = [](std::string_view address) {
+        const std::size_t colon = address.find_first_of(":/?#");
+        return colon != std::string_view::npos && address[colon] == ':';
+    };
+    const bool own = impl_->url_relative && !url.empty() && !schemed(url);
+    if (!allowed && !own) return false;
     impl_->opened.emplace_back(url);
     return impl_->url_opener && impl_->url_opener(url);
 }
@@ -1157,7 +1164,10 @@ void Runtime::close_web(std::uint64_t page) {
 
 bool Runtime::focusable(NodeId node) const { return valid(node) && impl_->is_focusable(node); }
 
-void Runtime::set_url_opener(std::function<bool(std::string_view)> open) { impl_->url_opener = std::move(open); }
+void Runtime::set_url_opener(std::function<bool(std::string_view)> open, bool relative) {
+    impl_->url_opener = std::move(open);
+    impl_->url_relative = relative;
+}
 
 void Runtime::set_native_surfaces(NativeSurfaces surfaces) { impl_->native_surfaces = std::move(surfaces); }
 const Runtime::NativeSurfaces& Runtime::native_surfaces() const noexcept { return impl_->native_surfaces; }

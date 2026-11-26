@@ -638,6 +638,8 @@ std::vector<std::string> capabilities() {
 
 std::string shown_document() { return hosting::host_document(); }
 std::string shown_document(std::string_view id) { return hosting::host_document(id); }
+std::string shown_link(std::string_view relation) { return hosting::host_link(relation); }
+void shown_file(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done) { hosting::host_file(address, std::move(done)); }
 
 int run(AppSpec app, int argc, char** argv) {
     auto command = command_line(cmdline::App(app.id.empty() ? std::string("application") : app.id).description(app.title), argc, argv);

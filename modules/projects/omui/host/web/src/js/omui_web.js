@@ -31,7 +31,7 @@ addToLibrary({
 
   $omuiPage__deps: ['$omuiCanvas', '$stringToNewUTF8', '$lengthBytesUTF8', '$getWasmTableEntry'],
   $omuiPage: {
-    TEXT: 1, PREEDIT: 2, KEY: 3, ACTIVATE: 4, FOCUS: 5, AGENT: 6, LINK: 7, SCROLL: 8, MEDIA: 9,
+    TEXT: 1, PREEDIT: 2, KEY: 3, ACTIVATE: 4, FOCUS: 5, AGENT: 6, LINK: 7, SCROLL: 8, MEDIA: 9, FILE: 10,
     LINK_PORTS: [47110, 47111, 47112, 47113],  // where a bridge (omui connect) listens, the first free of them
     callback: 0,
     selector: '#canvas',
@@ -326,6 +326,27 @@ addToLibrary({
       });
       return JSON.stringify({ lang: (document.documentElement && document.documentElement.lang) || '', nodes: nodes });
     },
+    // What the page's document says is at a relation to it: `<link rel="search" href>` — the address as the
+    // document says it (from where the page is: what a link of the page's own is written with, and what `file` takes).
+    related: function (relation) {
+      var all = document.querySelectorAll ? document.querySelectorAll('link') : [];
+      for (var i = 0; i < all.length; i++)
+        if (all[i].getAttribute('href') && (' ' + String(all[i].getAttribute('rel') || '').toLowerCase() + ' ').indexOf(' ' + relation + ' ') >= 0)
+          return all[i].getAttribute('href');
+      return '';
+    },
+    // A file of the page's own site, fetched for the program: its text, or why it did not come, said as the page's
+    // events are (FILE, the asking's number). An address of another origin is not the page's to hand over.
+    file: function (address, number) {
+      var P = omuiPage, failed = function (why) { P.send(P.FILE, number, 0, String((why && why.message) || why)); };
+      try {
+        var resolved = new URL(address, document.baseURI);
+        if (resolved.origin !== location.origin) return failed('not of the page\'s own site: ' + resolved.origin);
+        fetch(resolved.href, { credentials: 'same-origin' })
+          .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status + ' for ' + resolved.pathname); return response.text(); })
+          .then(function (text) { P.send(P.FILE, number, 1, text); }, failed);
+      } catch (e) { failed(e); }
+    },
     projected: function (id) {
       var page = document.querySelector('[data-omui="static"]'), all = page && page.querySelectorAll ? page.querySelectorAll('[data-omui-target]') : [];
       for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-omui-target') === id) return all[i].outerHTML;
@@ -515,8 +536,17 @@ addToLibrary({
     // An address outside the program: a new tab while the person's last
     // input still allows one (the program answers it a frame later, inside
     // the browser's transient activation), else this tab. Only http, https
-    // and mailto (never javascript:).
+    // and mailto (never javascript:). An address without a scheme is one of
+    // the page's own site (`../guide/`, `#install`): from where the page is,
+    // in this tab — the browser's own step, its history and its way back.
     openUrl: function (url) {
+      if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+        var own;
+        try { own = new URL(url, document.baseURI); } catch (e) { return false; }
+        if (!/^https?:$/i.test(own.protocol)) return false;
+        window.location.assign(own.href);
+        return true;
+      }
       if (!/^(https?:\/\/|mailto:)/i.test(url)) return false;
       var a = typeof navigator !== 'undefined' && navigator.userActivation;
       if (!a || a.isActive) {
@@ -1274,6 +1304,10 @@ addToLibrary({
       return 0;  // another origin's picture: its pixels are not the page's to read
     }
   },
+  omui_web_link__deps: ['$omuiPage', '$stringToNewUTF8', '$UTF8ToString'],
+  omui_web_link: function (relation) { return stringToNewUTF8(omuiPage.related(UTF8ToString(relation))); },
+  omui_web_fetch__deps: ['$omuiPage', '$UTF8ToString'],
+  omui_web_fetch: function (address, number) { omuiPage.file(UTF8ToString(address), number); },
   omui_web_projection__deps: ['$omuiPage', '$stringToNewUTF8'],
   omui_web_projection: function () { return stringToNewUTF8(omuiPage.projection()); },
   omui_web_projected__deps: ['$omuiPage', '$stringToNewUTF8', '$UTF8ToString'],

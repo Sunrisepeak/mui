@@ -538,6 +538,10 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
             }
             if (!parts.empty()) look.spans.emplace(n->id, std::move(parts));
         }
+        // A field holds no words a page sets — what it shows (its value, its placeholder) is drawn in it — so a
+        // block of its style alone would be as short as its least height: it is as tall as the frame set it.
+        if (n->role == Role::text_box)
+            if (const Rect box = runtime.bounds(node); box.height > 0) put(css, "min-height", px(box.height));
         if (!css.empty()) look.styles.emplace(n->id, std::move(css));
         // The nodes of the view between it and the nearest one the semantic tree states.
         std::vector<Look::Wrapper> around;

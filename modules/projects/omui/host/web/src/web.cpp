@@ -65,6 +65,11 @@ bool same(const std::optional<Rect>& a, const std::optional<Rect>& b) {
     return a->x == b->x && a->y == b->y && a->width == b->width && a->height == b->height;
 }
 
+// The files asked of the page (page_file) and not yet come: each asking's number, and who hears. The page's, as its
+// events are: one page a program.
+int files_asked = 0;
+std::map<int, std::function<void(std::expected<std::string, std::string>)>> files_awaited;
+
 }  // namespace
 
 struct Web::Impl {
@@ -151,7 +156,8 @@ struct Web::Impl {
             return Picture{(*given)->width, (*given)->height, std::move((*given)->rgba), false};
         });
         runtime->set_clipboard([] { return page::clipboard(); }, [](std::string_view t) { page::set_clipboard(t); });
-        runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });
+        // A page has an address: a link without a scheme is one of its own site, followed as the browser follows it.
+        runtime->set_url_opener([](std::string_view url) { return page::open_url(url); }, true);
         runtime->set_file_offer([](const Runtime::OfferedFile& file) { return page::offer_file(file.name, file.type, file.bytes); });
         runtime->set_svg_capture([this](Rect region) -> std::expected<std::string, ViewFailure> {
             const mrender::Resources resources{&runtime->images(), glyphs.get()};
@@ -205,6 +211,16 @@ struct Web::Impl {
 
     // A request of the page's, or one synthesized: served before the frame.
     void serve(page::Request::Kind kind, const std::string& text, const std::function<void(std::string_view)>& reply, int x = 0, int y = 0) {
+        if (kind == page::Request::Kind::file) {
+            // A file asked of the page (page_file) came, or did not: its asker hears, once.
+            if (const auto awaited = files_awaited.find(x); awaited != files_awaited.end()) {
+                const auto done = std::move(awaited->second);
+                files_awaited.erase(awaited);
+                if (y != 0) done(text);
+                else done(std::unexpected(text));
+            }
+            return;
+        }
         if (kind == page::Request::Kind::media) {
             // A setting of the person's changed while the page is open: the runtime has it from now on.
             if (x == 0) runtime->set_dark_preferred(y != 0);
@@ -697,5 +713,15 @@ std::vector<std::string> browser_locales() { return page::exists() ? page::local
 std::string page_projection() { return page::exists() ? page::projection() : std::string(); }
 
 std::string page_projected(std::string_view id) { return page::exists() ? page::projected(id) : std::string(); }
+
+std::string page_link(std::string_view relation) { return page::exists() ? page::link(relation) : std::string(); }
+
+void page_file(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done) {
+    if (!done) return;
+    if (!page::exists()) return done(std::unexpected(std::string("no page to fetch a file through")));
+    const int number = ++files_asked;
+    files_awaited.emplace(number, std::move(done));
+    page::fetch(address, number);
+}
 
 }  // namespace omui

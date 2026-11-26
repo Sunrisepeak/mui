@@ -44,7 +44,7 @@ function page({ storage = new Storage(), clipboard = null, permissions = null, a
     stringToNewUTF8: (s) => s,
     lengthBytesUTF8: (s) => Buffer.byteLength(s, 'utf8'),
     getWasmTableEntry: (f) => f,
-    fetch, setTimeout, crypto: globalThis.crypto, location: { href: 'https://example.org/app' },
+    fetch, setTimeout, URL, crypto: globalThis.crypto, location: { href: 'https://example.org/app', origin: 'https://example.org' },
   };
   // The person's settings as media queries: `media` holds what matches now; media.change(query, matches) is the system changing one.
   if (media) {
@@ -76,9 +76,9 @@ function page({ storage = new Storage(), clipboard = null, permissions = null, a
 test('the C++ side and the page agree on what each kind of event is', () => {
   const cpp = readFileSync(here('../../src/native/browser/html5.cpp'), 'utf8');
   const { P } = page();
-  const m = /page_text = (\d+), page_preedit = (\d+), page_key = (\d+), page_activate = (\d+), page_focus = (\d+), page_agent = (\d+), page_link = (\d+), page_scroll = (\d+), page_media = (\d+)/.exec(cpp);
+  const m = /page_text = (\d+), page_preedit = (\d+), page_key = (\d+), page_activate = (\d+), page_focus = (\d+), page_agent = (\d+), page_link = (\d+), page_scroll = (\d+), page_media = (\d+), page_file = (\d+)/.exec(cpp);
   assert.ok(m, 'html5.cpp names the kinds');
-  assert.deepEqual(m.slice(1).map(Number), [P.TEXT, P.PREEDIT, P.KEY, P.ACTIVATE, P.FOCUS, P.AGENT, P.LINK, P.SCROLL, P.MEDIA]);
+  assert.deepEqual(m.slice(1).map(Number), [P.TEXT, P.PREEDIT, P.KEY, P.ACTIVATE, P.FOCUS, P.AGENT, P.LINK, P.SCROLL, P.MEDIA, P.FILE]);
 });
 
 test('opening: the textarea, the mirror\'s layer, the live regions, window.omui', () => {
@@ -223,6 +223,16 @@ test('an address: a new tab inside the person\'s activation, else this tab; neve
   assert.equal(late.context.omui_web_open_url('mailto:speakshen@outlook.com'), 1);
   assert.deepEqual(plain(late.window.opened), [], 'no window without the person\'s activation');
   assert.deepEqual(plain(late.window.assigned), ['mailto:speakshen@outlook.com']);
+  // An address without a scheme is the page's own: from where the page is, this tab — whatever the activation.
+  const own = page({ activation: { isActive: true } });
+  own.document.baseURI = 'https://example.org/docs/start/';
+  assert.equal(own.context.omui_web_open_url('../ui/'), 1);
+  assert.equal(own.context.omui_web_open_url('#install'), 1);
+  assert.equal(own.context.omui_web_open_url('../live/#a-live-example'), 1);
+  assert.deepEqual(plain(own.window.assigned), ['https://example.org/docs/ui/', 'https://example.org/docs/start/#install', 'https://example.org/docs/live/#a-live-example']);
+  assert.deepEqual(plain(own.window.opened), [], 'no new tab for the site\'s own page');
+  const nowhere = page({ activation: { isActive: true } });
+  assert.equal(nowhere.context.omui_web_open_url('../ui/'), 0, 'a page that is nowhere has no own addresses');
 });
 
 test('the semantic DOM mirror: elements made, then only what changed', () => {
@@ -563,6 +573,33 @@ test('a view that scrolls scrolls on the page too: as far, to the same place; wh
   list.scrollTop = 90;
   fire(list, 'scroll');
   assert.equal(heard.length, 1);
+});
+
+test('what the page\'s document says is at a relation: the address as it says it; a file of the page\'s own site fetched for the program, another\'s not', async () => {
+  const asked = [];
+  const files = { 'https://example.org/docs/site.search.xdef.json': { ok: true, text: () => Promise.resolve('{"$format":"search@1"}') } };
+  const { P, document, context, heard } = page({ fetch: (address) => { asked.push(address); return Promise.resolve(files[address] ?? { ok: false, status: 404 }); } });
+  document.baseURI = 'https://example.org/docs/start/';
+  for (const [rel, href] of [['alternate', 'index.md'], ['stylesheet search', '../site.search.xdef.json'], ['search', 'second.json'], ['help', null]]) {
+    const link = document.createElement('link');
+    link.setAttribute('rel', rel);
+    if (href) link.setAttribute('href', href);
+    document.body.appendChild(link);
+  }
+  assert.equal(context.omui_web_link('search'), '../site.search.xdef.json', 'the first that has the word, as the document says it');
+  assert.equal(context.omui_web_link('alternate'), 'index.md');
+  assert.equal(context.omui_web_link('help'), '', 'one without an address is none');
+  assert.equal(context.omui_web_link('next'), '');
+  const files_said = () => heard.filter((h) => h[0] === P.FILE).map((h) => h.slice(1));
+  context.omui_web_fetch(context.omui_web_link('search'), 7);
+  context.omui_web_fetch('../missing.json', 8);
+  context.omui_web_fetch('https://elsewhere.example/index.json', 9);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.deepEqual(asked, ['https://example.org/docs/site.search.xdef.json', 'https://example.org/docs/missing.json'], 'only the site\'s own are asked for');
+  const said = files_said();
+  assert.deepEqual(said.find((s) => s[0] === 7), [7, 1, '{"$format":"search@1"}'], 'its text, under the asking\'s number');
+  assert.deepEqual(said.find((s) => s[0] === 8), [8, 0, 'HTTP 404 for /docs/missing.json']);
+  assert.deepEqual(said.find((s) => s[0] === 9), [9, 0, 'not of the page\'s own site: https://elsewhere.example']);
 });
 
 test('a link takes the pointer: a plain press is the program\'s, one with a modifier or another button the browser\'s', () => {

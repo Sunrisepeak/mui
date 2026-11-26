@@ -129,6 +129,27 @@ static UTest cases{"ui.base.reading", [] {
         expect(h.click("main/docs") && eq(opened.size(), std::size_t{3})) << "and a click";
     };
 
+    "a link without a scheme: one of the shown document's own site — followed where the host shows a document with an address, nowhere else; never a script"_test = [] {
+        const auto pressed = [](bool relative) {
+            Headless h(options());
+            std::vector<std::string> opened;
+            if (relative) h.runtime().set_url_opener([&](std::string_view url) { opened.emplace_back(url); return true; }, true);
+            else h.runtime().set_url_opener([&](std::string_view url) { opened.emplace_back(url); return true; });
+            h.mount("main", column({.padding = 12, .gap = 8},
+                                   {link({.id = "page", .href = std::string("../guide/"), .text = std::string("The guide")}),
+                                    link({.id = "part", .href = std::string("#install"), .text = std::string("Install")}),
+                                    link({.id = "found", .href = std::string("live/#a-live-example"), .text = std::string("A live example")}),
+                                    link({.id = "script", .href = std::string("javascript:alert(1)"), .text = std::string("A script")}),
+                                    link({.id = "file", .href = std::string("file:///etc/passwd"), .text = std::string("A file")}),
+                                    link({.id = "out", .href = std::string("https://example.org/"), .text = std::string("Out")})}));
+            h.step();
+            for (const std::string_view id : {"main/page", "main/part", "main/found", "main/script", "main/file", "main/out"}) (void)h.click(id);
+            return opened;
+        };
+        expect(pressed(true) == std::vector<std::string>{"../guide/", "#install", "live/#a-live-example", "https://example.org/"}) << "a page: its own addresses are its to follow";
+        expect(pressed(false) == std::vector<std::string>{"https://example.org/"}) << "a window has no address of its own";
+    };
+
     "link with an icon: before its text, or alone and named by its label — the same link to people and agents"_test = [] {
         Headless h(options());
         std::vector<std::string> opened;

@@ -110,6 +110,10 @@ int terminal(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
 std::vector<std::string> host_locales() { return preferred_locales(); }
 std::string host_document() { return {}; }
 std::string host_document(std::string_view) { return {}; }
+std::string host_link(std::string_view) { return {}; }
+void host_file(std::string_view, std::function<void(std::expected<std::string, std::string>)> done) {
+    if (done) done(std::unexpected(std::string("this host showed no document: there is no site to fetch a file of")));
+}
 
 }  // namespace omui::hosting
 

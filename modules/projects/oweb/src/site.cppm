@@ -80,15 +80,10 @@ struct SiteOptions {
     shell::View              view;
 };
 
-// A part of a page a reader can be sent to: a heading and what stands under it up to the next heading. What a
-// person's search box and an agent's query both answer with (one index, made from the tree: 0.1.0 plan ST5).
-struct Section {
-    std::string              route;   // "/guide/start/"
-    std::string              anchor;  // the heading's; empty: the page's beginning
-    std::string              title;   // the heading's text; the page's title for what stands before any
-    std::vector<std::string> trail;   // the headings it is under, the page's first
-    std::string              text;    // what it holds, a line a block
-};
+// A part of a page a reader can be sent to, and a section a query found: the shell's (oweb.shell — the page's own
+// search box answers with the same function).
+using shell::Hit;
+using shell::Section;
 
 // A route as it is written.
 struct Page {
@@ -107,13 +102,6 @@ struct Page {
     // characters it shows: a site's faces are cut to what its pages show (mlibs.text.subset).
     std::vector<std::string> faces;
     std::set<char32_t>       characters;
-};
-
-// A section a query found: how well, and the line of it that says so.
-struct Hit {
-    Section     section;
-    double      score = 0;
-    std::string excerpt;
 };
 
 struct Built {
@@ -149,13 +137,9 @@ struct Built {
 [[nodiscard]] std::string llms_txt(std::span<const Route> routes, const SiteOptions& options);
 [[nodiscard]] std::string sitemap_xml(std::span<const Route> routes, const SiteOptions& options);
 
-// The index every route's sections make (`search@1`): what a built site serves as site.search.xdef.json.
-[[nodiscard]] std::string search_json(std::span<const Section> sections);
-
-// The sections that hold every word of the query, best first: a word of Latin letters and digits matches whole or
-// as the start of a word, without case; text without spaces between words (Chinese, Japanese) matches by its
-// characters in a row. A word in a title or a trail counts more than one in the text.
-[[nodiscard]] std::vector<Hit> search(std::span<const Section> sections, std::string_view query, std::size_t limit = 8);
+// The index every route's sections make and the query over it: the shell's.
+using shell::search;
+using shell::search_json;
 
 // Every route's sections, each route evaluated: what `docs.search` asks without building the site.
 [[nodiscard]] std::expected<std::vector<Section>, std::string> sections_of(const std::filesystem::path& site, const SiteOptions& options = {});

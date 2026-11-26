@@ -50,6 +50,8 @@ void omui_web_reading();
 char* omui_web_projection();
 char* omui_web_projected(const char* id);
 std::uint8_t* omui_web_picture(const char* source, int* width, int* height);
+char* omui_web_link(const char* relation);
+void omui_web_fetch(const char* address, int number);
 void omui_web_want_fonts(int code_point);
 void omui_web_want_face(const char* family, int code_point);
 }
@@ -129,7 +131,7 @@ std::uint32_t buttons_of(unsigned short b) {
 }
 
 // What the page's library says (src/js/omui_web.js: the same numbers).
-constexpr int page_text = 1, page_preedit = 2, page_key = 3, page_activate = 4, page_focus = 5, page_agent = 6, page_link = 7, page_scroll = 8, page_media = 9;
+constexpr int page_text = 1, page_preedit = 2, page_key = 3, page_activate = 4, page_focus = 5, page_agent = 6, page_link = 7, page_scroll = 8, page_media = 9, page_file = 10;
 // KeyboardEvent.keyCode while an input method composes.
 constexpr unsigned composing = 229;
 
@@ -235,6 +237,7 @@ void on_page(int kind, int a, int b, char* text) {
         case page_link: asked.push_back({Request::Kind::link, std::move(t)}); break;
         case page_scroll: asked.push_back({Request::Kind::scroll, std::move(t), a, b}); break;
         case page_media: asked.push_back({Request::Kind::media, {}, a, b}); break;
+        case page_file: asked.push_back({Request::Kind::file, std::move(t), a, b}); break;
         default: break;
     }
 }
@@ -427,6 +430,8 @@ std::optional<std::expected<Pixels, std::string>> picture(std::string_view sourc
     std::free(bytes);
     return pixels;
 }
+std::string link(std::string_view relation) { return taken(omui_web_link(std::string(relation).c_str())); }
+void fetch(std::string_view address, int number) { omui_web_fetch(std::string(address).c_str(), number); }
 void want_fonts(std::optional<char32_t> code_point) { omui_web_want_fonts(code_point ? static_cast<int>(*code_point) : -1); }
 void want_face(std::string_view family, char32_t code_point) { omui_web_want_face(std::string(family).c_str(), static_cast<int>(code_point)); }
 

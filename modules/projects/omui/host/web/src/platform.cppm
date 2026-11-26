@@ -25,11 +25,12 @@ struct Canvas {
 // What a person did through the page's hidden DOM (assistive technology
 // moved the focus, or activated an element), or a request of window.omui's.
 struct Request {
-    enum class Kind : std::uint8_t { agent, focus, activate, link, scroll, media };
+    enum class Kind : std::uint8_t { agent, focus, activate, link, scroll, media, file };
     Kind        kind = Kind::agent;
     std::string text;  // agent: the request's line; link: the agent link's state (JSON); else the node's id
     int         x = 0, y = 0;  // scroll: where the page's element is scrolled to; media: which setting (0 dark, 1 reduced
-                               // motion, 2 reduced transparency) and whether it holds
+                               // motion, 2 reduced transparency) and whether it holds; file: which asking (`fetch`'s
+                               // number) and whether it came — `text` its text, or why it did not
 };
 
 // What came since the last call: the page's events in order (the canvas's,
@@ -111,6 +112,13 @@ struct Pixels {
     std::vector<std::uint8_t> rgba;
 };
 [[nodiscard]] std::optional<std::expected<Pixels, std::string>> picture(std::string_view source);
+// What the page's document says is at a relation to it (`<link rel="search" href>` in its head): the address as the
+// document says it, from where the page is.
+// Empty: it says none.
+[[nodiscard]] std::string link(std::string_view relation);
+// A file of the page's own site, fetched by the page (an address from the page; another origin's is refused): it
+// comes as a Request of kind file with `number`.
+void fetch(std::string_view address, int number);
 // The program needs a face the page deferred until asked (another
 // language's): one that draws `code_point`, or every one (none) — the page's
 // hook (window.omuiWantFonts); they arrive as later fonts do.

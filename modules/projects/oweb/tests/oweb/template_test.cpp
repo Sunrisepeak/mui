@@ -89,6 +89,14 @@ static UTest cases{"oweb.template", [] {
             if (after) expect(html.contains(std::format("href=\"{}\">", oweb::relative(route.path, after->path)))) << route.path;
         }
         expect(read(out / "start/index.html").contains("href=\"../\">← The minimal documents</a>") && read(out / "zh/start/index.html").contains("aria-label=\"上一页与下一页\""));
+        // The other language: this page in it where the site has it, that language's first page where not.
+        const std::string start_en = read(out / "start/index.html"), start_zh = read(out / "zh/start/index.html"), ui_en = read(out / "ui/index.html");
+        expect(start_en.contains("<nav data-omui-target=\"page/nav\"") && start_en.contains("href=\"../zh/start/\">开始</a>")) << "from a page to the same page in Chinese";
+        expect(start_zh.contains("href=\"../../start/\">Start</a>")) << "and back: the first language has no part in its addresses";
+        expect(ui_en.contains("href=\"../zh/\">最小文档集</a>")) << "a page the other language has not: that language's first page";
+        expect(start_en.contains("<link rel=\"alternate\" hreflang=\"zh\" href=\"../zh/start/\">") && start_en.contains("<link rel=\"alternate\" hreflang=\"en\" href=\"./\">") &&
+               start_zh.contains("<link rel=\"alternate\" hreflang=\"en\" href=\"../../start/\">") && !ui_en.contains("hreflang"))
+            << "a search engine is told of a page's languages where it has more than one";
 
         // What the set is there to carry, each found in what was built.
         const std::string home = read(out / "index.html"), ui = read(out / "ui/index.html"), agent = read(out / "agent/index.html"), start = read(out / "start/index.html");

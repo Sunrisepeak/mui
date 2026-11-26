@@ -110,6 +110,17 @@ constexpr Named named_in(std::string_view language) {
     return {"On this page", "Previous and next"};
 }
 
+// The same page in another language: its address with the language's part changed — "/start/" and "/zh/start/";
+// the site's first language has no part. Nothing where the site has no such page.
+const Route* translated(std::span<const Route> routes, const Route& route, std::string_view language, const SiteOptions& options) {
+    const std::string_view first = options.languages.empty() ? std::string_view("en") : std::string_view(options.languages.front());
+    std::string_view bare = route.path;
+    if (route.language != first && bare.starts_with(std::format("/{}/", route.language))) bare.remove_prefix(route.language.size() + 1);
+    const std::string there = language == first ? std::string(bare) : std::format("/{}{}", language, bare);
+    const auto found = std::ranges::find_if(routes, [&](const Route& other) { return other.path == there && other.language == language; });
+    return found == routes.end() ? nullptr : &*found;
+}
+
 struct Evaluated {
     std::vector<Node> nodes;  // the whole page's, pre-order
     std::size_t       document = 0, document_end = 0;  // the document's subtree in them
@@ -211,9 +222,13 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
             if (routes[index].language != route.language) continue;
             links.push_back(link({.id = std::format("r{}", index), .href = relative(route.path, routes[index].path), .text = routes[index].title}));
         }
-        for (std::size_t index = 0; index < routes.size(); ++index)
-            if (routes[index].language != route.language && routes[index].path == std::format("/{}/", routes[index].language))
-                links.push_back(link({.id = std::format("r{}", index), .href = relative(route.path, routes[index].path), .text = routes[index].title}));
+        // Each other language: this page in it where the site has it, that language's first page where not.
+        for (const std::string& language : options.languages) {
+            if (language == route.language) continue;
+            const Route* there = translated(routes, route, language, options);
+            if (!there) there = std::ranges::find(routes, language, &Route::language) == routes.end() ? nullptr : &*std::ranges::find(routes, language, &Route::language);
+            if (there) links.push_back(link({.id = std::format("r{}", there - routes.data()), .href = relative(route.path, there->path), .text = there->title}));
+        }
         Element navigation = row({.id = "nav", .gap = 16}, std::move(links));
         navigation.prop("role", Source{Value("navigation"), {}, {}});
         navigation.prop("label", Source{Value(options.title.empty() ? std::string("Pages") : options.title), {}, {}});
@@ -393,8 +408,20 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
     }
     const std::string body = semantic::static_html(written, {});
     // A route says where its Markdown is; the page for a lost address says where the site is, and is no page to index.
-    const std::string said = lost ? std::format("<base href=\"{}\">\n<meta name=\"robots\" content=\"noindex\">", escaped(base))
-                                  : std::string("<link rel=\"alternate\" type=\"text/markdown\" href=\"index.md\">");
+    std::string said = lost ? std::format("<base href=\"{}\">\n<meta name=\"robots\" content=\"noindex\">", escaped(base))
+                            : std::string("<link rel=\"alternate\" type=\"text/markdown\" href=\"index.md\">");
+    // The same page in the site's other languages, as a search engine is told of them: each language's, its own too.
+    if (!lost) {
+        std::string others;
+        std::size_t count = 0;
+        for (const std::string& language : options.languages) {
+            const Route* there = language == route.language ? &route : translated(routes, route, language, options);
+            if (!there) continue;
+            others += std::format("\n<link rel=\"alternate\" hreflang=\"{}\" href=\"{}\">", escaped(language), escaped(relative(route.path, there->path)));
+            count += language != route.language;
+        }
+        if (count > 0) said += others;
+    }
     page.html = std::format(
         "<!doctype html>\n<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
         "<title>{}</title>\n<meta name=\"generator\" content=\"oweb\">\n{}\n<style>{}</style>\n"

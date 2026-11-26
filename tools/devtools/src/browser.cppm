@@ -24,8 +24,9 @@ struct Options {
 // The program's status as above; or why it could not run.
 [[nodiscard]] std::expected<int, std::string> run(const Options& options);
 
-// A headless Chromium: OMUI_CHROME, else Playwright's headless shell under ~/.cache/ms-playwright, else
-// chrome-headless-shell, google-chrome, google-chrome-stable, chromium or chromium-browser on PATH.
+// A headless Chromium: OMUI_CHROME, else on PATH the workspace's own (xlings' playwright-chromium-headless-shell,
+// pinned in the root mcpp.toml), chrome-headless-shell, playwright-chromium, google-chrome, google-chrome-stable,
+// chromium or chromium-browser.
 [[nodiscard]] std::optional<std::filesystem::path> chromium();
 
 // A suite's summary line's failures (mtest's `N passed, M failed, K skipped`, or `<suite>: N passed, M failed`).

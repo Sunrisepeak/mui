@@ -37,7 +37,7 @@ mcpp test -p omui.showcase.quay.play       # on the device (lavapipe in CI): the
 # Chromium in a window (headless Chromium reaches Vulkan only through VK_EXT_headless_surface, which NVIDIA's driver lacks),
 # its WebGPU through Vulkan on the driver omui-devtools gpu --real links; a display is needed:
 mcpp test --target wasm32-emscripten --profile wasm-browser -p omui.showcase.quay --no-run
-omui-devtools gpu --real -- omui-devtools browser --headed --chrome ~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome --timeout 600 \
+omui-devtools gpu --real -- omui-devtools browser --headed --chrome "$(command -v playwright-chromium)" --timeout 600 \
   --flag=--enable-features=Vulkan --flag=--use-angle=vulkan --flag=--ignore-gpu-blocklist -- target/wasm32-emscripten/*/bin/omui.showcase.quay.picture/web_frame_test.js --require-webgpu
 ```
 

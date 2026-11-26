@@ -78,17 +78,10 @@ std::optional<int> summary_failures(std::string_view line) {
 
 std::optional<fs::path> chromium() {
     if (const auto chosen = os::env::get("OMUI_CHROME"); chosen && !chosen->empty()) return os::fs::from_utf8(*chosen);
-    // Playwright's headless shell, the newest.
-    std::vector<fs::path> shells;
-    std::error_code error;
-    const fs::path cache = fs::path(os::env::get("HOME").value_or("")) / ".cache" / "ms-playwright";
-    for (const auto& entry : fs::directory_iterator(cache, error)) {
-        if (!os::fs::utf8(entry.path().filename()).starts_with("chromium_headless_shell-")) continue;
-        for (const auto& inner : fs::directory_iterator(entry.path(), error))
-            if (fs::exists(inner.path() / "chrome-headless-shell")) shells.push_back(inner.path() / "chrome-headless-shell");
-    }
-    if (!shells.empty()) return *std::ranges::max_element(shells);
-    for (const std::string_view name : {"chrome-headless-shell", "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"})
+    // The workspace's own first (xlings' xim:playwright-chromium-headless-shell, the version the root mcpp.toml
+    // pins: `mcpp test` and `mcpp run` install it and put it on PATH), then whatever the machine has.
+    for (const std::string_view name : {"playwright-chromium-headless-shell", "chrome-headless-shell", "playwright-chromium", "google-chrome",
+                                        "google-chrome-stable", "chromium", "chromium-browser"})
         if (auto found = os::env::find_executable(name)) return *found;
     return std::nullopt;
 }

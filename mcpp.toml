@@ -5,11 +5,17 @@
 # The workspace's tools, from xlings, installed for the verbs that need them:
 # esbuild is the oracle of mlibs.ts's type stripper (its tests); tsc
 # (TypeScript 7, native, no node) is what `omui check` type-checks with and
-# what omui.lang.js's declaration tests run: `mcpp test` and `mcpp run`
-# install them and a plain build does not.
+# what omui.lang.js's declaration tests run; the headless Chromium (Chrome for
+# Testing's headless shell, the build Playwright pins) is the browser the
+# site's and the Web host's checks drive (omui.devtools.browser finds its
+# command, `playwright-chromium-headless-shell`): `mcpp test` and `mcpp run`
+# install them and a plain build does not. The browsers with a window, for
+# checks on a real display, are xlings' too and installed by hand:
+# `xlings install xim:playwright-chromium xim:playwright-firefox xim:playwright-webkit`.
 [workspace.xlings.workspace]
 "xim:esbuild" = { version = "0.25.12", when = "run" }
 "xim:typescript" = { version = "7.0.2", when = "run" }
+"xim:playwright-chromium-headless-shell" = { version = "159.0.8154.6", when = "run" }
 
 [workspace]
 members = [

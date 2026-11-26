@@ -59,6 +59,17 @@ addToLibrary({
       getWasmTableEntry(omuiPage.callback)(kind, a, b, stringToNewUTF8(text || ''));
     },
 
+    // A press made before the program was there (the page kept the node pressed): answered once, as an activation,
+    // when the program has presented and the node is in the layer.
+    press: null,
+    answerPress: function () {
+      var P = omuiPage;
+      if (!P.press || window.omuiHasPresented !== true || !P.nodes || !P.nodes.has(P.press)) return;
+      var node = P.press;
+      P.press = null;
+      P.send(P.ACTIVATE, 0, 0, node);
+    },
+
     // The link of the layer an event is on (its element, or the part of it a line holds), if any.
     linkAt: function (target) {
       var P = omuiPage, link = null;
@@ -808,6 +819,7 @@ addToLibrary({
         var root = P.nodes.get(b.root);
         if (root && root.parentNode !== P.layer) P.layer.appendChild(root);
       }
+      P.answerPress();
       if ('focus' in b) P.focusTo(b.focus);
       if ('skip' in b) {
         P.skipTo = b.skip ? b.skip.to : null;
@@ -1156,8 +1168,13 @@ addToLibrary({
     return window.omuiRoute.moves;
   },
   // The program's first frame is shown: the page's hook, once (dist-toy fetches its later files then).
+  omui_web_first_frame__deps: ['$omuiPage'],
   omui_web_first_frame: function () {
     window.omuiHasPresented = true;
+    // The press that made the page take its program (a page that waited for one, D-260): the program's to answer now.
+    var load = window.omuiLoad;
+    if (load && typeof load.takePress === 'function') omuiPage.press = load.takePress();
+    omuiPage.answerPress();
     var f = window.omuiFirstFrame;
     window.omuiFirstFrame = null;
     if (typeof f === 'function') f();

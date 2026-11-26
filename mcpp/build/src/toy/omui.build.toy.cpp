@@ -33,6 +33,7 @@ bool dist_toy(toy_options opt) {
     if (!fonts.empty()) a.arg("--fonts").arg(fonts.c_str());
     if (!opt.sdk) a.arg("--no-sdk");
     if (!opt.background_dark.empty()) a.arg("--background-dark").arg(opt.background_dark.c_str());
+    if (opt.load != "eager") a.arg("--load").arg(opt.load.c_str());
     for (const later_files& l : opt.later) {
         a.arg("--later").arg(std::format("{}|{}|{}", l.dir, l.suffix, l.mount).c_str());
         std::error_code ec;

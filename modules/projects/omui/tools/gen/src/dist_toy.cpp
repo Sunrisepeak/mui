@@ -635,7 +635,54 @@ document.getElementById('canvas').addEventListener('pointerdown', function () { 
     // Deferred, though it is the page's last element (so it runs as it would anyway): a parser-blocking script is
     // fetched twice by Chrome 157 when it caches nothing (the preload scanner's request and the parser's), 51 KB
     // over the delivery budget measured without a cache (red 106); deferred, the two are one.
-    html += std::format("<script defer src=\"{}\"></script>\n</body>\n</html>\n", js);
+    if (p.load == "eager") {
+        html += std::format("<script defer src=\"{}\"></script>\n</body>\n</html>\n", js);
+        return html;
+    }
+    // Later (D-260): the page is its document until the program is taken — once it is idle, or when the reader
+    // first operates something only the program answers. Reading never takes it: scrolling, the browser's find, a
+    // selection and links are the document's own. The press that took it is kept — the node of the element
+    // pressed — and handed to the program once (omuiLoad.takePress), which answers it when it has presented.
+    html += std::format("<script>\n(function () {{\n  var launcher = \"{}\", idle = {};\n", js, p.load == "idle" ? "true" : "false");
+    html += R"(  var started = false, pressed = null;
+  var operable = 'button,input,select,textarea,summary,[contenteditable],[role=button],[role=checkbox],[role=switch],[role=radio],' +
+                 '[role=tab],[role=slider],[role=spinbutton],[role=menuitem],[role=option],[role=textbox],[role=combobox],[role=searchbox]';
+  omuiStatus.style.display = 'none';
+  function start() {
+    if (started) return;
+    started = true;
+    ['pointerdown', 'keydown'].forEach(function (type) { window.removeEventListener(type, operated, true); });
+    omuiStatus.style.display = '';
+    var script = document.createElement('script');
+    script.src = launcher;
+    document.body.appendChild(script);
+  }
+  function operated(event) {
+    if (!event.isTrusted || started) return;
+    var target = event.target && event.target.closest ? event.target.closest(operable) : null;
+    if (!target || target.closest('a[href]')) return;
+    // A key operates what has the focus: Enter or Space on a control, anything typed in a field.
+    if (event.type === 'keydown' && !target.matches('input,select,textarea,[contenteditable],[role=textbox],[role=combobox],[role=searchbox]') &&
+        event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.type === 'pointerdown' && event.button) return;
+    var node = target.closest('[data-omui-target]');
+    pressed = event.type === 'pointerdown' && node ? node.getAttribute('data-omui-target') : null;
+    start();
+  }
+  ['pointerdown', 'keydown'].forEach(function (type) { window.addEventListener(type, operated, true); });
+  Object.defineProperty(window.omuiLoad, 'start', {value: function () { start(); }});
+  Object.defineProperty(window.omuiLoad, 'takePress', {value: function () { var node = pressed; pressed = null; return node; }});
+  Object.defineProperty(window.omuiLoad, 'strategy', {value: idle ? 'idle' : 'interaction'});
+  if (idle) {
+    var later = function () { (window.requestIdleCallback || function (run) { return setTimeout(run, 200); })(start, {timeout: 2000}); };
+    if (document.readyState === 'complete') later(); else window.addEventListener('load', later);
+  }
+  omuiPublish('waiting');
+})();
+</script>
+</body>
+</html>
+)";
     return html;
 }
 
@@ -689,6 +736,8 @@ std::expected<ToyReport, std::string> finish_package(const fs::path& out, const 
 
 std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     std::error_code ec;
+    if (p.load != "eager" && p.load != "idle" && p.load != "interaction")
+        return std::unexpected(std::format("--load: `{}` is not when a page takes its program (eager, idle, interaction)", p.load));
     const fs::path bin = p.stage / "bin";
     const fs::path js_in = bin / (p.target + ".js"), wasm_in = bin / (p.target + ".wasm");
     auto js = read(js_in);
@@ -887,6 +936,7 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
     if (auto graph = args.value("graph")) p.graph = *graph;
     if (auto background = args.value("background")) p.background = *background;
     if (auto dark = args.value("background-dark")) p.background_dark = *dark;
+    if (auto load = args.value("load")) p.load = *load;
     if (auto fonts = args.value("fonts")) p.fonts = items(*fonts);
     if (args.is_flag_set("no-sdk")) p.sdk = false;
     for (const std::string& value : args.option_or_empty("subset").values) {  // <font>=<path>,<path>…

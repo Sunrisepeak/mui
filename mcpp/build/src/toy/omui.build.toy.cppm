@@ -45,6 +45,7 @@ struct toy_options {
     std::vector<std::string> fonts;                  // openmui.text's default fonts by stem (Inter, NotoSansSC); empty: all
     std::string              background = "#000000"; // behind the canvas while it loads
     std::string              background_dark;        // that colour where the person prefers a dark appearance (a page that follows it)
+    std::string              load = "eager";         // when the page takes its program: eager, idle, interaction (D-260)
     bool                     sdk = true;             // the page loads Toy's SDK (window.toy)
     std::vector<later_files> later;                  // fetched after the program is drawn
     std::vector<font_subset> subsets;                // fonts cut down to the program's characters

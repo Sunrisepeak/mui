@@ -188,6 +188,33 @@ static UTest cases{"gen.dist_toy", [] {
         expect(read(q.out / "index.html").starts_with("<!doctype html>\n<html lang=\"zh-CN\">")) << "the root's language";
     };
 
+    "when a page takes its program (D-260): at once, once idle, or when the reader first operates something"_test = [] {
+        Tree t;
+        auto eager = t.package(); eager.sdk = false;
+        expect(gen::package_for_toy(eager).has_value());
+        const std::string now = read(eager.out / "index.html");
+        expect(now.contains("<script defer src=\"") && !now.contains("takePress")) << "eager: the program's script is the page's, as before";
+        for (const std::string_view strategy : {"idle", "interaction"}) {
+            auto p = t.package(); p.sdk = false; p.load = strategy; p.out = t.root / "out" / strategy;
+            auto made = gen::package_for_toy(p);
+            expect(made.has_value()) << (made ? "" : made.error());
+            if (!made) continue;
+            const std::string page = read(p.out / "index.html");
+            expect(!page.contains("<script defer src=")) << strategy << ": nothing of the program is asked for by the page as it loads";
+            expect(page.contains(std::format("idle = {};", strategy == "idle" ? "true" : "false"))) << strategy;
+            const auto launcher = page.find("var launcher = \"");
+            expect(launcher != std::string::npos && page.find(".js\"", launcher) != std::string::npos) << "the program's script by its hashed name, added when it is time";
+            expect(page.contains("window.addEventListener(type, operated, true)") && page.contains("target.closest('a[href]')")) << "an operable element takes it; a link does not";
+            expect(page.contains("Object.defineProperty(window.omuiLoad, 'takePress'") && page.contains("Object.defineProperty(window.omuiLoad, 'start'"))
+                << "the press kept for the program, and a way for the page to take the program itself";
+            expect(page.contains("omuiPublish('waiting')")) << "the page says it waits";
+            expect(page.ends_with("</script>\n</body>\n</html>\n"));
+        }
+        auto wrong = t.package(); wrong.load = "soon"; wrong.out = t.root / "out" / "soon";
+        auto refused = gen::package_for_toy(wrong);
+        expect(!refused && refused.error().contains("`soon` is not when a page takes its program (eager, idle, interaction)")) << (refused ? "" : refused.error());
+    };
+
     "--lazy's routes: the bare page is a route, an empty field too"_test = [] {
         expect(gen::lazy_routes("") == std::vector<std::string>{""}) << "--lazy \"\": the bare page (the site's split)";
         expect(gen::lazy_routes("home") == std::vector<std::string>{"home"});

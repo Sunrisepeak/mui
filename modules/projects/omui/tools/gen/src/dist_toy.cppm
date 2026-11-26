@@ -4,7 +4,7 @@
 //
 //   omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T]
 //                     [--fonts Inter,NotoSansSC | all] [--fonts-dir <dir>]
-//                     [--graph <mcpp graph file>] [--background #rrggbb] [--background-dark #rrggbb] [--no-sdk]
+//                     [--graph <mcpp graph file>] [--background #rrggbb] [--background-dark #rrggbb] [--load eager|idle|interaction] [--no-sdk]
 //                     [--later <dir>|<suffix>|</later/mount>]… [--subset <font>=<path>,<path>…]…
 //
 // The package (Toy's rules, from github.com/bilibili/toy at ae156ec — its
@@ -61,6 +61,11 @@ struct ToyPackage {
     std::filesystem::path fonts_dir;      // empty: openmui.text's, found through `graph`
     std::filesystem::path graph;          // mcpp's resolved graph (graph_file()), may be empty
     std::string           background = "#000000";
+    // When the page takes its program (D-260): "eager" at once; "idle" once the page has loaded and is idle;
+    // "interaction" when the reader first operates something the program answers (a button, a field) or the page
+    // calls omuiLoad.start() — reading (scrolling, finding, selecting, following links) never takes it. Until then
+    // the page is its document (the static projection).
+    std::string           load = "eager";
     // Behind the canvas where the person prefers a dark appearance (a page whose program follows it: the system
     // scheme); empty: the same as `background`.
     std::string           background_dark;

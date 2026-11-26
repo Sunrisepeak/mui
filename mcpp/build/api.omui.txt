@@ -87,6 +87,7 @@ namespace omui::build {
     std::vector<std::string> fonts;
     std::string background = "#000000";
     std::string background_dark;
+    std::string load = "eager";
     bool sdk = true;
     std::vector<later_files> later;
     std::vector<font_subset> subsets;

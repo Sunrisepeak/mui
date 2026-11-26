@@ -566,6 +566,33 @@ test('a page without media queries starts as any other', () => {
   assert.deepEqual(heard, []);
 });
 
+test('a press made before the program was there is answered once, when it has presented', () => {
+  const { P, context, heard, window } = page();
+  let taken = 0;
+  window.omuiLoad = { takePress: () => (taken++ === 0 ? 'main/save' : null) };
+  context.omui_web_mirror(first);
+  assert.deepEqual(heard, [], 'not before a frame is shown');
+  context.omui_web_first_frame();
+  assert.deepEqual(heard, [[P.ACTIVATE, 0, 0, 'main/save']]);
+  context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'main/title', text: 'Notes (1)' }] }));
+  context.omui_web_first_frame();
+  assert.equal(heard.length, 1, 'once');
+});
+
+test('a press kept for a node the layer does not have yet waits for it; none kept, nothing is said', () => {
+  const { P, context, heard, window } = page();
+  window.omuiLoad = { takePress: () => 'main/later' };
+  context.omui_web_first_frame();
+  context.omui_web_mirror(first);
+  assert.deepEqual(heard, []);
+  context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'main/later', set: { role: 'button' }, box: [0, 0, 10, 10] }, { id: 'app', children: ['main/title', 'main/save', 'main/status', 'main/later'] }] }));
+  assert.deepEqual(heard, [[P.ACTIVATE, 0, 0, 'main/later']]);
+  const plain = page();
+  plain.context.omui_web_first_frame();
+  plain.context.omui_web_mirror(first);
+  assert.deepEqual(plain.heard, []);
+});
+
 test('assistive technology in the mirror: a click activates, a focus moves the program\'s', () => {
   const { P, context, heard, fire, document } = page();
   context.omui_web_mirror(first);

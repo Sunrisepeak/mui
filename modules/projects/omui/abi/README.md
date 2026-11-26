@@ -32,4 +32,6 @@ The tests cover the C ABI from both languages:
 - `tests/abi_test.cpp` covers every function, including each misuse, which is answered by a result and never a crash;
 - `tests/c_abi_test.c` is a C program that includes `openmui.h`, links the library, mounts a document, acts on a node and reads the result.
 
+Text needs a shaper, and the library installs none: a program's root chooses its text measure (`mlibs.text`'s slot; `omui::run`, the SDK's `shaping` feature and the headless host install HarfBuzz). A runtime made through the C ABI in a program that installed none says so in its log and draws no words; the tests install HarfBuzz themselves.
+
 Observability: the log category `abi`, and the trace span `abi.frame`.

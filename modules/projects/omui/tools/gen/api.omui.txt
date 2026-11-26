@@ -190,6 +190,15 @@ namespace omui::gen {
   };
   struct Origin : Named {
   };
+  struct NodeProperty : Named {
+    std::string type;
+    std::vector<std::string> values;
+    std::vector<std::string> roles;
+  };
+  struct MarkKind : Named {
+    std::string aria;
+    bool node = false;
+  };
   struct Action : Named {
     std::string effect;
     std::vector<Arg> args;
@@ -334,6 +343,8 @@ namespace omui::gen {
     std::vector<State> states;
     std::vector<Effect> effects;
     std::vector<Origin> origins;
+    std::vector<NodeProperty> node_properties;
+    std::vector<MarkKind> marks;
     std::vector<Action> actions;
     std::vector<Extension> extensions;
     std::vector<Profile> profiles;

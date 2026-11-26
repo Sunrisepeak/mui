@@ -8,9 +8,14 @@ import omui.abi;
 import omui.core;
 import omui.ui.base;
 import omui.native.fuzzy;
+import mlibs.text.harfbuzz;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
+
+// A runtime made through the C ABI draws its words with the shaper its program installed (mlibs.text's slot): the
+// library installs none, and this test is the program.
+static const bool shaper_installed = mlibs::text::harfbuzz::install().has_value();
 using namespace omui::abi;
 
 namespace {

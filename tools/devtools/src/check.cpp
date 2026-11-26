@@ -551,7 +551,7 @@ int toy(const fs::path& root, std::vector<std::string> packages) {
     return failures == 0 ? 0 : 1;
 }
 
-int atspi(const fs::path& root, const std::vector<std::string>& profile_args, std::string_view screen) {
+int atspi(const fs::path& root, const std::vector<std::string>& profile_args, std::string_view screen, bool compose) {
     std::vector<std::string> args{"-p", "omui.example.counter", "-p", "omui.example.headless-and-agent"};
     args.insert(args.end(), profile_args.begin(), profile_args.end());
     const auto built = run::build(root, std::move(args));
@@ -566,6 +566,7 @@ int atspi(const fs::path& root, const std::vector<std::string>& profile_args, st
     // comes before the report. On a desktop (RM2): its own buses, real windows on the monitor named.
     std::vector<std::string> checking{"--root", mcpplibs::os::fs::utf8(root), "atspi"};
     if (!screen.empty()) checking.insert(checking.end(), {"--screen", std::string(screen)});
+    if (compose) checking.push_back("--ime");
     checking.insert(checking.end(), {mcpplibs::os::fs::utf8(program["tally"]), mcpplibs::os::fs::utf8(program["notes-agent"])});
     std::vector<std::string> private_bus{"--", mcpplibs::os::fs::utf8(*self)};
     private_bus.insert(private_bus.end(), checking.begin(), checking.end());

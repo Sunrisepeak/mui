@@ -5,6 +5,7 @@ import mcpplibs.os;
 import mcpplibs.mpal;
 import nlohmann.json;
 import omui.devtools.x11;
+import mlibs.image;
 
 namespace omui::devtools::atspi {
 namespace {
@@ -124,6 +125,7 @@ struct Desktop {
     x11::Monitor monitor;
     std::filesystem::path session;  // the examples' session bus (a socket of the check's)
     std::string accessibility;      // the desktop's accessibility bus, as its session bus gives it
+    std::string xim;                // the input method's XIM server the examples are told of (RM3), none: theirs
 };
 
 // The examples' session bus on a desktop: a bus of the check's at `socket`, an AT-SPI bus launcher on it (settings in
@@ -178,6 +180,14 @@ public:
             spawn.args = {"--no-agent"};
             spawn.env = {{"DBUS_SESSION_BUS_ADDRESS", "unix:path=" + mcpplibs::os::fs::utf8(desktop_->session)},
                          {"AT_SPI_BUS_ADDRESS", desktop_->accessibility}};
+            if (!desktop_->xim.empty()) {
+                // The input method over XIM. The program's own X library and C library are a build's: the first looks
+                // for its locale database where it was built and the second has only C.UTF-8, so neither finds what
+                // XIM needs on its own (reds, RM3) — the system's database and the one UTF-8 locale it has are named.
+                spawn.env.emplace_back("XMODIFIERS", "@im=" + desktop_->xim);
+                if (std::filesystem::exists("/usr/share/X11/locale")) spawn.env.emplace_back("XLOCALEDIR", "/usr/share/X11/locale");
+                spawn.env.emplace_back("LC_ALL", "C.UTF-8");
+            }
         } else {
             spawn.args = {"--cpu", "--no-agent"};
             spawn.env = {{"SDL_VIDEO_DRIVER", "offscreen"}, {"SDL_RENDER_DRIVER", "software"}};
@@ -408,6 +418,183 @@ void tally(App& app, Tree& tree, Report& report) {
     }
 }
 
+// RM3: a composition through the machine's input method — its XIM server and the engine its person chose — typed as
+// a person types (XTEST, only while the example's window has the keyboard), drawn by omui in the real window, its
+// candidates opened by the input method at the field, and committed into it (read back through AT-SPI). The
+// candidates are the input method's own window or the desktop shell's drawing: where they are is read as what is
+// drawn over the example's window on the screen — the screen's pixels inside the window's rectangle against the
+// window's own — so nothing outside the example's window is read.
+void compose(App& app, Tree& tree, Report& report, const std::filesystem::path& shots) {
+    if (!app.on_desktop()) return;
+    x11::Display& display = app.desktop().display;
+    // The engine its person chose (ibus's own command), for the record.
+    std::string engine = "unknown";
+    mcpplibs::os::process::spawn_options asked{.program = "ibus", .args = {"engine"}};
+    asked.err = mcpplibs::os::process::stdio::null;
+    if (auto said = mcpplibs::os::process::run(std::move(asked)); said && said->status.shell_code() == 0) {
+        engine = said->out;
+        while (!engine.empty() && std::isspace(static_cast<unsigned char>(engine.back()))) engine.pop_back();
+    }
+    report.display += std::format("; the input method: XIM server {}, engine {} (the example told XMODIFIERS=@im={}, XLOCALEDIR=/usr/share/X11/locale, "
+                                  "LC_ALL=C.UTF-8)",
+                                  app.desktop().xim, engine, app.desktop().xim);
+    const Walked* draft = app.first("New note");
+    if (!app.check(draft && (draft->node.role == "entry" || draft->node.role == "text"), "composing: the draft field")) return;
+    const Ref ref = draft->ref;
+    const auto read = [&] {
+        const auto body = tree.call(ref, text_interface, "GetText", "ii", {of(0), of(-1)});
+        return body.empty() ? std::string{} : text(body.front());
+    };
+    const auto field = tree.extents(ref, 1), on_screen = tree.extents(ref, 0);
+    if (!app.check(field && on_screen && (*field)[2] > 0, "composing: the field's place")) return;
+    const x11::Rect inside{static_cast<std::int32_t>((*field)[0]), static_cast<std::int32_t>((*field)[1]), static_cast<std::int32_t>((*field)[2]),
+                           static_cast<std::int32_t>((*field)[3])};
+    // The keyboard's focus: the field (AT-SPI), the window (its window manager, as a pager asks).
+    (void)tree.call(ref, "org.a11y.atspi.Component", "GrabFocus");
+    (void)display.keep_above(app.xwindow());
+    (void)display.activate(app.xwindow());
+    const auto focused = [&] {
+        const auto now = display.input_focus();
+        return now && *now == app.xwindow();
+    };
+    bool has_keyboard = false;
+    for (int attempt = 0; attempt < 50 && !has_keyboard; ++attempt) {
+        if (attempt > 0) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        has_keyboard = focused();
+    }
+    if (!app.check(has_keyboard, "composing: the window has the keyboard (its window manager made it active)")) return;
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));  // the field's input begun (its input context focused)
+    // Typed only while the keyboard is the window's: a key never reaches another's window.
+    const auto type = [&](std::uint32_t keysym) {
+        const auto code = display.keycode(keysym);
+        if (!code || *code == 0 || !focused()) return false;
+        const bool done = display.key(*code, true).has_value() && display.key(*code, false).has_value();
+        std::this_thread::sleep_for(std::chrono::milliseconds(60));
+        return done;
+    };
+    constexpr std::uint32_t backspace = 0xff08, escape = 0xff1b, shift = 0xffe1;  // X's keysyms
+    // What is drawn over the window on the screen: the screen inside the window's rectangle against the window's own
+    // pixels, counted only where the window's own were the same just before and just after the screen was read (a
+    // frame of its own drawn between the reads is not something over it), and only once two readings agree.
+    const auto window_place = display.geometry(app.xwindow());
+    const auto over_once = [&]() -> std::optional<x11::Rect> {
+        if (!window_place) return std::nullopt;
+        const x11::Rect own{0, 0, window_place->width, window_place->height};
+        const auto mine = display.image(own, app.xwindow());
+        const auto shown = display.image({app.corner()[0], app.corner()[1], own.width, own.height});
+        const auto again = display.image(own, app.xwindow());
+        if (!mine || !shown || !again || mine->pixels.size() != shown->pixels.size() || again->pixels.size() != mine->pixels.size()) return std::nullopt;
+        std::int32_t left = own.width, top = own.height, right = -1, bottom = -1;
+        std::size_t differing = 0;
+        for (std::int32_t y = 0; y < own.height; ++y)
+            for (std::int32_t x = 0; x < own.width; ++x) {
+                const std::size_t at = static_cast<std::size_t>(y) * static_cast<std::size_t>(own.width) + static_cast<std::size_t>(x);
+                if (mine->pixels[at] != again->pixels[at] || mine->pixels[at] == shown->pixels[at]) continue;
+                ++differing;
+                left = std::min(left, x), top = std::min(top, y), right = std::max(right, x), bottom = std::max(bottom, y);
+            }
+        if (differing < 64) return x11::Rect{};
+        return x11::Rect{left, top, right - left + 1, bottom - top + 1};
+    };
+    const auto over = [&]() -> std::optional<x11::Rect> {
+        std::optional<x11::Rect> last;
+        for (int reading = 0; reading < 10; ++reading) {
+            const auto now = over_once();
+            if (now && last && now->x == last->x && now->y == last->y && now->width == last->width && now->height == last->height) return now;
+            last = now;
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        }
+        return std::nullopt;  // never steady
+    };
+    // The engine's mode first: a pinyin engine may begin a window's input in direct mode (its person's setting), which
+    // a letter committed at once shows. Then its own switch (Shift alone) turns composition on for this window's input
+    // and, at the end, back; otherwise the probe's composition is dropped (Escape).
+    if (!app.check(type('n'), "composing: a letter typed into the window to learn the engine's mode")) return;
+    const bool direct = app.until([&] { return read() == "n"; }, 0.5);
+    if (direct) {
+        (void)type(backspace);
+        (void)app.until([&] { return read().empty(); }, 3);
+        (void)type(shift);
+    } else {
+        (void)type(escape);
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    report.display += direct ? "; the engine began this window's input in direct mode: its own switch (Shift) turned composition on for the case, and off after"
+                             : "; the engine began this window's input composing";
+    app.check(read().empty(), std::format("composing: the field is empty before composing ('{}')", read()));
+    // A switch of mode may be shown over the window for a moment (the desktop shell's indicator): gone first.
+    std::optional<x11::Rect> clear;
+    for (int attempt = 0; attempt < 30 && !(clear && clear->width == 0); ++attempt) {
+        if (attempt > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        clear = over();
+    }
+    app.check(clear && clear->width == 0,
+              clear ? std::format("composing: nothing is drawn over the window before composing ({}x{} at {},{})", clear->width, clear->height, clear->x, clear->y)
+                    : std::string("composing: nothing is drawn over the window before composing (no steady reading)"));
+    const auto before = app.pixels(inside);
+    const bool typed = type('n') && type('i');
+    app.check(typed, "composing: n and i typed into the window");
+    // The composition drawn by omui in the field; nothing committed yet.
+    const bool drawn = before && app.redrawn(inside, x11::hash(*before));
+    app.check(drawn, "the composition is drawn in the field of the real window");
+    // AT-SPI's Text gives the field with the composition in it (as UI Automation and NSAccessibility give marked text):
+    // whether it was committed is told by the space below, which an input method takes and a field types.
+    const std::string composing = read();
+    report.display += std::format("; while composing AT-SPI read the field as '{}'", composing);
+    // The candidates: what the input method draws over the window.
+    std::optional<x11::Rect> candidates;
+    for (int attempt = 0; attempt < 40 && !(candidates && candidates->width > 0); ++attempt) {
+        if (attempt > 0) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        candidates = over();
+    }
+    const bool opened = candidates && candidates->width > 0;
+    app.check(opened, opened ? std::format("the candidates open over the window: {}x{} at {},{} in it", candidates->width, candidates->height, candidates->x, candidates->y)
+                             : std::string("the candidates open over the window"));
+    if (opened) {
+        // At the field: under its top, at most a line under its bottom, their left within it.
+        const bool at_field = candidates->y >= inside.y && candidates->y <= inside.y + inside.height + 60 && candidates->x >= inside.x - 16 &&
+                              candidates->x <= inside.x + inside.width;
+        app.check(at_field, std::format("the candidates are at the field ({}x{} at {},{} in the window): their corner {},{}", inside.width, inside.height, inside.x,
+                                        inside.y, candidates->x, candidates->y));
+        report.display += std::format("; candidates {}x{} at {},{} on the screen", candidates->width, candidates->height, app.corner()[0] + candidates->x,
+                                      app.corner()[1] + candidates->y);
+    }
+    // Evidence a person checks: the window's own picture while composing.
+    if (!shots.empty() && window_place) {
+        std::error_code error;
+        std::filesystem::create_directories(shots, error);
+        if (const auto mine = display.image({0, 0, window_place->width, window_place->height}, app.xwindow())) {
+            mlibs::image::Image picture{.width = window_place->width, .height = window_place->height};
+            picture.rgba.resize(mine->pixels.size() * 4);
+            for (std::size_t at = 0; at < mine->pixels.size(); ++at) {
+                picture.rgba[at * 4 + 0] = static_cast<std::uint8_t>(mine->pixels[at] >> 16);
+                picture.rgba[at * 4 + 1] = static_cast<std::uint8_t>(mine->pixels[at] >> 8);
+                picture.rgba[at * 4 + 2] = static_cast<std::uint8_t>(mine->pixels[at]);
+                picture.rgba[at * 4 + 3] = 255;
+            }
+            (void)mlibs::image::save_png(shots / "composing.png", mlibs::image::view(picture));
+        }
+    }
+    // The first candidate taken (space): committed into the field, the candidates gone.
+    app.check(type(' '), "composing: space typed to take the first candidate");
+    const bool committed = app.until([&] { return !read().empty(); }, 5);
+    const std::string now = read();
+    app.check(committed && std::ranges::any_of(now, [](char c) { return static_cast<unsigned char>(c) >= 0x80; }),
+              std::format("committed: the field reads '{}' (the engine's first candidate, not the letters typed)", now));
+    app.check(committed && !now.contains(' ') && (composing.empty() || now == composing),
+              std::format("nothing was committed while composing: the space took the composition '{}' into the field, which reads '{}' with no space typed into it",
+                          composing, now));
+    std::optional<x11::Rect> after;
+    for (int attempt = 0; attempt < 40; ++attempt) {
+        after = over();
+        if (after && after->width == 0) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    app.check(after && after->width == 0, "the candidates close once committed");
+    // The engine's mode as it was for this window's input.
+    if (direct) app.check(type(shift), "composing: the engine's switch typed again (back to direct input)");
+}
+
 void notes(App& app, Tree& tree, Report& report) {
     report.trees["Notes"] = app.tree();
     const auto outside = app.outside();
@@ -579,6 +766,15 @@ Report check(const std::filesystem::path& tally_binary, const std::filesystem::p
     };
     one(tally_binary, "Tally", tally);
     if (!notes_binary.empty()) one(notes_binary, "Notes", notes);
+    // RM3: a fresh notes window told the input method's XIM server, composing in its field.
+    if (desktop && options.compose && !notes_binary.empty()) {
+        desktop->xim = "ibus";
+        tree.failure.clear();
+        App app(tree, report, notes_binary, "Notes", &*desktop);
+        if (app.found()) compose(app, tree, report, options.shots);
+        if (!tree.failure.empty()) report.checks.push_back({false, std::format("composing: {}", tree.failure)});
+        desktop->xim.clear();
+    }
     return report;
 }
 

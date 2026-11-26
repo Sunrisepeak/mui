@@ -27,6 +27,8 @@ namespace omui::devtools::atspi {
   };
   struct Options {
     std::string screen;
+    bool compose = false;
+    std::filesystem::path shots;
   };
   [[nodiscard]] Report check(const std::filesystem::path& tally, const std::filesystem::path& notes, const Options& options = {…});
 }
@@ -200,7 +202,7 @@ namespace omui::devtools::check {
   [[nodiscard]] int browser_checks(const std::filesystem::path& root);
   [[nodiscard]] std::expected<std::string, std::string> shader_check_script(std::span<const std::filesystem::path> partitions);
   [[nodiscard]] int matrix(const std::filesystem::path& root, const std::vector<std::string>& members);
-  [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args, std::string_view screen = {…});
+  [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args, std::string_view screen = {…}, bool compose = false);
   [[nodiscard]] int live_page(const std::filesystem::path& root, const std::filesystem::path& built);
   [[nodiscard]] int site(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui, std::vector<std::string> parts);
   [[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);

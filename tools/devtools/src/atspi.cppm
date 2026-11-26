@@ -57,6 +57,10 @@ struct Options {
     // A monitor of this machine's display: the desktop's buses and real windows on it (none: SDL's
     // offscreen windows on the session bus given, a private one).
     std::string screen;
+    // On a desktop: a composition through its input method in the notes' field (RM3).
+    bool compose = false;
+    // Where the composition's picture of the window goes (none: not kept).
+    std::filesystem::path shots;
 };
 
 // Both examples checked (`notes` empty: the tally alone); the report says every check, passed or not.

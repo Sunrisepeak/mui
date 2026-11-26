@@ -98,7 +98,7 @@
       "name": "Input methods (composition, candidates)",
       "label": "stable",
       "cells": {
-        "linux-x64": {"status": "software", "evidence": "synthetic preedit events (omui.core input, omui.ui.base, omui.host.sdl3 tests)"},
+        "linux-x64": {"status": "real", "evidence": "the desktop's ibus (engine libpinyin, its XIM server) composing in example 07's field in a real window on HDMI-0 of this machine's X server (omui-devtools check atspi --screen HDMI-0 --ime, 2026-11-27, three runs: 59 of 59 checks each): n and i typed (XTEST, only while the window has the keyboard), the composition drawn in the field (the window's own picture, target/atspi/composing.png), the candidates opened over the window just under the caret inside the field's box (368x93 at 52,123 in the window: what is drawn over it on the screen against its own pixels), the space taking the first candidate (the field reads 你 through AT-SPI, no space typed in), the candidates gone. The engine begins a new window's input in direct mode here; the case turns composition on with the engine's own switch (Shift) and off after. Synthetic preedit events besides (omui.core input, omui.ui.base, omui.host.sdl3 tests)"},
         "macos-arm64": {"status": "software", "evidence": "synthetic preedit events (the same tests on CI row macos-15)"},
         "windows-x64": {"status": "software", "evidence": "synthetic preedit events (the same tests on CI row windows-2022)"},
         "web": {"status": "software", "evidence": "page_test: an input method composing in the hidden textarea, headless Chromium (omui-devtools check browser)", "needs": "a real IME in a browser"}

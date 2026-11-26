@@ -11,7 +11,7 @@
 | A window drawn by a device (quay.desktop) | 预览 | 软件 | 未验证 | 未验证 | 软件 | 软件 | 未验证 |
 | The Direct3D 12 device backend | 预览 | | | | 未验证 | | |
 | The accessibility bridge to the system's screen reader | 稳定 | 实机 | 未验证 | 未验证 | 未验证 | | |
-| Input methods (composition, candidates) | 稳定 | 软件 | 软件 | 软件 | 软件 | | |
+| Input methods (composition, candidates) | 稳定 | 实机 | 软件 | 软件 | 软件 | | |
 | Gamepads (Quay, widget breakout) | 预览 | 软件 | 未验证 | 软件 | 软件 | | |
 | D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms | 预览 | 未验证 | 未验证 | | | | 未验证 |
 | An application's first frame: process start to the window's first pixels (RC3.6) | 稳定 | 实机 | 未验证 | 未验证 | 未验证 | | |
@@ -59,7 +59,7 @@
 - **The accessibility bridge to the system's screen reader**, Web (wasm32): 缺: the page's accessibility tree read by a screen reader
 - **The accessibility bridge to the system's screen reader**, macOS arm64: 缺: NSAccessibility read by VoiceOver on a runner that runs it
 - **The accessibility bridge to the system's screen reader**, Windows x64: 缺: UI Automation read by a screen reader on a runner that runs it
-- **Input methods (composition, candidates)**, Linux x64: synthetic preedit events (omui.core input, omui.ui.base, omui.host.sdl3 tests)
+- **Input methods (composition, candidates)**, Linux x64: the desktop's ibus (engine libpinyin, its XIM server) composing in example 07's field in a real window on HDMI-0 of this machine's X server (omui-devtools check atspi --screen HDMI-0 --ime, 2026-11-27, three runs: 59 of 59 checks each): n and i typed (XTEST, only while the window has the keyboard), the composition drawn in the field (the window's own picture, target/atspi/composing.png), the candidates opened over the window just under the caret inside the field's box (368x93 at 52,123 in the window: what is drawn over it on the screen against its own pixels), the space taking the first candidate (the field reads 你 through AT-SPI, no space typed in), the candidates gone. The engine begins a new window's input in direct mode here; the case turns composition on with the engine's own switch (Shift) and off after. Synthetic preedit events besides (omui.core input, omui.ui.base, omui.host.sdl3 tests)
 - **Input methods (composition, candidates)**, Web (wasm32): page_test: an input method composing in the hidden textarea, headless Chromium (omui-devtools check browser); 缺: a real IME in a browser
 - **Input methods (composition, candidates)**, macOS arm64: synthetic preedit events (the same tests on CI row macos-15)
 - **Input methods (composition, candidates)**, Windows x64: synthetic preedit events (the same tests on CI row windows-2022)

@@ -493,8 +493,8 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         }
     }
 
-    // status (D-202): at most 200 lines of at most 600 characters; a task done (RC…, a node, or the implementation plan's
-    // A1…H4) names its evidence.
+    // status (D-202): at most 200 lines of at most 600 characters; a task done (RC…, a node, the implementation plan's
+    // A1…H4, or the 0.1.0 plan's groups: QA0, FE1, UI3…) names its evidence.
     if (const auto status = read_text(root / ".agents/docs/STATUS.md")) {
         constexpr std::string_view where = ".agents/docs/STATUS.md";
         std::vector<std::string> lines;
@@ -502,7 +502,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
         if (!lines.empty() && lines.back().empty()) lines.pop_back();
         if (lines.size() > 200)
             add("status", std::string(where), std::format("{} lines; at most 200 (finished stages and closed rows go to the archive)", lines.size()));
-        static const std::regex task(R"(^\| (RC\d+(?:\.\d+[a-z]?)?|N\d[a-z]?|[A-H]\d+[a-z]?)\b[^|]*\| *([^|]*?) *\| *([^|]*?) *\|$)");
+        static const std::regex task(R"(^\| (RC\d+(?:\.\d+[a-z]?)?|N\d[a-z]?|[A-H]\d+[a-z]?|(?:QA|FE|UI|ST|CF|AG|EN|RL|RM)\d+)\b[^|]*\| *([^|]*?) *\| *([^|]*?) *\|$)");
         static const std::regex evidence(R"(`[^`]+`|\b[0-9a-f]{8,40}\b|\brun \d{8,}|\bthis file\b|\bAGENTS\b)");
         for (std::size_t number = 1; number <= lines.size(); ++number) {
             const std::string& line = lines[number - 1];

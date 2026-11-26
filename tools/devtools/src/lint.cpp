@@ -614,6 +614,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
          R"({"platforms": [{"id": "a"}], "capability": [{"id": "x", "label": "stable", "cells": {"a": {"status": "passed"}}}]})"},
         {.rule = "docs-code", .path = "docs/en/guide/x.md", .text = "# X\n\n```cpp\nint main() {}\n```\n", .files = {{"docs/zh/guide/x.md", "# X\n"}}},
         {"status", ".agents/docs/STATUS.md", "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| RC0.1 push | done | pushed |\n"},
+        {"status", ".agents/docs/STATUS.md", "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| FE0 (C5) the name | done | renamed |\n"},
         {"lead", ".agents/docs/evaluation/lead.features.xdef.json",
          R"({"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]})"},
     };

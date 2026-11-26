@@ -96,6 +96,22 @@ static UTest cases{"html", [] {
             << "the link stands where its mark is, once: " << html;
         expect(html.find("doc/p/link0") == html.rfind("doc/p/link0")) << "a child a mark places is not written again";
         expect(html.contains("<pre data-omui-target=\"doc/code\"><code class=\"language-cpp\">if (a &lt; b)\n    run();\n</code></pre>")) << html;
+        // With a look: the parts of a text drawn otherwise say how, by the bytes they cover (the link's 9 to 20, the
+        // code's 23 to 29); code that holds its button has its box around both.
+        {
+            sem::Snapshot held = snapshot;
+            for (spec::SemanticNode& n : held.nodes)
+                if (n.id == "doc/code") n.children = {"doc/code/copy"};
+            held.nodes.push_back(node("doc/code/copy", Role::button, "Copy code"));
+            sem::Look look;
+            look.spans["doc/p"] = {{9, 20, "color:#4f46e5;"}, {23, 29, "font-size:13px;"}};
+            look.styles["doc/code"] = "display:block;padding:12px 12px 12px 12px;position:relative;";
+            look.styles["doc/code/copy"] = "position:absolute;top:6px;right:6px;";
+            const std::string looked = sem::static_html(held, {.look = &look});
+            expect(looked.contains("title=\"The guide\" style=\"color:#4f46e5;\">“<em style=\"color:#4f46e5;\">guide</em>”</a> &amp; <code style=\"font-size:13px;\">run it</code></p>")) << looked;
+            expect(looked.contains("<div style=\"display:block;padding:12px 12px 12px 12px;position:relative;\">\n  <pre data-omui-target=\"doc/code\"><code class=\"language-cpp\">")) << looked;
+            expect(looked.contains("</code></pre>\n  <button data-omui-target=\"doc/code/copy\" style=\"position:absolute;top:6px;right:6px;\"")) << looked;
+        }
         expect(html.contains("<ol data-omui-target=\"doc/list\" start=\"3\">") && html.contains("<span data-omui-target=\"doc/list/item/p\">third</span>"))
             << "an ordered list from its start; a tight item's paragraph no block of its own: " << html;
         expect(html.contains("<!-- code: a.cpp#b -->")) << html;
@@ -104,6 +120,59 @@ static UTest cases{"html", [] {
             << html;
         expect(html.contains("role=\"code\"><details>more</details></div>")) << "markup the application wrote, as markup: " << html;
         expect(html.contains("&lt;details&gt;more&lt;/details&gt;")) << "markup from elsewhere, as text (S-3): " << html;
+    };
+
+    "the look of a drawn frame: each node's layout as CSS says the same, its text's face, size and colour, the view's unstated nodes around theirs"_test = [] {
+        RuntimeOptions o;
+        o.fonts = &fonts();
+        o.size = {320, 200};
+        Runtime rt(o);
+        rt.mount("main", column({.padding = 8, .gap = 4}, {
+                                    text({.id = "title", .text = "Notes", .style = "title", .heading = 1}),
+                                    row({.id = "bar", .gap = 12}, {
+                                        text({.id = "count", .text = "3 notes"}),
+                                        box({.id = "add", .width = 60, .height = 24, .label = "Add a note", .on = {{"press", [](const Value&) {}}}}),
+                                    }),
+                                }));
+        expect(rt.frame({seconds(0), {}}).failure.empty());
+        sem::Tree tree(rt);
+        const sem::Snapshot snapshot = tree.snapshot();
+        const sem::Look look = sem::html_look(rt, snapshot);
+        const std::string_view title = look.style("main/title"), add = look.style("main/bar/add");
+        const Theme theme = Theme::light();
+        expect(title.contains("font-family:'omui-inter',system-ui,sans-serif;") && title.contains(std::format("font-size:{}px;", static_cast<int>(theme.text_style("title").size))) &&
+               title.contains("font-weight:650;") && title.contains("color:#0f172a;") && title.contains("line-height:") &&
+               title.contains(std::format("letter-spacing:{}px;", theme.text_style("title").letter_spacing)) && !look.style("main/count").contains("letter-spacing"))
+            << "the title's text as the frame drew it, the space between its letters too: " << title << " | " << look.style("main/count");
+        expect(add.contains("width:60px;") && add.contains("height:24px;")) << add;
+        expect(look.fonts.size() >= 2 && look.fonts.front().family == "Inter") << "the faces the frame's text is set in";
+        // Its containers: stated or not, each says its layout.
+        std::string containers;
+        for (const auto& [id, around] : look.wrappers)
+            for (const sem::Look::Wrapper& w : around) containers += std::format("[{} {}]", id, w.style);
+        const std::string html = sem::static_html(snapshot, {.lang = "en", .look = &look});
+        expect((containers + html).contains("display:flex;flex-direction:column;gap:4px;") && (containers + html).contains("padding:8px 8px 8px 8px;")) << "the column: " << containers << html;
+        expect((containers + html).contains("gap:12px;")) << "the row: " << containers << html;
+        expect(html.starts_with("<div data-omui-target=\"app\" lang=\"en\" data-omui-look=\"omui-inter\"")) << html;
+        expect(eq(sem::font_key("JetBrains Mono"), std::string("omui-jetbrainsmono")));
+        expect(html.contains(std::format("data-omui-target=\"main/title\" style=\"{}\"", title))) << html;
+        // The same nodes, the same text: a look adds nothing a reader reads.
+        const std::string plain = sem::static_html(snapshot, {.lang = "en"});
+        const auto text_of = [](std::string_view markup) {
+            std::string out;
+            bool tag = false;
+            for (const char c : markup) {
+                if (c == '<') tag = true;
+                else if (c == '>') tag = false;
+                else if (!tag && c != ' ' && c != '\n') out += c;
+            }
+            return out;
+        };
+        expect(eq(text_of(html), text_of(plain)));
+        for (const spec::SemanticNode& n : snapshot.nodes) expect(html.contains(std::format("data-omui-target=\"{}\"", n.id))) << n.id;
+        // Wrappers open and close: as many of one as of the other.
+        const auto count = [&](std::string_view what) { std::size_t n = 0; for (auto at = html.find(what); at != std::string::npos; at = html.find(what, at + 1)) ++n; return n; };
+        expect(eq(count("<div"), count("</div>"))) << html;
     };
 
     "a running application's tree projected: every node there by its id, every text the tree's"_test = [] {

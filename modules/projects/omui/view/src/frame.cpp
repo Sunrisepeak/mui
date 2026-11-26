@@ -972,7 +972,7 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
     // What of its children's drawing can be seen (N5), in its coordinates: what was seen of it, within its own clip.
     // Nothing said when its drawing is moved after it is drawn (a pose, a morph, glyph motion, an effect).
     std::optional<Rect> sees = shown;
-    if (const Node& drawn = at(id); effected || more > 0 || drawn.glyph_motion || drawn.morph || drawn.presentation.attached()) sees.reset();
+    if (const Node& drawn = at(id); draws_unseen || effected || more > 0 || drawn.glyph_motion || drawn.morph || drawn.presentation.attached()) sees.reset();
     else if (clip) {
         // A scroll view draws ahead as the window does (its viewport and as much again around it); a clip that does
         // not scroll, only what it shows.

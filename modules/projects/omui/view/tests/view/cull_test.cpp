@@ -67,6 +67,13 @@ static UTest cases{"cull", [] {
         expect(eq(rt.act(rt.find("main/list/r900"), "scroll_into_view", {}).exit_code().value_or(-1), 0));
         expect(rt.frame({seconds(3), {}}).failure.empty());
         expect(drawn_rows(rt).contains("r900"));
+        // A reading of the whole (a page's look is measured from one): nothing left out; off again, as before.
+        rt.set_draws_unseen(true);
+        expect(rt.frame({seconds(4), {}}).failure.empty());
+        expect(eq(drawn_rows(rt).size(), std::size_t{1000}));
+        rt.set_draws_unseen(false);
+        expect(rt.frame({seconds(5), {}}).failure.empty());
+        expect(drawn_rows(rt).size() < 20u && drawn_rows(rt).contains("r900"));
     };
 
     "what is drawn past a row's box keeps it drawn while that reaches the viewport: a shadow, a transform"_test = [] {

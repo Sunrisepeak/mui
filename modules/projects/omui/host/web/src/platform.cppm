@@ -93,6 +93,9 @@ void set_route(std::string_view route);
 [[nodiscard]] std::string agent_guide();
 // The program's first frame is shown: the page's hook (window.omuiFirstFrame, once).
 void first_frame();
+// Where the reader is in the page's own document (the views they scrolled before the program): said as the page's
+// scrolls are, taken with the next `take`. Asked until the first frame is shown, so that frame is at their place.
+void reading();
 // The program needs a face the page deferred until asked (another
 // language's): one that draws `code_point`, or every one (none) — the page's
 // hook (window.omuiWantFonts); they arrive as later fonts do.

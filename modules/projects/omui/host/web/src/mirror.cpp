@@ -29,7 +29,8 @@ std::int64_t round(float v) { return static_cast<std::int64_t>(std::lround(v)); 
 // A line's place over the canvas, to a quarter of a pixel.
 double quarter(float v) { return std::round(static_cast<double>(v) * 4.0) / 4.0; }
 
-// A piece of a line for the page. A run of text is cut into words — each with the white space after it — and each
+// A piece of a line for the page. A run of text is cut into words — each with the white space after it, the white
+// space a run begins with a piece of its own — and each
 // word says where the canvas draws it: `{"t": "word ", "x": left, "w": width}`, from the line's left edge, to a
 // quarter of a pixel. So a word found or selected is on the word seen, whatever font the page has for it.
 void words_of(Value::List& into, std::string_view text, std::size_t from, const TextLineBox& line) {
@@ -43,11 +44,14 @@ void words_of(Value::List& into, std::string_view text, std::size_t from, const 
         return std::pair{left, right};
     };
     for (std::size_t at = 0; at < text.size();) {
-        // A word: what white space it begins with, its letters, the white space after it.
+        // A word: its letters and the white space after it. White space a run begins with (a line of code's
+        // indentation, the space after a link) stands by itself, so the letters after it begin where they are drawn.
         std::size_t end = at;
         while (end < text.size() && blank(text[end])) ++end;
-        while (end < text.size() && !blank(text[end])) ++end;
-        while (end < text.size() && blank(text[end])) ++end;
+        if (end == at) {
+            while (end < text.size() && !blank(text[end])) ++end;
+            while (end < text.size() && blank(text[end])) ++end;
+        }
         std::string word(text.substr(at, end - at));
         if (const auto drawn = extent(from + at, from + end))
             into.push_back(Value{}.set("t", std::move(word)).set("x", Value(quarter(drawn->first - line.bounds.x))).set("w", Value(quarter(drawn->second - drawn->first))));
@@ -213,8 +217,13 @@ std::optional<Value> DomMirror::sync() {
             std::vector<TextLineBox> drawn;
             if (covered > 0 && n.bounds) drawn = tree_.runtime().text_lines(tree_.runtime().find(n.id));
             if (!drawn.empty() && (drawn.front().begin != 0 || drawn.back().end != covered)) drawn.clear();
-            // Words without width were not drawn (no shaper gave them glyphs): nothing to stand them by.
-            if (std::ranges::any_of(drawn, [](const TextLineBox& line) { return line.end > line.begin && !(line.bounds.width > 0); })) drawn.clear();
+            // Words without width were not drawn (no shaper gave them glyphs): nothing to stand them by. A line that
+            // is only its break (an empty line of code) has no words and no width, and is as it should be.
+            const auto only_break = [&](const TextLineBox& line) {
+                const std::string_view text = n.name;
+                return line.end <= text.size() && std::ranges::all_of(text.substr(line.begin, line.end - line.begin), [](char c) { return c == '\n' || c == '\r'; });
+            };
+            if (std::ranges::any_of(drawn, [&](const TextLineBox& line) { return line.end > line.begin && !(line.bounds.width > 0) && !only_break(line); })) drawn.clear();
             Value::List pieces, lines;
             std::unordered_set<std::string> stood;
             for (const TextLineBox& line : drawn) {

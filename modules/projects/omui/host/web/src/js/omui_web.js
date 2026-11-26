@@ -207,7 +207,9 @@ addToLibrary({
         '[data-omui=mirror] [data-omui-scroll]{overflow:auto;scrollbar-width:none}' +
         '[data-omui=mirror] [data-omui-scroll]::-webkit-scrollbar{display:none}' +
         '[data-omui=mirror] pre,[data-omui=mirror] pre code{white-space:pre}' +
-        '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre}' +
+        // A line is as wide as its words at least: the space it broke at hangs past its end, and a word that did
+        // not fit the line's own width went below it (seen where the last word follows a link).
+        '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre;min-width:max-content}' +
         '[data-omui=mirror] [data-omui-word]{display:inline-block;vertical-align:top;white-space:pre;transform-origin:0 0}' +
         // Selected, the layer's text stays unseen and the canvas's words show through the highlight.
         '[data-omui=mirror] ::selection{color:transparent;background:color-mix(in srgb,Highlight 40%,transparent)}' +
@@ -292,6 +294,24 @@ addToLibrary({
       };
       window.omui = Object.freeze(omui);
       P.offerWebMcp(window.omui);
+    },
+
+    // Where the reader is in the page's own document (the views they scrolled there, by node): the program asks
+    // before each frame until its first is shown, so that frame is drawn at the same place; where they went on to
+    // meanwhile is kept as the first frame is shown (`read`) and said when the layer takes the view (`scrolls`).
+    read: null,
+    places: function () {
+      var at = new Map(), page = document.querySelector('[data-omui="static"]');
+      if (!page || !page.querySelectorAll) return at;
+      page.querySelectorAll('[data-omui-target]').forEach(function (el) {
+        var x = Math.round(el.scrollLeft || 0), y = Math.round(el.scrollTop || 0);
+        if (x || y) at.set(el.getAttribute('data-omui-target'), [x, y]);
+      });
+      return at;
+    },
+    reading: function () {
+      var P = omuiPage;
+      P.places().forEach(function (at, id) { P.send(P.SCROLL, at[0], at[1], id); });
     },
 
     // WebMCP (Part 2 §4.1, C; the W3C WebML community group's draft of
@@ -535,6 +555,9 @@ addToLibrary({
         if (had.tagName.toLowerCase() === tag) {
           el = had;
           while (el.firstChild) el.removeChild(el.firstChild);
+          // How the page set it before the program (its look: margins, a face, a size) ends here: the layer places
+          // it by the frame.
+          el.removeAttribute('style');
         }
       }
       if (!el) el = document.createElement(tag);
@@ -622,6 +645,16 @@ addToLibrary({
       el.omuiAt = [s[0], s[1]];
       el.scrollLeft = s[0];
       el.scrollTop = s[1];
+      // The reader's own place in it before the program (where they were in the page's document as the first frame
+      // was shown), where the program is not there: the element is where they were, and the program is told.
+      var had = P.read && P.read.get(id);
+      if (had) P.read.delete(id);
+      if (had && (Math.abs(had[0] - s[0]) >= 1 || Math.abs(had[1] - s[1]) >= 1)) {
+        el.scrollLeft = had[0];
+        el.scrollTop = had[1];
+        el.omuiAt = [Math.round(el.scrollLeft), Math.round(el.scrollTop)];
+        if (Math.abs(el.omuiAt[0] - s[0]) >= 1 || Math.abs(el.omuiAt[1] - s[1]) >= 1) P.send(P.SCROLL, el.omuiAt[0], el.omuiAt[1], id);
+      }
     },
 
     // A piece of an element's own text: a run, an element a mark makes ({tag, set, c}), a child node standing in
@@ -1170,6 +1203,8 @@ addToLibrary({
   // The program's first frame is shown: the page's hook, once (dist-toy fetches its later files then).
   omui_web_first_frame__deps: ['$omuiPage'],
   omui_web_first_frame: function () {
+    // Where the reader is in the page's document, read before it steps aside.
+    omuiPage.read = omuiPage.places();
     window.omuiHasPresented = true;
     // The press that made the page take its program (a page that waited for one, D-260): the program's to answer now.
     var load = window.omuiLoad;
@@ -1179,6 +1214,9 @@ addToLibrary({
     window.omuiFirstFrame = null;
     if (typeof f === 'function') f();
   },
+  // The reader's places in the page's document, said as the page's scrolls are (before the program's first frame).
+  omui_web_reading__deps: ['$omuiPage'],
+  omui_web_reading: function () { omuiPage.reading(); },
   // The program needs the faces the page deferred until asked: the page's hook.
   omui_web_want_fonts: function (codePoint) {
     var f = window.omuiWantFonts;

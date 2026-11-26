@@ -387,7 +387,9 @@ Size Text::measure(MeasureContext& m, std::optional<float> w, std::optional<floa
     else if (aw.is_definite()) width = aw.value + 1.0f / 1024;
     lay(width);
     const Size s = p.size();
-    return {w ? *w : std::ceil(s.width), std::ceil(s.height)};
+    // Its lines' height as it is: a block is as tall as a page's block of the same lines (UI5), so the blocks
+    // below it stand where a browser sets them.
+    return {w ? *w : std::ceil(s.width), s.height};
 }
 
 float Text::baseline(MeasureContext& m, Size content) {
@@ -821,7 +823,7 @@ Size Code::measure(MeasureContext& m, std::optional<float> w, std::optional<floa
     }
     const Size s = p.size();
     const float width = w.value_or(aw.is_definite() ? aw.value : std::ceil(s.width));
-    return {width, std::ceil(std::max(s.height, 18.0f))};
+    return {width, std::max(s.height, 18.0f)};
 }
 
 void Code::paint(PaintContext& ctx) const {

@@ -164,6 +164,7 @@ UTest cases{"example.notes", [] {
         expect(title.exit_code() == 0 && title.ndjson().contains(R"("no heading")")) << title.ndjson();
         expect(eq(verb(h, "notes.open", Value{}.set("key", "n9")).exit_code().value_or(-1), 1));
 
-        expect(eq(first, std::string("f02e93996f7a2586")));  // the help says the macros are TypeScript (D-138)
+        // Re-pinned with UI5 step 2: a block of text is as tall as its lines (no rounding up to a whole pixel).
+        expect(eq(first, std::string("24edcb45bf295823")));  // the help says the macros are TypeScript (D-138)
     };
 }};

@@ -9,7 +9,7 @@ omui run [--release] [-- ARGS]      the application as it ships (mcpp run; a Typ
                                     the newest installed runtime that satisfies it through omui-launch, else the
                                     player the tool ships, nothing built)
 omui build [--release]              mcpp build
-omui build --web [--lang L]         the page on the Web: the program run natively writes its first screen as static HTML
+omui build --web [--lang L] [--look] the page on the Web: the program run natively writes its first screen as static HTML
                                     (target/web/<program>.static.html, D-236), then mcpp pack --target wasm32-emscripten
                                     --release --pkg-format dist-toy puts it in the page (build.mcpp's dist_toy says how;
                                     a TypeScript application's page carries its manifest and scripts for the player)

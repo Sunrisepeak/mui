@@ -459,6 +459,7 @@ struct Web::Impl {
         follow_canvas();
         take_later_fonts();
         want_deferred_fonts();
+        if (opened && frames_shown == 0) page::reading();
         if (opened) page::take(events, requests);
         events.insert(events.end(), std::make_move_iterator(pending.begin()), std::make_move_iterator(pending.end()));
         pending.clear();

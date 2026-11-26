@@ -150,6 +150,7 @@ UTest cases{"example.markdown-viewer", [] {
         expect(a.h.save_png(scratch_dir("markdown-viewer-pixels") / "handbook.png").has_value());
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        expect(eq(hash.hex(), std::string("c035f8e29c7de705")));
+        // Re-pinned with UI5 step 2: a block of text is as tall as its lines (no rounding up to a whole pixel).
+        expect(eq(hash.hex(), std::string("e907f02618c9e7b8")));
     };
 }};

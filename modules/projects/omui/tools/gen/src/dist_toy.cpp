@@ -142,6 +142,19 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
         "#canvas{{display:block;width:100vw;height:100vh;outline:none}}"
         "#status{{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#888;font:14px system-ui,sans-serif;pointer-events:none}}</style>\n",
         escape_html(p.background));
+    // The page's faces by name (omui-<file's letters and digits>): what a document with a look sets its text in
+    // (omui.semantic's font_key). A face is fetched only where an element uses it.
+    {
+        std::string faces;
+        for (const auto& [name, file] : fonts) {
+            std::string key = "omui-";
+            for (const char c : name.substr(0, name.rfind('.')))
+                if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z')) key += c;
+                else if (c >= 'A' && c <= 'Z') key += static_cast<char>(c - 'A' + 'a');
+            faces += std::format("@font-face{{font-family:'{}';src:url('{}');font-weight:1 1000;font-display:swap}}", key, escape_html(file));
+        }
+        if (!faces.empty()) html += std::format("<style data-omui=\"faces\">{}</style>\n", faces);
+    }
     // A page whose program follows the person's preference for a dark appearance is dark from its first paint.
     if (!p.background_dark.empty())
         html += std::format("<style>@media (prefers-color-scheme:dark){{html,body{{color-scheme:dark;background:{}}}}}</style>\n", escape_html(p.background_dark));
@@ -1110,16 +1123,28 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
     if (!document.image.empty()) meta += std::format("<meta property=\"og:image\" content=\"{}\">\n", escape_html(document.image));
     meta += std::format("<meta name=\"twitter:card\" content=\"{}\">\n", document.image.empty() ? "summary" : "summary_large_image");
     // Over the canvas's place until it steps aside; a document's own scrolling, selection and touch.
-    meta += std::format("<style>[data-omui=static]{{position:fixed;inset:0;z-index:1;overflow:auto;box-sizing:border-box;"
-                        "padding:32px max(24px,calc((100vw - 760px) / 2));color:{};background:inherit;font:16px/1.6 system-ui,sans-serif;"
+    // A document with a look (omui.semantic's: each element says its node's layout, face and colour) is laid out
+    // by it, the window's box its root's; one without is set as plain text in a column.
+    const bool looked = fragment->contains(" data-omui-look=\"");
+    // How the document is set: by its look where it has one — every box as its node's, the window's box its
+    // root's, the scrolling its own views' — else as plain text in a column that scrolls.
+    const std::string set = looked
+        ? std::string("overflow:hidden;font:16px/1.5 system-ui,sans-serif;font-optical-sizing:none;")
+        : std::string("overflow:auto;box-sizing:border-box;padding:32px max(24px,calc((100vw - 760px) / 2));font:16px/1.6 system-ui,sans-serif;");
+    const std::string inside = looked
+        ? std::string("[data-omui=static] *{box-sizing:border-box;margin:0;padding:0;border:0;list-style:none;font:inherit;color:inherit;background:none;scrollbar-width:none;"
+                      "text-decoration:none}[data-omui=static] ::-webkit-scrollbar{display:none}[data-omui=static] a[href]{text-decoration:underline}[data-omui=static] strong,[data-omui=static] b{font-weight:700}"
+                      "[data-omui=static] em,[data-omui=static] i{font-style:italic}[data-omui=static]>[data-omui-look]{width:100%!important;height:100%!important}")
+        : std::string("[data-omui=static] a{color:inherit}[data-omui=static] button{font:inherit;color:inherit;background:none;"
+                      "border:1px solid currentColor;border-radius:8px;padding:4px 12px;margin:4px 8px 4px 0}");
+    meta += std::format("<style>[data-omui=static]{{position:fixed;inset:0;z-index:1;{}color:{};background:inherit;"
                         "touch-action:auto;-webkit-user-select:text;user-select:text}}[data-omui=static][hidden]{{display:none}}"
-                        "[data-omui=static] a{{color:inherit}}[data-omui=static] button{{font:inherit;color:inherit;background:none;"
-                        "border:1px solid currentColor;border-radius:8px;padding:4px 12px;margin:4px 8px 4px 0}}"
+                        "{}"
                         // Printed before the program has it (or where it never does): the document whole, over as many
                         // sheets as it takes, not the one screen it lies over.
                         "@media print{{html,body{{height:auto!important;overflow:visible!important}}"
                         "[data-omui=static]{{position:static;overflow:visible;padding:0}}}}</style>\n",
-                        colour);
+                        set, colour, inside);
     // Where the page is dark for a person who prefers dark, its document's text is readable on that too.
     if (const std::string_view dark = text_colour_on(html, "(prefers-color-scheme:dark){html,body{color-scheme:dark;background:#", {}); !dark.empty())
         meta += std::format("<style>@media (prefers-color-scheme:dark){{[data-omui=static]{{color:{}}}}}</style>\n", dark);

@@ -1069,6 +1069,7 @@ namespace omui {
     [[nodiscard]] NodeId node_at_index(std::uint32_t index) const;
     FrameOutput frame(const FrameInput& input = {…});
     [[nodiscard]] const mrender::DisplayList& display_list() const noexcept;
+    [[nodiscard]] const mlibs::layout::Style* layout_style(NodeId node) const;
     [[nodiscard]] std::expected<PresentationLease,PresentationFailure> acquire_presentation(std::span<const PresentationTarget>);
     [[nodiscard]] std::optional<PresentationState> presentation(NodeId) const noexcept;
     void resize(Size size, float scale);
@@ -1206,6 +1207,8 @@ namespace omui {
     void set_governor(bool on);
     void report_frame_cost(double ms);
     void set_reduce_transparency(bool reduce);
+    void set_draws_unseen(bool whole);
+    [[nodiscard]] bool draws_unseen() const noexcept;
     [[nodiscard]] const Theme& theme() const override;
     [[nodiscard]] bool reduce_transparency() const override;
     [[nodiscard]] bool gamepads_wanted() const noexcept;

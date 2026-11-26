@@ -388,11 +388,36 @@ std::string static_html(const Snapshot& snapshot, const HtmlOptions& options) {
             out += std::format("{}<!--{}-->\n", indent, text);
             return;
         }
-        const HtmlElement made = html_element(n, inside, find, HtmlFor::document);
+        HtmlElement made = html_element(n, inside, find, HtmlFor::document);
         const bool bare = tight && inside == "li" && made.tag == "p";
         const std::string_view name = bare ? std::string_view("span") : std::string_view(made.tag);
+        // With a look, the parts of its text drawn otherwise than the rest say how (a link's colour, code's face).
+        if (options.look) {
+            const auto parts = [&](this auto const& self, std::vector<Inline>& pieces) -> void {
+                for (Inline& piece : pieces) {
+                    if (piece.tag.empty() || piece.tag == "br" || piece.tag == "img") continue;
+                    if (const std::string_view style = options.look->within(n.id, piece.begin); !style.empty()) piece.attributes.emplace_back("style", std::string(style));
+                    self(piece.children);
+                }
+            };
+            if (made.tag != "pre") parts(made.content);
+        }
+        // Code that holds something (the button that copies it) under a look: the node's box is an element around
+        // both — what the button is placed in — and the code inside takes its face from it.
+        const bool boxed = options.look && made.tag == "pre" && !n.children.empty() && depth > 0;
+        if (boxed) out += std::format("{}<div style=\"{}\">\n", indent, escaped(options.look->style(n.id), true));
         out += std::format("{}<{} data-omui-target=\"{}\"", indent, name, escaped(n.id, true));
         if (depth == 0 && !options.lang.empty()) out += std::format(" lang=\"{}\"", escaped(options.lang, true));
+        if (options.look) {
+            if (depth == 0) {
+                // The faces its text is set in, by the names its declarations use.
+                std::string faces;
+                for (const Look::Font& font : options.look->fonts)
+                    if (const std::string key = font_key(font.family); !std::format(" {} ", faces).contains(std::format(" {} ", key))) faces += (faces.empty() ? "" : " ") + key;
+                out += std::format(" data-omui-look=\"{}\"", escaped(faces, true));
+            }
+            if (const std::string_view style = options.look->style(n.id); !style.empty() && !boxed) out += std::format(" style=\"{}\"", escaped(style, true));
+        }
         write(out, made.attributes);
         out += '>';
         if (made.empty) {  // elements that hold nothing
@@ -408,20 +433,38 @@ std::string static_html(const Snapshot& snapshot, const HtmlOptions& options) {
             out += "\n</code></pre>\n";
             for (const std::string& child : n.children)
                 if (const Node* found = find(child)) self(*found, depth, inside, false);
+            if (boxed) out += std::format("{}</div>\n", indent);
             return;
         }
         for (const Inline& piece : made.content) write(out, piece);
         const Value* close = property(n, "tight");
         const bool held_tight = n.role == Role::list ? close && close->as_bool() : made.tag == "li" && tight;
         bool nested = false;
+        // With a look: the view's nodes the tree does not state, around the children they hold (one element for
+        // the children of one such node).
+        std::vector<std::uint32_t> around;
+        const auto wrapped = [&](std::span<const Look::Wrapper> wanted) {
+            std::size_t same = 0;
+            while (same < around.size() && same < wanted.size() && around[same] == wanted[same].node) ++same;
+            while (around.size() > same) {
+                out += std::format("{}</div>\n", std::string((static_cast<std::size_t>(depth) + around.size()) * 2, ' '));
+                around.pop_back();
+            }
+            for (std::size_t at = same; at < wanted.size(); ++at) {
+                around.push_back(wanted[at].node);
+                out += std::format("{}<div style=\"{}\">\n", std::string((static_cast<std::size_t>(depth) + around.size()) * 2, ' '), escaped(wanted[at].style, true));
+            }
+        };
         for (const std::string& child : n.children) {
             if (std::ranges::contains(made.placed, child)) continue;
             if (const Node* found = find(child)) {
                 if (!nested) out += '\n';
                 nested = true;
-                self(*found, depth + 1, name, held_tight);
+                if (options.look) wrapped(options.look->around(child));
+                self(*found, depth + 1 + static_cast<int>(around.size()), name, held_tight);
             }
         }
+        if (options.look) wrapped({});
         if (nested) out += indent;
         out += std::format("</{}>\n", name);
     };

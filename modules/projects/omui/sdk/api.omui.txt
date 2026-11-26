@@ -200,6 +200,7 @@ namespace omui {
     std::string window;
     std::filesystem::path agent_guide;
     std::filesystem::path static_html;
+    bool static_look = false;
     std::filesystem::path present_to;
     std::filesystem::path replay;
     static void declare(mcpplibs::cmdline::App& app);

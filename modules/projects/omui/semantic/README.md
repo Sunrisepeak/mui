@@ -33,7 +33,15 @@ technology read it (spec §3 and §9, `openmui.tree@0.1`):
   buttons, landmarks, lists, tables, code and pictures as HTML has them, each
   element naming its node in `data-omui-target`): what a reader without
   JavaScript, or a search engine, reads before the program runs
-  (`--static-html FILE` of a run). A document's nodes are written from their
+  (`--static-html FILE` of a run). With a **look** (`html_look`, UI5, D-288;
+  `--static-look`) each element also says how the frame drew its node: its
+  layout style as CSS (mlibs.layout's is CSS's flexbox and grid), the face,
+  size, weight, colour, line height and letter spacing of the text it drew,
+  the parts of a text drawn otherwise (a link's colour, code's face) on their
+  inline elements, and the view's unstated containers as `div`s — read from
+  the display list and the layout, nothing written per component; a browser
+  lays the page out by the same model, in the same faces, at any width
+  (measured: a word moves ≤ 1 px when the program takes over). A document's nodes are written from their
   `properties` and `marks` (spec S-16, S-17): a link's `href` and `title`, a
   heading's anchor as its element's `id`, `<pre><code class="language-…">`,
   a table's head, body and cells' alignment, an ordered list's start, a tight

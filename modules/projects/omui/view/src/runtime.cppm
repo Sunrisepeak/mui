@@ -381,6 +381,9 @@ public:
     // ── frames ──
     FrameOutput frame(const FrameInput& input = {});
     [[nodiscard]] const mrender::DisplayList& display_list() const noexcept;
+    // A node's layout style as the layout has it for the frame last laid out (mlibs.layout's: CSS's flexbox and
+    // grid model) — what projects a frame's look reads it (omui.semantic's look); none for a node the layout has not.
+    [[nodiscard]] const mlibs::layout::Style* layout_style(NodeId node) const;
     [[nodiscard]] std::expected<PresentationLease,PresentationFailure> acquire_presentation(std::span<const PresentationTarget>);
     [[nodiscard]] std::optional<PresentationState> presentation(NodeId) const noexcept;
     void resize(Size size, float scale);
@@ -697,6 +700,11 @@ public:
     // raster and present included): what the governor weighs.
     void report_frame_cost(double ms);
     void set_reduce_transparency(bool reduce);
+    // What lies out of sight is drawn too — a long list's rows outside its viewport, what is past the window (N5
+    // leaves them out of a frame): the frame of a reading of the whole, as a page's look is measured from it
+    // (omui.semantic:look). Off again, frames are as before.
+    void set_draws_unseen(bool whole);
+    [[nodiscard]] bool draws_unseen() const noexcept;
 
     // ── Services ──
     [[nodiscard]] const Theme& theme() const override;

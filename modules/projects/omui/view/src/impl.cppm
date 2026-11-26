@@ -405,6 +405,7 @@ struct Runtime::Impl {
     mrender::ImageStore                    images;
     hanim::Clock                           clock;
     bool                                   complete_frames = false;
+    bool                                   draws_unseen = false;  // nothing left out of a frame for being out of sight
     bool                                   on_device = false;
     DrivenLanes                            anims;
     mlibs::layout::Engine                        layout;

@@ -397,6 +397,7 @@ test('the page\'s own projection goes on as the layer: the same elements, placed
   projection.setAttribute('data-omui', 'static');
   const root = make('div', 'app'), title = make('h1', 'doc/title', 'Notes'), para = make('p', 'doc/p', 'Read '), link = make('a', 'doc/p/link0', 'the guide'), save = make('button', 'doc/save', 'Save');
   para.appendChild(link);
+  title.setAttribute('style', 'margin:8px 0 0 0;font-size:28px');  // how the page set it before the program (its look)
   [title, para, save].forEach((el) => root.appendChild(el));
   projection.appendChild(root);
   document.body.appendChild(projection);
@@ -419,6 +420,7 @@ test('the page\'s own projection goes on as the layer: the same elements, placed
   assert.equal(P.nodes.get('doc/p/link0'), link);
   assert.ok(layer.contains(title) && layer.contains(link) && !projection.contains(title), 'moved over the canvas');
   assert.equal(title.style.left, '8px');
+  assert.ok(!String(title.getAttribute('style') || '').includes('margin'), 'the look it had before the program ends where the layer places it');
   assert.equal(para.textContent, 'Read the guide.', 'its text the tree\'s now, once');
   assert.equal(link.getAttribute('href'), 'guide/');
   // What a person operates is the program's over the canvas: the document's button stays behind.
@@ -446,6 +448,33 @@ test('a program whose frame is never shown takes nothing of the page\'s document
   assert.notEqual(P.nodes.get('doc/title'), title);
   assert.ok(projection.contains(title) && title.textContent === 'Notes', 'the document as it was');
   assert.equal(P.nodes.get('doc/title').tagName, 'H1', 'the layer has its own');
+});
+
+test('a view the reader scrolled in the page\'s own document: the program is told where at its start, and where they went on to when the layer takes it', () => {
+  const { P, document, context, heard } = page();
+  const projection = document.createElement('div');
+  projection.setAttribute('data-omui', 'static');
+  const root = document.createElement('div'), view = document.createElement('div');
+  root.setAttribute('data-omui-target', 'app');
+  view.setAttribute('data-omui-target', 'main/view');
+  root.appendChild(view);
+  projection.appendChild(root);
+  document.body.appendChild(projection);
+  view.scrollTop = 240;
+  P.reading();  // the program asks before its first frame
+  assert.deepEqual(heard, [[P.SCROLL, 0, 240, 'main/view']]);
+  view.scrollTop = 300;  // the reader went on while the program drew its first frame
+  context.omui_web_first_frame();
+  context.omui_web_mirror(JSON.stringify({
+    root: 'app',
+    nodes: [{ id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['main/view'] }, { id: 'main/view', tag: 'div', box: [0, 0, 200, 160], scroll: [0, 240, 0, 900] }],
+  }));
+  assert.equal(P.nodes.get('main/view'), view);
+  assert.equal(view.scrollTop, 300, 'where the reader is');
+  assert.deepEqual(heard[1], [P.SCROLL, 0, 300, 'main/view']);
+  // Where the program is already there, nothing is said again.
+  context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'main/view', scroll: [0, 300, 0, 900] }] }));
+  assert.equal(heard.length, 2);
 });
 
 test('a view that scrolls scrolls on the page too: as far, to the same place; where the page scrolled it is said, where the program put it is not', () => {

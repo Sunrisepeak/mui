@@ -106,6 +106,7 @@ UTest cases{"example.markdown-stream", [] {
         expect(a.h.save_png(scratch_dir("markdown-stream") / "answer.png").has_value());
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        expect(eq(hash.hex(), std::string("a99930d8b3882068")));
+        // Re-pinned with UI5 step 2: a block of text is as tall as its lines (no rounding up to a whole pixel).
+        expect(eq(hash.hex(), std::string("9326c7624c04cc71")));
     };
 }};

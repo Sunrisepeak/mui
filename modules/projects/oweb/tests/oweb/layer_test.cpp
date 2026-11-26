@@ -245,5 +245,18 @@ static UTest cases{"oweb.layer", [] {
         }
         expect(itself == 1u && going_on >= 1u) << itself << " " << going_on;
         expect(said == "Read the guide to every operation of the command line and what each one answers first.") << said;
+
+        // A block of code with an empty line: the line that is only its break has no words and no width, and the
+        // lines around it stand where they are drawn all the same.
+        Headless coded({.level = HeadlessLevel::pixels, .size = {420, 400}});
+        coded.mount("page", column({.id = "page"}, {markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = "```cpp\nimport omui;\n\nint main() {}\n```\n"})}));
+        coded.settle();
+        DomMirror code_layer(coded.runtime());
+        const auto code_batch = code_layer.sync();
+        std::size_t code_lines = 0;
+        if (code_batch && code_batch->get("nodes"))
+            for (const Value& one : *code_batch->get("nodes")->list())
+                if (one.get("tag") && one.get("tag")->as_string() == "pre" && one.get("lines")) code_lines = one.get("lines")->list()->size();
+        expect(code_lines >= 2u) << "code with an empty line, by its lines: " << code_lines;
     };
 }};

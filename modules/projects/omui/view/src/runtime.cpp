@@ -733,6 +733,15 @@ void Runtime::moving(NodeId node) {
     d.frame_requested = true;
 }
 
+void Runtime::set_draws_unseen(bool whole) {
+    Impl& d = *impl_;
+    if (d.draws_unseen == whole) return;
+    d.draws_unseen = whole;
+    d.touch(dirty_paint);
+}
+
+bool Runtime::draws_unseen() const noexcept { return impl_->draws_unseen; }
+
 void Runtime::set_reduce_transparency(bool reduce) {
     Impl& d = *impl_;
     if (d.reduce_transparency == reduce) return;
@@ -791,6 +800,11 @@ mlibs::text::FontCollection& Runtime::fonts() { return *impl_->fonts; }
 mrender::ImageStore& Runtime::images() { return impl_->images; }
 hanim::seconds Runtime::now() const { return impl_->now(); }
 Rect Runtime::bounds(NodeId node) const { return valid(node) ? impl_->at(node).bounds : Rect{}; }
+const mlibs::layout::Style* Runtime::layout_style(NodeId node) const {
+    if (!valid(node)) return nullptr;
+    const auto& n = impl_->at(node);
+    return n.layout == mlibs::layout::no_node ? nullptr : &impl_->layout.style(n.layout);
+}
 Rect Runtime::screen_bounds(NodeId node) const { return valid(node) ? impl_->at(node).screen : Rect{}; }
 Rect Runtime::drawn_bounds(NodeId node) const {
     if (!valid(node)) return {};

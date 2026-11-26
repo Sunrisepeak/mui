@@ -5,6 +5,7 @@ export import mlibs.session;
 export import :query;
 export import :tree;
 export import :session;
+export import :look;
 export import :html;
 == omui.semantic:html
 namespace omui::semantic {
@@ -33,8 +34,37 @@ namespace omui::semantic {
   [[nodiscard]] HtmlElement html_element(const spec::SemanticNode& node, std::string_view inside, const NodeLookup& find, HtmlFor where = HtmlFor::document);
   struct HtmlOptions {
     std::string lang;
+    const Look* look = nullptr;
   };
   [[nodiscard]] std::string static_html(const Snapshot& snapshot, const HtmlOptions& options = {…});
+}
+== omui.semantic:look
+namespace omui::semantic {
+  struct Look {
+    struct Wrapper {
+      std::uint32_t node = 0;
+      std::string style;
+    };
+    struct Font {
+      std::string family;
+      int weight = 400;
+      bool italic = false;
+      friend bool operator==(const Font&, const Font&) = default;
+    };
+    struct Span {
+      std::uint32_t begin = 0, end = 0;
+      std::string style;
+    };
+    std::unordered_map<std::string, std::string> styles;
+    std::unordered_map<std::string, std::vector<Wrapper>> wrappers;
+    std::unordered_map<std::string, std::vector<Span>> spans;
+    std::vector<Font> fonts;
+    [[nodiscard]] std::string_view style(std::string_view id) const;
+    [[nodiscard]] std::span<const Wrapper> around(std::string_view id) const;
+    [[nodiscard]] std::string_view within(std::string_view id, std::size_t at) const;
+  };
+  [[nodiscard]] std::string font_key(std::string_view family);
+  [[nodiscard]] Look html_look(const Runtime& runtime, const Snapshot& snapshot);
 }
 == omui.semantic:query
 namespace omui::semantic {

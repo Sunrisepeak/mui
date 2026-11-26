@@ -8,6 +8,7 @@ import std;
 import omui.core;
 import omui.view;
 import :tree;
+import :look;
 
 export namespace omui::semantic {
 
@@ -61,6 +62,10 @@ using NodeLookup = std::function<const spec::SemanticNode*(std::string_view)>;
 
 struct HtmlOptions {
     std::string lang;  // the document's language as HTML says it ("en", "zh-CN"); empty: none said
+    // How the frame looks (html_look of the same frame): each element carries its node's declarations (`style`),
+    // and the view's nodes the semantic tree does not state stand around their nodes as `div`s, so the page's
+    // boxes nest as the view's do; the root says `data-omui-look`. None: the document alone.
+    const Look* look = nullptr;
 };
 
 // A snapshot (its nodes in pre-order, each naming its children) as static HTML: each node an element — a heading, a

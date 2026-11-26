@@ -59,6 +59,7 @@ void RunOptions::declare(cmdline::App& app) {
         .option(Option("agent-mode").takes_value().value_name("MODE").help("how far agents may go: automatic, development or dual-user"))
         .option(Option("agent-guide").takes_value().value_name("DIR").help("write what an agent needs to operate it into DIR, then end"))
         .option(Option("static-html").takes_value().value_name("FILE").help("write its first screen as static HTML (its semantic tree projected, D-236) into FILE, then end"))
+        .option(Option("static-look").help("with --static-html: each element with the look the frame gave its node (UI5)"))
         .option(Option("no-agent").help("no agent endpoint"))
         .option(Option("agent-input").help("agents may send input events (default: the application's)"))
         .option(Option("no-agent-input").help("agents may not send input events"))
@@ -151,6 +152,7 @@ std::expected<RunOptions, Failure> RunOptions::from(const cmdline::ParsedArgs& p
         o.static_html = std::filesystem::path(*v);
         o.headless = true;
     }
+    o.static_look = parsed.is_flag_set("static-look");
     if (auto v = parsed.value("profile")) o.profile = std::filesystem::path(*v);
     if (auto v = parsed.value("replay")) {
         o.replay = std::filesystem::path(*v);
@@ -476,7 +478,14 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
         // semantic tree as HTML, in the person's first language (omui.semantic:html; the page's program takes each
         // element over by its id).
         const std::string lang = o.languages.empty() ? std::string() : o.languages.front();
-        const std::string html = omui::semantic::static_html(host.tree().snapshot(), {.lang = lang});
+        if (o.static_look) {
+            // Its look is read from what the frame drew: one that leaves nothing out for being out of sight.
+            host.runtime().set_draws_unseen(true);
+            host.step();
+        }
+        const omui::semantic::Snapshot snapshot = host.tree().snapshot();
+        const omui::semantic::Look look = o.static_look ? omui::semantic::html_look(host.runtime(), snapshot) : omui::semantic::Look{};
+        const std::string html = omui::semantic::static_html(snapshot, {.lang = lang, .look = o.static_look ? &look : nullptr});
         if (auto w = mcpplibs::os::fs::write_atomic(o.static_html, html); !w) {
             error("{}: {}", utf8(o.static_html), w.error().message());
             return 1;

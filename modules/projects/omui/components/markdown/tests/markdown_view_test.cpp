@@ -533,7 +533,8 @@ UTest cases{"ui.markdown", [] {
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
         // Re-pinned with M1 ⑤b: the sample's code block reads `import omui;` (was `import openmui;`).
-        expect(eq(hash.hex(), std::string("ab03efbf649fa262")));
+        // Re-pinned with UI5 step 2: a block of text is as tall as its lines (no rounding up to a whole pixel).
+        expect(eq(hash.hex(), std::string("2b0b19fd6b3386ab")));
     };
 
     "HTML as the source (format html, D-141): the same document as its Markdown — the same tree, the same pixels; appended to; its tasks as written"_test = [] {

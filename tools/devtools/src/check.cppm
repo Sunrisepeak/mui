@@ -109,7 +109,7 @@ struct Size {
 // CI's matrix on this one Linux machine (lint, GCC dev and release, LLVM, the budgets, features, templates, agent e2e, and
 // the Windows target under wine where wine is): `members` empty, the whole workspace.
 [[nodiscard]] int matrix(const std::filesystem::path& root, const std::vector<std::string>& members);
-[[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+[[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args, std::string_view screen = {});
 
 // The design shown in place and the customization of a page as it ships (G8): the page `built` (example 13's when
 // empty) in a real browser through window.omui — the replay, a look previewed, committed and undone, a view document

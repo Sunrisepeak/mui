@@ -47,9 +47,12 @@ omui-devtools incremental -p mlibs.math
 
 Examples 03 (the tally) and 07 (the notes) read and operated through AT-SPI, as a screen reader does (D-21): the accessibility bus turned on as Orca turns it on, each example on SDL's offscreen driver found in the registry by its window's name, its tree walked (names, roles, states, values), the +1 button pressed through Action, the goal slider read and set through Value, the draft field's text read through Text and written through EditableText, its caret and a word's selection moved, and the note added. It speaks D-Bus through mpal's own client (no libdbus, no busctl); mpal is preview, so `atspi` is the one part of this tool that rests on a preview package. A JSON report of every check; exit 1 when one failed.
 
+With `--screen MONITOR` (RM2) the same walk runs on this machine's desktop: its own accessibility bus and registry (every other application in it; ours found by its program's name), each example in a real window of the machine's X server, opened on that monitor. What AT-SPI says is held to the window: a node's place on the screen is the window's corner plus its place in the window, the window's own pixels there are drawn, a press through Action is drawn in the window. The desktop's accessibility switch is its person's and is left alone: the examples find the switch on on a session bus of the check's (an AT-SPI bus launcher there, its settings in memory) and are told the desktop's accessibility bus (`AT_SPI_BUS_ADDRESS`).
+
 ```sh
 dbus-run-session -- omui-devtools atspi <tally> <notes-agent>    # the client alone
 omui-devtools check atspi                                         # CI's Linux x64 rows: both built, a private bus
+omui-devtools check atspi --screen HDMI-0                         # the desktop's buses, real windows on that monitor
 ```
 
 ## api

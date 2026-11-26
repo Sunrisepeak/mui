@@ -446,6 +446,22 @@ Size logical_size(Window& w) {
     return {static_cast<float>(pw) / s, static_cast<float>(ph) / s};
 }
 
+std::optional<std::pair<Rect, Rect>> screen_bounds(Window& w) {
+    int x = 0, y = 0, width = 0, height = 0;
+    if (!SDL_GetWindowPosition(w.window, &x, &y) || !SDL_GetWindowSize(w.window, &width, &height)) return std::nullopt;
+    int top = 0, left = 0, bottom = 0, right = 0;
+    if (!SDL_GetWindowBordersSize(w.window, &top, &left, &bottom, &right)) top = left = bottom = right = 0;  // none told
+    // SDL's window coordinates are the screen's in its pixels where the system has them (X11): logical, as the rest.
+    const float k = SDL_GetWindowPixelDensity(w.window) / pixel_scale(w);
+    const auto logical = [k](int at, int across, int before, int after) {
+        return std::pair{static_cast<float>(at - before) * k, static_cast<float>(across + before + after) * k};
+    };
+    const auto [frame_x, frame_width] = logical(x, width, left, right);
+    const auto [frame_y, frame_height] = logical(y, height, top, bottom);
+    return std::pair{Rect{frame_x, frame_y, frame_width, frame_height},
+                     Rect{static_cast<float>(x) * k, static_cast<float>(y) * k, static_cast<float>(width) * k, static_cast<float>(height) * k}};
+}
+
 float pixel_scale(Window& w) {
     const float s = SDL_GetWindowDisplayScale(w.window);
     return s > 0 ? s : 1.0f;

@@ -81,6 +81,10 @@ bool pass_through(Window& w, bool on);
 Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeout);
 
 [[nodiscard]] Size  logical_size(Window& w);
+// The window's place on the screen in logical units: its frame (the system's decorations included) and its content —
+// where assistive technology says a node is on the screen (AT-SPI's screen coordinates); none where the system tells
+// no place (SDL cannot ask it).
+[[nodiscard]] std::optional<std::pair<Rect, Rect>> screen_bounds(Window& w);
 // What rhi::sdl::Options::window takes.
 [[nodiscard]] std::uint32_t window_id(Window& w);
 [[nodiscard]] float pixel_scale(Window& w);

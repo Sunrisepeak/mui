@@ -4,6 +4,7 @@ import std;
 import mcpplibs.os;
 import mcpplibs.mpal;
 import nlohmann.json;
+import omui.devtools.x11;
 
 namespace omui::devtools::atspi {
 namespace {
@@ -60,25 +61,26 @@ class Tree {
 public:
     explicit Tree(dbus::Bus bus) : bus_(std::move(bus)) {}
 
-    std::vector<Value> call(const Ref& ref, std::string_view interface, std::string_view member, std::string_view signature = {}, std::vector<Value> arguments = {}) {
+    std::vector<Value> call(const Ref& ref, std::string_view interface, std::string_view member, std::string_view signature = {}, std::vector<Value> arguments = {},
+                            std::chrono::milliseconds wait = std::chrono::milliseconds(10000)) {
         auto answered = bus_.call({.destination = ref.bus, .path = ref.path, .interface = std::string(interface), .member = std::string(member),
                                    .signature = std::string(signature), .arguments = std::move(arguments)},
-                                  std::chrono::milliseconds(10000));
+                                  wait);
         if (!answered) {
             failure = std::format("{}.{} on {}: {}", interface, member, ref.path, answered.error().text);
             return {};
         }
         return std::move(*answered);
     }
-    Value get(const Ref& ref, std::string_view interface, std::string_view property) {
-        auto body = call(ref, "org.freedesktop.DBus.Properties", "Get", "ss", {Value::of(std::string(interface)), Value::of(std::string(property))});
+    Value get(const Ref& ref, std::string_view interface, std::string_view property, std::chrono::milliseconds wait = std::chrono::milliseconds(10000)) {
+        auto body = call(ref, "org.freedesktop.DBus.Properties", "Get", "ss", {Value::of(std::string(interface)), Value::of(std::string(property))}, wait);
         return body.empty() ? Value{} : inner(body.front());
     }
     void set(const Ref& ref, std::string_view interface, std::string_view property, std::string signature, Value value) {
         (void)call(ref, "org.freedesktop.DBus.Properties", "Set", "ssv",
                    {Value::of(std::string(interface)), Value::of(std::string(property)), Value{dbus::Variant{std::move(signature), std::make_shared<Value>(std::move(value))}}});
     }
-    std::string name(const Ref& ref) { return text(get(ref, accessible, "Name")); }
+    std::string name(const Ref& ref, std::chrono::milliseconds wait = std::chrono::milliseconds(10000)) { return text(get(ref, accessible, "Name", wait)); }
     std::string role(const Ref& ref) {
         const auto body = call(ref, accessible, "GetRole");
         return body.empty() ? std::string("unknown") : role_name(static_cast<std::uint32_t>(integer(body.front()).value_or(0)));
@@ -93,9 +95,10 @@ public:
         }
         return out;
     }
-    // Where a node is drawn, in the window (Component.GetExtents, ATSPI_COORD_TYPE_WINDOW): x, y, width, height.
-    std::optional<std::array<std::int64_t, 4>> extents(const Ref& ref) {
-        const auto body = call(ref, "org.a11y.atspi.Component", "GetExtents", "u", {Value{std::uint32_t{1}}});
+    // Where a node is drawn (Component.GetExtents): in the window (ATSPI_COORD_TYPE_WINDOW, the default) or on the
+    // screen (ATSPI_COORD_TYPE_SCREEN, 0): x, y, width, height.
+    std::optional<std::array<std::int64_t, 4>> extents(const Ref& ref, std::uint32_t coordinates = 1) {
+        const auto body = call(ref, "org.a11y.atspi.Component", "GetExtents", "u", {Value{coordinates}});
         if (body.empty()) return std::nullopt;
         const auto& box = list(body.front());
         if (box.size() != 4) return std::nullopt;
@@ -115,14 +118,70 @@ private:
     dbus::Bus bus_;
 };
 
+// A desktop's display, the examples' windows opened on one monitor (RM2).
+struct Desktop {
+    x11::Display display;
+    x11::Monitor monitor;
+    std::filesystem::path session;  // the examples' session bus (a socket of the check's)
+    std::string accessibility;      // the desktop's accessibility bus, as its session bus gives it
+};
+
+// The examples' session bus on a desktop: a bus of the check's at `socket`, an AT-SPI bus launcher on it (settings in
+// memory: the person's are not written) and its switch turned on — what an application asks before it speaks AT-SPI.
+std::expected<std::pair<mcpplibs::os::process::process, mcpplibs::os::process::process>, std::string> examples_session(const std::filesystem::path& socket) {
+    namespace process = mcpplibs::os::process;
+    std::error_code error;
+    std::filesystem::create_directories(socket.parent_path(), error);
+    std::filesystem::remove(socket, error);
+    const std::string address = "unix:path=" + mcpplibs::os::fs::utf8(socket);
+    process::spawn_options bus{.program = "dbus-daemon", .args = {"--session", "--nofork", "--address=" + address}};
+    bus.out = bus.err = process::stdio::null;
+    bus.bound_lifetime = true;
+    auto daemon = process::process::spawn(bus);
+    if (!daemon) return std::unexpected(std::format("dbus-daemon did not start: {}", daemon.error().message()));
+    for (int attempt = 0; attempt < 100 && !std::filesystem::exists(socket); ++attempt) std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    constexpr std::string_view launcher_path = "/usr/libexec/at-spi-bus-launcher";
+    process::spawn_options launch{.program = std::filesystem::path(launcher_path),
+                                  .env = {{"DBUS_SESSION_BUS_ADDRESS", address}, {"GSETTINGS_BACKEND", "memory"}}};
+    launch.out = launch.err = process::stdio::null;
+    launch.bound_lifetime = true;
+    auto launcher = process::process::spawn(launch);
+    if (!launcher) return std::unexpected(std::format("{} did not start: {}", launcher_path, launcher.error().message()));
+    auto connected = dbus::Bus::address(address);
+    if (!connected) return std::unexpected(std::format("{}: {}", address, connected.error().text));
+    std::string why = "no answer";
+    bool on = false;
+    for (int attempt = 0; attempt < 50 && !on; ++attempt) {
+        if (attempt > 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        const auto set = connected->call({.destination = "org.a11y.Bus", .path = "/org/a11y/bus", .interface = "org.freedesktop.DBus.Properties", .member = "Set", .signature = "ssv",
+                              .arguments = {Value::of("org.a11y.Status"), Value::of("IsEnabled"), Value{dbus::Variant{"b", std::make_shared<Value>(Value{true})}}}},
+                             std::chrono::milliseconds(2000));
+        on = set.has_value();
+        if (!set) why = set.error().text;
+    }
+    if (!on) return std::unexpected(std::format("the launcher's switch: {}", why));
+    return std::pair{std::move(*daemon), std::move(*launcher)};
+}
+
 // One example, running, and its window found in the registry.
 class App {
 public:
-    App(Tree& tree, Report& report, const std::filesystem::path& binary, std::string window) : tree_(tree), report_(report), window_name_(std::move(window)) {
+    App(Tree& tree, Report& report, const std::filesystem::path& binary, std::string window, Desktop* desktop = nullptr)
+        : tree_(tree), report_(report), window_name_(std::move(window)), desktop_(desktop) {
         mcpplibs::os::process::spawn_options spawn;
         spawn.program = binary;
-        spawn.args = {"--cpu", "--no-agent"};
-        spawn.env = {{"SDL_VIDEO_DRIVER", "offscreen"}, {"SDL_RENDER_DRIVER", "software"}};
+        if (desktop_) {
+            // A real window on the machine's display, drawn as the example draws by default; opened on the monitor
+            // the pointer is on (the window manager's rule), so the pointer waits there.
+            const x11::Rect& on = desktop_->monitor.area;
+            (void)desktop_->display.pointer(on.x + 4, on.y + on.height - 4);
+            spawn.args = {"--no-agent"};
+            spawn.env = {{"DBUS_SESSION_BUS_ADDRESS", "unix:path=" + mcpplibs::os::fs::utf8(desktop_->session)},
+                         {"AT_SPI_BUS_ADDRESS", desktop_->accessibility}};
+        } else {
+            spawn.args = {"--cpu", "--no-agent"};
+            spawn.env = {{"SDL_VIDEO_DRIVER", "offscreen"}, {"SDL_RENDER_DRIVER", "software"}};
+        }
         spawn.out = mcpplibs::os::process::stdio::null;
         spawn.err = mcpplibs::os::process::stdio::inherit;  // the example's own complaints, in the log beside the report
         auto started = mcpplibs::os::process::process::spawn(spawn);
@@ -131,16 +190,49 @@ public:
             return;
         }
         process_ = std::move(*started);
+        const std::string program_name = mcpplibs::os::fs::utf8(binary.filename());
         const Ref root{"org.a11y.atspi.Registry", "/org/a11y/atspi/accessible/root"};
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
         while (std::chrono::steady_clock::now() < deadline && !window_) {
             // An application (named as its process), holding its window.
-            for (const Ref& application : tree_.children(root))
+            for (const Ref& application : tree_.children(root)) {
+                // On a desktop the registry holds every other application too: only this program's (its name, the
+                // newest) is asked further. Its process is not compared: the bus may see another namespace's number.
+                if (desktop_ && tree_.name(application, std::chrono::milliseconds(1000)) != program_name) continue;
                 for (const Ref& ref : tree_.children(application))
                     if (tree_.name(ref) == window_name_) window_ = ref;
+            }
             if (!window_) std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }
         check(window_.has_value(), std::format("{}: in AT-SPI's registry, named as its window", window_name_));
+        // On a desktop, its window on the screen: the process's own, on the monitor asked for.
+        while (desktop_ && window_ && std::chrono::steady_clock::now() < deadline && !xwindow_) {
+            if (const auto found = desktop_->display.window_of(process_.id()); found && *found) xwindow_ = *found;
+            else std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        if (desktop_ && window_) {
+            const x11::Rect& on = desktop_->monitor.area;
+            const auto inside = [&](const std::array<std::int32_t, 2>& at) {
+                return at[0] >= on.x && at[1] >= on.y && at[0] < on.x + on.width && at[1] < on.y + on.height;
+            };
+            std::expected<std::array<std::int32_t, 2>, std::string> corner = std::unexpected(std::string("no window"));
+            if (xwindow_) corner = desktop_->display.origin(xwindow_);
+            // Opened on another monitor (the window manager's choice): moved onto the one asked for.
+            if (corner && !inside(*corner)) {
+                (void)desktop_->display.move(xwindow_, on.x + 60, on.y + 60);
+                for (int attempt = 0; attempt < 40 && corner && !inside(*corner); ++attempt) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    corner = desktop_->display.origin(xwindow_);
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(200));  // its move told to the application
+            }
+            const bool placed = corner && inside(*corner);
+            if (corner) corner_ = *corner;
+            check(placed, std::format("{}: a real window of the machine's X server (0x{:x}), on {} at {},{}", window_name_, xwindow_, desktop_->monitor.name,
+                                      corner ? (*corner)[0] : -1, corner ? (*corner)[1] : -1));
+            report_.display += std::format("{}{} 0x{:x} at {},{} on {} ({}x{} at {:.2f} Hz)", report_.display.empty() ? "" : "; ", window_name_, xwindow_,
+                                           corner_[0], corner_[1], desktop_->monitor.name, on.width, on.height, desktop_->monitor.hertz);
+        }
         // Its tree as the application tells it once AT-SPI listens (the window may come first, alone, for a frame).
         for (int attempt = 0; window_ && attempt < 50 && nodes_.size() < 2; ++attempt) {
             if (attempt > 0) std::this_thread::sleep_for(std::chrono::milliseconds(200));
@@ -216,12 +308,51 @@ public:
         return out;
     }
 
+    [[nodiscard]] bool on_desktop() const noexcept { return desktop_ && xwindow_; }
+    [[nodiscard]] Desktop& desktop() noexcept { return *desktop_; }
+    [[nodiscard]] std::uint32_t xwindow() const noexcept { return xwindow_; }
+    [[nodiscard]] std::array<std::int32_t, 2> corner() const noexcept { return corner_; }
+    // On a desktop: a node's place held to the window — where AT-SPI says it is on the screen is the window's
+    // corner plus where it says it is in the window, and the window's pixels there are drawn (not one colour).
+    void placed(const Walked& node) {
+        if (!on_desktop()) return;
+        const auto inside = tree_.extents(node.ref, 1), screen = tree_.extents(node.ref, 0);
+        if (!check(inside && screen && (*inside)[2] > 0 && (*inside)[3] > 0, std::format("{}: its places in the window and on the screen", node.node.name)))
+            return;
+        const auto& [x, y, width, height] = *inside;
+        constexpr std::int64_t slack = 2;
+        check(std::abs((*screen)[0] - (corner_[0] + x)) <= slack && std::abs((*screen)[1] - (corner_[1] + y)) <= slack,
+              std::format("{}: on the screen at {},{}, the window's corner {},{} plus its place in the window {},{}", node.node.name, (*screen)[0], (*screen)[1],
+                          corner_[0], corner_[1], x, y));
+        const auto picture = pixels({static_cast<std::int32_t>(x), static_cast<std::int32_t>(y), static_cast<std::int32_t>(width), static_cast<std::int32_t>(height)});
+        check(picture && !x11::uniform(*picture), std::format("{}: drawn where AT-SPI says, {}x{} at {},{} of the window's own pixels", node.node.name, width, height, x, y));
+    }
+    // The window's own pixels in `area` (in the window); none off a desktop.
+    std::optional<std::vector<std::uint32_t>> pixels(x11::Rect area) {
+        if (!on_desktop()) return std::nullopt;
+        auto image = desktop_->display.image(area, xwindow_);
+        if (!image) return std::nullopt;
+        return std::move(image->pixels);
+    }
+    // Until `area` of the window no longer shows `was` (at most `seconds`): a change drawn.
+    bool redrawn(x11::Rect area, std::uint64_t was, double seconds = 5) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::duration<double>(seconds);
+        while (std::chrono::steady_clock::now() < deadline) {
+            if (const auto now = pixels(area); now && x11::hash(*now) != was) return true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+        return false;
+    }
+
 private:
     Tree&                                tree_;
     Report&                              report_;
     std::string                          window_name_;
+    Desktop*                             desktop_ = nullptr;
     mcpplibs::os::process::process       process_;
     std::optional<Ref>                   window_;
+    std::uint32_t                        xwindow_ = 0;
+    std::array<std::int32_t, 2>          corner_{};
     std::vector<Walked>                  nodes_;
 };
 
@@ -239,6 +370,8 @@ void tally(App& app, Tree& tree, Report& report) {
         app.check(a && b && (*a)[2] > 0 && (*b)[2] > 0 && ((*a)[0] >= (*b)[0] + (*b)[2] || (*b)[0] >= (*a)[0] + (*a)[2] || (*a)[1] >= (*b)[1] + (*b)[3] || (*b)[1] >= (*a)[1] + (*a)[3]),
                   "+1 and −1 each at its own place in the window");
     }
+    if (plus) app.placed(*plus);
+    if (minus) app.placed(*minus);
     app.check(app.first("0", "label") || app.first("0", "static"), "the count, 0, as static text");
     app.check(app.first("Towards the goal", "progress bar"), "the progress, named");
     app.check(app.first("10 to go"), "the status");
@@ -248,8 +381,19 @@ void tally(App& app, Tree& tree, Report& report) {
         for (const Value& action : body.empty() ? list(Value{}) : list(body.front()))
             if (const auto& fields = list(action); !fields.empty()) report.actions.push_back(text(fields.front()));
         app.check(!report.actions.empty(), "the button offers an action");
+        // On a desktop: where the count is drawn in the window, before the press.
+        std::optional<x11::Rect> count_place;
+        std::uint64_t count_before = 0;
+        if (const Walked* count = app.on_desktop() ? (app.first("0", "label") ? app.first("0", "label") : app.first("0", "static")) : nullptr)
+            if (const auto box = tree.extents(count->ref, 1); box && (*box)[2] > 0 && (*box)[3] > 0) {
+                count_place = x11::Rect{static_cast<std::int32_t>((*box)[0]), static_cast<std::int32_t>((*box)[1]), static_cast<std::int32_t>((*box)[2]),
+                                        static_cast<std::int32_t>((*box)[3])};
+                if (const auto seen = app.pixels(*count_place)) count_before = x11::hash(*seen);
+            }
         app.check(app.press(*plus), "pressed through the Action interface");
         app.check(app.until([&] { return app.first("1", "label") || app.first("1", "static"); }), "the count reads 1 afterwards");
+        if (app.on_desktop())
+            app.check(count_place && app.redrawn(*count_place, count_before), "the press is drawn: the count's place in the real window changed");
         app.check(app.first("9 to go"), "and the status says what is left");
         minus = app.first("−1");
         app.check(minus && app.enabled(*minus), "−1 is enabled once there is something to take away");
@@ -342,26 +486,85 @@ std::string Report::json() const {
     out["actions"] = actions;
     if (goal_value) out["goal_value"] = *goal_value;
     out["word_at_5"] = word_at_5;
+    if (!display.empty()) out["display"] = display;
     return out.dump(2);
 }
 
-Report check(const std::filesystem::path& tally_binary, const std::filesystem::path& notes_binary) {
+Report check(const std::filesystem::path& tally_binary, const std::filesystem::path& notes_binary, const Options& options) {
+    const std::string_view screen = options.screen;
     Report report;
+    // On a desktop: its display, the monitor the windows open on; the pointer put back where its person left it.
+    std::optional<Desktop> desktop;
+    std::optional<x11::Display::Pointer> left;
+    if (!screen.empty()) {
+        const auto named = mcpplibs::os::env::get("DISPLAY").value_or("");
+        int number = -1;
+        if (named.starts_with(':')) (void)std::from_chars(named.data() + 1, named.data() + named.size(), number);
+        std::expected<x11::Display, std::string> opened = std::unexpected(std::format("DISPLAY ({}) is not a local display", named));
+        if (number >= 0) opened = x11::Display::open(number);
+        if (!opened) {
+            report.checks.push_back({false, std::format("the machine's display: {}", opened.error())});
+            return report;
+        }
+        const auto monitors = opened->monitors();
+        const auto chosen = monitors ? std::ranges::find(*monitors, screen, &x11::Monitor::name) : std::vector<x11::Monitor>::const_iterator{};
+        if (!monitors || chosen == monitors->end()) {
+            report.checks.push_back({false, std::format("the display has a monitor {}", screen)});
+            return report;
+        }
+        if (auto extensions = opened->watch(false); !extensions) {  // XTEST and DAMAGE asked for: the pointer, the keys
+            report.checks.push_back({false, std::format("the machine's display: {}", extensions.error())});
+            return report;
+        }
+        if (const auto pointer = opened->where_pointer()) left = *pointer;
+        desktop.emplace(Desktop{std::move(*opened), *chosen,
+                                std::filesystem::temp_directory_path() / std::format("omui-atspi-{}", mcpplibs::os::process::self().transform([](const auto& me) { return me.id; }).value_or(0)) / "session"});
+    }
+    struct PutBack {
+        std::optional<Desktop>& desktop;
+        std::optional<x11::Display::Pointer> left;
+        ~PutBack() {
+            if (desktop && left) (void)desktop->display.pointer(left->x, left->y);
+        }
+    } put_back{desktop, left};
     // The accessibility bus turned on, on the session bus, and its address asked for (as Orca does).
     auto session = dbus::Bus::session();
     if (!session) {
         report.checks.push_back({false, std::format("the session bus: {}", session.error().text)});
         return report;
     }
-    const auto on = session->call({.destination = "org.a11y.Bus", .path = "/org/a11y/bus", .interface = "org.freedesktop.DBus.Properties", .member = "Set", .signature = "ssv",
-                                   .arguments = {Value::of("org.a11y.Status"), Value::of("IsEnabled"), Value{dbus::Variant{"b", std::make_shared<Value>(Value{true})}}}},
-                                  std::chrono::milliseconds(10000));
+    // On a desktop its own switch is its person's and is left alone: the examples are told the desktop's accessibility
+    // bus (AT_SPI_BUS_ADDRESS, AT-SPI's own way) and find the switch on on a session bus of the check's (an AT-SPI bus
+    // launcher there, its settings in memory). The desktop's session bus is only asked where the accessibility bus is.
+    struct Removed {  // the session's socket and its directory, gone after its bus (declared first: destroyed last)
+        std::filesystem::path directory;
+        ~Removed() {
+            std::error_code error;
+            if (!directory.empty()) std::filesystem::remove_all(directory, error);
+        }
+    } removed{desktop ? desktop->session.parent_path() : std::filesystem::path{}};
+    std::optional<mcpplibs::os::process::process> private_session, launcher;
+    if (desktop) {
+        auto made = examples_session(desktop->session);
+        if (!made) {
+            report.checks.push_back({false, std::format("the examples' session bus: {}", made.error())});
+            return report;
+        }
+        private_session = std::move(made->first);
+        launcher = std::move(made->second);
+    }
+    const auto on = desktop ? std::expected<std::vector<Value>, mcpplibs::mpal::Error>(std::vector<Value>{})
+                            : session->call({.destination = "org.a11y.Bus", .path = "/org/a11y/bus", .interface = "org.freedesktop.DBus.Properties", .member = "Set",
+                                             .signature = "ssv",
+                                             .arguments = {Value::of("org.a11y.Status"), Value::of("IsEnabled"), Value{dbus::Variant{"b", std::make_shared<Value>(Value{true})}}}},
+                                            std::chrono::milliseconds(10000));
     const auto address = session->call({.destination = "org.a11y.Bus", .path = "/org/a11y/bus", .interface = "org.a11y.Bus", .member = "GetAddress"},
                                        std::chrono::milliseconds(10000));
     if (!on || !address || address->empty()) {
         report.checks.push_back({false, std::format("the accessibility bus turned on: {}", !on ? on.error().text : !address ? address.error().text : "no address")});
         return report;
     }
+    if (desktop) desktop->accessibility = text(address->front());
     auto bus = dbus::Bus::address(text(address->front()));
     if (!bus) {
         report.checks.push_back({false, std::format("the accessibility bus at {}: {}", text(address->front()), bus.error().text)});
@@ -370,7 +573,7 @@ Report check(const std::filesystem::path& tally_binary, const std::filesystem::p
     Tree tree(std::move(*bus));
     const auto one = [&](const std::filesystem::path& binary, std::string window, void (*run)(App&, Tree&, Report&)) {
         tree.failure.clear();
-        App app(tree, report, binary, window);
+        App app(tree, report, binary, window, desktop ? &*desktop : nullptr);
         if (app.found()) run(app, tree, report);
         if (!tree.failure.empty()) report.checks.push_back({false, std::format("{}: {}", window, tree.failure)});
     };

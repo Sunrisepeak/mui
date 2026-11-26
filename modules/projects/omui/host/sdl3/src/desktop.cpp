@@ -128,6 +128,7 @@ struct Desktop::Impl final : WindowHost {
     // Assistive technology's view of the tree (D-21).
     std::unique_ptr<accessibility::Mirror>   mirror;
     std::unique_ptr<accessibility::Adapter>  access;
+    std::array<float, 8>                     access_bounds{};  // the window's place last told it (frame, content)
     // The system's notifications, opened when the first is shown (none: drawn instead).
     std::optional<std::unique_ptr<NativeNotices>> notices;
     platform::WindowPtr                      window;
@@ -750,6 +751,16 @@ bool Desktop::step(bool wait) {
     FrameOutput out = d.runtime->frame(in);
     if (d.access) {
         d.access->set_scale(d.runtime->scale());
+        // Where the window is on the screen, told when it moved: a node's place on the screen is the window's plus its
+        // own (AT-SPI's screen coordinates; the window at 0,0 otherwise, RM2).
+        if (const auto placed = platform::screen_bounds(*d.window)) {
+            const auto& [frame, content] = *placed;
+            const std::array<float, 8> now{frame.x, frame.y, frame.width, frame.height, content.x, content.y, content.width, content.height};
+            if (now != d.access_bounds) {
+                d.access_bounds = now;
+                d.access->window_bounds(frame, content);
+            }
+        }
         d.access->update();
     }
     d.demand = out.demand;

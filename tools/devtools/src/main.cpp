@@ -277,6 +277,7 @@ cmd::App app() {
                         .option(Option("check").help("exit 1 where a member's api.omui.txt is not its surface now")))
         .subcommand(cmd::App("atspi")
                         .description("Examples 03 and 07 read and operated through AT-SPI as a screen reader does; a JSON report (exit 1 when a check fails)")
+                        .option(Option("screen").takes_value().value_name("MONITOR").help("on the desktop's own buses, real windows on this monitor (RM2)"))
                         .arg(Arg("tally").required().help("example 03's program (tally)"))
                         .arg(Arg("notes").help("example 07's program (notes-agent)")))
         .subcommand(cmd::App("platforms")
@@ -358,7 +359,8 @@ cmd::App app() {
                                         .option(Option("fixture").takes_value().value_name("FILE").help("this generated index.html, the tests not run")))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
-                                        .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))))
+                                        .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))
+                                        .option(Option("screen").takes_value().value_name("MONITOR").help("the desktop's buses and real windows on this monitor instead (RM2)"))))
         .subcommand(cmd::App("media")
                         .description("The showcases' and the site's README media: what their tests draw, copied in (or, --check, held to it)")
                         .option(Option("check").help("hold the committed media to what the tests drew (after the tests)"))
@@ -1743,7 +1745,7 @@ int main(int argc, char** argv) {
             for (std::size_t index = 0; index < given.positional_count(); ++index) packages.push_back(given.positional(index));
             return step::toy(root, std::move(packages));
         }
-        return step::atspi(root, profile);
+        return step::atspi(root, profile, given.value("screen").value_or(""));
     }
     if (parsed->subcommand_name() == "site") return site_command(parsed->subcommand()->get(), root);
     if (parsed->subcommand_name() == "gpu") {
@@ -1815,7 +1817,8 @@ int main(int argc, char** argv) {
     if (parsed->subcommand_name() == "atspi") {
         const auto& sub = parsed->subcommand()->get();
         const auto report = omui::devtools::atspi::check(mcpplibs::os::fs::from_utf8(sub.positional(0)),
-                                                         sub.positional_count() > 1 ? mcpplibs::os::fs::from_utf8(sub.positional(1)) : fs::path{});
+                                                         sub.positional_count() > 1 ? mcpplibs::os::fs::from_utf8(sub.positional(1)) : fs::path{},
+                                                         {.screen = sub.value("screen").value_or("")});
         std::cout << report.json() << '\n';
         return report.ok() ? 0 : 1;
     }

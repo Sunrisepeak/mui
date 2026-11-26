@@ -87,7 +87,7 @@
       "name": "The accessibility bridge to the system's screen reader",
       "label": "stable",
       "cells": {
-        "linux-x64": {"status": "real", "evidence": "AT-SPI on CI (omui-devtools check atspi)"},
+        "linux-x64": {"status": "real", "evidence": "the desktop's own AT-SPI bus and registry, examples 03 and 07 in real windows on HDMI-0 of this machine's X server (omui-devtools check atspi --screen HDMI-0, 2026-11-27: 42 of 42 checks; each node's place on the screen is the window's corner plus its place in it, the window's own pixels drawn there, a press through Action drawn in the window); on CI the same walk on a private bus with SDL's offscreen windows (omui-devtools check atspi: 33 of 33 here too)"},
         "macos-arm64": {"status": "unverified", "needs": "NSAccessibility read by VoiceOver on a runner that runs it"},
         "windows-x64": {"status": "unverified", "needs": "UI Automation read by a screen reader on a runner that runs it"},
         "web": {"status": "unverified", "needs": "the page's accessibility tree read by a screen reader"}

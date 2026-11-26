@@ -24,7 +24,7 @@ Open a page. It reads before any script runs: headings, links, tables and code a
 
 ### As an agent
 
-Fetch `llms.txt`, then a page's `index.md`; `search.xdef.json` holds every section's text. See [what an agent may do](agent.md#what-an-agent-may-do).
+Fetch `llms.txt`, then a page's `index.md`; `site.search.xdef.json` holds every section's text. See [what an agent may do](agent.md#what-an-agent-may-do).
 
 ### As a search engine
 

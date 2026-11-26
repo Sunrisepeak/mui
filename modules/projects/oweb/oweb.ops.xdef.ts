@@ -9,13 +9,13 @@ export default defineOps({
   product: "oweb",
   module: "oweb",
   namespace: "oweb",
-  doc: "Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, and search every page's sections, without building the site.",
+  doc: "A site states its title, address, languages, routes and budget in its oweb.config.ts; every operation reads it and a request's options stand over it. Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, and search every page's sections, without building the site.",
   generated: "src/catalog",
   operations: [
     {
       name: "site.build",
       effect: "reversible",
-      summary: "Build the site: each page of pages/ a route with its index.html (the tree as HTML: readable with no script) and index.md (the tree as Markdown), the routes table, llms.txt, the search index, given the site's address sitemap.xml, and the delivery manifest — every file as stored and as a static host sends it, each route's bytes before it reads held to a budget (over it: written, and failed with where)",
+      summary: "Build the site: each page of pages/ a route with its index.html (the tree as HTML: readable with no script) and index.md (the tree as Markdown), the routes table, llms.txt, the search index, given the site's address sitemap.xml, and the delivery manifest — every file as stored and as a static host sends it, each route's bytes before it reads held to a budget (over it: written, and failed with where). A link inside the site that leads nowhere fails the build with each one said, and nothing is written",
       params: [
         { name: "site", type: "path", doc: "the site's directory (it holds pages/)" },
         { name: "out", type: "path", doc: "the directory written" },
@@ -55,7 +55,7 @@ export default defineOps({
     {
       name: "docs.search",
       effect: "read",
-      summary: "The sections of a site's pages that hold every word asked for, best first: each its route, its anchor, the headings it is under and the line that says so — the same index a built site serves as search.xdef.json",
+      summary: "The sections of a site's pages that hold every word asked for, best first: each its route, its anchor, the headings it is under and the line that says so — the same index a built site serves as site.search.xdef.json",
       params: [
         { name: "site", type: "path", doc: "the site's directory" },
         { name: "query", type: "string", doc: "the words; text without spaces between words matches by characters in a row" },

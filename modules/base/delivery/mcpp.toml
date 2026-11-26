@@ -15,6 +15,9 @@ maturity = "preview"  # release plan §2.1: stable, preview or experimental (lin
 separate = "dependency: zlib, kept from the tools and libraries that measure nothing; the delivery manifest of every tool that builds something to serve"
 kind = "tool"
 
+[package.metadata.openmui.xdef]
+kinds = { delivery = 1 }  # the manifest a tool writes (<name>.delivery.xdef.json)
+
 [targets.mlibs-delivery]
 kind = "lib"
 

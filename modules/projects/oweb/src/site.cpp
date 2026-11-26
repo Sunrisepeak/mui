@@ -109,27 +109,49 @@ std::string relative(std::string_view from, std::string_view to) {
 }
 
 std::expected<std::vector<Route>, std::string> collect(const std::filesystem::path& site, const SiteOptions& options) {
+    // What the navigation and the tables say of a page, read from its document: no page is drawn for that. Its
+    // language is its address's first part where that is one of the site's, the site's first otherwise.
+    const auto described = [&](Route& route) -> std::expected<void, std::string> {
+        const auto text = read(site / mcpplibs::os::fs::from_utf8(route.source));
+        if (!text) return std::unexpected(text.error());
+        const md::Document document = md::parse(*text);
+        md::walk(document.root, [&](const md::Block& block) {
+            if (block.kind == md::Kind::heading) route.headings.push_back({block.level, md::plain_text(block), block.anchor});
+        });
+        if (route.title.empty()) route.title = route.headings.empty() ? route.path : route.headings.front().text;
+        const std::size_t end = route.path.find('/', 1);
+        const std::string first = end == std::string::npos ? std::string{} : route.path.substr(1, end - 1);
+        const auto language = std::ranges::find(options.languages, first);
+        route.language = language != options.languages.end() ? *language : options.languages.empty() ? std::string("en") : options.languages.front();
+        return {};
+    };
+    std::vector<Route> routes;
+    if (!options.routes.empty()) {
+        // Stated: these pages, in this order.
+        for (const Declared& declared : options.routes) {
+            Route route;
+            route.path = declared.path;
+            route.source = declared.source;
+            route.title = declared.title;
+            std::error_code missing;
+            if (!std::filesystem::is_regular_file(site / mcpplibs::os::fs::from_utf8(route.source), missing))
+                return std::unexpected(std::format("the route `{}` states the page {}, which is not in {}: write it, or take the route out of oweb.config.ts", route.path, route.source, utf8(site)));
+            if (std::ranges::contains(routes, route.path, &Route::path)) return std::unexpected(std::format("the route `{}` is stated twice: keep one", route.path));
+            if (auto read_in = described(route); !read_in) return std::unexpected(read_in.error());
+            routes.push_back(std::move(route));
+        }
+        return routes;
+    }
     const std::filesystem::path pages = site / "pages";
     std::error_code error;
     if (!std::filesystem::is_directory(pages, error)) return std::unexpected(std::format("{} has no pages/: a site's pages are the Markdown files there", utf8(site)));
-    std::vector<Route> routes;
     for (const auto& entry : std::filesystem::recursive_directory_iterator(pages, error)) {
         if (!entry.is_regular_file() || entry.path().extension() != ".md") continue;
         const std::filesystem::path from_pages = entry.path().lexically_relative(pages);
         Route route;
         route.path = address_of(from_pages);
         route.source = std::format("pages/{}", generic(from_pages));
-        const auto text = read(entry.path());
-        if (!text) return std::unexpected(text.error());
-        // What the navigation and the tables say of it, read from its document: no page is drawn for that.
-        const md::Document document = md::parse(*text);
-        md::walk(document.root, [&](const md::Block& block) {
-            if (block.kind == md::Kind::heading) route.headings.push_back({block.level, md::plain_text(block), block.anchor});
-        });
-        route.title = route.headings.empty() ? route.path : route.headings.front().text;
-        const std::string first = from_pages.begin() == from_pages.end() ? std::string{} : generic(*from_pages.begin());
-        const auto language = std::ranges::find(options.languages, first);
-        route.language = language != options.languages.end() && from_pages.has_parent_path() ? *language : options.languages.empty() ? std::string("en") : options.languages.front();
+        if (auto read_in = described(route); !read_in) return std::unexpected(read_in.error());
         routes.push_back(std::move(route));
     }
     if (error) return std::unexpected(std::format("{}: {}", utf8(pages), error.message()));
@@ -185,14 +207,42 @@ std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std
     if (document == snapshot.nodes.size()) return std::unexpected(std::format("{}: the page has no document", route.source));
 
     // A link to another page is written as that writing's own address: the route's directory in HTML, its index.md in
-    // Markdown; what stands beside the pages (a picture) is found from the route's directory, one deeper than its page.
-    const bool own_directory = route.source.ends_with("/index.md");
+    // Markdown. What stands beside the pages (a picture) is written where it stands in pages/ and found from the
+    // route's directory. A link inside the site that leads nowhere — a page that is no route, an anchor its page has
+    // not, a file that is not there — is a problem of the page, said once.
+    std::vector<std::string> problems;
+    const auto problem = [&](std::string text) {
+        if (!std::ranges::contains(problems, text)) problems.push_back(std::move(text));
+    };
     const auto rewritten = [&](std::string_view href, bool markdown) -> std::optional<std::string> {
         const auto target = inside(route.source, href);
         if (!target) return std::nullopt;
         const auto page = std::ranges::find(routes, target->first, &Route::source);
-        if (page != routes.end()) return std::format("{}{}{}", relative(route.path, page->path), markdown ? "index.md" : "", target->second);
-        return own_directory ? std::nullopt : std::optional(std::format("../{}", href));
+        if (page != routes.end()) {
+            if (target->second.starts_with('#') && target->second.size() > 1) {
+                const std::string_view anchor = std::string_view(target->second).substr(1);
+                // A heading's anchor, or a place the page's own markup names (id="…").
+                if (!std::ranges::contains(page->headings, anchor, &Heading::anchor)) {
+                    const auto text = read(site / mcpplibs::os::fs::from_utf8(page->source));
+                    if (!text || !text->contains(std::format("\"{}\"", anchor)))
+                        problem(std::format("{} links to {}: {} has no heading of the anchor `{}`", route.source, href, page->source, anchor));
+                }
+            }
+            return std::format("{}{}{}", relative(route.path, page->path), markdown ? "index.md" : "", target->second);
+        }
+        if (target->first.ends_with(".md")) {
+            problem(std::format("{} links to {}, which is no page of the site ({})", route.source, href, target->first));
+            return std::nullopt;
+        }
+        if (!target->first.starts_with("pages/")) return std::nullopt;
+        std::error_code missing;
+        if (!std::filesystem::is_regular_file(site / mcpplibs::os::fs::from_utf8(target->first), missing))
+            problem(std::format("{} names {}, which is not there ({})", route.source, href, target->first));
+        const std::filesystem::path beside = mcpplibs::os::fs::from_utf8(std::string_view(target->first).substr(6));
+        const std::string directory = beside.has_parent_path() ? std::format("/{}/", generic(beside.parent_path())) : std::string("/");
+        std::string to = relative(route.path, directory);
+        if (to == "./") to.clear();
+        return std::format("{}{}{}", to, generic(beside.filename()), target->second);
     };
     const auto addressed = [&](std::span<const Node> nodes, bool markdown) {
         std::vector<Node> out(nodes.begin(), nodes.end());
@@ -263,6 +313,7 @@ std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std
         "</head>\n<body>\n{}</body>\n</html>\n",
         escaped(route.language), escaped(options.title.empty() || options.title == route.title ? route.title : std::format("{} · {}", route.title, options.title)), sheet,
         body);
+    page.problems = std::move(problems);
     return page;
 }
 
@@ -293,7 +344,7 @@ std::string routes_json(std::span<const Route> routes, const SiteOptions& option
 
 std::string llms_txt(std::span<const Route> routes, const SiteOptions& options) {
     std::string out = std::format("# {}\n\n", options.title.empty() && !routes.empty() ? routes.front().title : options.title);
-    out += "Every page of this site is also plain Markdown: the address beside each title. The routes, with their headings: routes.xdef.json. Every section's text, to search: search.xdef.json.\n\n";
+    out += "Every page of this site is also plain Markdown: the address beside each title. The routes, with their headings: site.routes.xdef.json. Every section's text, to search: site.search.xdef.json.\n\n";
     const std::string base = options.url.empty() ? std::string() : options.url.ends_with('/') ? options.url.substr(0, options.url.size() - 1) : options.url;
     for (const Route& route : routes) out += std::format("- [{}]({}{}index.md)\n", route.title, base, options.url.empty() ? route.path.substr(1) : route.path);
     return out;
@@ -447,13 +498,25 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
         files.push_back(mlibs::delivery::measured(path, bytes));
         return {};
     };
+    // Every route evaluated before anything is written: a site with a link that leads nowhere is not built.
+    std::vector<Page> pages;
+    std::string problems;
+    std::size_t found = 0;
     for (const Route& route : *routes) {
         auto page = evaluate(site, *routes, route, options);
         if (!page) return std::unexpected(page.error());
-        const std::string directory = route.path.substr(1);
-        if (auto written = write(directory + "index.html", page->html); !written) return std::unexpected(written.error());
-        if (auto written = write(directory + "index.md", page->markdown); !written) return std::unexpected(written.error());
-        std::ranges::move(page->sections, std::back_inserter(sections));
+        for (const std::string& problem : page->problems)
+            if (++found <= 12) problems += std::format("\n  {}", problem);
+        pages.push_back(std::move(*page));
+    }
+    if (found > 0)
+        return std::unexpected(std::format("{} link{} inside the site lead{} nowhere; nothing was written:{}{}", found, found == 1 ? "" : "s", found == 1 ? "s" : "", problems,
+                                           found > 12 ? std::format("\n  … and {} more", found - 12) : std::string{}));
+    for (Page& page : pages) {
+        const std::string directory = page.route.path.substr(1);
+        if (auto written = write(directory + "index.html", page.html); !written) return std::unexpected(written.error());
+        if (auto written = write(directory + "index.md", page.markdown); !written) return std::unexpected(written.error());
+        std::ranges::move(page.sections, std::back_inserter(sections));
     }
     // What pages/ holds beside its pages (pictures, files to download), at the same place.
     std::error_code error;
@@ -463,9 +526,9 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
         if (!bytes) return std::unexpected(bytes.error());
         if (auto written = write(generic(entry.path().lexically_relative(site / "pages")), *bytes); !written) return std::unexpected(written.error());
     }
-    if (auto written = write("routes.xdef.json", routes_json(*routes, options)); !written) return std::unexpected(written.error());
+    if (auto written = write("site.routes.xdef.json", routes_json(*routes, options)); !written) return std::unexpected(written.error());
     if (auto written = write("llms.txt", llms_txt(*routes, options)); !written) return std::unexpected(written.error());
-    if (auto written = write("search.xdef.json", search_json(sections)); !written) return std::unexpected(written.error());
+    if (auto written = write("site.search.xdef.json", search_json(sections)); !written) return std::unexpected(written.error());
     if (!options.url.empty())
         if (auto written = write("sitemap.xml", sitemap_xml(*routes, options)); !written) return std::unexpected(written.error());
     // GitHub Pages serves the directory as it is (no Jekyll pass over it).
@@ -475,7 +538,7 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     built.delivery = mlibs::delivery::held(std::move(files), budgets);
     // The manifest is of the site, not of itself: written last and not listed.
     {
-        const std::filesystem::path file = out / "delivery.xdef.json";
+        const std::filesystem::path file = out / "site.delivery.xdef.json";
         if (auto written = mcpplibs::os::fs::write_atomic(file, mlibs::delivery::to_json(built.delivery)); !written)
             return std::unexpected(std::format("{}: {}", utf8(file), written.error().message()));
     }

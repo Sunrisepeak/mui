@@ -112,7 +112,7 @@ static UTest cases{"oweb.site", [] {
         expect(read(out / "guide/start/index.html").contains("<code class=\"language-sh\">xlings install omui\nomui new hello\n</code>")) << "code keeps its lines and says its language";
 
         // The tables, made from the routes.
-        const std::string routes = read(out / "routes.xdef.json");
+        const std::string routes = read(out / "site.routes.xdef.json");
         expect(routes.starts_with("{\"$format\":\"routes@1\"") && routes.contains("\"path\":\"/guide/start/\"") && routes.contains("\"markdown\":\"/guide/start/index.md\"") &&
                routes.contains("\"anchor\":\"what-is-here\"") && routes.contains("\"languages\":[\"en\",\"zh\"]"))
             << routes;
@@ -163,7 +163,7 @@ static UTest cases{"oweb.site", [] {
         const auto out = scratch("search");
         const auto built = oweb::build(data() / "docs", out, {.languages = {"en", "zh"}});
         expect(built.has_value());
-        const std::string index = read(out / "search.xdef.json");
+        const std::string index = read(out / "site.search.xdef.json");
         expect(index.starts_with("{\"$format\":\"search@1\"") && index.contains("\"anchor\":\"what-is-here\"") && index.contains("\"trail\":[\"Field notes\"]")) << index;
 
         oweb::Sites sites;
@@ -199,9 +199,9 @@ static UTest cases{"oweb.site", [] {
         expect(largest != built->delivery.files.end() && largest->compressed && largest->sent() == readable.found && largest->gzip < largest->bytes);
         std::println("    a route readable: at most {} B sent ({}), of {} B stored; the site {} B stored, {} B sent", readable.found, readable.where, largest->bytes, built->delivery.bytes,
                      built->delivery.sent);
-        const std::string manifest = read(out / "delivery.xdef.json");
+        const std::string manifest = read(out / "site.delivery.xdef.json");
         expect(manifest.starts_with("{\"$format\":\"delivery@1\"") && manifest.contains("\"name\":\"a route readable\"") && manifest.contains("\"within\":true") &&
-               manifest.contains("{\"path\":\"guide/start/index.html\",") && !manifest.contains("delivery.xdef.json"))
+               manifest.contains("{\"path\":\"guide/start/index.html\",") && !manifest.contains("site.delivery.xdef.json"))
             << manifest;
 
         // Held to less than its largest route sends: written all the same, and the verdict names the route.
@@ -219,7 +219,7 @@ static UTest cases{"oweb.site", [] {
         expect(over.str().contains("\"ok\":false") && over.str().contains("over the budget of 300") && over.str().contains(readable.where) && over.str().contains("--readable") &&
                over.str().contains("\"within\":false"))
             << over.str();
-        expect(std::filesystem::exists(std::filesystem::path(to) / "delivery.xdef.json")) << "written all the same: the manifest says where";
+        expect(std::filesystem::exists(std::filesystem::path(to) / "site.delivery.xdef.json")) << "written all the same: the manifest says where";
         expect(mlibs::agent::command_line(session, std::vector<std::string_view>{"site.build", "--site", site, "--out", to, "--languages", "en,zh"}, within, errors) == 0) << errors.str();
         expect(within.str().contains("\"ok\":true") && within.str().contains("\"sent\":") && within.str().contains("\"most\":100000") && within.str().contains("\"within\":true")) << within.str();
         expect(mlibs::agent::command_line(session, std::vector<std::string_view>{"site.build", "--site", site, "--out", to, "--readable", "small"}, not_a_number, errors) != 0);

@@ -3,9 +3,10 @@
 // people and agents (`:tool`; its catalog oweb.ops.xdef.ts).
 //
 //     auto built = oweb::build("docs", "dist", {.languages = {"en", "zh"}});
-//     // dist/index.html, dist/index.md, dist/guide/start/index.html …, dist/routes.xdef.json, dist/llms.txt
+//     // dist/index.html, dist/index.md, dist/guide/start/index.html …, dist/site.routes.xdef.json, dist/llms.txt
 export module oweb;
 
 export import :site;
+export import :config;
 export import :tool;
 export import :catalog;

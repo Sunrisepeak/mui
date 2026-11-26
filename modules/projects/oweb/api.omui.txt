@@ -1,5 +1,6 @@
 == oweb
 export import :site;
+export import :config;
 export import :tool;
 export import :catalog;
 == oweb:catalog
@@ -11,6 +12,13 @@ namespace oweb {
   inline constexpr std::array<mlibs::control::CatalogEntry, 4> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
   inline constexpr std::string_view listing = R"…";
+}
+== oweb:config
+namespace oweb {
+  inline constexpr std::string_view define_name = "oweb/define";
+  [[nodiscard]] std::string define_module();
+  [[nodiscard]] std::expected<SiteOptions, std::string> configured(const std::filesystem::path& site);
+  [[nodiscard]] std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, std::string file);
 }
 == oweb:site
 export import mlibs.delivery;
@@ -27,13 +35,23 @@ namespace oweb {
     std::string language;
     std::vector<Heading> headings;
   };
+  struct Declared {
+    std::string path;
+    std::string source;
+    std::string title;
+  };
   struct SiteOptions {
     std::string title;
     std::vector<std::string> languages{…};
     std::string url;
-    std::uintmax_t readable = 100'000; }; // A part of a page a reader can be sent to: a heading and what stands under it up to the next heading. What a // person's search box and an agent's query both answer with (one index, made from the tree: 0.1.0 plan ST5). struct Section { std::string route; // "/guide/start/" std::string anchor; // the heading's;
-    empty: the page's beginning std::string title; // the heading's text;
-    the page's title for what stands before any std::vector<std::string> trail; // the headings it is under, the page's first std::string text;
+    std::uintmax_t readable = 100'000; // Stated routes: these pages and no others, in this order — the navigation's. Empty: every page of pages/, by std::vector<Declared> routes;
+  };
+  struct Section {
+    std::string route;
+    std::string anchor;
+    std::string title;
+    std::vector<std::string> trail;
+    std::string text;
   };
   struct Page {
     Route route;
@@ -41,6 +59,7 @@ namespace oweb {
     std::string markdown;
     std::size_t nodes = 0;
     std::vector<Section> sections;
+    std::vector<std::string> problems;
   };
   struct Hit {
     Section section;

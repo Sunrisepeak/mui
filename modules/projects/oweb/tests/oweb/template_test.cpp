@@ -44,10 +44,14 @@ static UTest cases{"oweb.template", [] {
         const auto out = std::filesystem::temp_directory_path() / "openmui-tests" / "oweb" / "template";
         std::error_code error;
         std::filesystem::remove_all(out, error);
-        const auto built = oweb::build(site, out, {.languages = {"en", "zh"}, .url = "https://example.org/docs/"});
+        // Its own configuration: the title, the address, the languages, the pages in a reader's order.
+        const auto options = oweb::configured(site);
+        expect(options.has_value()) << (options ? "" : options.error());
+        if (!options) return;
+        const auto built = oweb::build(site, out, *options);
         expect(built.has_value()) << (built ? "" : built.error());
         if (!built) return;
-        expect(built->routes.size() == 7u) << built->routes.size();
+        expect(built->routes.size() == 7u && built->routes[1].path == "/start/" && built->routes[4].path == "/reference/ops/") << built->routes.size();
         std::size_t html_bytes = 0, markdown_bytes = 0;
         for (const oweb::Route& route : built->routes) {
             const std::string source = read(site / route.source);
@@ -85,7 +89,7 @@ static UTest cases{"oweb.template", [] {
     };
 
     "the questions asked of it: each answered by the section that holds the answer"_test = [] {
-        const auto sections = oweb::sections_of(package() / "templates" / "docs", {.languages = {"en", "zh"}});
+        const auto sections = oweb::sections_of(package() / "templates" / "docs", oweb::configured(package() / "templates" / "docs").value_or(oweb::SiteOptions{}));
         expect(sections.has_value());
         if (!sections) return;
         struct Question {

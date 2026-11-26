@@ -8,6 +8,7 @@ import mlibs.agent;
 import openas;
 import omui.core;
 import :site;
+import :config;
 import :tool;
 
 namespace oweb {
@@ -29,9 +30,15 @@ void failed(Reply& reply, std::string_view why) {
 
 inline constexpr std::uintmax_t not_a_number = std::numeric_limits<std::uintmax_t>::max();
 
-// "en,zh": a site's languages, the default first.
-SiteOptions options_of(const mlibs::agent::Arguments& args) {
-    SiteOptions options;
+// A site's options: its configuration's (oweb.config.ts), and what the request states over them ("en,zh": its
+// languages, the default first). Nothing where the configuration cannot be read: the reply says why.
+std::optional<SiteOptions> options_of(Reply& reply, const mlibs::agent::Arguments& args) {
+    auto stated = configured(mcpplibs::os::fs::from_utf8(args.value("site").value_or("")));
+    if (!stated) {
+        failed(reply, stated.error());
+        return std::nullopt;
+    }
+    SiteOptions options = std::move(*stated);
     if (const auto title = args.value("title")) options.title = *title;
     if (const auto url = args.value("url")) options.url = *url;
     if (const auto readable = args.value("readable")) {
@@ -57,7 +64,9 @@ Value described(const Route& route) {
 void site_build(Reply& reply, const mlibs::agent::Arguments& args) {
     const auto site = args.value("site"), out = args.value("out");
     if (!site || !out) return wrong(reply, "site.build takes --site, the site's directory, and --out, the directory written");
-    const SiteOptions options = options_of(args);
+    const auto stated = options_of(reply, args);
+    if (!stated) return;
+    const SiteOptions& options = *stated;
     if (options.readable == not_a_number) return wrong(reply, std::format("--readable is a number of bytes (0 holds no budget), not `{}`", *args.value("readable")));
     const auto built = build(mcpplibs::os::fs::from_utf8(*site), mcpplibs::os::fs::from_utf8(*out), options);
     if (!built) return failed(reply, built.error());
@@ -98,7 +107,9 @@ void site_build(Reply& reply, const mlibs::agent::Arguments& args) {
 void routes_list(Reply& reply, const mlibs::agent::Arguments& args) {
     const auto site = args.value("site");
     if (!site) return wrong(reply, "routes.list takes --site, the site's directory");
-    const auto routes = collect(mcpplibs::os::fs::from_utf8(*site), options_of(args));
+    const auto options = options_of(reply, args);
+    if (!options) return;
+    const auto routes = collect(mcpplibs::os::fs::from_utf8(*site), *options);
     if (!routes) return failed(reply, routes.error());
     Value::List listed;
     for (const Route& route : *routes) listed.push_back(described(route));
@@ -110,7 +121,9 @@ void page_read(Reply& reply, const mlibs::agent::Arguments& args) {
     if (!site || !address) return wrong(reply, "page.read takes --site, the site's directory, and --route, the page's address (/guide/start/)");
     const std::string as = args.value("as").value_or("markdown");
     if (as != "markdown" && as != "html") return wrong(reply, std::format("--as is markdown or html, not `{}`", as));
-    const SiteOptions options = options_of(args);
+    const auto stated = options_of(reply, args);
+    if (!stated) return;
+    const SiteOptions& options = *stated;
     const auto routes = collect(mcpplibs::os::fs::from_utf8(*site), options);
     if (!routes) return failed(reply, routes.error());
     const auto route = std::ranges::find(*routes, *address, &Route::path);
@@ -132,7 +145,9 @@ void docs_search(Reply& reply, const mlibs::agent::Arguments& args) {
         const auto read = std::from_chars(given->data(), given->data() + given->size(), limit);
         if (read.ec != std::errc{} || limit == 0) return wrong(reply, std::format("--limit is a number above 0, not `{}`", *given));
     }
-    const auto sections = sections_of(mcpplibs::os::fs::from_utf8(*site), options_of(args));
+    const auto options = options_of(reply, args);
+    if (!options) return;
+    const auto sections = sections_of(mcpplibs::os::fs::from_utf8(*site), *options);
     if (!sections) return failed(reply, sections.error());
     Value::List found;
     for (const Hit& hit : search(*sections, *query, limit)) {

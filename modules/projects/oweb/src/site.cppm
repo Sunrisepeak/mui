@@ -7,7 +7,7 @@
 // `index.md`, the document as Markdown (omui.ui.markdown's markdown_of) for an agent that only fetches. Nothing is
 // written that the tree does not hold, and the tree's writings lose nothing of it (0.1.0 plan UI1, UI2). Links
 // between pages are written as each writing's own addresses: a route's directory in HTML, its `index.md` in
-// Markdown. The routes are one table: the navigation, `routes.xdef.json`, `llms.txt` and `sitemap.xml` are made
+// Markdown. The routes are one table: the navigation, `site.routes.xdef.json`, `llms.txt` and `sitemap.xml` are made
 // from it.
 export module oweb:site;
 
@@ -30,6 +30,13 @@ struct Route {
     std::vector<Heading> headings;
 };
 
+// A route a site's configuration states: where it is served, its page, and what the navigation calls it.
+struct Declared {
+    std::string path;    // "/start/"
+    std::string source;  // "pages/guide/start.md"
+    std::string title;   // empty: its page's first heading
+};
+
 struct SiteOptions {
     std::string              title;              // empty: the first route's
     std::vector<std::string> languages{"en"};    // the default first; a first directory of that name is that language's pages
@@ -37,6 +44,9 @@ struct SiteOptions {
     // The most a route sends before it reads: its index.html as a static host sends it (gzip) — the page carries its
     // style and needs nothing else to read. 100 KB is the plan's assumed budget (0.1.0 plan §6); 0 holds none.
     std::uintmax_t           readable = 100'000;
+    // Stated routes: these pages and no others, in this order — the navigation's. Empty: every page of pages/, by
+    // address.
+    std::vector<Declared>    routes;
 };
 
 // A part of a page a reader can be sent to: a heading and what stands under it up to the next heading. What a
@@ -56,6 +66,9 @@ struct Page {
     std::string          markdown;  // its document as Markdown
     std::size_t          nodes = 0; // of its semantic tree
     std::vector<Section> sections;
+    // Links inside the site that lead nowhere: a page that is no route, an anchor its page has not, a file that is
+    // not there. A build with any writes nothing.
+    std::vector<std::string> problems;
 };
 
 // A section a query found: how well, and the line of it that says so.
@@ -68,11 +81,12 @@ struct Hit {
 struct Built {
     std::vector<Route>        routes;
     // Every file written, as stored and as a static host sends it, and the budgets' verdicts (mlibs.delivery): what
-    // the site's delivery.xdef.json says. A site over a budget is written all the same — the verdict says where.
+    // the site's site.delivery.xdef.json says. A site over a budget is written all the same — the verdict says where.
     mlibs::delivery::Manifest delivery;
 };
 
-// The routes a site's pages give, by address; or why not (no pages/, two pages of one address).
+// The routes a site's pages give, by address — or the routes it states, in their order; or why not (no pages/, two
+// pages of one address, a stated page that is not there).
 [[nodiscard]] std::expected<std::vector<Route>, std::string> collect(const std::filesystem::path& site, const SiteOptions& options = {});
 
 // One route evaluated and written, the others its navigation.
@@ -80,7 +94,7 @@ struct Built {
 
 // The site written to `out`: every route's two files, what pages/ holds beside its pages (pictures) at the same
 // place, the site's tables, `.nojekyll` (GitHub Pages serves the directory as it is) and, last, the delivery
-// manifest of all of it (delivery.xdef.json).
+// manifest of all of it (site.delivery.xdef.json).
 [[nodiscard]] std::expected<Built, std::string> build(const std::filesystem::path& site, const std::filesystem::path& out, const SiteOptions& options = {});
 
 // The routes table as its snapshot (`routes@1`), the list for agents (llms.txt: each route's title and its Markdown's
@@ -89,7 +103,7 @@ struct Built {
 [[nodiscard]] std::string llms_txt(std::span<const Route> routes, const SiteOptions& options);
 [[nodiscard]] std::string sitemap_xml(std::span<const Route> routes, const SiteOptions& options);
 
-// The index every route's sections make (`search@1`): what a built site serves as search.xdef.json.
+// The index every route's sections make (`search@1`): what a built site serves as site.search.xdef.json.
 [[nodiscard]] std::string search_json(std::span<const Section> sections);
 
 // The sections that hold every word of the query, best first: a word of Latin letters and digits matches whole or

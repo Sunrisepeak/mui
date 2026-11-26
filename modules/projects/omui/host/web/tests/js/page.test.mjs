@@ -332,6 +332,7 @@ test('the page\'s own projection goes on as the layer: the same elements, placed
   [title, para, save].forEach((el) => root.appendChild(el));
   projection.appendChild(root);
   document.body.appendChild(projection);
+  context.omui_web_first_frame();  // the program's frame is shown: the document steps aside, its elements go on
 
   context.omui_web_mirror(JSON.stringify({
     root: 'app',
@@ -359,6 +360,24 @@ test('the page\'s own projection goes on as the layer: the same elements, placed
   // An adopted element is activated as any: the program answers.
   fire(link, 'click');
   assert.deepEqual(heard, [[P.ACTIVATE, 0, 0, 'doc/p/link0']]);
+});
+
+test('a program whose frame is never shown takes nothing of the page\'s document: the reader keeps it whole', () => {
+  const { P, document, context } = page();
+  const projection = document.createElement('div');
+  projection.setAttribute('data-omui', 'static');
+  const title = document.createElement('h1');
+  title.setAttribute('data-omui-target', 'doc/title');
+  title.textContent = 'Notes';
+  projection.appendChild(title);
+  document.body.appendChild(projection);
+  context.omui_web_mirror(JSON.stringify({ root: 'app', nodes: [
+    { id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['doc/title'] },
+    { id: 'doc/title', tag: 'h1', text: 'Notes', box: [8, 8, 180, 24] },
+  ] }));
+  assert.notEqual(P.nodes.get('doc/title'), title);
+  assert.ok(projection.contains(title) && title.textContent === 'Notes', 'the document as it was');
+  assert.equal(P.nodes.get('doc/title').tagName, 'H1', 'the layer has its own');
 });
 
 test('assistive technology in the mirror: a click activates, a focus moves the program\'s', () => {

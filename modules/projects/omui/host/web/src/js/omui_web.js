@@ -456,12 +456,13 @@ addToLibrary({
       return el;
     },
 
-    // What the page had before the program: its projection's elements by the node each is.
+    // What the page had before the program: its projection's elements by the node each is. Only once the program's
+    // frame is shown: where it never is (no device drew it), the page's document stays whole, the reader's still.
     adopt: function () {
       var P = omuiPage;
       P.adoptable = new Map();
       var page = document.querySelector('[data-omui="static"]');
-      if (!page || !page.querySelectorAll) return;
+      if (!page || !page.querySelectorAll || window.omuiHasPresented !== true) return;
       page.querySelectorAll('[data-omui-target]').forEach(function (el) { P.adoptable.set(el.getAttribute('data-omui-target'), el); });
     },
 

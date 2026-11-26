@@ -61,17 +61,17 @@ std::string_view text_property(const spec::SemanticNode& n, std::string_view key
 }
 
 // A table's group of rows that holds its header cells: its head.
-bool heads(const spec::SemanticNode& group, const std::unordered_map<std::string_view, const spec::SemanticNode*>& by_id) {
+bool heads(const spec::SemanticNode& group, const NodeLookup& find) {
     for (const std::string& row : group.children)
-        if (const auto found = by_id.find(row); found != by_id.end())
-            for (const std::string& cell : found->second->children)
-                if (const auto held = by_id.find(cell); held != by_id.end()) return held->second->role == Role::column_header;
+        if (const spec::SemanticNode* found = find(row))
+            for (const std::string& cell : found->children)
+                if (const spec::SemanticNode* held = find(cell)) return held->role == Role::column_header;
     return false;
 }
 
 // The element HTML has for a node (the role then said by the element itself), else none: a `div` with the role.
 // `inside` is the element the node stands in: a group of rows is a table's head or body only there.
-std::string_view tag_of(const spec::SemanticNode& n, std::string_view inside, const std::unordered_map<std::string_view, const spec::SemanticNode*>& by_id) {
+std::string_view tag_of(const spec::SemanticNode& n, std::string_view inside, const NodeLookup& find) {
     const std::string_view aria = aria_of(n.role);
     if (aria == "heading") {
         const Value* stated = property(n, "level");
@@ -80,7 +80,7 @@ std::string_view tag_of(const spec::SemanticNode& n, std::string_view inside, co
         return headings[static_cast<std::size_t>(std::clamp(static_cast<int>(level), 1, 6) - 1)];
     }
     if (n.role == Role::list) return property(n, "ordered") && property(n, "ordered")->as_bool() ? "ol" : "ul";
-    if (n.role == Role::group && inside == "table") return heads(n, by_id) ? "thead" : "tbody";
+    if (n.role == Role::group && inside == "table") return heads(n, find) ? "thead" : "tbody";
     if (n.role == Role::image) return property(n, "source") ? "img" : std::string_view{};
     if (n.role == Role::code) return text_property(n, "raw").empty() ? "pre" : std::string_view{};
     if (n.role == Role::checkbox) return "input";
@@ -112,7 +112,204 @@ std::string_view tag_of(spec::MarkKind kind) {
     }
 }
 
+using Attributes = std::vector<std::pair<std::string, std::string>>;
+
+// A node's attributes: its tag's own (where it is, where it leads, what it shows), then its ARIA — what the tag does
+// not say already. `by_content`: the element is named by what it holds, as a reader and a search engine read it.
+Attributes attributes_of(const spec::SemanticNode& n, std::string_view tag, bool by_content, HtmlFor where) {
+    Attributes out;
+    const auto put = [&](std::string_view key, std::string_view value) { out.emplace_back(std::string(key), std::string(value)); };
+    const bool heading = n.role == Role::heading;
+    if (const std::string_view anchor = text_property(n, "anchor"); !anchor.empty()) put("id", anchor);
+    if (tag == "a")
+        if (const std::string_view href = text_property(n, "href"); !href.empty()) put("href", href);
+    if (tag == "img") {
+        put("src", text_property(n, "source"));
+        put("alt", n.name);
+    }
+    const std::string_view title = text_property(n, "title");
+    if ((tag == "a" || tag == "img") && !title.empty()) put("title", title);
+    if (tag == "ol")
+        if (const Value* start = property(n, "start"); start && start->is_number() && start->as_int() != 1) put("start", std::format("{}", start->as_int()));
+    if (tag == "td" || tag == "th")
+        if (const std::string_view align = text_property(n, "align"); !align.empty()) put("align", align);
+    if (n.role == Role::row_header) put("scope", "row");
+    if (tag == "button") put("type", "button");
+    // A checkbox as HTML has it; before the program runs it is not operated.
+    if (tag == "input") {
+        put("type", "checkbox");
+        put("disabled", {});
+        if (n.states.has(State::checked)) put("checked", {});
+    }
+    for (const auto& [key, value] : aria_attributes(n)) {
+        // Before the program runs nothing is operated: no element takes the focus. A tag says its own role.
+        if (key == "tabindex" && where == HtmlFor::document) continue;
+        if (key == "role" && (!tag.empty() || value == "none")) continue;  // a div is no role already
+        if ((key == "aria-level" && heading) || (key == "aria-label" && (by_content || tag == "img"))) continue;
+        if (key == "aria-description" && !title.empty() && value == title) continue;  // its title says it
+        if (tag == "input" && (key == "aria-checked" || key == "aria-disabled")) continue;  // its attributes say them
+        put(key, value);
+    }
+    return out;
+}
+
+// Text as an element holds it: a line feed a line's break (S-17), but where lines are kept as written.
+void runs(std::vector<Inline>& into, std::string_view text, bool lines_kept) {
+    if (lines_kept) {
+        if (!text.empty()) into.push_back({.text = std::string(text)});
+        return;
+    }
+    for (std::size_t at = 0; at <= text.size();) {
+        const std::size_t feed = std::min(text.find('\n', at), text.size());
+        if (feed > at) into.push_back({.text = std::string(text.substr(at, feed - at))});
+        if (feed < text.size()) into.push_back({.tag = "br"});
+        at = feed + 1;
+    }
+}
+
+// A node's text with its marks: each range the element of its meaning, a link's or an image's the child node it
+// names — placed here, so it is not written again among the children (`placed` names them).
+std::vector<Inline> marked(const spec::SemanticNode& n, std::string_view text, bool lines_kept, const NodeLookup& find, HtmlFor where, std::vector<std::string>& placed) {
+    // The marks' offsets as bytes, in one pass over the text.
+    std::vector<std::pair<std::size_t, std::size_t>> bytes(n.marks.size());
+    {
+        std::vector<std::pair<std::uint32_t, std::size_t*>> wanted;
+        for (std::size_t i = 0; i < n.marks.size(); ++i) {
+            wanted.emplace_back(n.marks[i].start, &bytes[i].first);
+            wanted.emplace_back(n.marks[i].end, &bytes[i].second);
+        }
+        std::ranges::sort(wanted, {}, [](const auto& entry) { return entry.first; });
+        std::size_t byte = 0;
+        std::uint32_t point = 0;
+        for (const auto& [offset, into] : wanted) {
+            while (byte < text.size() && point < offset) {
+                ++byte;
+                while (byte < text.size() && (static_cast<unsigned char>(text[byte]) & 0xC0) == 0x80) ++byte;
+                ++point;
+            }
+            *into = byte;
+        }
+    }
+    std::vector<Inline> out;
+    std::size_t next = 0;
+    const auto run = [&](this auto const& self, std::vector<Inline>& into, std::size_t from, std::size_t to) -> void {
+        std::size_t cursor = from;
+        while (next < n.marks.size() && bytes[next].first < to && bytes[next].first >= cursor) {
+            const spec::Mark& mark = n.marks[next];
+            const std::size_t begin = bytes[next].first, end = std::min(bytes[next].second, to);
+            ++next;
+            runs(into, text.substr(cursor, begin - cursor), lines_kept);
+            const spec::SemanticNode* node = mark.node.empty() ? nullptr : find(mark.node);
+            if (node) placed.push_back(node->id);
+            const auto pass_inner = [&] {
+                while (next < n.marks.size() && bytes[next].first < end) ++next;
+            };
+            if (mark.kind == spec::MarkKind::image && node) {
+                // A picture in a line: its text alternative is the range. Over the canvas the canvas shows it.
+                Inline image{.tag = where == HtmlFor::live ? "span" : "img", .node = node->id};
+                if (where == HtmlFor::live) {
+                    image.attributes = {{"role", "img"}, {"aria-label", std::string(text.substr(begin, end - begin))}};
+                } else {
+                    image.attributes = {{"src", std::string(text_property(*node, "source"))}, {"alt", std::string(text.substr(begin, end - begin))}};
+                    if (const std::string_view title = text_property(*node, "title"); !title.empty()) image.attributes.emplace_back("title", std::string(title));
+                }
+                into.push_back(std::move(image));
+                pass_inner();
+            } else if (mark.kind == spec::MarkKind::link && node) {
+                Inline link{.tag = "a", .node = node->id, .attributes = attributes_of(*node, "a", true, where)};
+                self(link.children, begin, end);
+                into.push_back(std::move(link));
+            } else if (mark.kind == spec::MarkKind::raw) {
+                // Markup as markup only where the application wrote it (S-3), and only in a document: over the canvas
+                // it is the text it is.
+                if (n.origin == spec::Origin::app && where == HtmlFor::document) into.push_back({.text = std::string(text.substr(begin, end - begin)), .markup = true});
+                else runs(into, text.substr(begin, end - begin), lines_kept);
+                pass_inner();
+            } else if (const std::string_view tag = tag_of(mark.kind); !tag.empty()) {
+                Inline element{.tag = std::string(tag)};
+                self(element.children, begin, end);
+                into.push_back(std::move(element));
+            } else {
+                Inline element{.tag = "span", .attributes = {{"data-omui-mark", std::string(spec::name(mark.kind))}}};
+                self(element.children, begin, end);
+                into.push_back(std::move(element));
+            }
+            cursor = end;
+        }
+        runs(into, text.substr(cursor, to - cursor), lines_kept);
+    };
+    run(out, 0, text.size());
+    return out;
+}
+
+// Attributes as a tag writes them: `disabled` and `checked` are said by being there.
+void write(std::string& out, const Attributes& attributes) {
+    for (const auto& [key, value] : attributes) {
+        if (value.empty() && (key == "disabled" || key == "checked")) out += std::format(" {}", key);
+        else out += std::format(" {}=\"{}\"", key, escaped(value, true));
+    }
+}
+
+void write(std::string& out, const Inline& piece) {
+    if (piece.tag.empty()) {
+        out += piece.markup ? piece.text : escaped(piece.text, false);
+        return;
+    }
+    if (piece.tag == "br") {
+        out += "<br>\n";
+        return;
+    }
+    out += std::format("<{}", piece.tag);
+    if (!piece.node.empty()) out += std::format(" data-omui-target=\"{}\"", escaped(piece.node, true));
+    write(out, piece.attributes);
+    out += '>';
+    if (piece.tag == "img") return;
+    for (const Inline& inner : piece.children) write(out, inner);
+    out += std::format("</{}>", piece.tag);
+}
+
 }  // namespace
+
+HtmlElement html_element(const spec::SemanticNode& n, std::string_view inside, const NodeLookup& find, HtmlFor where) {
+    HtmlElement element;
+    std::string_view tag = tag_of(n, inside, find);
+    // What a person operates and what the canvas alone shows keep their ARIA form over the canvas.
+    if (where == HtmlFor::live && (tag == "button" || tag == "input" || tag == "img")) tag = {};
+    // A heading, a link, a button, a paragraph, an item, a cell: named by what they hold, as a reader and a search
+    // engine read them (a heading's value is its level, said by its tag).
+    const bool heading = n.role == Role::heading;
+    const bool by_content = heading || tag == "a" || tag == "button" || tag == "p" || tag == "li" || tag == "td" || tag == "th" || tag == "pre";
+    element.tag = tag.empty() ? std::string("div") : std::string(tag);
+    element.attributes = attributes_of(n, tag, by_content, where);
+    if (tag == "img" || tag == "input" || (tag == "hr" && n.children.empty())) {
+        element.empty = true;
+        return element;
+    }
+    if (tag == "pre") {
+        // A block of code: its lines as written, its language a class (as CommonMark's own HTML has it).
+        Inline code{.tag = "code"};
+        if (const std::string_view language = text_property(n, "language"); !language.empty())
+            code.attributes = {{"class", std::format("{}{}", language.starts_with("language-") ? "" : "language-", language)}};
+        if (!n.name.empty()) code.children.push_back({.text = n.name});
+        element.content.push_back(std::move(code));
+        element.lines_kept = true;
+        return element;
+    }
+    const std::string_view raw = text_property(n, "raw");
+    if (!raw.empty() && n.origin == spec::Origin::app && where == HtmlFor::document) {
+        element.content.push_back({.text = n.name, .markup = true});  // markup the application wrote, as markup (S-16's `raw`)
+        return element;
+    }
+    std::string text = by_content ? n.name : element_text(n);
+    if (by_content && !heading && n.value.type() == Value::Type::text && n.value.as_string() != n.name) text += (text.empty() ? "" : " ") + std::string(n.value.as_string());
+    if (!n.marks.empty() && text == n.name) {
+        element.content = marked(n, text, false, find, where, element.placed);
+    } else {
+        element.lines_kept = !raw.empty();
+        runs(element.content, text, element.lines_kept);
+    }
+    return element;
+}
 
 std::vector<std::pair<std::string, std::string>> aria_attributes(const spec::SemanticNode& n) {
     std::vector<std::pair<std::string, std::string>> a;
@@ -173,116 +370,11 @@ std::string static_html(const Snapshot& snapshot, const HtmlOptions& options) {
     using Node = spec::SemanticNode;
     std::unordered_map<std::string_view, const Node*> by_id;
     for (const Node& n : snapshot.nodes) by_id.emplace(n.id, &n);
+    const NodeLookup find = [&](std::string_view id) -> const Node* {
+        const auto found = by_id.find(id);
+        return found == by_id.end() ? nullptr : found->second;
+    };
     std::string out;
-
-    // A node's attributes after its tag's own: its ARIA (what the tag does not say already), its anchor, where it leads.
-    const auto attributes = [&](const Node& n, std::string_view tag, bool by_content) {
-        const bool heading = n.role == Role::heading;
-        if (const std::string_view anchor = text_property(n, "anchor"); !anchor.empty()) out += std::format(" id=\"{}\"", escaped(anchor, true));
-        if (tag == "a")
-            if (const std::string_view href = text_property(n, "href"); !href.empty()) out += std::format(" href=\"{}\"", escaped(href, true));
-        if (tag == "img") out += std::format(" src=\"{}\" alt=\"{}\"", escaped(text_property(n, "source"), true), escaped(n.name, true));
-        if (tag == "a" || tag == "img")
-            if (const std::string_view title = text_property(n, "title"); !title.empty()) out += std::format(" title=\"{}\"", escaped(title, true));
-        if (tag == "ol")
-            if (const Value* start = property(n, "start"); start && start->is_number() && start->as_int() != 1) out += std::format(" start=\"{}\"", start->as_int());
-        if (tag == "td" || tag == "th")
-            if (const std::string_view align = text_property(n, "align"); !align.empty()) out += std::format(" align=\"{}\"", escaped(align, true));
-        if (n.role == Role::row_header) out += " scope=\"row\"";
-        if (tag == "button") out += " type=\"button\"";
-        // A checkbox as HTML has it; before the program runs it is not operated.
-        if (tag == "input") out += std::format(" type=\"checkbox\" disabled{}", n.states.has(State::checked) ? " checked" : "");
-        const std::string_view title = text_property(n, "title");
-        for (const auto& [key, value] : aria_attributes(n)) {
-            // Before the program runs nothing is operated: no element takes the focus; a tag says its own role.
-            if (key == "tabindex" || (key == "role" && (!tag.empty() || value == "none"))) continue;  // a div is no role already
-            if ((key == "aria-level" && heading) || (key == "aria-label" && (by_content || tag == "img"))) continue;
-            if (key == "aria-description" && !title.empty() && value == title) continue;  // its title says it
-            if (tag == "input" && (key == "aria-checked" || key == "aria-disabled")) continue;  // its attributes say them
-            out += std::format(" {}=\"{}\"", key, escaped(value, true));
-        }
-    };
-
-    // Text as an element holds it: escaped, a line feed a line break (S-17) but where lines are kept as written.
-    const auto write_text = [&](std::string_view text, bool lines_kept) {
-        if (lines_kept) {
-            out += escaped(text, false);
-            return;
-        }
-        for (std::size_t at = 0; at <= text.size();) {
-            const std::size_t feed = std::min(text.find('\n', at), text.size());
-            out += escaped(text.substr(at, feed - at), false);
-            if (feed < text.size()) out += "<br>\n";
-            at = feed + 1;
-        }
-    };
-
-    // A node's text with its marks: each range the element of its meaning, a link's or an image's the child node it
-    // names — written in its place, so the children's loop passes it over. The children so placed are returned.
-    const auto write_marked = [&](const Node& n, std::string_view text, bool lines_kept, std::vector<std::string_view>& placed) {
-        // The marks' offsets as bytes, in one pass over the text.
-        std::vector<std::pair<std::size_t, std::size_t>> bytes(n.marks.size());
-        {
-            std::vector<std::pair<std::uint32_t, std::size_t*>> wanted;
-            for (std::size_t i = 0; i < n.marks.size(); ++i) {
-                wanted.emplace_back(n.marks[i].start, &bytes[i].first);
-                wanted.emplace_back(n.marks[i].end, &bytes[i].second);
-            }
-            std::ranges::sort(wanted, {}, [](const auto& entry) { return entry.first; });
-            std::size_t byte = 0;
-            std::uint32_t point = 0;
-            for (const auto& [offset, into] : wanted) {
-                while (byte < text.size() && point < offset) {
-                    ++byte;
-                    while (byte < text.size() && (static_cast<unsigned char>(text[byte]) & 0xC0) == 0x80) ++byte;
-                    ++point;
-                }
-                *into = byte;
-            }
-        }
-        std::size_t next = 0;
-        const auto run = [&](this auto const& self, std::size_t from, std::size_t to) -> void {
-            std::size_t cursor = from;
-            while (next < n.marks.size() && bytes[next].first < to && bytes[next].first >= cursor) {
-                const spec::Mark& mark = n.marks[next];
-                const std::size_t begin = bytes[next].first, end = std::min(bytes[next].second, to);
-                ++next;
-                write_text(text.substr(cursor, begin - cursor), lines_kept);
-                const auto child = mark.node.empty() ? by_id.end() : by_id.find(mark.node);
-                const Node* node = child == by_id.end() ? nullptr : child->second;
-                if (node) placed.push_back(node->id);
-                if (mark.kind == spec::MarkKind::image && node) {
-                    out += std::format("<img data-omui-target=\"{}\" src=\"{}\" alt=\"{}\"", escaped(node->id, true), escaped(text_property(*node, "source"), true),
-                                       escaped(text.substr(begin, end - begin), true));
-                    if (const std::string_view title = text_property(*node, "title"); !title.empty()) out += std::format(" title=\"{}\"", escaped(title, true));
-                    out += '>';
-                    while (next < n.marks.size() && bytes[next].first < end) ++next;  // its text alternative is said
-                } else if (mark.kind == spec::MarkKind::link && node) {
-                    out += std::format("<a data-omui-target=\"{}\"", escaped(node->id, true));
-                    attributes(*node, "a", true);
-                    out += '>';
-                    self(begin, end);
-                    out += "</a>";
-                } else if (mark.kind == spec::MarkKind::raw) {
-                    // Markup as markup only where the application wrote it (S-3).
-                    if (n.origin == spec::Origin::app) out += text.substr(begin, end - begin);
-                    else write_text(text.substr(begin, end - begin), lines_kept);
-                    while (next < n.marks.size() && bytes[next].first < end) ++next;
-                } else if (const std::string_view tag = tag_of(mark.kind); !tag.empty()) {
-                    out += std::format("<{}>", tag);
-                    self(begin, end);
-                    out += std::format("</{}>", tag);
-                } else {
-                    out += std::format("<span data-omui-mark=\"{}\">", spec::name(mark.kind));
-                    self(begin, end);
-                    out += "</span>";
-                }
-                cursor = end;
-            }
-            write_text(text.substr(cursor, to - cursor), lines_kept);
-        };
-        run(0, text.size());
-    };
 
     // `tight`: the node is in an item of a list whose items are set close (S-16's `tight`) — a paragraph there is no
     // block of its own, as CommonMark writes it.
@@ -295,50 +387,38 @@ std::string static_html(const Snapshot& snapshot, const HtmlOptions& options) {
             out += std::format("{}<!--{}-->\n", indent, text);
             return;
         }
-        const std::string_view tag = tag_of(n, inside, by_id);
-        const bool bare = tight && inside == "li" && tag == "p";
-        const std::string_view name = bare ? std::string_view("span") : tag.empty() ? std::string_view("div") : tag;
-        // A heading, a link, a button, a paragraph, an item, a cell: named by what they hold, as a reader and a search
-        // engine read them (a heading's value is its level, said by its tag).
-        const bool heading = n.role == Role::heading;
-        const bool by_content = heading || tag == "a" || tag == "button" || tag == "p" || tag == "li" || tag == "td" || tag == "th" || tag == "pre";
+        const HtmlElement made = html_element(n, inside, find, HtmlFor::document);
+        const bool bare = tight && inside == "li" && made.tag == "p";
+        const std::string_view name = bare ? std::string_view("span") : std::string_view(made.tag);
         out += std::format("{}<{} data-omui-target=\"{}\"", indent, name, escaped(n.id, true));
         if (depth == 0 && !options.lang.empty()) out += std::format(" lang=\"{}\"", escaped(options.lang, true));
-        attributes(n, tag, by_content);
+        write(out, made.attributes);
         out += '>';
-        if (tag == "img" || tag == "input" || (tag == "hr" && n.children.empty())) {  // elements that hold nothing
+        if (made.empty) {  // elements that hold nothing
             out += '\n';
             return;
         }
-        std::vector<std::string_view> placed;
-        if (tag == "pre") {
-            // A block of code: its lines as written, its language a class (as CommonMark's own HTML has it).
-            const std::string_view language = text_property(n, "language");
-            out += language.empty() ? std::string("<code>") : std::format("<code class=\"{}{}\">", language.starts_with("language-") ? "" : "language-", escaped(language, true));
+        if (made.tag == "pre") {
+            out += "<code";
+            write(out, made.content.front().attributes);
+            out += '>';
             out += escaped(n.name, false);
             // Its children (the button that copies it) stand after it: inside, their lines would be the code's.
             out += "\n</code></pre>\n";
             for (const std::string& child : n.children)
-                if (const auto found = by_id.find(child); found != by_id.end()) self(*found->second, depth, inside, false);
+                if (const Node* found = find(child)) self(*found, depth, inside, false);
             return;
-        } else if (const std::string_view raw = text_property(n, "raw"); !raw.empty() && n.origin == spec::Origin::app) {
-            out += n.name;  // markup the application wrote, as markup (S-16's `raw`)
-        } else {
-            std::string text = by_content ? n.name : element_text(n);
-            if (by_content && !heading && n.value.type() == Value::Type::text && n.value.as_string() != n.name)
-                text += (text.empty() ? "" : " ") + std::string(n.value.as_string());
-            if (!n.marks.empty() && text == n.name) write_marked(n, text, false, placed);
-            else write_text(text, !raw.empty());
         }
+        for (const Inline& piece : made.content) write(out, piece);
         const Value* close = property(n, "tight");
-        const bool held_tight = n.role == Role::list ? close && close->as_bool() : tag == "li" && tight;
+        const bool held_tight = n.role == Role::list ? close && close->as_bool() : made.tag == "li" && tight;
         bool nested = false;
         for (const std::string& child : n.children) {
-            if (std::ranges::find(placed, std::string_view(child)) != placed.end()) continue;
-            if (const auto found = by_id.find(child); found != by_id.end()) {
+            if (std::ranges::contains(made.placed, child)) continue;
+            if (const Node* found = find(child)) {
                 if (!nested) out += '\n';
                 nested = true;
-                self(*found->second, depth + 1, name, held_tight);
+                self(*found, depth + 1, name, held_tight);
             }
         }
         if (nested) out += indent;

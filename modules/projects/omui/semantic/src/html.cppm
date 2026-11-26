@@ -19,6 +19,43 @@ export namespace omui::semantic {
 // value where it is no range's (a text box's text).
 [[nodiscard]] std::string element_text(const spec::SemanticNode& node);
 
+// A piece of a node's own text as HTML holds it: a run of text, a line's break, or the element a mark makes of a
+// range — and inside it more of the same. An `a` or an `img` a mark places is the child node it names: that child
+// stands here, in the text, and not again among the node's children.
+struct Inline {
+    std::string tag;   // empty: a run of text; "br"; "em", "strong", "code" …; "a", "img"; "span" for a mark HTML has no element for
+    std::string text;  // a run's text
+    std::string node;  // the child node an element here is (a link, a picture)
+    std::vector<std::pair<std::string, std::string>> attributes;  // an element's
+    std::vector<Inline> children;
+    bool markup = false;  // a run that is markup the application wrote: written as it is (S-3)
+    bool operator==(const Inline&) const = default;
+};
+
+// Where an element stands: in the document a reader has before the program runs — nothing in it is operated, so it
+// takes no focus and a control is HTML's own, disabled — or in the Web host's layer over the canvas while the
+// program runs, where what a person operates (a button, a checkbox) and what the canvas alone shows (a picture)
+// keep their ARIA form and the program answers for them.
+enum class HtmlFor : std::uint8_t { document, live };
+
+// A node as the one HTML element it is: the mapping the static projection and the Web host's layer share.
+struct HtmlElement {
+    std::string tag;  // "h2", "a", "p", "li", "table" …; "div" where HTML has no element for the node
+    // The tag's own first (id, href, src, alt, title, start, align, scope, type; `disabled` and `checked` without a
+    // value), then its ARIA: what the tag does not say already.
+    std::vector<std::pair<std::string, std::string>> attributes;
+    std::vector<Inline>      content;  // its own text, before its children
+    std::vector<std::string> placed;   // the children its text places (Inline::node)
+    bool lines_kept = false;           // its text's lines are as written (a block of code)
+    bool empty = false;                // an element that holds nothing (img, input, a rule)
+};
+
+// Finds a node by its id (a mark's link, a table's rows): nothing where there is none.
+using NodeLookup = std::function<const spec::SemanticNode*(std::string_view)>;
+
+// `inside` is the tag of the element the node stands in (a group of rows is a table's head or body only there).
+[[nodiscard]] HtmlElement html_element(const spec::SemanticNode& node, std::string_view inside, const NodeLookup& find, HtmlFor where = HtmlFor::document);
+
 struct HtmlOptions {
     std::string lang;  // the document's language as HTML says it ("en", "zh-CN"); empty: none said
 };

@@ -10,6 +10,26 @@ export import :html;
 namespace omui::semantic {
   [[nodiscard]] std::vector<std::pair<std::string, std::string>> aria_attributes(const spec::SemanticNode& node);
   [[nodiscard]] std::string element_text(const spec::SemanticNode& node);
+  struct Inline {
+    std::string tag;
+    std::string text;
+    std::string node;
+    std::vector<std::pair<std::string, std::string>> attributes;
+    std::vector<Inline> children;
+    bool markup = false;
+    bool operator==(const Inline&) const = default;
+  };
+  enum class HtmlFor : std::uint8_t { document, live };
+  struct HtmlElement {
+    std::string tag;
+    std::vector<std::pair<std::string, std::string>> attributes;
+    std::vector<Inline> content;
+    std::vector<std::string> placed;
+    bool lines_kept = false;
+    bool empty = false;
+  };
+  using NodeLookup = std::function<const spec::SemanticNode*(std::string_view)>;
+  [[nodiscard]] HtmlElement html_element(const spec::SemanticNode& node, std::string_view inside, const NodeLookup& find, HtmlFor where = HtmlFor::document);
   struct HtmlOptions {
     std::string lang;
   };

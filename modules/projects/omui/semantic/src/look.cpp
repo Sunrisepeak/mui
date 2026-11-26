@@ -515,8 +515,11 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
 
 std::string look_sheet(const Look& look) {
     std::string sheet =
-        "[data-omui-look]{box-sizing:border-box;margin:0;font:16px/1.5 system-ui,sans-serif;font-optical-sizing:none}"
-        "[data-omui-look] *{box-sizing:border-box;margin:0;padding:0;border:0;list-style:none;font:inherit;color:inherit;background:none;scrollbar-width:none;text-decoration:none}"
+        // The engine sets a glyph where its outline's own advance puts it; a browser that rounds each advance to a
+        // whole pixel (Chromium on Linux with full hinting: a line of 16 px text 5 px shorter, of 13 px code 4 %
+        // longer) is asked for the outline's geometry too — a control included, which the browser's own sheet resets.
+        "[data-omui-look]{box-sizing:border-box;margin:0;font:16px/1.5 system-ui,sans-serif;font-optical-sizing:none;text-rendering:geometricPrecision}"
+        "[data-omui-look] *{box-sizing:border-box;margin:0;padding:0;border:0;list-style:none;font:inherit;text-rendering:inherit;color:inherit;background:none;scrollbar-width:none;text-decoration:none}"
         "[data-omui-look] ::-webkit-scrollbar{display:none}[data-omui-look] a[href]{text-decoration:underline}"
         "[data-omui-look] strong,[data-omui-look] b{font-weight:700}[data-omui-look] em,[data-omui-look] i{font-style:italic}"
         // On paper the document is whole: nothing of it stays inside a view that scrolls or a box of the window's size.

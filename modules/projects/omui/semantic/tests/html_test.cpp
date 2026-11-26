@@ -164,6 +164,10 @@ static UTest cases{"html", [] {
                    sheet.ends_with("@media (prefers-color-scheme:dark){[data-omui-look]{--o0:#f8fafc!important;--o1:inset 0 0 0 1px #334155!important;}}"))
                 << sheet;
             expect(!sem::look_sheet(look).contains("prefers-color-scheme")) << "one scheme: nothing by preference";
+            // A browser that rounds each glyph's advance to a whole pixel is asked for the outline's own geometry, as
+            // the engine sets it — a control too, which the browser's own sheet would set back.
+            expect(sheet.contains("font-optical-sizing:none;text-rendering:geometricPrecision}")) << sheet;
+            expect(sheet.contains("font:inherit;text-rendering:inherit;")) << sheet;
         }
         const std::string_view title = look.style("main/title"), add = look.style("main/bar/add");
         const Theme theme = Theme::light();

@@ -14,6 +14,7 @@ export module oweb:site;
 
 import std;
 export import mlibs.delivery;
+export import oweb.shell;
 
 export namespace oweb {
 
@@ -71,6 +72,12 @@ struct SiteOptions {
     std::string              engine;
     // When a page takes the program, where its route does not say: "eager", "idle", "interaction" (D-260).
     std::string              load = "eager";
+    // The view of a page's parts (oweb.shell): the shell's own page where none is given. A site with a navigation of
+    // its own gives its view here — as its builder (a program of its own: `oweb::Sites{view}` behind the same
+    // entries) — and the same one to the program its pages load, which reads the parts back from the page whatever
+    // the view placed them in. Such a site states `look` or an `engine`: the default sheet knows the shell's own
+    // page only.
+    shell::View              view;
 };
 
 // A part of a page a reader can be sent to: a heading and what stands under it up to the next heading. What a

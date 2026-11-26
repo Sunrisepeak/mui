@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
     app.size = {960, 1200};
     app.dark_theme = Theme::dark_theme();  // as the reader's system prefers, as the page was written in both
     app.view = [] {
-        auto parts = oweb::shell::read(shown_document(), shown_document(oweb::shell::document_id));
+        auto parts = oweb::shell::read(shown_document(), [](std::string_view id) { return shown_document(id); });
         if (parts) return oweb::shell::page(std::move(*parts), {.scrolls = true});
         // No page of a site here (the program run on its own): say so, in the shell's own place.
         return oweb::shell::page({.document = std::format("# No page to read\n\n{}\n\nThis program draws a page of a site built by `oweb site.build --engine`.", parts.error())},

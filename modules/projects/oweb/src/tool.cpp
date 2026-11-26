@@ -32,13 +32,14 @@ inline constexpr std::uintmax_t not_a_number = std::numeric_limits<std::uintmax_
 
 // A site's options: its configuration's (oweb.config.ts), and what the request states over them ("en,zh": its
 // languages, the default first). Nothing where the configuration cannot be read: the reply says why.
-std::optional<SiteOptions> options_of(Reply& reply, const mlibs::agent::Arguments& args) {
+std::optional<SiteOptions> options_of(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
     auto stated = configured(mcpplibs::os::fs::from_utf8(args.value("site").value_or("")));
     if (!stated) {
         failed(reply, stated.error());
         return std::nullopt;
     }
     SiteOptions options = std::move(*stated);
+    options.view = view;
     if (const auto title = args.value("title")) options.title = *title;
     if (const auto url = args.value("url")) options.url = *url;
     // A request's engine is from where the request is made, not from the site's directory.
@@ -65,10 +66,10 @@ Value described(const Route& route) {
     return Value{}.set("path", route.path).set("source", route.source).set("title", route.title).set("language", route.language).set("headings", Value(std::move(headings)));
 }
 
-void site_build(Reply& reply, const mlibs::agent::Arguments& args) {
+void site_build(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
     const auto site = args.value("site"), out = args.value("out");
     if (!site || !out) return wrong(reply, "site.build takes --site, the site's directory, and --out, the directory written");
-    const auto stated = options_of(reply, args);
+    const auto stated = options_of(reply, args, view);
     if (!stated) return;
     const SiteOptions& options = *stated;
     if (options.readable == not_a_number) return wrong(reply, std::format("--readable is a number of bytes (0 holds no budget), not `{}`", *args.value("readable")));
@@ -108,10 +109,10 @@ void site_build(Reply& reply, const mlibs::agent::Arguments& args) {
     reply.fail("failed", over);
 }
 
-void routes_list(Reply& reply, const mlibs::agent::Arguments& args) {
+void routes_list(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
     const auto site = args.value("site");
     if (!site) return wrong(reply, "routes.list takes --site, the site's directory");
-    const auto options = options_of(reply, args);
+    const auto options = options_of(reply, args, view);
     if (!options) return;
     const auto routes = collect(mcpplibs::os::fs::from_utf8(*site), *options);
     if (!routes) return failed(reply, routes.error());
@@ -120,12 +121,12 @@ void routes_list(Reply& reply, const mlibs::agent::Arguments& args) {
     done(reply, Value{}.set("ok", true).set("routes", Value(std::move(listed))));
 }
 
-void page_read(Reply& reply, const mlibs::agent::Arguments& args) {
+void page_read(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
     const auto site = args.value("site"), address = args.value("route");
     if (!site || !address) return wrong(reply, "page.read takes --site, the site's directory, and --route, the page's address (/guide/start/)");
     const std::string as = args.value("as").value_or("markdown");
     if (as != "markdown" && as != "html") return wrong(reply, std::format("--as is markdown or html, not `{}`", as));
-    const auto stated = options_of(reply, args);
+    const auto stated = options_of(reply, args, view);
     if (!stated) return;
     const SiteOptions& options = *stated;
     const auto routes = collect(mcpplibs::os::fs::from_utf8(*site), options);
@@ -141,7 +142,7 @@ void page_read(Reply& reply, const mlibs::agent::Arguments& args) {
     done(reply, Value{}.set("ok", true).set("route", described(page->route)).set("as", as).set("text", as == "html" ? page->html : page->markdown).set("nodes", Value(static_cast<std::int64_t>(page->nodes))));
 }
 
-void docs_search(Reply& reply, const mlibs::agent::Arguments& args) {
+void docs_search(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
     const auto site = args.value("site"), query = args.value("query");
     if (!site || !query || query->empty()) return wrong(reply, "docs.search takes --site, the site's directory, and --query, the words to find");
     std::size_t limit = 8;
@@ -149,7 +150,7 @@ void docs_search(Reply& reply, const mlibs::agent::Arguments& args) {
         const auto read = std::from_chars(given->data(), given->data() + given->size(), limit);
         if (read.ec != std::errc{} || limit == 0) return wrong(reply, std::format("--limit is a number above 0, not `{}`", *given));
     }
-    const auto options = options_of(reply, args);
+    const auto options = options_of(reply, args, view);
     if (!options) return;
     const auto sections = sections_of(mcpplibs::os::fs::from_utf8(*site), *options);
     if (!sections) return failed(reply, sections.error());
@@ -182,10 +183,10 @@ mlibs::control::Guide Sites::guide() const noexcept {
 
 void Sites::operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& reply) {
     const mlibs::agent::Arguments args(request);
-    if (operation == "site.build") site_build(reply, args);
-    else if (operation == "routes.list") routes_list(reply, args);
-    else if (operation == "page.read") page_read(reply, args);
-    else if (operation == "docs.search") docs_search(reply, args);
+    if (operation == "site.build") site_build(reply, args, view_);
+    else if (operation == "routes.list") routes_list(reply, args, view_);
+    else if (operation == "page.read") page_read(reply, args, view_);
+    else if (operation == "docs.search") docs_search(reply, args, view_);
 }
 
 }  // namespace oweb

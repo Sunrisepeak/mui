@@ -19,7 +19,12 @@ namespace oweb::shell {
     bool scrolls = false;
   };
   [[nodiscard]] omui::Element page(Parts parts, Layout layout = {…});
+  using View = std::function<omui::Element(Parts, Layout)>;
+  inline constexpr std::string_view pages_part = "nav", contents_part = "toc", turn_part = "turn", document_part = "doc";
+  [[nodiscard]] omui::Element navigation(omui::Element part, std::string_view label);
+  [[nodiscard]] std::vector<omui::Element> links(std::vector<Link> from);
+  [[nodiscard]] omui::Element document(Parts& parts);
+  [[nodiscard]] omui::Element view(std::vector<omui::Element> held, Layout layout = {…});
   inline constexpr std::string_view mounted_at = "main";
-  inline constexpr std::string_view document_id = "main/page/main/doc";
-  [[nodiscard]] std::expected<Parts, std::string> read(std::string_view projection, std::string_view document);
+  [[nodiscard]] std::expected<Parts, std::string> read(std::string_view projection, const std::function<std::string(std::string_view id)>& markup);
 }

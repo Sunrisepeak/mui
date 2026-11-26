@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the oweb framework and command, a project of its own on omui (D-275)"
 kind = "tool"
-reexports = ["mlibs.agent", "mlibs.delivery"]  # what its interface re-exports (lint module-closure)
+reexports = ["mlibs.agent", "mlibs.delivery", "oweb.shell"]  # what its interface re-exports (lint module-closure)
 agent = "tool"
 
 # Declared data this package owns (xdef, D-209): a site's configuration (oweb.config.ts, defineSite) and the two

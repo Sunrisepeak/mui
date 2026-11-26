@@ -188,7 +188,7 @@ static UTest cases{"oweb.template", [] {
                 const auto page = look ? oweb::evaluate(site, *routes, route, *options) : plain;
                 expect(plain.has_value() && page.has_value()) << route.path;
                 if (!plain || !page) continue;
-                const auto parts = oweb::shell::read(projection_of(page->html), document_of(page->html));
+                const auto parts = oweb::shell::read(projection_of(page->html), [&](std::string_view) { return std::string(document_of(page->html)); });
                 expect(parts.has_value()) << route.path << ": " << (parts ? "" : parts.error());
                 // A picture is as large as its file says, in the page as it looks: read as the frame was drawn.
                 if (look && route.path == "/ui/") expect(page->html.contains("width:100px;height:auto;aspect-ratio:100/100;")) << "the mark's own size";
@@ -201,7 +201,7 @@ static UTest cases{"oweb.template", [] {
                 // As the builder writes it: without what a view adds to operate its document.
                 std::unordered_set<std::string> left_out;
                 for (const spec::SemanticNode& node : again.nodes)
-                    if (node.role == Role::button && node.id.starts_with(std::format("{}/", oweb::shell::document_id))) left_out.insert(node.id);
+                    if (node.role == Role::button && node.id.contains("/doc/")) left_out.insert(node.id);
                 for (spec::SemanticNode& node : again.nodes) std::erase_if(node.children, [&](const std::string& id) { return left_out.contains(id); });
                 std::erase_if(again.nodes, [&](const spec::SemanticNode& node) { return left_out.contains(node.id); });
                 const std::string written(body_of(plain->html)), read_back = semantic::static_html(again);
@@ -210,6 +210,84 @@ static UTest cases{"oweb.template", [] {
             }
         }
         expect(compared == routes->size() + 2) << compared;
+    };
+
+    "a navigation of one's own: the pages at the side, the contents under them, no turn — each route says the same document, and reads back as written"_test = [] {
+        using namespace omui;
+        namespace shell = oweb::shell;
+        // A site's own view of a page's parts: what the shell is made of, placed its own way.
+        const shell::View sided = [](shell::Parts parts, shell::Layout layout) {
+            std::vector<Element> side;
+            if (!parts.pages.empty()) side.push_back(shell::navigation(column({.id = std::string(shell::pages_part), .gap = 6}, shell::links(std::move(parts.pages))), parts.site));
+            if (!parts.sections.empty())
+                side.push_back(shell::navigation(column({.id = std::string(shell::contents_part), .gap = 4}, shell::links(std::move(parts.sections))), parts.contents));
+            std::vector<Element> middle;
+            middle.push_back(shell::document(parts));
+            std::vector<Element> across;
+            across.push_back(column({.id = "side", .width = 220, .gap = 24}, std::move(side)));
+            across.push_back(column({.id = "middle", .grow = 1}, std::move(middle)));
+            std::vector<Element> held;
+            held.push_back(row({.id = "page", .padding = 24, .gap = 32}, std::move(across)));
+            return shell::view(std::move(held), layout);
+        };
+        const auto site = package() / "templates" / "docs";
+        auto options = oweb::configured(site);
+        expect(options.has_value());
+        if (!options) return;
+        options->look = false;
+        const auto routes = oweb::collect(site, *options);
+        expect(routes.has_value()) << (routes ? "" : routes.error());
+        if (!routes) return;
+        oweb::SiteOptions own = *options;
+        own.view = sided;
+        const auto moved = [](std::string_view markup) {
+            std::string out(markup);
+            for (std::size_t at = out.find("main/page/middle/"); at != std::string::npos; at = out.find("main/page/middle/", at)) out.replace(at, 17, "main/page/");
+            return out;
+        };
+        std::size_t compared = 0;
+        for (const oweb::Route& route : *routes) {
+            const auto plain = oweb::evaluate(site, *routes, route, *options);
+            const auto page = oweb::evaluate(site, *routes, route, own);
+            expect(plain.has_value() && page.has_value()) << route.path << (page ? "" : page.error());
+            if (!plain || !page) continue;
+            // The document is the page's whatever stands around it: its Markdown, its HTML but for where it stands.
+            expect(page->problems.empty() && page->markdown == plain->markdown) << route.path << ": the same Markdown";
+            expect(moved(document_of(page->html)) == document_of(plain->html)) << route.path << ": the same document in the page";
+            expect(body_of(page->html).contains("<nav data-omui-target=\"main/page/side/nav\"") && !body_of(page->html).contains("/turn\"")) << route.path << ": its navigation where the view put it";
+            // What the page says of itself is what the shell's own page says, but for the turn this view leaves out.
+            const auto shells = shell::read(projection_of(plain->html), [&](std::string_view) { return std::string(document_of(plain->html)); });
+            const auto parts = shell::read(projection_of(page->html), [&](std::string_view id) {
+                expect(id == "main/page/middle/main/doc") << id;
+                return std::string(document_of(page->html));
+            });
+            expect(shells.has_value() && parts.has_value()) << route.path << (parts ? "" : parts.error());
+            if (!shells || !parts) continue;
+            const auto same = [](const std::vector<shell::Link>& one, const std::vector<shell::Link>& other) {
+                return std::ranges::equal(one, other, [](const shell::Link& left, const shell::Link& right) { return left.id == right.id && left.href == right.href && left.text == right.text; });
+            };
+            expect(parts->site == shells->site && same(parts->pages, shells->pages) && parts->contents == shells->contents && same(parts->sections, shells->sections) && parts->beside.empty())
+                << route.path << ": the same parts read back";
+            Headless host({.level = HeadlessLevel::layout, .size = {960, 1200}});
+            host.mount(shell::mounted_at, sided(*parts, {}));
+            host.settle();
+            semantic::Snapshot again = host.tree().snapshot({});
+            std::unordered_set<std::string> left_out;
+            for (const spec::SemanticNode& node : again.nodes)
+                if (node.role == Role::button && node.id.contains("/doc/")) left_out.insert(node.id);
+            for (spec::SemanticNode& node : again.nodes) std::erase_if(node.children, [&](const std::string& id) { return left_out.contains(id); });
+            std::erase_if(again.nodes, [&](const spec::SemanticNode& node) { return left_out.contains(node.id); });
+            const std::string written(body_of(page->html)), read_back = semantic::static_html(again);
+            expect(read_back == written) << std::format("{}:\n{}\n--- as written\n{}", route.path, read_back, written);
+            ++compared;
+        }
+        expect(compared == routes->size()) << compared;
+        // And the site is built with it: every table and every route's two files, within its budget.
+        const auto out = std::filesystem::temp_directory_path() / "openmui-tests" / "oweb" / "own-view";
+        std::filesystem::remove_all(out);
+        const auto built = oweb::build(site, out, own);
+        expect(built.has_value()) << (built ? "" : built.error());
+        expect(read(out / "start" / "index.html").contains("data-omui-target=\"main/page/side/toc\"") && std::filesystem::exists(out / "start" / "index.md"));
     };
 
     "its reference is the catalog's, generated at the build: no page of its own, the catalog's own reference its text; pages link to it by its address"_test = [] {

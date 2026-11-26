@@ -370,7 +370,7 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         if (!pixels) return std::unexpected(pixels.error());
         return omui::Picture{pixels->width, pixels->height, std::move(pixels->rgba), pixels->alpha == mlibs::image::Alpha::premultiplied};
     });
-    host.mount(shell::mounted_at, shell::page(std::move(parts), {.scrolls = engine}));
+    host.mount(shell::mounted_at, options.view ? options.view(std::move(parts), {.scrolls = engine}) : shell::page(std::move(parts), {.scrolls = engine}));
     host.settle();
 
     semantic::Snapshot snapshot = host.tree().snapshot({});

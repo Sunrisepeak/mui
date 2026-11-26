@@ -42,13 +42,35 @@ struct Layout {
 // something to show. The same in either layout.
 [[nodiscard]] omui::Element page(Parts parts, Layout layout = {});
 
-// Where an application's view is mounted, and the document's node in a page mounted there.
+// A page's view: its parts, placed. `page` is the shell's own; a site's own is any function of this shape (a
+// navigation at the side, the contents beside the document, parts left out) that keeps the parts' names — see
+// `read`. The builder and the program a page loads are given the same one (oweb's SiteOptions::view; the program's
+// own `app.view`), so a page as written is the page as drawn whatever its view.
+using View = std::function<omui::Element(Parts, Layout)>;
+
+// What `page` is made of, for a view of one's own.
+// A part's own id, wherever the view places it: the site's pages, the page's sections, the page before and after,
+// the document.
+inline constexpr std::string_view pages_part = "nav", contents_part = "toc", turn_part = "turn", document_part = "doc";
+// A part as a navigation: a landmark a reader's tools list and jump to, called `label`.
+[[nodiscard]] omui::Element navigation(omui::Element part, std::string_view label);
+// A part's links, each by its own id.
+[[nodiscard]] std::vector<omui::Element> links(std::vector<Link> from);
+// The document, in the page's `main` landmark (`main` holding `doc`); `parts.document` is taken.
+[[nodiscard]] omui::Element document(Parts& parts);
+// The view's root over what the page holds: a view of the window's size that scrolls it, or a column as tall as it
+// is (`Layout::scrolls`). Its id is the mount's (`main`), so what it holds is named the same either way.
+[[nodiscard]] omui::Element view(std::vector<omui::Element> held, Layout layout = {});
+
+// Where an application's view is mounted.
 inline constexpr std::string_view mounted_at = "main";
-inline constexpr std::string_view document_id = "main/page/main/doc";
 
 // The parts a page's own HTML says: `projection` as the Web host reads it (omui.host.web's page::projection — every
-// written node's id, its element's label, address and words) and the document's markup (page::projected of its
-// node). Or why the page is none of this shell's (it has no document).
-[[nodiscard]] std::expected<Parts, std::string> read(std::string_view projection, std::string_view document);
+// written node's id, its element's label, address and words), and `markup`, the page's own markup of a node
+// (page::projected), asked for the document's. A part is known by its own id wherever the view placed it: the node
+// called `nav`, `toc` or `turn` names the part (its label), every link under it — at any depth — is one of the
+// part's, by its own id, in the page's order; the node called `doc` is the document. Or why the page is none of a
+// shell's (it has no document).
+[[nodiscard]] std::expected<Parts, std::string> read(std::string_view projection, const std::function<std::string(std::string_view id)>& markup);
 
 }  // namespace oweb::shell

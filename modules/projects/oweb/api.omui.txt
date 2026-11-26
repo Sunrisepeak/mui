@@ -22,6 +22,7 @@ namespace oweb {
 }
 == oweb:site
 export import mlibs.delivery;
+export import oweb.shell;
 namespace oweb {
   struct Heading {
     int level = 1;
@@ -52,6 +53,7 @@ namespace oweb {
     bool look = false;
     std::string engine;
     std::string load = "eager";
+    shell::View view;
   };
   struct Section {
     std::string route;
@@ -94,8 +96,11 @@ namespace oweb {
 }
 == oweb:tool
 export import mlibs.agent;
+export import oweb.shell;
 namespace oweb {
   class Sites final : public mlibs::agent::Subject {
+    Sites() = default;
+    explicit Sites(shell::View view) : view_(std::move(view));
     [[nodiscard]] std::string_view name() const noexcept override;
     [[nodiscard]] std::string_view interface_name() const noexcept override;
     [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override;

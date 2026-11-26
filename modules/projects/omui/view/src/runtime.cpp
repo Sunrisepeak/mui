@@ -208,7 +208,7 @@ NodeId Runtime::mount(std::string_view slot, View view) {
         return NodeId{};
     }
     auto it = std::ranges::find(d.mounted, slot, &std::pair<std::string, NodeId>::first);
-    if (it != d.mounted.end() && d.alive(it->second) && d.at(it->second).type == (view.type ? view.type : find_type("box"))) {
+    if (it != d.mounted.end() && d.alive(it->second) && d.at(it->second).type == (view.type ? view.type : &box_type())) {
         // The same kind of view again: update it in place (state, focus and animations survive).
         NodeId id = it->second;
         d.update_from(id, view);

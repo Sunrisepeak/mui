@@ -75,22 +75,22 @@ std::u32string to_utf32(std::string_view text) {
 }
 
 Lb line_class(char32_t cp) noexcept {
-    return static_cast<Lb>(tables::lookup(tables::line_stage1, tables::line_stage2, cp) & 0x3F);
+    return static_cast<Lb>(tables::lookup(tables::line, cp) & 0x3F);
 }
 Gcb grapheme_class(char32_t cp) noexcept {
-    return static_cast<Gcb>(tables::lookup(tables::grapheme_stage1, tables::grapheme_stage2, cp) & 0x0F);
+    return static_cast<Gcb>(tables::lookup(tables::grapheme, cp) & 0x0F);
 }
 Wb word_class(char32_t cp) noexcept {
-    return static_cast<Wb>(tables::lookup(tables::word_stage1, tables::word_stage2, cp) & 0x1F);
+    return static_cast<Wb>(tables::lookup(tables::word, cp) & 0x1F);
 }
 Ea east_asian_width(char32_t cp) noexcept {
-    return static_cast<Ea>(tables::lookup(tables::word_stage1, tables::word_stage2, cp) >> 5);
+    return static_cast<Ea>(tables::lookup(tables::word, cp) >> 5);
 }
 bool extended_pictographic(char32_t cp) noexcept {
-    return (tables::lookup(tables::grapheme_stage1, tables::grapheme_stage2, cp) & 0x10) != 0;
+    return (tables::lookup(tables::grapheme, cp) & 0x10) != 0;
 }
 bool unassigned(char32_t cp) noexcept {
-    return (tables::lookup(tables::grapheme_stage1, tables::grapheme_stage2, cp) & 0x80) != 0;
+    return (tables::lookup(tables::grapheme, cp) & 0x80) != 0;
 }
 
 int columns(std::u32string_view grapheme) noexcept {

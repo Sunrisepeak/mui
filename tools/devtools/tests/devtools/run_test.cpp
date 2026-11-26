@@ -47,6 +47,23 @@ UTest budget_cases{"devtools.check", [] {
         expect(over.size() == 2 && over[0] == "wasm.shipped is 400 B, over its budget of 394 B" && over[1] == "js.bytes is not measured") << over.front();
         expect(eq(check::over_budget(measured, "not json").size(), std::size_t{1}));
     };
+
+    "a row says the profile it is measured at: each profile built once, its rows held to what it measured"_test = [] {
+        namespace check = omui::devtools::check;
+        // The terminal's tiers: compiled size-optimised (`small`); a row that names none is dist's (`size`).
+        constexpr std::string_view budget =
+            R"({"budgets":[{"metric":"program.shipped","max":1000,"profile":"small"},{"metric":"program.code","max":10},{"metric":"program.data","max":500,"profile":"small"}]})";
+        expect(check::budget_profiles(budget, "size") == std::vector<std::string>{"small", "size"});
+        expect(check::budget_profiles(R"({"budgets":[{"metric":"program.shipped","max":1}]})", "size") == std::vector<std::string>{"size"});
+        expect(check::budget_profiles("not json", "size") == std::vector<std::string>{"size"});
+        const std::map<std::string, std::uint64_t> small{{"program.shipped", 1200}, {"program.code", 700}, {"program.data", 500}};
+        const auto over_small = check::over_budget(small, budget, "small", "size");
+        expect(over_small.size() == 1 && over_small[0] == "program.shipped at the small profile is 1200 B, over its budget of 1000 B")
+            << (over_small.empty() ? std::string() : over_small.front());
+        const auto over_dist = check::over_budget(small, budget, "size", "size");  // only the row without a profile
+        expect(over_dist.size() == 1 && over_dist[0] == "program.code at the size profile is 700 B, over its budget of 10 B");
+        expect(check::over_budget({}, budget, "web", "size").empty());  // no row at it: nothing held
+    };
 }};
 
 UTest render_cases{"devtools.check.render", [] {

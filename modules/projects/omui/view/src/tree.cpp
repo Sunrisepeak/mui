@@ -35,7 +35,7 @@ float baseline_trampoline(void* context, mlibs::layout::NodeId lnode, Size conte
     return n.type->baseline(n.instance, m, content);
 }
 
-const ComponentType& type_of(const Element& e) { return e.type ? *e.type : *find_type("box"); }
+const ComponentType& type_of(const Element& e) { return e.type ? *e.type : box_type(); }
 
 std::string key_of(const Element& e) { return e.key.empty() ? e.id : e.key; }
 

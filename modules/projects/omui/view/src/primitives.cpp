@@ -795,19 +795,13 @@ struct PainterNode {
 
 // Read while views are built and written as packages register their
 // components, by runtimes on any thread (a video's frames drawn at once):
-// under a lock that readers share.
+// under a lock that readers share. It holds what was registered: the
+// primitives too only when asked (register_primitives), so a program that
+// names none carries only those it builds.
 struct Registry {
     std::shared_mutex                                        lock;
     std::map<std::string, const ComponentType*, std::less<>> types;
     std::set<std::string, std::less<>>                       left_out;  // by the application's closure
-    Registry() {
-        for (const ComponentType* t :
-             {&component_type<RootNode>(), &component_type<BoxNode>(), &component_type<ColumnNode>(),
-              &component_type<RowNode>(), &component_type<StackNode>(), &component_type<GridNode>(),
-              &component_type<SpacerNode>(), &component_type<TextNode>(), &component_type<ImageNode>(),
-              &component_type<ScrollNode>(), &component_type<PainterNode>()})
-            types.emplace(std::string(t->name), t);
-    }
 };
 
 Registry& registry() {
@@ -855,6 +849,50 @@ Element boxed(const ComponentType& type, BoxOptions o, std::vector<Element> chil
 }  // namespace
 
 const ComponentType& root_type() { return component_type<RootNode>(); }
+const ComponentType& box_type() { return component_type<BoxNode>(); }
+
+template <Primitive Kind>
+const ComponentType& primitive_type() {
+    if constexpr (Kind == Primitive::box) return component_type<BoxNode>();
+    else if constexpr (Kind == Primitive::column) return component_type<ColumnNode>();
+    else if constexpr (Kind == Primitive::row) return component_type<RowNode>();
+    else if constexpr (Kind == Primitive::stack) return component_type<StackNode>();
+    else if constexpr (Kind == Primitive::grid) return component_type<GridNode>();
+    else if constexpr (Kind == Primitive::spacer) return component_type<SpacerNode>();
+    else if constexpr (Kind == Primitive::text) return component_type<TextNode>();
+    else if constexpr (Kind == Primitive::image) return component_type<ImageNode>();
+    else if constexpr (Kind == Primitive::scroll_view) return component_type<ScrollNode>();
+    else return component_type<PainterNode>();
+}
+// Each kind its own function: a program names one without carrying the others.
+template const ComponentType& primitive_type<Primitive::box>();
+template const ComponentType& primitive_type<Primitive::column>();
+template const ComponentType& primitive_type<Primitive::row>();
+template const ComponentType& primitive_type<Primitive::stack>();
+template const ComponentType& primitive_type<Primitive::grid>();
+template const ComponentType& primitive_type<Primitive::spacer>();
+template const ComponentType& primitive_type<Primitive::text>();
+template const ComponentType& primitive_type<Primitive::image>();
+template const ComponentType& primitive_type<Primitive::scroll_view>();
+template const ComponentType& primitive_type<Primitive::paint>();
+
+void register_primitives() {
+    // Once: a reader asks before each lookup. A name already taken (a program's own type) keeps its type.
+    static const bool registered = [] {
+        auto& r = registry();
+        std::unique_lock g(r.lock);
+        for (const ComponentType* t :
+             {&root_type(), &primitive_type<Primitive::box>(), &primitive_type<Primitive::column>(), &primitive_type<Primitive::row>(),
+              &primitive_type<Primitive::stack>(), &primitive_type<Primitive::grid>(), &primitive_type<Primitive::spacer>(),
+              &primitive_type<Primitive::text>(), &primitive_type<Primitive::image>(), &primitive_type<Primitive::scroll_view>(),
+              &primitive_type<Primitive::paint>()}) {
+            r.types.emplace(std::string(t->name), t);
+            if (const auto out = r.left_out.find(t->name); out != r.left_out.end()) r.left_out.erase(out);
+        }
+        return true;
+    }();
+    static_cast<void>(registered);
+}
 
 const ComponentType* find_type(std::string_view name) {
     auto& r = registry();
@@ -886,6 +924,12 @@ std::string left_out(std::string_view name) {
     for (std::size_t at = 0; at < name.size(); ++at)
         if (name[at] == '_' && at + 1 < name.size()) builder += static_cast<char>(std::toupper(static_cast<unsigned char>(name[++at])));
         else builder += name[at];
+    if (std::ranges::contains(primitive_type_names, name))
+        return std::format("`{}` is a primitive this program does not carry: it registered only the primitives it names "
+                           "(omui::register_primitives_named, or its scripts' imports: closure.json says which). Name it there — "
+                           "in a script, import {{ {} }} from \"openmui\" — and build again; a program that reads view documents "
+                           "registers them all (omui::register_primitives())",
+                           name, builder);
     return std::format("`{}` is a component this program does not carry: its build keeps the components its scripts name "
                        "(closure.json beside the build's outputs says which, and from where). Name it in a script — "
                        "import {{ {} }} from \"openmui\" — and build again, or list it in omui.config.ts's generation.components",

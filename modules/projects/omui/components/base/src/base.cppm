@@ -130,20 +130,13 @@ using BaseComponents = ComponentList<Button, Toggle, Checkbox, Slider, TextBox, 
                                      FormField, SearchBox, ToggleGroup, ContextMenu, HoverCard, CommandPalette,
                                      Sidebar, Toolbar, Chart, Carousel, WebView, FileDrop>;
 
-// A component's name as its contract has it (`button`, `text_box`), a template argument.
-template <std::size_t Size>
-struct ComponentName {
-    char text[Size]{};
-    consteval ComponentName(const char (&name)[Size]) { std::copy_n(name, Size, text); }
-    [[nodiscard]] constexpr std::string_view view() const { return {text, Size - 1}; }
-};
-
 // Registers the components' types with the runtime's registry, so view
 // documents and immediate mode (`ui.button`) find them by contract name.
 template <class... Component>
 void register_components(ComponentList<Component...>) {
     (register_type(component_type<Component>()), ...);
 }
+// Every base component, and every primitive (register_primitives), by name.
 void register_base_components();
 
 }  // namespace omui
@@ -166,12 +159,13 @@ void register_named(ComponentList<Component...>) {
 
 export namespace omui {
 
-// Registers, of the base components, only those named (the contract's names; a name that is no base component —
-// a layout's, a function's — names none): what an application's build writes from its scripts' imports (omui.build's
+// Registers, of the base components and the primitives, only those named (the contract's names; a name that is
+// neither — a function's — names none): what an application's build writes from its scripts' imports (omui.build's
 // closure(), B7b). The others are not referred to, so a program that registers this way does not carry them.
 template <ComponentName... Names>
 void register_base_named() {
     register_named<Names...>(BaseComponents{});
+    register_primitives_named<Names...>();
 }
 
 }  // namespace omui

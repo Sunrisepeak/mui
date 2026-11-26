@@ -2,9 +2,10 @@
 //
 // D-47: line breaking (UAX #14) and text segmentation (UAX #29) need a few
 // properties of every code point; ICU is not in the dependency graph, so the
-// generator reads the UCD files and writes compact two-stage tables (a block
-// index per 256 code points, shared 256-entry blocks) as a C++ partition of
-// mlibs.unicode, together with the enumerations of the property values.
+// generator reads the UCD files and writes compact three-stage tables (shared
+// blocks of 16 values, shared blocks of 32 of their indices, an index per 512
+// code points) as a C++ partition of mlibs.unicode, together with the
+// enumerations of the property values.
 export module omui.gen.unicode;
 
 import std;

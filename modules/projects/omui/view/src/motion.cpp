@@ -130,13 +130,21 @@ std::expected<void, mlibs::compose::Error> install_morphs() {
         },
         .clear = [](mrender::GlyphSource& glyphs) { static_cast<mrender::text::GlyphCache&>(glyphs).clear(); },
         .glyph_ink_bounds = &hanim::visual::glyph_ink_bounds,
-        .glyph_outline = &hanim::visual::glyph_outline};
+        .glyph_outline = &hanim::visual::glyph_outline,
+        .move = [](Runtime::Impl& runtime) { runtime.move_by_morphs(); },
+        .select = [](Runtime::Impl& runtime, NodeId id, std::size_t slot, bool fallback) { return runtime.select_motion(id, slot, fallback); }};
     mlibs::compose::Composition& composition = mlibs::compose::process();
     if (composition.get(morphs_slot) == &table) return {};
     return composition.install(morphs_slot, table, "omui.view");
 }
 
 const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool fallback) {
+    // Without morphs nothing moves: no slot holds a motion, and the theme's rules are not read.
+    const Morphs* table = installed_morphs();
+    return table ? table->select(*this, id, slot, fallback) : nullptr;
+}
+
+const MotionSpec* Runtime::Impl::select_motion(NodeId id, std::size_t slot, bool fallback) {
     // A design edit being shown (Runtime::present_design): what comes is written in and what goes
     // unwritten, over the layers below. Its updates keep the application's own motion — what did not
     // change must not move — and the window's root is never one (it would move the whole window).
@@ -262,8 +270,6 @@ bool Runtime::Impl::motions_moving() const {
 }
 
 void Runtime::Impl::run_motion() {
-    const double t = now().count();
-    const MotionLevel level = motion_now();
     // Without morphs (a program that draws no pixels: `morphs_slot` empty) motion is off — the log an agent reads says
     // so once (not a terminal's screen).
     morphs = installed_morphs();
@@ -272,9 +278,23 @@ void Runtime::Impl::run_motion() {
         if (!said.exchange(true))
             mlibs::log::info("motion: a change shows at once, this program has no morphs ({}: {})", morphs_slot.info.id, morphs_slot.info.absent);
     }
-    const bool off = !morphs || reduce_motion || level == MotionLevel::off ||
-                     (time_control.controlled && (time_control.paused || time_control.rate != 1 || time_control.seek));
     if (!repainted) return;
+    if (morphs) {
+        morphs->move(*this);
+    } else {
+        // Nothing moves: a node placed against a presentation's anchor follows it live (no motion places it).
+        for (std::size_t m = 1; m < by_index.size(); ++m)
+            if (const NodeId id = by_index[m]; alive(id)) at(id).live_anchor_placement = at(id).projected_anchor;
+    }
+    project_presentation();
+    collect_presentation();
+}
+
+void Runtime::Impl::move_by_morphs() {
+    const double t = now().count();
+    const MotionLevel level = motion_now();
+    const bool off = reduce_motion || level == MotionLevel::off ||
+                     (time_control.controlled && (time_control.paused || time_control.rate != 1 || time_control.seek));
     const auto cmds = list.commands();
     const std::size_t markers = by_index.size();
     auto previous_range = [&](std::uint32_t marker) -> std::optional<std::pair<std::size_t, std::size_t>> {
@@ -670,8 +690,6 @@ void Runtime::Impl::run_motion() {
     drawn_by.assign(markers, NodeId{});
     for (std::size_t m = 1; m < markers; ++m)
         if (marker_ranges[m].first != none) drawn_by[m] = by_index[m];
-    project_presentation();
-    collect_presentation();
 }
 
 void Runtime::set_motion_level(MotionLevel level) {

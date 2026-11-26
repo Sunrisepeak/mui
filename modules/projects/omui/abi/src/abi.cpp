@@ -233,6 +233,7 @@ OmuiResult omuiCreateRuntime(const OmuiRuntimeCreateInfo* info, OmuiRuntime* out
         if (auto installed = install_morphs(); !installed) log.warn("the morphs: {}", installed.error().message);
     if (!mlibs::image::decoder())
         if (auto installed = mlibs::image::install(); !installed) log.warn("the picture reader: {}", installed.error().message);
+    register_primitives();  // the primitives by name: the C ABI's documents and its catalogue name them
     r->fonts = std::make_unique<mlibs::text::FontCollection>();
     if (auto f = r->fonts->add_defaults(); !f) log.warn("the default fonts did not load: {}", f.error());
     RuntimeOptions o;

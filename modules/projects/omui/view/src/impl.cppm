@@ -70,6 +70,11 @@ struct Morphs {
     void (*clear)(mrender::GlyphSource& glyphs) = nullptr;
     std::optional<Rect> (*glyph_ink_bounds)(const mrender::DrawGlyphs& run, const Affine& transform, mrender::GlyphSource& source) = nullptr;
     std::optional<mrender::Path> (*glyph_outline)(const mrender::DrawGlyphs& run, std::size_t glyph, mrender::GlyphSource& source) = nullptr;
+    // The frame's pass that moves what drew something else (Runtime::Impl::move_by_morphs), and the choice of a node's
+    // motion for a slot by the theme's rules and its own `motion` (Runtime::Impl::select_motion): read only through
+    // here, so a program that installs no morphs carries neither — nothing moves there, a change shows at once.
+    void (*move)(Runtime::Impl& runtime) = nullptr;
+    const MotionSpec* (*select)(Runtime::Impl& runtime, NodeId id, std::size_t slot, bool fallback) = nullptr;
 };
 
 inline constexpr mlibs::compose::Slot<Morphs> morphs_slot{{
@@ -749,13 +754,16 @@ struct Runtime::Impl {
     mutable mrender::raster::Coverage presentation_path_coverage;
     void collect_presentation();
     [[nodiscard]] bool presentation_contains(const Node& node, Point window) const;
+    // The frame's motion stage: the morphs' pass where they are installed, then the presentation projected.
     void run_motion();
+    void move_by_morphs();  // reached through Morphs::move only
     [[nodiscard]] bool motions_moving() const;
     [[nodiscard]] bool motion_moving(NodeId id) const;
-    // A slot's motion (0 update, 1 enter, 2 exit), when it holds one.
+    // A slot's motion (0 update, 1 enter, 2 exit), when it holds one: none where no morphs are installed.
     // What a slot holds now: of its candidates, the person's choice, else the first that fits the device; a slot
     // holding nothing of its own (state, reorder, replace) falls back to the update slot's when `fallback`.
     [[nodiscard]] const MotionSpec* slot_motion(NodeId id, std::size_t slot, bool fallback = true);
+    [[nodiscard]] const MotionSpec* select_motion(NodeId id, std::size_t slot, bool fallback);  // through Morphs::select
     [[nodiscard]] const MotionSpec* update_motion(NodeId id) { return slot_motion(id, 0); }
     // Whether a change of its drawing is moved at all (any slot but enter and exit holds a morph).
     [[nodiscard]] bool moves_on_change(NodeId id) {

@@ -44,14 +44,15 @@ namespace mlibs::unicode {
   enum class Ea : std::uint8_t { N, A, F, H, Na, W, };
 }
 namespace mlibs::unicode::tables {
-  inline constexpr std::array<std::uint16_t, 4352> line_stage1{…};
-  inline constexpr std::array<std::uint8_t, 41728> line_stage2{…};
-  inline constexpr std::array<std::uint16_t, 4352> grapheme_stage1{…};
-  inline constexpr std::array<std::uint8_t, 42496> grapheme_stage2{…};
-  inline constexpr std::array<std::uint16_t, 4352> word_stage1{…};
-  inline constexpr std::array<std::uint8_t, 38656> word_stage2{…};
-  inline constexpr std::array<std::uint16_t, 4352> casing_stage1{…};
-  inline constexpr std::array<std::uint8_t, 26368> casing_stage2{…};
+  template <std::size_t Top, std::size_t Middle, std::size_t Leaves> struct Stages {
+    std::array<std::uint8_t, Top> top;
+    std::array<std::uint16_t, Middle> middle;
+    std::array<std::uint8_t, Leaves> leaves;
+  };
+  inline constexpr Stages<2176, 3360, 10000> line{…};
+  inline constexpr Stages<2176, 3424, 8432> grapheme{…};
+  inline constexpr Stages<2176, 3008, 8448> word{…};
+  inline constexpr Stages<2176, 2080, 4144> casing{…};
   struct CaseRun {
     char32_t first, last;
     std::uint8_t stride;
@@ -66,5 +67,5 @@ namespace mlibs::unicode::tables {
   };
   inline constexpr std::array<CaseSpecial, 102> full_upper{…};
   inline constexpr std::array<CaseSpecial, 28> full_lower{…};
-  [[nodiscard]] constexpr std::uint8_t lookup(const auto& stage1, const auto& stage2, char32_t cp) noexcept;
+  [[nodiscard]] constexpr std::uint8_t lookup(const auto& table, char32_t cp) noexcept;
 }

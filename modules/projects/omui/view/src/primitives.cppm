@@ -167,8 +167,32 @@ struct PaintOptions {
 
 // The component types of the primitives (view documents name them).
 [[nodiscard]] const ComponentType& root_type();
+// The plain box: what an element without a type is.
+[[nodiscard]] const ComponentType& box_type();
 [[nodiscard]] const ComponentType* find_type(std::string_view name);
 void register_type(const ComponentType& type);
+
+// A component's or a primitive's name as view documents have it (`column`, `text_box`), a template argument.
+template <std::size_t Size>
+struct ComponentName {
+    char text[Size]{};
+    consteval ComponentName(const char (&name)[Size]) { std::copy_n(name, Size, text); }
+    [[nodiscard]] constexpr std::string_view view() const { return {text, Size - 1}; }
+};
+
+// The primitives a view document names, in this order (the root is the runtime's own, named by none).
+enum class Primitive : std::uint8_t { box, column, row, stack, grid, spacer, text, image, scroll_view, paint };
+inline constexpr std::array<std::string_view, 10> primitive_type_names{"box", "column", "row", "stack", "grid",
+                                                                  "spacer", "text", "image", "scroll_view", "paint"};
+// One primitive's type by itself: referring to it does not carry the others (each kind defined in the runtime).
+template <Primitive Kind>
+[[nodiscard]] const ComponentType& primitive_type();
+
+// Registers every primitive by name, once (where the name is not taken): what a program that reads names calls — a
+// view document's reader (omui.viewdoc does, before it looks one up), register_base_components(), omui::run, the
+// headless host and the C ABI. A program that only calls the builders carries the primitives it builds and no other
+// (CF1: the registry holds none until asked).
+void register_primitives();
 // A component this program does not carry, by its contract's name: an application's closure leaves out the components
 // its scripts do not name (B7b, D-251). An unknown name among them says why and how to carry it.
 void leave_out(std::string_view name);
@@ -191,5 +215,33 @@ void leave_out(std::string_view name);
 
 // Track lists: "1fr 2fr 120 auto minmax(80, 1fr) repeat(3, 1fr)".
 [[nodiscard]] std::vector<mlibs::layout::Track> parse_tracks(std::string_view text);
+
+}  // namespace omui
+
+// The registry's helper, the module's own: reachable where register_primitives_named is instantiated, not named outside.
+namespace omui {
+
+template <std::size_t Index, ComponentName... Names>
+void register_primitive_if_named() {
+    // compare(), a member: found where this is instantiated (a unit of the application's that need not import std).
+    if constexpr (((primitive_type_names[Index].compare(Names.view()) == 0) || ...))
+        register_type(primitive_type<static_cast<Primitive>(Index)>());
+    else
+        leave_out(primitive_type_names[Index]);
+}
+
+}  // namespace omui
+
+export namespace omui {
+
+// Of the primitives, only those named (other names name none: a base component's, a function's): what the smallest
+// programs and an application's closure register (register_base_named passes its names here, B7b), so the agent's
+// catalog lists what they use. The others are not referred to, so not carried; asked for, one says how to carry it.
+template <ComponentName... Names>
+void register_primitives_named() {
+    []<std::size_t... Index>(std::index_sequence<Index...>) {
+        (register_primitive_if_named<Index, Names...>(), ...);
+    }(std::make_index_sequence<primitive_type_names.size()>{});
+}
 
 }  // namespace omui

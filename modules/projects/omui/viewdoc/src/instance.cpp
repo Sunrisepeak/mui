@@ -707,6 +707,7 @@ std::expected<const ComponentType*, std::vector<Diagnostic>> define_component(st
     auto& all = definitions();
     auto it = all.find(doc->name);
     if (it == all.end()) {
+        register_primitives();  // a component's name is not a primitive's
         if (const ComponentType* existing = find_type(doc->name)) {
             Diagnostic d;
             d.code = "name";
@@ -748,6 +749,7 @@ std::expected<const ComponentType*, std::vector<Diagnostic>> define_component_fi
 Element make(std::string_view type, std::vector<std::pair<std::string, Source>> props, std::vector<std::pair<std::string, Handler>> handlers,
              std::string id) {
     Element e;
+    register_primitives();  // a script or a document names any primitive (once)
     e.type = find_type(type);
     if (!e.type) {
         if (const std::string why = left_out(type); !why.empty()) log.warn("no component is named `{}`: {}", type, why);

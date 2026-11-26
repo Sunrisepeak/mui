@@ -101,6 +101,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
         if (auto installed = install_morphs(); !installed) warn("the morphs: {}", installed.error().message);
     if (!mlibs::image::decoder())
         if (auto installed = mlibs::image::install(); !installed) warn("the picture reader: {}", installed.error().message);
+    register_primitives();  // the primitives by name, for the documents and agents a headless program serves
     mlibs::text::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
         // The host brings its text measure (terminal design §9): HarfBuzz, unless the program installed a shaper.

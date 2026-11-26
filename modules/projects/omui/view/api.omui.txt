@@ -845,8 +845,18 @@ namespace omui {
   };
   [[nodiscard]] Element painter(PaintOptions options, std::source_location where = std::source_location::current());
   [[nodiscard]] const ComponentType& root_type();
+  [[nodiscard]] const ComponentType& box_type();
   [[nodiscard]] const ComponentType* find_type(std::string_view name);
   void register_type(const ComponentType& type);
+  template <std::size_t Size> struct ComponentName {
+    char text[Size]{…};
+    consteval ComponentName(const char (&name)[Size]);
+    [[nodiscard]] constexpr std::string_view view() const;
+  };
+  enum class Primitive : std::uint8_t { box, column, row, stack, grid, spacer, text, image, scroll_view, paint };
+  inline constexpr std::array<std::string_view, 10> primitive_type_names{…};
+  template <Primitive Kind> [[nodiscard]] const ComponentType& primitive_type();
+  void register_primitives();
   void leave_out(std::string_view name);
   [[nodiscard]] std::string left_out(std::string_view name);
   [[nodiscard]] std::vector<const ComponentType*> registered_types();
@@ -855,6 +865,9 @@ namespace omui {
   [[nodiscard]] bool is_runtime_property(std::string_view name) noexcept;
   [[nodiscard]] std::span<const std::string_view> runtime_events() noexcept;
   [[nodiscard]] std::vector<mlibs::layout::Track> parse_tracks(std::string_view text);
+}
+namespace omui {
+  template <ComponentName... Names> void register_primitives_named();
 }
 == omui.view:runtime
 namespace omui {

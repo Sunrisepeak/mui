@@ -516,6 +516,7 @@ int run(AppSpec app, const RunOptions& o) {
     // What this program was built with, installed before any host is made — a window, the page, or none (the
     // generated unit: build.mcpp; a second run in one process installs nothing more).
     hosting::install_services();
+    register_primitives();  // by name: what its documents, scripts and agents name (omui.view holds none until asked)
     if (o.no_agent_player) app.agent_players = false;  // the person's word for this run
     if (app.components) app.components();
     register_window_components();

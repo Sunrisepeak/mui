@@ -35,8 +35,10 @@ The retained and immediate view runtime (plan §3–§5):
   a preview, `lower` in the manifest): what only a program that draws pixels
   uses is read where a program's root installed it, so a terminal carries none
   of it. Universal motion's morphs — hanim.visual, and mrender.text's glyph
-  cache for their text — are this package's own slot `omui.view.morphs`
-  (`install_morphs()`); pixel effects by name are mrender's
+  cache for their text, the frame's pass that moves what changed and the
+  choice of a node's motion for a slot by the theme's rules — are this
+  package's own slot `omui.view.morphs` (`install_morphs()`; without it no
+  slot holds a motion, and a removed node goes at once); pixel effects by name are mrender's
   (`mrender.vector.effects`), an image's file is read by mlibs.image's decoder
   (`mlibs.image.decoder`). omui::run installs all three in every world that
   draws pixels (omui.sdk's features `morphs`, `effects`, `images`), the
@@ -72,7 +74,14 @@ The retained and immediate view runtime (plan §3–§5):
   performed and answers its outcome (a component's optional `preview` adds
   the value after), changing nothing;
 - **primitives**: box, column, row, stack, grid, spacer, text, image, scroll
-  view, painter, and their builders with designated-initializer options;
+  view, painter, and their builders with designated-initializer options.
+  By name (view documents, scripts, the agent's catalog) they are registered
+  when asked: `register_primitives()` (all, once — omui.viewdoc, `omui::run`,
+  the headless host and the C ABI ask), or `register_primitives_named<"column",
+  "text">()` (only those; `register_base_named` passes its names here). A
+  program that only calls the builders carries the primitives it builds;
+- **models**: named, keyed rows that lists show and scripts and agents push
+  to; a revision signal makes readers follow;
 - **models**: named, keyed rows that lists show and scripts and agents push
   to; a revision signal makes readers follow;
 - **overlays** (menus, dialogs, tooltips, popups): laid out from the root,

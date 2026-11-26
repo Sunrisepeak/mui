@@ -50,47 +50,75 @@ int features(const fs::path& root) {
     return 0;
 }
 
-std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>& measured, std::string_view budget_text) {
+std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>& measured, std::string_view budget_text, std::string_view profile,
+                                     std::string_view fallback) {
     std::vector<std::string> out;
     const auto budgets = json::parse(budget_text, nullptr, false);
     if (budgets.is_discarded() || !budgets.contains("budgets")) return {"the budget file is not JSON with its budgets"};
     for (const auto& budget : budgets["budgets"]) {
+        if (!profile.empty() && budget.value("profile", std::string(fallback)) != profile) continue;  // measured at another profile
         const std::string metric = budget.value("metric", "");
+        const std::string at = profile.empty() ? std::string() : std::format(" at the {} profile", profile);
         const auto found = measured.find(metric);
         if (found == measured.end()) {
-            out.push_back(std::format("{} is not measured", metric));
+            out.push_back(std::format("{}{} is not measured", metric, at));
             continue;
         }
         const auto most = budget.value("max", std::uint64_t{0});
-        if (found->second > most) out.push_back(std::format("{} is {} B, over its budget of {} B", metric, found->second, most));
+        if (found->second > most) out.push_back(std::format("{}{} is {} B, over its budget of {} B", metric, at, found->second, most));
     }
+    return out;
+}
+
+std::vector<std::string> budget_profiles(std::string_view budget_text, std::string_view fallback) {
+    std::vector<std::string> out;
+    const auto budgets = json::parse(budget_text, nullptr, false);
+    if (!budgets.is_discarded() && budgets.contains("budgets") && budgets["budgets"].is_array())
+        for (const auto& budget : budgets["budgets"])
+            if (const std::string profile = budget.value("profile", std::string(fallback)); !std::ranges::contains(out, profile))
+                out.push_back(profile);
+    if (out.empty()) out.emplace_back(fallback);
     return out;
 }
 
 namespace {
 
-// A program built for this machine as dist builds it, its symbol table kept (the size profile): `omui-gen size` says
-// what it loads and which owner each byte is (B3).
-int native_size(const fs::path& root, const Size& asked) {
-    const auto built = run::build(root, {"-p", asked.package, "--profile", "size"});
-    if (!built) return failed(std::format("{} did not build in the size profile: {}", asked.package, built.error()));
+// The profile a native program's budget rows are measured at where they name none: dist's code (-O3) with its symbol
+// table kept.
+constexpr std::string_view dist_profile = "size";
+
+// One build of a program at one profile, weighed: what it loads, the packages built into it, the providers installed.
+struct Weighed {
+    std::map<std::string, std::uint64_t> measured;  // program.shipped, program.code, program.data
+    std::set<std::string>                links;
+    std::set<std::string>                installed;
+    bool                                 composed = false;
+};
+
+// A program built for this machine at `profile`, its symbol table kept: `omui-gen size` says what it loads and which
+// owner each byte is (B3). `report` is where its report is written; `markdown` too, when asked.
+std::expected<Weighed, std::string> weigh_native(const fs::path& root, const Size& asked, std::string_view profile, const fs::path& report,
+                                                 const fs::path& markdown) {
+    const auto built = run::build(root, {"-p", asked.package, "--profile", std::string(profile)});
+    if (!built) return std::unexpected(std::format("{} did not build in the {} profile: {}", asked.package, profile, built.error()));
     const auto program = std::ranges::find_if(*built, [](const run::Artifact& artifact) { return artifact.kind == "bin"; });
-    if (program == built->end()) return failed(std::format("{}'s build reported no program", asked.package));
-    const fs::path report = asked.json.empty() ? root / "target" / (asked.package + ".size.json") : asked.json;
+    if (program == built->end()) return std::unexpected(std::format("{}'s build reported no program", asked.package));
     std::vector<std::string> gen{"run", "-p", "omui.gen", "omui-gen", "--", "size", mcpplibs::os::fs::utf8(program->path), "--json",
                                  mcpplibs::os::fs::utf8(report), "--top", "40"};
-    if (!asked.markdown.empty()) gen.insert(gen.end(), {"--markdown", mcpplibs::os::fs::utf8(asked.markdown)});
+    if (!markdown.empty()) gen.insert(gen.end(), {"--markdown", mcpplibs::os::fs::utf8(markdown)});
     if (const auto [status, said] = mcpp(root, gen); status != 0) {
         std::cout << said;
-        return failed("omui-gen size failed");
+        return std::unexpected("omui-gen size failed");
     }
     const auto measured_report = json::parse(mcpplibs::os::fs::read(report).value_or(""), nullptr, false);
-    if (measured_report.is_discarded()) return failed("the size report is not JSON");
-    const std::map<std::string, std::uint64_t> measured{{"program.shipped", measured_report.value("shipped", std::uint64_t{0})},
-                                                        {"program.code", measured_report.value("code", std::uint64_t{0})},
-                                                        {"program.data", measured_report.value("data", std::uint64_t{0})}};
+    if (measured_report.is_discarded()) return std::unexpected("the size report is not JSON");
+    Weighed weighed;
+    weighed.measured = {{"program.shipped", measured_report.value("shipped", std::uint64_t{0})},
+                        {"program.code", measured_report.value("code", std::uint64_t{0})},
+                        {"program.data", measured_report.value("data", std::uint64_t{0})}};
+    const auto& measured = weighed.measured;
     const double shipped = std::max<double>(1.0, static_cast<double>(measured.at("program.shipped")));
-    std::cout << std::format("{}: {} loaded — code {}, data {}; {} symbols\n", asked.package, kib(measured.at("program.shipped")),
+    std::cout << std::format("{} ({} profile): {} loaded — code {}, data {}; {} symbols\n", asked.package, profile, kib(measured.at("program.shipped")),
                              kib(measured.at("program.code")), kib(measured.at("program.data")), measured_report.value("functions", 0));
     int listed = 0;
     for (const auto& owner : measured_report.value("owners", json::array())) {
@@ -99,8 +127,8 @@ int native_size(const fs::path& root, const Size& asked) {
         std::cout << std::format("  {:>9}  {:4.1f}%  {}\n", kib(bytes), 100.0 * static_cast<double>(bytes) / shipped, owner.value("name", ""));
     }
     // What it links (B5): the packages built into the program, from the build's resolution — beside its own bin/.
-    std::set<std::string> links;
-    fs::path              program_out;  // the package's build-output directory, where its build program writes
+    std::set<std::string>& links = weighed.links;
+    fs::path               program_out;  // the package's build-output directory, where its build program writes
     for (fs::path up = program->path.parent_path(); up.has_relative_path(); up = up.parent_path()) {
         const auto resolution = json::parse(mcpplibs::os::fs::read(up / "resolution.json").value_or(""), nullptr, false);
         if (resolution.is_discarded()) continue;
@@ -117,25 +145,48 @@ int native_size(const fs::path& root, const Size& asked) {
     std::cout << std::format("{} links {} packages\n", asked.package, links.size());
     // What it is composed of (mlibs.compose, K4): each slot of the build, and the provider installed at it or why
     // none is — from the composition its build program wrote (mlibs.build.compose's report), when it writes one.
-    std::set<std::string> installed;
-    bool                  composed = false;
     if (const auto composition = json::parse(mcpplibs::os::fs::read(program_out / "composition.json").value_or(""), nullptr, false);
         !program_out.empty() && !composition.is_discarded()) {
-        composed = true;
+        weighed.composed = true;
         for (const auto& slot : composition.value("slots", json::array())) {
             const auto providers = slot.value("providers", json::array());
             for (const auto& provider : providers) {
                 const bool is_installed = provider.value("installed", false);
-                if (is_installed) installed.insert(provider.value("package", ""));
+                if (is_installed) weighed.installed.insert(provider.value("package", ""));
                 std::cout << std::format("  {} {} {} ({})\n", slot.value("id", ""), is_installed ? "<-" : "without", provider.value("package", ""),
                                          provider.value("why", ""));
             }
             if (providers.empty()) std::cout << std::format("  {} has no provider in this build\n", slot.value("id", ""));
         }
     }
+    return weighed;
+}
+
+// Each profile the budget's rows are measured at (`size`, dist's code, where they name none; the terminal's tiers say
+// `small`, compiled size-optimised as the terminal design's §5 states), built once and weighed: the rows at it held to
+// what it measured. The first profile's report is `--json`'s (default target/<package>.size.json), another's beside it
+// with the profile before the extension; what it links and installs is the graph's, held once.
+int native_size(const fs::path& root, const Size& asked) {
+    const std::string budget_text = asked.budget.empty() ? std::string() : mcpplibs::os::fs::read(root / asked.budget).value_or("");
+    const auto profiles = asked.budget.empty() ? std::vector<std::string>{std::string(dist_profile)} : budget_profiles(budget_text, dist_profile);
+    const fs::path first_report = asked.json.empty() ? root / "target" / (asked.package + ".size.json") : asked.json;
+    std::vector<std::string> over;
+    std::optional<Weighed>   graph;  // the first build's links and installs
+    for (const std::string& profile : profiles) {
+        fs::path report = first_report;
+        if (profile != profiles.front())
+            report.replace_filename(mcpplibs::os::fs::from_utf8(
+                std::format("{}.{}{}", mcpplibs::os::fs::utf8(report.stem()), profile, mcpplibs::os::fs::utf8(report.extension()))));
+        auto weighed = weigh_native(root, asked, profile, report, profile == profiles.front() ? asked.markdown : fs::path());
+        if (!weighed) return failed(weighed.error());
+        if (!asked.budget.empty())
+            for (std::string& message : over_budget(weighed->measured, budget_text, profile, dist_profile)) over.push_back(std::move(message));
+        if (!graph) graph = std::move(*weighed);
+    }
     if (asked.budget.empty()) return 0;
-    const std::string budget_text = mcpplibs::os::fs::read(root / asked.budget).value_or("");
-    auto over = over_budget(measured, budget_text);
+    const std::set<std::string>& links = graph->links;
+    const std::set<std::string>& installed = graph->installed;
+    const bool composed = graph->composed;
     // The budget's `links`, when it lists them: the program links exactly those — one more or one fewer is said.
     if (const auto budget = json::parse(budget_text, nullptr, false); !budget.is_discarded() && budget.contains("links")) {
         std::set<std::string> expected;

@@ -1,0 +1,23 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "terminal",
+  "doc": "Read an application's picture in a terminal: its cells as text, their colours and style, and what drew one.",
+  "tools": [
+    {"name": "terminal.frame", "description": "The frame as the terminal shows it: its size in cells, the grid in the interface's pixels, its text a row a line; with `cells`, each cell's grapheme, colours (#rrggbb), style and the node that drew it", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"terminal.frame"}],
+     "inputSchema": {"type": "object", "properties": {"cells": {"type": "boolean", "description": "each cell too, row by row (the text alone when not given)"}}, "required": []}},
+    {"name": "terminal.at", "description": "What drew a cell: its grapheme, colours and style, and the node that drew it last — its id and path in the interface — with the point in the interface's pixels a pointer there would hit", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"terminal.at","at":[2,1]}],
+     "inputSchema": {"type": "object", "properties": {"at": {"description": "[column, row], from 0 at the top left"}}, "required": ["at"]}}
+  ],
+  "tiers": [],
+  "tasks": [
+    {"name": "read-the-screen", "summary": "Read what the terminal shows, a row a line", "steps": [
+      {"op":"terminal.frame"}
+    ]},
+    {"name": "ask-what-drew-a-cell", "summary": "Go from a cell back to the node that drew it", "steps": [
+      {"op":"terminal.at","at":[2,1]}
+    ]}
+  ]
+}

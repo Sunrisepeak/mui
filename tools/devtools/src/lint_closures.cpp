@@ -406,6 +406,10 @@ std::span<const Closure> repository_closures() {
         {"mlibs.text", {}, {"mrender"}},
         // the display list: plain data, no renderer (terminal design §9 step 3)
         {"mrender.display", {"mrender.display", "mlibs.geom", "mlibs.math", "mlibs.memory", "mlibs.utils"}, {}},
+        // a terminal's reader of the display list: no rasteriser, vector renderer or shaper (terminal design §4)
+        {"mrender.cells", {}, {"mrender.raster", "mrender.vector", "mrender.text", "mlibs.text", "mlibs.rhi"}},
+        // a terminal's host links no shaper and no window's host (terminal design §9: the host brings its text measure)
+        {"omui.host.terminal", {}, {"mlibs.text.harfbuzz", "omui.host.sdl3", "omui.host.headless", "omui.host.web", "omui.host.android"}},
         // the stepping substrate: the standard library and the small tools only, no solver (D-133)
         {"mlibs.simulation", {"mlibs.simulation", "mlibs.utils"}, {}},
         // the solver core (D-133, D-231): the small tools alone — no UI, game, renderer, GPU, agent kernel or table; what

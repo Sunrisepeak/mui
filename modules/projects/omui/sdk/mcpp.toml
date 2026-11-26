@@ -16,8 +16,8 @@ repo        = "https://github.com/Sunrisepeak/mui"
 primary-module = "omui"  # the SDK's umbrella: `import omui;` (D-207)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: the SDK umbrella an application imports"
-lower = ["omui.host.android", "mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
-reexports = ["hanim.visual", "mlibs.i18n", "omui.agent", "omui.core", "omui.expr", "omui.host.android", "omui.host.headless", "omui.host.sdl3", "omui.host.web", "omui.semantic", "omui.ui.base", "omui.view", "omui.viewdoc"]  # what its interface re-exports (lint module-closure)
+lower = ["omui.host.android", "omui.host.terminal", "mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+reexports = ["hanim.visual", "mlibs.i18n", "omui.agent", "omui.core", "omui.expr", "omui.host.android", "omui.host.headless", "omui.host.sdl3", "omui.host.terminal", "omui.host.web", "omui.semantic", "omui.ui.base", "omui.view", "omui.viewdoc"]  # what its interface re-exports (lint module-closure)
 agent = { library = "the umbrella: it re-exports the packages of omui; its own part, runtime generation (src/generate/, module omui.generate), is reached through omui.agent's generate.* catalog" }
 
 [package.metadata.openmui.compose]
@@ -32,6 +32,7 @@ reductions = ["no-gamepad-hidapi", "software-present"]   # take away: no world i
 "omui.agent" = { feature = "agent", targets = "all" }
 "omui.sdk" = { feature = "generate", targets = "all" }  # its own: runtime generation (module omui.generate)
 "omui.host.sdl3.gpu" = { feature = "gpu", targets = "desktop" }
+"omui.host.terminal" = { feature = "terminal", targets = "desktop" }
 "omui.accessibility.bridge" = { feature = "accessibility-bridge", targets = "desktop" }
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): runtime generation's customization layer
@@ -66,6 +67,9 @@ agent = {}
 # Runtime generation (omui.generate, preview): interface an agent makes while the application runs. An application
 # that asks for it (AppSpec::generation) in a program built without it runs, and says what it lacks.
 generate = {}
+# The application in this program's terminal, in character cells (`--terminal`; omui.host.terminal, preview): in no
+# world — an application that has a terminal face names it (features = ["terminal"]); without it --terminal says so.
+terminal = {}
 # The GPU path of a desktop window: SDL_GPU's device and mrender's renderer (omui.host.sdl3.gpu). Without it the CPU
 # renderer draws every frame, as on a machine without a GPU.
 gpu = {}
@@ -111,6 +115,7 @@ mcpplibs.cmdline      = "0.0.3"
 # (src/host/<where>/shown.cpp) that name it.
 [target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.dependencies]
 omui.host.sdl3 = { path = "../host/sdl3" }
+omui.host.terminal = { path = "../host/terminal" }  # installed by the generated unit (feature terminal): --terminal
 "omui.host.sdl3.gpu" = { path = "../host/sdl3/gpu" }  # installed by the generated unit (feature gpu)
 omui.accessibility.bridge = { path = "../accessibility/bridge" }  # installed by the generated unit (feature accessibility-bridge)
 

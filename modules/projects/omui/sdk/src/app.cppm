@@ -120,6 +120,7 @@ struct AppSpec {
 // How to run, from the command line:
 //
 //   (nothing)                 a desktop window
+//   --terminal                in this terminal's character cells: the same view, keys and mouse (omui.host.terminal)
 //   --headless                no display: frames on a virtual clock
 //     --frames N              run N frames (default: until settled)
 //     --png FILE              write the last frame
@@ -144,6 +145,7 @@ struct AppSpec {
 //   --agent-guide DIR         write what an agent needs to operate it — agent.md, .well-known/openmui-agent.json — into DIR, and link its page there
 //   --static-html FILE        write its first screen as static HTML, its semantic tree projected (D-236): what a reader without JavaScript reads
 struct RunOptions {
+    bool                  terminal = false;
     bool                  headless = false;
     bool                  serve = false;
     std::optional<int>    frames;

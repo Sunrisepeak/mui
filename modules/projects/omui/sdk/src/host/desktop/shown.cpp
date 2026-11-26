@@ -3,11 +3,13 @@ module omui;
 
 import std;
 import mcpplibs.os;
+import mlibs.compose;
 import mlibs.error;
 import mlibs.trace;
 import omui.core;
 import omui.view;
 import omui.host.sdl3;
+import omui.host.terminal;
 import :app;
 import :shown;
 
@@ -85,6 +87,23 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
         return 0;
     }
     return desktop.run();
+}
+
+int terminal(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
+    // The terminal is a capability this program is built with (the feature `terminal`): without it, said, with the way.
+    const omui::terminal::ShowService* show = mlibs::compose::process().get(omui::terminal::show_slot);
+    if (!show) {
+        error("--terminal: {}", mlibs::compose::process().missing(omui::terminal::show_slot.info).message);
+        return 2;
+    }
+    TerminalOptions t;
+    t.app = app.id;
+    t.theme = o.dark ? Theme::dark_theme() : app.theme;
+    t.agent = o.agent;
+    t.agent_input = o.agent_input.value_or(app.agent_input);
+    t.endpoint_directory = o.agent_dir;
+    t.endpoint_name = o.agent_name;
+    return show->run(std::move(t), prepare);
 }
 
 std::vector<std::string> host_locales() { return preferred_locales(); }

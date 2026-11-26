@@ -175,6 +175,7 @@ namespace omui {
     std::optional<generate::GenerationOptions> generation;
   };
   struct RunOptions {
+    bool terminal = false;
     bool headless = false;
     bool serve = false;
     std::optional<int> frames;

@@ -14,9 +14,9 @@ A capability below its package's label is marked in its project's feature table 
 
 | Project | stable | preview | experimental |
 |---|---|---|---|
-| omui | 30 | 3 | 1 |
+| omui | 30 | 4 | 1 |
 | hanim | 5 | 4 | 0 |
-| mrender | 11 | 8 | 0 |
+| mrender | 11 | 9 | 0 |
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
@@ -40,6 +40,7 @@ A capability below its package's label is marked in its project's feature table 
 | `omui.sdk` | [modules/projects/omui/sdk](../../modules/projects/omui/sdk) | stable |
 | `omui.expr` | [modules/projects/omui/expr](../../modules/projects/omui/expr) | stable |
 | `omui.host.headless` | [modules/projects/omui/host/headless](../../modules/projects/omui/host/headless) | stable |
+| `omui.host.terminal` | [modules/projects/omui/host/terminal](../../modules/projects/omui/host/terminal) | preview |
 | `omui.host.android` | [modules/projects/omui/host/android](../../modules/projects/omui/host/android) | preview |
 | `omui.host.sdl3` | [modules/projects/omui/host/sdl3](../../modules/projects/omui/host/sdl3) | stable |
 | `omui.host.sdl3.gpu` | [modules/projects/omui/host/sdl3/gpu](../../modules/projects/omui/host/sdl3/gpu) | stable |
@@ -89,6 +90,7 @@ A capability below its package's label is marked in its project's feature table 
 | `mrender.text` | [modules/projects/mrender/text](../../modules/projects/mrender/text) | stable |
 | `mrender.graph` | [modules/projects/mrender/graph](../../modules/projects/mrender/graph) | stable |
 | `mrender.cts` | [modules/projects/mrender/cts](../../modules/projects/mrender/cts) | stable |
+| `mrender.cells` | [modules/projects/mrender/cells](../../modules/projects/mrender/cells) | preview |
 | `mrender.display` | [modules/projects/mrender/display](../../modules/projects/mrender/display) | stable |
 | `mrender.vector` | [modules/projects/mrender/vector](../../modules/projects/mrender/vector) | stable |
 | `mrender.frame` | [modules/projects/mrender/frame](../../modules/projects/mrender/frame) | stable |

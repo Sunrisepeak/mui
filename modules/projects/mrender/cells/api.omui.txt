@@ -1,0 +1,41 @@
+== mrender.cells
+export import mrender.display;
+namespace mrender::cells {
+  struct Grid {
+    float column = 8;
+    float row = 16;
+    float baseline = 12;
+  };
+  namespace style {
+    inline constexpr std::uint8_t bold = 1, italic = 2, underline = 4, strikethrough = 8;
+  }
+  struct Cell {
+    std::string text = " ";
+    Color foreground;
+    Color background;
+    std::uint8_t style = 0;
+    std::uint32_t node = 0;
+    [[nodiscard]] bool operator==(const Cell& other) const noexcept;
+  };
+  class Frame {
+    Frame() = default;
+    Frame(int columns, int rows, Color foreground, Color background);
+    [[nodiscard]] int columns() const noexcept;
+    [[nodiscard]] int rows() const noexcept;
+    [[nodiscard]] const Cell& at(int column, int row) const;
+    [[nodiscard]] Cell& at(int column, int row);
+    [[nodiscard]] std::string text(bool trim = true) const;
+    [[nodiscard]] std::uint32_t node_at(int column, int row) const noexcept;
+    [[nodiscard]] bool operator==(const Frame& other) const noexcept;
+  };
+  struct Options {
+    Grid grid;
+    Color foreground = Color::black();
+    Color background = Color::white();
+    std::function<std::uint8_t(FontRef)> font_style;
+  };
+  [[nodiscard]] Frame render(const DisplayList& list, int columns, int rows, const Options& options = {…});
+  enum class Colors : std::uint8_t { truecolor, palette256, palette16 };
+  [[nodiscard]] std::string ansi(const Frame& frame, Colors colors = Colors::truecolor);
+  [[nodiscard]] std::string ansi(const Frame& before, const Frame& after, Colors colors = Colors::truecolor);
+}

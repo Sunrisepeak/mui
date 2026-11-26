@@ -125,11 +125,16 @@ struct ToyPackage {
 // A world page's places (ToyPackage::world), each there once: where the builder writes what the page's head says
 // more (its sheet, its faces, its other languages), its document (the projection, `data-omui-target` on each
 // node's element); the directory the world's files are served from, as the page finds it ("../../engine/"); and
-// when the page takes its program (eager, idle, interaction). Its `<title>` and `<html lang>` are replaced too.
+// when the page takes its program (eager, idle, interaction); and the faces its document is set in, each by its
+// key (`omui-inter`) with its file as the page finds it — the page's own cut of the face, fetched for the document
+// already, is then the program's first, the world's whole face asked for only when a character the cut lacks is
+// wanted, and a face the document is not set in waits the same way (`null`: the world's faces as the world plans
+// them). Its `<title>` and `<html lang>` are replaced too.
 inline constexpr std::string_view world_head = "<!--omui:head-->";
 inline constexpr std::string_view world_document = "<!--omui:document-->";
 inline constexpr std::string_view world_root = "var omuiRoot = \"\";";
 inline constexpr std::string_view world_takes = "var omuiTakes = \"eager\";";
+inline constexpr std::string_view world_faces = "var omuiFaces = null;";
 
 struct ToyFile {
     std::string   path;   // relative to the package

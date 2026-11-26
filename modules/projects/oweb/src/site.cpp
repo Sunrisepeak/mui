@@ -130,7 +130,7 @@ bool takes(std::string_view load) { return load == "eager" || load == "idle" || 
 // A world's page (omui-gen dist-toy --world; omui.gen's dist_toy): a page waiting for its document. Its places, each
 // there once.
 constexpr std::string_view world_head = "<!--omui:head-->", world_document = "<!--omui:document-->", world_root = "var omuiRoot = \"\";",
-                           world_takes = "var omuiTakes = \"eager\";";
+                           world_takes = "var omuiTakes = \"eager\";", world_faces = "var omuiFaces = null;";
 
 std::filesystem::path world_of(const std::filesystem::path& site, const SiteOptions& options) {
     const std::filesystem::path stated = mcpplibs::os::fs::from_utf8(options.engine);
@@ -140,6 +140,7 @@ std::filesystem::path world_of(const std::filesystem::path& site, const SiteOpti
 // What one page of a site puts at a world's places.
 struct Filled {
     std::string language, title, head, document, root, load;
+    std::string faces;  // the faces its document is set in, each key with its file as the page finds it: a JSON object
 };
 
 // The world's page as one page of a site; or why it is no world's page.
@@ -158,6 +159,7 @@ std::expected<std::string, std::string> from_world(std::string page, const Fille
     if (!put(world_head, filled.head)) return wrong(world_head);
     if (!put(world_root, std::format("var omuiRoot = \"{}\";", filled.root))) return wrong(world_root);
     if (!put(world_takes, std::format("var omuiTakes = \"{}\";", filled.load))) return wrong(world_takes);
+    if (!put(world_faces, std::format("var omuiFaces = {};", filled.faces))) return wrong(world_faces);
     constexpr std::string_view opening = "<html lang=\"", title = "<title>";
     const std::size_t language = page.find(opening), language_end = language == std::string::npos ? language : page.find('"', language + opening.size());
     if (language_end == std::string::npos) return wrong("<html lang=…>");
@@ -569,13 +571,21 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         auto waiting = read(world / "index.html");
         if (!waiting) return std::unexpected(std::format("the site's engine: {}", waiting.error()));
         const std::string top = relative(route.path, "/");
+        // The faces the page is set in are the program's first: the site's cuts of them, which the page has fetched
+        // for its document already (the world's whole faces come when a character they alone have is wanted).
+        std::string own_faces;
+        for (const std::string& family : page.faces) {
+            const std::string key = semantic::font_key(family);
+            own_faces += std::format("{}\"{}\":\"{}assets/{}.ttf\"", own_faces.empty() ? "" : ",", key, top == "./" ? std::string() : top, key);
+        }
         auto made = from_world(std::move(*waiting),
                                {.language = route.language,
                                 .title = title,
                                 .head = std::format("<meta name=\"generator\" content=\"oweb\">\n{}\n<style>html{{color-scheme:light dark}}{}{}</style>", said, faces, semantic::look_sheet(look)),
                                 .document = body,
                                 .root = std::format("{}engine/", top == "./" ? std::string() : top),
-                                .load = route.load},
+                                .load = route.load,
+                                .faces = std::format("{{{}}}", own_faces)},
                                world);
         if (!made) return std::unexpected(made.error());
         page.html = std::move(*made);
@@ -876,11 +886,13 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
             for (const std::string& family : page.faces)
                 if (!std::ranges::contains(families, family)) families.push_back(family);
         // Each cut to what the site shows: every character of its pages, and the letters, digits and marks of ASCII
-        // (what a view draws beside its text: a list's numbers). A character a face is cut of is another face's, or
-        // the reader's own fonts'.
+        // and the mark that ends a line cut short (what a view draws beside its text: a list's numbers, a counter's
+        // digits; every paragraph readies its `…`). A character a face is cut of is another face's, or the reader's
+        // own fonts' — or, with a program, the world's whole face, asked for when the character is wanted.
         std::set<char32_t> shown = lost->characters;
         for (const Page& page : pages) shown.insert(page.characters.begin(), page.characters.end());
         for (char32_t character = 0x20; character < 0x7F; ++character) shown.insert(character);
+        shown.insert(U'\u2026');
         mlibs::text::FontCollection fonts;
         if (auto loaded = fonts.add_defaults(); !loaded) return std::unexpected(std::format("the faces of the site's look: {}", loaded.error()));
         for (const std::string& family : families) {

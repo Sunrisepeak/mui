@@ -199,7 +199,7 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
     if (p.world) html += static_part(std::format("{}\n", world_document));
     html += "<canvas id=\"canvas\" tabindex=\"0\"></canvas>\n<div id=\"status\">…</div>\n<script>\n";
     // Where a world's files are, as its page finds them, and when the page takes its program: a builder's to say.
-    if (p.world) html += std::format("{}\n{}\n", world_root, world_takes);
+    if (p.world) html += std::format("{}\n{}\n{}\n", world_root, world_takes, world_faces);
     html += std::format("var omuiFonts = [{}];\n", font_list);
     html += std::format("var omuiWasm = {};\n", js_string(wasm));
     html += std::format("var omuiLauncher = {};\n", js_string(js));
@@ -760,7 +760,16 @@ document.getElementById('canvas').addEventListener('pointerdown', function () { 
          "    coming.forEach(function (picture) {\n      var arrived = function () { if (--left === 0) take(); };\n"
          "      picture.addEventListener('load', arrived);\n      picture.addEventListener('error', arrived);\n    });\n",
          loader);
-    swap("var response = await fetch(a.url, {", "var response = await fetch(omuiRoot + a.url, {");
+    // A file of the world's is found from the world's directory; a face of the page's own is where the page says.
+    swap("var response = await fetch(a.url, {", "var response = await fetch(/^[a-z][a-z0-9+.-]*:/i.test(a.url) ? a.url : omuiRoot + a.url, {");
+    // The faces the document is set in are the page's own cuts first (the browser has them for the document
+    // already), so the program's first frame is set in the faces the page was; the whole face of each, and a face
+    // the document is not set in, is asked for when a character wants it — never fetched just because it is packed.
+    swap("function omuiDeferredFont(f) { return f[2].length ? !omuiWants(f[2]) : !!f[3]; }",
+         "function omuiDeferredFont(f) {\n  if (omuiFaces) {\n"
+         "    var own = omuiFaces['omui-' + f[0].replace(/\\.[^.]*$/, '').toLowerCase().replace(/[^0-9a-z]/g, '')];\n"
+         "    f[3] = own ? new URL(own, document.baseURI).href : null; f[5] = true;\n    return true;\n  }\n"
+         "  return f[2].length ? !omuiWants(f[2]) : !!f[3];\n}");
     swap("  var launcher = new URL(omuiLauncher, document.URL).href;", "  var launcher = new URL(omuiRoot + omuiLauncher, document.URL).href;");
     swap("function omuiArguments() {\n", "function omuiArguments() {\n  return [];\n");
     swap("function omuiWants(langs) {\n", "function omuiWants(langs) {\n  if (typeof window.omuiFontLanguage !== 'string' && document.documentElement.lang) "
@@ -911,7 +920,8 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
         // Another language's face, and a face fetched on demand, wait until a character it covers is wanted: the page knows which.
         const bool on_demand = std::ranges::find(p.fonts_on_demand, stem) != p.fonts_on_demand.end();
         if (on_demand && first == p.font_initial.end()) return std::unexpected(std::format("--font-on-demand {}: it needs an initial cut (--font-initial)", stem));
-        if (on_demand || std::ranges::find(p.font_languages, stem, &std::pair<std::string, std::vector<std::string>>::first) != p.font_languages.end()) {
+        // In a world every face may wait so (a page of a site brings its own cuts): each says what it covers.
+        if (p.world || on_demand || std::ranges::find(p.font_languages, stem, &std::pair<std::string, std::vector<std::string>>::first) != p.font_languages.end()) {
             // A face whose cmap cannot be read says nothing: fetched for any character no face covers.
             const auto blocks = font_blocks(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()));
             if (blocks) {

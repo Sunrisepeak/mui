@@ -86,6 +86,7 @@ namespace omui::gen {
   inline constexpr std::string_view world_document = "<!--omui:document-->";
   inline constexpr std::string_view world_root = "var omuiRoot = \"\";";
   inline constexpr std::string_view world_takes = "var omuiTakes = \"eager\";";
+  inline constexpr std::string_view world_faces = "var omuiFaces = null;";
   struct ToyFile {
     std::string path;
     std::uintmax_t size = 0;

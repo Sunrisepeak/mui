@@ -159,7 +159,7 @@ static UTest cases{"oweb.site", [] {
             std::ofstream(world / name, std::ios::binary) << bytes;
         };
         put("index.html", "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>oweb</title>\n<!--omui:head-->\n</head>\n<body>\n"
-                          "<div data-omui=\"static\">\n<!--omui:document-->\n</div>\n<canvas id=\"canvas\"></canvas>\n<script>\nvar omuiRoot = \"\";\nvar omuiTakes = \"eager\";\n"
+                          "<div data-omui=\"static\">\n<!--omui:document-->\n</div>\n<canvas id=\"canvas\"></canvas>\n<script>\nvar omuiRoot = \"\";\nvar omuiTakes = \"eager\";\nvar omuiFaces = null;\n"
                           "var omuiLauncher = \"reader-0123.js\";\n</script>\n</body>\n</html>\n");
         put("reader-0123.js", "/* the launcher */");
         put("reader-4567.wasm", std::string("\0asm\1\0\0\0", 8));
@@ -180,6 +180,8 @@ static UTest cases{"oweb.site", [] {
         // The world's files once for the site, found from each page; each route says when it takes the program.
         expect(home.contains("var omuiRoot = \"engine/\";") && deep.contains("var omuiRoot = \"../../engine/\";") && chinese.contains("var omuiRoot = \"../engine/\";"));
         expect(home.contains("var omuiTakes = \"idle\";"));
+        expect(home.contains("var omuiFaces = {\"omui-inter\":\"assets/omui-inter.ttf\"") && deep.contains("\"omui-inter\":\"../../assets/omui-inter.ttf\"") && !home.contains("var omuiFaces = null;"))
+            << "the faces a page is set in, as the page finds them: the program's first";
         expect(read(out / "engine/reader-0123.js") == "/* the launcher */" && std::filesystem::file_size(out / "engine/reader-4567.wasm") == 8u &&
                read(out / "engine/assets/89ab.ttf") == "a face" && !std::filesystem::exists(out / "engine/index.html"))
             << "the program's files, not the page they waited in";

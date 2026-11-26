@@ -240,14 +240,18 @@ static UTest cases{"gen.dist_toy", [] {
         if (!made) return;
         const std::string page = read(p.out / "index.html");
         const auto once = [&](std::string_view text) { return page.find(text) != std::string::npos && page.find(text, page.find(text) + 1) == std::string::npos; };
-        expect(once(gen::world_head) && once(gen::world_document) && once(gen::world_root) && once(gen::world_takes)) << "each place there once";
+        expect(once(gen::world_head) && once(gen::world_document) && once(gen::world_root) && once(gen::world_takes) && once(gen::world_faces)) << "each place there once";
         expect(page.find(gen::world_head) < page.find("</head>") && page.find("<div data-omui=\"static\">\n<!--omui:document-->\n</div>") < page.find("<canvas id=\"canvas\""))
             << "the head's place in the head, the document's over the canvas's";
         expect(page.contains("[data-omui=static]>[data-omui-look]{width:100%!important;height:100%!important}")) << "the document is set by its look";
         expect(page.contains("var launcher = omuiRoot + omuiLauncher, idle = omuiTakes === 'idle', eager = omuiTakes === 'eager';") && page.contains("if (eager) start(); else omuiPublish('waiting');") &&
                !page.contains("<script defer src="))
             << "the program is found from the world's directory, and taken when the page says";
-        expect(page.contains("await fetch(omuiRoot + a.url, {") && page.contains("new URL(omuiRoot + omuiLauncher, document.URL)")) << "every file of the world from its directory";
+        expect(page.contains("await fetch(/^[a-z][a-z0-9+.-]*:/i.test(a.url) ? a.url : omuiRoot + a.url, {") && page.contains("new URL(omuiRoot + omuiLauncher, document.URL)"))
+            << "every file of the world from its directory, a face of the page's own from where the page says";
+        expect(page.contains("var own = omuiFaces['omui-' + f[0].replace(/\\.[^.]*$/, '').toLowerCase().replace(/[^0-9a-z]/g, '')];") &&
+               page.contains("f[3] = own ? new URL(own, document.baseURI).href : null; f[5] = true;"))
+            << "the page's own cut of a face first, the world's whole face when a character wants it";
         expect(page.contains("function omuiArguments() {\n  return [];") && !page.contains("location.reload(); });")) << "what follows # is a place in the document: no flag, no reload";
         expect(page.contains("window.omuiFontLanguage = document.documentElement.lang;")) << "a language's font by the document's language";
         expect(page.contains("document.querySelectorAll('[data-omui=static] img')") && page.contains("if (!left) return take();")) << "the program is taken once the document's pictures are there";

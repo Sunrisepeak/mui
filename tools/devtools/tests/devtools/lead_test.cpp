@@ -61,6 +61,17 @@ static UTest cases{"devtools.lead", [] {
         // An unverified metric the ledger already holds as such is not recorded again.
         const auto again = lead::verdicts(metrics, joined(samples), (*judged)[1].record + "\n", context, skipped);
         expect(again.has_value() && eq(again->size(), std::size_t{1}));
+        expect(!record.contains(R"("display")") && !record.contains(R"("conditions")")) << "said only where the run says them";
+        // A run from outside the process says where it ran and under what (RM1): on its record.
+        lead::Context real = context;
+        real.display = "HDMI-0 2560x1440 at 119.98 Hz; GL and Vulkan to NVIDIA GeForce RTX 4080";
+        real.conditions = "energy_performance_preference performance; 1-minute load 1.2";
+        const auto placed = lead::verdicts(metrics, joined(samples), "", real, skipped);
+        expect(placed.has_value() && !placed->empty());
+        if (placed && !placed->empty())
+            expect((*placed)[0].record.contains(R"("display":"HDMI-0 2560x1440 at 119.98 Hz; GL and Vulkan to NVIDIA GeForce RTX 4080")") &&
+                   (*placed)[0].record.contains(R"("conditions":"energy_performance_preference performance; 1-minute load 1.2")"))
+                << (*placed)[0].record;
     };
 
     "the bootstrap interval is seeded: the same on every run, around the median"_test = [] {

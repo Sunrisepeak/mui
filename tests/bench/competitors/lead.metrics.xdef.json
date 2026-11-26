@@ -502,7 +502,7 @@
     {
       "project": "omui",
       "id": "ui.start.hello.cold.ms",
-      "about": "the smallest application: start to its first presented frame equal to the settled picture, cold (its files and the libraries it maps dropped from the page cache) — the consensus start metric (§2a.1: TTID, Flutter's time to first frame), the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window of the harness's own X server, measured from outside the process",
+      "about": "the smallest application: start to its first presented frame equal to the settled picture, cold (its files and the libraries it maps dropped from the page cache) — the consensus start metric (§2a.1: TTID, Flutter's time to first frame), the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window, measured from outside the process on an X server — the harness's own (Xvfb) or, with --screen, this machine's display; each record's `display` says which and what each side drew with",
       "better": "lower",
       "key": "hello",
       "field": "start_cold_ms",
@@ -534,7 +534,7 @@
     {
       "project": "omui",
       "id": "ui.click-to-frame.counter.ms",
-      "about": "a counter: the button let go (XTEST) to the first presented frame whose count changed — input to the next frame (§2a.1: INP, typometer), the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window of the harness's own X server, measured from outside the process",
+      "about": "a counter: the button let go (XTEST) to the first presented frame whose count changed — input to the next frame (§2a.1: INP, typometer), the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window, measured from outside the process on an X server — the harness's own (Xvfb) or, with --screen, this machine's display; each record's `display` says which and what each side drew with",
       "better": "lower",
       "key": "counter",
       "field": "click_ms",
@@ -600,7 +600,7 @@
     {
       "project": "omui",
       "id": "ui.live-board.present.p95_ms",
-      "about": "a live market board at 1896 × 1030 — omui: the board of tests/bench's core/live-dashboard (22 sparklines, a 40-level book, a 30-row tape, a tick every 1/120 s); NSH: its gallery's Stocks — the interval between presented frames, p95 (§2a.1: frame time by presentation), on this machine's display path (Xvfb, GL on Mesa's llvmpipe: every side draws on the CPU), measured from outside the process",
+      "about": "a live market board at 1896 × 1030 — omui: the board of tests/bench's core/live-dashboard (22 sparklines, a 40-level book, a 30-row tape, a tick every 1/120 s); NSH: its gallery's Stocks — the interval between presented frames, p95 (§2a.1: frame time by presentation), measured from outside the process on the display each record's `display` names (the harness's Xvfb, where every GL side draws on the CPU, or this machine's own)",
       "better": "lower",
       "key": "market",
       "field": "present_p95_ms",
@@ -626,7 +626,7 @@
     {
       "project": "omui",
       "id": "ui.list-10k.scroll.present.p95_ms",
-      "about": "10,000 rows of three parts (a title, a state, a button), virtual, at 1896 × 1030, the wheel turned every 1/120 s: the interval between presented frames, p95, on this machine's display path (Xvfb, GL on Mesa's llvmpipe: every side draws on the CPU), measured from outside the process",
+      "about": "10,000 rows of three parts (a title, a state, a button), virtual, at 1896 × 1030, the wheel turned every 1/120 s: the interval between presented frames, p95, measured from outside the process on the display each record's `display` names (the harness's Xvfb, where every GL side draws on the CPU, or this machine's own)",
       "better": "lower",
       "key": "list",
       "field": "present_p95_ms",
@@ -689,7 +689,7 @@
     {
       "project": "omui",
       "id": "core.memory.hello.private-dirty.bytes",
-      "about": "the smallest windowed application at rest (5 s after its first frame): private dirty memory, read with pmap from outside (the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window of the harness's own X server, measured from outside the process); NSH's published floor on Linux with GL: 41.6 MiB native, 45.4 scripted",
+      "about": "the smallest windowed application at rest (5 s after its first frame): private dirty memory, read with pmap from outside (the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window, measured from outside the process on an X server — the harness's own (Xvfb) or, with --screen, this machine's display; each record's `display` says which and what each side drew with); NSH's published floor on Linux with GL: 41.6 MiB native, 45.4 scripted",
       "better": "lower",
       "key": "hello",
       "field": "private_dirty_bytes",

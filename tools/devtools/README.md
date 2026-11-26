@@ -120,7 +120,10 @@ The lead ledger (Part 2 plan §2, D-135): our side against the strongest competi
 
 `bench competitors` drives the comparisons (tests/bench/competitors): our side built natively and for the Web, the competitors' own runtimes installed at their pinned versions (node's packages; ThorVG and rlottie through their Python bindings, the allowlist's second kind), every comparison run; with `--ledger`, `--rounds` rounds alternating, sampled, judged, and the ledger and its pages written (`--dry-run`: the verdicts only).
 
+`bench apps` measures whole applications from outside their processes (tests/bench/competitors/apps): on an X server of its own (Xvfb), or with `--screen MONITOR` on this machine's display (RM1) — its window manager, compositor and GPU, every window opened on that monitor and only each program's own window watched (its damage, its pixels: GetImage on the window) and pressed (input only while it is under the pointer, the window kept above the person's); every side drawn at scale 1 whatever the desktop's `Xft.dpi`; omui's programs given the machine's NVIDIA driver as `gpu --real` gives it (the toolchain's C library does not search the system's); each ledger record says the display, what each side drew with and the machine's power setting and load (`display`, `conditions`).
+
 ```text
+omui-devtools bench apps --screen HDMI-0 --no-build --rounds 10
 omui-devtools bench competitors --ledger --rounds 15
 omui-devtools lead capability --project omui --feature C --about "…" --test modules/projects/omui/tools/mcp/tests/mcp_test.cpp --competitor webmcp=app-defined
 omui-devtools lead docs

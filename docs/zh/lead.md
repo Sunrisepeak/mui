@@ -1,6 +1,6 @@
 # 领先度：和最强的比
 
-每个指标都是我们对最强竞品，在同一台机器、同一个作业里交替测量；判定看比值的 95% 区间：低于 0.95× 为落后，到 1.2× 为持平，1.2× 起为领先，10× 起或竞品做不到为远超。落后的照样列在这里；没有设备测的如实写明。由领先度台账生成（2026-11-19）。
+每个指标都是我们对最强竞品，在同一台机器、同一个作业里交替测量；判定看比值的 95% 区间：低于 0.95× 为落后，到 1.2× 为持平，1.2× 起为领先，10× 起或竞品做不到为远超。落后的照样列在这里；没有设备测的如实写明。由领先度台账生成（2026-11-26）。
 
 ## 指标
 
@@ -44,23 +44,23 @@
 | omui | `agent.build-ui.success` | — | react-vite-playwright, flutter | — | 计划中 |
 | omui | `core.live-dashboard.frame.p95_ms` | — | nsh | — | 计划中 |
 | omui | `core.list-scroll.frame.p95_ms` | — | nsh | — | 计划中 |
-| omui | `core.rest.cpu_percent` | omui-app 0.02567 | flutter 0 | 0.00× [0.00, 0.00] | **behind** |
-| omui | `ui.start.hello.cold.ms` | omui-app 324.222 | slint 159.645 | 0.49× [0.43, 0.61] | **behind** |
-| omui | `ui.start.hello.warm.ms` | omui-app 83.8412 | slint 69.5473 | 0.86× [0.79, 1.22] | **behind** |
-| omui | `ui.click-to-frame.counter.ms` | omui-app 2.01839 | slint 1.38729 | 0.68× [0.65, 1.18] | **behind** |
-| omui | `core.memory.hello.uss.bytes` | omui-app 1.69318e+08 | slint 8.65792e+07 | 0.51× [0.51, 0.51] | **behind** |
-| omui | `core.memory.hello.pss.bytes` | omui-app 1.71622e+08 | slint 1.02512e+08 | 0.60× [0.60, 0.60] | **behind** |
-| omui | `core.rest.wakeups_per_s` | omui-app 10.4 | flutter 0 | 0.00× [0.00, 0.00] | **behind** |
-| omui | `ui.live-board.present.p95_ms` | omui-app 18.1666 | nsh-ts 29.3501 | 1.62× [1.29, 2.64] | **ahead** |
-| omui | `ui.live-board.cpu-per-frame.ms` | omui-app 19.572 | nsh-ts 86.7743 | 4.15× [3.54, 4.92] | **ahead** |
-| omui | `ui.list-10k.scroll.present.p95_ms` | omui-app 49.6781 | slint 17.297 | 0.35× [0.30, 0.42] | **behind** |
-| omui | `ui.list-10k.scroll.cpu-per-frame.ms` | omui-app 60.7916 | nsh-ts 18.0317 | 0.30× [0.22, 0.34] | **behind** |
+| omui | `core.rest.cpu_percent` | omui-app 0.39913 | flutter 0 | 0.00× [0.00, 0.00] | **behind** |
+| omui | `ui.start.hello.cold.ms` | omui-app 409.716 | slint 242.495 | 0.58× [0.53, 0.64] | **behind** |
+| omui | `ui.start.hello.warm.ms` | omui-app 354.897 | slint 250.892 | 0.71× [0.63, 0.81] | **behind** |
+| omui | `ui.click-to-frame.counter.ms` | omui-app 7.48333 | slint 6.72734 | 0.94× [0.51, 1.10] | **behind** |
+| omui | `core.memory.hello.uss.bytes` | omui-app 7.4498e+07 | slint 3.54017e+07 | 0.48× [0.47, 0.48] | **behind** |
+| omui | `core.memory.hello.pss.bytes` | omui-app 7.95412e+07 | slint 4.12134e+07 | 0.52× [0.52, 0.52] | **behind** |
+| omui | `core.rest.wakeups_per_s` | omui-app 113.8 | flutter 0 | 0.00× [0.00, 0.00] | **behind** |
+| omui | `ui.live-board.present.p95_ms` | omui-app 17.0479 | nsh-ts 38.1661 | 2.15× [1.85, 2.30] | **ahead** |
+| omui | `ui.live-board.cpu-per-frame.ms` | omui-app 3.23391 | nsh-ts 8.15129 | 2.12× [1.83, 2.85] | **ahead** |
+| omui | `ui.list-10k.scroll.present.p95_ms` | omui-app 8.74651 | slint 16.9997 | 1.94× [1.81, 2.00] | **ahead** |
+| omui | `ui.list-10k.scroll.cpu-per-frame.ms` | omui-app 7.32389 | slint 1.5244 | 0.23× [0.17, 0.29] | **behind** |
 | omui | `core.engine-start.us` | — | nsh | — | 计划中 |
 | omui | `core.first-frame.counter.ms` | — | nsh | — | 计划中 |
 | omui | `core.tap-to-commit.ms` | — | nsh | — | 计划中 |
-| omui | `core.memory.hello.private-dirty.bytes` | omui-app 6.51121e+07 | slint 5.20704e+07 | 0.80× [0.80, 0.80] | **behind** |
-| omui | `core.size.hello.executable.bytes` | omui-app 1.77012e+07 | slint 1.74696e+07 | 0.99× [0.99, 0.99] | **par** |
-| omui | `core.size.hello.package.bytes` | omui-app 8.42087e+06 | slint 8.61998e+06 | 1.02× [1.02, 1.02] | **par** |
+| omui | `core.memory.hello.private-dirty.bytes` | omui-app 2.10432e+07 | slint 1.92102e+07 | 0.91× [0.91, 0.91] | **behind** |
+| omui | `core.size.hello.executable.bytes` | omui-app 1.72139e+07 | slint 1.74696e+07 | 1.01× [1.01, 1.01] | **par** |
+| omui | `core.size.hello.package.bytes` | omui-app 8.14642e+06 | slint 8.62023e+06 | 1.06× [1.06, 1.06] | **par** |
 | omui | `core.size.hello.app-code.bytes` | — | nsh | — | 计划中 |
 | omui.components | `components.canvas-1000.frame_ms` | — | figma-like-dom | — | 计划中 |
 | meng | `physics.pyramid.step_ms` | — | box2d-v3, rapier | — | 计划中 |

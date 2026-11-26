@@ -18,8 +18,8 @@ It needs, besides each side's own toolchain (Rust through rustup, the system's c
 
 ## How it is measured
 
-- **The display.** An X server the harness starts (Xvfb 21.1.12, 1920 × 1080 × 24, no window manager, no compositor) and a session bus, as a desktop has. The harness is a client of the same server: DAMAGE tells it whenever anything is drawn on the screen, GetImage reads what is there, XTEST presses the buttons. A frame counts as presented when the server has carried out the drawing.
-- **Graphics.** GL reaches Mesa (25.0.7's llvmpipe with LLVM 20.1.7, software; the session's `LIBGL_DRIVERS_PATH`): NVIDIA's EGL makes no context on a server without DRI3, so every GL side (Slint's FemtoVG, Flutter's Impeller, NSH's GTK 4) draws on the CPU here. Vulkan reaches the RTX 4080 (omui's `--gpu` sides), presenting through the same server. Each run records what its process mapped.
+- **The display.** An X server the harness starts (Xvfb 21.1.12, 1920 × 1080 × 24, no window manager, no compositor) and a session bus, as a desktop has. The harness is a client of the same server: DAMAGE tells it whenever anything is drawn on the screen, GetImage reads what is there, XTEST presses the buttons. A frame counts as presented when the server has carried out the drawing. **Or this machine's own display** (`--screen MONITOR`, RM1): its X server with its window manager and compositor, the windows opened on the named monitor; the harness authorises itself with the session's cookie and watches only each program's own window (found by its process: its damage, its pixels — GetImage on the window, never the screen), presses only while that window is under the pointer (kept above the person's windows for the case) and puts the pointer back. A present is a run of non-overlapping draws on the window within half a refresh of each other, taken when its last draw lands (one image sent in strips is one present). Every side draws at scale 1 whatever the desktop's `Xft.dpi` (`GDK_DPI_SCALE`, `WINIT_X11_SCALE_FACTOR`); where a side still lays out otherwise there, its catalogue entry names its button and label on the desktop (`desktop`). Each ledger record says the display, what each side drew with and the machine's state (`display`, `conditions`).
+- **Graphics.** GL reaches Mesa (25.0.7's llvmpipe with LLVM 20.1.7, software; the session's `LIBGL_DRIVERS_PATH`): NVIDIA's EGL makes no context on a server without DRI3, so every GL side (Slint's FemtoVG, Flutter's Impeller, NSH's GTK 4) draws on the CPU here. Vulkan reaches the RTX 4080 (omui's `--gpu` sides), presenting through the same server. On this machine's own display (`--screen`) every side's GL and Vulkan reach NVIDIA's driver; omui's programs link the toolchain's C library, whose loader does not search the system's, so they are given the driver the way the device tests are (`omui-devtools gpu --real`: xlings's `nvidia-gl-host-link` and Vulkan loader, SDL told the loader) — without it their GPU path finds no driver and the CPU draws. Each run records what its process mapped.
 - **Start**: from launching the program to the first presented frame equal to the settled picture (nothing drawn for 0.6 s after it). Cold: the package's files and every file the process mapped on its previous run dropped from the page cache first (`dd iflag=nocache`, where no other process maps them); warm: launched again at once.
 - **Memory at rest**, 5 s after that frame: `pmap -XX`'s totals of the process and its children — private dirty (what it wrote and alone holds), USS (private clean and dirty), PSS, RSS.
 - **At rest**, the next 5 s: processor time (mcpplibs.os), the threads' context switches a second (`pidstat -w -t`), frames drawn on the window.
@@ -107,6 +107,60 @@ The board is not the same work on both sides: omui's is tests/bench's (22 sparkl
 | nsh-ts | market | 238 | 124 | — | 51.4 | 30.5 |
 | nsh-ts | list | 289 | 111 | — | 60.0 | 18.3 |
 
+## Results on this machine's display (RM1)
+
+2026-11-26 23:34 – 2026-11-27 00:14, 10 rounds, `omui-devtools bench apps --screen HDMI-0 --no-build --rounds 10 --only omui-app,slint,flutter,nsh-rust,nsh-ts`: the desktop's X server, window manager and compositor, every window on `HDMI-0` (2560 × 1440 at 120 Hz), every side's GL and Vulkan on the RTX 4080 (NVIDIA 580.178.04; each process mapped NVIDIA's driver). The processor's power preference `performance`; other sessions' builds ran throughout (1-minute load 1.8–15.3). The ledger's lines of that date with a `display` are this run's; the Xvfb tables above stay as the software path.
+
+| side | app | start cold ms (p90) | warm ms | private dirty MiB | USS | PSS | RSS | CPU at rest % | switches/s | click → frame ms |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| omui-app | hello | 410 (501) | 355 | 20.1 | 71.0 | 75.9 | 100.3 | 0.40 | 113.8 | — |
+| omui-app | counter | 405 (485) | 289 | 20.1 | 71.1 | 76.0 | 100.4 | 0.38 | 113.7 | 7.5 |
+| slint | hello | 243 (276) | 251 | 18.3 | 33.8 | 39.3 | 70.6 | 0.00 | 2.0 | — |
+| slint | counter | 252 (297) | 249 | 18.3 | 34.0 | 39.5 | 70.8 | 0.00 | 2.0 | 6.6 |
+| flutter | hello | 508 (689) | 575 | 60.1 | 95.6 | 104.8 | 160.9 | 0.00 | 0.0 | — |
+| flutter | counter | 549 (728) | 532 | 60.0 | 95.5 | 104.8 | 160.8 | 0.00 | 0.0 | — (†) |
+| nsh-rust | hello | 250 (318) | 270 | 22.3 | 39.3 | 47.1 | 97.1 | 0.00 | 0.0 | 24.7 (‡) |
+| nsh-ts | hello | 293 (393) | 252 | 27.8 | 58.6 | 66.7 | 121.4 | 0.00 | 0.0 | 31.5 |
+| nsh-ts | counter | 253 (353) | 252 | 28.6 | 59.0 | 67.1 | 121.8 | 0.00 | 0.0 | 33.3 |
+
+In motion, the same 5 s (present intervals over every round; the processor a frame is the rounds' median):
+
+| side | app | frames/s | present p50 ms | p95 | p99 | CPU % | CPU ms a frame | private dirty MiB |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| omui-app | market | 60.0 | 16.66 | 17.32 | 25.00 | 19.4 | 3.2 | 31.5 |
+| omui-app | list | 119.8 | 8.33 | 9.58 | 9.83 | 87.7 | 7.3 | 24.9 |
+| slint | list | 62.4 | 16.67 | 17.07 | 18.27 | 9.5 | 1.5 | 21.1 |
+| flutter | list | 30.0 | 32.84 | 36.23 | 45.06 | 60.8 | 16.4 | 88.0 (†) |
+| nsh-ts | market | 30.3 | 32.24 | 38.76 | 40.42 | 28.5 | 8.2 | 91.4 |
+| nsh-ts | list | 31.2 | 33.16 | 34.42 | 40.72 | 8.2 | 2.4 | 34.2 |
+
+† Flutter draws its whole frame into the lower-left quarter of its window on this desktop (its picture, `target/bench-apps/shots/`): its click lands on nothing (not measured) and its start is to that picture — its rows are kept as recorded, not as Flutter's best. ‡ In some rounds a click changed nothing in NSH's Rust template's label (its layout on the desktop); not a ledger metric.
+
+**The ledger's verdicts** on this display (`app` against the strongest; medians of the rounds, so a p95 here is the rounds' median p95):
+
+| Metric | omui (`app`) | strongest | ratio [95 %] | verdict |
+|---|---:|---|---|---|
+| start, cold | 410 ms | Slint 243 | 0.58 [0.53, 0.64] | behind |
+| start, warm | 355 ms | Slint 251 | 0.71 [0.64, 0.81] | behind |
+| private dirty at rest | 20.1 MiB | Slint 18.3 | 0.91 [0.91, 0.91] | behind (NSH's published floor 41.6: within) |
+| USS, PSS at rest (reported) | 71.0, 75.9 MiB | Slint 33.8, 39.3 | 0.48, 0.52 | behind |
+| processor at rest | 0.40 % | Flutter, NSH 0 | 0 | behind |
+| switches a second at rest (reported) | 113.8 | Flutter, NSH 0 | 0 | behind |
+| click → frame | 7.5 ms | Slint 6.7 | 0.94 [0.51, 1.10] | behind |
+| live board, present p95 | 17.0 ms | NSH 38.2 | 2.15 [1.85, 2.30] | ahead (not the same board) |
+| live board, CPU a frame | 3.2 ms | NSH 8.2 | 2.12 [1.83, 2.85] | ahead (not the same board) |
+| 10k list scrolled, present p95 | 8.7 ms | Slint 17.0 | 1.94 [1.81, 2.00] | ahead (Slint holds 60 Hz here) |
+| 10k list scrolled, CPU a frame | 7.3 ms | Slint 1.5 | 0.24 [0.17, 0.29] | behind |
+| programs, package | 17.21, 8.15 MB | Slint 17.47, 8.62 | 1.02, 1.06 | par |
+
+What the real display shows that the software path did not:
+
+- **The start is the GPU device's.** On the RTX 4080 `app` starts in 410 ms cold and 355 warm (software GL with the CPU drawing: 324 and 84): the device is made before the first frame, and a warm start pays nearly all of it again. Behind Slint (243, 251) — the plan's UI9 (the CPU path's first frame first, the device taking over when ready).
+- **Memory came down with the real driver.** 20.1 MiB private dirty (62.1 on llvmpipe): within NSH's published floor (41.6) and 0.91 of Slint's; USS is still twice Slint's (71.0 against 33.8).
+- **At rest the GPU path wakes.** The main thread wakes 100 times a second and NVIDIA's driver threads 14 (`[vkrt]` 10, `[vkps]` 4): 0.40 % of a core, where Flutter and NSH are at 0 and Slint at 0.005. With the CPU drawing the same program woke none in four rounds of five (12.6 a second in one; 2026-11-26, this display, a run before omui's sides were given the GPU).
+- **The list keeps 120 Hz; the processor pays for it.** 119.8 frames a second, p95 9.6 ms, at 7.3 ms of CPU a frame (87.7 % of a core); Slint holds 60 Hz on this 120 Hz monitor at 1.5 ms a frame, NSH and Flutter 30. The p99 (9.8 ms) is over D-187's 8.3 ms.
+- **The live board asks for 60.** omui's board presents at 60 frames a second on the 120 Hz monitor (its demand, D-70), p99 25.0 ms; NSH's Stocks at 30.
+
 ## What the runs found in omui
 
 - **The package does not start on this machine's system.** mcpp's toolchain links its own C library (glibc 2.44), so the packed program asks for `GLIBC_2.43`; Ubuntu 24.04 has 2.39 (`version 'GLIBC_2.43' not found`). A self-contained package (`--mode self-contained`, the C library carried) is 52 MB; a build against the system's (`--sysroot glibc@system`) fails in SDL3 (`posix_spawn_file_actions_addchdir` undeclared). What runs here is the same program as mcpp built it, beside the package's fonts — owed: a package that starts on the oldest supported system.
@@ -117,8 +171,9 @@ The board is not the same work on both sides: omui's is tests/bench's (22 sparkl
 
 ## Not measured here, and why
 
-- A real GPU's GL and a real display: NVIDIA's EGL needs DRI3, Xvfb has none, and this machine runs no display server. Every GL side draws with llvmpipe, so the frame rows say what each does on a CPU, not on the RTX 4080; a real display's numbers are the CI rows' or a desktop's (`omui-devtools bench apps` runs unchanged there).
-- 120 Hz: Xvfb presents GL at 60 Hz, so a side that waits for the display shows about 16.7 ms between frames whatever it could do.
+- On Xvfb, a real GPU's GL: NVIDIA's EGL needs DRI3 and Xvfb has none, so every GL side draws with llvmpipe there and those frame rows say what each does on a CPU. Since 2026-11-26 this machine's own display is measured too (`--screen`, the section above): the RTX 4080 and 120 Hz.
+- On Xvfb, 120 Hz: it presents GL at 60 Hz, so a side that waits for the display shows about 16.7 ms between frames whatever it could do.
+- System V shared memory is not available in this machine's sandbox (MIT-SHM attach fails): a window drawn on the CPU presents slower here than on a desktop with it. Every side of the display's run above drew with the GPU.
 - Input from a device: the clicks are XTEST's, from the server; the time from a physical press to the server is the same for every side and not in the number.
 - NSH's own timers (engine start, its first frame, event to commit) are inside its process; the start and the click here are the consensus' (§2a.1), from outside. Hot reload (C8) and the Web (C3) are not in this run.
 - mtest's monitoring measures a case's own process (its processor time and largest resident set); another process's PSS, USS and private dirty, its context switches and its window's frames are not in it, so the harness reads them itself (`pmap`, `pidstat`, the X server). The first two are a general gap for mcpplibs.os (a program's memory accounting and switches) and mtest upstream.

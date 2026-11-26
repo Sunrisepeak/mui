@@ -115,9 +115,12 @@ std::expected<Environment, std::string> software() {
             if (!fs::exists(system)) return std::unexpected(std::format("no Vulkan loader for {}", here));
             loader = system;
         }
-        // What the loader and the driver resolve to, so a device that does not come up says why.
+        // What the loader and the driver resolve to, so a device that does not come up says why. Asked of the
+        // system C library's own ldd, not whichever comes first on PATH: a shim there (xlings's subos) may stand for a
+        // C library that has none, and fail for every library.
+        const std::string ldd = fs::exists("/usr/bin/ldd") ? "/usr/bin/ldd" : "ldd";
         for (const fs::path& library : {*loader, icd->parent_path() / ".." / ".." / ".." / "lib" / "libvulkan_lvp.so"}) {
-            const auto resolved = run("ldd", {os::fs::utf8(library)});
+            const auto resolved = run(ldd, {os::fs::utf8(library)});
             out.said.push_back(os::fs::utf8(library));
             for (auto part : std::views::split(std::string_view(resolved.out), '\n'))
                 if (!std::string_view(part.begin(), part.end()).empty()) out.said.push_back("  " + std::string(part.begin(), part.end()));

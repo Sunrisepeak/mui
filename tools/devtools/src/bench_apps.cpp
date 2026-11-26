@@ -14,6 +14,7 @@ import std;
 import mcpplibs.os;
 import mcpplibs.cmdline;
 import nlohmann.json;
+import omui.devtools.gpu;
 import omui.devtools.lead;
 import omui.devtools.run;
 import omui.devtools.x11;
@@ -60,6 +61,16 @@ struct Side {
 struct Settings {
     int width = 800, height = 600;  // every window, after its first frame
     int screen_width = 1920, screen_height = 1080;
+    // A desktop's display (RM1, `--screen`): only the program's own window is watched and read,
+    // found by its process; the windows open on `monitor` (the window manager places a new window
+    // on the pointer's monitor), and input goes to the window only while it is under the pointer.
+    bool desktop = false;
+    x11::Rect monitor{0, 0, 1920, 1080};
+    std::array<int, 2> park{1916, 1076};  // the pointer between cases: on the monitor, off the window
+    // Draws further apart than this are two presents (half a refresh of the display: 60 Hz here,
+    // the monitor's rate on a desktop).
+    Clock::duration frame_gap = std::chrono::duration_cast<Clock::duration>(
+        std::chrono::duration<double>(0.5 / 60.0));
     milliseconds rest{5000}, idle{5000}, quiet{600}, timeout{30000};
     int clicks = 5;
     // Where an omui side's measured launch writes its trace (`--profile`): where the time goes in the
@@ -76,12 +87,14 @@ struct Launch {
     std::vector<double> clicks;
     bool click_changed = true;
     std::vector<double> presents;  // in motion: the intervals between presented frames (ms)
+    bool moved = false;  // on a desktop: opened on another monitor, moved onto the one asked for
     std::string failure;
 };
 
 // The environment both sides' programs run in, and the PATH their builds see.
 struct Environment {
     std::vector<std::pair<std::string, std::optional<std::string>>> run;  // the programs under test
+    std::vector<std::pair<std::string, std::optional<std::string>>> omui;  // and omui's besides
     std::string competitor_path;  // cargo's, Flutter's, the system's
     fs::path work, sdk;
 };
@@ -472,7 +485,8 @@ std::pair<std::vector<fs::path>, std::string> mapped_files(const fs::path& root,
         return std::ranges::any_of(paths,
                                    [&](const std::string& path) { return path.contains(part); });
     };
-    if (has("libnvidia-glcore") || has("libnvidia-eglcore") || has("libnvidia-gpucomp"))
+    if (has("libnvidia-glcore") || has("libnvidia-eglcore") || has("libnvidia-gpucomp") ||
+        has("libGLX_nvidia") || has("libEGL_nvidia"))
         driver += "nvidia ";
     if (has("libvulkan_lvp"))
         driver += "lavapipe ";
@@ -490,9 +504,11 @@ std::pair<std::vector<fs::path>, std::string> mapped_files(const fs::path& root,
 // The page cache dropped for each file (GNU dd's nocache: posix_fadvise DONTNEED), where no other
 // process maps it.
 void evict(const fs::path& root, const std::vector<fs::path>& files) {
+    std::error_code error;
     for (const auto& file : files)
-        (void)run::program(root, "dd",
-                           {"if=" + utf8(file), "iflag=nocache", "count=0", "status=none"});
+        if (fs::is_regular_file(file, error))  // a device a driver maps (/dev/nvidia0) has no cache
+            (void)run::program(root, "dd",
+                               {"if=" + utf8(file), "iflag=nocache", "count=0", "status=none"});
 }
 
 std::vector<fs::path> tree_files(const fs::path& tree) {
@@ -513,6 +529,12 @@ public:
     Watch(x11::Display& display, const Settings& settings, bool live = false)
         : display_(display), settings_(settings), live_(live) {}
 
+    // The process whose window it is (a desktop's display: the window that says it is its,
+    // _NET_WM_PID, and no other).
+    void expect(std::uint64_t process) {
+        process_ = process;
+    }
+
     // Events until the window has a picture and nothing was drawn for `quiet` since this call or
     // the last draw (a live window: until it has a picture), or the deadline.
     std::expected<void, std::string> settle(Clock::time_point deadline, milliseconds quiet,
@@ -528,7 +550,13 @@ public:
                 continue;
             }
             if (dirty_ && main_) {
-                auto image = display_.image(area());
+                auto image = grab();
+                if (!image && settings_.desktop) {
+                    // Mapped inside a window manager's frame not shown yet: not viewable, so not
+                    // readable (BadMatch) — read again a moment later.
+                    std::this_thread::sleep_for(milliseconds{1});
+                    continue;
+                }
                 if (!image)
                     return std::unexpected(image.error());
                 batches_.push_back(
@@ -556,7 +584,7 @@ public:
         std::optional<Clock::time_point> complete, painted, mapped;
     };
     std::expected<Frames, std::string> frames() {
-        auto image = display_.image(area());
+        auto image = grab();
         if (!image)
             return std::unexpected(image.error());
         final_ = x11::hash(image->pixels);
@@ -573,20 +601,38 @@ public:
         return out;
     }
 
-    // Draws counted while waiting for `span` (the program's frames at rest).
-    // A present is a run of draws on the window less than 1 ms apart (a frame's rectangles);
-    // `times` gets each one's first. With `wheel`, a notch down every 1/120 s, turning back every
-    // 400 notches.
+    // Presents counted while waiting for `span` (the program's frames at rest). A present is a
+    // run of draws on the window that do not overlap one another, each within half a refresh of
+    // the display after the last — a frame's rectangles, or the strips one image is sent in where
+    // it is not shared (an X server without MIT-SHM takes a big image as many requests) — and it
+    // is presented when its last draw is: `times` gets that. With `wheel`, a notch down every
+    // 1/120 s, turning back every 400 notches.
     std::expected<int, std::string>
     count(milliseconds span, std::vector<Clock::time_point>* times = nullptr, bool wheel = false) {
         const auto until = Clock::now() + span;
-        int drawn = 0, notches = 0;
-        std::optional<Clock::time_point> last;
+        int presents = 0, notches = 0;
+        std::vector<x11::Rect> current;  // what the present being drawn has covered
+        Clock::time_point last{};
+        const auto close = [&] {
+            if (current.empty())
+                return;
+            ++presents;
+            if (times)
+                times->push_back(last);
+            current.clear();
+        };
         auto next_notch = Clock::now();
         const auto step =
             std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1.0 / 120.0));
         while (Clock::now() < until) {
             if (wheel && Clock::now() >= next_notch) {
+                // A desktop's pointer may be moved away by its person: the wheel turns only over
+                // the program's own window.
+                if (auto under = pointer_on_window(); !under || !*under)
+                    return std::unexpected(
+                        under ? std::string("the window was no longer under the pointer: the "
+                                            "wheel stopped")
+                              : under.error());
                 if (auto turned = display_.wheel(notches++ / 400 % 2 == 0); !turned)
                     return std::unexpected(turned.error());
                 next_notch += step;
@@ -600,18 +646,22 @@ public:
             if (!event)
                 return std::unexpected(event.error());
             if (*event) {
-                if ((*event)->kind == x11::Event::Kind::damaged && overlaps((*event)->area)) {
-                    ++drawn;
-                    if (!last || (*event)->at - *last >= milliseconds{1}) {
-                        if (times)
-                            times->push_back((*event)->at);
-                    }
+                if ((*event)->kind == x11::Event::Kind::damaged && overlaps(**event)) {
+                    const x11::Rect& drawn = (*event)->area;
+                    const bool again = std::ranges::any_of(current, [&](const x11::Rect& done) {
+                        return drawn.x < done.x + done.width && done.x < drawn.x + drawn.width &&
+                               drawn.y < done.y + done.height && done.y < drawn.y + drawn.height;
+                    });
+                    if (again || (*event)->at - last >= settings_.frame_gap)
+                        close();
+                    current.push_back(drawn);
                     last = (*event)->at;
                 }
                 take(**event);
             }
         }
-        return drawn;
+        close();
+        return presents;
     }
 
     // The next draw on the window after `since`, waiting at most `wait`.
@@ -625,7 +675,7 @@ public:
             if (!*event)
                 continue;
             take(**event);
-            if ((*event)->kind == x11::Event::Kind::damaged && overlaps((*event)->area))
+            if ((*event)->kind == x11::Event::Kind::damaged && overlaps(**event))
                 return std::optional{(*event)->at};
         }
         return std::optional<Clock::time_point>{};
@@ -634,10 +684,7 @@ public:
     // The window's picture, or a part of it (in the window), as a hash.
     std::expected<std::uint64_t, std::string>
     picture(std::optional<x11::Rect> part = std::nullopt) {
-        x11::Rect where = area();
-        if (part)
-            where = {where.x + part->x, where.y + part->y, part->width, part->height};
-        auto image = display_.image(where);
+        auto image = grab(part);
         if (!image)
             return std::unexpected(image.error());
         return x11::hash(image->pixels);
@@ -663,7 +710,7 @@ public:
                 if (!*more)
                     break;
                 take(**more);
-                if ((*more)->kind == x11::Event::Kind::damaged && overlaps((*more)->area))
+                if ((*more)->kind == x11::Event::Kind::damaged && overlaps(**more))
                     last = (*more)->at;
             }
             auto now = picture(part);
@@ -678,7 +725,7 @@ public:
     // The window's picture as a PNG (what a person checks the click's place and the drawing by).
     std::expected<void, std::string> save(const fs::path& file) {
         const x11::Rect where = area();
-        auto image = display_.image(where);
+        auto image = grab();
         if (!image)
             return std::unexpected(image.error());
         mlibs::image::Image picture{.width = where.width, .height = where.height};
@@ -696,7 +743,11 @@ public:
     [[nodiscard]] std::uint32_t window() const noexcept {
         return main_;
     }
+    // What is read of the window: on the harness's own server its place on the screen (the
+    // screen's pixels there), on a desktop the window itself from its corner.
     [[nodiscard]] x11::Rect area() const noexcept {
+        if (settings_.desktop)
+            return {0, 0, std::max(rect_.width, 1), std::max(rect_.height, 1)};
         x11::Rect out = rect_;
         const x11::Rect screen = display_.screen();
         out.x = std::clamp(out.x, 0, screen.width - 1);
@@ -704,6 +755,30 @@ public:
         out.width = std::clamp(out.width, 1, screen.width - out.x);
         out.height = std::clamp(out.height, 1, screen.height - out.y);
         return out;
+    }
+    // The window's place on the screen (where the pointer goes to press in it).
+    [[nodiscard]] std::expected<x11::Rect, std::string> on_screen() {
+        if (!settings_.desktop)
+            return area();
+        auto corner = display_.origin(main_);
+        if (!corner)
+            return std::unexpected(corner.error());
+        return x11::Rect{(*corner)[0], (*corner)[1], rect_.width, rect_.height};
+    }
+    // Whether the window under the pointer is the program's (on a desktop, input pressed anywhere
+    // else would reach another's window).
+    [[nodiscard]] std::expected<bool, std::string> pointer_on_window() {
+        if (!settings_.desktop)
+            return main_ != 0;
+        if (!main_)
+            return false;
+        auto top = display_.top_level(main_);
+        if (!top)
+            return std::unexpected(top.error());
+        auto pointer = display_.where_pointer();
+        if (!pointer)
+            return std::unexpected(pointer.error());
+        return pointer->over == *top;
     }
     void forget_frames() {
         batches_.clear();
@@ -715,9 +790,48 @@ private:
         bool uniform = true;
     };
 
-    bool overlaps(const x11::Rect& drawn) const noexcept {
-        return main_ && drawn.x < rect_.x + rect_.width && rect_.x < drawn.x + drawn.width &&
-               drawn.y < rect_.y + rect_.height && rect_.y < drawn.y + drawn.height;
+    // The window's pixels (`part` of it, in the window).
+    std::expected<x11::Display::Image, std::string> grab(std::optional<x11::Rect> part = {}) {
+        x11::Rect where = area();
+        if (part)
+            where = {where.x + part->x, where.y + part->y, part->width, part->height};
+        return settings_.desktop ? display_.image(where, main_) : display_.image(where);
+    }
+
+    // A drawing on the window: on a desktop one its own damage reports, on the harness's server
+    // one on the screen where the window is.
+    bool overlaps(const x11::Event& drawn) const noexcept {
+        if (settings_.desktop)
+            return main_ && drawn.window == main_;
+        const x11::Rect& area = drawn.area;
+        return main_ && area.x < rect_.x + rect_.width && rect_.x < area.x + area.width &&
+               area.y < rect_.y + rect_.height && rect_.y < area.y + area.height;
+    }
+
+    // On a desktop: whether `window` is the program's own (it says so), and if so made the one
+    // watched — its own damage reported from now on.
+    bool adopt(std::uint32_t window, Clock::time_point at) {
+        if (!process_ || main_ == window)
+            return false;
+        const auto owner = display_.process_of(window);
+        if (!owner || *owner != process_)
+            return false;
+        const auto exact = display_.geometry(window);
+        if (!exact || exact->width < 64 || exact->height < 64 ||
+            exact->width * exact->height <= rect_.width * rect_.height)
+            return false;
+        (void)display_.follow(window);
+        if (!display_.damage(window))
+            return false;
+        main_ = window;
+        rect_ = {0, 0, exact->width, exact->height};
+        if (!mapped_at_)
+            mapped_at_ = at;
+        // What it drew before its damage was asked for is dated now, when it is known to be there
+        // (never earlier than it was: a start is not flattered).
+        last_damage_ = std::max(last_damage_, Clock::now());
+        dirty_ = true;
+        return true;
     }
 
     void take(const x11::Event& event) {
@@ -725,17 +839,33 @@ private:
         const std::uint32_t root = display_.root();
         switch (event.kind) {
             case Kind::created:
-                if (event.parent == root)
+                if (event.parent == root) {
                     windows_[event.window] = event.area;
+                    // Its own map is sent to it: a window manager reparents it into a frame first.
+                    if (settings_.desktop)
+                        (void)display_.follow(event.window);
+                }
                 break;
             case Kind::configured:
                 if (windows_.contains(event.window))
                     windows_[event.window] = event.area;
                 if (event.window == main_)
-                    rect_ = event.area;
+                    rect_ = settings_.desktop ? x11::Rect{0, 0, event.area.width, event.area.height}
+                                              : event.area;
                 break;
             case Kind::mapped:
                 {
+                    if (settings_.desktop) {
+                        // The program's window, or a frame around it (its map came before ours was
+                        // followed).
+                        if (adopt(event.window, event.at) || event.parent != root)
+                            break;
+                        if (const auto inside = display_.children(event.window))
+                            for (const std::uint32_t child : *inside)
+                                if (adopt(child, event.at))
+                                    break;
+                        break;
+                    }
                     if (!windows_.contains(event.window))
                         break;
                     x11::Rect place = windows_[event.window];
@@ -758,6 +888,8 @@ private:
                     main_ = 0, rect_ = {};
                 break;
             case Kind::damaged:
+                if (settings_.desktop && event.window != main_)
+                    break;
                 last_damage_ = event.at;
                 dirty_ = true;
                 break;
@@ -769,6 +901,7 @@ private:
     x11::Display& display_;
     const Settings& settings_;
     bool live_ = false;
+    std::uint64_t process_ = 0;
     std::map<std::uint32_t, x11::Rect> windows_;
     std::uint32_t main_ = 0;
     x11::Rect rect_;
@@ -784,8 +917,9 @@ private:
 Launch launch(const fs::path& root, x11::Display& display, Side& side, const Settings& settings,
               const Environment& environment, bool cold, bool whole, const fs::path& shot = {}) {
     Launch out;
-    // The pointer out of every window; nothing left over from the last program.
-    (void)display.pointer(settings.screen_width - 4, settings.screen_height - 4);
+    // The pointer out of every window (on a desktop: on the monitor the window is to open on);
+    // nothing left over from the last program.
+    (void)display.pointer(settings.park[0], settings.park[1]);
     while (true) {
         auto pending = display.next(milliseconds{0});
         if (!pending || !*pending)
@@ -797,6 +931,8 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         evict(root, files);
     }
     auto variables = environment.run;
+    if (side.build == "omui")
+        variables.insert(variables.end(), environment.omui.begin(), environment.omui.end());
     variables.insert(variables.end(), side.env.begin(), side.env.end());
     std::vector<std::string> args = side.args;
     if (whole && side.build == "omui" && !settings.trace.empty())
@@ -807,7 +943,9 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
                                    .cwd = side.cwd,
                                    .env = std::move(variables)};
     options.out = process::stdio::null;
-    options.err = process::stdio::null;
+    // omui's own complaints into the run's log (a launch that ends early says why); the others' are
+    // theirs.
+    options.err = side.build == "omui" ? process::stdio::inherit : process::stdio::null;
     options.in = process::stdio::null;
     options.own_unit = true;
     Watch watch(display, settings, side.motion == "live");
@@ -818,6 +956,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
             std::format("{} did not start: {}", utf8(side.executable), program.error().message());
         return out;
     }
+    watch.expect(program->id());
     const auto end = [&] {
         program->terminate();
         if (auto ended = program->wait_for(std::chrono::seconds{3}); !ended || !*ended)
@@ -849,6 +988,20 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     const std::uint64_t pid = program->id();
     if (!shot.empty())
         (void)watch.save(shot);
+    // On a desktop, on the monitor asked for (a window manager may have opened it on another) and
+    // above its person's windows for the rest of the case (where they overlap the monitor, the
+    // clicks and the wheel would not reach it); gone with it at the end.
+    if (settings.desktop) {
+        if (const auto where = watch.on_screen();
+            where && (where->x < settings.monitor.x || where->y < settings.monitor.y ||
+                      where->x >= settings.monitor.x + settings.monitor.width ||
+                      where->y >= settings.monitor.y + settings.monitor.height)) {
+            (void)display.move(watch.window(), settings.monitor.x + 60, settings.monitor.y + 60);
+            (void)watch.settle(Clock::now() + std::chrono::seconds{5}, settings.quiet, &*program);
+            out.moved = true;
+        }
+        (void)display.keep_above(watch.window());
+    }
     // The same size for everyone (most open at it already), then rest.
     const x11::Rect placed = watch.area();
     const int width = side.window ? (*side.window)[0] : settings.width,
@@ -879,8 +1032,8 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
             switches = std::move(*started_watch);
     }
     if (side.motion == "scroll") {
-        const x11::Rect where = watch.area();
-        (void)display.pointer(where.x + where.width / 2, where.y + where.height / 2);
+        if (const auto where = watch.on_screen())
+            (void)display.pointer(where->x + where->width / 2, where->y + where->height / 2);
     }
     std::vector<Clock::time_point> presented;
     const auto idle_from = Clock::now();
@@ -889,8 +1042,13 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     for (std::size_t at = 1; at < presented.size(); ++at)
         out.presents.push_back(ms_between(presented[at - 1], presented[at]));
     if (side.motion == "scroll")
-        (void)display.pointer(settings.screen_width - 4, settings.screen_height - 4);
-    if (!side.motion.empty())
+        (void)display.pointer(settings.park[0], settings.park[1]);
+    if (!drawn) {  // a part of the span is no measurement of it
+        out.failure = drawn.error();
+        out.presents.clear();
+        presented.clear();
+    }
+    if (!side.motion.empty() && drawn)
         out.idle_frames = static_cast<double>(presented.size()) / idle_seconds;
     const auto after = process::describe(pid);
     if (before && after)
@@ -912,12 +1070,17 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     // The clicks: pointer onto the button, pressed, let go; from letting go to the next frame on
     // the window.
     if (side.click) {
-        const x11::Rect where = watch.area();
-        const int x = where.x + (*side.click)[0], y = where.y + (*side.click)[1];
-        for (int click = 0; click < settings.clicks; ++click) {
-            (void)display.pointer(x, y);
+        const auto where = watch.on_screen();
+        for (int click = 0; where && click < settings.clicks; ++click) {
+            (void)display.pointer(where->x + (*side.click)[0], where->y + (*side.click)[1]);
             (void)watch.settle(Clock::now() + std::chrono::seconds{5}, milliseconds{300},
                                &*program);
+            // On a desktop, pressed only where the program's window is under the pointer.
+            if (const auto under = watch.pointer_on_window(); !under || !*under) {
+                out.click_changed = false;
+                out.failure = "the window was not under the pointer: no click pressed";
+                break;
+            }
             (void)display.button(true);
             (void)watch.settle(Clock::now() + std::chrono::seconds{5}, milliseconds{300},
                                &*program);
@@ -935,7 +1098,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
             (void)watch.settle(Clock::now() + std::chrono::seconds{5}, milliseconds{300},
                                &*program);
         }
-        (void)display.pointer(settings.screen_width - 4, settings.screen_height - 4);
+        (void)display.pointer(settings.park[0], settings.park[1]);
     }
     auto [files, driver] = mapped_files(root, pid);
     side.mapped = std::move(files);
@@ -964,6 +1127,47 @@ std::optional<int> number(const std::optional<std::string>& text) {
     int value = 0;
     if (std::from_chars(text->data(), text->data() + text->size(), value).ec != std::errc{})
         return std::nullopt;
+    return value;
+}
+
+// What draws on this machine, for the record: the NVIDIA GPU and its driver as nvidia-smi says
+// them ("" where it says nothing).
+std::string graphics_here(const fs::path& root) {
+    const auto said = run::output(root, "nvidia-smi",
+                                  {"--query-gpu=name,driver_version", "--format=csv,noheader"});
+    if (!said || said->empty())
+        return {};
+    const std::string first(lines(*said).front());
+    const auto comma = first.find(',');
+    if (comma == std::string::npos)
+        return {};
+    std::string release = first.substr(comma + 1);
+    release.erase(0, release.find_first_not_of(' '));
+    return std::format("; GL and Vulkan to {} (NVIDIA's driver {})", first.substr(0, comma), release);
+}
+
+// The processor's power preference (cpufreq's energy_performance_preference), for the record.
+std::string power_preference() {
+    std::string said = mcpplibs::os::fs::read(
+                           "/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference")
+                           .value_or("unknown");
+    while (!said.empty() && std::isspace(static_cast<unsigned char>(said.back())))
+        said.pop_back();
+    return said;
+}
+
+// The machine's one-minute load average (other work beside the run, for the record), as uptime
+// says it ("load average: 1.33, 2.29, 1.76").
+double load_average(const fs::path& root) {
+    const std::string said = run::output(root, "uptime", {}).value_or("");
+    const auto at = said.find("average:");
+    double value = 0;
+    if (at != std::string::npos) {
+        const std::string_view rest = std::string_view(said).substr(at + 8);
+        const auto start = rest.find_first_not_of(' ');
+        if (start != std::string_view::npos)
+            (void)std::from_chars(rest.data() + start, rest.data() + rest.size(), value);
+    }
     return value;
 }
 
@@ -1087,7 +1291,14 @@ mcpplibs::cmdline::App apps_command_line() {
         .option(Option("xvfb").takes_value().value_name("PATH").help(
             "the X server (default: Xvfb on PATH)"))
         .option(Option("display").takes_value().value_name("N").help(
-            "its display number (default: 97)"))
+            "its display number (default: 97; with --screen, $DISPLAY's)"))
+        .option(Option("screen").takes_value().value_name("MONITOR").help(
+            "on this machine's own display instead (RM1: its X server, window manager, "
+            "compositor and GPU), every window opened on the monitor named by RANDR (e.g. "
+            "HDMI-0); only each program's own window is watched and read"))
+        .option(Option("note").takes_value().value_name("TEXT").help(
+            "said on every record of the run beside the display: what the run cannot see of the "
+            "machine (e.g. a sandbox's X server without MIT-SHM)"))
         .option(Option("build-only").help("build and size every side; launch none"))
         .option(Option("no-build")
                     .help("measure what the last build made (target/bench-apps/built.json)"))
@@ -1121,7 +1332,14 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
     settings.timeout = milliseconds{catalogue.value("timeout_ms", 30000)};
     settings.clicks = catalogue.value("clicks", 5);
     const int rounds = number(given.value("rounds")).value_or(10);
-    const int display_number = number(given.value("display")).value_or(97);
+    const std::optional<std::string> screen_name = given.value("screen");
+    settings.desktop = screen_name.has_value();
+    // A desktop's display is $DISPLAY's (":1", ":1.0"); the harness's own is 97 unless named.
+    std::optional<int> desktop_number;
+    if (const auto named = mcpplibs::os::env::get("DISPLAY"); named && named->starts_with(':'))
+        desktop_number = number(named->substr(1, named->find('.') - 1));
+    const int display_number = number(given.value("display"))
+                                   .value_or(settings.desktop ? desktop_number.value_or(0) : 97);
 
     Environment environment;
     environment.work = root / "target" / "bench-apps";
@@ -1159,6 +1377,15 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
         if (entry.contains("label"))
             side.label = x11::Rect{entry["label"][0].get<int>(), entry["label"][1].get<int>(),
                                    entry["label"][2].get<int>(), entry["label"][3].get<int>()};
+        // Where a side lays out otherwise on a desktop (its fonts are the desktop's): its own button
+        // and label there.
+        if (const json& there = entry.value("desktop", json::object()); settings.desktop) {
+            if (there.contains("click"))
+                side.click = std::array{there["click"][0].get<int>(), there["click"][1].get<int>()};
+            if (there.contains("label"))
+                side.label = x11::Rect{there["label"][0].get<int>(), there["label"][1].get<int>(),
+                                       there["label"][2].get<int>(), there["label"][3].get<int>()};
+        }
         if (!only.empty() && !only.contains(side.series) &&
             !only.contains(side.series + ":" + side.app))
             continue;
@@ -1225,31 +1452,78 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
     if (given.is_flag_set("build-only"))
         return 0;
 
-    // The display: an X server of the harness's own, no window manager; a session bus, as a desktop
-    // has.
-    const std::string xvfb = given.value("xvfb").value_or("Xvfb");
-    process::spawn_options server_options{.program = mcpplibs::os::fs::from_utf8(xvfb),
-                                          .args = {std::format(":{}", display_number), "-screen",
-                                                   "0",
-                                                   std::format("{}x{}x24", settings.screen_width,
-                                                               settings.screen_height),
-                                                   "-nolisten", "tcp", "-noreset"}};
-    server_options.out = server_options.err = process::stdio::null;
-    server_options.bound_lifetime = true;
-    auto server = process::process::spawn(server_options);
-    if (!server)
-        return failed(std::format("{} did not start: {}", xvfb, server.error().message()));
+    // The display: an X server of the harness's own, no window manager (or, with --screen, this
+    // machine's own); a session bus of the harness's, as a desktop has.
+    std::optional<process::process> server;
+    if (!settings.desktop) {
+        const std::string xvfb = given.value("xvfb").value_or("Xvfb");
+        process::spawn_options server_options{
+            .program = mcpplibs::os::fs::from_utf8(xvfb),
+            .args = {std::format(":{}", display_number), "-screen", "0",
+                     std::format("{}x{}x24", settings.screen_width, settings.screen_height),
+                     "-nolisten", "tcp", "-noreset"}};
+        server_options.out = server_options.err = process::stdio::null;
+        server_options.bound_lifetime = true;
+        auto started = process::process::spawn(server_options);
+        if (!started)
+            return failed(std::format("{} did not start: {}", xvfb, started.error().message()));
+        server = std::move(*started);
+    }
     std::optional<x11::Display> display;
     for (int attempt = 0; attempt < 100 && !display; ++attempt) {
         if (auto opened = x11::Display::open(display_number))
             display.emplace(std::move(*opened));
+        else if (settings.desktop)
+            return failed(opened.error());
         else
             std::this_thread::sleep_for(milliseconds{50});
     }
     if (!display)
         return failed(std::format("display :{} did not come up", display_number));
-    if (auto watching = display->watch(); !watching)
+    if (auto watching = display->watch(!settings.desktop); !watching)
         return failed(watching.error());
+    std::string shown = std::format("Xvfb :{} {}x{} (the harness's own: no window manager, no "
+                                    "compositor)",
+                                    display_number, settings.screen_width, settings.screen_height);
+    // On a desktop: the monitor named, the pointer parked on it (a window manager opens a new
+    // window on the pointer's monitor), and put back where its person left it when the run ends.
+    std::optional<x11::Display::Pointer> left;
+    if (settings.desktop) {
+        const auto monitors = display->monitors();
+        if (!monitors)
+            return failed(monitors.error());
+        const auto chosen = std::ranges::find(*monitors, *screen_name, &x11::Monitor::name);
+        if (chosen == monitors->end()) {
+            std::string names;
+            for (const auto& monitor : *monitors)
+                names += (names.empty() ? "" : ", ") + monitor.name;
+            return failed(std::format("display :{} has no monitor {} (it has {})", display_number,
+                                      *screen_name, names.empty() ? "none RANDR names" : names));
+        }
+        settings.monitor = chosen->area;
+        settings.screen_width = chosen->area.width;
+        settings.screen_height = chosen->area.height;
+        settings.park = {chosen->area.x + 4, chosen->area.y + chosen->area.height - 4};
+        if (chosen->hertz > 0)
+            settings.frame_gap = std::chrono::duration_cast<Clock::duration>(
+                std::chrono::duration<double>(0.5 / chosen->hertz));
+        if (auto pointer = display->where_pointer())
+            left = *pointer;
+        shown = std::format("{} {}x{} at {:.2f} Hz on this machine's X server :{} (its window "
+                            "manager and compositor){}",
+                            chosen->name, chosen->area.width, chosen->area.height, chosen->hertz,
+                            display_number, graphics_here(root));
+    }
+    struct PutBack {
+        x11::Display& display;
+        std::optional<x11::Display::Pointer> left;
+        ~PutBack() {
+            if (left)
+                (void)display.pointer(left->x, left->y);
+        }
+    } put_back{*display, left};
+    const std::string power = power_preference();
+    std::vector<double> loads{load_average(root)};
     const fs::path bus = environment.work / "session-bus";
     fs::remove(bus, error);
     process::spawn_options bus_options{.program = "dbus-daemon",
@@ -1266,11 +1540,52 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
         environment.run.emplace_back("DBUS_SESSION_BUS_ADDRESS", "unix:path=" + utf8(bus));
     if (const auto fonts = fontconfig(root, environment.work))
         environment.run.emplace_back("FONTCONFIG_FILE", utf8(*fonts));
-    // GL through Mesa: NVIDIA's EGL claims an X display it cannot make a context on without DRI3
-    // (Flutter fails).
-    if (fs::exists("/usr/share/glvnd/egl_vendor.d/50_mesa.json"))
+    // GL through Mesa on the harness's server: NVIDIA's EGL claims an X display it cannot make a
+    // context on without DRI3 (Flutter fails). A desktop's server has DRI3: each side's GL and
+    // Vulkan reach the machine's own driver.
+    if (!settings.desktop && fs::exists("/usr/share/glvnd/egl_vendor.d/50_mesa.json"))
         environment.run.emplace_back("__EGL_VENDOR_LIBRARY_FILENAMES",
                                      "/usr/share/glvnd/egl_vendor.d/50_mesa.json");
+    // A desktop's text scale (Xft.dpi above 96) is taken by some sides and not by others: every
+    // side drawn at 1 as on the harness's server, the sizes and the places clicked the same (GTK's
+    // DPI scale, winit's factor; omui draws at 1 here).
+    if (settings.desktop) {
+        double dpi = 96;
+        if (const auto said = display->resources())
+            for (const auto line : lines(*said))
+                if (line.starts_with("Xft.dpi:")) {
+                    const auto value = line.substr(line.find_first_not_of(" \t", 8));
+                    (void)std::from_chars(value.data(), value.data() + value.size(), dpi);
+                }
+        if (dpi > 0 && dpi != 96) {
+            environment.run.emplace_back("GDK_DPI_SCALE", std::format("{:.4f}", 96.0 / dpi));
+            shown += std::format("; Xft.dpi {:g}, every side drawn at scale 1 (GDK_DPI_SCALE, "
+                                 "WINIT_X11_SCALE_FACTOR)",
+                                 dpi);
+        }
+        environment.run.emplace_back("WINIT_X11_SCALE_FACTOR", "1");
+        environment.run.emplace_back("GDK_SCALE", "1");
+        // omui's programs link the toolchain's C library, whose loader does not search the
+        // system's libraries: they reach the machine's Vulkan loader and NVIDIA's driver the way
+        // the device tests do (`gpu --real`: xlings's nvidia-gl-host-link and Vulkan loader), in a
+        // real window here (not the offscreen driver), SDL told the loader (SDL_VULKAN_LIBRARY).
+        // Without it their GPU path finds no driver and the CPU draws, as on a machine without one.
+        if (const auto real = gpu::prepare(gpu::Device::real)) {
+            for (const auto& [name, value] : real->variables) {
+                if (name == "SDL_VIDEO_DRIVER" || name == "OMUI_GPU_VIDEO_DRIVER" ||
+                    name == "OMUI_REQUIRE_GPU")
+                    continue;
+                environment.omui.emplace_back(name == "OMUI_VULKAN_LIBRARY" ? "SDL_VULKAN_LIBRARY"
+                                                                            : name,
+                                              value);
+            }
+            shown += "; omui's sides given xlings's nvidia-gl-host-link and Vulkan loader (the "
+                     "toolchain's C library does not search the system's)";
+        } else {
+            shown += std::format("; omui's sides without the GPU ({})", real.error());
+        }
+    }
+    std::cout << std::format("display: {}\n", shown) << std::flush;
 
     // A first launch of each, warming nothing in particular but learning which files it maps
     // (evicted from then on).
@@ -1300,11 +1615,16 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
             const Launch cold = launch(root, *display, side, settings, environment, true, true);
             const Launch warm = launch(root, *display, side, settings, environment, false, false);
             Seen& mine = seen[{side.series, side.app}];
+            loads.push_back(load_average(root));
             json sample{{"series", side.series},
                         {"round", round},
                         {"key", side.app},
                         {"executable_bytes", side.executable_bytes},
-                        {"package_bytes", side.package_bytes}};
+                        {"package_bytes", side.package_bytes},
+                        {"driver", side.driver},
+                        {"load_1m", loads.back()}};
+            if (cold.moved)
+                sample["moved_to_monitor"] = true;
             if (!cold.failure.empty())
                 mine.failures.push_back("cold: " + cold.failure);
             if (!warm.failure.empty())
@@ -1407,14 +1727,35 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
         for (const auto& failure : mine.failures)
             std::cout << std::format("  {} {}: {}\n", side.series, side.app, failure);
     }
-    std::cout << std::flush;
+    // Where and under what it ran, on every record: the display, what each side drew with, the
+    // machine's state.
+    loads.push_back(load_average(root));
+    lead::Context context = lead::context_here(root);
+    std::map<std::string, std::set<std::string>> drew;  // series → the graphics their processes mapped
+    for (const auto& side : sides)
+        if (!side.driver.empty())
+            drew[side.series].insert(side.driver == "none" ? "no GPU driver (the CPU)" : side.driver);
+    std::string drivers;
+    for (const auto& [series, used] : drew) {
+        std::string list;
+        for (const auto& one : used)
+            list += (list.empty() ? "" : ", ") + one;
+        drivers += std::format("{}{} {}", drivers.empty() ? "" : "; ", series, list);
+    }
+    context.display = shown + (drivers.empty() ? "" : "; drew with: " + drivers) +
+                      (given.value("note") ? "; " + *given.value("note") : std::string{});
+    context.conditions = std::format(
+        "energy_performance_preference {}; 1-minute load {:.1f} at the start, {:.1f} at the end, "
+        "{:.1f}–{:.1f} over the rounds",
+        power, loads.front(), loads.back(), std::ranges::min(loads), std::ranges::max(loads));
+    std::cout << std::format("conditions: {}\n", context.conditions) << std::flush;
 
     std::vector<std::string> skipped;
     const auto judged =
         lead::verdicts(mcpplibs::os::fs::read(root / lead::metrics_path).value_or(""),
                        mcpplibs::os::fs::read(samples_path).value_or(""),
-                       mcpplibs::os::fs::read(root / lead::ledger_path).value_or(""),
-                       lead::context_here(root), skipped);
+                       mcpplibs::os::fs::read(root / lead::ledger_path).value_or(""), context,
+                       skipped);
     if (!judged)
         return failed(judged.error());
     std::vector<std::string> records;

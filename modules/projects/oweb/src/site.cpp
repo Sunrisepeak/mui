@@ -77,13 +77,37 @@ constexpr std::string_view sheet =
     "html{color-scheme:light dark}"
     "body{margin:0;font:16px/1.6 system-ui,-apple-system,\"Segoe UI\",\"Noto Sans\",\"PingFang SC\",\"Microsoft YaHei\",sans-serif}"
     "[data-omui-target=app]{max-width:46rem;margin:0 auto;padding:1.5rem 1.25rem 4rem}"
-    "nav{display:flex;flex-wrap:wrap;gap:.25rem 1rem;padding-bottom:1rem;border-bottom:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
+    "nav{display:flex;flex-wrap:wrap;gap:.25rem 1rem}"
+    "[data-omui-target=\"page/nav\"]{padding-bottom:1rem;border-bottom:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
+    "[data-omui-target=\"page/toc\"]{flex-direction:column;gap:.15rem;padding:.75rem 0;font-size:.9em;border-bottom:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
+    "[data-omui-target=\"page/turn\"]{justify-content:space-between;margin-top:2.5rem;padding-top:1rem;border-top:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
+    // A wide window: the site's pages at the left, the page's contents at the right, both staying as the page scrolls.
+    "@media(min-width:72rem){"
+    "[data-omui-target=app]{max-width:78rem;display:grid;grid-template-columns:14rem minmax(0,46rem) 14rem;column-gap:2rem;align-items:start}"
+    "[data-omui-target=\"page/nav\"],[data-omui-target=\"page/toc\"]{flex-direction:column;flex-wrap:nowrap;position:sticky;top:1.5rem;max-height:calc(100vh - 3rem);overflow:auto;padding:0;border:0}"
+    "[data-omui-target=\"page/nav\"]{grid-column:1;grid-row:1/span 2}"
+    "[data-omui-target=\"page/main\"]{grid-column:2;grid-row:1}"
+    "[data-omui-target=\"page/turn\"]{grid-column:2;grid-row:2}"
+    "[data-omui-target=\"page/toc\"]{grid-column:3;grid-row:1/span 2}"
+    "}"
     "pre{overflow:auto;padding:.75rem 1rem;border-radius:8px;background:color-mix(in srgb,currentColor 7%,transparent)}"
-    "code{font:.9em ui-monospace,\"SF Mono\",Menlo,Consolas,monospace}"
+    "code{font:.9em ui-monospace,\"SF Mono\",Menlo,Consolas,\"Cascadia Mono\",\"DejaVu Sans Mono\",\"Liberation Mono\",\"Noto Sans Mono\",monospace}"
     "table{border-collapse:collapse}th,td{padding:.3rem .75rem;border:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
     "blockquote{margin-left:0;padding-left:1rem;border-left:3px solid color-mix(in srgb,currentColor 25%,transparent)}"
     "img{max-width:100%}"
     "@media print{nav{display:none}a{color:inherit;text-decoration:none}}";
+
+// The words the page's own parts are named by, in the page's language (a reader's tools say them; the pages' words
+// are the pages'). A language without them here is named in English.
+struct Named {
+    std::string_view contents;  // the page's sections
+    std::string_view turn;      // the page before and the page after
+};
+constexpr Named named_in(std::string_view language) {
+    if (language.starts_with("zh")) return {"本页目录", "上一页与下一页"};
+    if (language.starts_with("ja")) return {"このページの内容", "前のページと次のページ"};
+    return {"On this page", "Previous and next"};
+}
 
 struct Evaluated {
     std::vector<Node> nodes;  // the whole page's, pre-order
@@ -148,6 +172,7 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
     for (const auto& entry : std::filesystem::recursive_directory_iterator(pages, error)) {
         if (!entry.is_regular_file() || entry.path().extension() != ".md") continue;
         const std::filesystem::path from_pages = entry.path().lexically_relative(pages);
+        if (generic(from_pages) == "404.md") continue;  // the page for a lost address: no route (lost_page)
         Route route;
         route.path = address_of(from_pages);
         route.source = std::format("pages/{}", generic(from_pages));
@@ -163,10 +188,15 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
     return routes;
 }
 
-std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options) {
+namespace {
+
+// A page evaluated from its text and written. `base` is stated for the page a host answers a lost address with: it
+// is served at any address, so its links are from the site's own and the document says where that is; it has no
+// contents of its own to choose between and no page before or after.
+std::expected<Page, std::string> written(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options, std::string_view source_text,
+                                         std::string_view base) {
     using namespace omui;
-    const auto text = read(site / mcpplibs::os::fs::from_utf8(route.source));
-    if (!text) return std::unexpected(text.error());
+    const bool lost = !base.empty();
 
     // The page as an interface: the navigation the routes give (a site of one page has none) and its document.
     Headless host({.level = HeadlessLevel::layout, .size = {960, 1200}});
@@ -186,9 +216,46 @@ std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std
         navigation.prop("label", Source{Value(options.title.empty() ? std::string("Pages") : options.title), {}, {}});
         parts.push_back(std::move(navigation));
     }
-    Element main = column({.id = "main"}, {markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = *text})});
+    // The page's own contents: its sections below its title, each a link to its anchor (a page of fewer than two has
+    // nothing to choose between).
+    {
+        std::vector<Element> links;
+        for (std::size_t index = 0; index < route.headings.size(); ++index) {
+            const Heading& heading = route.headings[index];
+            if (heading.level < 2 || heading.level > 3 || heading.anchor.empty()) continue;
+            links.push_back(link({.id = std::format("t{}", index), .href = std::format("#{}", heading.anchor), .text = heading.text}));
+        }
+        if (links.size() >= 2 && !lost) {
+            Element contents = column({.id = "toc", .gap = 4}, std::move(links));
+            contents.prop("role", Source{Value("navigation"), {}, {}});
+            contents.prop("label", Source{Value(std::string(named_in(route.language).contents)), {}, {}});
+            parts.push_back(std::move(contents));
+        }
+    }
+    Element main = column({.id = "main"}, {markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = std::string(source_text)})});
     main.prop("role", Source{Value("main"), {}, {}});
     parts.push_back(std::move(main));
+    // The page before and the page after, among its language's in the routes' order.
+    if (routes.size() > 1 && !lost) {
+        const Route* before = nullptr;
+        const Route* after = nullptr;
+        bool passed = false;
+        for (const Route& other : routes) {
+            if (other.language != route.language) continue;
+            if (other.path == route.path) passed = true;
+            else if (!passed) before = &other;
+            else if (!after) after = &other;
+        }
+        std::vector<Element> links;
+        if (before) links.push_back(link({.id = "before", .href = relative(route.path, before->path), .text = std::format("← {}", before->title)}));
+        if (after) links.push_back(link({.id = "after", .href = relative(route.path, after->path), .text = std::format("{} →", after->title)}));
+        if (!links.empty()) {
+            Element turn = row({.id = "turn", .gap = 16}, std::move(links));
+            turn.prop("role", Source{Value("navigation"), {}, {}});
+            turn.prop("label", Source{Value(std::string(named_in(route.language).turn)), {}, {}});
+            parts.push_back(std::move(turn));
+        }
+    }
     host.mount("page", column({.id = "page", .padding = 24, .gap = 16}, std::move(parts)));
     host.settle();
 
@@ -307,14 +374,63 @@ std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std
         std::erase_if(written.nodes, [&](const Node& node) { return left_out.contains(node.id); });
     }
     const std::string body = semantic::static_html(written, {});
+    // A route says where its Markdown is; the page for a lost address says where the site is, and is no page to index.
+    const std::string said = lost ? std::format("<base href=\"{}\">\n<meta name=\"robots\" content=\"noindex\">", escaped(base))
+                                  : std::string("<link rel=\"alternate\" type=\"text/markdown\" href=\"index.md\">");
     page.html = std::format(
         "<!doctype html>\n<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "<title>{}</title>\n<meta name=\"generator\" content=\"oweb\">\n<link rel=\"alternate\" type=\"text/markdown\" href=\"index.md\">\n<style>{}</style>\n"
+        "<title>{}</title>\n<meta name=\"generator\" content=\"oweb\">\n{}\n<style>{}</style>\n"
         "</head>\n<body>\n{}</body>\n</html>\n",
-        escaped(route.language), escaped(options.title.empty() || options.title == route.title ? route.title : std::format("{} · {}", route.title, options.title)), sheet,
+        escaped(route.language), escaped(options.title.empty() || options.title == route.title ? route.title : std::format("{} · {}", route.title, options.title)), said, sheet,
         body);
     page.problems = std::move(problems);
     return page;
+}
+
+// The site's own address on its host: the path of where it is served ("https://example.org/notes/" → "/notes/").
+std::string base_of(std::string_view url) {
+    const std::size_t scheme = url.find("://");
+    const std::size_t path = scheme == std::string_view::npos ? std::string_view::npos : url.find('/', scheme + 3);
+    std::string base = path == std::string_view::npos ? std::string("/") : std::string(url.substr(path));
+    if (const std::size_t cut = base.find_first_of("?#"); cut != std::string::npos) base.resize(cut);
+    if (!base.ends_with('/')) base += '/';
+    return base;
+}
+
+}  // namespace
+
+std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options) {
+    const auto text = read(site / mcpplibs::os::fs::from_utf8(route.source));
+    if (!text) return std::unexpected(text.error());
+    return written(site, routes, route, options, *text, {});
+}
+
+std::expected<Page, std::string> lost_page(const std::filesystem::path& site, std::span<const Route> routes, const SiteOptions& options) {
+    if (routes.empty()) return std::unexpected("a site without a route has no page for a lost address");
+    // The site's own (pages/404.md), or one that says so and leads home, in the site's first language.
+    Route route;
+    route.path = "/";
+    route.source = "pages/404.md";
+    route.language = options.languages.empty() ? std::string("en") : options.languages.front();
+    std::string text;
+    std::error_code missing;
+    if (std::filesystem::is_regular_file(site / "pages" / "404.md", missing)) {
+        auto own = read(site / "pages" / "404.md");
+        if (!own) return std::unexpected(own.error());
+        text = std::move(*own);
+    } else {
+        const Route& home = routes.front();
+        const std::string to = home.source.starts_with("pages/") ? home.source.substr(6) : std::string{};
+        const bool chinese = route.language.starts_with("zh");
+        text = chinese ? std::format("# 没有这一页\n\n这个地址不通向本站的任何一页。{}\n", to.empty() ? std::string{} : std::format("回到[{}]({})。", home.title, to))
+                       : std::format("# No such page\n\nThis address leads to no page of the site.{}\n", to.empty() ? std::string{} : std::format(" Back to [{}]({}).", home.title, to));
+    }
+    const md::Document document = md::parse(text);
+    md::walk(document.root, [&](const md::Block& block) {
+        if (block.kind == md::Kind::heading) route.headings.push_back({block.level, md::plain_text(block), block.anchor});
+    });
+    route.title = route.headings.empty() ? std::string("404") : route.headings.front().text;
+    return written(site, routes, route, options, text, base_of(options.url));
 }
 
 std::string routes_json(std::span<const Route> routes, const SiteOptions& options) {
@@ -509,6 +625,11 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
             if (++found <= 12) problems += std::format("\n  {}", problem);
         pages.push_back(std::move(*page));
     }
+    // What a static host answers a lost address with (GitHub Pages: 404.html at the site's top).
+    auto lost = lost_page(site, *routes, options);
+    if (!lost) return std::unexpected(lost.error());
+    for (const std::string& problem : lost->problems)
+        if (++found <= 12) problems += std::format("\n  {}", problem);
     if (found > 0)
         return std::unexpected(std::format("{} link{} inside the site lead{} nowhere; nothing was written:{}{}", found, found == 1 ? "" : "s", found == 1 ? "s" : "", problems,
                                            found > 12 ? std::format("\n  … and {} more", found - 12) : std::string{}));
@@ -518,6 +639,7 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
         if (auto written = write(directory + "index.md", page.markdown); !written) return std::unexpected(written.error());
         std::ranges::move(page.sections, std::back_inserter(sections));
     }
+    if (auto written = write("404.html", lost->html); !written) return std::unexpected(written.error());
     // What pages/ holds beside its pages (pictures, files to download), at the same place.
     std::error_code error;
     for (const auto& entry : std::filesystem::recursive_directory_iterator(site / "pages", error)) {

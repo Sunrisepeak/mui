@@ -66,6 +66,11 @@ static UTest cases{"oweb.config", [] {
                agents.find("Start here") < agents.find("About"))
             << routes;
         expect(built->delivery.verdicts.size() == 1u && built->delivery.verdicts.front().budget.most == 50'000u) << "the budget is the configuration's";
+        // A lost address under a site served below its host's top: the links are from the site's own address.
+        const std::string lost = read(out / "404.html");
+        expect(lost.contains("<base href=\"/stated/\">") && lost.contains("href=\"start/\">Start here</a>") && lost.contains("href=\"./\">Stated</a>") && !lost.contains("<nav data-omui-target=\"page/turn\"") &&
+               !routes.contains("404") && !sitemap.contains("404") && !agents.contains("404"))
+            << "no table lists it: " << lost;
 
         // The command reads the same configuration; what the request states stands over it.
         oweb::Sites sites;

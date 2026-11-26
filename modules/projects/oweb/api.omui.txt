@@ -72,6 +72,7 @@ namespace oweb {
   };
   [[nodiscard]] std::expected<std::vector<Route>, std::string> collect(const std::filesystem::path& site, const SiteOptions& options = {…});
   [[nodiscard]] std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options = {…});
+  [[nodiscard]] std::expected<Page, std::string> lost_page(const std::filesystem::path& site, std::span<const Route> routes, const SiteOptions& options = {…});
   [[nodiscard]] std::expected<Built, std::string> build(const std::filesystem::path& site, const std::filesystem::path& out, const SiteOptions& options = {…});
   [[nodiscard]] std::string routes_json(std::span<const Route> routes, const SiteOptions& options);
   [[nodiscard]] std::string llms_txt(std::span<const Route> routes, const SiteOptions& options);

@@ -67,6 +67,29 @@ static UTest cases{"oweb.template", [] {
         expect(built->delivery.within() && built->delivery.verdicts.size() == 1u && built->delivery.verdicts.front().files == built->routes.size());
         std::println("    a route readable: at most {} B sent ({}) of a budget of {}; the site {} B stored, {} B sent", built->delivery.verdicts.front().found,
                      built->delivery.verdicts.front().where, built->delivery.verdicts.front().budget.most, built->delivery.bytes, built->delivery.sent);
+        // The page's own parts, made from the routes table: its sections as links to their anchors, the page before
+        // and the page after among its language's, in the stated order.
+        for (std::size_t at = 0; at < built->routes.size(); ++at) {
+            const oweb::Route& route = built->routes[at];
+            const std::string html = read(out / route.path.substr(1) / "index.html");
+            std::size_t sections = 0;
+            for (const oweb::Heading& heading : route.headings)
+                if (heading.level >= 2 && heading.level <= 3 && !heading.anchor.empty()) ++sections;
+            const bool chinese = route.language == "zh";
+            expect(html.contains(chinese ? "<nav data-omui-target=\"page/toc\" aria-label=\"本页目录\">" : "<nav data-omui-target=\"page/toc\" aria-label=\"On this page\">") == (sections >= 2))
+                << route.path << " has " << sections << " sections";
+            if (sections >= 2)
+                for (const oweb::Heading& heading : route.headings)
+                    if (heading.level >= 2 && heading.level <= 3)
+                        expect(html.contains(std::format("href=\"#{}\">", heading.anchor)) && html.contains(std::format(" id=\"{}\"", heading.anchor))) << route.path << "#" << heading.anchor;
+            const oweb::Route* before = at > 0 && built->routes[at - 1].language == route.language ? &built->routes[at - 1] : nullptr;
+            const oweb::Route* after = at + 1 < built->routes.size() && built->routes[at + 1].language == route.language ? &built->routes[at + 1] : nullptr;
+            expect(html.contains("data-omui-target=\"page/turn/before\"") == (before != nullptr) && html.contains("data-omui-target=\"page/turn/after\"") == (after != nullptr)) << route.path;
+            if (before) expect(html.contains(std::format("href=\"{}\">← ", oweb::relative(route.path, before->path)))) << route.path;
+            if (after) expect(html.contains(std::format("href=\"{}\">", oweb::relative(route.path, after->path)))) << route.path;
+        }
+        expect(read(out / "start/index.html").contains("href=\"../\">← The minimal documents</a>") && read(out / "zh/start/index.html").contains("aria-label=\"上一页与下一页\""));
+
         // What the set is there to carry, each found in what was built.
         const std::string home = read(out / "index.html"), ui = read(out / "ui/index.html"), agent = read(out / "agent/index.html"), start = read(out / "start/index.html");
         expect(home.contains("<h3") && home.contains("<em>small</em>") && home.contains("<strong>complete</strong>") && home.contains("<del>") && home.contains("<br>") &&

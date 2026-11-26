@@ -16,7 +16,7 @@ How an Agent (or a person at a terminal) works with a site built on omui without
 
 ## Building
 
-1. `site.build --site DIR --out OUT` writes every route's `index.html` and `index.md`, the pictures beside the pages, `site.routes.xdef.json`, `llms.txt`, `site.search.xdef.json` and `site.delivery.xdef.json`; with `--url https://…/` also `sitemap.xml`. The answer's `budgets` say what each route sends before it reads; over the budget the build fails (exit 1) naming the route — shorten the page or state the budget with `--readable BYTES`.
+1. `site.build --site DIR --out OUT` writes every route's `index.html` and `index.md`, the pictures beside the pages, `site.routes.xdef.json`, `llms.txt`, `site.search.xdef.json` and `site.delivery.xdef.json`; `404.html` (the site's `pages/404.md`, or a default) and `.nojekyll`; with `--url https://…/` also `sitemap.xml`, and `404.html`'s links are from that address's path. The answer's `budgets` say what each route sends before it reads; over the budget the build fails (exit 1) naming the route — shorten the page or state the budget with `--readable BYTES`.
 2. The answer lists each file with its bytes. Undo: delete `OUT`.
 
 ## Verifying

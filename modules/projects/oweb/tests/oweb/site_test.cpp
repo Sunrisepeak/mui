@@ -76,7 +76,7 @@ static UTest cases{"oweb.site", [] {
         const auto built = oweb::build(data() / "docs", out, {.languages = {"en", "zh"}, .url = "https://example.org/notes/"});
         expect(built.has_value()) << (built ? "" : built.error());
         if (!built) return;
-        expect(built->routes.size() == 3u && built->delivery.files.size() == 11u) << built->delivery.files.size();
+        expect(built->routes.size() == 3u && built->delivery.files.size() == 12u) << built->delivery.files.size();
 
         // The home page: its links are each writing's own addresses.
         const std::string home = read(out / "index.html"), home_md = read(out / "index.md"), source = read(data() / "docs/pages/index.md");
@@ -127,9 +127,14 @@ static UTest cases{"oweb.site", [] {
         const auto built = oweb::build(data() / "page", out);
         expect(built.has_value()) << (built ? "" : built.error());
         if (!built) return;
-        expect(built->routes.size() == 1u && built->routes[0].path == "/" && built->delivery.files.size() == 6u) << built->delivery.files.size();
+        expect(built->routes.size() == 1u && built->routes[0].path == "/" && built->delivery.files.size() == 7u) << built->delivery.files.size();
         const std::string html = read(out / "index.html");
-        expect(!html.contains("<nav")) << "one page has nowhere else to go";
+        expect(!html.contains("<nav")) << "one page has nowhere else to go, and one section has nothing to choose between";
+        // A lost address: a page that says so and leads home, from the site's own address (none stated: the host's top).
+        const std::string lost = read(out / "404.html");
+        expect(lost.contains("<base href=\"/\">") && lost.contains("<meta name=\"robots\" content=\"noindex\">") && lost.contains("<h1") && lost.contains(">No such page</h1>") &&
+               lost.contains("href=\"./\">One page</a>") && !lost.contains("rel=\"alternate\""))
+            << lost;
         expect(html.contains("href=\"https://example.com/source\" title=\"Where it lives\">the source</a>")) << "a link out keeps its address and its title";
         expect(!std::filesystem::exists(out / "sitemap.xml") && std::filesystem::exists(out / "llms.txt") && std::filesystem::exists(out / "index.md"));
         expect(read(out / "index.md").contains("[the source](https://example.com/source \"Where it lives\")"));

@@ -15,7 +15,7 @@ export default defineOps({
     {
       name: "site.build",
       effect: "reversible",
-      summary: "Build the site: each page of pages/ a route with its index.html (the tree as HTML: readable with no script) and index.md (the tree as Markdown), the routes table, llms.txt, the search index, given the site's address sitemap.xml, and the delivery manifest — every file as stored and as a static host sends it, each route's bytes before it reads held to a budget (over it: written, and failed with where). A link inside the site that leads nowhere fails the build with each one said, and nothing is written",
+      summary: "Build the site: each page of pages/ a route with its index.html (the tree as HTML: readable with no script) and index.md (the tree as Markdown), the routes table, llms.txt, the search index, 404.html for a lost address, given the site's address sitemap.xml, and the delivery manifest — every file as stored and as a static host sends it, each route's bytes before it reads held to a budget (over it: written, and failed with where). A link inside the site that leads nowhere fails the build with each one said, and nothing is written",
       params: [
         { name: "site", type: "path", doc: "the site's directory (it holds pages/)" },
         { name: "out", type: "path", doc: "the directory written" },

@@ -92,8 +92,13 @@ struct Built {
 // One route evaluated and written, the others its navigation.
 [[nodiscard]] std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options = {});
 
+// The page a static host answers a lost address with (`404.html`): the site's own `pages/404.md`, or one that says
+// so and leads home. It is served at any address, so its links are from the site's own address — the path of `url`,
+// said by the document (`<base>`) — and it is no route: no table lists it.
+[[nodiscard]] std::expected<Page, std::string> lost_page(const std::filesystem::path& site, std::span<const Route> routes, const SiteOptions& options = {});
+
 // The site written to `out`: every route's two files, what pages/ holds beside its pages (pictures) at the same
-// place, the site's tables, `.nojekyll` (GitHub Pages serves the directory as it is) and, last, the delivery
+// place, the site's tables, `404.html` and `.nojekyll` (GitHub Pages serves the directory as it is) and, last, the delivery
 // manifest of all of it (site.delivery.xdef.json).
 [[nodiscard]] std::expected<Built, std::string> build(const std::filesystem::path& site, const std::filesystem::path& out, const SiteOptions& options = {});
 

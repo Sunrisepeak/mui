@@ -415,8 +415,12 @@ std::string static_html(const Snapshot& snapshot, const HtmlOptions& options) {
                 for (const Look::Font& font : options.look->fonts)
                     if (const std::string key = font_key(font.family); !std::format(" {} ", faces).contains(std::format(" {} ", key))) faces += (faces.empty() ? "" : " ") + key;
                 out += std::format(" data-omui-look=\"{}\"", escaped(faces, true));
+                // What differs between the schemes: the light values here, the dark ones for the page to say under
+                // the person's preference.
+                if (!options.look->dark.empty()) out += std::format(" data-omui-dark=\"{}\"", escaped(options.look->dark, true));
             }
-            if (const std::string_view style = options.look->style(n.id); !style.empty() && !boxed) out += std::format(" style=\"{}\"", escaped(style, true));
+            const std::string style = std::format("{}{}", depth == 0 ? options.look->light : std::string(), options.look->style(n.id));
+            if (!style.empty() && !boxed) out += std::format(" style=\"{}\"", escaped(style, true));
         }
         write(out, made.attributes);
         out += '>';

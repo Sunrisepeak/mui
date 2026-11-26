@@ -131,13 +131,32 @@ static UTest cases{"html", [] {
                                     text({.id = "title", .text = "Notes", .style = "title", .heading = 1}),
                                     row({.id = "bar", .gap = 12}, {
                                         text({.id = "count", .text = "3 notes"}),
-                                        box({.id = "add", .width = 60, .height = 24, .label = "Add a note", .on = {{"press", [](const Value&) {}}}}),
+                                        box({.id = "add", .width = 60, .height = 24, .background = "accent", .radius = 6, .label = "Add a note", .on = {{"press", [](const Value&) {}}}}),
                                     }),
+                                    scroll({.id = "list", .height = 40}, {box({.id = "tall", .height = 400, .label = "Much"})}),
                                 }));
         expect(rt.frame({seconds(0), {}}).failure.empty());
         sem::Tree tree(rt);
         const sem::Snapshot snapshot = tree.snapshot();
         const sem::Look look = sem::html_look(rt, snapshot);
+        // What a node drew over its own box: its fill and its corners.
+        expect(look.style("main/bar/add").contains("background-color:#") && look.style("main/bar/add").contains("border-radius:6px;")) << look.style("main/bar/add");
+        // A view that scrolls: its bar is where it is scrolled to, not a picture of its box.
+        expect(look.style("main/list").contains("overflow:") && !look.style("main/list").contains("url(") && !look.style("main/list").contains("gradient(")) << look.style("main/list");
+        // Read light and read dark, one look: what differs is a custom property with a value for each scheme.
+        {
+            sem::Look light, dark;
+            light.styles["a"] = "color:#0f172a;width:3px;box-shadow:inset 0 0 0 1px #e2e8f0;";
+            dark.styles["a"] = "color:#f8fafc;width:3px;box-shadow:inset 0 0 0 1px #334155;";
+            light.styles["b"] = dark.styles["b"] = "color:#0f172a;";
+            const sem::Look both = sem::by_schemes(std::move(light), dark);
+            expect(eq(std::string(both.style("a")), std::string("color:var(--o0);width:3px;box-shadow:var(--o1);")) && eq(std::string(both.style("b")), std::string("color:#0f172a;")));
+            expect(eq(both.light, std::string("--o0:#0f172a;--o1:inset 0 0 0 1px #e2e8f0;")) && eq(both.dark, std::string("--o0:#f8fafc;--o1:inset 0 0 0 1px #334155;")));
+            sem::Snapshot one;
+            one.nodes = {node("a", Role::group, "")};
+            const std::string written = sem::static_html(one, {.look = &both});
+            expect(written.contains("data-omui-dark=\"--o0:#f8fafc;--o1:inset 0 0 0 1px #334155;\"") && written.contains("style=\"--o0:#0f172a;--o1:inset 0 0 0 1px #e2e8f0;color:var(--o0);")) << written;
+        }
         const std::string_view title = look.style("main/title"), add = look.style("main/bar/add");
         const Theme theme = Theme::light();
         expect(title.contains("font-family:'omui-inter',system-ui,sans-serif;") && title.contains(std::format("font-size:{}px;", static_cast<int>(theme.text_style("title").size))) &&

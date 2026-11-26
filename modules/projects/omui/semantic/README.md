@@ -37,6 +37,9 @@ technology read it (spec §3 and §9, `openmui.tree@0.1`):
   `--static-look`) each element also says how the frame drew its node: its
   layout style as CSS (mlibs.layout's is CSS's flexbox and grid), the face,
   size, weight, colour, line height and letter spacing of the text it drew,
+  what it drew over its own box (a fill, a gradient, rounded corners, a
+  border, a shadow, its opacity; `by_schemes` makes one look of a frame read
+  light and read dark, what differs a custom property),
   the parts of a text drawn otherwise (a link's colour, code's face) on their
   inline elements, and the view's unstated containers as `div`s — read from
   the display list and the layout, nothing written per component; a browser

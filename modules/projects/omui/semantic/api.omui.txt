@@ -59,12 +59,14 @@ namespace omui::semantic {
     std::unordered_map<std::string, std::vector<Wrapper>> wrappers;
     std::unordered_map<std::string, std::vector<Span>> spans;
     std::vector<Font> fonts;
+    std::string light, dark;
     [[nodiscard]] std::string_view style(std::string_view id) const;
     [[nodiscard]] std::span<const Wrapper> around(std::string_view id) const;
     [[nodiscard]] std::string_view within(std::string_view id, std::size_t at) const;
   };
   [[nodiscard]] std::string font_key(std::string_view family);
   [[nodiscard]] Look html_look(const Runtime& runtime, const Snapshot& snapshot);
+  [[nodiscard]] Look by_schemes(Look light, const Look& dark);
 }
 == omui.semantic:query
 namespace omui::semantic {

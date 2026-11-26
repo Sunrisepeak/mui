@@ -484,7 +484,22 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
             host.step();
         }
         const omui::semantic::Snapshot snapshot = host.tree().snapshot();
-        const omui::semantic::Look look = o.static_look ? omui::semantic::html_look(host.runtime(), snapshot) : omui::semantic::Look{};
+        omui::semantic::Look look;
+        if (o.static_look && host.runtime().theme_follows_preference()) {
+            // A theme that follows the person's preference: the frame read light and read dark, one look of both.
+            const bool preferred = host.runtime().dark_preferred();
+            const auto read = [&](bool dark) {
+                host.runtime().set_dark_preferred(dark);
+                host.settle();
+                return omui::semantic::html_look(host.runtime(), snapshot);
+            };
+            omui::semantic::Look light = read(false);
+            look = omui::semantic::by_schemes(std::move(light), read(true));
+            host.runtime().set_dark_preferred(preferred);
+            host.settle();
+        } else if (o.static_look) {
+            look = omui::semantic::html_look(host.runtime(), snapshot);
+        }
         const std::string html = omui::semantic::static_html(snapshot, {.lang = lang, .look = o.static_look ? &look : nullptr});
         if (auto w = mcpplibs::os::fs::write_atomic(o.static_html, html); !w) {
             error("{}: {}", utf8(o.static_html), w.error().message());

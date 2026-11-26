@@ -161,6 +161,160 @@ struct Run {
     [[nodiscard]] bool same_as(const Run& other) const { return font.id == other.font.id && size == other.size && same_colour(other); }
 };
 
+// A node's own drawing as CSS says it: what it drew over its own box (the view's background, border and shadow, and
+// what its component painted there), read from the frame's commands in the node's own space.
+struct Own {
+    std::optional<Rect>      frame;       // its border box, as the frame says it
+    int                      moved = 0;   // transforms pushed since: what is drawn under one is not its own box's
+    float                    opacity = 1;
+    std::optional<Color>     fill;        // the first solid fill of the whole box, under everything else
+    std::optional<CornerRadii> radii;
+    // What lies over the fill, in the order drawn: each a background layer, of the whole box or of a part of it.
+    struct Picture {
+        bool        whole = false;
+        std::string css;
+    };
+    std::vector<Picture>     pictures;
+    // The parts it drew are not its box's: it drew glyphs, and they are its text's (a link's underline) — the
+    // elements' own on a page — or it scrolls, and they are where it is scrolled to (its bar).
+    bool                     parts_apart = false;
+    std::vector<std::string> shadows;     // in the order drawn
+    std::vector<std::string> rings;       // borders: strokes along the inside of the box's edge
+};
+
+bool about(float a, float b) { return std::abs(a - b) <= 0.51f; }
+bool same_box(const Rect& a, const Rect& b) { return about(a.x, b.x) && about(a.y, b.y) && about(a.x + a.width, b.x + b.width) && about(a.y + a.height, b.y + b.height); }
+
+// A gradient over `box` as CSS writes it: the same line and the same stops. None: a kind CSS says otherwise.
+std::optional<std::string> gradient_css(const mrender::Gradient& gradient, const Rect& box) {
+    if (gradient.spread != mrender::Spread::pad || gradient.stops.empty()) return std::nullopt;
+    const auto stops = [&](float from, float to) {
+        std::string out;
+        for (const mrender::GradientStop& stop : gradient.stops) out += std::format(",{} {}%", colour(stop.color), number((from + stop.offset * (to - from)) * 100));
+        return out;
+    };
+    if (gradient.kind == mrender::GradientKind::linear) {
+        const float dx = gradient.end.x - gradient.start.x, dy = gradient.end.y - gradient.start.y;
+        const float length = std::hypot(dx, dy);
+        if (!(length > 0)) return std::nullopt;
+        // CSS's line goes through the box's middle, as long as the box is deep along it; the stops stand where the
+        // gradient's own ends fall on that line.
+        const float ux = dx / length, uy = dy / length;
+        const float line = std::abs(box.width * ux) + std::abs(box.height * uy);
+        if (!(line > 0)) return std::nullopt;
+        const auto along = [&](Point at) { return ((at.x - (box.x + box.width / 2)) * ux + (at.y - (box.y + box.height / 2)) * uy) / line + 0.5f; };
+        const float degrees = std::atan2(ux, -uy) * 180.0f / std::numbers::pi_v<float>;
+        return std::format("linear-gradient({}deg{})", number(degrees), stops(along(gradient.start), along(gradient.end)));
+    }
+    if (gradient.kind == mrender::GradientKind::radial && gradient.radius > 0 && about(gradient.start.x, gradient.end.x) && about(gradient.start.y, gradient.end.y)) {
+        std::string out = std::format("radial-gradient(circle {} at {} {}", px(gradient.radius), px(gradient.start.x - box.x), px(gradient.start.y - box.y));
+        for (const mrender::GradientStop& stop : gradient.stops) out += std::format(",{} {}%", colour(stop.color), number(stop.offset * 100));
+        return out + ")";
+    }
+    return std::nullopt;
+}
+
+// What paints `rect` of the box as one background layer: the picture, where it lies, how large. An edge that is
+// the box's own stays the box's at any size (a bar down its side is as tall as the box becomes).
+std::string layer(const std::string& picture, const Rect& rect, const Rect& box) {
+    const bool left = about(rect.x, box.x), right = about(rect.x + rect.width, box.x + box.width);
+    const bool top = about(rect.y, box.y), bottom = about(rect.y + rect.height, box.y + box.height);
+    const std::string width = left && right ? "100%" : right ? std::format("calc(100% - {})", px(rect.x - box.x)) : px(rect.width);
+    const std::string height = top && bottom ? "100%" : bottom ? std::format("calc(100% - {})", px(rect.y - box.y)) : px(rect.height);
+    return std::format("{} {} {}/{} {} no-repeat", picture, px(rect.x - box.x), px(rect.y - box.y), width, height);
+}
+
+std::string radii_css(const CornerRadii& radii) {
+    if (radii.top_left == radii.top_right && radii.top_left == radii.bottom_right && radii.top_left == radii.bottom_left) return px(radii.top_left);
+    return std::format("{} {} {} {}", px(radii.top_left), px(radii.top_right), px(radii.bottom_right), px(radii.bottom_left));
+}
+
+// What a paint is as a picture: a solid colour as a gradient of it (a background layer is an image), a gradient.
+std::optional<std::string> picture_of(const mrender::Paint& paint, const Rect& rect) {
+    if (paint.kind == mrender::Paint::Kind::solid) return paint.color.a > 0 ? std::optional(std::format("linear-gradient({0},{0})", colour(paint.color))) : std::nullopt;
+    if (paint.kind == mrender::Paint::Kind::gradient) return gradient_css(paint.gradient, rect);
+    return std::nullopt;
+}
+
+void fills(Own& own, const Rect& rect, const CornerRadii* radii, const mrender::Paint& paint) {
+    const bool whole = same_box(rect, *own.frame);
+    if (whole && radii && !radii->zero() && !own.radii) own.radii = *radii;
+    if (whole && paint.kind == mrender::Paint::Kind::solid && !own.fill && own.pictures.empty()) {
+        if (paint.color.a > 0) own.fill = paint.color;
+        return;
+    }
+    // A rounded shape that is a part of the box: one that runs from an edge of the box to the edge across (a bar
+    // down its side) is a layer as a rectangle is, its small corners left; any other (a list's bullet) is a small
+    // picture of its own size, where it was drawn.
+    if (!whole && radii && !radii->zero()) {
+        const Rect& box = *own.frame;
+        const bool across = (about(rect.x, box.x) && about(rect.x + rect.width, box.x + box.width)) || (about(rect.y, box.y) && about(rect.y + rect.height, box.y + box.height));
+        if (!across) {
+            if (paint.kind != mrender::Paint::Kind::solid || !(paint.color.a > 0)) return;
+            std::string fill = colour(paint.color);
+            if (fill.starts_with('#')) fill.replace(0, 1, "%23");
+            const std::string picture = std::format("url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {0} {1}'%3E%3Crect width='{0}' height='{1}' rx='{2}' fill='{3}'/%3E%3C/svg%3E\")",
+                                                    number(rect.width), number(rect.height), number(std::min({radii->top_left, rect.width / 2, rect.height / 2})), fill);
+            own.pictures.push_back({false, layer(picture, rect, box)});
+            return;
+        }
+    }
+    if (const auto picture = picture_of(paint, rect)) own.pictures.push_back({whole, layer(*picture, rect, *own.frame)});
+}
+
+std::string own_css(const Own& own) {
+    std::string css;
+    std::string all;
+    for (const Own::Picture& picture : own.pictures | std::views::reverse)  // CSS lists the top one first
+        if (picture.whole || !own.parts_apart) all += (all.empty() ? "" : ",") + picture.css;
+    if (own.fill && all.empty()) put(css, "background-color", colour(*own.fill));
+    if (!all.empty()) put(css, "background", own.fill ? std::format("{} {}", all, colour(*own.fill)) : all);
+    if (own.radii) put(css, "border-radius", radii_css(*own.radii));
+    if (!own.rings.empty() || !own.shadows.empty()) {
+        std::string all;
+        for (const std::string& ring : own.rings | std::views::reverse) all += (all.empty() ? "" : ",") + ring;
+        for (const std::string& shadow : own.shadows | std::views::reverse) all += (all.empty() ? "" : ",") + shadow;
+        put(css, "box-shadow", all);
+    }
+    if (own.opacity < 0.999f) put(css, "opacity", number(own.opacity));
+    return css;
+}
+
+// Two declarations lists of one node, drawn light and drawn dark, as one: what differs is a custom property, said
+// once for each scheme (`names`: its two values, in the order first met).
+std::string by_scheme(std::string_view light, std::string_view dark, std::vector<std::pair<std::string, std::string>>& names) {
+    const auto parts = [](std::string_view css) {
+        std::vector<std::pair<std::string_view, std::string_view>> out;
+        while (!css.empty()) {
+            const auto end = css.find(';');
+            const std::string_view one = css.substr(0, end);
+            if (const auto colon = one.find(':'); colon != std::string_view::npos) out.emplace_back(one.substr(0, colon), one.substr(colon + 1));
+            if (end == std::string_view::npos) break;
+            css.remove_prefix(end + 1);
+        }
+        return out;
+    };
+    const auto lit = parts(light), unlit = parts(dark);
+    if (lit.size() != unlit.size()) return std::string(light);
+    for (std::size_t at = 0; at < lit.size(); ++at)
+        if (lit[at].first != unlit[at].first) return std::string(light);
+    std::string css;
+    for (std::size_t at = 0; at < lit.size(); ++at) {
+        if (lit[at].second == unlit[at].second) {
+            put(css, lit[at].first, lit[at].second);
+            continue;
+        }
+        const std::pair<std::string, std::string> values{std::string(lit[at].second), std::string(unlit[at].second)};
+        auto found = std::ranges::find(names, values);
+        if (found == names.end()) {
+            names.push_back(values);
+            found = names.end() - 1;
+        }
+        put(css, lit[at].first, std::format("var(--o{})", found - names.begin()));
+    }
+    return css;
+}
+
 }  // namespace
 
 std::string font_key(std::string_view family) {
@@ -194,21 +348,62 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
     if (snapshot.nodes.empty()) return look;
     // The text each node drew itself: the display list brackets what a node drew (by the node's marker).
     std::unordered_map<std::uint32_t, std::vector<Run>> drawn;  // by the node's handle index
+    std::unordered_map<std::uint32_t, std::string>      painted;  // its own box's drawing, by the same
     {
-        std::vector<std::uint32_t> open;
+        std::vector<std::pair<std::uint32_t, Own>> open;
         for (const auto& command : runtime.display_list().commands()) {
-            if (const auto* begin = std::get_if<mrender::BeginNode>(&command)) open.push_back(begin->node);
-            else if (std::holds_alternative<mrender::EndNode>(command)) {
-                if (!open.empty()) open.pop_back();
-            } else if (const auto* glyphs = std::get_if<mrender::DrawGlyphs>(&command); glyphs && !open.empty() && !glyphs->glyphs.empty()) {
-                const NodeId node = runtime.node_at_index(open.back());
+            if (const auto* begin = std::get_if<mrender::BeginNode>(&command)) {
+                open.emplace_back(begin->node, Own{});
+                continue;
+            }
+            if (std::holds_alternative<mrender::EndNode>(command)) {
+                if (open.empty()) continue;
+                if (const NodeId node = runtime.node_at_index(open.back().first); node.valid()) {
+                    using mlibs::layout::Overflow;
+                    const auto scrolls = [](Overflow overflow) { return overflow != Overflow::visible && overflow != Overflow::clip; };
+                    if (const Style* style = runtime.layout_style(node); style && (scrolls(style->overflow_x) || scrolls(style->overflow_y))) open.back().second.parts_apart = true;
+                    if (std::string css = own_css(open.back().second); !css.empty()) painted.emplace(node.index, std::move(css));
+                }
+                open.pop_back();
+                continue;
+            }
+            if (open.empty()) continue;
+            Own& own = open.back().second;
+            if (const auto* frame = std::get_if<mrender::NodeFrame>(&command)) {
+                own.frame = frame->rect;
+                own.moved = 0;
+            } else if (std::holds_alternative<mrender::PushTransform>(command)) ++own.moved;
+            else if (std::holds_alternative<mrender::PopTransform>(command)) --own.moved;
+            else if (const auto* held = std::get_if<mrender::PushLayer>(&command); held && !own.frame && held->effect.id == 0) own.opacity *= held->opacity;  // the node whole, dimmed
+            else if (const auto* glyphs = std::get_if<mrender::DrawGlyphs>(&command); glyphs && !glyphs->glyphs.empty()) {
+                const NodeId node = runtime.node_at_index(open.back().first);
                 if (!node.valid()) continue;
+                own.parts_apart = true;
                 Run run{mlibs::text::FontRef{glyphs->font.id}, glyphs->size, glyphs->paint.color, glyphs->glyphs.front().cluster, glyphs->glyphs.front().cluster, glyphs->glyphs.size()};
                 for (const mrender::Glyph& glyph : glyphs->glyphs) {
                     run.begin = std::min(run.begin, glyph.cluster);
                     run.last = std::max(run.last, glyph.cluster);
                 }
                 drawn[node.index].push_back(run);
+            } else if (!own.frame || own.moved != 0) {
+                // Before its box is said, or under a transform of its own: not its own box's drawing.
+            } else if (const auto* rect = std::get_if<mrender::FillRect>(&command)) fills(own, rect->rect, nullptr, rect->paint);
+            else if (const auto* round = std::get_if<mrender::FillRoundRect>(&command)) fills(own, round->rect, &round->radii, round->paint);
+            else if (const auto* stroke = std::get_if<mrender::StrokeRoundRect>(&command)) {
+                // A border: a stroke centred half its width inside the box's edge is a ring along the inside.
+                const float half = stroke->width / 2;
+                const Rect outer{stroke->rect.x - half, stroke->rect.y - half, stroke->rect.width + stroke->width, stroke->rect.height + stroke->width};
+                if (stroke->paint.kind == mrender::Paint::Kind::solid && stroke->paint.color.a > 0 && same_box(outer, *own.frame)) {
+                    own.rings.push_back(std::format("inset 0 0 0 {} {}", px(std::max(stroke->width, 1.0f)), colour(stroke->paint.color)));
+                    if (!own.radii && !stroke->radii.zero()) {
+                        CornerRadii radii = stroke->radii;
+                        for (float* corner : {&radii.top_left, &radii.top_right, &radii.bottom_right, &radii.bottom_left}) *corner += half;
+                        own.radii = radii;
+                    }
+                }
+            } else if (const auto* shadow = std::get_if<mrender::BoxShadow>(&command); shadow && shadow->color.a > 0 && same_box(shadow->rect, *own.frame)) {
+                own.shadows.push_back(std::format("{}{} {} {} {} {}", shadow->inset ? "inset " : "", px(shadow->offset.x), px(shadow->offset.y), px(shadow->blur), px(shadow->spread), colour(shadow->color)));
+                if (!own.radii && !shadow->radii.zero()) own.radii = shadow->radii;
             }
         }
     }
@@ -236,6 +431,7 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
     for (const auto& [n, node] : nodes) {
         std::string css;
         if (const Style* style = runtime.layout_style(node)) css = layout_css(*style, in_stack(node));
+        if (const auto own = painted.find(node.index); own != painted.end()) css += own->second;
         if (const auto text = drawn.find(node.index); text != drawn.end()) {
             // What holds text sets it in lines, as a block does: its runs and the links in them flow together.
             if (css.starts_with("display:flex;")) css.replace(0, 13, "display:block;");
@@ -303,7 +499,9 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
         std::vector<Look::Wrapper> around;
         for (NodeId up = runtime.parent(node); up.valid() && !stated.contains(up.index); up = runtime.parent(up)) {
             const Style* style = runtime.layout_style(up);
-            around.push_back({up.index, style ? layout_css(*style, in_stack(up)) : std::string()});
+            std::string css = style ? layout_css(*style, in_stack(up)) : std::string();
+            if (const auto own = painted.find(up.index); own != painted.end()) css += own->second;
+            around.push_back({up.index, std::move(css)});
         }
         if (!around.empty()) {
             std::ranges::reverse(around);
@@ -311,6 +509,23 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
         }
     }
     return look;
+}
+
+Look by_schemes(Look light, const Look& dark) {
+    std::vector<std::pair<std::string, std::string>> names;
+    for (auto& [id, css] : light.styles)
+        if (const auto other = dark.styles.find(id); other != dark.styles.end()) css = by_scheme(css, other->second, names);
+    for (auto& [id, around] : light.wrappers)
+        if (const auto other = dark.wrappers.find(id); other != dark.wrappers.end() && other->second.size() == around.size())
+            for (std::size_t at = 0; at < around.size(); ++at) around[at].style = by_scheme(around[at].style, other->second[at].style, names);
+    for (auto& [id, parts] : light.spans)
+        if (const auto other = dark.spans.find(id); other != dark.spans.end() && other->second.size() == parts.size())
+            for (std::size_t at = 0; at < parts.size(); ++at) parts[at].style = by_scheme(parts[at].style, other->second[at].style, names);
+    for (std::size_t at = 0; at < names.size(); ++at) {
+        light.light += std::format("--o{}:{};", at, names[at].first);
+        light.dark += std::format("--o{}:{};", at, names[at].second);
+    }
+    return light;
 }
 
 }  // namespace omui::semantic

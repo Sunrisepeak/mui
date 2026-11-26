@@ -1145,6 +1145,25 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
                         "@media print{{html,body{{height:auto!important;overflow:visible!important}}"
                         "[data-omui=static]{{position:static;overflow:visible;padding:0}}}}</style>\n",
                         set, colour, inside);
+    // A look read in both schemes: what differs is a custom property, its dark value said here (over the light
+    // one the document's root states).
+    if (constexpr std::string_view said = " data-omui-dark=\""; looked) {
+        const std::string_view root = std::string_view(*fragment).substr(0, fragment->find('>'));
+        if (const auto at = root.find(said); at != std::string_view::npos) {
+            std::string values(root.substr(at + said.size(), root.find('"', at + said.size()) - at - said.size()));
+            for (const auto& [entity, text] : std::initializer_list<std::pair<std::string_view, std::string_view>>{{"&quot;", "\""}, {"&#39;", "'"}, {"&lt;", "<"}, {"&gt;", ">"}, {"&amp;", "&"}})
+                for (auto found = values.find(entity); found != std::string::npos; found = values.find(entity, found + text.size())) values.replace(found, entity.size(), text);
+            std::string important;
+            for (std::string_view rest = values; !rest.empty();) {
+                const auto end = rest.find(';');
+                if (const std::string_view one = rest.substr(0, end); !one.empty()) important += std::format("{}!important;", one);
+                if (end == std::string_view::npos) break;
+                rest.remove_prefix(end + 1);
+            }
+            if (!important.empty() && !important.contains('<') && !important.contains('}'))
+                meta += std::format("<style>@media (prefers-color-scheme:dark){{[data-omui=static]>[data-omui-look]{{{}}}}}</style>\n", important);
+        }
+    }
     // Where the page is dark for a person who prefers dark, its document's text is readable on that too.
     if (const std::string_view dark = text_colour_on(html, "(prefers-color-scheme:dark){html,body{color-scheme:dark;background:#", {}); !dark.empty())
         meta += std::format("<style>@media (prefers-color-scheme:dark){{[data-omui=static]{{color:{}}}}}</style>\n", dark);

@@ -83,6 +83,23 @@ std::vector<Process> heavy_under(std::span<const Process> all, std::int64_t root
             if (!child.ended && heavy(child.name)) found.push_back(child);
         }
     }
+    // A heavy program that started another only waits for it (collect2 for ld, lto-wrapper for lto1): the one at
+    // work is counted, not the one waiting. Counted both, as many links at once as half the jobs would fill every
+    // place with those waiting, and what they wait for would be held for ever.
+    std::map<std::int64_t, std::int64_t> parent_of;
+    for (const Process& process : all) parent_of.emplace(process.pid, process.parent);
+    std::set<std::int64_t> heavy_ones, waiting;
+    for (const Process& process : found) heavy_ones.insert(process.pid);
+    for (const Process& process : found) {
+        std::set<std::int64_t> walked;
+        for (std::int64_t above = process.parent; above != root && walked.insert(above).second;) {
+            if (heavy_ones.contains(above)) waiting.insert(above);
+            const auto next = parent_of.find(above);
+            if (next == parent_of.end()) break;
+            above = next->second;
+        }
+    }
+    std::erase_if(found, [&](const Process& process) { return waiting.contains(process.pid); });
     std::ranges::sort(found, {}, [](const Process& process) { return std::pair{process.seen, process.pid}; });
     return found;
 }

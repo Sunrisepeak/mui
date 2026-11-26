@@ -39,6 +39,26 @@ static UTest cases{"devtools.govern", [] {
         expect(pids == std::vector<std::int64_t>{107, 103, 102}) << "105 is another's, 106 ended, 101 and 104 are not heavy";
     };
 
+    "a heavy program waiting for the one it started is not counted: five links at once under five jobs hold nothing"_test = [] {
+        // g++ → collect2 → ld, five times, and an lto-wrapper whose lto1 is two below it.
+        std::vector<held::Process> all{{1, 100, 1, "mcpp"}, {1, 101, 100, "ninja"}};
+        for (std::int64_t link = 0; link < 5; ++link) {
+            all.push_back({2, 200 + link * 10, 101, "g++"});
+            all.push_back({2, 201 + link * 10, 200 + link * 10, "collect2"});
+            all.push_back({3, 202 + link * 10, 201 + link * 10, "ld"});
+        }
+        const auto links = held::heavy_under(all, 100);
+        expect(eq(links.size(), std::size_t{5}) && std::ranges::all_of(links, [](const held::Process& process) { return process.name == "ld"; })) << "the linkers, not what waits for them";
+        std::set<std::int64_t> paused;
+        const auto change = held::decide(links, paused, 5);
+        expect(change.pause.empty()) << "five at work within five: nothing held (collect2 counted too, the five linkers would wait for ever)";
+        all.push_back({4, 300, 101, "lto-wrapper"});
+        all.push_back({4, 301, 300, "make"});
+        all.push_back({5, 302, 301, "lto1"});
+        const auto with_lto = held::heavy_under(all, 100);
+        expect(eq(with_lto.size(), std::size_t{6}) && with_lto.back().name == "lto1") << "at any depth below the one waiting";
+    };
+
     "the oldest `allowed` run, the rest wait; one that ends leaves the paused; fewer allowed pauses the newest"_test = [] {
         std::vector<held::Process> processes{{10, 101, 1, "cc1plus"}, {11, 102, 1, "cc1plus"}, {12, 103, 1, "ld"}, {13, 104, 1, "as"}};
         std::set<std::int64_t> paused;

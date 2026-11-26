@@ -1,6 +1,6 @@
 # 领先度（lead）
 
-由 `omui-devtools lead docs` 从台账生成（2026-11-26）。判定规则见第二部分方案 §2.2。
+由 `omui-devtools lead docs` 从台账生成（2026-11-27）。判定规则见第二部分方案 §2.2。
 
 ## 指标
 
@@ -62,8 +62,8 @@
 | omui | core.size.hello.executable.bytes | omui-app 1.77012e+07 | slint 1.74696e+07 | 0.99× [0.99, 0.99] | par |
 | omui | core.size.hello.package.bytes | omui-app 8.42087e+06 | slint 8.61998e+06 | 1.02× [1.02, 1.02] | par |
 | omui | core.size.hello.app-code.bytes | — | nsh | — | planned |
-| omui | terminal.size.counter.program.bytes | omui-terminal 3.39254e+06 | ftxui 334208 | 0.10× [0.10, 0.10] | behind |
-| omui | terminal.size.counter.runtime.bytes | omui-terminal 3.39254e+06 | ftxui 334208 | 0.10× [0.10, 0.10] | behind |
+| omui | terminal.size.counter.program.bytes | omui-terminal 2.22347e+06 | ftxui 334208 | 0.15× [0.15, 0.15] | behind |
+| omui | terminal.size.counter.runtime.bytes | omui-terminal 2.22347e+06 | ftxui 334208 | 0.15× [0.15, 0.15] | behind |
 | omui.components | components.canvas-1000.frame_ms | — | figma-like-dom | — | planned |
 | meng | physics.pyramid.step_ms | — | box2d-v3, rapier | — | planned |
 | meng | world.iterate-100k.ms | — | bevy | — | planned |

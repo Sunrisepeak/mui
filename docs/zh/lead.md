@@ -1,6 +1,6 @@
 # 领先度：和最强的比
 
-每个指标都是我们对最强竞品，在同一台机器、同一个作业里交替测量；判定看比值的 95% 区间：低于 0.95× 为落后，到 1.2× 为持平，1.2× 起为领先，10× 起或竞品做不到为远超。落后的照样列在这里；没有设备测的如实写明。由领先度台账生成（2026-11-26）。
+每个指标都是我们对最强竞品，在同一台机器、同一个作业里交替测量；判定看比值的 95% 区间：低于 0.95× 为落后，到 1.2× 为持平，1.2× 起为领先，10× 起或竞品做不到为远超。落后的照样列在这里；没有设备测的如实写明。由领先度台账生成（2026-11-27）。
 
 ## 指标
 
@@ -62,8 +62,8 @@
 | omui | `core.size.hello.executable.bytes` | omui-app 1.77012e+07 | slint 1.74696e+07 | 0.99× [0.99, 0.99] | **par** |
 | omui | `core.size.hello.package.bytes` | omui-app 8.42087e+06 | slint 8.61998e+06 | 1.02× [1.02, 1.02] | **par** |
 | omui | `core.size.hello.app-code.bytes` | — | nsh | — | 计划中 |
-| omui | `terminal.size.counter.program.bytes` | omui-terminal 3.39254e+06 | ftxui 334208 | 0.10× [0.10, 0.10] | **behind** |
-| omui | `terminal.size.counter.runtime.bytes` | omui-terminal 3.39254e+06 | ftxui 334208 | 0.10× [0.10, 0.10] | **behind** |
+| omui | `terminal.size.counter.program.bytes` | omui-terminal 2.22347e+06 | ftxui 334208 | 0.15× [0.15, 0.15] | **behind** |
+| omui | `terminal.size.counter.runtime.bytes` | omui-terminal 2.22347e+06 | ftxui 334208 | 0.15× [0.15, 0.15] | **behind** |
 | omui.components | `components.canvas-1000.frame_ms` | — | figma-like-dom | — | 计划中 |
 | meng | `physics.pyramid.step_ms` | — | box2d-v3, rapier | — | 计划中 |
 | meng | `world.iterate-100k.ms` | — | bevy | — | 计划中 |

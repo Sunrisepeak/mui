@@ -33,6 +33,8 @@ Every side was run on a pseudo-terminal (util-linux 2.39.3's `script`, 60 × 20)
 
 **The ledger's verdicts**: the program, against FTXUI (the strongest), 0.099× — **behind**, ten times the bytes; at run time, the same against FTXUI and ratatui, and 44× smaller than Ink with its Node. The terminal design's bars — 1 MB for the first tier, 2 MB with the endpoint — are not met: a red (§7's write-up below).
 
+**2026-11-27** (UI7, CF1; the same build and counting): omui's first tier 2,223,472 B stripped (2,211,981 loaded), the second 3,858,288 B (3,849,938 loaded) — the view's pixel parts, the agent's captures and the terminal's agent face read at slots a terminal program does not install, a paragraph's ranges sorted by their places. Against FTXUI 0.15× (behind, 6.7 times the bytes; the ledger's 2026-11-27 lines); at -Oz (the workspace's `web` profile), 1,221,440 and 2,006,144 B stripped.
+
 ## Where omui's bytes are, and what was tried
 
 The first tier's code by owner (`omui-gen size`; an aliased symbol is listed under each of its names, so the shares are of the owner list): omui.view 26%; the view's pixel parts that a terminal never draws 26% — the effects' SPIR-V shaders (247 KiB), hanim.visual (180 KiB), PNG and zlib (124 KiB and more), the raster and vector renderers' entry points, mlibs.pipeline; the standard library's instantiations 15%; text (the Unicode tables, SheenBidi, paragraphs) 9%; JSON and the spec's values 5%; hanim's core and engine 3%; the terminal host and mrender.cells 3%; the rest — omui.core, layout, the display list's types, the components used — 10%. The second tier adds the endpoint: omui.agent, mlibs.agent, omui.semantic and openkal's rights table, 16% of its code, and the screenshot's PNG encoder.

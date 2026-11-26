@@ -56,7 +56,7 @@ struct WaitState {
 
 // What changed between two snapshots, node by node by id: `added` ({id, now}),
 // `removed` ({id, was}) and `changed` ({id, fields: {role|name|description|
-// value|state: {before, after}}}) — what a person or an agent reads, not where
+// value|properties|marks|state: {before, after}}}) — what a person or an agent reads, not where
 // it is drawn (a preview's answer, a live edit's).
 [[nodiscard]] Value changes_between(const Snapshot& before, const Snapshot& after);
 

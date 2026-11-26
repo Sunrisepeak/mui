@@ -30,9 +30,18 @@ technology read it (spec §3 and §9, `openmui.tree@0.1`):
 - **HTML** (D-236): what each node is in ARIA and the text its element holds
   (`aria_attributes`, `element_text`) — the Web host's live mirror gives each
   node these — and `static_html`, a snapshot as static HTML (headings, links,
-  buttons, landmarks and lists as HTML has them, each element naming its node
-  in `data-omui-target`): what a reader without JavaScript, or a search
-  engine, reads before the program runs (`--static-html FILE` of a run);
+  buttons, landmarks, lists, tables, code and pictures as HTML has them, each
+  element naming its node in `data-omui-target`): what a reader without
+  JavaScript, or a search engine, reads before the program runs
+  (`--static-html FILE` of a run). A document's nodes are written from their
+  `properties` and `marks` (spec S-16, S-17): a link's `href` and `title`, a
+  heading's anchor as its element's `id`, `<pre><code class="language-…">`,
+  a table's head, body and cells' alignment, an ordered list's start, a tight
+  list's bare items, inline formats as their elements with a link or an image
+  where its mark stands, a comment as a comment; embedded markup as markup
+  only where the application wrote it (S-3). The compact tree keeps a
+  document's comments (hidden nodes with a `comment`); `changes_between`
+  compares `properties` and `marks` too;
 - **sessions**: `Recorder` writes frames with their input and actions with
   their actor into an `openmui.session` session, with checkpoints of the
   tree's digest; `Player` replays them on a fresh runtime, step by step or to

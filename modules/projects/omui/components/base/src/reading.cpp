@@ -282,7 +282,7 @@ void Link::paint(PaintContext& ctx) const {
 
 void Link::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (node.name.empty()) node.name = props.text;
-    if (!props.href.empty()) node.value = Value(props.href);
+    if (!props.href.empty()) node.properties.set("href", Value(props.href));  // where it leads: its property (S-16)
     if (props.disabled) node.states.set(State::disabled, true);
 }
 

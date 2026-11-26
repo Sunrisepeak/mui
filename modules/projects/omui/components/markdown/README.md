@@ -10,11 +10,16 @@ omui::markdown({.id = "answer", .origin = omui::MarkdownOrigin::remote, .source 
 ```
 
 - **The semantic tree is the document**:
-  - headings (`value` is the level, `description` the anchor), paragraphs, `blockquote`, lists and items;
+  - headings (their `level` and `anchor` are properties; `value` is the level too), paragraphs, `blockquote`, lists (`ordered`, `start`, `tight`) and items;
   - task checkboxes, named by their item;
-  - `code` (with its language) and its *Copy code* button;
-  - tables with rows, column headers and cells; separators;
-  - links (`value` is the address) and images (named by their alt text).
+  - `code` (its `language` a property) and its *Copy code* button;
+  - tables with rows, column headers and cells (`align`); separators;
+  - links (`href`, `title`) and images (`source`; named by their alt text);
+  - a text's inline formats are `marks` over it (emphasis, strong, code, deletion; a link's or an image's names its child node), counted in code points (spec S-17);
+  - a comment (`<!-- … -->` alone in a block) is a hidden node whose `comment` property holds it: nothing shows it, a writing of the document gives it back.
+
+  What a node is beyond its text is in its `properties` (spec S-16), not borrowed from `description` or `value`.
+- **The tree read back** (`omui.ui.markdown:read`, D-258): `document_of(nodes)` is the document a snapshot's nodes state, `markdown_of(nodes)` it written as Markdown. For this component's own subtree, parsing that Markdown gives the document it was given: held on two corpora and every page of the repository's `docs/` (36 of 36; a line's end inside a paragraph read as the space the tree has). The same tree written as HTML (`omui::semantic::static_html`) reads back through `from_html` to the same document (32 of 32 documents without embedded markup: markup from a source that is not the application's is written as text, spec S-3).
 
   `origin` marks every node: text from an LLM is `remote` all the way down.
 - **HTML as the source** (`format: html`, D-141): the same component over a subset of HTML read into the same document (`mlibs::markdown::from_html`): the same semantic tree and the same pixels as the Markdown it was made from. Scripts, styles and handlers are not content; an append reads the whole source again; its task boxes are as written (`toggle_task` refuses).

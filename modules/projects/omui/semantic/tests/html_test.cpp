@@ -52,6 +52,59 @@ static UTest cases{"html", [] {
         expect(!html.contains(" role=\"button\"") && !html.contains(" role=\"heading\"")) << "a tag says its own role";
     };
 
+    "a document's nodes: their properties the elements' attributes, their marks the elements of their text (S-16, S-17)"_test = [] {
+        sem::Snapshot snapshot;
+        spec::SemanticNode title = node("doc/title", Role::heading, "Install");
+        title.properties.set("level", Value(std::int64_t{2}));
+        title.properties.set("anchor", Value("install"));
+        // "Read the “guide” & run it": a link over “guide” (code points 9 to 16), stress inside it, code at the end.
+        spec::SemanticNode text = node("doc/p", Role::paragraph, "Read the “guide” & run it", {"doc/p/link0"});
+        text.marks = {{spec::MarkKind::link, 9, 16, "doc/p/link0"}, {spec::MarkKind::emphasis, 10, 15, {}}, {spec::MarkKind::code, 19, 25, {}}};
+        spec::SemanticNode link = node("doc/p/link0", Role::link, "“guide”");
+        link.properties.set("href", Value("guide.html?a=1&b=2"));
+        link.properties.set("title", Value("The guide"));
+        link.description = "The guide";
+        spec::SemanticNode code = node("doc/code", Role::code, "if (a < b)\n    run();");
+        code.properties.set("language", Value("cpp"));
+        spec::SemanticNode list = node("doc/list", Role::list, "", {"doc/list/item"});
+        list.properties.set("ordered", Value(true));
+        list.properties.set("start", Value(std::int64_t{3}));
+        list.properties.set("tight", Value(true));
+        spec::SemanticNode comment = node("doc/note", Role::none, "");
+        comment.properties.set("comment", Value(" code: a.cpp#b "));
+        comment.states.set(State::hidden, true);
+        spec::SemanticNode cell = node("doc/table/body/row/cell", Role::cell, "1.5");
+        cell.properties.set("align", Value("right"));
+        spec::SemanticNode markup = node("doc/raw", Role::code, "<details>more</details>");
+        markup.properties.set("raw", Value("html"));
+        spec::SemanticNode foreign = markup;
+        foreign.id = "doc/foreign";
+        foreign.origin = spec::Origin::remote;
+        snapshot.nodes = {node("doc", Role::document, "", {"doc/title", "doc/note", "doc/p", "doc/code", "doc/list", "doc/table", "doc/raw", "doc/foreign"}),
+                          title, comment, text, link, code, list, node("doc/list/item", Role::list_item, "", {"doc/list/item/p"}),
+                          node("doc/list/item/p", Role::paragraph, "third"),
+                          node("doc/table", Role::table, "", {"doc/table/head", "doc/table/body"}),
+                          node("doc/table/head", Role::group, "", {"doc/table/head/row"}), node("doc/table/head/row", Role::row, "", {"doc/table/head/row/cell"}),
+                          node("doc/table/head/row/cell", Role::column_header, "Size"),
+                          node("doc/table/body", Role::group, "", {"doc/table/body/row"}), node("doc/table/body/row", Role::row, "", {"doc/table/body/row/cell"}), cell,
+                          markup, foreign};
+        for (const spec::SemanticNode& n : snapshot.nodes) expect(spec::check(n).empty()) << n.id;
+        const std::string html = sem::static_html(snapshot, {});
+        expect(html.contains("<h2 data-omui-target=\"doc/title\" id=\"install\">Install</h2>")) << html;
+        expect(html.contains("<p data-omui-target=\"doc/p\">Read the <a data-omui-target=\"doc/p/link0\" href=\"guide.html?a=1&amp;b=2\" title=\"The guide\">“<em>guide</em>”</a> &amp; <code>run it</code></p>"))
+            << "the link stands where its mark is, once: " << html;
+        expect(html.find("doc/p/link0") == html.rfind("doc/p/link0")) << "a child a mark places is not written again";
+        expect(html.contains("<pre data-omui-target=\"doc/code\"><code class=\"language-cpp\">if (a &lt; b)\n    run();\n</code></pre>")) << html;
+        expect(html.contains("<ol data-omui-target=\"doc/list\" start=\"3\">") && html.contains("<span data-omui-target=\"doc/list/item/p\">third</span>"))
+            << "an ordered list from its start; a tight item's paragraph no block of its own: " << html;
+        expect(html.contains("<!-- code: a.cpp#b -->")) << html;
+        expect(html.contains("<thead data-omui-target=\"doc/table/head\">") && html.contains("<tbody data-omui-target=\"doc/table/body\">") &&
+               html.contains("<th data-omui-target=\"doc/table/head/row/cell\">Size</th>") && html.contains("<td data-omui-target=\"doc/table/body/row/cell\" align=\"right\">1.5</td>"))
+            << html;
+        expect(html.contains("role=\"code\"><details>more</details></div>")) << "markup the application wrote, as markup: " << html;
+        expect(html.contains("&lt;details&gt;more&lt;/details&gt;")) << "markup from elsewhere, as text (S-3): " << html;
+    };
+
     "a running application's tree projected: every node there by its id, every text the tree's"_test = [] {
         RuntimeOptions o;
         o.fonts = &fonts();

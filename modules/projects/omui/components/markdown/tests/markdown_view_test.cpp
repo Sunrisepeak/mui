@@ -43,6 +43,95 @@ import omui;
 ---
 )";
 
+// Every construct a document's node states as a property or a mark (S-16, S-17), text outside ASCII among them.
+constexpr std::string_view everything = R"(# The 文档 as the tree holds it
+
+<!-- code: examples/02-hello-ts/app/main.ts#view -->
+
+Plain, *stressed*, **strong**, ***both***, `code`, ~~gone~~, and **a *nested* run** — “quoted” text.
+A [link](https://example.com/a?b=1&c=2 "Its title") with *[stress inside](#lists)*, an image ![a 图片](media/shot.png "Shot"), and
+a hard break\
+after it.
+
+## Lists
+
+- tight one
+- tight two with `code`
+  - nested
+
+1. loose one
+
+2. loose two
+
+7) starts at seven
+8) eight
+
+- [x] done
+- [ ] open
+
+## A table
+
+| Left | Centre | Right | None |
+|:-----|:------:|------:|------|
+| a *b* | [c](https://example.com/c) | 1.5 | `x` |
+| 第二行 | — | 22 | |
+
+```ts
+import { column, text } from "openmui";
+
+export default () => column({}, [text({ text: "a < b && c" })]);
+```
+
+    indented code
+
+> A quote with a [link](https://example.com/q).
+>
+> Its second paragraph.
+
+![a lone picture](media/lone.png "Lone")
+
+---
+
+Last paragraph.
+)";
+
+// The source's own HTML as the tree can say it: a line's end inside a paragraph is the space it reads as (the tree's
+// text has that space; a hard break is its line feed).
+std::string html_of(std::string_view source) {
+    mlibs::markdown::Document document = mlibs::markdown::parse(source);
+    const auto unbroken = [](this auto const& self, mlibs::markdown::Block& block) -> void {
+        std::erase_if(block.content.marks, [](const mlibs::markdown::Mark& mark) { return mark.op == mlibs::markdown::Op::soft_break; });
+        for (mlibs::markdown::Block& child : block.children) self(child);
+    };
+    unbroken(document.root);
+    return mlibs::markdown::to_html(document);
+}
+
+// What a reader of HTML makes of the tree's writing, written again as CommonMark's own HTML: the buttons a view adds
+// around the document (to copy a block of code) are no part of it.
+std::string read_back(std::string html) {
+    for (std::size_t at = html.find("<button"); at != std::string::npos; at = html.find("<button", at)) {
+        const std::size_t end = html.find("</button>", at);
+        if (end == std::string::npos) break;
+        html.erase(at, end + 9 - at);
+    }
+    return mlibs::markdown::to_html(mlibs::markdown::from_html(html));
+}
+
+// The documents the writings are held to: the two above, and the repository's own pages where they are (a split
+// tree has none).
+std::vector<std::pair<std::string, std::string>> documents() {
+    std::vector<std::pair<std::string, std::string>> out{{"readme", std::string(readme)}, {"everything", std::string(everything)}};
+    const auto root = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path().parent_path().parent_path().parent_path();
+    if (std::filesystem::exists(root / "docs" / "en" / "guide"))
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(root / "docs")) {
+            if (entry.path().extension() != ".md") continue;
+            std::ifstream in(entry.path(), std::ios::binary);
+            out.emplace_back(entry.path().lexically_relative(root).generic_string(), std::string{std::istreambuf_iterator<char>(in), {}});
+        }
+    return out;
+}
+
 std::int64_t act(Headless& h, std::string_view id, std::string_view action, Value args = {}, std::string answer = {}) {
     Invocation call;
     call.args = std::move(args);
@@ -73,21 +162,161 @@ UTest cases{"ui.markdown", [] {
         const auto h1 = h.tree().node("main/doc/b0");
         expect(h1 && h1->role == Role::heading && h1->value == Value(std::int64_t{1}) && h1->name == "openmui");
         const auto usage = find_role(h, Role::heading, "Usage");
-        expect(usage && usage->description == "usage" && usage->value == Value(std::int64_t{2})) << "level and anchor";
+        expect(usage && usage->value == Value(std::int64_t{2}) && usage->properties.get("level") && *usage->properties.get("level") == Value(std::int64_t{2}) &&
+               usage->properties.get("anchor") && *usage->properties.get("anchor") == Value("usage") && usage->description.empty())
+            << "level and anchor, its properties (S-16)";
         expect(find_role(h, Role::blockquote).has_value()) << "quotes are blockquotes";
         expect(find_role(h, Role::list) && find_role(h, Role::list_item)) << "lists and items";
         expect(find_role(h, Role::table) && find_role(h, Role::row) && find_role(h, Role::column_header, "Feature") &&
                   find_role(h, Role::cell, "later")) << "tables, rows, headers, cells";
         const auto code = find_role(h, Role::code);
-        expect(code && code->name == "import omui;" && code->description == "cpp") << "code with its language";
+        expect(code && code->name == "import omui;" && code->properties.get("language") && *code->properties.get("language") == Value("cpp") && code->description.empty())
+            << "code with its language";
         expect(find_role(h, Role::button, "Copy code").has_value()) << "and a copy button";
         expect(find_role(h, Role::separator).has_value()) << "rules are separators";
         const auto spec_link = find_role(h, Role::link, "the spec");
-        expect(spec_link && spec_link->value == Value("https://example.com/spec")) << "links are link nodes with their address";
+        expect(spec_link && spec_link->properties.get("href") && *spec_link->properties.get("href") == Value("https://example.com/spec") && spec_link->value.is_null())
+            << "links are link nodes with their address";
         expect(spec_link && spec_link->action("activate") && spec_link->action("activate")->effect == Effect::external) << "following a link reaches outside (S-1)";
         const auto jump = find_role(h, Role::link, "usage");
         expect(jump && jump->action("activate") && jump->action("activate")->effect == Effect::reversible && jump->action("activate")->answer.empty()) << "a heading of the document is inside: no answer asked";
         expect(h.tree().violations().empty()) << std::format("{} violations", h.tree().violations().size());
+    };
+
+    "a document's node states what it is: properties and marks over its text (S-16, S-17)"_test = [] {
+        Headless h({.size = {720, 2400}});
+        h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = std::string(everything)})}));
+        h.settle();
+        expect(h.tree().violations().empty()) << std::format("{} violations: {}", h.tree().violations().size(),
+                                                             h.tree().violations().empty() ? "" : h.tree().violations().front().message);
+        const auto nodes = h.tree().snapshot({}).nodes;
+        const auto named = [&](Role role, std::string_view begins) -> const spec::SemanticNode* {
+            for (const auto& n : nodes)
+                if (n.role == role && n.name.starts_with(begins)) return &n;
+            return nullptr;
+        };
+        const auto stated = [](const spec::SemanticNode* n, std::string_view key) { return n && n->properties.get(key) ? *n->properties.get(key) : Value{}; };
+        // The text of a mark: its range, counted in code points, cut from the node's bytes.
+        const auto cut = [](const spec::SemanticNode& n, const spec::Mark& mark) {
+            const std::size_t from = spec::byte_of_code_point(n.name, mark.start), to = spec::byte_of_code_point(n.name, mark.end);
+            return n.name.substr(from, to - from);
+        };
+        const auto marked = [&](const spec::SemanticNode* n, spec::MarkKind kind, std::string_view text) {
+            return n && std::ranges::any_of(n->marks, [&](const spec::Mark& mark) { return mark.kind == kind && cut(*n, mark) == text; });
+        };
+
+        const auto* title = named(Role::heading, "The 文档");
+        expect(title && stated(title, "level") == Value(std::int64_t{1}) && stated(title, "anchor").as_string().starts_with("the-")) << "a heading's level and anchor";
+        const auto* plain = named(Role::paragraph, "Plain, ");
+        expect(plain != nullptr);
+        if (!plain) return;
+        expect(marked(plain, spec::MarkKind::emphasis, "stressed") && marked(plain, spec::MarkKind::strong, "strong") && marked(plain, spec::MarkKind::code, "code") &&
+               marked(plain, spec::MarkKind::deletion, "gone"))
+            << "each inline format a range of the text";
+        expect(marked(plain, spec::MarkKind::strong, "a nested run") && marked(plain, spec::MarkKind::emphasis, "nested")) << "one inside another";
+        expect(marked(plain, spec::MarkKind::emphasis, "both") && marked(plain, spec::MarkKind::strong, "both")) << "two over one range";
+        expect(plain->name.contains("“quoted” text. A link")) << "a line's end in the source is the space it reads as: " << plain->name;
+        expect(plain->name.contains("a hard break\nafter it.")) << "a hard break is the line feed in the text";
+        // A link's place is a mark naming the child node that is the link; the address is the child's property.
+        const auto link = std::ranges::find_if(plain->marks, [&](const spec::Mark& mark) { return mark.kind == spec::MarkKind::link && cut(*plain, mark) == "link"; });
+        expect(link != plain->marks.end() && !link->node.empty());
+        if (link != plain->marks.end()) {
+            const auto child = std::ranges::find(nodes, link->node, &spec::SemanticNode::id);
+            expect(child != nodes.end() && child->role == Role::link && stated(&*child, "href") == Value("https://example.com/a?b=1&c=2") &&
+                   stated(&*child, "title") == Value("Its title") && child->description == "Its title" && child->value.is_null())
+                << "where it leads and its title are the link's own";
+        }
+        const auto picture = std::ranges::find_if(plain->marks, [&](const spec::Mark& mark) { return mark.kind == spec::MarkKind::image; });
+        expect(picture != plain->marks.end() && cut(*plain, *picture) == "a 图片") << "an image's range is its text alternative, past text outside ASCII";
+        if (picture != plain->marks.end()) {
+            const auto child = std::ranges::find(nodes, picture->node, &spec::SemanticNode::id);
+            expect(child != nodes.end() && child->role == Role::image && stated(&*child, "source") == Value("media/shot.png") && stated(&*child, "title") == Value("Shot"));
+        }
+        // Lists, a table's cells, code.
+        std::vector<const spec::SemanticNode*> lists;
+        for (const auto& n : nodes)
+            if (n.role == Role::list) lists.push_back(&n);
+        expect(lists.size() == 5u) << lists.size();
+        if (lists.size() == 5u) {
+            expect(stated(lists[0], "tight") == Value(true) && stated(lists[0], "ordered").is_null()) << "a tight bullet list";
+            expect(stated(lists[2], "ordered") == Value(true) && stated(lists[2], "start") == Value(std::int64_t{1}) && stated(lists[2], "tight").is_null()) << "a loose ordered list";
+            expect(stated(lists[3], "start") == Value(std::int64_t{7})) << "an ordered list says where it starts";
+        }
+        expect(stated(named(Role::column_header, "Left"), "align") == Value("left") && stated(named(Role::column_header, "Centre"), "align") == Value("center") &&
+               stated(named(Role::cell, "1.5"), "align") == Value("right") && stated(named(Role::column_header, "None"), "align").is_null())
+            << "a cell's alignment";
+        expect(marked(named(Role::cell, "a b"), spec::MarkKind::emphasis, "b")) << "a cell's text has its marks";
+        expect(stated(named(Role::code, "import {"), "language") == Value("ts") && stated(named(Role::code, "indented"), "language").is_null());
+        const auto* lone = named(Role::image, "a lone picture");
+        expect(lone && stated(lone, "source") == Value("media/lone.png") && stated(lone, "title") == Value("Lone")) << "a picture alone: its source as the document wrote it";
+        // A comment: in the tree (the compact one too), hidden, shown by nothing.
+        const auto comment = std::ranges::find_if(nodes, [&](const spec::SemanticNode& n) { return n.properties.get("comment") != nullptr; });
+        expect(comment != nodes.end() && comment->role == Role::none && comment->states.has(State::hidden) && comment->name.empty() &&
+               stated(&*comment, "comment") == Value(" code: examples/02-hello-ts/app/main.ts#view "))
+            << "a comment is kept and not shown";
+        expect(!named(Role::code, "<!--")) << "and is no block of code any more";
+    };
+
+    "the document written as HTML from the tree reads back as the document (UI1)"_test = [] {
+        std::size_t same = 0, held = 0;
+        for (const auto& [name, source] : documents()) {
+            // Markup a document embeds (but a comment) is written as text unless the application wrote it (S-3): a
+            // reader of the HTML then reads text, another document. Those pages are counted, not held.
+            bool embeds = false;
+            mlibs::markdown::walk(mlibs::markdown::parse(source).root, [&](const mlibs::markdown::Block& block) {
+                embeds = embeds || (block.kind == mlibs::markdown::Kind::html && !block.content.text.starts_with("<!--")) ||
+                         std::ranges::any_of(block.content.marks, [](const mlibs::markdown::Mark& mark) { return mark.span == mlibs::markdown::Span::html; });
+            });
+            Headless h({.size = {720, 2400}});
+            h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = source})}));
+            h.settle();
+            const std::string html = semantic::static_html(h.tree().snapshot({.root = "main/doc"}), {});
+            const std::string ours = read_back(html), theirs = html_of(source);
+            std::size_t at = 0;
+            while (at < ours.size() && at < theirs.size() && ours[at] == theirs[at]) ++at;
+            same += ours == theirs;
+            if (embeds) continue;
+            ++held;
+            expect(ours == theirs) << std::format("{} differs at {}:\n  the tree's: …{}\n  the source's: …{}", name, at, ours.substr(at > 60 ? at - 60 : 0, 200),
+                                                  theirs.substr(at > 60 ? at - 60 : 0, 200));
+            // What the old projection lost, each by name.
+            if (name == "everything") {
+                expect(html.contains("href=\"https://example.com/a?b=1&amp;c=2\" title=\"Its title\"")) << "a link's address and title";
+                expect(html.contains("<pre data-omui-target=") && html.contains("<code class=\"language-ts\">import { column, text } from \"openmui\";\n\nexport default"))
+                    << "a block of code keeps its lines and says its language";
+                expect(html.contains("align=\"right\">1.5</td>") && html.contains("<th data-omui-target=") && html.contains("<thead") && html.contains("<tbody")) << "a table's cells";
+                expect(html.contains("<!-- code: examples/02-hello-ts/app/main.ts#view -->") && !html.contains("&lt;!--")) << "a comment is a comment, not text";
+                expect(html.contains("<em>stressed</em>") && html.contains("<strong>a <em>nested</em> run</strong>") && html.contains("<del>gone</del>")) << "inline formats";
+                expect(html.contains(" id=\"lists\"")) << "a heading's anchor is its element's id: `#lists` leads there before the program runs";
+            }
+        }
+        std::println("    written as HTML and read back: {} documents, {} the same ({} held: no embedded markup)", documents().size(), same, held);
+        expect(held >= 2u);
+    };
+
+    "the tree read back as the document, written as Markdown, parses to the document it was given (UI2)"_test = [] {
+        const auto sources = documents();
+        std::size_t same = 0;
+        for (const auto& [name, source] : sources) {
+            Headless h({.size = {720, 2400}});
+            h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = source})}));
+            h.settle();
+            const auto snapshot = h.tree().snapshot({.root = "main/doc"});
+            const std::string written = markdown_of(snapshot.nodes);
+            const std::string ours = html_of(written), theirs = html_of(source);
+            std::size_t at = 0;
+            while (at < ours.size() && at < theirs.size() && ours[at] == theirs[at]) ++at;
+            expect(ours == theirs) << std::format("{} differs at {}:\n  written and parsed: …{}\n  the source's: …{}", name, at, ours.substr(at > 80 ? at - 80 : 0, 240),
+                                                  theirs.substr(at > 80 ? at - 80 : 0, 240));
+            same += ours == theirs;
+            if (name == "everything") {
+                expect(written.contains("<!-- code: examples/02-hello-ts/app/main.ts#view -->")) << "a comment is written back as it was";
+                expect(written.contains("[link](https://example.com/a?b=1\\&c=2 \"Its title\")") && written.contains("```ts\n") && written.contains("| :-- | :-: | --: | --- |"))
+                    << written;
+            }
+        }
+        std::println("    read back and written as Markdown: {} of {} documents parse to what they were", same, sources.size());
+        expect(sources.size() >= 2u);
     };
 
     "links: an agent needs the answer, a person's click is it (S-2, S-2a)"_test = [] {

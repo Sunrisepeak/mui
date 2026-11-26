@@ -517,6 +517,38 @@ UTest cases{"markdown.conformance", [] {
         expect(eq(same, read));
     };
 
+    "Markdown written from the document parses back to it: every example's document, written and read again, writes the same HTML"_test = [] {
+        int written = 0, same = 0;
+        std::map<std::string, std::pair<int, int>> by_suite;
+        std::vector<std::string> different;
+        for (const auto& entry : std::filesystem::directory_iterator(data_dir())) {
+            if (entry.path().extension() != ".txt") continue;
+            const std::string suite = entry.path().filename().string();
+            for (const Example& example : examples(entry.path())) {
+                const Dialect d = dialect(example.options);
+                if (!d.known) continue;
+                const md::Document doc = md::parse(example.markdown, d.ext);
+                const std::string html = md::to_html(doc), markdown = md::to_markdown(doc);
+                const std::string again = md::to_html(md::parse(markdown, d.ext));
+                ++written;
+                ++by_suite[suite].first;
+                if (again == html) {
+                    ++same;
+                    ++by_suite[suite].second;
+                } else if (different.size() < 4) {
+                    different.push_back(std::format("{} #{} (line {}):\n{}--- written\n{}--- its HTML\n{}--- the document's\n{}", suite, example.number, example.line,
+                                                    example.markdown, markdown, again, html));
+                }
+            }
+        }
+        for (const auto& [suite, tally] : by_suite) std::println("    {}: {} of {} written and read back the same", suite, tally.second, tally.first);
+        std::println("    Markdown written and read back: {} examples, {} the same", written, same);
+        for (const auto& one : different) std::println("{}", one);
+        expect(eq(written, 808));
+        // All but one: a regression found by fuzzing, a wikilink whose target is an image's own syntax (`[[![|]()]]`).
+        expect(same >= written - 1) << std::format("{} of {}", same, written);
+    };
+
     "HTML as people write it: whitespace, containers, unclosed tags, task boxes, attributes not read, scripts dropped"_test = [] {
         const md::Document doc = md::from_html(R"html(<!doctype html><html><head><title>t</title><style>p{}</style></head><body>
 <div class="post">

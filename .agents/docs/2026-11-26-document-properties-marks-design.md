@@ -55,6 +55,7 @@
 | `language` | 文字 | `code` | 代码的语言 |
 | `ordered` | 布尔 | `list` | 有序 |
 | `start` | 整数 | `list` | 有序列表的起始号 |
+| `tight` | 布尔 | `list` | 紧凑：各项的段落之间不留空（它改变写出的 HTML 与 Markdown，所以是事实） |
 | `align` | `left`／`center`／`right` | `cell`、`column_header`、`row_header` | 对齐 |
 | `raw` | 文字（`html`） | `code` | 这段是嵌在文档里的原始标记 |
 | `comment` | 文字 | `none` | 注释的文字：任何渲染都不显示，往返时保留 |
@@ -99,6 +100,15 @@
 | FE1 | 规范 0.4.13：两张登记表、条款 S-16／S-17、线上的形式往返、`check` 的用例（已写，本机 6 个程序通过）；规范仓库的 CI 通过并打 tag；本仓库钉住。规范的一致性场景（一篇文档）随 UI1 的轨迹补上 |
 | UI1 | `ui.md` 的 HTML 投影里表格、链接（`href`）、代码（`<pre><code class="language-…">`）、行内格式逐项与 `mlibs.markdown` 由源写出的相等；注释不成正文 |
 | UI2 | 最小核心文档集 `Markdown → 树 → Markdown` 往返后解析相等（CTS） |
+
+## 4a. 实施中定下的（2026-11-26，UI1、UI2）
+
+- **软换行是空格**：树的文字在源的行末处是一个空格（硬换行才是换行符）。“往返相等”因此按“源里的软换行读作空格”来比；HTML 上两者只差一个空白字符。
+- **注释照原样**：`comment` 是定界符之间的原文（含两端的空格），写回时逐字节相同。紧凑的树保留它。
+- **元素可以自己声明属性**：视图的任何元素带 `properties` 这个 prop 时并入节点的属性（单独的图片用它给出“写在文档里的来源”，而不是解析后的路径）。写进规范的视图 schema 随 ST3。
+- **HTML 读回**：`mlibs.markdown::from_html` 把块之间的注释读成原始 HTML 块；代码块的子节点（复制按钮）写在 `</pre>` 之后。
+- **嵌入的标记**：来源不是 `app` 的原始 HTML 在投影里是转义的文字（S-3），这样的页面读回后与源不同——这是有意的；`docs/` 里有 4 页如此。
+- **Markdown 投影的位置**：`to_markdown(文档)` 在 `mlibs.markdown`；“树 → 文档”在 `omui.ui.markdown`（它本来就依赖 `mlibs.markdown`）。不带 Markdown 组件的应用若也要“读成 Markdown”，需要把 `mlibs.markdown` 的文档模型与解析器分开（否则 `omui.semantic` 会把 md4c 带进每个应用），留给 AG5 定。
 
 ## 5. 不做的
 

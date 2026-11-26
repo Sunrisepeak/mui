@@ -212,8 +212,14 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         n.type->semantics(n.instance, ctx, s);
     }
     // A heading's level, stated on any element made one (`.prop("level", 1)`): its value, as a document's headings say theirs.
-    if (s.role == Role::heading)
+    if (s.role == Role::heading) {
         if (const Value* v = prop("level"); v && v->is_number()) s.value = Value(v->as_int());
+        // The level as a property too (S-16), whichever way the heading was made one.
+        if (s.value.is_number() && !s.properties.get("level")) s.properties.set("level", Value(s.value.as_int()));
+    }
+    // What the element itself states of its node (`.prop("properties", {anchor: "install"})`): over its component's.
+    if (const Value* stated = prop("properties"); stated && stated->map())
+        for (const auto& [key, value] : *stated->map()) s.properties.set(key, value);
     return s;
 }
 

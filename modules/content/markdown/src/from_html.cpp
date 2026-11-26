@@ -124,6 +124,9 @@ std::optional<Span> span_of(std::string_view name) {
     return std::nullopt;
 }
 
+// The blocks other blocks stand in directly.
+bool holds_blocks(Kind kind) { return kind == Kind::document || kind == Kind::quote || kind == Kind::item; }
+
 bool is_leaf(Kind kind) { return kind == Kind::paragraph || kind == Kind::heading || kind == Kind::table_cell || kind == Kind::code; }
 
 class Reader {
@@ -135,6 +138,12 @@ public:
             if (html[at] == '<') {
                 if (html.substr(at).starts_with("<!--")) {
                     const std::size_t end = html.find("-->", at + 4);
+                    // Between blocks a comment is a block of raw HTML, as Markdown has one; inside text it is dropped.
+                    if (end != std::string_view::npos && !is_leaf(top().block->kind) && !top().implicit && holds_blocks(top().block->kind)) {
+                        Block comment{.kind = Kind::html};
+                        comment.content.text = std::string(html.substr(at, end + 3 - at)) + "\n";
+                        top().block->children.push_back(std::move(comment));
+                    }
                     at = end == std::string_view::npos ? html.size() : end + 3;
                     continue;
                 }

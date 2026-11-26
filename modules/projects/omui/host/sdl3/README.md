@@ -109,6 +109,18 @@ pixels turn it off (`follow_system = false`); `preferences_test` runs a copy of 
 of its own (no display, nothing of the machine's session read), and on a person's desktop, when asked
 (`OMUI_REAL_WINDOW_AT=x,y`), opens a real window there and holds what it has to what the session's portal says.
 
+**The pointer elsewhere does not wake the window** (red 158). SDL's X11 driver asks the X server at its start for
+XInput2's raw motion, raw buttons and raw touches on the root window (`X11_InitXinput2`, 3.4.18 and SDL's main):
+the server then sends the program every movement of the pointer anywhere on the screen, and its loop wakes for
+each, with nothing to do. SDL needs them only for its relative mode and for the cache of `SDL_GetGlobalMouseState`
+(which this host does not call); a window's own input comes through its own selection. Once SDL's video is up the
+host clears the root's selection for the master devices (XInput2's `XISelectEvents`, through the libXi SDL loaded
+itself) and asks for raw motion again only while the pointer is locked (`Runtime`'s pointer lock, SDL's relative
+mode). The fix that belongs in SDL — those events selected only while relative mode or a global mouse query needs
+them — is prepared for upstream; until it is released, `compat.sdl3` could carry it as a patch of its own build, and
+the host's clearing would then be left out. `root_motion_test` holds it on an X server of the test's own
+(`OMUI_TEST_X_DISPLAY`, an Xvfb whose pointer it moves).
+
 SDL's headers appear only in `src/native/sdl.cpp`. Tests run on SDL's
 offscreen video driver with software rendering: what the window shows is read
 back and compared with the CPU frame; input is synthesized into SDL's queue

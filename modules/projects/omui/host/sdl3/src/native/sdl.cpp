@@ -22,6 +22,7 @@ int            holders = 0;  // hosts holding SDL for a device being made (platf
 std::uint32_t  wake_event = 0;
 bool           gamepads_started = false;
 std::atomic<bool> sdl_ready{false};
+bool           root_quieted = false;  // the root's XInput2 selection cleared since SDL's video came up (red 158)
 
 constexpr std::array<std::pair<SDL_Keycode, Key>, 82> keymap{{
     {SDLK_A, Key::a}, {SDLK_B, Key::b}, {SDLK_C, Key::c}, {SDLK_D, Key::d}, {SDLK_E, Key::e}, {SDLK_F, Key::f},
@@ -200,7 +201,7 @@ void WindowDeleter::operator()(Window* w) const noexcept {
     if (w->window) SDL_DestroyWindow(w->window);
     delete w;
     if (--windows_open == 0 && holders == 0) {
-        sdl_ready = gamepads_started = false;
+        sdl_ready = gamepads_started = root_quieted = false;
         pads.close_all();
         SDL_Quit();
     }
@@ -239,7 +240,7 @@ void release() {
 
 void stop() {
     if (!sdl_ready || windows_open != 0 || holders != 0) return;
-    sdl_ready = gamepads_started = false;
+    sdl_ready = gamepads_started = root_quieted = false;
     pads.close_all();
     SDL_Quit();
 }
@@ -265,6 +266,63 @@ void release_framebuffer(Window& w) {
     w.framebuffer = false;
     w.shown = false;  // nothing to read back from it any more
 }
+
+namespace {
+
+// Red 158: SDL's X11 driver asks the X server at its start for XInput2's raw motion, raw buttons and raw touches on
+// the root window, for every master device (SDL_x11xinput2.c, X11_InitXinput2; SDL 3.4.18 and its main of
+// 2026-11): every movement of the pointer anywhere on the desktop is sent to the program and wakes its loop, which
+// has nothing to do with it. SDL needs them for two things only: its relative mode (the pointer locked: the hand's
+// movement is read from raw motion) and the cache of SDL_GetGlobalMouseState, which this host does not use. A
+// window's own input comes through the window's own selection (its motion, buttons, wheel, touches, enter and leave,
+// and the implicit grab of a press that follows a drag outside it). So once SDL's video is up the root's selection
+// for the master devices is cleared, and raw motion is asked for again only while the pointer is locked. The
+// selection is XInput2's (libXi, which SDL has loaded for itself), spoken here as pass_through speaks the Shape
+// extension; upstream SDL is to select them only while they are needed (README).
+struct RootSelection {
+    struct Mask {  // XIEventMask
+        int            deviceid;
+        int            mask_len;
+        unsigned char* mask;
+    };
+    unsigned long (*default_root)(void*) = nullptr;              // XDefaultRootWindow: the root's XID
+    int (*select)(void*, unsigned long, Mask*, int) = nullptr;   // XISelectEvents
+    int (*flush)(void*) = nullptr;                               // XFlush
+};
+
+const RootSelection* root_selection() {
+    namespace library = mcpplibs::os::library;
+    static const auto xi = library::open("libXi.so.6");
+    static const auto x11 = library::open("libX11.so.6");
+    static const RootSelection found = [] {
+        RootSelection made;
+        if (!xi || !x11) return made;
+        made.select = reinterpret_cast<int (*)(void*, unsigned long, RootSelection::Mask*, int)>(xi->symbol("XISelectEvents"));
+        made.default_root = reinterpret_cast<unsigned long (*)(void*)>(x11->symbol("XDefaultRootWindow"));
+        made.flush = reinterpret_cast<int (*)(void*)>(x11->symbol("XFlush"));
+        return made;
+    }();
+    return found.select && found.default_root && found.flush ? &found : nullptr;
+}
+
+// The root's XInput2 selection for the master devices: raw motion while `locked`, else none. Whether it was set.
+bool select_root_motion(SDL_Window* window, bool locked) {
+    if (video_driver() != "x11" || !window) return false;
+    const RootSelection* selection = root_selection();
+    void* display = SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_X11_DISPLAY_POINTER, nullptr);
+    if (!selection || !display) return false;
+    constexpr int all_master_devices = 1;  // XIAllMasterDevices
+    constexpr int raw_motion = 17;         // XI_RawMotion
+    std::array<unsigned char, 4> bits{};
+    if (locked) bits[raw_motion >> 3] = static_cast<unsigned char>(1u << (raw_motion & 7));
+    RootSelection::Mask mask{all_master_devices, static_cast<int>(bits.size()), bits.data()};
+    const unsigned long root = selection->default_root(display);
+    const bool selected = selection->select(display, root, &mask, 1) == 0;
+    (void)selection->flush(display);
+    return selected;
+}
+
+}  // namespace
 
 std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     if (auto started = start(o.video_driver); !started) return std::unexpected(started.error());
@@ -297,6 +355,8 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     w->window = SDL_CreateWindowWithProperties(props);
     SDL_DestroyProperties(props);
     if (!w->window) return std::unexpected(std::format("SDL_CreateWindow: {}", SDL_GetError()));
+    // The pointer's movement elsewhere on the desktop not sent to this program (red 158).
+    if (!root_quieted) root_quieted = select_root_motion(w->window, false);
     // A software renderer draws into the window's framebuffer, which SDL by
     // default backs with an accelerated renderer — loading the GPU drivers
     // (EGL, GL, Vulkan) for a window that asked for none. Kept in memory where
@@ -766,7 +826,12 @@ bool open_url(std::string_view url) { return SDL_OpenURL(std::string(url).c_str(
 bool lock_pointer(bool held) {
     SDL_Window* window = SDL_GetKeyboardFocus();
     if (!window) window = SDL_GetMouseFocus();
-    return window && SDL_SetWindowRelativeMouseMode(window, held);
+    if (!window) return false;
+    // SDL's relative mode reads the hand's movement from raw motion on the root (red 158): asked for while locked.
+    if (held && root_quieted) (void)select_root_motion(window, true);
+    const bool done = SDL_SetWindowRelativeMouseMode(window, held);
+    if ((!held || !done) && root_quieted) (void)select_root_motion(window, false);
+    return done;
 }
 
 namespace {

@@ -85,6 +85,9 @@ struct Launch {
     std::optional<double> idle_cpu_percent, idle_wakeups, idle_frames;
     std::map<std::string, double> idle_waking;  // at rest: each thread's name, its switches a second (those that woke)
     std::map<std::string, double> idle_cpu_by_thread;  // at rest: each thread's share of a core (%), "main" the first
+    // At rest while the pointer moves elsewhere on the screen (red 158; the harness's own server only): each thread's
+    // switches a second, as idle_waking.
+    std::map<std::string, double> elsewhere_waking;
     std::vector<double> clicks;
     bool click_changed = true;
     std::vector<double> presents;  // in motion: the intervals between presented frames (ms)
@@ -1103,6 +1106,34 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         out.idle_wakeups = switches_of(said);
         out.idle_waking = waking_of(said);
     }
+    // At rest while the pointer moves elsewhere on the screen (red 158): in the corner it is parked in, never over the
+    // window, 120 steps a second, as a hand moves a mouse — what the program's threads do with motion that is not
+    // theirs. On the harness's own server only: on a desktop the pointer is its person's.
+    if (!settings.desktop && side.motion.empty()) {
+        if (const auto pidstat = mcpplibs::os::env::find_executable("pidstat")) {
+            process::spawn_options watching{.program = *pidstat,
+                                            .args = {"-w", "-t", "-p", std::to_string(pid),
+                                                     std::to_string(settings.idle.count() / 1000), "1"},
+                                            .env = {{"LC_ALL", "C"}}};
+            watching.err = process::stdio::null;
+            if (auto elsewhere = process::process::spawn(watching)) {
+                const auto until = Clock::now() + settings.idle + milliseconds{200};
+                for (int step = 0; Clock::now() < until; ++step) {
+                    (void)display.pointer(settings.park[0] - 4 - step % 24, settings.park[1] - 4 - (step / 24) % 2 * 6);
+                    std::this_thread::sleep_for(std::chrono::microseconds{8333});
+                }
+                (void)display.pointer(settings.park[0], settings.park[1]);
+                std::string said;
+                while (auto chunk = elsewhere->read_output()) {
+                    if (chunk->empty())
+                        break;
+                    said += *chunk;
+                }
+                (void)elsewhere->wait();
+                out.elsewhere_waking = waking_of(said);
+            }
+        }
+    }
     // The clicks: pointer onto the button, pressed, let go; from letting go to the next frame on
     // the window.
     if (side.click) {
@@ -1716,6 +1747,7 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                 mine.wakeups.push_back(*cold.idle_wakeups);
             if (!cold.idle_waking.empty()) sample["idle_waking"] = cold.idle_waking;
             if (!cold.idle_cpu_by_thread.empty()) sample["idle_cpu_by_thread"] = cold.idle_cpu_by_thread;
+            if (!cold.elsewhere_waking.empty()) sample["elsewhere_waking"] = cold.elsewhere_waking;
             if (cold.idle_frames)
                 sample["idle_frames_per_s"] = *cold.idle_frames,
                 mine.frames.push_back(*cold.idle_frames);
@@ -1760,6 +1792,11 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                                            ran == cold.idle_cpu_by_thread.end() ? 0.0 : ran->second);
                 }
                 std::cout << std::format("    at rest:{}\n", threads) << std::flush;
+            }
+            if (!cold.elsewhere_waking.empty()) {
+                std::string threads;
+                for (const auto& [name, rate] : cold.elsewhere_waking) threads += std::format("  {} {:.1f}/s", name, rate);
+                std::cout << std::format("    at rest, the pointer moving elsewhere:{}\n", threads) << std::flush;
             }
         }
     }

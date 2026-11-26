@@ -80,6 +80,10 @@ public:
     // One frame, one frame period later (the first frame is at 0) — or at
     // `at`, a recorded frame's time (a replay, W12).
     FrameOutput step(std::vector<InputEvent> events = {}, std::optional<seconds> at = std::nullopt);
+    // Another thread's work waited for with the clock held (a script's run: what it asks of the runtime's thread is
+    // run as it comes, and no frame), so how fast that thread is never shows in what the frames after it draw.
+    // Until `done` answers true (true), or `limit` of real time has passed (false).
+    bool wait(const std::function<bool()>& done, std::chrono::milliseconds limit = std::chrono::seconds(10));
     // Frames until `duration` has passed.
     FrameOutput advance(seconds duration);
     // Frames until nothing animates, no timer is due within `limit`, and no

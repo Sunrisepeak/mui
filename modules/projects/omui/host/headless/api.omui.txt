@@ -35,6 +35,7 @@ namespace omui {
     [[nodiscard]] const HeadlessOptions& options() const noexcept;
     NodeId mount(std::string_view slot, View view);
     FrameOutput step(std::vector<InputEvent> events = {…}, std::optional<seconds> at = std::nullopt);
+    bool wait(const std::function<bool()>& done, std::chrono::milliseconds limit = std::chrono::seconds(10));
     FrameOutput advance(seconds duration);
     std::size_t settle(seconds limit = seconds(10));
     [[nodiscard]] seconds now() const noexcept;

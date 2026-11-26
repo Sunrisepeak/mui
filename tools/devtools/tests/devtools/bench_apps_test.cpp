@@ -95,4 +95,36 @@ static UTest cases{
                     << "X's 32-bit pixels carry a byte nothing draws";
                 expect(x11::hash(cleared) != x11::hash(drawn));
             };
+
+        "a desktop's display is authorised by the session's cookie: this machine's entry for the display, else a wildcard's"_test =
+            [] {
+                // Xauthority's entries: a family (big-endian), then the address, the display's
+                // number, the scheme and its data, each counted by two big-endian bytes.
+                const auto entry = [](std::uint16_t family, std::string_view address,
+                                      std::string_view number, std::string_view name,
+                                      std::string_view data) {
+                    std::string out{static_cast<char>(family >> 8), static_cast<char>(family & 0xff)};
+                    for (const std::string_view part : {address, number, name, data}) {
+                        out += static_cast<char>(part.size() >> 8);
+                        out += static_cast<char>(part.size() & 0xff);
+                        out += part;
+                    }
+                    return out;
+                };
+                const std::string file =
+                    entry(256, "other-pc", "1", "MIT-MAGIC-COOKIE-1", "AAAA") +
+                    entry(65535, "", "", "MIT-MAGIC-COOKIE-1", "WILD") +
+                    entry(256, "this-pc", "0", "MIT-MAGIC-COOKIE-1", "ZERO") +
+                    entry(256, "this-pc", "1", "XDM-AUTHORIZATION-1", "XDMX") +
+                    entry(256, "this-pc", "1", "MIT-MAGIC-COOKIE-1", "MINE");
+                expect(eq(x11::cookie(file, 1, "this-pc").value_or("none"), std::string("MINE")));
+                expect(eq(x11::cookie(file, 0, "this-pc").value_or("none"), std::string("ZERO")));
+                expect(eq(x11::cookie(file, 7, "this-pc").value_or("none"), std::string("WILD")))
+                    << "no entry of this machine's for :7: the wildcard's";
+                expect(eq(x11::cookie(file, 1, "third-pc").value_or("none"), std::string("WILD")))
+                    << "another host's local entry is not this machine's";
+                expect(!x11::cookie("", 1, "this-pc").has_value());
+                expect(!x11::cookie(file.substr(0, 9), 1, "this-pc").has_value())
+                    << "a cut-off file says nothing";
+            };
     }};

@@ -21,8 +21,8 @@
     {"series": "omui-app", "app": "hello", "build": "omui", "world": "app", "program": "omui-bench-hello"},
     {"series": "omui-lean", "app": "hello", "build": "omui", "world": "lean", "program": "omui-bench-hello"},
     {"series": "omui-minimal", "app": "hello", "build": "omui", "world": "minimal", "program": "omui-bench-hello"},
-    {"series": "omui-app", "app": "counter", "build": "omui", "world": "app", "program": "omui-bench-counter", "click": [400, 87], "label": [20, 20, 220, 42]},
-    {"series": "omui-minimal", "app": "counter", "build": "omui", "world": "minimal", "program": "omui-bench-counter", "click": [400, 87], "label": [20, 20, 220, 42]},
+    {"series": "omui-app", "app": "counter", "build": "omui", "world": "app", "program": "omui-bench-counter", "click": [400, 109], "label": [20, 20, 220, 42]},
+    {"series": "omui-minimal", "app": "counter", "build": "omui", "world": "minimal", "program": "omui-bench-counter", "click": [400, 109], "label": [20, 20, 220, 42]},
     {"series": "omui-app", "app": "market", "build": "omui", "world": "app", "program": "omui-bench-market", "window": [1896, 1030], "motion": "live"},
     {"series": "omui-app", "app": "list", "build": "omui", "world": "app", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
     {"series": "omui-lean", "app": "list", "build": "omui", "world": "lean", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
@@ -37,7 +37,7 @@
     {"series": "flutter", "app": "list", "build": "flutter", "program": "lib/list.dart", "window": [1896, 1030], "motion": "scroll"},
     {"series": "nsh-rust", "app": "hello", "build": "nsh", "program": "template:rust", "click": [400, 322], "label": [280, 250, 240, 45]},
     {"series": "nsh-ts", "app": "hello", "build": "nsh", "program": "template:ts", "click": [400, 322], "label": [280, 250, 240, 45]},
-    {"series": "nsh-ts", "app": "counter", "build": "nsh", "program": "example:counter", "click": [440, 319], "label": [250, 150, 300, 110]},
+    {"series": "nsh-ts", "app": "counter", "build": "nsh", "program": "example:counter", "click": [440, 319], "label": [250, 150, 300, 110], "desktop": {"click": [443, 352], "label": [250, 180, 300, 100]}},
     {"series": "nsh-ts", "app": "market", "build": "nsh", "program": "example:gallery", "env": {"NSH_GALLERY_DEMO": "Stocks"}, "window": [1896, 1030], "motion": "live"},
     {"series": "nsh-ts", "app": "list", "build": "nsh", "program": "source:list", "window": [1896, 1030], "motion": "scroll"}
   ]

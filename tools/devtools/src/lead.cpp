@@ -120,7 +120,7 @@ std::optional<json> judge(const json& metric, const std::vector<json>& samples, 
     json others = json::array();
     for (auto at = candidates.begin(); at != candidates.end(); ++at)
         if (at != best) others.push_back({{"name", at->name}, {"median", rounded(at->median, 5)}, {"ratio", rounded(at->ratio, 4)}});
-    return json{{"kind", "metric"},
+    json record{{"kind", "metric"},
                 {"date", context.date},
                 {"project", text_at(metric, "project")},
                 {"metric", text_at(metric, "id")},
@@ -136,6 +136,9 @@ std::optional<json> judge(const json& metric, const std::vector<json>& samples, 
                 {"machine", context.machine},
                 {"commit", context.commit},
                 {"found_by", nullptr}};
+    if (!context.display.empty()) record["display"] = context.display;
+    if (!context.conditions.empty()) record["conditions"] = context.conditions;
+    return record;
 }
 
 }  // namespace

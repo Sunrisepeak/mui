@@ -44,6 +44,9 @@ struct Context {
     std::string date;     // YYYY-MM-DD
     std::string machine;  // host-threads
     std::string commit;   // the short hash
+    // Where a measurement from outside the process ran (a display, its GPU) and under what (the
+    // processor's power preference, the machine's load): on the record where said (RM1).
+    std::string display, conditions;
 };
 
 struct Verdict {

@@ -14,6 +14,17 @@
 //
 // Linux (AccessKit's adapter); needs at-spi2-core and a session bus
 // (omui-devtools check atspi builds them and runs it in dbus-run-session).
+//
+// On a desktop (RM2, `--screen MONITOR`): the desktop's own session bus and
+// accessibility bus, its registry with every other application in it, and each
+// example in a real window on that monitor of the machine's X server — its
+// application found in the registry by its program's name, its window on the
+// screen by its process. What AT-SPI says is held to what the window shows: the
+// places it gives on the screen are the window's, a node it names is drawn
+// where it says, and a press through Action is drawn in the window. The
+// desktop's accessibility switch is its person's and is left alone: the
+// examples find it on on a session bus of the check's and are told the
+// desktop's accessibility bus (AT_SPI_BUS_ADDRESS).
 export module omui.devtools.atspi;
 
 import std;
@@ -37,11 +48,23 @@ struct Report {
     std::vector<std::string>                 actions;  // the +1 button's
     std::optional<double>                    goal_value;
     std::string                              word_at_5;
+    std::string                              display;  // on a desktop: the monitor, the windows' places
     [[nodiscard]] bool ok() const noexcept;
     [[nodiscard]] std::string json() const;
 };
 
+struct Options {
+    // A monitor of this machine's display: the desktop's buses and real windows on it (none: SDL's
+    // offscreen windows on the session bus given, a private one).
+    std::string screen;
+    // On a desktop: a composition through its input method in the notes' field (RM3).
+    bool compose = false;
+    // Where the composition's picture of the window goes (none: not kept).
+    std::filesystem::path shots;
+};
+
 // Both examples checked (`notes` empty: the tally alone); the report says every check, passed or not.
-[[nodiscard]] Report check(const std::filesystem::path& tally, const std::filesystem::path& notes);
+[[nodiscard]] Report check(const std::filesystem::path& tally, const std::filesystem::path& notes,
+                           const Options& options = {});
 
 }  // namespace omui::devtools::atspi

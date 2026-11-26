@@ -551,7 +551,7 @@ int toy(const fs::path& root, std::vector<std::string> packages) {
     return failures == 0 ? 0 : 1;
 }
 
-int atspi(const fs::path& root, const std::vector<std::string>& profile_args) {
+int atspi(const fs::path& root, const std::vector<std::string>& profile_args, std::string_view screen, bool compose) {
     std::vector<std::string> args{"-p", "omui.example.counter", "-p", "omui.example.headless-and-agent"};
     args.insert(args.end(), profile_args.begin(), profile_args.end());
     const auto built = run::build(root, std::move(args));
@@ -563,9 +563,22 @@ int atspi(const fs::path& root, const std::vector<std::string>& profile_args) {
     const auto self = mcpplibs::os::env::image();
     if (!self) return failed("this program's own image is unknown");
     // A private session bus, the accessibility bus turned on there as Orca turns it on; the registry's own line
-    // comes before the report.
-    auto done = run::program(root, "dbus-run-session", {"--", mcpplibs::os::fs::utf8(*self), "--root", mcpplibs::os::fs::utf8(root), "atspi",
-                                                        mcpplibs::os::fs::utf8(program["tally"]), mcpplibs::os::fs::utf8(program["notes-agent"])});
+    // comes before the report. On a desktop (RM2): its own buses, real windows on the monitor named.
+    std::vector<std::string> checking{"--root", mcpplibs::os::fs::utf8(root), "atspi"};
+    if (!screen.empty()) checking.insert(checking.end(), {"--screen", std::string(screen)});
+    if (compose) checking.push_back("--ime");
+    checking.insert(checking.end(), {mcpplibs::os::fs::utf8(program["tally"]), mcpplibs::os::fs::utf8(program["notes-agent"])});
+    std::vector<std::string> private_bus{"--", mcpplibs::os::fs::utf8(*self)};
+    private_bus.insert(private_bus.end(), checking.begin(), checking.end());
+    // The private bus's runtime directory is its own: on a desktop the session's already holds its accessibility
+    // bus's socket ($XDG_RUNTIME_DIR/at-spi/bus_N), which a second launcher cannot bind.
+    const fs::path runtime = fs::temp_directory_path() / std::format("omui-atspi-run-{}", mcpplibs::os::process::self().transform([](const auto& me) { return me.id; }).value_or(0));
+    std::error_code error;
+    fs::create_directories(runtime, error);
+    fs::permissions(runtime, fs::perms::owner_all, fs::perm_options::replace, error);
+    auto done = screen.empty() ? run::program(root, "dbus-run-session", std::move(private_bus), {.variables = {{"XDG_RUNTIME_DIR", mcpplibs::os::fs::utf8(runtime)}}})
+                               : run::program(root, mcpplibs::os::fs::utf8(*self), std::move(checking));
+    fs::remove_all(runtime, error);
     if (!done) return failed(done.error());
     const auto start = done->out.starts_with("{") ? 0 : done->out.find("\n{");
     std::cout << (start == std::string::npos ? done->out : done->out.substr(start == 0 ? 0 : start + 1));

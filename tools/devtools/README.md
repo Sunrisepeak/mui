@@ -47,9 +47,13 @@ omui-devtools incremental -p mlibs.math
 
 Examples 03 (the tally) and 07 (the notes) read and operated through AT-SPI, as a screen reader does (D-21): the accessibility bus turned on as Orca turns it on, each example on SDL's offscreen driver found in the registry by its window's name, its tree walked (names, roles, states, values), the +1 button pressed through Action, the goal slider read and set through Value, the draft field's text read through Text and written through EditableText, its caret and a word's selection moved, and the note added. It speaks D-Bus through mpal's own client (no libdbus, no busctl); mpal is preview, so `atspi` is the one part of this tool that rests on a preview package. A JSON report of every check; exit 1 when one failed.
 
+With `--screen MONITOR` (RM2) the same walk runs on this machine's desktop: its own accessibility bus and registry (every other application in it; ours found by its program's name), each example in a real window of the machine's X server, opened on that monitor. What AT-SPI says is held to the window: a node's place on the screen is the window's corner plus its place in the window, the window's own pixels there are drawn, a press through Action is drawn in the window. The desktop's accessibility switch is its person's and is left alone: the examples find the switch on on a session bus of the check's (an AT-SPI bus launcher there, its settings in memory) and are told the desktop's accessibility bus (`AT_SPI_BUS_ADDRESS`). With `--ime` too (RM3), a fresh notes window composes in its field through the desktop's input method over XIM: `n` and `i` typed (XTEST, only while the window has the keyboard), the composition drawn in the window, the candidates opened at the field — read as what is drawn over the window on the screen inside its rectangle against the window's own pixels (where the window's own were the same before and after, two readings agreeing), nothing outside it — and the first candidate taken by the space (read back through Text: the field holds the composition and no space, so nothing was committed before it; AT-SPI's Text gives a field with its composition in it). Where the engine begins a window's input in direct mode (a first letter committed at once), the engine's own switch (Shift) turns composition on for the case and off after. The window's picture while composing goes to `target/atspi/composing.png`.
+
 ```sh
 dbus-run-session -- omui-devtools atspi <tally> <notes-agent>    # the client alone
 omui-devtools check atspi                                         # CI's Linux x64 rows: both built, a private bus
+omui-devtools check atspi --screen HDMI-0                         # the desktop's buses, real windows on that monitor
+omui-devtools check atspi --screen HDMI-0 --ime                   # and a composition through its input method
 ```
 
 ## api
@@ -120,7 +124,10 @@ The lead ledger (Part 2 plan §2, D-135): our side against the strongest competi
 
 `bench competitors` drives the comparisons (tests/bench/competitors): our side built natively and for the Web, the competitors' own runtimes installed at their pinned versions (node's packages; ThorVG and rlottie through their Python bindings, the allowlist's second kind), every comparison run; with `--ledger`, `--rounds` rounds alternating, sampled, judged, and the ledger and its pages written (`--dry-run`: the verdicts only).
 
+`bench apps` measures whole applications from outside their processes (tests/bench/competitors/apps): on an X server of its own (Xvfb), or with `--screen MONITOR` on this machine's display (RM1) — its window manager, compositor and GPU, every window opened on that monitor and only each program's own window watched (its damage, its pixels: GetImage on the window) and pressed (input only while it is under the pointer, the window kept above the person's); every side drawn at scale 1 whatever the desktop's `Xft.dpi`; omui's programs given the machine's NVIDIA driver as `gpu --real` gives it (the toolchain's C library does not search the system's); each ledger record says the display, what each side drew with and the machine's power setting and load (`display`, `conditions`).
+
 ```text
+omui-devtools bench apps --screen HDMI-0 --no-build --rounds 10
 omui-devtools bench competitors --ledger --rounds 15
 omui-devtools lead capability --project omui --feature C --about "…" --test modules/projects/omui/tools/mcp/tests/mcp_test.cpp --competitor webmcp=app-defined
 omui-devtools lead docs

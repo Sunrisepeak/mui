@@ -21,10 +21,16 @@ namespace omui::devtools::atspi {
     std::vector<std::string> actions;
     std::optional<double> goal_value;
     std::string word_at_5;
+    std::string display;
     [[nodiscard]] bool ok() const noexcept;
     [[nodiscard]] std::string json() const;
   };
-  [[nodiscard]] Report check(const std::filesystem::path& tally, const std::filesystem::path& notes);
+  struct Options {
+    std::string screen;
+    bool compose = false;
+    std::filesystem::path shots;
+  };
+  [[nodiscard]] Report check(const std::filesystem::path& tally, const std::filesystem::path& notes, const Options& options = {…});
 }
 == omui.devtools.bench
 namespace omui::devtools::bench {
@@ -196,7 +202,7 @@ namespace omui::devtools::check {
   [[nodiscard]] int browser_checks(const std::filesystem::path& root);
   [[nodiscard]] std::expected<std::string, std::string> shader_check_script(std::span<const std::filesystem::path> partitions);
   [[nodiscard]] int matrix(const std::filesystem::path& root, const std::vector<std::string>& members);
-  [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+  [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args, std::string_view screen = {…}, bool compose = false);
   [[nodiscard]] int live_page(const std::filesystem::path& root, const std::filesystem::path& built);
   [[nodiscard]] int site(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui, std::vector<std::string> parts);
   [[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);
@@ -543,6 +549,7 @@ namespace omui::devtools::lead {
     std::string date;
     std::string machine;
     std::string commit;
+    std::string display, conditions;
   };
   struct Verdict {
     std::string record;
@@ -757,6 +764,13 @@ namespace omui::devtools::x11 {
     Rect area;
     Clock::time_point at;
   };
+  struct Monitor {
+    std::string name;
+    Rect area;
+    double hertz = 0;
+    bool primary = false;
+  };
+  [[nodiscard]] std::optional<std::string> cookie(std::string_view xauthority, int number, std::string_view hostname);
   class Display {
     [[nodiscard]] static std::expected<Display, std::string> open(int number);
     Display(Display&&) noexcept;
@@ -766,14 +780,33 @@ namespace omui::devtools::x11 {
     ~Display();
     [[nodiscard]] std::uint32_t root() const noexcept;
     [[nodiscard]] Rect screen() const noexcept;
-    [[nodiscard]] std::expected<void, std::string> watch();
+    [[nodiscard]] std::expected<void, std::string> watch(bool screen = true);
+    [[nodiscard]] std::expected<void, std::string> follow(std::uint32_t window);
+    [[nodiscard]] std::expected<void, std::string> damage(std::uint32_t window);
     [[nodiscard]] std::expected<std::optional<Event>, std::string> next(std::chrono::milliseconds wait);
     struct Image {
       std::vector<std::uint32_t> pixels;
       Clock::time_point at;
     };
-    [[nodiscard]] std::expected<Image, std::string> image(Rect area);
+    [[nodiscard]] std::expected<Image, std::string> image(Rect area, std::uint32_t drawable = 0);
     [[nodiscard]] std::expected<Rect, std::string> geometry(std::uint32_t window);
+    [[nodiscard]] std::expected<std::array<std::int32_t, 2>, std::string> origin(std::uint32_t window);
+    [[nodiscard]] std::expected<std::uint32_t, std::string> top_level(std::uint32_t window);
+    [[nodiscard]] std::expected<std::vector<std::uint32_t>, std::string> children(std::uint32_t window);
+    [[nodiscard]] std::expected<std::uint32_t, std::string> window_of(std::uint64_t process);
+    struct Pointer {
+      std::int32_t x = 0, y = 0;
+      std::uint32_t over = 0;
+    };
+    [[nodiscard]] std::expected<Pointer, std::string> where_pointer();
+    [[nodiscard]] std::expected<std::string, std::string> resources();
+    [[nodiscard]] std::expected<std::vector<Monitor>, std::string> monitors();
+    [[nodiscard]] std::expected<void, std::string> activate(std::uint32_t window);
+    [[nodiscard]] std::expected<std::uint32_t, std::string> input_focus();
+    [[nodiscard]] std::expected<std::uint8_t, std::string> keycode(std::uint32_t keysym);
+    [[nodiscard]] std::expected<void, std::string> key(std::uint8_t keycode, bool down);
+    [[nodiscard]] std::expected<void, std::string> keep_above(std::uint32_t window);
+    [[nodiscard]] std::expected<void, std::string> move(std::uint32_t window, std::int32_t x, std::int32_t y);
     [[nodiscard]] std::expected<std::uint64_t, std::string> process_of(std::uint32_t window);
     [[nodiscard]] std::expected<void, std::string> resize(std::uint32_t window, std::int32_t width, std::int32_t height);
     [[nodiscard]] std::expected<void, std::string> pointer(std::int32_t x, std::int32_t y);

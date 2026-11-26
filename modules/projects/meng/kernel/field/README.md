@@ -45,6 +45,7 @@ The open-world engines move air for effects only (a wind direction for grass and
 ## Experimental (release 0.1, D-199)
 
 - **Target**: the ambient carrier of matter — air, heat, wetness and wind — giving physical magnitudes under the same laws as the other carriers, on the CPU reference and the GPU.
-- **Now**: the sparse lattice of 8³ blocks, buoyancy, semi-Lagrangian advection, a fixed count of pressure iterations; Glade its one consumer.
+- **Now**: the sparse lattice of 8³ blocks, buoyancy, semi-Lagrangian advection, a fixed count of pressure iterations; Glade the one work that uses it, beside meng.dynamics' `rigid3-matter`.
 - **Gap**: no radiation (R11b's P1 channel); magnitudes not checked against hand physics; no GPU path.
+- **Limits**: a coarse grid (1 m cells); bodies do not block the wind; a cell is one instance of matter (its heat capacity not by its volume); the CPU only.
 - **Graduation to preview**: R11's magnitudes within tolerance, a contract suite run on every tier-1 row, a second consumer.

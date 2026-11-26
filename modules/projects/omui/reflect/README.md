@@ -37,6 +37,7 @@ The code here was verified in standalone graphs only. CI runs `omui-devtools che
 ## Experimental (release 0.1, D-199)
 
 - **Target**: forms and inspectors from C++ types with no contract written, once C++26 reflection is in the toolchains every tier-1 row builds with.
-- **Now**: `form(signal)` and its controls; built by GCC 16 with `-freflection` (omui-devtools check reflect), outside the rows' workspace run.
-- **Gap**: LLVM has no reflection in the toolchain the rows use; nothing else depends on it.
+- **Now**: `form(signal)` and its controls, `to_value` and `from_value`, `fields<T>()`, verified in standalone graphs only. Inside openmui's graph GCC 16.1 does not build it (V-08, above); `omui-devtools check reflect` builds the smallest graph with the conflict, warns while it fails, and runs the suite once it builds.
+- **Gap**: the basic gate itself, for a reason outside the project: no tier-1 toolchain builds C++26 reflection beside C headers (GCC 16.1: V-08; Clang 23 has no `-freflection`), so it builds on no row and its one headless check, the suite, waits; nothing else depends on it.
+- **Limits**: a form edits strings, bools, numbers, enums and structs of them (lists and optionals travel through `to_value`, no control edits them); its graph is built apart, in C++26.
 - **Graduation to preview**: every tier-1 row builds and tests it.

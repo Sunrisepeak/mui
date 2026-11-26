@@ -537,8 +537,12 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                 std::string directory = member.path;
                 while (!said) {
                     const std::string text = read_text(root / path_of(directory) / "README.md").value_or("");
-                    if (std::regex_search(text, section)) {
-                        said = text.contains("Target") && text.contains("Gap") && text.contains("Graduat");
+                    if (std::smatch found; std::regex_search(text, found, section)) {
+                        // The section itself, to the next heading: each of the four said there (D-199).
+                        const std::size_t begin = static_cast<std::size_t>(found.position(0) + found.length(0));
+                        const std::string_view body = std::string_view(text).substr(begin, text.find("\n#", begin) - begin);
+                        said = std::ranges::all_of(std::array<std::string_view, 4>{"**Target**", "**Gap**", "**Limits**", "**Graduation"},
+                                                   [&](std::string_view part) { return body.contains(part); });
                         break;
                     }
                     if (directory == "." || !directory.contains('/')) break;
@@ -546,7 +550,7 @@ std::vector<Problem> check_data(const Workspace& workspace, std::span<const std:
                 }
                 if (!said)
                     add("maturity", member.path,
-                        "experimental: its README or its project's has an Experimental section with its Target, the Gap and what Graduates it (D-199)");
+                        "experimental: its README or its project's has an Experimental section with its Target, the Gap, its Limits and what Graduates it (D-199)");
             }
             if (!(member.path.starts_with("modules/") || member.path.starts_with("tools/") || member.path.starts_with("src/") || member.path.starts_with("mcpp/")))
                 continue;

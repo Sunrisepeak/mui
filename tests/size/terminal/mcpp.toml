@@ -1,0 +1,29 @@
+# omui.size.terminal — the least application in a terminal (terminal design §5, the first tier; CF1's F4): a count
+# and the two buttons that change it, the window's components in character cells on this program's terminal, no
+# agent endpoint. What it weighs is what an interface in a terminal costs: omui-devtools check size --native builds
+# it as dist does and holds its bytes to size.budget.xdef.json; terminal-agent beside it is the second tier.
+[package]
+namespace   = "omui.size"
+name        = "terminal"
+version     = "0.1.0"
+description = "The least application in a terminal: what it weighs is budgeted (the first tier, no agent endpoint)"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: the terminal host it measures is preview
+separate = "product: the terminal application whose size is held to a budget"
+kind = "tool"
+
+[targets.omui-size-terminal]
+kind = "bin"
+main = "src/main.cpp"
+
+# The system's C++ runtime serves it, as a C++ program on Linux is built (D-221: the runtime libraries may be the
+# system's; terminal design §5's first tier counts on it): libstdc++ is not linked into the program.
+[build]
+cxx_runtime = "host-coupled"
+
+[dependencies]
+omui.host.terminal = { path = "../../../modules/projects/omui/host/terminal" }
+omui.ui.base       = { path = "../../../modules/projects/omui/components/base" }

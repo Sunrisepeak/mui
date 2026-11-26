@@ -746,6 +746,33 @@
       "status": "planned"
     },
     {
+      "project": "omui",
+      "id": "terminal.size.counter.program.bytes",
+      "about": "the smallest terminal application (a count and two buttons, tests/bench/competitors/terminal): its own files as each ecosystem's release builds them — a native program stripped, Ink's minified bundle (terminal design §5: 1 MB, the first tier); planned: taken by hand until bench apps builds the sides",
+      "better": "lower",
+      "ours": "omui-terminal",
+      "competitors": [
+        "ftxui",
+        "ratatui",
+        "ink"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "terminal.size.counter.runtime.bytes",
+      "about": "the same counter with what it needs at run time that a Linux system does not have: Ink's Node counted, the system's C and C++ libraries not",
+      "better": "lower",
+      "core": false,
+      "ours": "omui-terminal",
+      "competitors": [
+        "ftxui",
+        "ratatui",
+        "ink"
+      ],
+      "status": "planned"
+    },
+    {
       "project": "omui.components",
       "id": "components.canvas-1000.frame_ms",
       "about": "1000 live components on a canvas: frame time",

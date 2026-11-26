@@ -1,0 +1,17 @@
+# ratatui's side of the terminal comparison (F4; ../README.md): the counter — a count and two buttons — as omui's
+# tests/size/terminal shows it. ratatui's own back end (crossterm); built as the other Rust sides here are
+# (apps/slint): link-time optimisation, one code unit, stripped. Cargo.lock pins the rest.
+[package]
+name = "ratatui-counter"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+ratatui = "=0.30.2"
+crossterm = "=0.29.0"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true

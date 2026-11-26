@@ -25,7 +25,7 @@ A capability below its package's label is marked in its project's feature table 
 | build plugins (mcpp) | 1 | 0 | 0 |
 | works (showcase) | 0 | 10 | 5 |
 | site | 0 | 1 | 0 |
-| repository tests | 6 | 0 | 0 |
+| repository tests | 6 | 2 | 0 |
 | repository tools | 1 | 0 | 0 |
 
 ### omui
@@ -251,6 +251,8 @@ A capability below its package's label is marked in its project's feature table 
 | `omui.bench` | [tests/bench](../../tests/bench) | stable |
 | `omui.bench.competitors` | [tests/bench/competitors](../../tests/bench/competitors) | stable |
 | `omui.bench.competitors.apps` | [tests/bench/competitors/apps](../../tests/bench/competitors/apps) | stable |
+| `omui.size.terminal` | [tests/size/terminal](../../tests/size/terminal) | preview |
+| `omui.size.terminal-agent` | [tests/size/terminal-agent](../../tests/size/terminal-agent) | preview |
 | `omui.size.yard` | [tests/size/yard](../../tests/size/yard) | stable |
 | `omui.features` | [tests/features](../../tests/features) | stable |
 | `acme.plugins` | [tests/plugins](../../tests/plugins) | stable |

@@ -151,6 +151,8 @@ members = [
     "tests/bench/competitors",
     "tests/bench/competitors/apps",
     "modules/projects/omui/cts",
+    "tests/size/terminal",
+    "tests/size/terminal-agent",
     "tests/size/yard",
     "tests/features",
     "tests/plugins",

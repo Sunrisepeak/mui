@@ -15,10 +15,15 @@ omui-devtools bench competitors --ledger --rounds 15   # the lead ledger: 15 rou
 | [js](js) | their side, pinned in `package.json`: GSAP, Skia (through @napi-rs/canvas), resvg |
 | [py](py) | their side, pinned in `requirements.txt`: ThorVG and rlottie, Lottie's native players (their C libraries through ctypes) |
 | [apps](apps) | whole applications, both sides (`omui-devtools bench apps`): omui in each world beside Slint, Flutter and NSH — size, start, memory, rest, a click, a live board and a scrolled list, each in a real window and measured from outside the process (C1, N2) |
+| [terminal](terminal) | the smallest terminal application, both sides: the same counter with ratatui, FTXUI and Ink beside omui's `tests/size/terminal` — the program and what it needs at run time (CF1's F4; taken by hand, 2026-11-26) |
 
 ## Whole applications: omui beside Slint, Flutter and NSH
 
 [apps](apps) (`omui-devtools bench apps`): the same hello, counter, live board and 10,000-row list, each built at its pin, launched in a window of the harness's own X server and measured from outside the process (2026-11-19, 10 rounds; GL is Mesa's llvmpipe here, so every side draws on the CPU). In the default world (`app`): the program and the package are level with Slint's (17.70 against 17.47 MB, 8.42 against 8.62 MB packed) and smaller than Flutter's and NSH's; the start (324 ms cold, 84 warm against Slint's 160 and 70), the memory at rest (62.1 against 49.7 MiB private dirty) and the scrolled list (49.7 against 17.3 ms p95 between frames) are behind; a click to the next frame is 2.0 ms (Slint 1.4, Flutter 16.5, NSH 21–26). `minimal` (no GL) starts in 46 ms with 14.7 MiB. What it found, the method and every number: [apps/README.md](apps/README.md).
+
+## The smallest terminal application: omui beside ratatui, FTXUI and Ink
+
+[terminal](terminal): the same counter (a count and two buttons) built at each side's pin as its ecosystem builds a release, stripped (2026-11-26). omui's first tier is 3.39 MB (the system's C++ runtime; 1.94 MB at `-Oz`) against FTXUI's 0.33 MB, ratatui's 0.62 and Ink's 0.68 MB bundle (148.6 MB with Node): behind, and over the terminal design's 1 MB — a quarter of its code is the view's pixel parts, which a terminal never draws. Where the bytes are and what brings them down: [terminal/README.md](terminal/README.md).
 
 ## Interactive motion: 1000 values a frame
 

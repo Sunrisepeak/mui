@@ -913,13 +913,40 @@ private:
     std::uint64_t final_ = 0;
 };
 
+// The real pointer, borrowed where a measurement cannot do without it and given back where its person had it as soon as
+// that part is done (on a desktop the person is using it): while a window opens (the window manager opens a new window on
+// the pointer's monitor), for a click through the X server, while the wheel turns over the list. On the harness's own
+// server no one else uses it: nothing is given back there.
+class Borrowed {
+public:
+    Borrowed(x11::Display& display, bool desktop) : display_(display) {
+        if (!desktop)
+            return;
+        if (auto where = display_.where_pointer())
+            from_ = *where;
+    }
+    Borrowed(const Borrowed&) = delete;
+    Borrowed& operator=(const Borrowed&) = delete;
+    ~Borrowed() { give_back(); }
+    void give_back() {
+        if (from_)
+            (void)display_.pointer(from_->x, from_->y);
+        from_.reset();
+    }
+
+private:
+    x11::Display& display_;
+    std::optional<x11::Display::Pointer> from_;
+};
+
 // One launch of a side: to its first settled frame; with `whole`, then rest, memory, the processor
 // and the frames at rest, and the clicks.
 Launch launch(const fs::path& root, x11::Display& display, Side& side, const Settings& settings,
               const Environment& environment, bool cold, bool whole, const fs::path& shot = {}) {
     Launch out;
-    // The pointer out of every window (on a desktop: on the monitor the window is to open on);
-    // nothing left over from the last program.
+    // The pointer out of every window (on a desktop: on the monitor the window is to open on, borrowed until the window
+    // is there); nothing left over from the last program.
+    Borrowed placing(display, settings.desktop);
     (void)display.pointer(settings.park[0], settings.park[1]);
     while (true) {
         auto pending = display.next(milliseconds{0});
@@ -970,6 +997,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         end();
         return out;
     }
+    placing.give_back();  // the window is where it opened: the pointer is its person's again
     const auto frames = watch.frames();
     if (!frames) {
         out.failure = frames.error();
@@ -1033,7 +1061,10 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         if (auto started_watch = process::process::spawn(watching))
             switches = std::move(*started_watch);
     }
+    // The wheel turns over the list: the pointer borrowed for the span.
+    std::optional<Borrowed> scrolling;
     if (side.motion == "scroll") {
+        scrolling.emplace(display, settings.desktop);
         if (const auto where = watch.on_screen())
             (void)display.pointer(where->x + where->width / 2, where->y + where->height / 2);
     }
@@ -1043,8 +1074,10 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     const double idle_seconds = ms_between(idle_from, Clock::now()) / 1000.0;
     for (std::size_t at = 1; at < presented.size(); ++at)
         out.presents.push_back(ms_between(presented[at - 1], presented[at]));
-    if (side.motion == "scroll")
-        (void)display.pointer(settings.park[0], settings.park[1]);
+    if (scrolling) {
+        if (settings.desktop) scrolling->give_back();
+        else (void)display.pointer(settings.park[0], settings.park[1]);
+    }
     if (!drawn) {  // a part of the span is no measurement of it
         out.failure = drawn.error();
         out.presents.clear();
@@ -1073,6 +1106,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     // The clicks: pointer onto the button, pressed, let go; from letting go to the next frame on
     // the window.
     if (side.click) {
+        Borrowed clicking(display, settings.desktop);  // the clicks go through the X server: the real pointer, for them
         const auto where = watch.on_screen();
         for (int click = 0; where && click < settings.clicks; ++click) {
             (void)display.pointer(where->x + (*side.click)[0], where->y + (*side.click)[1]);
@@ -1101,7 +1135,8 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
             (void)watch.settle(Clock::now() + std::chrono::seconds{5}, milliseconds{300},
                                &*program);
         }
-        (void)display.pointer(settings.park[0], settings.park[1]);
+        if (settings.desktop) clicking.give_back();
+        else (void)display.pointer(settings.park[0], settings.park[1]);
     }
     auto [files, driver] = mapped_files(root, pid);
     side.mapped = std::move(files);
@@ -1511,8 +1546,9 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
     std::string shown = std::format("Xvfb :{} {}x{} (the harness's own: no window manager, no "
                                     "compositor)",
                                     display_number, settings.screen_width, settings.screen_height);
-    // On a desktop: the monitor named, the pointer parked on it (a window manager opens a new
-    // window on the pointer's monitor), and put back where its person left it when the run ends.
+    // On a desktop: the monitor named; the pointer parked on it only while a window opens (a window manager opens a new
+    // window on the pointer's monitor), for the clicks and while the wheel turns, given back each time (Borrowed), and
+    // put back where its person left it when the run ends.
     std::optional<x11::Display::Pointer> left;
     if (settings.desktop) {
         const auto monitors = display->monitors();
@@ -1536,7 +1572,8 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
         if (auto pointer = display->where_pointer())
             left = *pointer;
         shown = std::format("{} {}x{} at {:.2f} Hz on this machine's X server :{} (its window "
-                            "manager and compositor){}",
+                            "manager and compositor){}; the real pointer borrowed only while a window opens, for "
+                            "the clicks and while the wheel turns, and given back each time",
                             chosen->name, chosen->area.width, chosen->area.height, chosen->hertz,
                             display_number, graphics_here(root));
     }

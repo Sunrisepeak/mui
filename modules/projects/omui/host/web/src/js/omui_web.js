@@ -39,6 +39,8 @@ addToLibrary({
     polite: null,         // live regions
     assertive: null,
     nodes: null,          // id -> element
+    adoptable: null,      // the page's own projection: id -> its element, until the layer takes it
+    fitting: [],          // the lines a batch made, to be fitted to their widths
     focused: null,        // the mirror's focus
     skip: null,           // the skip link, and the node it goes to
     skipTo: null,
@@ -136,8 +138,25 @@ addToLibrary({
           skip.focus();
         }
       }, true);
-      // The mirror's layer over the canvas, and the live regions.
-      var layer = P.hidden(document.createElement('div'));
+      // The document layer over the canvas (D-286): the tree's elements, each where the canvas draws it. Its text is
+      // transparent — the canvas draws what is seen — and it is text all the same: the browser's find-in-page finds
+      // it, a selection takes it, a link is a link. The pointer passes through to the canvas.
+      var sheet = document.createElement('style');
+      sheet.setAttribute('data-omui', 'layer');
+      sheet.textContent =
+        '[data-omui=mirror]{position:fixed;overflow:hidden;margin:0;padding:0;border:0;pointer-events:none;color:transparent;' +
+        'font:16px/1.5 system-ui,sans-serif;-webkit-user-select:text;user-select:text}' +
+        '[data-omui=mirror] *{margin:0;padding:0;border:0;background:none;color:transparent;font:inherit;text-decoration:none;' +
+        'list-style:none;outline:none}' +
+        '[data-omui=mirror] [data-omui-id]{position:absolute;display:block;box-sizing:border-box;overflow:hidden;white-space:pre-wrap}' +
+        '[data-omui=mirror] [data-omui-inline]{position:static;display:inline;overflow:visible}' +
+        '[data-omui=mirror] pre,[data-omui=mirror] pre code{white-space:pre}' +
+        '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre;transform-origin:0 0}' +
+        // Selected, the layer's text stays unseen and the canvas's words show through the highlight.
+        '[data-omui=mirror] ::selection{color:transparent;background:color-mix(in srgb,Highlight 40%,transparent)}';
+      (document.head || body).appendChild(sheet);
+      var layer = document.createElement('div');
+      layer.style.position = 'fixed';
       layer.setAttribute('data-omui', 'mirror');
       body.appendChild(layer);
       P.layer = layer;
@@ -386,15 +405,50 @@ addToLibrary({
 
     // ── the semantic DOM mirror ──
 
-    element: function (id) {
+    // The element a node is. `tag` says which (a batch gives it when the element is made, a text for what stands in
+    // it); an element of another tag is another element: what the first had goes with it.
+    element: function (id, tag) {
       var P = omuiPage, el = P.nodes.get(id);
-      if (el) return el;
-      el = document.createElement('div');
+      if (el && (!tag || el.tagName.toLowerCase() === tag)) return el;
+      var made = P.make(id, tag || 'div');
+      if (el) {
+        Object.keys(el.omuiSet).forEach(function (k) { made.setAttribute(k, el.omuiSet[k]); });
+        made.omuiSet = el.omuiSet;
+        while (el.firstChild) made.appendChild(el.firstChild);
+        made.omuiContent = el.omuiContent;
+        ['left', 'top', 'width', 'height'].forEach(function (k) { if (el.style[k]) made.style[k] = el.style[k]; });
+        if (el.omuiInline) P.inline(made, true);
+        if (el.parentNode) {
+          el.parentNode.insertBefore(made, el);
+          el.parentNode.removeChild(el);
+        }
+      }
+      P.nodes.set(id, made);
+      return made;
+    },
+
+    make: function (id, tag) {
+      var P = omuiPage, el = null;
+      // The page's own document (the static projection), where it has this node as this element: the same element
+      // goes on — placed over the canvas, its text the tree's now.
+      var had = P.adoptable && P.adoptable.get(id);
+      if (had) {
+        P.adoptable.delete(id);
+        if (had.tagName.toLowerCase() === tag) {
+          el = had;
+          while (el.firstChild) el.removeChild(el.firstChild);
+        }
+      }
+      if (!el) el = document.createElement(tag);
       el.setAttribute('data-omui-id', id);
       el.style.position = 'absolute';
+      el.omuiNode = true;
+      el.omuiSet = {};
+      el.omuiContent = [];
       el.addEventListener('click', function (e) {
-        // The element activated, not each it lies in.
+        // The element activated, not each it lies in; the program answers for it (a link's address too).
         e.stopPropagation();
+        if (e.preventDefault) e.preventDefault();
         if (e.isTrusted) P.send(P.ACTIVATE, 0, 0, id);
       });
       el.addEventListener('focus', function (e) {
@@ -403,19 +457,100 @@ addToLibrary({
           P.send(P.FOCUS, 0, 0, id);
         }
       });
-      P.nodes.set(id, el);
       return el;
     },
 
-    // An element's own text: a text node before its children.
-    setText: function (el, text) {
-      var first = el.firstChild;
-      if (first && first.nodeType === 3) {
-        if (text) first.data = text;
-        else el.removeChild(first);
-      } else if (text) {
-        el.insertBefore(document.createTextNode(text), first);
+    // What the page had before the program: its projection's elements by the node each is. Only once the program's
+    // frame is shown: where it never is (no device drew it), the page's document stays whole, the reader's still.
+    adopt: function () {
+      var P = omuiPage;
+      P.adoptable = new Map();
+      var page = document.querySelector('[data-omui="static"]');
+      if (!page || !page.querySelectorAll || window.omuiHasPresented !== true) return;
+      page.querySelectorAll('[data-omui-target]').forEach(function (el) { P.adoptable.set(el.getAttribute('data-omui-target'), el); });
+    },
+
+    // Whether an element stands in its parent's text (a link in a sentence): placed by the text, no box of its own.
+    inline: function (el, on) {
+      el.omuiInline = !!on;
+      if (on) {
+        el.setAttribute('data-omui-inline', '');
+        el.style.position = '';
+        el.style.left = el.style.top = el.style.width = el.style.height = '';
+      } else {
+        el.removeAttribute('data-omui-inline');
+        el.style.position = 'absolute';
       }
+    },
+
+    // A piece of an element's own text: a run, an element a mark makes ({tag, set, c}), a child node standing in
+    // the text ({tag, node, c}).
+    piece: function (p) {
+      var P = omuiPage;
+      if (typeof p === 'string') return document.createTextNode(p);
+      var el;
+      if (p.node) {
+        el = P.element(p.node, p.tag);
+        P.inline(el, true);
+        el.omuiContent.forEach(function (n) { if (n.parentNode === el) el.removeChild(n); });
+      } else {
+        el = document.createElement(p.tag);
+        Object.keys(p.set || {}).forEach(function (k) { el.setAttribute(k, p.set[k]); });
+      }
+      var inner = (p.c || []).map(P.piece);
+      inner.forEach(function (n) { el.appendChild(n); });
+      if (p.node) el.omuiContent = inner;
+      return el;
+    },
+
+    // An element's own text: its pieces before its children.
+    setContent: function (el, pieces) {
+      var P = omuiPage;
+      el.omuiContent.forEach(function (n) { if (n.parentNode === el) el.removeChild(n); });
+      var before = el.firstChild;  // what is left is its children
+      el.omuiContent = pieces.map(function (p) { return el.insertBefore(P.piece(p), before); });
+    },
+
+    // An element's own text as the canvas draws it, line by line: each line's words in the line's box, so what the
+    // browser finds and what a person selects is where it is seen. A line begins at a size taken from its height
+    // and is fitted to its width with the batch's other lines (fit).
+    setLines: function (el, lines) {
+      var P = omuiPage;
+      el.omuiContent.forEach(function (n) { if (n.parentNode === el) el.removeChild(n); });
+      var before = el.firstChild;
+      el.omuiContent = lines.map(function (line) {
+        var span = document.createElement('span'), s = span.style, b = line.box;
+        span.setAttribute('data-omui-line', '');
+        s.left = b[0] + 'px';
+        s.top = b[1] + 'px';
+        s.height = b[3] + 'px';
+        s.lineHeight = b[3] + 'px';
+        s.fontSize = Math.max(4, b[3] * 0.72) + 'px';
+        span.omuiWidth = b[2];
+        line.c.map(P.piece).forEach(function (n) { span.appendChild(n); });
+        P.fitting.push(span);
+        return el.insertBefore(span, before);
+      });
+    },
+
+    // The lines a batch made, fitted to the widths the canvas drew them at: measured together, then set together
+    // (one layout of the page, not one a line) — first the size of the letters, so their shapes stay their own,
+    // then what is left by a stretch along the line.
+    fit: function () {
+      var P = omuiPage, lines = P.fitting;
+      if (!lines.length) return;
+      P.fitting = [];
+      var measure = function () { return lines.map(function (s) { return s.getBoundingClientRect().width; }); };
+      var wide = measure();
+      lines.forEach(function (s, i) {
+        if (!(wide[i] > 0) || !(s.omuiWidth > 0)) return;
+        s.style.fontSize = Math.min(parseFloat(s.style.fontSize) * s.omuiWidth / wide[i], parseFloat(s.style.height)) + 'px';
+      });
+      wide = measure();
+      lines.forEach(function (s, i) {
+        if (!(wide[i] > 0) || !(s.omuiWidth > 0)) return;
+        s.style.transform = Math.abs(wide[i] - s.omuiWidth) > 0.25 ? 'scaleX(' + (s.omuiWidth / wide[i]) + ')' : '';
+      });
     },
 
     // The skip link followed: the page's focus back on the canvas, the
@@ -452,36 +587,48 @@ addToLibrary({
         if (el.parentNode) el.parentNode.removeChild(el);
         P.nodes.delete(id);
       });
+      if (!P.adoptable) P.adopt();
       var nodes = b.nodes || [];
       nodes.forEach(function (n) {
-        var el = P.element(n.id);
+        var el = P.element(n.id, n.tag);
         var set = n.set || {};
-        Object.keys(set).forEach(function (k) { el.setAttribute(k, set[k]); });
-        (n.unset || []).forEach(function (k) { el.removeAttribute(k); });
-        if ('text' in n) P.setText(el, n.text);
-        if (n.box) {
+        Object.keys(set).forEach(function (k) { el.setAttribute(k, set[k]); el.omuiSet[k] = set[k]; });
+        (n.unset || []).forEach(function (k) { el.removeAttribute(k); delete el.omuiSet[k]; });
+        if ('inline' in n) P.inline(el, n.inline);
+        if ('text' in n) P.setContent(el, n.text ? [n.text] : []);
+        if (n.content) P.setContent(el, n.content);
+        if (n.lines) P.setLines(el, n.lines);
+        if (n.box && !el.omuiInline) {
           el.style.left = n.box[0] + 'px';
           el.style.top = n.box[1] + 'px';
           el.style.width = n.box[2] + 'px';
           el.style.height = n.box[3] + 'px';
         }
       });
-      // Children in order, once every element exists: only what is out of place moves.
+      // Children in order after the element's own text, once every element exists: only what is out of place moves.
+      // What stands in the text is the text's.
       nodes.forEach(function (n) {
         if (!n.children) return;
-        var el = P.nodes.get(n.id), at = el.firstElementChild;
+        var el = P.nodes.get(n.id), want = [], held = [];
         n.children.forEach(function (c) {
           var child = P.nodes.get(c);
-          if (!child) return;
-          if (child === at) at = at.nextElementSibling;
-          else el.insertBefore(child, at);
+          if (child) want.push(child);
         });
-        while (at) {
-          var next = at.nextElementSibling;
-          el.removeChild(at);
-          at = next;
-        }
+        for (var c = el.firstElementChild; c; c = c.nextElementSibling) if (c.omuiNode && !c.omuiInline) held.push(c);
+        var current = [];
+        held.forEach(function (c) {
+          if (want.indexOf(c) < 0) el.removeChild(c);
+          else current.push(c);
+        });
+        want.forEach(function (child, i) {
+          if (current[i] === child) return;
+          var from = current.indexOf(child);
+          if (from >= 0) current.splice(from, 1);
+          el.insertBefore(child, current[i] || null);
+          current.splice(i, 0, child);
+        });
       });
+      P.fit();
       if (b.root) {
         var root = P.nodes.get(b.root);
         if (root && root.parentNode !== P.layer) P.layer.appendChild(root);

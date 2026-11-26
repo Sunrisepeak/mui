@@ -86,6 +86,8 @@ public:
     // set_selection.
     [[nodiscard]] std::optional<std::size_t> text_offset(Point local) const;
     [[nodiscard]] std::string_view text_of() const;
+    // Its lines as drawn (omui.view's TextLineBox): where a page's own text stands over a canvas.
+    [[nodiscard]] std::vector<TextLineBox> text_lines() const;
     ActResult act(ActContext& ctx, std::string_view action);
     [[nodiscard]] std::string selected() const;
 
@@ -97,6 +99,7 @@ private:
     NodeId    node_;
     mutable std::optional<mlibs::text::Paragraph> paragraph_;
     mutable float laid_ = -1;
+    mutable float drawn_laid_ = -1;           // the width it was laid out at when drawn
     mutable Point origin_{};                  // where the text starts (the content box)
     std::vector<std::pair<std::uint32_t, std::uint32_t>> link_ranges_;  // of the children, in order
     std::vector<Rect> placed_;                // the children's rectangles as last set
@@ -186,6 +189,8 @@ public:
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& n) const;
     std::vector<Element> compose();
+    // Its lines as drawn (a line of code is a line).
+    [[nodiscard]] std::vector<TextLineBox> text_lines() const;
 
 private:
     mlibs::text::Paragraph& shaped(Services& s) const;
@@ -194,6 +199,7 @@ private:
     NodeId    node_;
     mutable std::optional<mlibs::text::Paragraph> paragraph_;
     mutable float laid_ = -1;
+    mutable std::optional<Point> drawn_at_;   // where its text was drawn in its box
 };
 
 class Copy {

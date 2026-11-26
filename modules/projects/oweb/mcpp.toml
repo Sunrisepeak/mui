@@ -40,6 +40,7 @@ mlibs.agent    = { path = "../../base/agent" }
 mlibs.delivery = { path = "../../base/delivery" }  # the delivery manifest and its budgets (ST6)
 mlibs.control.gen = { path = "../../base/control/gen" }  # a catalog's reference page, generated at each build (ST3)
 mlibs.json     = { path = "../../base/json" }
+mlibs.utils    = { path = "../../base/utils" }  # mlibs.names: the nearest field for a mistyped one
 mlibs.ts       = { path = "../../base/ts" }    # oweb.config.ts evaluated to its snapshot
 mlibs.xdef     = { path = "../../base/xdef" }  # a snapshot's format checked before it is read
 mlibs.markdown = { path = "../../content/markdown" }
@@ -58,3 +59,4 @@ programs = "directory"  # tests/oweb/: one program, each file run and filtered o
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+"omui.host.web" = { path = "../omui/host/web" }  # the layer over the canvas, held to the page before the program (layer_test)

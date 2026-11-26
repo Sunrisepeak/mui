@@ -4,7 +4,8 @@
 # only when something wants one; pointer, touch, wheel, keyboard and the
 # Gamepad API's standard pads as openmui's input; a hidden textarea at the
 # caret for input methods; the clipboard (Async Clipboard API); the semantic
-# tree mirrored into a hidden DOM (ARIA roles, states, focus, a live region);
+# tree as the page's document layer over the canvas (each node the HTML element it is, its
+# text found and selected, links, ARIA for what is operated, focus, a live region);
 # window.omui for the page's agents (openmui.tree@0.1, decided by openas);
 # the program's store on localStorage; frames drawn on the page's WebGPU or
 # WebGL2 (a hardware one), else by the CPU renderer; the page's visibility as the

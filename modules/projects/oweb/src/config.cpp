@@ -3,6 +3,7 @@ module oweb;
 import std;
 import mcpplibs.os;
 import mlibs.json;
+import mlibs.names;
 import mlibs.ts;
 import mlibs.xdef;
 import :site;
@@ -15,12 +16,6 @@ namespace {
 constexpr std::array<std::string_view, 5> site_fields{"title", "url", "languages", "routes", "budgets"};
 constexpr std::array<std::string_view, 4> route_fields{"path", "source", "reference", "title"};
 constexpr std::array<std::string_view, 1> budget_fields{"readable"};
-
-std::string listed(std::span<const std::string_view> names) {
-    std::string out;
-    for (const std::string_view name : names) out += std::format("{}{}", out.empty() ? "" : ", ", name);
-    return out;
-}
 
 }  // namespace
 
@@ -38,14 +33,14 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
         return std::unexpected(document->problem(at, std::move(message), std::move(hint)).text());
     };
     // Every field is one the kind has: a name mistyped is said, not passed over.
-    const auto known = [&](const mlibs::json::Node& object, std::span<const std::string_view> fields) -> std::optional<mlibs::json::Node> {
+    const auto known = [&](const mlibs::json::Node& object, std::span<const std::string_view> fields) -> std::optional<std::pair<std::string, mlibs::json::Node>> {
         for (const auto& [key, value] : object.members())
-            if (!std::ranges::contains(fields, key)) return value;
+            if (!std::ranges::contains(fields, key)) return std::pair{key, value};
         return std::nullopt;
     };
     const mlibs::json::Node site = root["site"];
     if (!site.is_object()) return problem(root, "a site's configuration is an object", "export default defineSite({ title: \"…\" })");
-    if (const auto stray = known(site, site_fields)) return problem(*stray, "no field of a site's configuration", std::format("it has: {}", listed(site_fields)));
+    if (const auto stray = known(site, site_fields)) return problem(stray->second, "no field of a site's configuration", mlibs::names::nearest(stray->first, site_fields));
 
     SiteOptions options;
     if (const auto title = site["title"]) {
@@ -71,7 +66,7 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
             return problem(routes, "stated routes are a list of pages; leave the field out for every page of pages/", "routes: [{ path: \"/\", source: \"pages/index.md\" }]");
         for (const mlibs::json::Node& route : routes.items()) {
             if (!route.is_object()) return problem(route, "a route is an object", "{ path: \"/start/\", source: \"pages/start.md\" }");
-            if (const auto stray = known(route, route_fields)) return problem(*stray, "no field of a route", std::format("it has: {}", listed(route_fields)));
+            if (const auto stray = known(route, route_fields)) return problem(stray->second, "no field of a route", mlibs::names::nearest(stray->first, route_fields));
             Declared declared;
             const auto path = route["path"], source = route["source"], title = route["title"], reference = route["reference"];
             if (!path.is_string() || !path.text()->starts_with('/') || !path.text()->ends_with('/') || path.text()->contains("//"))
@@ -95,7 +90,7 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
     }
     if (const auto budgets = site["budgets"]) {
         if (!budgets.is_object()) return problem(budgets, "budgets are an object", "budgets: { readable: 100000 }");
-        if (const auto stray = known(budgets, budget_fields)) return problem(*stray, "no budget of a site", std::format("it has: {}", listed(budget_fields)));
+        if (const auto stray = known(budgets, budget_fields)) return problem(stray->second, "no budget of a site", mlibs::names::nearest(stray->first, budget_fields));
         if (const auto readable = budgets["readable"]) {
             if (!readable.is_integer() || *readable.integer() < 0) return problem(readable, "the budget is a number of bytes (0 holds none)", "readable: 100000");
             options.readable = static_cast<std::uintmax_t>(*readable.integer());

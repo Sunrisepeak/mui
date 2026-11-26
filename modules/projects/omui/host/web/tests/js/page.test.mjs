@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { Event, Storage, Window } from './fake_dom.mjs';
+import { Element, Event, Storage, Window } from './fake_dom.mjs';
 
 // Values made in the library's realm, compared as data.
 const plain = (v) => JSON.parse(JSON.stringify(v));
@@ -256,6 +256,173 @@ test('the semantic DOM mirror: elements made, then only what changed', () => {
   assert.equal(document.querySelector('[data-omui="live"]').textContent, 'Saved 3 notes');
   context.omui_web_mirror(JSON.stringify({ focus: null, alert: 'Delete everything?' }));
   assert.equal(document.querySelector('[data-omui="alert"]').textContent, 'Delete everything?');
+});
+
+test('the document layer: each node the element it is, its text with the elements its marks make, a link standing in a sentence', () => {
+  const { P, document, context } = page();
+  context.omui_web_mirror(JSON.stringify({
+    root: 'app',
+    nodes: [
+      { id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['doc/h', 'doc/p', 'doc/list'] },
+      { id: 'doc/h', tag: 'h2', set: { id: 'install' }, text: 'Install', box: [8, 8, 180, 24] },
+      { id: 'doc/p', tag: 'p', box: [8, 40, 180, 48],
+        content: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the ', { tag: 'strong', c: ['guide'] }] }, ' ', { tag: 'em', c: ['first'] }, { tag: 'br' }, 'now.'] },
+      { id: 'doc/p/link0', set: { href: 'guide/' }, inline: true },
+      { id: 'doc/list', tag: 'ul', box: [8, 96, 180, 40], children: ['doc/list/i0'] },
+      { id: 'doc/list/i0', tag: 'li', text: 'One', box: [16, 0, 164, 20] },
+    ],
+  }));
+  const sheet = document.querySelector('[data-omui="layer"]');
+  assert.ok(sheet && sheet.textContent.includes('color:transparent') && sheet.textContent.includes('user-select:text'), 'text that is found and selected, drawn by the canvas');
+  assert.ok(sheet.textContent.includes('::selection{color:transparent;'), 'selected, it is still the canvas that is read');
+  const layer = document.querySelector('[data-omui="mirror"]');
+  assert.notEqual(layer.style.opacity, '0', 'the layer is there to be found in');
+  const h = P.nodes.get('doc/h'), p = P.nodes.get('doc/p'), link = P.nodes.get('doc/p/link0');
+  assert.deepEqual([h.tagName, p.tagName, link.tagName, P.nodes.get('doc/list').tagName, P.nodes.get('doc/list/i0').tagName], ['H2', 'P', 'A', 'UL', 'LI']);
+  assert.equal(h.getAttribute('id'), 'install', 'an anchor is an id: the page can be sent to it');
+  assert.equal(p.textContent, 'Read the guide firstnow.');
+  assert.equal(link.parentNode, p, 'the link stands in the sentence');
+  assert.equal(link.getAttribute('href'), 'guide/');
+  assert.equal(link.textContent, 'the guide');
+  assert.ok(link.hasAttribute('data-omui-inline') && !link.style.left && link.style.position === '', 'placed by the text: no box of its own');
+  assert.deepEqual(p.children.map((c) => c.tagName), ['A', 'EM', 'BR']);
+  assert.equal(link.children[0].tagName, 'STRONG');
+  assert.equal(p.style.left, '8px');
+  assert.deepEqual(P.nodes.get('app').children.map((c) => c.getAttribute('data-omui-id')), ['doc/h', 'doc/p', 'doc/list']);
+
+  // The sentence changes: its pieces again, the same link element in its new place; a child comes after the text.
+  context.omui_web_mirror(JSON.stringify({ nodes: [
+    { id: 'doc/p', content: [{ tag: 'a', node: 'doc/p/link0', c: ['The guide'] }, ' comes first.'], children: ['doc/p/note'] },
+    { id: 'doc/p/note', tag: 'div', text: 'a note', box: [0, 24, 100, 20] },
+  ] }));
+  assert.equal(P.nodes.get('doc/p/link0'), link, 'the same element');
+  assert.equal(p.textContent, 'The guide comes first.a note');
+  assert.deepEqual(p.children.map((c) => c.getAttribute('data-omui-id') || c.tagName), ['doc/p/link0', 'doc/p/note']);
+  assert.equal(P.nodes.get('doc/p/note').style.top, '24px');
+
+  // The link stands in the text no more: an element of its own, with its own text and box.
+  context.omui_web_mirror(JSON.stringify({ nodes: [
+    { id: 'doc/p', text: 'Plain now.', children: ['doc/p/link0', 'doc/p/note'] },
+    { id: 'doc/p/link0', inline: false, tag: 'a', text: 'The guide', box: [0, 48, 80, 20] },
+  ] }));
+  assert.equal(p.textContent, 'Plain now.The guidea note');
+  assert.ok(!link.hasAttribute('data-omui-inline') && link.style.position === 'absolute' && link.style.top === '48px');
+  assert.deepEqual(p.children.map((c) => c.getAttribute('data-omui-id')), ['doc/p/link0', 'doc/p/note']);
+
+  // Another level: another element in the same place, with what the first had.
+  context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'doc/h', tag: 'h3' }] }));
+  const again = P.nodes.get('doc/h');
+  assert.notEqual(again, h);
+  assert.deepEqual([again.tagName, again.getAttribute('id'), again.textContent, again.style.top, again.parentNode], ['H3', 'install', 'Install', '8px', P.nodes.get('app')]);
+  assert.deepEqual(P.nodes.get('app').children.map((c) => c.getAttribute('data-omui-id')), ['doc/h', 'doc/p', 'doc/list']);
+});
+
+test('a text the canvas draws line by line: each line\'s words in the line\'s box, fitted to the width drawn', () => {
+  const { P, document, context } = page();
+  // No layout here: a line is as wide as its letters at its size, half an em each (what a browser would measure).
+  const measured = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = function () {
+    if (!this.hasAttribute('data-omui-line')) return measured.call(this);
+    return { left: 0, top: 0, width: this.textContent.length * parseFloat(this.style.fontSize) * 0.5, height: parseFloat(this.style.height) };
+  };
+  try {
+    context.omui_web_mirror(JSON.stringify({ root: 'app', nodes: [
+      { id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['doc/p'] },
+      { id: 'doc/p', tag: 'p', box: [8, 8, 184, 48], lines: [
+        { box: [0, 0, 180, 24], c: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the long'] }] },
+        { box: [0, 24, 96.5, 24], c: [{ tag: 'a', set: { href: 'guide/', 'data-omui-part': 'doc/p/link0' }, c: ['guide'] }, ' first.'] },
+      ] },
+      { id: 'doc/p/link0', set: { href: 'guide/' }, inline: true },
+    ] }));
+    const p = P.nodes.get('doc/p'), link = P.nodes.get('doc/p/link0');
+    const [first, second] = p.children;
+    assert.ok(first.hasAttribute('data-omui-line') && second.hasAttribute('data-omui-line'));
+    assert.deepEqual([first.style.left, first.style.top, first.style.height, first.style.lineHeight], ['0px', '0px', '24px', '24px']);
+    assert.equal(second.style.top, '24px');
+    assert.equal(p.textContent, 'Read the longguide first.', 'the text\'s words, line after line');
+    assert.equal(link.parentNode, first, 'the link itself on its first line');
+    const part = second.children[0];
+    assert.deepEqual([part.tagName, part.getAttribute('href'), part.getAttribute('data-omui-part'), part.textContent], ['A', 'guide/', 'doc/p/link0', 'guide'], 'and an element like it where it goes on');
+    // Fitted: the first line's 13 letters at half an em each are 180 px wide at 27.7 px — over the line's height, so
+    // its size is the height's and the rest is a stretch; the second's 12 letters are 96.5 px at 16.08 px.
+    assert.equal(first.style.fontSize, '24px');
+    assert.equal(first.style.transform, 'scaleX(' + (180 / (13 * 24 * 0.5)) + ')');
+    assert.ok(Math.abs(parseFloat(second.style.fontSize) - 96.5 / (12 * 0.5)) < 1e-9, second.style.fontSize);
+    assert.equal(second.style.transform, '', 'a line that fits by its size is not stretched');
+    assert.equal(P.fitting.length, 0);
+
+    // The text set again as it flows (its lines unknown): the lines go.
+    context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'doc/p', content: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the long guide'] }, ' first.'] }] }));
+    assert.equal(p.children.length, 1);
+    assert.equal(p.children[0], link);
+    assert.equal(p.textContent, 'Read the long guide first.');
+  } finally {
+    Element.prototype.getBoundingClientRect = measured;
+  }
+});
+
+test('the page\'s own projection goes on as the layer: the same elements, placed over the canvas', () => {
+  const { P, document, context, heard, fire } = page();
+  // What a reader had before the program: the static projection (omui.semantic's static_html, in the page).
+  const make = (tag, target, text) => {
+    const el = document.createElement(tag);
+    el.setAttribute('data-omui-target', target);
+    if (text) el.textContent = text;
+    return el;
+  };
+  const projection = document.createElement('div');
+  projection.setAttribute('data-omui', 'static');
+  const root = make('div', 'app'), title = make('h1', 'doc/title', 'Notes'), para = make('p', 'doc/p', 'Read '), link = make('a', 'doc/p/link0', 'the guide'), save = make('button', 'doc/save', 'Save');
+  para.appendChild(link);
+  [title, para, save].forEach((el) => root.appendChild(el));
+  projection.appendChild(root);
+  document.body.appendChild(projection);
+  context.omui_web_first_frame();  // the program's frame is shown: the document steps aside, its elements go on
+
+  context.omui_web_mirror(JSON.stringify({
+    root: 'app',
+    nodes: [
+      { id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['doc/title', 'doc/p', 'doc/save'] },
+      { id: 'doc/title', tag: 'h1', text: 'Notes', box: [8, 8, 180, 24] },
+      { id: 'doc/p', tag: 'p', box: [8, 40, 180, 24], content: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the guide'] }, '.'] },
+      { id: 'doc/p/link0', set: { href: 'guide/' }, inline: true },
+      { id: 'doc/save', tag: 'div', set: { role: 'button', 'aria-label': 'Save', tabindex: '-1' }, box: [8, 72, 60, 24] },
+    ],
+  }));
+  const layer = document.querySelector('[data-omui="mirror"]');
+  assert.equal(P.nodes.get('app'), root);
+  assert.equal(P.nodes.get('doc/title'), title, 'the heading a reader had is the layer\'s');
+  assert.equal(P.nodes.get('doc/p'), para);
+  assert.equal(P.nodes.get('doc/p/link0'), link);
+  assert.ok(layer.contains(title) && layer.contains(link) && !projection.contains(title), 'moved over the canvas');
+  assert.equal(title.style.left, '8px');
+  assert.equal(para.textContent, 'Read the guide.', 'its text the tree\'s now, once');
+  assert.equal(link.getAttribute('href'), 'guide/');
+  // What a person operates is the program's over the canvas: the document's button stays behind.
+  assert.notEqual(P.nodes.get('doc/save'), save);
+  assert.equal(P.nodes.get('doc/save').tagName, 'DIV');
+  assert.ok(projection.contains(save) || save.parentNode === null);
+  // An adopted element is activated as any: the program answers.
+  fire(link, 'click');
+  assert.deepEqual(heard, [[P.ACTIVATE, 0, 0, 'doc/p/link0']]);
+});
+
+test('a program whose frame is never shown takes nothing of the page\'s document: the reader keeps it whole', () => {
+  const { P, document, context } = page();
+  const projection = document.createElement('div');
+  projection.setAttribute('data-omui', 'static');
+  const title = document.createElement('h1');
+  title.setAttribute('data-omui-target', 'doc/title');
+  title.textContent = 'Notes';
+  projection.appendChild(title);
+  document.body.appendChild(projection);
+  context.omui_web_mirror(JSON.stringify({ root: 'app', nodes: [
+    { id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['doc/title'] },
+    { id: 'doc/title', tag: 'h1', text: 'Notes', box: [8, 8, 180, 24] },
+  ] }));
+  assert.notEqual(P.nodes.get('doc/title'), title);
+  assert.ok(projection.contains(title) && title.textContent === 'Notes', 'the document as it was');
+  assert.equal(P.nodes.get('doc/title').tagName, 'H1', 'the layer has its own');
 });
 
 test('assistive technology in the mirror: a click activates, a focus moves the program\'s', () => {

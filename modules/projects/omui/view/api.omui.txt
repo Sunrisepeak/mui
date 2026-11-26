@@ -366,6 +366,11 @@ namespace omui {
     std::vector<TextLine> lines;
     std::size_t anchor = 0, focus = 0;
   };
+  struct TextLineBox {
+    std::size_t begin = 0, end = 0;
+    Rect bounds;
+  };
+  [[nodiscard]] std::vector<TextLineBox> text_line_boxes(const mlibs::text::Paragraph& paragraph, Point origin);
   struct ActResult {
     bool ok = true;
     Value data;
@@ -421,6 +426,7 @@ namespace omui {
     void (*semantics)(const void*, SemanticsContext&, spec::SemanticNode&) = nullptr;
     Point (*scroll_offset)(const void*) = nullptr;
     std::optional<TextLayout> (*text_layout)(const void*) = nullptr;
+    std::vector<TextLineBox> (*text_lines)(const void*) = nullptr;
     void (*restyle)(void*) = nullptr;
     Placement (*placement)(const void*) = nullptr;
     std::vector<Element> (*compose)(void*) = nullptr;
@@ -1154,6 +1160,7 @@ namespace omui {
     [[nodiscard]] UiQueue& queue() noexcept;
     [[nodiscard]] spec::SemanticNode semantic_node(NodeId node) const;
     [[nodiscard]] std::optional<TextLayout> text_layout(NodeId node) const;
+    [[nodiscard]] std::vector<TextLineBox> text_lines(NodeId node) const;
     [[nodiscard]] std::uint64_t semantic_revision() const noexcept;
     void set_theme(Theme theme);
     void fonts_changed();

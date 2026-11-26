@@ -963,6 +963,22 @@ void Runtime::request_frame() { impl_->frame_requested = true; }
 void Runtime::scroll_into_view(NodeId node) {
     if (impl_->alive(node)) (void)impl_->perform(node, "scroll_into_view", {}, true);
 }
+std::vector<TextLineBox> text_line_boxes(const mlibs::text::Paragraph& paragraph, Point origin) {
+    std::vector<TextLineBox> out;
+    out.reserve(paragraph.lines().size());
+    for (const mlibs::text::Line& line : paragraph.lines())
+        out.push_back({line.begin, line.end, {origin.x + line.left, origin.y + line.top, line.width, line.height}});
+    return out;
+}
+
+std::vector<TextLineBox> Runtime::text_lines(NodeId node) const {
+    const Impl& d = *impl_;
+    if (!d.alive(node)) return {};
+    const auto& n = d.at(node);
+    if (!n.type->text_lines) return {};
+    return n.type->text_lines(n.instance);
+}
+
 std::optional<TextLayout> Runtime::text_layout(NodeId node) const {
     const Impl& d = *impl_;
     if (!d.alive(node)) return std::nullopt;

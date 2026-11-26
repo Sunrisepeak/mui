@@ -531,6 +531,17 @@ struct TextLayout {
     std::size_t           anchor = 0, focus = 0;  // the selection, in graphemes (equal: the caret)
 };
 
+// A line of a component's text as it is drawn: its bytes of the text (the line's break with it) and its box in the
+// window. What a host places a page's own text by — the Web host's document layer puts each line's words where the
+// canvas draws them. A component whose text is a paragraph says its lines (`text_lines() const`); none while it is
+// not drawn.
+struct TextLineBox {
+    std::size_t begin = 0, end = 0;
+    Rect        bounds;
+};
+// A laid-out paragraph's lines, the paragraph drawn at `origin` (window coordinates).
+[[nodiscard]] std::vector<TextLineBox> text_line_boxes(const mlibs::text::Paragraph& paragraph, Point origin);
+
 struct ActResult {
     bool        ok = true;
     Value       data;
@@ -633,6 +644,7 @@ struct ComponentType {
     // A scroll container: its children are offset by this (and clipped).
     Point (*scroll_offset)(const void*) = nullptr;
     std::optional<TextLayout> (*text_layout)(const void*) = nullptr;  // its text, laid out (assistive technology)
+    std::vector<TextLineBox> (*text_lines)(const void*) = nullptr;     // its text's lines as drawn (a page's own text over a canvas)
     // The theme changed: drop what was resolved from it (shaped text).
     void (*restyle)(void*) = nullptr;
     // An overlay's place (overlays only).
@@ -751,6 +763,8 @@ template <class C>
             x.scroll_offset = [](const void* p) { return static_cast<const C*>(p)->scroll_offset(); };
         if constexpr (requires(const C& c) { { c.text_layout() } -> std::same_as<std::optional<TextLayout>>; })
             x.text_layout = [](const void* p) { return static_cast<const C*>(p)->text_layout(); };
+        if constexpr (requires(const C& c) { { c.text_lines() } -> std::same_as<std::vector<TextLineBox>>; })
+            x.text_lines = [](const void* p) { return static_cast<const C*>(p)->text_lines(); };
         if constexpr (requires(C& c) { c.restyle(); })
             x.restyle = [](void* p) { static_cast<C*>(p)->restyle(); };
         return x;

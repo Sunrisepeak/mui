@@ -26,6 +26,39 @@ std::string spoken(const spec::SemanticNode& n) {
 }
 
 std::int64_t round(float v) { return static_cast<std::int64_t>(std::lround(v)); }
+// A line's place over the canvas, to a quarter of a pixel.
+double quarter(float v) { return std::round(static_cast<double>(v) * 4.0) / 4.0; }
+
+// The pieces of a text between two of its bytes — a line of it: runs cut there, the line's break left out (the
+// line ends), an element kept with what of it lies between. A child node standing in the text is itself on the
+// first line it is on; where it goes on into the next line an element like it stands there (the same attributes,
+// `data-omui-part` naming the node), since one element is in one place.
+std::vector<semantic::Inline> cut(const std::vector<semantic::Inline>& pieces, std::size_t from, std::size_t to, std::unordered_set<std::string>& stood) {
+    std::vector<semantic::Inline> out;
+    for (const semantic::Inline& piece : pieces) {
+        if (piece.end <= from || piece.begin >= to || piece.tag == "br") continue;
+        const std::size_t begin = std::max(piece.begin, from), end = std::min(piece.end, to);
+        if (piece.tag.empty()) {
+            std::string text = piece.text.substr(begin - piece.begin, end - begin);
+            while (text.ends_with('\n')) text.pop_back();
+            if (!text.empty()) out.push_back({.text = std::move(text), .begin = begin, .end = end});
+            continue;
+        }
+        semantic::Inline part{.tag = piece.tag, .node = piece.node, .attributes = piece.attributes, .begin = begin, .end = end};
+        if (piece.children.empty()) {
+            if (piece.begin < from) continue;  // what holds nothing (a picture in a line) is on the line it begins on
+        } else {
+            part.children = cut(piece.children, from, to, stood);
+            if (part.children.empty()) continue;
+        }
+        if (!part.node.empty() && !stood.insert(part.node).second) {
+            part.attributes.emplace_back("data-omui-part", part.node);
+            part.node.clear();
+        }
+        out.push_back(std::move(part));
+    }
+    return out;
+}
 
 }  // namespace
 
@@ -61,11 +94,66 @@ std::optional<Value> DomMirror::sync() {
     std::string focus = elements_.contains(focused_) ? focused_ : std::string{};
     std::string focus_name = focused_name_;
 
+    // The nodes of this batch by id, and each one's parent as the batch says it: an element is the one the static
+    // projection writes for the node, which depends on what it stands in and, for its text's links, on its children.
+    std::unordered_map<std::string_view, const spec::SemanticNode*> changed;
+    std::unordered_map<std::string_view, std::string_view> parent_of;
+    for (const auto* nodes : {&delta.added, &delta.updated})
+        for (const spec::SemanticNode& n : *nodes) {
+            changed.emplace(n.id, &n);
+            for (const std::string& child : n.children) parent_of.emplace(child, n.id);
+        }
+    std::deque<spec::SemanticNode> looked_up;  // nodes outside the batch, read from the tree
+    const semantic::NodeLookup find = [&](std::string_view id) -> const spec::SemanticNode* {
+        if (const auto here = changed.find(id); here != changed.end()) return here->second;
+        if (auto node = tree_.node(id)) {
+            looked_up.push_back(std::move(*node));
+            return &looked_up.back();
+        }
+        return nullptr;
+    };
+    const auto tag_around = [&](const std::string& id) -> std::string_view {
+        std::string_view parent;
+        if (const auto said = parent_of.find(id); said != parent_of.end()) parent = said->second;
+        else if (const auto known = elements_.find(id); known != elements_.end()) parent = known->second.parent;
+        const auto around = parent.empty() ? elements_.end() : elements_.find(std::string(parent));
+        return around == elements_.end() ? std::string_view{} : std::string_view(around->second.tag);
+    };
+    // A piece of an element's own text for the page: a run a string, an element {"tag","c"}, a child node standing
+    // in the text {"tag","node","c"} (its attributes are its own entry's).
+    const auto piece = [](this auto const& self, const semantic::Inline& from) -> Value {
+        if (from.tag.empty()) return Value(from.text);
+        Value out = Value{}.set("tag", from.tag);
+        if (!from.node.empty()) out.set("node", from.node);
+        else if (!from.attributes.empty()) {
+            Value set = Value(Value::Map{});
+            for (const auto& [key, value] : from.attributes) set.set(key, value);
+            out.set("set", std::move(set));
+        }
+        if (!from.children.empty()) {
+            Value::List inner;
+            for (const semantic::Inline& child : from.children) inner.push_back(self(child));
+            out.set("c", Value(std::move(inner)));
+        }
+        return out;
+    };
+    std::vector<std::string> shown_again;  // children an element's text placed and places no more
+
     auto take = [&](const spec::SemanticNode& n, bool added) {
+        const std::string_view inside = tag_around(n.id);
         Element& e = elements_[n.id];
-        // What the element is and holds, as the static page has it (omui.semantic:html, D-236).
-        std::vector<std::pair<std::string, std::string>> attrs = semantic::aria_attributes(n);
-        if (added || attrs != e.attrs) {
+        // What the element is and holds, as the static page has it (omui.semantic:html, D-236, D-286).
+        semantic::HtmlElement made = semantic::html_element(n, inside, find, semantic::HtmlFor::live);
+        // A tag that changed is another element: all of it is sent again.
+        const bool fresh = added || made.tag != e.tag;
+        if (fresh) {
+            if (!e.inlined) entry(n.id).set("tag", made.tag);  // what stands in a text is the element its text makes it
+            e.tag = made.tag;
+            e.attrs.clear();
+            e.text.clear();
+        }
+        std::vector<std::pair<std::string, std::string>> attrs = std::move(made.attributes);
+        if (fresh || attrs != e.attrs) {
             Value set = Value(Value::Map{});
             for (const auto& [k, v] : attrs)
                 if (std::ranges::find(e.attrs, std::pair{k, v}) == e.attrs.end()) set.set(k, v);
@@ -79,14 +167,72 @@ std::optional<Value> DomMirror::sync() {
         }
         if (n.role == Role::main) main_ = n.id;
         else if (main_ == n.id) main_.clear();
-        if (std::string text = semantic::element_text(n); added ? !text.empty() : text != e.text) {
-            entry(n.id).set("text", text);
-            e.text = std::move(text);
+        // Its own text: one run as `text`, the elements its marks make as `content`. What stands in its parent's
+        // text has its words there.
+        if (!e.inlined) {
+            // Where the canvas draws the text line by line (a paragraph, a heading, a block of code), each line's
+            // words stand in the line's box: what is found or selected is then where it is seen. The lines are the
+            // text's own bytes; where they are not (a text the component draws otherwise) the element holds its
+            // words as they flow.
+            const std::vector<semantic::Inline>& whole = made.tag == "pre" && !made.content.empty() ? made.content.front().children : made.content;
+            std::size_t covered = 0;
+            for (const semantic::Inline& from : whole) covered = std::max(covered, from.end);
+            std::vector<TextLineBox> drawn;
+            if (covered > 0 && n.bounds) drawn = tree_.runtime().text_lines(tree_.runtime().find(n.id));
+            if (!drawn.empty() && (drawn.front().begin != 0 || drawn.back().end != covered)) drawn.clear();
+            // Words without width were not drawn (no shaper gave them glyphs): nothing to stand them by.
+            if (std::ranges::any_of(drawn, [](const TextLineBox& line) { return line.end > line.begin && !(line.bounds.width > 0); })) drawn.clear();
+            Value::List pieces, lines;
+            std::unordered_set<std::string> stood;
+            for (const TextLineBox& line : drawn) {
+                Value::List held;
+                for (const semantic::Inline& from : cut(whole, line.begin, line.end, stood)) held.push_back(piece(from));
+                if (held.empty()) continue;  // an empty line holds nothing to find
+                lines.push_back(Value{}
+                                    .set("box", Value(Value::List{Value(quarter(line.bounds.x - n.bounds->x)), Value(quarter(line.bounds.y - n.bounds->y)),
+                                                                  Value(quarter(line.bounds.width)), Value(quarter(line.bounds.height))}))
+                                    .set("c", Value(std::move(held))));
+            }
+            if (lines.empty())
+                for (const semantic::Inline& from : made.content) pieces.push_back(piece(from));
+            const bool plain = lines.empty() && (pieces.empty() || (pieces.size() == 1 && pieces.front().type() == Value::Type::text));
+            std::string text = !lines.empty() ? Value(lines).json() : pieces.empty() ? std::string{} : Value(pieces).json();
+            if (fresh ? !text.empty() : text != e.text) {
+                if (!lines.empty()) entry(n.id).set("lines", Value(std::move(lines)));
+                else if (plain) entry(n.id).set("text", pieces.empty() ? std::string{} : std::string(pieces.front().as_string()));
+                else entry(n.id).set("content", Value(std::move(pieces)));
+                e.text = std::move(text);
+            }
+        }
+        // The children its text places stand there; the others are the element's children.
+        if (made.placed != e.placed) {
+            for (const std::string& id : e.placed)
+                if (!std::ranges::contains(made.placed, id))
+                    if (auto child = elements_.find(id); child != elements_.end()) {
+                        child->second.inlined = false;
+                        child->second.sent.reset();
+                        entry(id).set("inline", false);
+                        shown_again.push_back(id);
+                    }
+            for (const std::string& id : made.placed)
+                if (!std::ranges::contains(e.placed, id)) {
+                    Element& child = elements_[id];
+                    child.inlined = true;
+                    child.sent.reset();
+                    entry(id).set("inline", true);
+                }
+            e.placed = std::move(made.placed);
+        }
+        std::vector<std::string> block;
+        for (const std::string& child : n.children)
+            if (!std::ranges::contains(e.placed, child)) block.push_back(child);
+        if (fresh ? !block.empty() : block != e.block) {
+            Value::List kids;
+            for (const std::string& c : block) kids.emplace_back(c);
+            entry(n.id).set("children", Value(std::move(kids)));
+            e.block = std::move(block);
         }
         if (added ? !n.children.empty() : n.children != e.children) {
-            Value::List kids;
-            for (const std::string& c : n.children) kids.emplace_back(c);
-            entry(n.id).set("children", Value(std::move(kids)));
             e.children = n.children;
             regrouped.push_back(n.id);
         }
@@ -106,6 +252,14 @@ std::optional<Value> DomMirror::sync() {
     };
     for (const spec::SemanticNode& n : delta.added) take(n, true);
     for (const spec::SemanticNode& n : delta.updated) take(n, false);
+    // What a text placed and places no more is an element of its own again: its tag, its text, its box.
+    for (const std::string& id : shown_again) {
+        const auto known = elements_.find(id);
+        if (known == elements_.end() || known->second.inlined) continue;
+        known->second.tag.clear();
+        if (const spec::SemanticNode* node = find(id)) take(*node, false);
+        moved.push_back(id);
+    }
 
     // Children know their parents again; a child that changed parent moves.
     for (const std::string& id : regrouped) {
@@ -179,7 +333,8 @@ void DomMirror::place(const std::string& id, std::vector<Value>& out, std::unord
     const Box before = e.box;
     e.box = e.bounds.value_or(base);
     const Box rel{e.box[0] - base[0], e.box[1] - base[1], e.box[2], e.box[3]};
-    if (e.sent != rel) {
+    // What stands in its parent's text is placed by the text: no box of its own.
+    if (!e.inlined && e.sent != rel) {
         e.sent = rel;
         auto [slot, made] = at.try_emplace(id, out.size());
         if (made) out.push_back(Value{}.set("id", id));

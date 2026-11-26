@@ -1,24 +1,35 @@
-// omui.host.web:mirror — the semantic tree as the page's hidden DOM
-// (design §6.2): what a screen reader, a browser's find-in-page and the
-// page's own tools read, since the canvas says nothing.
+// omui.host.web:mirror — the semantic tree as the page's document layer (design
+// 2026-11-26-web-document-layer-design.md, D-286; before it §6.2's hidden mirror): what a screen reader, the
+// browser's find-in-page, a selection and the page's own tools read, since the canvas says nothing.
 //
-// After each batch of changes the mirror answers what changed, as one batch
-// of operations for the page (src/js/omui_web.js applies it): elements
-// removed; elements made or changed — the registry's ARIA role, the name,
-// the description, the value, the states as aria-* attributes, a focusable
-// node's tabindex, the box over the canvas (relative to its parent's, in CSS
-// pixels), the children in order; where the focus is; what the live region
-// says. Only what differs from what the page has is sent: a frame in which
-// one label changed sends one attribute.
+// After each batch of changes the mirror answers what changed, as one batch of operations for the page
+// (src/js/omui_web.js applies it): elements removed; elements made or changed — each the HTML element the static
+// projection writes for the node (omui.semantic's html_element: one mapping, so the page before the program and the
+// layer over it are the same elements), its attributes (where a link leads, an anchor's id, its ARIA; what a person
+// operates keeps its ARIA form), its own text with the elements its marks make, the box over the canvas (relative
+// to its parent's, in CSS pixels), the children in order; where the focus is; what the live region says. Only what
+// differs from what the page has is sent: a frame in which one label changed sends one attribute.
 //
 //   {"root":"app",
 //    "remove":["main/toast"],
-//    "nodes":[{"id":"main/save","set":{"aria-label":"Save","role":"button","tabindex":"-1"},
+//    "nodes":[{"id":"main/save","tag":"div","set":{"aria-label":"Save","role":"button","tabindex":"-1"},
 //              "box":[8,40,60,24]},
-//             {"id":"main","children":["main/title","main/save"]}],
+//             {"id":"main/doc/b1","tag":"p","box":[8,80,400,48],
+//              "content":["Read ",{"tag":"a","node":"main/doc/b1/link0","c":["the guide"]}," ",{"tag":"em","c":["first"]},"."]},
+//             {"id":"main/doc/b1/link0","set":{"href":"guide/"},"inline":true},
+//             {"id":"main","tag":"main","children":["main/title","main/save"]}],
 //    "focus":"main/save",
 //    "live":"Saved",
 //    "skip":{"to":"main/view/save","name":"The place"}}
+//
+// `tag` comes with an element when it is made (and again, with all of it, should it change). An element's own text
+// is `text` where it is one run, `content` where its marks make elements of it: a run is a string, an element
+// `{"tag", "c"}` — `{"tag":"br"}` a line's break — and one with `node` is that child node, standing in the text
+// (`inline`) and not among `children`, with no box of its own. Where the canvas draws the text line by line the
+// element's text is `lines` instead: each `{"box":[x,y,w,h],"c":[pieces]}`, the line's words in the line's box
+// (relative to the element's, to a quarter of a pixel) — so what the browser finds or a person selects is where
+// the canvas shows it. A link that goes on into the next line is itself on its first line and an element like it
+// (`data-omui-part` naming the node) on the next.
 //
 // `skip` is the page's skip link: where the page's main landmark (role
 // main) has something to focus, its first such node and the landmark's
@@ -50,9 +61,13 @@ public:
 private:
     using Box = std::array<std::int64_t, 4>;
     struct Element {
-        std::vector<std::pair<std::string, std::string>> attrs;  // by name
-        std::string              text;
-        std::vector<std::string> children;
+        std::string              tag;     // the element it is
+        std::vector<std::pair<std::string, std::string>> attrs;
+        std::string              text;    // its own text as sent: the content's JSON
+        std::vector<std::string> children;  // the node's, all of them
+        std::vector<std::string> block;     // those the page has among its children: not the ones its text places
+        std::vector<std::string> placed;    // the children its text places
+        bool                     inlined = false;  // it stands in its parent's text: no box of its own
         std::string              parent;
         std::optional<Box>       bounds;  // its own, rounded
         Box                      box{};   // its own, or its parent's where it has none

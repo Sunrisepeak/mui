@@ -216,6 +216,7 @@ struct TextNode {
     mutable std::array<Measured, 4> measured;
     mutable std::uint8_t measured_next = 0;
     mutable Point drawn_at;  // where its paragraph was drawn in its box
+    mutable float drawn_laid = -1;  // the width it was laid out at when drawn
 
     void mount(Services& s, NodeId id) { services = &s; node = id; }
     void restyle() { paragraph.reset(); }
@@ -301,6 +302,7 @@ struct TextNode {
         mlibs::text::Paragraph& p = shaped(ctx.services);
         lay(p, (wrap ? ctx.content.width : std::numeric_limits<float>::infinity()) + width_slack);
         drawn_at = ctx.content.origin();
+        drawn_laid = laid;
         // The part of it selected, under its glyphs.
         if (const auto range = ctx.services.text_selection(node)) {
             const Color ink = ctx.theme.color("selection", ctx.theme.color("accent").with_alpha(0.28f));
@@ -314,6 +316,12 @@ struct TextNode {
         return paragraph->offset_at({local.x - drawn_at.x, local.y - drawn_at.y});
     }
     std::string_view text_of() const { return text; }
+    // Its lines as drawn: none while the paragraph is not laid out as it was last painted.
+    std::vector<TextLineBox> text_lines() const {
+        if (!paragraph || !services || drawn_laid < 0 || laid != drawn_laid) return {};
+        const Rect at = services->bounds(node);
+        return text_line_boxes(*paragraph, {at.x + drawn_at.x, at.y + drawn_at.y});
+    }
     ActResult act(ActContext& ctx, std::string_view action) {
         if (action != "set_selection") return ActResult::fail(std::format("text has no action `{}`", action));
         const Value* anchor = ctx.args.get("anchor");

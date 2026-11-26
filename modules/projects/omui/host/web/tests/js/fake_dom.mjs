@@ -147,6 +147,14 @@ export class Element extends Target {
     }
     return null;
   }
+  querySelectorAll(selector) {
+    const found = [];
+    for (const c of this.children) {
+      if (c.matches(selector)) found.push(c);
+      found.push(...c.querySelectorAll(selector));
+    }
+    return found;
+  }
 }
 
 export class Document extends Target {

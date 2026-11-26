@@ -93,14 +93,15 @@ static UTest cases{"oweb.config", [] {
             return said;
         };
         expect(of(R"({"title":"A","languages":["zh","en"]})").has_value());
-        expect(says(R"({"titel":"A"})", "/site/titel", "it has: title, url, languages, routes, budgets")) << "a field mistyped is said, with the kind's";
+        expect(says(R"({"titel":"A"})", "/site/titel", "did you mean `title`?")) << "a field mistyped is said, with the one meant";
+        expect(says(R"({"navigation":[]})", "/site/navigation", "`title`, `url`, `languages`, `routes`, `budgets`")) << "one that is near none is said with the kind's fields";
         expect(says(R"({"url":"example.org"})", "/site/url", "https://"));
         expect(says(R"({"languages":[]})", "/site/languages"));
         expect(says(R"({"languages":["en","en"]})", "/site/languages/1", "twice"));
         expect(says(R"({"routes":[{"path":"start","source":"pages/start.md"}]})", "/site/routes/0/path", "begins and ends with `/`"));
         expect(says(R"({"routes":[{"path":"/a/","source":"../outside.md"}]})", "/site/routes/0/source", "inside the site's directory"));
         expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md"},{"path":"/a/","source":"pages/b.md"}]})", "/site/routes/1/path", "stated twice"));
-        expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md","nav":true}]})", "/site/routes/0/nav", "it has: path, source, reference, title"));
+        expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md","nav":true}]})", "/site/routes/0/nav", "`path`"));
         expect(says(R"({"budgets":{"readable":-1}})", "/site/budgets/readable", "number of bytes"));
         expect(of(R"({"routes":[{"path":"/ops/","reference":"../tool/tool.ops.xdef.ts"}]})").has_value()) << "a route that is a catalog's reference";
         expect(says(R"({"routes":[{"path":"/ops/","source":"pages/ops.md","reference":"tool.ops.xdef.ts"}]})", "/site/routes/0/reference", "not both"));

@@ -14,9 +14,10 @@
 // The page hears more than the canvas (src/js/omui_web.js): a hidden
 // textarea at the caret, where input methods compose (their composition is
 // openmui's preedit, their result its text); the clipboard, as the page last
-// knew it, written through the Async Clipboard API; the semantic tree as a
-// hidden DOM after each batch of changes (DomMirror: ARIA roles, names,
-// values, states, focus, a live region), which a screen reader reads and
+// knew it, written through the Async Clipboard API; the semantic tree as the
+// page's document layer after each batch of changes (DomMirror: each node the
+// HTML element it is, its text found and selected, links, ARIA for what is
+// operated, focus, a live region), which a screen reader reads and
 // moves the focus in; window.omui, through which the page's agents use
 // openmui.tree@0.1 as the desktop's agents do — over the bus, so openas
 // decides (S-11), and never as the person: the person is present only in

@@ -396,6 +396,13 @@ float Text::baseline(MeasureContext& m, Size content) {
     return p.first_baseline();
 }
 
+std::vector<TextLineBox> Text::text_lines() const {
+    // None while the paragraph is not laid out as it was last painted (a measuring pass at another width).
+    if (!paragraph_ || !services_ || drawn_laid_ < 0 || laid_ != drawn_laid_) return {};
+    const Rect at = services_->bounds(node_);
+    return text_line_boxes(*paragraph_, {at.x + origin_.x, at.y + origin_.y});
+}
+
 std::vector<Rect> Text::rects(std::uint32_t begin, std::uint32_t end) const {
     if (!paragraph_) return {};
     std::vector<Rect> out = paragraph_->selection(begin, end);
@@ -413,6 +420,7 @@ void Text::paint(PaintContext& ctx) const {
     mlibs::text::Paragraph& p = shaped(ctx.services);
     lay(ctx.content.width + 1.0f / 1024);
     origin_ = ctx.content.origin();
+    drawn_laid_ = laid_;
     // Inline code sits on a tinted, rounded background.
     for (const mlibs::markdown::Run& r : mlibs::markdown::runs(b.content)) {
         if ((r.spans & mlibs::markdown::bit(mlibs::markdown::Span::code)) == 0) continue;
@@ -828,6 +836,13 @@ void Code::paint(PaintContext& ctx) const {
     ctx.list.push_clip(ctx.content);
     mrender::text::paint(p, ctx.list, ctx.content.origin());
     ctx.list.pop_clip();
+    drawn_at_ = ctx.content.origin();
+}
+
+std::vector<TextLineBox> Code::text_lines() const {
+    if (!paragraph_ || !services_ || !drawn_at_ || laid_ < 0) return {};
+    const Rect at = services_->bounds(node_);
+    return text_line_boxes(*paragraph_, {at.x + drawn_at_->x, at.y + drawn_at_->y});
 }
 
 void Code::semantics(SemanticsContext&, spec::SemanticNode& n) const {

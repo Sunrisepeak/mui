@@ -19,8 +19,17 @@ Paragraph::Paragraph(FontCollection& fonts, std::string text, ParagraphStyle sty
     s.text = std::move(text);
     s.paragraph = std::move(style);
     s.styles.push_back(s.paragraph.style);
-    std::ranges::sort(ranges, {}, &StyledRange::begin);
-    for (StyledRange& r : ranges) {
+    // In the order they start: their places sorted, not the ranges — a sort that moves whole
+    // styles (families, features, language) about is 30 KB of every program's code; ties keep
+    // the order given.
+    std::vector<std::uint32_t> order(ranges.size());
+    std::iota(order.begin(), order.end(), std::uint32_t{0});
+    std::ranges::sort(order, [&](std::uint32_t one, std::uint32_t other) {
+        const std::size_t first = ranges[one].begin, second = ranges[other].begin;
+        return first != second ? first < second : one < other;
+    });
+    for (const std::uint32_t at : order) {
+        StyledRange& r = ranges[at];
         r.end = std::min(r.end, s.text.size());
         if (r.begin >= r.end) continue;
         s.styles.push_back(r.style);

@@ -125,12 +125,14 @@ std::uint32_t buttons_of(unsigned short b) {
 }
 
 // What the page's library says (src/js/omui_web.js: the same numbers).
-constexpr int page_text = 1, page_preedit = 2, page_key = 3, page_activate = 4, page_focus = 5, page_agent = 6, page_link = 7;
+constexpr int page_text = 1, page_preedit = 2, page_key = 3, page_activate = 4, page_focus = 5, page_agent = 6, page_link = 7, page_scroll = 8;
 // KeyboardEvent.keyCode while an input method composes.
 constexpr unsigned composing = 229;
 
 // Only the person's own input is input (openas §2.7): an event a script of
-// the page made (isTrusted false) is not, and is left to the page.
+// the page made (isTrusted false) is not, and is left to the page. So is a
+// press the browser answers itself (a link of the document layer pressed with
+// a modifier or another button: a new tab, its menu).
 bool trusted() { return omui_web_trusted() != 0; }
 
 bool on_key(int type, const EmscriptenKeyboardEvent* e, void*) {
@@ -227,6 +229,7 @@ void on_page(int kind, int a, int b, char* text) {
         case page_focus: asked.push_back({Request::Kind::focus, std::move(t)}); break;
         case page_agent: asked.push_back({Request::Kind::agent, std::move(t)}); break;
         case page_link: asked.push_back({Request::Kind::link, std::move(t)}); break;
+        case page_scroll: asked.push_back({Request::Kind::scroll, std::move(t), a, b}); break;
         default: break;
     }
 }
@@ -306,6 +309,19 @@ bool open(std::string_view canvas, std::string_view title) {
     emscripten_set_touchend_callback_on_thread(c, nullptr, true, on_touch, calling_thread);
     emscripten_set_touchmove_callback_on_thread(c, nullptr, true, on_touch, calling_thread);
     emscripten_set_touchcancel_callback_on_thread(c, nullptr, true, on_touch, calling_thread);
+    // The document layer lies over the canvas, box on box, and lets the pointer through — but for its links, which
+    // take it (a link is a link to the browser: its address shown, a new tab, its menu). What the pointer does on
+    // a link is the canvas's all the same: the same places, since the layer is where the canvas is.
+    constexpr const char* layer = "[data-omui=\"mirror\"]";
+    emscripten_set_mousedown_callback_on_thread(layer, nullptr, true, on_mouse, calling_thread);
+    emscripten_set_mouseup_callback_on_thread(layer, nullptr, true, on_mouse, calling_thread);
+    emscripten_set_mousemove_callback_on_thread(layer, nullptr, true, on_mouse, calling_thread);
+    emscripten_set_mouseleave_callback_on_thread(layer, nullptr, true, on_mouse, calling_thread);
+    emscripten_set_wheel_callback_on_thread(layer, nullptr, true, on_wheel, calling_thread);
+    emscripten_set_touchstart_callback_on_thread(layer, nullptr, true, on_touch, calling_thread);
+    emscripten_set_touchend_callback_on_thread(layer, nullptr, true, on_touch, calling_thread);
+    emscripten_set_touchmove_callback_on_thread(layer, nullptr, true, on_touch, calling_thread);
+    emscripten_set_touchcancel_callback_on_thread(layer, nullptr, true, on_touch, calling_thread);
     if (!title.empty()) omui_web_title(std::string(title).c_str());
     return true;
 }

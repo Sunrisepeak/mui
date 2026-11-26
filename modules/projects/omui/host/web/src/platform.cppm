@@ -25,9 +25,10 @@ struct Canvas {
 // What a person did through the page's hidden DOM (assistive technology
 // moved the focus, or activated an element), or a request of window.omui's.
 struct Request {
-    enum class Kind : std::uint8_t { agent, focus, activate, link };
+    enum class Kind : std::uint8_t { agent, focus, activate, link, scroll };
     Kind        kind = Kind::agent;
     std::string text;  // agent: the request's line; link: the agent link's state (JSON); else the node's id
+    int         x = 0, y = 0;  // scroll: where the page's element is scrolled to
 };
 
 // What came since the last call: the page's events in order (the canvas's,

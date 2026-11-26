@@ -32,6 +32,11 @@
 // or a person selects is on the word the canvas shows. A link that goes on into the next line is itself on its first line and an element like it
 // (`data-omui-part` naming the node) on the next.
 //
+// A view that scrolls says `"scroll":[x,y,max_x,max_y]`: its element scrolls on the page too, to the same place, and
+// its children's boxes are places in what it scrolls (they do not change as it scrolls). So the browser's
+// find-in-page can bring a match that is out of sight into view: the page scrolls the element, says so (a request
+// of kind scroll), and the view goes there.
+//
 // `skip` is the page's skip link: where the page's main landmark (role
 // main) has something to focus, its first such node and the landmark's
 // name; null once it has none.
@@ -69,6 +74,8 @@ private:
         std::vector<std::string> block;     // those the page has among its children: not the ones its text places
         std::vector<std::string> placed;    // the children its text places
         bool                     inlined = false;  // it stands in its parent's text: no box of its own
+        std::optional<Box>       scroll;  // a view that scrolls: its offset and how far it goes (x, y, max x, max y)
+        std::array<std::int64_t, 2> extent{};  // how far, as its node states it
         std::string              parent;
         std::optional<Box>       bounds;  // its own, rounded
         Box                      box{};   // its own, or its parent's where it has none
@@ -81,6 +88,7 @@ private:
 
     semantic::Tree                           tree_;
     std::unordered_map<std::string, Element> elements_;
+    std::vector<std::string>                 scrolls_;  // the views that scroll
     std::string                              focused_;
     std::string                              focused_name_;
     std::string                              main_;  // the main landmark

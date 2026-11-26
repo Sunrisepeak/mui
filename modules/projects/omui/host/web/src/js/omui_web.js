@@ -15,6 +15,7 @@
 //   5 focus     assistive technology moved the focus to a mirrored node
 //   6 agent     a request of window.omui's (text: one JSON line)
 //   7 link      the agent link's state (text: JSON — state, code, port, agent, error)
+//   8 scroll    the page scrolled a view's element (the browser's find, an anchor); a, b where to; text: its id
 // Only the person's own input counts (openas §2.7): an event a script made
 // (isTrusted false) is never passed on, and window.omui's requests are the
 // program's to decide as any agent's.
@@ -28,7 +29,7 @@ addToLibrary({
 
   $omuiPage__deps: ['$omuiCanvas', '$stringToNewUTF8', '$lengthBytesUTF8', '$getWasmTableEntry'],
   $omuiPage: {
-    TEXT: 1, PREEDIT: 2, KEY: 3, ACTIVATE: 4, FOCUS: 5, AGENT: 6, LINK: 7,
+    TEXT: 1, PREEDIT: 2, KEY: 3, ACTIVATE: 4, FOCUS: 5, AGENT: 6, LINK: 7, SCROLL: 8,
     LINK_PORTS: [47110, 47111, 47112, 47113],  // where a bridge (omui connect) listens, the first free of them
     callback: 0,
     selector: '#canvas',
@@ -56,6 +57,30 @@ addToLibrary({
       getWasmTableEntry(omuiPage.callback)(kind, a, b, stringToNewUTF8(text || ''));
     },
 
+    // The link of the layer an event is on (its element, or the part of it a line holds), if any.
+    linkAt: function (target) {
+      var P = omuiPage, link = null;
+      for (var n = target; n; n = n.parentNode) {
+        if (n === P.layer) return link;
+        if (!link && n.tagName === 'A' && n.hasAttribute && n.hasAttribute('href')) link = n;
+      }
+      return null;
+    },
+
+    // Whether a press is the browser's to answer, not the program's: on a link, with a modifier or a button other
+    // than the first — a new tab, a new window, a download, the link's menu, as on any page. A plain press on a
+    // link is the program's (remembered: the click that follows it is not a second activation).
+    browsers: function (type, e) {
+      var P = omuiPage;
+      if (type !== 'mousedown' && type !== 'mouseup') return false;
+      var link = P.linkAt(e.target);
+      if (type === 'mousedown') P.pressed = null;
+      if (!link) return false;
+      var its = !!(e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey);
+      if (type === 'mousedown' && !its) P.pressed = link;
+      return its;
+    },
+
     hidden: function (el) {
       // Out of sight, not out of the accessibility tree (no display:none).
       var s = el.style;
@@ -79,7 +104,7 @@ addToLibrary({
       ['keydown', 'keyup', 'mousedown', 'mouseup', 'mousemove', 'mouseenter', 'mouseleave', 'wheel',
        'touchstart', 'touchend', 'touchmove', 'touchcancel'].forEach(function (type) {
         window.addEventListener(type, function (e) {
-          P.trusted = e.isTrusted;
+          P.trusted = e.isTrusted && !P.browsers(type, e);
           if (type === 'keydown') P.pasteKey = e.isTrusted && (e.ctrlKey || e.metaKey) && e.code === 'KeyV';
         }, true);
       });
@@ -151,6 +176,13 @@ addToLibrary({
         'list-style:none;outline:none}' +
         '[data-omui=mirror] [data-omui-id]{position:absolute;display:block;box-sizing:border-box;overflow:hidden;white-space:pre-wrap}' +
         '[data-omui=mirror] [data-omui-inline]{position:static;display:inline;overflow:visible}' +
+        // A link is a link to the pointer too: the browser shows where it goes, opens it in a new tab, offers its
+        // menu. What the pointer does on it is passed to the program as what it does on the canvas (the layer's
+        // listeners, in the program), so the canvas's link is hovered and pressed all the same.
+        '[data-omui=mirror] a[href]{pointer-events:auto;cursor:pointer}' +
+        // A view that scrolls scrolls here too (the browser's find brings a match into view); the canvas shows its bar.
+        '[data-omui=mirror] [data-omui-scroll]{overflow:auto;scrollbar-width:none}' +
+        '[data-omui=mirror] [data-omui-scroll]::-webkit-scrollbar{display:none}' +
         '[data-omui=mirror] pre,[data-omui=mirror] pre code{white-space:pre}' +
         '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre}' +
         '[data-omui=mirror] [data-omui-word]{display:inline-block;vertical-align:top;white-space:pre;transform-origin:0 0}' +
@@ -162,6 +194,14 @@ addToLibrary({
       layer.setAttribute('data-omui', 'mirror');
       body.appendChild(layer);
       P.layer = layer;
+      // Only a view that scrolls scrolls. Bringing a match into view, a browser scrolls whatever clips it — the
+      // layer, an element that only clips — and that would leave it off the canvas: put back.
+      layer.addEventListener('scroll', function (e) {
+        var t = e.target;
+        if (!t || !t.hasAttribute || t.hasAttribute('data-omui-scroll')) return;
+        if (t.scrollTop) t.scrollTop = 0;
+        if (t.scrollLeft) t.scrollLeft = 0;
+      }, true);
       P.polite = P.hidden(document.createElement('div'));
       P.polite.setAttribute('data-omui', 'live');
       P.polite.setAttribute('aria-live', 'polite');
@@ -448,10 +488,17 @@ addToLibrary({
       el.omuiSet = {};
       el.omuiContent = [];
       el.addEventListener('click', function (e) {
-        // The element activated, not each it lies in; the program answers for it (a link's address too).
+        // The element activated, not each it lies in; the program answers for it (a link's address too) — but a
+        // link clicked with a modifier is the browser's (a new tab), and one the pointer pressed was the program's
+        // already, by the press itself. A part of a link on a later line is its link.
         e.stopPropagation();
+        var link = P.linkAt(e.target);
+        if (link && (e.button || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)) return;
         if (e.preventDefault) e.preventDefault();
-        if (e.isTrusted) P.send(P.ACTIVATE, 0, 0, id);
+        var pressed = P.pressed;
+        P.pressed = null;
+        if (link && pressed === link) return;
+        if (e.isTrusted) P.send(P.ACTIVATE, 0, 0, (link && (link.getAttribute('data-omui-part') || link.getAttribute('data-omui-id'))) || id);
       });
       el.addEventListener('focus', function (e) {
         if (e.isTrusted && !P.focusing) {
@@ -483,6 +530,42 @@ addToLibrary({
         el.removeAttribute('data-omui-inline');
         el.style.position = 'absolute';
       }
+    },
+
+    // A view that scrolls: its element scrolls on the page too, as far and to the same place. What the page itself
+    // scrolls it to — the browser's find-in-page bringing a match into view, an anchor followed — is said to the
+    // program, which goes there; what the program set is not said back.
+    scrolls: function (el, id, s) {
+      var P = omuiPage;
+      if (!s) {
+        el.removeAttribute('data-omui-scroll');
+        if (el.omuiSpacer && el.omuiSpacer.parentNode === el) el.removeChild(el.omuiSpacer);
+        el.omuiSpacer = null;
+        return;
+      }
+      if (!el.omuiAt) {
+        el.addEventListener('scroll', function () {
+          if (!el.omuiAt || !el.hasAttribute('data-omui-scroll')) return;
+          var x = Math.round(el.scrollLeft), y = Math.round(el.scrollTop);
+          if (Math.abs(x - el.omuiAt[0]) < 1 && Math.abs(y - el.omuiAt[1]) < 1) return;
+          el.omuiAt = [x, y];
+          P.send(P.SCROLL, x, y, id);
+        });
+      }
+      el.setAttribute('data-omui-scroll', '');
+      // As far as the view goes: a mark at the end of what it scrolls (its children may end before it).
+      if (!el.omuiSpacer) {
+        el.omuiSpacer = document.createElement('span');
+        el.omuiSpacer.setAttribute('data-omui-extent', '');
+        el.omuiSpacer.style.position = 'absolute';
+        el.omuiSpacer.style.width = el.omuiSpacer.style.height = '1px';
+      }
+      el.omuiSpacer.style.left = (s[2] + (parseFloat(el.style.width) || 0) - 1) + 'px';
+      el.omuiSpacer.style.top = (s[3] + (parseFloat(el.style.height) || 0) - 1) + 'px';
+      if (el.omuiSpacer.parentNode !== el) el.appendChild(el.omuiSpacer);
+      el.omuiAt = [s[0], s[1]];
+      el.scrollLeft = s[0];
+      el.scrollTop = s[1];
     },
 
     // A piece of an element's own text: a run, an element a mark makes ({tag, set, c}), a child node standing in
@@ -674,6 +757,8 @@ addToLibrary({
         });
       });
       P.fit();
+      // Where each view that scrolls is, once what it scrolls is in place.
+      nodes.forEach(function (n) { if ('scroll' in n) P.scrolls(P.nodes.get(n.id), n.id, n.scroll); });
       if (b.root) {
         var root = P.nodes.get(b.root);
         if (root && root.parentNode !== P.layer) P.layer.appendChild(root);

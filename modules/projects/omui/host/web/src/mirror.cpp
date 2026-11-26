@@ -268,6 +268,22 @@ std::optional<Value> DomMirror::sync() {
             e.children = n.children;
             regrouped.push_back(n.id);
         }
+        // A view that scrolls: where it is and how far it goes. Its children's places are places in what it scrolls.
+        // How far is the node's to say; where it is is read once the batch's nodes are taken (below): the offset its
+        // children's boxes were laid out with, which a glide moves frame by frame while the node states where it ends.
+        if (n.role == Role::scroll_view && n.value.map()) {
+            const auto number = [&](std::string_view key) {
+                const Value* stated = n.value.get(key);
+                return stated && stated->is_number() ? round(static_cast<float>(stated->as_double())) : std::int64_t{0};
+            };
+            e.extent = {number("max_x"), number("max_y")};
+            if (!std::ranges::contains(scrolls_, n.id)) scrolls_.push_back(n.id);
+        } else if (e.scroll) {
+            entry(n.id).set("scroll", Value{});
+            e.scroll.reset();
+            std::erase(scrolls_, n.id);
+            for (const std::string& child : n.children) moved.push_back(child);
+        }
         std::optional<Box> bounds;
         if (n.bounds) bounds = Box{round(n.bounds->x), round(n.bounds->y), round(n.bounds->width), round(n.bounds->height)};
         if (added || bounds != e.bounds) {
@@ -291,6 +307,18 @@ std::optional<Value> DomMirror::sync() {
         known->second.tag.clear();
         if (const spec::SemanticNode* node = find(id)) take(*node, false);
         moved.push_back(id);
+    }
+
+    // Where each view that scrolls is: said when it changed; its children's boxes stay what they were.
+    std::erase_if(scrolls_, [&](const std::string& id) { return !elements_.contains(id); });
+    for (const std::string& id : scrolls_) {
+        Element& e = elements_.find(id)->second;
+        const Point shown = tree_.runtime().scroll_offset(tree_.runtime().find(id)).value_or(Point{});
+        const Box now{round(shown.x), round(shown.y), e.extent[0], e.extent[1]};
+        if (e.scroll == now) continue;
+        e.scroll = now;
+        entry(id).set("scroll", Value(Value::List{Value(now[0]), Value(now[1]), Value(now[2]), Value(now[3])}));
+        for (const std::string& child : e.children) moved.push_back(child);
     }
 
     // Children know their parents again; a child that changed parent moves.
@@ -364,9 +392,15 @@ void DomMirror::place(const std::string& id, std::vector<Value>& out, std::unord
     const Box base = parent != elements_.end() ? parent->second.box : Box{};
     const Box before = e.box;
     e.box = e.bounds.value_or(base);
-    const Box rel{e.box[0] - base[0], e.box[1] - base[1], e.box[2], e.box[3]};
+    // In a view that scrolls, a place in what it scrolls: where it is in the window, and how far the view is scrolled.
+    const Box scrolled = parent != elements_.end() && parent->second.scroll ? *parent->second.scroll : Box{};
+    const Box rel{e.box[0] - base[0] + scrolled[0], e.box[1] - base[1] + scrolled[1], e.box[2], e.box[3]};
+    // A box and an offset are each rounded to a pixel, so their sum wavers by one as the view glides: a box that
+    // stands within a pixel of the one sent is the one sent.
+    const bool wavers = parent != elements_.end() && parent->second.scroll && e.sent && (*e.sent)[2] == rel[2] && (*e.sent)[3] == rel[3] &&
+                        std::abs((*e.sent)[0] - rel[0]) <= 1 && std::abs((*e.sent)[1] - rel[1]) <= 1;
     // What stands in its parent's text is placed by the text: no box of its own.
-    if (!e.inlined && e.sent != rel) {
+    if (!e.inlined && e.sent != rel && !wavers) {
         e.sent = rel;
         auto [slot, made] = at.try_emplace(id, out.size());
         if (made) out.push_back(Value{}.set("id", id));

@@ -70,9 +70,9 @@ function page({ storage = new Storage(), clipboard = null, permissions = null, a
 test('the C++ side and the page agree on what each kind of event is', () => {
   const cpp = readFileSync(here('../../src/native/browser/html5.cpp'), 'utf8');
   const { P } = page();
-  const m = /page_text = (\d+), page_preedit = (\d+), page_key = (\d+), page_activate = (\d+), page_focus = (\d+), page_agent = (\d+), page_link = (\d+)/.exec(cpp);
+  const m = /page_text = (\d+), page_preedit = (\d+), page_key = (\d+), page_activate = (\d+), page_focus = (\d+), page_agent = (\d+), page_link = (\d+), page_scroll = (\d+)/.exec(cpp);
   assert.ok(m, 'html5.cpp names the kinds');
-  assert.deepEqual(m.slice(1).map(Number), [P.TEXT, P.PREEDIT, P.KEY, P.ACTIVATE, P.FOCUS, P.AGENT, P.LINK]);
+  assert.deepEqual(m.slice(1).map(Number), [P.TEXT, P.PREEDIT, P.KEY, P.ACTIVATE, P.FOCUS, P.AGENT, P.LINK, P.SCROLL]);
 });
 
 test('opening: the textarea, the mirror\'s layer, the live regions, window.omui', () => {
@@ -435,6 +435,105 @@ test('a program whose frame is never shown takes nothing of the page\'s document
   assert.notEqual(P.nodes.get('doc/title'), title);
   assert.ok(projection.contains(title) && title.textContent === 'Notes', 'the document as it was');
   assert.equal(P.nodes.get('doc/title').tagName, 'H1', 'the layer has its own');
+});
+
+test('a view that scrolls scrolls on the page too: as far, to the same place; where the page scrolled it is said, where the program put it is not', () => {
+  const { P, context, heard, fire } = page();
+  context.omui_web_mirror(JSON.stringify({
+    root: 'app',
+    nodes: [
+      { id: 'app', children: ['main/list'], box: [0, 0, 200, 160] },
+      { id: 'main/list', box: [0, 0, 200, 160], scroll: [0, 0, 0, 320], children: ['main/row5'] },
+      { id: 'main/row5', text: 'Row 5', box: [0, 200, 200, 40] },
+    ],
+  }));
+  const list = P.nodes.get('main/list');
+  assert.ok(list.hasAttribute('data-omui-scroll'));
+  const extent = list.children.find((c) => c.hasAttribute('data-omui-extent'));
+  assert.equal(extent.style.top, '479px', 'what it scrolls ends 320 px past its box');
+  assert.deepEqual([list.scrollLeft, list.scrollTop], [0, 0]);
+  assert.equal(P.nodes.get('main/row5').style.top, '200px', 'a place in what scrolls');
+  // The browser's find brings a match into view: the page scrolled the element; the program is told where to.
+  list.scrollTop = 170;
+  fire(list, 'scroll');
+  assert.deepEqual(heard, [[P.SCROLL, 0, 170, 'main/list']]);
+  // The program is there: said back, and not said again.
+  context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'main/list', scroll: [0, 170, 0, 320] }] }));
+  fire(list, 'scroll');
+  // The program glides somewhere else: the element follows, and that is not the page's doing.
+  context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'main/list', scroll: [0, 40, 0, 320] }] }));
+  assert.equal(list.scrollTop, 40);
+  fire(list, 'scroll');
+  assert.equal(heard.length, 1, 'only what the page scrolled is said');
+  // What only clips does not scroll: a browser that scrolled it (a match brought into view) is put back.
+  const row = P.nodes.get('main/row5');
+  row.scrollTop = 12;
+  fire(row, 'scroll');
+  assert.equal(row.scrollTop, 0);
+  assert.equal(heard.length, 1);
+  // Longer: its end moves.
+  context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'main/list', scroll: [0, 40, 0, 500] }] }));
+  assert.equal(extent.style.top, '659px');
+  // A view that scrolls no more.
+  context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'main/list', scroll: null }] }));
+  assert.equal(list.hasAttribute('data-omui-scroll'), false);
+  assert.equal(list.children.some((c) => c.hasAttribute('data-omui-extent')), false);
+  list.scrollTop = 90;
+  fire(list, 'scroll');
+  assert.equal(heard.length, 1);
+});
+
+test('a link takes the pointer: a plain press is the program\'s, one with a modifier or another button the browser\'s', () => {
+  const { P, context, heard, fire, document } = page();
+  context.omui_web_mirror(JSON.stringify({
+    root: 'app',
+    nodes: [
+      { id: 'app', tag: 'div', children: ['doc/p'], box: [0, 0, 200, 160] },
+      { id: 'doc/p', tag: 'p', box: [8, 40, 180, 40], lines: [
+        { box: [0, 0, 180, 20], c: [{ t: 'Read ', x: 0, w: 30 }, { tag: 'a', node: 'doc/p/link0', c: [{ t: 'the ', x: 34, w: 20 }] }] },
+        { box: [0, 20, 180, 20], c: [{ tag: 'a', set: { href: 'guide/', 'data-omui-part': 'doc/p/link0' }, c: [{ t: 'guide', x: 0, w: 32 }] }, { t: ' first.', x: 32, w: 30 }] },
+      ] },
+      { id: 'doc/p/link0', tag: 'a', set: { href: 'guide/' } },
+    ],
+  }));
+  const sheet = document.querySelector('[data-omui="layer"]');
+  assert.ok(sheet.textContent.includes('a[href]{pointer-events:auto'), 'the pointer is the link\'s; the rest of the layer lets it through');
+  const link = P.nodes.get('doc/p/link0'), word = link.children[0];
+  const part = P.nodes.get('doc/p').children[1].children[0];
+  assert.equal(part.getAttribute('data-omui-part'), 'doc/p/link0');
+  // A plain press: passed to the program as the canvas's (its callbacks hear it), and the click after it is not
+  // a second activation; the page does not follow the address itself.
+  fire(word, 'mousedown', { button: 0 });
+  assert.equal(context.omui_web_trusted(), 1);
+  fire(word, 'mouseup', { button: 0 });
+  assert.equal(context.omui_web_trusted(), 1);
+  const plain = fire(word, 'click', { button: 0 });
+  assert.equal(plain.defaultPrevented, true);
+  assert.deepEqual(heard, []);
+  // With a modifier, or the middle button: the browser's — a new tab — and nothing of it is the program's.
+  fire(word, 'mousedown', { button: 0, ctrlKey: true });
+  assert.equal(context.omui_web_trusted(), 0);
+  fire(word, 'mouseup', { button: 0, ctrlKey: true });
+  assert.equal(context.omui_web_trusted(), 0);
+  const modified = fire(word, 'click', { button: 0, ctrlKey: true });
+  assert.equal(modified.defaultPrevented, false, 'the browser follows the address');
+  fire(part, 'mousedown', { button: 1 });
+  assert.equal(context.omui_web_trusted(), 0);
+  fire(part, 'mousedown', { button: 2 });
+  assert.equal(context.omui_web_trusted(), 0, 'the link\'s menu');
+  assert.deepEqual(heard, []);
+  // Moving over it is the program's whatever is held: the canvas's link is hovered.
+  fire(word, 'mousemove', { ctrlKey: true });
+  assert.equal(context.omui_web_trusted(), 1);
+  // Activated without the pointer (assistive technology, the keyboard): the program answers, for the link whichever
+  // part of it was activated.
+  const pressed = fire(part, 'click', {});
+  assert.equal(pressed.defaultPrevented, true);
+  fire(word, 'click', {});
+  assert.deepEqual(heard, [[P.ACTIVATE, 0, 0, 'doc/p/link0'], [P.ACTIVATE, 0, 0, 'doc/p/link0']]);
+  // A press elsewhere is as it was.
+  fire(P.nodes.get('doc/p'), 'mousedown', { button: 0, ctrlKey: true });
+  assert.equal(context.omui_web_trusted(), 1);
 });
 
 test('assistive technology in the mirror: a click activates, a focus moves the program\'s', () => {

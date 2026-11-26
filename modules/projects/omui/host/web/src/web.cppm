@@ -101,10 +101,13 @@ public:
     // What a person did in the page's hidden DOM, through assistive
     // technology: moved the focus to a node, or activated it (as a press of
     // its middle). Taken at the next step, as the page's are.
+    // Or what the page did to a view's element that scrolls: scrolled it (the browser's find-in-page brought a
+    // match into view, an anchor was followed) — the view goes there.
     struct PageAction {
-        enum class Kind : std::uint8_t { focus, activate };
+        enum class Kind : std::uint8_t { focus, activate, scroll };
         Kind        kind = Kind::activate;
         std::string node;
+        int         x = 0, y = 0;  // scroll: the offset
     };
     void synthesize(std::span<const PageAction> actions);
 

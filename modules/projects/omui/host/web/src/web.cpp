@@ -110,6 +110,7 @@ struct Web::Impl {
         page::Request::Kind                    kind = page::Request::Kind::agent;
         std::string                            text;
         std::function<void(std::string_view)> reply;  // agent: where its records go
+        int                                    x = 0, y = 0;  // scroll: the offset
     };
     std::vector<page::Request>               requests;   // this step's, from the page
     std::vector<Asked>                       asked;      // synthesized and request()ed, for the next step
@@ -195,7 +196,7 @@ struct Web::Impl {
     }
 
     // A request of the page's, or one synthesized: served before the frame.
-    void serve(page::Request::Kind kind, const std::string& text, const std::function<void(std::string_view)>& reply) {
+    void serve(page::Request::Kind kind, const std::string& text, const std::function<void(std::string_view)>& reply, int x = 0, int y = 0) {
         mlibs::trace::Span span("request", "host");
         if (kind == page::Request::Kind::link) {  // the agent link's state, as the page says it
             auto v = parse_json(text);
@@ -218,6 +219,15 @@ struct Web::Impl {
         if (!runtime->valid(n)) return;
         if (kind == page::Request::Kind::focus) {
             runtime->focus_visibly(n);  // where assistive technology or the skip link moved it: seen
+            return;
+        }
+        if (kind == page::Request::Kind::scroll) {
+            // The page's element was scrolled (the browser's find brought a match into view, an anchor was followed):
+            // the view is there at once — a property, not the glide `scroll_to` takes; the view keeps it within its
+            // content when it is laid out.
+            if (runtime->semantic_node(n).role != Role::scroll_view) return;
+            runtime->set(n, "x", Value(static_cast<double>(x)));
+            runtime->set(n, "y", Value(static_cast<double>(y)));
             return;
         }
         // Activated by assistive technology: as the person's press of its middle.
@@ -447,8 +457,8 @@ struct Web::Impl {
         pending.clear();
         // What the hidden DOM and window.omui asked, between frames.
         const bool asked_any = !requests.empty() || !asked.empty();
-        for (const page::Request& r : requests) serve(r.kind, r.text, [](std::string_view line) { page::agent_reply(line); });
-        for (const Asked& a : std::exchange(asked, {})) serve(a.kind, a.text, a.reply);
+        for (const page::Request& r : requests) serve(r.kind, r.text, [](std::string_view line) { page::agent_reply(line); }, r.x, r.y);
+        for (const Asked& a : std::exchange(asked, {})) serve(a.kind, a.text, a.reply, a.x, a.y);
         const auto agent_begin = events.size();
         std::optional<agent::AgentInput> given;
         if (protocol) {
@@ -613,7 +623,10 @@ void Web::synthesize(std::span<const InputEvent> events) { impl_->pending.insert
 
 void Web::synthesize(std::span<const PageAction> actions) {
     for (const PageAction& a : actions)
-        impl_->asked.push_back({a.kind == PageAction::Kind::focus ? page::Request::Kind::focus : page::Request::Kind::activate, a.node, {}});
+        impl_->asked.push_back({a.kind == PageAction::Kind::focus    ? page::Request::Kind::focus
+                                : a.kind == PageAction::Kind::scroll ? page::Request::Kind::scroll
+                                                                     : page::Request::Kind::activate,
+                                a.node, {}, a.x, a.y});
 }
 
 void Web::request(std::string_view line, std::function<void(std::string_view)> reply) {

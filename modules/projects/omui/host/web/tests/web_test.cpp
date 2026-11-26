@@ -305,6 +305,63 @@ UTest cases{"host.web", [] {
         expect(eq(page.saved, 1));
     };
 
+    "a view that scrolls scrolls on the page too: to the same place, and where the page scrolled it the view goes"_test = [] {
+        Web w({.size = {200, 160}, .fonts = &fonts()});
+        std::vector<Element> rows;
+        for (int row = 0; row < 12; ++row) rows.push_back(box({.id = std::format("row{}", row), .width = 200, .height = 40, .label = std::format("Row {}", row)}));
+        w.mount("main", column({}, {scroll({.id = "list", .width = 200, .height = 160}, {column({.id = "rows"}, std::move(rows))})}));
+        (void)w.step();
+        DomMirror mirror(w.runtime());
+        auto first = mirror.sync();
+        expect(first.has_value());
+        if (!first) return;
+        const Value* list = node_of(*first, "main/list");
+        expect(list && list->get("scroll")) << first->json();
+        if (!(list && list->get("scroll"))) return;
+        expect(list->get("scroll")->json() == "[0,0,0,320]") << list->get("scroll")->json();
+        const Value* row = node_of(*first, "main/list/rows/row5");
+        expect(row && row->get("box"));
+        if (!(row && row->get("box"))) return;
+        expect(row->get("box")->json() == "[0,200,200,40]") << "a place in what scrolls: " << row->get("box")->json();
+
+        // The page scrolled the element (the browser's find brought a match into view): the view is there, at once.
+        std::array<Web::PageAction, 1> found{{{Web::PageAction::Kind::scroll, "main/list", 0, 170}}};
+        w.synthesize(found);
+        (void)w.step();
+        expect(w.runtime().scroll_offset(w.runtime().find("main/list")).value_or(Point{}).y == 170.0f);
+        auto then = mirror.sync();
+        expect(then.has_value());
+        if (!then) return;
+        expect(node_of(*then, "main/list")->get("scroll")->json() == "[0,170,0,320]") << then->json();
+        for (const Value& n : *then->get("nodes")->list()) expect(!n.get("box")) << "what scrolls stays where it is in it: " << n.json();
+
+        // The view glides (its scroll_to): the page's element follows it frame by frame, and nothing else is said.
+        expect(eq(w.runtime().act(w.runtime().find("main/list"), "scroll_to", {Value{}.set("x", 0).set("y", 40)}).exit_code().value_or(-1), 0));
+        std::vector<std::string> said;
+        for (int turn = 0; turn < 400 && (said.empty() || said.back() != "[0,40,0,320]"); ++turn) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));  // the host's frames are the clock's
+            (void)w.step();
+            auto batch = mirror.sync();
+            if (!batch || !batch->get("nodes")) continue;
+            for (const Value& n : *batch->get("nodes")->list()) {
+                expect(!n.get("box")) << n.json();
+                if (n.get("scroll")) said.push_back(n.get("scroll")->json());
+            }
+        }
+        expect(!said.empty());
+        if (!(!said.empty())) return;
+        expect(said.back() == "[0,40,0,320]") << said.back();
+
+        // Past its end the view does not go: the page is told where it is.
+        std::array<Web::PageAction, 1> far{{{Web::PageAction::Kind::scroll, "main/list", 0, 900}}};
+        w.synthesize(far);
+        (void)w.step();
+        auto clamped = mirror.sync();
+        expect(clamped && node_of(*clamped, "main/list"));
+        if (!(clamped && node_of(*clamped, "main/list"))) return;
+        expect(node_of(*clamped, "main/list")->get("scroll")->json() == "[0,320,0,320]") << clamped->json();
+    };
+
     "the skip link: past the navigation to the main landmark's first focusable node"_test = [] {
         Runtime rt(page_options());
         Signal<bool> open{false};

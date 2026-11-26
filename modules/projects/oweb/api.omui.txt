@@ -64,6 +64,7 @@ namespace oweb {
     std::vector<Section> sections;
     std::vector<std::string> problems;
     std::vector<std::string> faces;
+    std::set<char32_t> characters;
   };
   struct Hit {
     Section section;

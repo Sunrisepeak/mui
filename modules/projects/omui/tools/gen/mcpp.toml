@@ -28,6 +28,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 mlibs.utils = { path = "../../../../base/utils" }
+mlibs.text.subset = { path = "../../../../content/text/subset" }  # the faces a page delivers, cut to what it shows (the packer)
 omui.lang.ts = { path = "../../lang/ts" }
 mlibs.ts = { path = "../../../../base/ts" }  # closure: a script's imports, read without running it (B7b)
 mlibs.json = { path = "../../../../base/json" }

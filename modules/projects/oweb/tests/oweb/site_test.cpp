@@ -135,7 +135,10 @@ static UTest cases{"oweb.site", [] {
         expect(home.contains("@media (prefers-color-scheme:dark){[data-omui-look]{--o0:")) << "light and dark, one look";
         // The faces: the site's own files, from wherever a page is served.
         expect(home.contains("src:url('assets/omui-inter.ttf')") && deep.contains("src:url('../../assets/omui-inter.ttf')")) << "a face's address from each page";
-        expect(std::filesystem::file_size(out / "assets/omui-inter.ttf") > 100'000u) << "the face's file";
+        // Cut to what the site shows: a fraction of the whole faces (Inter 876,576 B, Noto Sans SC 4,151,468 B).
+        const auto inter = std::filesystem::file_size(out / "assets/omui-inter.ttf"), han = std::filesystem::file_size(out / "assets/omui-notosanssc.ttf");
+        expect(inter > 20'000u && inter < 500'000u && han > 2'000u && han < 400'000u) << "the faces' files: " << inter << " and " << han;
+        std::println("    a site's faces cut to what it shows: Inter {} B, Noto Sans SC {} B", inter, han);
         expect(std::ranges::any_of(built->delivery.files, [](const auto& file) { return file.path == "assets/omui-inter.ttf"; })) << "counted in the delivery";
         expect(!home.contains("<script")) << "the page reads with no script";
         // The same document as the page without a look: its HTML read back is the same.

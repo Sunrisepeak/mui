@@ -16,7 +16,7 @@ TrueType subsets retain original glyph ids, metrics and layout tables; their Uni
 
 Before hashing each delivered TrueType face, the packer removes its stored
 PostScript glyph names using `compact_font_post` from
-`openmui.gen.font_subset`. It keeps the other `post` header fields, every
+[`mlibs.text.subset`](../../../../content/text/subset). It keeps the other `post` header fields, every
 unrelated table payload and physical table order; it recalculates the SFNT
 checksums. Source fonts and licences are unchanged. Already-post-3 and
 missing-post inputs are byte-identical; invalid directory/checksum/post data,

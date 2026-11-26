@@ -1,9 +1,9 @@
 // A TrueType font cut down to the glyphs its kept characters reach.
-module omui.gen.font_subset;
+module mlibs.text.subset;
 
 import std;
 
-namespace omui::gen {
+namespace mlibs::text::subset {
 
 namespace {
 
@@ -677,4 +677,4 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
     return out;
 }
 
-}  // namespace omui::gen
+}  // namespace mlibs::text::subset

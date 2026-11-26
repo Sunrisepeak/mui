@@ -1,18 +1,17 @@
-// omui-gen's font subset: the page's Chinese font cut down to the characters
+// mlibs.text.subset: the page's Chinese font cut down to the characters
 // a program draws, its glyph ids kept — smaller by far, whole as a file
 // (its checksum), the same cut again the same bytes, and a character more a
 // glyph more.
 import std;
-import omui.gen.font_subset;
+import mlibs.text.subset;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mlibs.text;
 import mlibs.text.harfbuzz;
-import mrender.text;
 
 using namespace mlibs::testing;
 using namespace mcpplibs::mtest;
-using namespace omui;
+namespace subset = mlibs::text::subset;
 
 namespace {
 
@@ -102,17 +101,17 @@ std::filesystem::path repository() {
 
 }  // namespace
 
-static UTest cases{"gen.font_subset", [] {
+static UTest cases{"text.subset", [] {
     const auto root = repository();
     const auto font = read(root / "modules/content/text/fonts/han/NotoSansSC.ttf");
 
     "Noto Sans SC cut to two characters and the punctuation: a fraction of it, whole, the same cut the same bytes"_test = [&] {
         expect(font.size() > 1000000) << "the font is there";
         std::set<char32_t> keep;
-        gen::always_kept(keep);
-        gen::characters_of("中文", keep);
-        gen::FontSubsetReport r;
-        auto cut = gen::subset_font(font, keep, &r);
+        subset::always_kept(keep);
+        subset::characters_of("中文", keep);
+        subset::FontSubsetReport r;
+        auto cut = subset::subset_font(font, keep, &r);
         expect(cut.has_value()) << (cut ? "" : cut.error());
         if (!cut) return;
         expect(r.kept > 2 && r.kept < 1500) << std::format("{} of {} glyphs kept", r.kept, r.glyphs);
@@ -122,23 +121,23 @@ static UTest cases{"gen.font_subset", [] {
             std::ofstream out(scratch_dir("font-subset") / "NotoSansSC.cut.ttf", std::ios::binary);  // to look at (fontTools, a font viewer)
             out.write(reinterpret_cast<const char*>(cut->data()), static_cast<std::streamsize>(cut->size()));
         }
-        auto again = gen::subset_font(*cut, keep);
+        auto again = subset::subset_font(*cut, keep);
         expect(again.has_value() && *again == *cut) << "cut again: the same bytes";
         // A character more: its glyph more.
         std::set<char32_t> more = keep;
         more.insert(U'龙');
-        auto bigger = gen::subset_font(font, more);
+        auto bigger = subset::subset_font(font, more);
         expect(bigger.has_value() && bigger->size() > cut->size()) << "龙 adds its outline";
     };
 
     "the characters of text: UTF-8 read, malformed bytes passed over"_test = [] {
         std::set<char32_t> got;
-        gen::characters_of("a中\xff文\xe4", got);
+        subset::characters_of("a中\xff文\xe4", got);
         expect(got == std::set<char32_t>{U'a', U'中', U'文'});
     };
 
     "initial coverage: HarfBuzz sees only the two characters; the later face supplies the rest"_test = [&] {
-        auto cut = gen::subset_font(font, {U'中', U'文'});
+        auto cut = subset::subset_font(font, {U'中', U'文'});
         expect(cut.has_value()) << (cut ? "" : cut.error());
         if (!cut) return;
         mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
@@ -154,13 +153,13 @@ static UTest cases{"gen.font_subset", [] {
         const auto a = fonts.metrics(fonts.font(*initial, 500, mlibs::text::Slant::normal), 14);
         const auto b = fonts.metrics(fonts.font(*full, 500, mlibs::text::Slant::normal), 14);
         expect(a.ascent == b.ascent && a.descent == b.descent) << "the same face keeps its metrics";
-        auto twice = gen::subset_font(*cut, {U'中', U'文'});
+        auto twice = subset::subset_font(*cut, {U'中', U'文'});
         expect(twice && *twice == *cut) << "coverage and bytes are stable on a second cut";
     };
 
     "a later full Inter face completes its explicit family before another family's fallback"_test = [&] {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
-        auto sparse = gen::subset_font(inter, {U'A', U' '});
+        auto sparse = subset::subset_font(inter, {U'A', U' '});
         expect(sparse.has_value()) << (sparse ? "" : sparse.error()); if (!sparse) return;
         mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
         const auto small = fonts.add_data(*sparse);
@@ -195,16 +194,15 @@ static UTest cases{"gen.font_subset", [] {
     };
 
 
-    "initial Inter preserves default substitutions, positions and raster pixels at both UI weights"_test = [&] {
+    "initial Inter preserves default substitutions and positions at both UI weights (its pixels: omui.gen's font_delivery_test, where a renderer is)"_test = [&] {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
         std::set<char32_t> keep;
         const std::array<std::string, 9> samples{"Office", "Notification", "configuration", "One interface.", "Every perspective.", ":-)", "UI (CPU)", "A-B", "2x3"};
-        for (const auto& sample : samples) gen::characters_of(sample, keep);
-        auto cut = gen::subset_font(inter, keep);
+        for (const auto& sample : samples) subset::characters_of(sample, keep);
+        auto cut = subset::subset_font(inter, keep);
         expect(cut.has_value()) << (cut ? "" : cut.error()); if (!cut) return;
         mlibs::text::FontCollection full{mlibs::text::harfbuzz::shaper()}, small{mlibs::text::harfbuzz::shaper()};
         expect(full.add_data(inter).has_value() && small.add_data(*cut).has_value());
-        mrender::text::GlyphCache full_cache(full), small_cache(small);
         bool saw_substitution = false;
         for (const float weight : {400.0f, 600.0f}) for (const auto& sample : samples) {
             mlibs::text::ParagraphStyle style; style.style.size = 28; style.style.weight = weight;
@@ -221,13 +219,6 @@ static UTest cases{"gen.font_subset", [] {
                     for (std::size_t i = 0; i < ar[run].glyphs.size(); ++i) {
                         const auto& ag = ar[run].glyphs[i]; const auto& bg = br[run].glyphs[i];
                         expect(ag.id == bg.id && ag.position.x == bg.position.x && ag.position.y == bg.position.y) << std::format("{} at weight {} retains shaping", sample, weight);
-                        const auto am = full_cache.mask(mrender::text::font(ar[run].font), ag.id, ar[run].size, {});
-                        const auto bm = small_cache.mask(mrender::text::font(br[run].font), bg.id, br[run].size, {});
-                        expect(bool(am.coverage) == bool(bm.coverage));
-                        if (am.coverage && bm.coverage) {
-                            const auto ab = am.coverage->bounds, bb = bm.coverage->bounds;
-                            expect(ab.x == bb.x && ab.y == bb.y && ab.width == bb.width && ab.height == bb.height && am.coverage->values == bm.coverage->values) << std::format("{} at weight {} retains actual glyph pixels", sample, weight);
-                        }
                     }
                 }
             }
@@ -243,7 +234,7 @@ static UTest cases{"gen.font_subset", [] {
             }
         }
         expect(saw_substitution) << "the fixture exercises a real default calt glyph, not only cmap glyphs";
-        auto twice = gen::subset_font(*cut, keep);
+        auto twice = subset::subset_font(*cut, keep);
         expect(twice && *twice == *cut) << "substitution/composite closure is byte stable";
     };
 
@@ -275,8 +266,8 @@ static UTest cases{"gen.font_subset", [] {
         // Reverse lookup order so one forward scan cannot happen to pass.
         std::ranges::reverse(lookups);
         const auto source = with_gsub(inter, gsub_table(lookups));
-        gen::FontSubsetReport report;
-        const auto cut = gen::subset_font(source, {U'A'}, &report);
+        subset::FontSubsetReport report;
+        const auto cut = subset::subset_font(source, {U'A'}, &report);
         expect(cut.has_value()) << (cut ? "" : cut.error()); if (!cut) return;
         for (auto id : {a, b, c, d, e, f, g, h, i, k, accented, component}) {
             auto expected = outline(inter, id), actual = outline(*cut, id);
@@ -287,7 +278,7 @@ static UTest cases{"gen.font_subset", [] {
         }
         expect(outline(*cut, y).empty() && outline(*cut, z).empty()) << "a ligature needs every input, and unrelated glyphs stay empty";
         expect(report.kept < 30) << "conservative lookup scanning is still a small subset";
-        const auto twice = gen::subset_font(*cut, {U'A'});
+        const auto twice = subset::subset_font(*cut, {U'A'});
         expect(twice && *twice == *cut) << "fixed-point closure is byte stable";
     };
 
@@ -297,7 +288,7 @@ static UTest cases{"gen.font_subset", [] {
         const auto a = glyph_id(fonts, "A"), b = glyph_id(fonts, "B");
         const auto valid = gsub_table({{1, words({2, 8, 1, b, 1, 1, a})}});
         for (std::size_t size = 0; size < valid.size(); ++size) {
-            const auto result = gen::subset_font(with_gsub(inter, std::span(valid).first(size)), {U'A'});
+            const auto result = subset::subset_font(with_gsub(inter, std::span(valid).first(size)), {U'A'});
             expect(!result && result.error().starts_with("GSUB:")) << std::format("truncated GSUB of {} bytes is rejected", size);
         }
         for (const auto& bad : {
@@ -311,7 +302,7 @@ static UTest cases{"gen.font_subset", [] {
             gsub_table({{5, words({4, 0})}}),
             gsub_table({{6, words({4, 0})}}),
         }) {
-            const auto result = gen::subset_font(with_gsub(inter, bad), {U'A'});
+            const auto result = subset::subset_font(with_gsub(inter, bad), {U'A'});
             expect(!result && result.error().starts_with("GSUB:")) << "unsupported formats and invalid offsets/glyphs must fail explicitly";
         }
     };

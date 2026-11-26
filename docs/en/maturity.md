@@ -20,7 +20,7 @@ A capability below its package's label is marked in its project's feature table 
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 32 | 6 | 0 |
+| mlibs | 33 | 6 | 0 |
 | examples | 12 | 0 | 0 |
 | build plugins (mcpp) | 1 | 0 | 0 |
 | oweb | 0 | 1 | 0 |
@@ -191,6 +191,7 @@ A capability below its package's label is marked in its project's feature table 
 | `mlibs.markdown` | [modules/content/markdown](../../modules/content/markdown) | stable |
 | `mlibs.text` | [modules/content/text](../../modules/content/text) | stable |
 | `mlibs.text.harfbuzz` | [modules/content/text/harfbuzz](../../modules/content/text/harfbuzz) | stable |
+| `mlibs.text.subset` | [modules/content/text/subset](../../modules/content/text/subset) | stable |
 | `mlibs.text.fonts` | [modules/content/text/fonts](../../modules/content/text/fonts) | stable |
 | `mlibs.text.fonts.han` | [modules/content/text/fonts/han](../../modules/content/text/fonts/han) | stable |
 | `mlibs.text.fonts.arabic` | [modules/content/text/fonts/arabic](../../modules/content/text/fonts/arabic) | stable |

@@ -5,13 +5,15 @@ import mcpplibs.cmdline;
 import mlibs.hash;
 import nlohmann.json;
 import omui.lang.ts;
-import omui.gen.font_subset;
+import mlibs.text.subset;
 
 namespace omui::gen {
 
 namespace {
 
 namespace fs = std::filesystem;
+using mlibs::text::subset::always_kept, mlibs::text::subset::characters_of, mlibs::text::subset::compact_font_post, mlibs::text::subset::font_blocks,
+    mlibs::text::subset::FontDeliveryReport, mlibs::text::subset::FontSubsetReport, mlibs::text::subset::subset_font;
 
 std::string utf8(const fs::path& p) {
     const std::u8string u = p.generic_u8string();

@@ -1,4 +1,4 @@
-// openmui.gen.font_subset — a font cut down to the characters a program
+// mlibs.text.subset — a font cut down to the characters a program
 // draws (performance tiers §7: the page's Chinese font, 2.7 MB of the first
 // frame's 7.7). Glyph ids are kept — what no kept character reaches is
 // emptied (its outline in `glyf`, its variations in `gvar`), not removed —
@@ -6,11 +6,11 @@
 // cmap contains only requested characters, allowing other fonts to provide
 // the rest. TrueType outlines (`glyf`, `loca`; variable fonts' `gvar`);
 // a composite glyph keeps its components.
-export module omui.gen.font_subset;
+export module mlibs.text.subset;
 
 import std;
 
-export namespace omui::gen {
+export namespace mlibs::text::subset {
 
 struct FontSubsetReport {
     std::size_t glyphs = 0, kept = 0;
@@ -47,4 +47,4 @@ void characters_of(std::string_view text, std::set<char32_t>& into);
 // punctuation, CJK punctuation and the full-width forms.
 void always_kept(std::set<char32_t>& into);
 
-}  // namespace omui::gen
+}  // namespace mlibs::text::subset

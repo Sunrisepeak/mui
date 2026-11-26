@@ -4,7 +4,7 @@
 // beside it of every file's size; what is not a Toy package is refused.
 import std;
 import omui.gen.dist_toy;
-import omui.gen.font_subset;
+import mlibs.text.subset;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mlibs.text;
@@ -366,7 +366,7 @@ static UTest cases{"gen.dist_toy", [] {
     "another language's face says the blocks it covers: Han, not emoji — fetched only for a character it could draw"_test = [] {
         std::ifstream in(*mlibs::text::FontCollection::default_file("NotoSansSC.ttf"), std::ios::binary);
         const std::string bytes{std::istreambuf_iterator<char>(in), {}};
-        const auto blocks = gen::font_blocks(std::span(reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()));
+        const auto blocks = mlibs::text::subset::font_blocks(std::span(reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()));
         expect(blocks.has_value()) << (blocks ? "" : blocks.error());
         if (!blocks) return;
         const auto covers = [&](char32_t cp) { return std::ranges::any_of(*blocks, [&](const auto& r) { return (cp >> 8) >= r.first && (cp >> 8) <= r.second; }); };

@@ -8,6 +8,7 @@ import mlibs.markdown;
 import omui.core;
 import omui.view;
 import omui.semantic;
+import mlibs.text.subset;
 import omui.host.headless;
 import omui.ui.base;
 import omui.ui.markdown;
@@ -426,6 +427,8 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         semantic::Look light = read(false);
         look = semantic::by_schemes(std::move(light), read(true));
         host.runtime().set_dark_preferred(preferred);
+        // What it shows, for the site's faces to be cut to.
+        for (const Node& node : written.nodes) mlibs::text::subset::characters_of(node.name, page.characters);
         // The faces the frame set its text in: the site's own files, from wherever this page is served.
         const std::string top = lost ? std::string() : relative(route.path, "/");
         for (const semantic::Look::Font& font : look.fonts) {
@@ -739,13 +742,25 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
         for (const Page& page : pages)
             for (const std::string& family : page.faces)
                 if (!std::ranges::contains(families, family)) families.push_back(family);
+        // Each cut to what the site shows: every character of its pages, and the letters, digits and marks of ASCII
+        // (what a view draws beside its text: a list's numbers). A character a face is cut of is another face's, or
+        // the reader's own fonts'.
+        std::set<char32_t> shown = lost->characters;
+        for (const Page& page : pages) shown.insert(page.characters.begin(), page.characters.end());
+        for (char32_t character = 0x20; character < 0x7F; ++character) shown.insert(character);
         mlibs::text::FontCollection fonts;
         if (auto loaded = fonts.add_defaults(); !loaded) return std::unexpected(std::format("the faces of the site's look: {}", loaded.error()));
         for (const std::string& family : families) {
             const auto face = fonts.find_family(family);
             if (!face) return std::unexpected(std::format("the face `{}` a page is set in is not among the fonts here", family));
-            const std::span<const std::uint8_t> bytes = fonts.face_data(*face);
-            if (auto written = write(std::format("assets/{}.ttf", omui::semantic::font_key(family)), std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())); !written)
+            const std::span<const std::uint8_t> whole = fonts.face_data(*face);
+            // A face the cut cannot read (outlines that are not TrueType's) goes whole: the manifest says its bytes.
+            std::vector<std::uint8_t> sent(whole.begin(), whole.end());
+            if (auto cut = mlibs::text::subset::subset_font(whole, shown)) {
+                sent = std::move(*cut);
+                if (auto compact = mlibs::text::subset::compact_font_post(sent)) sent = std::move(*compact);
+            }
+            if (auto written = write(std::format("assets/{}.ttf", omui::semantic::font_key(family)), std::string_view(reinterpret_cast<const char*>(sent.data()), sent.size())); !written)
                 return std::unexpected(written.error());
         }
     }

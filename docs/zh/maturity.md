@@ -20,7 +20,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 32 | 6 | 0 |
+| mlibs | 33 | 6 | 0 |
 | 例子 | 12 | 0 | 0 |
 | 构建插件（mcpp） | 1 | 0 | 0 |
 | oweb | 0 | 1 | 0 |
@@ -191,6 +191,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `mlibs.markdown` | [modules/content/markdown](../../modules/content/markdown) | 稳定 |
 | `mlibs.text` | [modules/content/text](../../modules/content/text) | 稳定 |
 | `mlibs.text.harfbuzz` | [modules/content/text/harfbuzz](../../modules/content/text/harfbuzz) | 稳定 |
+| `mlibs.text.subset` | [modules/content/text/subset](../../modules/content/text/subset) | 稳定 |
 | `mlibs.text.fonts` | [modules/content/text/fonts](../../modules/content/text/fonts) | 稳定 |
 | `mlibs.text.fonts.han` | [modules/content/text/fonts/han](../../modules/content/text/fonts/han) | 稳定 |
 | `mlibs.text.fonts.arabic` | [modules/content/text/fonts/arabic](../../modules/content/text/fonts/arabic) | 稳定 |

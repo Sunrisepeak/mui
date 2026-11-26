@@ -91,7 +91,7 @@ struct ToyPackage {
     // A font cut down to the characters these files hold (text: .md, .cpp,
     // .cppm, .toml, .json, .txt, .js — a directory's, recursively), with its
     // `<stem>.common.txt` beside it (characters people type) and the
-    // punctuation and Latin every page has (font_subset.cppm).
+    // punctuation and Latin every page has (mlibs.text.subset).
     struct Subset {
         std::string                        font;  // a stem of `fonts`
         std::vector<std::filesystem::path> text;

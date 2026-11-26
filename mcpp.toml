@@ -85,6 +85,7 @@ members = [
     "modules/content/markdown",
     "modules/content/text",
     "modules/content/text/harfbuzz",
+    "modules/content/text/subset",
     "modules/content/text/fonts",
     "modules/content/text/fonts/han",
     "modules/content/text/fonts/arabic",

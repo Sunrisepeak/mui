@@ -22,8 +22,8 @@ agent = "subject"  # the picture in cells (terminal.ops.xdef.ts), beside the int
 # How omui::run shows an application in a terminal (--terminal): its own slot and its own provider (no dependency to
 # keep apart); omui.sdk installs it by its feature `terminal`, so a window's program carries none of it.
 [package.metadata.openmui.compose]
-slots = ["omui.host.terminal.show"]
-provides = ["omui.host.terminal.show"]
+slots = ["omui.host.terminal.show", "omui.host.terminal.agent"]     # how omui::run shows it; its agent face
+provides = ["omui.host.terminal.show", "omui.host.terminal.agent"]
 
 [targets.openmui-host-terminal]
 kind = "lib"

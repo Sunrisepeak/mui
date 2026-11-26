@@ -195,6 +195,7 @@ UTest cases{"terminal", [] {
 
     "an agent operates it through the endpoint as it does a window: the interface's actions, and the picture's text"_test = [] {
         omui::agent::install();  // this program makes its own host: it is its root (K6)
+        omui::terminal::install_agent();  // and the terminal's agent face, as omui::run's terminal has it
         const auto dir = scratch_dir("terminal-endpoint");
         Counter counter;
         Terminal t({.columns = 30, .rows = 6, .app = "counter-terminal", .endpoint_directory = dir});

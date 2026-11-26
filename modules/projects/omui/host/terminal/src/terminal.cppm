@@ -103,7 +103,23 @@ inline constexpr mlibs::compose::Slot<ShowService> show_slot{
      .summary = "an application shown in this program's terminal, in character cells (omui::run's --terminal)",
      .absent = "build with omui.sdk's feature `terminal` (omui.sdk = { …, features = [\"terminal\"] }), or call omui::terminal::install() before omui::run"}};
 
-// Installs the terminal at `show_slot` in the process's composition: a program's root calls it.
+// The terminal's agent face: its picture as a subject (below) and the endpoint wired to its cells, made by a
+// terminal where the program installed the agent surface (omui::agent::install_endpoint) — a slot this package owns
+// and provides at, so a terminal's program that serves no agent carries neither (nor the JSON the subject answers in).
+struct AgentService {
+    void (*attach)(Terminal& host, Terminal::Impl& impl, const agent::EndpointService& surface) = nullptr;
+};
+
+inline constexpr mlibs::compose::Slot<AgentService> agent_slot{
+    {.id = "omui.host.terminal.agent",
+     .summary = "a terminal's agent face: its picture as a subject, its endpoint wired to its cells",
+     .absent = "call omui::terminal::install_agent() at the program's root beside omui::agent::install_endpoint() (omui.sdk's feature "
+               "`terminal` installs it with the terminal)"}};
+
+// Installs the agent face at `agent_slot`: a program's root calls it.
+void install_agent();
+
+// Installs the terminal at `show_slot` in the process's composition, and its agent face: a program's root calls it.
 void install();
 
 // The terminal's picture as a subject of the agent kernel (D-173; its catalog: terminal.ops.xdef.ts): the frame as

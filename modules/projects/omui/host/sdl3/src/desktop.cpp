@@ -815,6 +815,9 @@ bool Desktop::step(bool wait) {
         sleep = false;
         timeout.reset();
     }
+    // A device that was ready while input came waits for the next rest (UI9): a wait for an event alone would not
+    // come back to take it, so the loop looks again soon.
+    if (sleep && d.taking_over && d.ready_at) timeout = std::min(timeout.value_or(std::chrono::milliseconds(50)), std::chrono::milliseconds(50));
     // Gamepads once the application takes their input (an idle window polls no devices).
     if (d.runtime->gamepads_wanted()) platform::start_gamepads();
     const bool was_idle = d.idle;

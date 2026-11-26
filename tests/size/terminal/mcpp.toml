@@ -20,9 +20,20 @@ kind = "tool"
 kind = "bin"
 main = "src/main.cpp"
 
-# The system's C++ runtime serves it, as a C++ program on Linux is built (D-221: the runtime libraries may be the
-# system's; terminal design §5's first tier counts on it): libstdc++ is not linked into the program.
-[build]
+# The system's C++ runtime serves it where its budget is measured, as a C++ program on Linux is built (D-221: the
+# runtime libraries may be the system's; terminal design §5's first tier counts on it): libstdc++ is not linked into
+# the program. The contract is stated per target (mcpp's `[target.<triple>] cxx_runtime`, docs/20 "The C++ runtime
+# contract"), not for every one: on macOS mcpp's LLVM compiles against its own libc++'s headers, and the system's
+# libc++ lacks what they declare (`__hash_memory`, `__from_chars_floating_point`, `__atomic_wait_global_table` …;
+# red 161, mcpp#1025 item 4), so there the program keeps mcpp's default (self-contained) as every other member does.
+# Windows keeps the system's runtime as before.
+[target.x86_64-linux-gnu]
+cxx_runtime = "host-coupled"
+
+[target.aarch64-linux-gnu]
+cxx_runtime = "host-coupled"
+
+[target.x86_64-windows-msvc]
 cxx_runtime = "host-coupled"
 
 [dependencies]

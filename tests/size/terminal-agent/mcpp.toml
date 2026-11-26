@@ -23,8 +23,15 @@ root = true
 kind = "bin"
 main = "src/main.cpp"
 
-# The system's C++ runtime serves it, as terminal's (D-221; terminal design §5).
-[build]
+# The system's C++ runtime serves it where its budget is measured, as terminal's (D-221; terminal design §5), stated
+# per target as terminal's is: macOS keeps mcpp's default (red 161, mcpp#1025 item 4).
+[target.x86_64-linux-gnu]
+cxx_runtime = "host-coupled"
+
+[target.aarch64-linux-gnu]
+cxx_runtime = "host-coupled"
+
+[target.x86_64-windows-msvc]
 cxx_runtime = "host-coupled"
 
 [dependencies]

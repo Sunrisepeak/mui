@@ -144,6 +144,7 @@ auto member_lens(const Lens<R>& outer) {
 
 inline Element make(std::string_view type) {
     Element e;
+    register_primitives();  // a type by its name: any primitive (once)
     e.type = find_type(type);
     return e;
 }

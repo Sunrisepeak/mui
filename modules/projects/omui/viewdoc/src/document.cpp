@@ -173,7 +173,12 @@ private:
                 warning(at(pointer, k), "unknown-field", std::format("`{}` is not a field here; it is skipped", k), nearest(k, known));
     }
 
-    const ComponentType* type_named(std::string_view name) const { return o_.types ? o_.types(name) : find_type(name); }
+    // A document names any primitive: they are registered by name before the first is looked up (once).
+    const ComponentType* type_named(std::string_view name) const {
+        if (o_.types) return o_.types(name);
+        register_primitives();
+        return find_type(name);
+    }
 
     // ── the document ──
 
@@ -693,6 +698,7 @@ private:
             if (hint.empty() && lower != n.type && type_named(lower)) hint = std::format("component names are lower case: `{}`", lower);
             if (hint.empty()) {
                 std::vector<std::string> names;
+                register_primitives();
                 for (const ComponentType* t : registered_types()) names.emplace_back(t->name);
                 hint = nearest(n.type, names);
                 if (hint.empty()) hint = "import the package that defines it, and register its components";

@@ -95,10 +95,11 @@ rt.mount("main", omui::column({.padding = 16, .gap = 8}, {
 }));
 ```
 
-The components are one type list, `omui::BaseComponents`. `register_base_components()` registers all of it.
-`register_base_named<"button", "segmented", …>()` registers only the ones named, chosen at compile time, so the
-others are not referred to and a program that registers this way does not carry them. An application's build
-writes that call from its scripts' imports (`omui.build`'s `closure()`, B7b).
+The components are one type list, `omui::BaseComponents`. `register_base_components()` registers all of it, and every
+primitive. `register_base_named<"button", "segmented", "column", …>()` registers only the ones named, of the base
+components and of omui.view's primitives (`register_primitives_named`), chosen at compile time, so the others are not
+referred to and a program that registers this way does not carry them. An application's build writes that call from
+its scripts' imports (`omui.build`'s `closure()`, B7b).
 
 The gallery test pins the pixels of every component in its states: the same
 bytes with GCC and LLVM, on Linux, macOS and Windows.

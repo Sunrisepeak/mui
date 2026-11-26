@@ -148,6 +148,7 @@ Value defs(bool with_document_components) {
                                       closed(object().set("spring", spring).set("delay_ms", typed("number")), {"spring"})})));
 
     Value::List nodes;
+    register_primitives();  // a document's nodes: every primitive, and what the program registered
     for (const ComponentType* t : registered_types()) {
         if (t->name == "root" || (t->create_in && !with_document_components)) continue;
         const std::string def = std::format("component.{}", t->name);

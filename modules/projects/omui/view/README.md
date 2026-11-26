@@ -72,7 +72,14 @@ The retained and immediate view runtime (plan §3–§5):
   performed and answers its outcome (a component's optional `preview` adds
   the value after), changing nothing;
 - **primitives**: box, column, row, stack, grid, spacer, text, image, scroll
-  view, painter, and their builders with designated-initializer options;
+  view, painter, and their builders with designated-initializer options.
+  By name (view documents, scripts, the agent's catalog) they are registered
+  when asked: `register_primitives()` (all, once — omui.viewdoc, `omui::run`,
+  the headless host and the C ABI ask), or `register_primitives_named<"column",
+  "text">()` (only those; `register_base_named` passes its names here). A
+  program that only calls the builders carries the primitives it builds;
+- **models**: named, keyed rows that lists show and scripts and agents push
+  to; a revision signal makes readers follow;
 - **models**: named, keyed rows that lists show and scripts and agents push
   to; a revision signal makes readers follow;
 - **overlays** (menus, dialogs, tooltips, popups): laid out from the root,

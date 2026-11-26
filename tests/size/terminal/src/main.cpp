@@ -7,6 +7,9 @@ import omui.ui.base;
 using namespace omui;
 
 int main() {
+    // By name, only the primitives it builds (CF1, as an application's closure registers what its scripts name): the
+    // others are not carried.
+    register_primitives_named<"column", "row", "text">();
     const Signal<int> count = signal(0);
     Terminal terminal({.app = "omui-size-terminal", .agent = false});
     terminal.mount("main", column({.padding = 16, .gap = 16}, {

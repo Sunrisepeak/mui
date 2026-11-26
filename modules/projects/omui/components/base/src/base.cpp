@@ -6,6 +6,9 @@ import omui.view;
 
 namespace omui {
 
-void register_base_components() { register_components(BaseComponents{}); }
+void register_base_components() {
+    register_components(BaseComponents{});
+    register_primitives();
+}
 
 }  // namespace omui

@@ -40,7 +40,8 @@ addToLibrary({
     assertive: null,
     nodes: null,          // id -> element
     adoptable: null,      // the page's own projection: id -> its element, until the layer takes it
-    fitting: [],          // the lines a batch made, to be fitted to their widths
+    fitting: [],          // the lines a batch made, their words to be fitted to their widths
+    lining: null,         // the line being made: its words are noted on it
     focused: null,        // the mirror's focus
     skip: null,           // the skip link, and the node it goes to
     skipTo: null,
@@ -151,7 +152,8 @@ addToLibrary({
         '[data-omui=mirror] [data-omui-id]{position:absolute;display:block;box-sizing:border-box;overflow:hidden;white-space:pre-wrap}' +
         '[data-omui=mirror] [data-omui-inline]{position:static;display:inline;overflow:visible}' +
         '[data-omui=mirror] pre,[data-omui=mirror] pre code{white-space:pre}' +
-        '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre;transform-origin:0 0}' +
+        '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre}' +
+        '[data-omui=mirror] [data-omui-word]{display:inline-block;vertical-align:top;white-space:pre;transform-origin:0 0}' +
         // Selected, the layer's text stays unseen and the canvas's words show through the highlight.
         '[data-omui=mirror] ::selection{color:transparent;background:color-mix(in srgb,Highlight 40%,transparent)}';
       (document.head || body).appendChild(sheet);
@@ -488,6 +490,7 @@ addToLibrary({
     piece: function (p) {
       var P = omuiPage;
       if (typeof p === 'string') return document.createTextNode(p);
+      if ('t' in p) return P.word(p);
       var el;
       if (p.node) {
         el = P.element(p.node, p.tag);
@@ -511,9 +514,9 @@ addToLibrary({
       el.omuiContent = pieces.map(function (p) { return el.insertBefore(P.piece(p), before); });
     },
 
-    // An element's own text as the canvas draws it, line by line: each line's words in the line's box, so what the
-    // browser finds and what a person selects is where it is seen. A line begins at a size taken from its height
-    // and is fitted to its width with the batch's other lines (fit).
+    // An element's own text as the canvas draws it, line by line: a line is a span at the line's box, and in it each
+    // word ({t, x, w}) is a span as wide as the way to the next word — so what the browser finds and what a person
+    // selects is on the word seen. The words' letters are fitted with the batch's others (fit).
     setLines: function (el, lines) {
       var P = omuiPage;
       el.omuiContent.forEach(function (n) { if (n.parentNode === el) el.removeChild(n); });
@@ -523,33 +526,65 @@ addToLibrary({
         span.setAttribute('data-omui-line', '');
         s.left = b[0] + 'px';
         s.top = b[1] + 'px';
+        s.width = b[2] + 'px';
         s.height = b[3] + 'px';
         s.lineHeight = b[3] + 'px';
         s.fontSize = Math.max(4, b[3] * 0.72) + 'px';
-        span.omuiWidth = b[2];
+        span.omuiWords = [];
+        P.lining = span;
         line.c.map(P.piece).forEach(function (n) { span.appendChild(n); });
-        P.fitting.push(span);
+        P.lining = null;
+        // Each word goes on to where the next begins: the words stay in the line's flow (a selection reads them as
+        // one line of text) and each stands where the canvas draws it.
+        span.omuiWords.forEach(function (w, i, all) {
+          var next = i + 1 < all.length ? all[i + 1].omuiX : w.omuiX + w.omuiWidth;
+          w.style.width = Math.max(0, next - w.omuiX) + 'px';
+          if (i === 0 && w.omuiX) w.style.marginLeft = w.omuiX + 'px';
+        });
+        if (span.omuiWords.length) P.fitting.push(span);
         return el.insertBefore(span, before);
       });
     },
 
-    // The lines a batch made, fitted to the widths the canvas drew them at: measured together, then set together
-    // (one layout of the page, not one a line) — first the size of the letters, so their shapes stay their own,
-    // then what is left by a stretch along the line.
+    // A word of a line: its letters (and the white space after them) at the place the canvas draws them.
+    word: function (p) {
+      var P = omuiPage, span = document.createElement('span');
+      span.setAttribute('data-omui-word', '');
+      span.omuiX = p.x;
+      span.omuiWidth = p.w;
+      span.appendChild(document.createTextNode(p.t));
+      if (P.lining) P.lining.omuiWords.push(span);
+      return span;
+    },
+
+    // The lines a batch made, fitted to what the canvas drew: measured together, then set together (two layouts of
+    // the page for a batch, not two a word). First a line's letters take the size at which its words are as wide as
+    // drawn, taken together — so the letters' shapes stay their own; then each word takes the stretch along the line
+    // that is left to it.
     fit: function () {
       var P = omuiPage, lines = P.fitting;
       if (!lines.length) return;
       P.fitting = [];
-      var measure = function () { return lines.map(function (s) { return s.getBoundingClientRect().width; }); };
+      // A word's letters as wide as the page's font makes them (the word's own box is as wide as the canvas's).
+      var letters = function (w) {
+        if (!document.createRange) return w.getBoundingClientRect().width;
+        var range = document.createRange();
+        range.selectNodeContents(w);
+        return range.getBoundingClientRect().width;
+      };
+      var measure = function () { return lines.map(function (line) { return line.omuiWords.map(letters); }); };
       var wide = measure();
-      lines.forEach(function (s, i) {
-        if (!(wide[i] > 0) || !(s.omuiWidth > 0)) return;
-        s.style.fontSize = Math.min(parseFloat(s.style.fontSize) * s.omuiWidth / wide[i], parseFloat(s.style.height)) + 'px';
+      lines.forEach(function (line, i) {
+        var drawn = 0, natural = 0;
+        line.omuiWords.forEach(function (w, j) { if (wide[i][j] > 0 && w.omuiWidth > 0) { drawn += w.omuiWidth; natural += wide[i][j]; } });
+        if (natural > 0) line.style.fontSize = Math.min(parseFloat(line.style.fontSize) * drawn / natural, parseFloat(line.style.height)) + 'px';
       });
       wide = measure();
-      lines.forEach(function (s, i) {
-        if (!(wide[i] > 0) || !(s.omuiWidth > 0)) return;
-        s.style.transform = Math.abs(wide[i] - s.omuiWidth) > 0.25 ? 'scaleX(' + (s.omuiWidth / wide[i]) + ')' : '';
+      lines.forEach(function (line, i) {
+        line.omuiWords.forEach(function (w, j) {
+          if (!(wide[i][j] > 0) || !(w.omuiWidth > 0)) return;
+          w.style.transform = Math.abs(wide[i][j] - w.omuiWidth) > 0.25 ? 'scaleX(' + (w.omuiWidth / wide[i][j]) + ')' : '';
+        });
       });
     },
 

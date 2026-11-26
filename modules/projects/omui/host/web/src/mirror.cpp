@@ -29,32 +29,65 @@ std::int64_t round(float v) { return static_cast<std::int64_t>(std::lround(v)); 
 // A line's place over the canvas, to a quarter of a pixel.
 double quarter(float v) { return std::round(static_cast<double>(v) * 4.0) / 4.0; }
 
-// The pieces of a text between two of its bytes — a line of it: runs cut there, the line's break left out (the
-// line ends), an element kept with what of it lies between. A child node standing in the text is itself on the
-// first line it is on; where it goes on into the next line an element like it stands there (the same attributes,
-// `data-omui-part` naming the node), since one element is in one place.
-std::vector<semantic::Inline> cut(const std::vector<semantic::Inline>& pieces, std::size_t from, std::size_t to, std::unordered_set<std::string>& stood) {
-    std::vector<semantic::Inline> out;
+// A piece of a line for the page. A run of text is cut into words — each with the white space after it — and each
+// word says where the canvas draws it: `{"t": "word ", "x": left, "w": width}`, from the line's left edge, to a
+// quarter of a pixel. So a word found or selected is on the word seen, whatever font the page has for it.
+void words_of(Value::List& into, std::string_view text, std::size_t from, const TextLineBox& line) {
+    const auto blank = [](char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; };
+    // Where the bytes [begin, end) are drawn: the edges of their graphemes.
+    const auto extent = [&](std::size_t begin, std::size_t end) -> std::optional<std::pair<float, float>> {
+        float left = std::numeric_limits<float>::infinity(), right = -std::numeric_limits<float>::infinity();
+        for (auto stop = std::ranges::lower_bound(line.stops, begin, {}, &TextLineBox::Stop::begin); stop != line.stops.end() && stop->begin < end; ++stop)
+            left = std::min(left, stop->left), right = std::max(right, stop->right);
+        if (!(right >= left)) return std::nullopt;
+        return std::pair{left, right};
+    };
+    for (std::size_t at = 0; at < text.size();) {
+        // A word: what white space it begins with, its letters, the white space after it.
+        std::size_t end = at;
+        while (end < text.size() && blank(text[end])) ++end;
+        while (end < text.size() && !blank(text[end])) ++end;
+        while (end < text.size() && blank(text[end])) ++end;
+        std::string word(text.substr(at, end - at));
+        if (const auto drawn = extent(from + at, from + end))
+            into.push_back(Value{}.set("t", std::move(word)).set("x", Value(quarter(drawn->first - line.bounds.x))).set("w", Value(quarter(drawn->second - drawn->first))));
+        else into.emplace_back(std::move(word));  // drawn nowhere (a line's trailing space): text all the same
+        at = end;
+    }
+}
+
+// The pieces of a text between two of its bytes — a line of it: runs cut there into their words, the line's break
+// left out (the line ends), an element kept with what of it lies between. A child node standing in the text is
+// itself on the first line it is on; where it goes on into the next line an element like it stands there (the same
+// attributes, `data-omui-part` naming the node), since one element is in one place.
+Value::List cut(const std::vector<semantic::Inline>& pieces, const TextLineBox& line, std::unordered_set<std::string>& stood) {
+    Value::List out;
     for (const semantic::Inline& piece : pieces) {
-        if (piece.end <= from || piece.begin >= to || piece.tag == "br") continue;
-        const std::size_t begin = std::max(piece.begin, from), end = std::min(piece.end, to);
+        if (piece.end <= line.begin || piece.begin >= line.end || piece.tag == "br") continue;
+        const std::size_t begin = std::max(piece.begin, line.begin), end = std::min(piece.end, line.end);
         if (piece.tag.empty()) {
-            std::string text = piece.text.substr(begin - piece.begin, end - begin);
-            while (text.ends_with('\n')) text.pop_back();
-            if (!text.empty()) out.push_back({.text = std::move(text), .begin = begin, .end = end});
+            std::string_view text = std::string_view(piece.text).substr(begin - piece.begin, end - begin);
+            while (text.ends_with('\n')) text.remove_suffix(1);
+            words_of(out, text, begin, line);
             continue;
         }
-        semantic::Inline part{.tag = piece.tag, .node = piece.node, .attributes = piece.attributes, .begin = begin, .end = end};
+        Value::List inner;
         if (piece.children.empty()) {
-            if (piece.begin < from) continue;  // what holds nothing (a picture in a line) is on the line it begins on
+            if (piece.begin < line.begin) continue;  // what holds nothing (a picture in a line) is on the line it begins on
         } else {
-            part.children = cut(piece.children, from, to, stood);
-            if (part.children.empty()) continue;
+            inner = cut(piece.children, line, stood);
+            if (inner.empty()) continue;
         }
-        if (!part.node.empty() && !stood.insert(part.node).second) {
-            part.attributes.emplace_back("data-omui-part", part.node);
-            part.node.clear();
+        Value part = Value{}.set("tag", piece.tag);
+        if (!piece.node.empty() && stood.insert(piece.node).second) {
+            part.set("node", piece.node);  // its attributes are its own entry's
+        } else if (!piece.attributes.empty() || !piece.node.empty()) {
+            Value set = Value(Value::Map{});
+            for (const auto& [key, value] : piece.attributes) set.set(key, value);
+            if (!piece.node.empty()) set.set("data-omui-part", piece.node);
+            part.set("set", std::move(set));
         }
+        if (!inner.empty()) part.set("c", Value(std::move(inner)));
         out.push_back(std::move(part));
     }
     return out;
@@ -185,8 +218,7 @@ std::optional<Value> DomMirror::sync() {
             Value::List pieces, lines;
             std::unordered_set<std::string> stood;
             for (const TextLineBox& line : drawn) {
-                Value::List held;
-                for (const semantic::Inline& from : cut(whole, line.begin, line.end, stood)) held.push_back(piece(from));
+                Value::List held = cut(whole, line, stood);
                 if (held.empty()) continue;  // an empty line holds nothing to find
                 lines.push_back(Value{}
                                     .set("box", Value(Value::List{Value(quarter(line.bounds.x - n.bounds->x)), Value(quarter(line.bounds.y - n.bounds->y)),

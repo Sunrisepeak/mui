@@ -26,9 +26,10 @@
 // is `text` where it is one run, `content` where its marks make elements of it: a run is a string, an element
 // `{"tag", "c"}` — `{"tag":"br"}` a line's break — and one with `node` is that child node, standing in the text
 // (`inline`) and not among `children`, with no box of its own. Where the canvas draws the text line by line the
-// element's text is `lines` instead: each `{"box":[x,y,w,h],"c":[pieces]}`, the line's words in the line's box
-// (relative to the element's, to a quarter of a pixel) — so what the browser finds or a person selects is where
-// the canvas shows it. A link that goes on into the next line is itself on its first line and an element like it
+// element's text is `lines` instead: each `{"box":[x,y,w,h],"c":[pieces]}`, the line's box relative to the
+// element's, and in its pieces each word (with the white space after it) where the canvas draws it —
+// `{"t":"word ","x":left,"w":width}` from the line's left edge, to a quarter of a pixel — so what the browser finds
+// or a person selects is on the word the canvas shows. A link that goes on into the next line is itself on its first line and an element like it
 // (`data-omui-part` naming the node) on the next.
 //
 // `skip` is the page's skip link: where the page's main landmark (role

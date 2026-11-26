@@ -369,6 +369,11 @@ namespace omui {
   struct TextLineBox {
     std::size_t begin = 0, end = 0;
     Rect bounds;
+    struct Stop {
+      std::size_t begin = 0, end = 0;
+      float left = 0, right = 0;
+    };
+    std::vector<Stop> stops;
   };
   [[nodiscard]] std::vector<TextLineBox> text_line_boxes(const mlibs::text::Paragraph& paragraph, Point origin);
   struct ActResult {

@@ -36,6 +36,10 @@ void words(const Value& piece, std::string& text, std::unordered_map<std::string
         text += piece.as_string();
         return;
     }
+    if (const Value* word = piece.get("t")) {  // a word of a line, where the canvas draws it
+        text += word->as_string();
+        return;
+    }
     const std::string tag(piece.get("tag")->as_string());
     if (tag == "br") text += '\n';
     if (const Value* node = piece.get("node")) placed.emplace(std::string(node->as_string()), tag);
@@ -119,7 +123,7 @@ static UTest cases{"oweb.layer", [] {
 
     "a drawn text stands line by line where the canvas draws it: each line's words in its box, a link going on into the next line"_test = [] {
         const auto pages = package() / "templates" / "docs" / "pages";
-        std::size_t texts = 0, lines_seen = 0, wrapped = 0, parts = 0, anchors = 0, in_tree = 0;
+        std::size_t texts = 0, lines_seen = 0, words_seen = 0, wrapped = 0, parts = 0, anchors = 0, in_tree = 0;
         for (const auto& entry : std::filesystem::recursive_directory_iterator(pages)) {
             if (!entry.is_regular_file() || entry.path().extension() != ".md") continue;
             const std::string name = entry.path().lexically_relative(pages).generic_string();
@@ -135,7 +139,7 @@ static UTest cases{"oweb.layer", [] {
             std::unordered_map<std::string, const Value*> entries;
             for (const Value& one : *batch->get("nodes")->list()) entries.emplace(std::string(one.get("id")->as_string()), &one);
             const auto count = [&](this auto const& self, const Value& piece) -> void {
-                if (piece.type() == Value::Type::text) return;
+                if (piece.type() == Value::Type::text || piece.get("t")) return;
                 if (piece.get("tag")->as_string() == "a") {
                     if (piece.get("node")) ++anchors;
                     else if (piece.get("set") && piece.get("set")->get("data-omui-part")) ++parts;
@@ -160,11 +164,30 @@ static UTest cases{"oweb.layer", [] {
                 double below = -1;
                 for (const Value& line : *lines->list()) {
                     ++lines_seen;
+                    const auto& box = *line.get("box")->list();
+                    // Its words go along the line, each inside it (a block of code's long line runs on, as drawn).
+                    double along = -1;
+                    const auto placed_words = [&](this auto const& self, const Value& piece) -> void {
+                        if (piece.type() == Value::Type::text) return;
+                        if (piece.get("t")) {
+                            ++words_seen;
+                            const double x = piece.get("x")->as_double(), w = piece.get("w")->as_double();
+                            // The space a line broke at is its last word's and hangs past the line's end (a line's
+                            // width is its words'): a third of the line's height is more than any space.
+                            const double hangs = piece.get("t")->as_string().ends_with(' ') ? box[3].as_double() / 3 : 0;
+                            expect(x >= along - 0.5 && w >= 0 && x >= -0.5 && (node.role == Role::code || x + w <= box[2].as_double() + 0.75 + hangs))
+                                << name << ": " << node.id << " a word off its line: " << piece.json() << " of " << line.get("box")->json();
+                            along = x;
+                            return;
+                        }
+                        if (const Value* inner = piece.get("c"))
+                            for (const Value& child : *inner->list()) self(child);
+                    };
                     for (const Value& piece : *line.get("c")->list()) {
                         words(piece, held, placed);
                         count(piece);
+                        placed_words(piece);
                     }
-                    const auto& box = *line.get("box")->list();
                     // A block of code does not wrap: a long line runs past its box and is cut there, on the canvas and here.
                     const bool unwrapped = node.role == Role::code;
                     expect(box[2].as_double() > 0 && box[3].as_double() > 0 && box[0].as_double() >= -1 && box[1].as_double() >= -1 && node.bounds &&
@@ -181,8 +204,8 @@ static UTest cases{"oweb.layer", [] {
                 expect(held == said) << name << ": " << node.id << " holds \"" << held << "\", the tree \"" << said << "\"";
             }
         }
-        expect(texts > 60u && wrapped > 10u && anchors == in_tree) << texts << " " << wrapped << " " << anchors << " " << in_tree;
-        std::println("    by lines: {} texts in {} lines ({} of more than one line); {} links each one element", texts, lines_seen, wrapped, anchors);
+        expect(texts > 60u && wrapped > 10u && words_seen > 600u && anchors == in_tree) << texts << " " << wrapped << " " << words_seen << " " << anchors << " " << in_tree;
+        std::println("    by lines: {} texts in {} lines ({} of more than one line), {} words each at its place; {} links each one element", texts, lines_seen, wrapped, words_seen, anchors);
 
         // A link too long for its line: the link itself on its first line, an element like it — the same address,
         // naming the node — where it goes on.
@@ -202,8 +225,8 @@ static UTest cases{"oweb.layer", [] {
             expect(lines->list()->size() >= 3u) << "wrapped: " << one.json();
             for (const Value& line : *lines->list())
                 for (const Value& piece : *line.get("c")->list()) {
-                    if (piece.type() == Value::Type::text) {
-                        said += piece.as_string();
+                    if (piece.type() == Value::Type::text || piece.get("t")) {
+                        said += piece.type() == Value::Type::text ? std::string(piece.as_string()) : std::string(piece.get("t")->as_string());
                         continue;
                     }
                     expect(piece.get("tag")->as_string() == "a") << piece.json();
@@ -217,7 +240,7 @@ static UTest cases{"oweb.layer", [] {
                                set->get("data-omui-part")->as_string().ends_with("link0"))
                             << piece.json();
                     }
-                    for (const Value& inner : *piece.get("c")->list()) said += inner.as_string();
+                    for (const Value& inner : *piece.get("c")->list()) said += inner.type() == Value::Type::text ? std::string(inner.as_string()) : std::string(inner.get("t")->as_string());
                 }
         }
         expect(itself == 1u && going_on >= 1u) << itself << " " << going_on;

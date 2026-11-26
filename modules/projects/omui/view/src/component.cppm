@@ -538,6 +538,13 @@ struct TextLayout {
 struct TextLineBox {
     std::size_t begin = 0, end = 0;
     Rect        bounds;
+    // Each grapheme of the line where it is drawn: its bytes and its left and right edges (window coordinates), in
+    // the text's order — how a word of the line is found on the canvas.
+    struct Stop {
+        std::size_t begin = 0, end = 0;
+        float       left = 0, right = 0;
+    };
+    std::vector<Stop> stops;
 };
 // A laid-out paragraph's lines, the paragraph drawn at `origin` (window coordinates).
 [[nodiscard]] std::vector<TextLineBox> text_line_boxes(const mlibs::text::Paragraph& paragraph, Point origin);

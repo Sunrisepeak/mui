@@ -966,8 +966,14 @@ void Runtime::scroll_into_view(NodeId node) {
 std::vector<TextLineBox> text_line_boxes(const mlibs::text::Paragraph& paragraph, Point origin) {
     std::vector<TextLineBox> out;
     out.reserve(paragraph.lines().size());
-    for (const mlibs::text::Line& line : paragraph.lines())
-        out.push_back({line.begin, line.end, {origin.x + line.left, origin.y + line.top, line.width, line.height}});
+    for (const mlibs::text::Line& line : paragraph.lines()) {
+        TextLineBox box{line.begin, line.end, {origin.x + line.left, origin.y + line.top, line.width, line.height}, {}};
+        box.stops.reserve(line.graphemes.size());
+        for (const mlibs::text::GraphemeBox& grapheme : line.graphemes)
+            box.stops.push_back({grapheme.begin, grapheme.end, origin.x + std::min(grapheme.x0, grapheme.x1), origin.x + std::max(grapheme.x0, grapheme.x1)});
+        std::ranges::sort(box.stops, {}, &TextLineBox::Stop::begin);
+        out.push_back(std::move(box));
+    }
     return out;
 }
 

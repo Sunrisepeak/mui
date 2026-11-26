@@ -84,7 +84,8 @@ struct Size {
     std::filesystem::path json;      // the report (default: target/<package>.wasm-size.json)
     std::filesystem::path markdown;  // and as a table, when asked
     std::filesystem::path budget;    // the budgets, when it has them
-    bool native = false;             // this machine's program (the size profile: dist's code, its symbols kept), not the Web's
+    bool native = false;             // this machine's program (its symbols kept), not the Web's: built at each profile the
+                                     // budget's rows name (budget_profiles; `size`, dist's code, where they name none)
 };
 
 [[nodiscard]] int features(const std::filesystem::path& root);
@@ -127,7 +128,15 @@ struct Size {
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.
 [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);
 
-// The measured bytes held to a budget file's {"budgets": [{"metric", "max"}]}: each one over it, as a message.
-[[nodiscard]] std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>& measured, std::string_view budget_text);
+// The measured bytes held to a budget file's {"budgets": [{"metric", "max"}]}: each one over it, as a message. Given
+// a profile, only the rows measured at it are held — a row's own `profile`, or `fallback` where it names none — and
+// the messages say it.
+[[nodiscard]] std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>& measured, std::string_view budget_text,
+                                                   std::string_view profile = {}, std::string_view fallback = {});
+
+// The profiles a budget file's rows are measured at, each once and in the rows' order: a row's `profile`, or
+// `fallback` where it names none (check size --native's is `size`, dist's code; the terminal's tiers say `small`,
+// compiled size-optimised). A file that is not JSON with its budgets: `fallback` alone.
+[[nodiscard]] std::vector<std::string> budget_profiles(std::string_view budget_text, std::string_view fallback);
 
 }  // namespace omui::devtools::check

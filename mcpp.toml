@@ -274,6 +274,16 @@ strip      = false
 ndebug     = true
 trim_paths = true
 
+# A program built for the fewest bytes, looked into (omui-devtools check size --native, for a budget whose rows say
+# `"profile": "small"`): the terminal's two tiers are compiled size-optimised (terminal design §5) — -Oz, NDEBUG, trimmed
+# paths, its symbol table kept for `omui-gen size` as the size profile's is.
+[workspace.profile.small]
+opt        = "z"
+debug      = false
+strip      = false
+ndebug     = true
+trim_paths = true
+
 # The Web's release (omui build --web uses it where it is defined): LLVM -Oz, the
 # smallest code, since a page is downloaded before it runs. Measured on the site
 # (2026-11-21, split by its first screen): before the first frame 1.57 MB to

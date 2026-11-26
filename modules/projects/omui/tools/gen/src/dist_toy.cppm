@@ -4,7 +4,7 @@
 //
 //   omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T]
 //                     [--fonts Inter,NotoSansSC | all] [--fonts-dir <dir>]
-//                     [--graph <mcpp graph file>] [--background #rrggbb] [--no-sdk]
+//                     [--graph <mcpp graph file>] [--background #rrggbb] [--background-dark #rrggbb] [--no-sdk]
 //                     [--later <dir>|<suffix>|</later/mount>]… [--subset <font>=<path>,<path>…]…
 //
 // The package (Toy's rules, from github.com/bilibili/toy at ae156ec — its
@@ -61,6 +61,9 @@ struct ToyPackage {
     std::filesystem::path fonts_dir;      // empty: openmui.text's, found through `graph`
     std::filesystem::path graph;          // mcpp's resolved graph (graph_file()), may be empty
     std::string           background = "#000000";
+    // Behind the canvas where the person prefers a dark appearance (a page whose program follows it: the system
+    // scheme); empty: the same as `background`.
+    std::string           background_dark;
     bool                  sdk = true;     // load the Toy SDK in the page
     // Files fetched once the program is drawn: a directory's files with a
     // suffix, written under `mount` (/later/…) in its file system.

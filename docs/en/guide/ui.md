@@ -88,7 +88,7 @@ omui::View view(const State& s) {
 ## Components and themes
 
 - Components are in [`components`](../../../modules/projects/omui/components): buttons, text boxes, switches, sliders, grids, trees, tabs, a canvas, Markdown … all imported from `openmui`.
-- A theme is data: `omui.theme("dark", "compact")` stacks layers (dark, compact, reduced motion); your own theme is [example 06](../../../examples/06-theming).
+- A theme is data: `omui.theme("dark", "compact")` stacks layers (dark, compact, reduced motion); `omui.theme("system")` is light or dark as the person prefers and turns when the system's setting does (a scheme: two themes by name, your own pair the same way); your own theme is [example 06](../../../examples/06-theming).
 - A style pack (glass, neon, ink, Fluent, Material …) changes the whole look and motion and leaves the semantic tree as it was: the [style gallery](../../../showcase/style-gallery).
 - Your own component begins with its contract; the bindings are generated: [example 04](../../../examples/04-rating).
 

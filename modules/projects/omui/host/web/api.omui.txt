@@ -37,7 +37,7 @@ namespace omui {
     void quit(int code = 0);
     void synthesize(std::span<const InputEvent> events);
     struct PageAction {
-      enum class Kind : std::uint8_t { focus, activate, scroll };
+      enum class Kind : std::uint8_t { focus, activate, scroll, media };
       Kind kind = Kind::activate;
       std::string node;
       int x = 0, y = 0;

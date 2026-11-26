@@ -891,6 +891,7 @@ namespace omui {
     float scale = 1.0f;
     bool reduce_motion = false;
     bool reduce_transparency = false;
+    bool dark_preferred = false;
     bool agent_players = false;
     Stages stages = Stages::paint;
     bool complete_frames = false;
@@ -1170,6 +1171,10 @@ namespace omui {
     [[nodiscard]] std::vector<TextLineBox> text_lines(NodeId node) const;
     [[nodiscard]] std::uint64_t semantic_revision() const noexcept;
     void set_theme(Theme theme);
+    void set_dark_preferred(bool dark);
+    [[nodiscard]] bool dark_preferred() const noexcept;
+    void set_theme_by_preference(std::function<Theme(bool dark)> chosen);
+    [[nodiscard]] bool theme_follows_preference() const noexcept;
     void fonts_changed();
     void want_fonts() noexcept;
     [[nodiscard]] bool take_font_request() noexcept;

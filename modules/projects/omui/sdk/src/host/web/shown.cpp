@@ -19,10 +19,9 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     w.agent_link = o.agent;
     w.agent_input = o.agent_input.value_or(app.agent_input);
     w.size = o.size.value_or(app.size);
-    w.theme = o.dark ? Theme::dark_theme() : app.theme;
-    // The person's settings, as every page reads them.
-    w.reduce_transparency = o.reduce_transparency || page_prefers("(prefers-reduced-transparency: reduce)");
-    w.reduce_motion = page_prefers("(prefers-reduced-motion: reduce)");
+    w.theme = app.theme;  // --dark is already in it (omui::run)
+    // What the options ask for; the person's settings are the host's to read from the page, now and as they change.
+    w.reduce_transparency = o.reduce_transparency;
     // The page's ?renderer= (the person's choice: choose_renderer), else the options, else the application's.
     const std::string asked = page_query("renderer");
     if (asked == "cpu") w.renderer = Renderer::cpu;

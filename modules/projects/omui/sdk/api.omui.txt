@@ -150,6 +150,7 @@ namespace omui {
     std::vector<TaskDesc> tasks;
     void (*components)() = &register_base_components;
     Theme theme = Theme::light();
+    std::optional<Theme> dark_theme;
     std::filesystem::path effects;
     std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;
     std::function<void(Runtime&)> setup;

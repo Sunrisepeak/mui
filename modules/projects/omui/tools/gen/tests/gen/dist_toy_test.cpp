@@ -161,10 +161,22 @@ static UTest cases{"gen.dist_toy", [] {
         expect(page.contains("<meta property=\"og:title\" content=\"&lt;Game&gt;\">")) << "the page's title, once escaped";
         expect(page.contains("<meta property=\"og:image\" content=\"https://example.org/notes/card.png\">") && page.contains("summary_large_image"));
         expect(page.contains("color:#16161a")) << "dark text on a light page";
+        expect(!page.contains("prefers-color-scheme")) << "a page that names no dark colour is the same whatever is preferred";
+        expect(page.contains("@media print{html,body{height:auto!important;overflow:visible!important}[data-omui=static]{position:static;overflow:visible;padding:0}}"))
+            << "printed before the program has it: the document whole";
         expect(page.contains("e.detail.presented") && page.contains("page.hidden = true")) << "it steps aside once the program presents";
         expect(page.find("addEventListener('omui-load'") < page.find("<script defer src=")) << "listening before the loader runs";
         auto twice = gen::adopt_document({.dir = p.out, .static_html = t.root / "first.html"});
         expect(!twice.has_value()) << "a page gets its document once";
+        // A page whose program follows the person's preference: dark behind the canvas from the first paint where dark
+        // is preferred, and its document's text light there.
+        auto night = t.package(); night.sdk = false; night.background = "#fbfbfa"; night.background_dark = "#0b1120"; night.out = t.root / "out" / "night";
+        expect(gen::package_for_toy(night).has_value());
+        expect(gen::adopt_document({.dir = night.out, .static_html = t.root / "first.html"}).has_value());
+        const std::string dusk = read(night.out / "index.html");
+        expect(dusk.contains("<style>@media (prefers-color-scheme:dark){html,body{color-scheme:dark;background:#0b1120}}</style>")) << "dark from the first paint";
+        expect(dusk.contains("color:#16161a") && dusk.contains("<style>@media (prefers-color-scheme:dark){[data-omui=static]{color:#f4f4f6}}</style>"))
+            << "the document's text: dark on the light page, light on the dark one";
         // A projection runs nothing.
         auto q = t.package(); q.sdk = false; q.out = t.root / "out" / "other";
         expect(gen::package_for_toy(q).has_value());

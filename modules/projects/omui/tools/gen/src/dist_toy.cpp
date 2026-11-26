@@ -142,6 +142,9 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
         "#canvas{{display:block;width:100vw;height:100vh;outline:none}}"
         "#status{{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#888;font:14px system-ui,sans-serif;pointer-events:none}}</style>\n",
         escape_html(p.background));
+    // A page whose program follows the person's preference for a dark appearance is dark from its first paint.
+    if (!p.background_dark.empty())
+        html += std::format("<style>@media (prefers-color-scheme:dark){{html,body{{color-scheme:dark;background:{}}}}}</style>\n", escape_html(p.background_dark));
     // Toy's SDK (window.toy): Bilibili's own script, loaded by the page itself (Toy's guide).
     if (p.sdk) html += "<script src=\"//s1.hdslb.com/bfs/seed/toy/app/sdk/toy-sdk.js\"></script>\n";
     html += "</head>\n<body>\n<canvas id=\"canvas\" tabindex=\"0\"></canvas>\n<div id=\"status\">…</div>\n<script>\n";
@@ -883,6 +886,7 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
     if (auto dir = args.value("fonts-dir")) p.fonts_dir = *dir;
     if (auto graph = args.value("graph")) p.graph = *graph;
     if (auto background = args.value("background")) p.background = *background;
+    if (auto dark = args.value("background-dark")) p.background_dark = *dark;
     if (auto fonts = args.value("fonts")) p.fonts = items(*fonts);
     if (args.is_flag_set("no-sdk")) p.sdk = false;
     for (const std::string& value : args.option_or_empty("subset").values) {  // <font>=<path>,<path>…
@@ -996,12 +1000,12 @@ std::expected<ToyReport, std::string> adopt_split(const ToySplit& split) {
 
 namespace {
 
-// Text readable on the page's background (the colour dist-toy's style gives it): light on a dark page, dark on a light one.
-std::string_view text_colour_on(std::string_view html) {
-    constexpr std::string_view key = "overflow:hidden;background:#";
+// Text readable on the page's background (the colour dist-toy's style gives it, after `key`): light on a dark page,
+// dark on a light one; none where the page has no such style.
+std::string_view text_colour_on(std::string_view html, std::string_view key = "overflow:hidden;background:#", std::string_view otherwise = "#16161a") {
     const auto at = html.find(key);
     unsigned rgb = 0;
-    if (at == std::string_view::npos || at + key.size() + 6 > html.size()) return "#16161a";
+    if (at == std::string_view::npos || at + key.size() + 6 > html.size()) return otherwise;
     const char* from = html.data() + at + key.size();
     if (std::from_chars(from, from + 6, rgb, 16).ptr != from + 6) return "#16161a";
     const double luma = (0.2126 * ((rgb >> 16) & 0xff) + 0.7152 * ((rgb >> 8) & 0xff) + 0.0722 * (rgb & 0xff)) / 255.0;
@@ -1066,6 +1070,9 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
                         "@media print{{html,body{{height:auto!important;overflow:visible!important}}"
                         "[data-omui=static]{{position:static;overflow:visible;padding:0}}}}</style>\n",
                         colour);
+    // Where the page is dark for a person who prefers dark, its document's text is readable on that too.
+    if (const std::string_view dark = text_colour_on(html, "(prefers-color-scheme:dark){html,body{color-scheme:dark;background:#", {}); !dark.empty())
+        meta += std::format("<style>@media (prefers-color-scheme:dark){{[data-omui=static]{{color:{}}}}}</style>\n", dark);
     html.insert(head, meta);
     // The document's language: as given, else as the projection's root says it (static_html's `lang`).
     std::string lang = document.lang;

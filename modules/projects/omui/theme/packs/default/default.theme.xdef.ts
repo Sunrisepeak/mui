@@ -1,5 +1,6 @@
 // openmui's default theme: calm slate surfaces and an indigo accent, light
-// and dark, and the reduced-motion overlay every program offers. These are
+// and dark, the scheme that follows the person's preference between them,
+// and the reduced-motion overlay every program offers. These are
 // the runtime's built-in tokens (omui::Theme::light / dark_theme) as data:
 // the package's test holds the two equal.
 
@@ -155,6 +156,13 @@ export default defineTheme({
       "switch_thumb:hovered": { x: 0, y: 2, blur: 5, spread: 0, color: "#000000 / 0.45", ambient: { x: 0, y: 0, blur: 0.5, spread: 0.5, color: "#000000 / 0.3" } },
       "switch_thumb:pressed": { x: 0, y: 0.5, blur: 1.5, spread: 0, color: "#000000 / 0.45", ambient: { x: 0, y: 0, blur: 0.5, spread: 0.5, color: "#000000 / 0.3" } },
     },
+  },
+
+  // Light or dark as the person prefers (the system's setting, a page's prefers-color-scheme), and the other when
+  // that changes: `theme: ["system"]`. An application's own pair is a scheme of its own.
+  system: {
+    doc: "Light or dark, as the person prefers.",
+    scheme: { light: "light", dark: "dark" },
   },
 
   // docs: reduced-motion

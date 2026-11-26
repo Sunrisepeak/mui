@@ -16,8 +16,10 @@ namespace omui::theme {
 
 namespace {
 
-constexpr std::array<std::string_view, 12> theme_keys{"doc",     "dark",   "extends", "overlay", "density", "colors",
-                                                      "text",    "spacing", "radius", "shadows", "motion", "corner_smoothing"};
+constexpr std::array<std::string_view, 13> theme_keys{"doc",     "dark",   "extends", "overlay", "density", "colors",
+                                                      "text",    "spacing", "radius", "shadows", "motion", "corner_smoothing", "scheme"};
+constexpr std::array<std::string_view, 2> scheme_keys{"doc", "scheme"};
+constexpr std::array<std::string_view, 2> scheme_sides{"light", "dark"};
 constexpr std::array<std::string_view, 5> text_keys{"size", "weight", "line_height", "letter_spacing", "families"};
 constexpr std::array<std::string_view, 7> shadow_keys{"x", "y", "blur", "spread", "color", "ambient", "tint"};
 constexpr std::array<std::string_view, 5> shadow_layer_keys{"x", "y", "blur", "spread", "color"};
@@ -319,6 +321,20 @@ std::expected<std::vector<Layer>, Diagnostics> read(std::string_view source, std
             continue;
         }
         if (!snake_case(l.name)) r.error(t, std::format("theme name `{}` is not lower_snake_case", l.name));
+        if (const auto scheme = t["scheme"]) {
+            // A scheme: two themes by name, and nothing of its own.
+            r.only(t, scheme_keys, std::format("a scheme (`{}`: it names two themes and sets nothing itself)", l.name));
+            if (auto s = t["doc"].text()) l.doc = *s;
+            const auto light = scheme["light"].text(), dark = scheme["dark"].text();
+            if (!scheme.map() || !light || !dark || light->empty() || dark->empty())
+                r.error(scheme, std::format("scheme `{}` must name a theme for `light` and one for `dark`", l.name), R"(scheme: { light: "light", dark: "dark" })");
+            else {
+                r.only(scheme, scheme_sides, std::format("a scheme (`{}`)", l.name));
+                l.scheme = Layer::Scheme{std::string(*light), std::string(*dark)};
+            }
+            out.push_back(std::move(l));
+            continue;
+        }
         r.only(t, theme_keys, std::format("a theme (`{}`)", l.name));
         if (auto s = t["doc"].text()) l.doc = *s;
         if (auto s = t["extends"].text()) l.extends = *s;

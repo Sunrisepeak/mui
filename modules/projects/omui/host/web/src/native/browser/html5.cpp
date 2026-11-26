@@ -125,7 +125,7 @@ std::uint32_t buttons_of(unsigned short b) {
 }
 
 // What the page's library says (src/js/omui_web.js: the same numbers).
-constexpr int page_text = 1, page_preedit = 2, page_key = 3, page_activate = 4, page_focus = 5, page_agent = 6, page_link = 7, page_scroll = 8;
+constexpr int page_text = 1, page_preedit = 2, page_key = 3, page_activate = 4, page_focus = 5, page_agent = 6, page_link = 7, page_scroll = 8, page_media = 9;
 // KeyboardEvent.keyCode while an input method composes.
 constexpr unsigned composing = 229;
 
@@ -230,6 +230,7 @@ void on_page(int kind, int a, int b, char* text) {
         case page_agent: asked.push_back({Request::Kind::agent, std::move(t)}); break;
         case page_link: asked.push_back({Request::Kind::link, std::move(t)}); break;
         case page_scroll: asked.push_back({Request::Kind::scroll, std::move(t), a, b}); break;
+        case page_media: asked.push_back({Request::Kind::media, {}, a, b}); break;
         default: break;
     }
 }

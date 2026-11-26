@@ -142,8 +142,11 @@ export interface Theme extends Tokens {
     overlay?: boolean;
     /** Controls' metrics, scaled: 0.5 … 2 (compact: 0.8). */
     density?: number;
+    /** A scheme, not a theme: the two themes it stands for, by the person's preference for a light or a dark
+     *  appearance (`system` is the default pack's). It sets nothing else but `doc`. */
+    scheme?: { light: string; dark: string };
 }
-/** `export default defineTheme({ light: {…}, dark: { extends: "light", dark: true, … } })`. */
+/** `export default defineTheme({ light: {…}, dark: { extends: "light", dark: true, … }, mine: { scheme: { light: "light", dark: "dark" } } })`. */
 export declare function defineTheme(themes: { [name: string]: Theme }): Defined<"theme">;
 
 /** An effect on the window, a component type or `role:<role>`: its parameters by name, a colour by the theme's name. */

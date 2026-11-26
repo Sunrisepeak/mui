@@ -41,6 +41,11 @@ struct AppSpec {
     // others are not in the program.
     void (*components)() = &register_base_components;
     Theme                  theme = Theme::light();
+    // Its theme for a person who prefers a dark appearance. Given, the application follows that preference
+    // (Runtime::dark_preferred, as the host reads it from the system or the page): `theme` while light is
+    // preferred, this while dark is, turning when the setting does. `--dark` shows it outright (the default dark
+    // theme where none is given). An application themed by omui.theme names a scheme instead (`theme: ["system"]`).
+    std::optional<Theme>   dark_theme;
     // A directory of the application's own effects (*.effect.xdef.ts, or their
     // JSON): loaded with the window, loaded again when one changes
     // (mrender.effect). A module is read through `effect_data`.

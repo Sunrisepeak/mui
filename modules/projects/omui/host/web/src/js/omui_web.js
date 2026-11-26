@@ -16,6 +16,8 @@
 //   6 agent     a request of window.omui's (text: one JSON line)
 //   7 link      the agent link's state (text: JSON — state, code, port, agent, error)
 //   8 scroll    the page scrolled a view's element (the browser's find, an anchor); a, b where to; text: its id
+//   9 media     a setting of the person's changed: a which (0 a dark appearance, 1 reduced motion, 2 reduced
+//               transparency), b whether it holds now
 // Only the person's own input counts (openas §2.7): an event a script made
 // (isTrusted false) is never passed on, and window.omui's requests are the
 // program's to decide as any agent's.
@@ -29,7 +31,7 @@ addToLibrary({
 
   $omuiPage__deps: ['$omuiCanvas', '$stringToNewUTF8', '$lengthBytesUTF8', '$getWasmTableEntry'],
   $omuiPage: {
-    TEXT: 1, PREEDIT: 2, KEY: 3, ACTIVATE: 4, FOCUS: 5, AGENT: 6, LINK: 7, SCROLL: 8,
+    TEXT: 1, PREEDIT: 2, KEY: 3, ACTIVATE: 4, FOCUS: 5, AGENT: 6, LINK: 7, SCROLL: 8, MEDIA: 9,
     LINK_PORTS: [47110, 47111, 47112, 47113],  // where a bridge (omui connect) listens, the first free of them
     callback: 0,
     selector: '#canvas',
@@ -107,6 +109,16 @@ addToLibrary({
           P.trusted = e.isTrusted && !P.browsers(type, e);
           if (type === 'keydown') P.pasteKey = e.isTrusted && (e.ctrlKey || e.metaKey) && e.code === 'KeyV';
         }, true);
+      });
+      // The person's settings the page can say, when one changes while it is open (the program read them as it
+      // started): the system turned dark, motion was reduced.
+      ['(prefers-color-scheme: dark)', '(prefers-reduced-motion: reduce)', '(prefers-reduced-transparency: reduce)'].forEach(function (media, which) {
+        try {
+          var query = typeof matchMedia === 'function' ? matchMedia(media) : null;
+          var said = function (e) { P.send(P.MEDIA, which, e.matches ? 1 : 0, ''); };
+          if (query && query.addEventListener) query.addEventListener('change', said);
+          else if (query && query.addListener) query.addListener(said);
+        } catch (e) {}
       });
       var body = document.body;
       // The textarea input methods compose in; put where the caret is while a field is edited.

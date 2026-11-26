@@ -197,6 +197,13 @@ struct Web::Impl {
 
     // A request of the page's, or one synthesized: served before the frame.
     void serve(page::Request::Kind kind, const std::string& text, const std::function<void(std::string_view)>& reply, int x = 0, int y = 0) {
+        if (kind == page::Request::Kind::media) {
+            // A setting of the person's changed while the page is open: the runtime has it from now on.
+            if (x == 0) runtime->set_dark_preferred(y != 0);
+            else if (x == 1) runtime->set_reduce_motion(options.reduce_motion || y != 0);
+            else if (x == 2) runtime->set_reduce_transparency(options.reduce_transparency || y != 0);
+            return;
+        }
         mlibs::trace::Span span("request", "host");
         if (kind == page::Request::Kind::link) {  // the agent link's state, as the page says it
             auto v = parse_json(text);
@@ -571,8 +578,10 @@ Web::Web(WebOptions options) : impl_(std::make_unique<Impl>()) {
     ro.clock = hanim::Clock::interactive();
     ro.size = d.size;
     ro.scale = d.scale;
-    ro.reduce_motion = d.options.reduce_motion;
-    ro.reduce_transparency = d.options.reduce_transparency;
+    // The person's settings as the page has them now (what changes later: serve's media).
+    ro.reduce_motion = d.options.reduce_motion || (d.opened && page::matches("(prefers-reduced-motion: reduce)"));
+    ro.reduce_transparency = d.options.reduce_transparency || (d.opened && page::matches("(prefers-reduced-transparency: reduce)"));
+    ro.dark_preferred = d.opened && page::matches("(prefers-color-scheme: dark)");
     d.own_runtime = std::make_unique<Runtime>(std::move(ro));
     d.runtime = d.own_runtime.get();
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
@@ -625,6 +634,7 @@ void Web::synthesize(std::span<const PageAction> actions) {
     for (const PageAction& a : actions)
         impl_->asked.push_back({a.kind == PageAction::Kind::focus    ? page::Request::Kind::focus
                                 : a.kind == PageAction::Kind::scroll ? page::Request::Kind::scroll
+                                : a.kind == PageAction::Kind::media  ? page::Request::Kind::media
                                                                      : page::Request::Kind::activate,
                                 a.node, {}, a.x, a.y});
 }

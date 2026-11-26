@@ -4,6 +4,7 @@ openmui's default theme as data: [`default.theme.xdef.ts`](default.theme.xdef.ts
 
 - **light**: calm slate surfaces with an indigo accent;
 - **dark**, which extends light;
+- **system**, the scheme between them: light or dark as the person prefers, turning when the system's setting does (`theme = ["system"]`);
 - **reduced_motion**, the overlay every program offers to people who asked for less motion. With it, transitions show their targets at once.
 
 The light and dark themes are the runtime's built-in tokens (`omui::Theme::light()` and `dark_theme()`). The package's test, and omui.theme's, hold the file and the code equal.

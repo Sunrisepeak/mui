@@ -90,6 +90,7 @@ struct RuntimeOptions {
     float                 scale = 1.0f;     // physical pixels per logical pixel
     bool                  reduce_motion = false;
     bool                  reduce_transparency = false;  // see-through materials (glass) drawn opaque
+    bool                  dark_preferred = false;       // the person prefers a dark appearance (Runtime::set_dark_preferred)
     bool                  agent_players = false;  // agents may join as players (Services::agent_players)
     Stages                stages = Stages::paint;
     bool                  complete_frames = false;  // every frame as at rest (Services::complete_frames): offline renders
@@ -618,6 +619,14 @@ public:
 
     // ── theme ──
     void set_theme(Theme theme);
+    // Whether the person prefers a dark appearance, as the host reads it from the system (a page's
+    // prefers-color-scheme, a desktop's setting); false where nothing says. A theme that follows it:
+    // `chosen(dark)` is the theme now and again whenever the preference changes, until a theme is set outright
+    // (set_theme). omui.theme's schemes are composed this way (`theme::apply(rt, {"system"})`).
+    void set_dark_preferred(bool dark);
+    [[nodiscard]] bool dark_preferred() const noexcept;
+    void set_theme_by_preference(std::function<Theme(bool dark)> chosen);
+    [[nodiscard]] bool theme_follows_preference() const noexcept;
     // Its fonts changed (one arrived later: FontCollection::add_fallback):
     // every text shapes and lays out again, drawn in what it has now.
     void fonts_changed();
@@ -923,6 +932,7 @@ public:
     struct Impl;  // defined by the implementation (omui.view:impl)
 
 private:
+    void themed(Theme theme);
     friend class PresentationLease;
     [[nodiscard]] bool owns_presentation(const PresentationLease&) const noexcept;
     [[nodiscard]] std::expected<void,PresentationFailure> reserve_presentation_effects(PresentationLease&,std::size_t,std::size_t,std::size_t);

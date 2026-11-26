@@ -6,6 +6,7 @@
 //     });
 //
 //     theme::apply(rt, {"dark", "compact", "reduced_motion"});
+//     theme::apply(rt, {"system", "compact"});   // light or dark as the person prefers, and again when that changes
 //
 // A file declares themes and overlays; the library reads the JSON its
 // module evaluates to (`{ "theme": { "dark": … } }`, D-139: omui-gen embeds
@@ -13,9 +14,13 @@
 // tokens — colours, text styles, spacing, radii, shadows, motion — possibly
 // as the changes it makes to the theme it `extends`. An overlay is a layer
 // over any theme that changes only what it names: a density (compact), the
-// user's wish for reduced motion. Composing a theme with overlays gives the
-// runtime's Theme; components read only tokens, so the semantic tree is the
-// same under every composition (S2's promise).
+// user's wish for reduced motion. A scheme is neither: it names two themes,
+// one for a person who prefers a light appearance and one for a dark, and
+// stands where a theme does (`system: { scheme: { light: "light", dark:
+// "dark" } }`, the default pack's; an application declares its own pair the
+// same way). Composing a theme with overlays gives the runtime's Theme;
+// components read only tokens, so the semantic tree is the same under every
+// composition (S2's promise).
 //
 // Every mistake in a file is reported at its JSON pointer (and the line and
 // column of the JSON), a message and, where there is one, the fix — all of
@@ -59,6 +64,11 @@ struct Layer {
     std::string         file;
     std::string         extends;   // a theme's base, or nothing
     bool                overlay = false;
+    // A scheme: the theme by the person's preference (Runtime::dark_preferred). It sets no tokens itself.
+    struct Scheme {
+        std::string light, dark;
+    };
+    std::optional<Scheme> scheme;
     std::optional<bool> dark;
     std::optional<float> density;  // controls' metrics, scaled (compact: 0.8)
     std::optional<float> corner_smoothing;  // corners' continuous curvature, 0 … 1
@@ -126,10 +136,11 @@ struct Style {
 [[nodiscard]] std::string write_style(const Style& style);
 
 // Why a theme or a style cannot be composed (mlibs.error): its code, the file or name where, and what was found.
-enum class ThemeError : std::uint8_t { no_layers, unknown_theme, overlay_first, cycle, unknown_base, extends_overlay, unknown_overlay, not_an_overlay, unknown_token, unknown_style, style_base, bad_motion };
+enum class ThemeError : std::uint8_t { scheme_theme, no_layers, unknown_theme, overlay_first, cycle, unknown_base, extends_overlay, unknown_overlay, not_an_overlay, unknown_token, unknown_style, style_base, bad_motion };
 [[nodiscard]] constexpr mlibs::error::Description describe(ThemeError error) noexcept {
     using Kind = mlibs::error::Kind;
     switch (error) {
+        case ThemeError::scheme_theme: return {"omui.theme.scheme-theme", Kind::invalid_argument, "a scheme names two themes", "name a theme the packs declare for `light` and for `dark` (not an overlay, not another scheme)"};
         case ThemeError::no_layers: return {"omui.theme.no-layers", Kind::invalid_argument, "name a theme, then any overlays over it", "name a theme first, then any overlays: [\"material3\", \"compact\"]"};
         case ThemeError::unknown_theme: return {"omui.theme.unknown-theme", Kind::not_found, "no theme of that name", "use a theme the packs declare (`omui.theme`'s list), or add its file"};
         case ThemeError::overlay_first: return {"omui.theme.overlay-first", Kind::invalid_argument, "an overlay comes after a theme", "put a theme first and the overlay after it"};
@@ -157,12 +168,17 @@ public:
 
     [[nodiscard]] std::vector<std::string> themes() const;    // whole themes, by name
     [[nodiscard]] std::vector<std::string> overlays() const;  // overlays, by name
+    [[nodiscard]] std::vector<std::string> schemes() const;   // schemes, by name: each stands where a theme does
     [[nodiscard]] std::optional<Layer> find(std::string_view name) const;
 
     // A theme with overlays over it, in order: {"dark", "compact"}. The first
     // is a theme (its `extends` chain applied from the root up), the rest are
-    // overlays. The result is named by its layers: "dark+compact".
-    [[nodiscard]] std::expected<Theme, ThemeFailure> compose(std::span<const std::string> layers) const;
+    // overlays. The result is named by its layers: "dark+compact". Where the
+    // first is a scheme, the theme is the one it names for `dark` (the person's
+    // preference) and the result keeps the scheme's name: "system+compact".
+    [[nodiscard]] std::expected<Theme, ThemeFailure> compose(std::span<const std::string> layers, bool dark = false) const;
+    // Whether the composition's first layer is a scheme: its theme depends on the person's preference.
+    [[nodiscard]] bool follows(std::span<const std::string> layers) const;
 
     // Style packs: added like themes (a file again replaces what it declared).
     std::expected<void, Diagnostics> add_styles(std::string_view source, std::string_view file);
@@ -187,7 +203,9 @@ private:
 // (omuiTheme) composes from it.
 [[nodiscard]] Library& library();
 
-// Composes from the program's library and gives the runtime the result.
+// Composes from the program's library and gives the runtime the result. A
+// composition that starts with a scheme follows the person's preference
+// (Runtime::dark_preferred): composed for it now, and again when it changes.
 std::expected<void, ThemeFailure> apply(Runtime& rt, std::span<const std::string> layers);
 // A style: its theme and its effects to the runtime, seen as a cross-fade
 // from what was on screen (unless `crossfade` is false: a first frame).

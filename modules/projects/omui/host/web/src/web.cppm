@@ -54,6 +54,9 @@ struct WebOptions {
     Size                    size{960, 640};      // until the canvas says its own (off the Web: always)
     Theme                   theme = Theme::light();
     mlibs::text::FontCollection* fonts = nullptr;     // nullptr: the default fonts (the page's /fonts)
+    // Asked for by the application whatever the person's settings say. The host reads the page's own —
+    // prefers-reduced-motion, prefers-reduced-transparency and prefers-color-scheme (Runtime::dark_preferred: a
+    // theme that follows it turns with it) — when it starts and again whenever one changes while the page is open.
     bool                    reduce_motion = false;
     bool                    reduce_transparency = false;
     Color                   background = Color::white();
@@ -103,11 +106,13 @@ public:
     // its middle). Taken at the next step, as the page's are.
     // Or what the page did to a view's element that scrolls: scrolled it (the browser's find-in-page brought a
     // match into view, an anchor was followed) — the view goes there.
+    // Or a setting of the person's the page says changed (media): x which (0 a dark appearance, 1 reduced motion,
+    // 2 reduced transparency), y whether it holds now.
     struct PageAction {
-        enum class Kind : std::uint8_t { focus, activate, scroll };
+        enum class Kind : std::uint8_t { focus, activate, scroll, media };
         Kind        kind = Kind::activate;
         std::string node;
-        int         x = 0, y = 0;  // scroll: the offset
+        int         x = 0, y = 0;  // scroll: the offset; media: which, and whether
     };
     void synthesize(std::span<const PageAction> actions);
 

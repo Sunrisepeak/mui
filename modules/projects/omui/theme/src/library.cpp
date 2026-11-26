@@ -116,9 +116,23 @@ std::vector<std::string> Library::themes() const {
     std::scoped_lock lock(mutex_);
     std::vector<std::string> out;
     for (const Layer& l : layers_)
-        if (!l.overlay) out.push_back(l.name);
+        if (!l.overlay && !l.scheme) out.push_back(l.name);
     std::ranges::sort(out);
     return out;
+}
+
+std::vector<std::string> Library::schemes() const {
+    std::scoped_lock lock(mutex_);
+    std::vector<std::string> out;
+    for (const Layer& l : layers_)
+        if (l.scheme) out.push_back(l.name);
+    std::ranges::sort(out);
+    return out;
+}
+
+bool Library::follows(std::span<const std::string> names) const {
+    std::scoped_lock lock(mutex_);
+    return !names.empty() && std::ranges::any_of(layers_, [&](const Layer& l) { return l.scheme && l.name == names[0]; });
 }
 
 std::vector<std::string> Library::overlays() const {
@@ -137,7 +151,7 @@ std::optional<Layer> Library::find(std::string_view name) const {
     return std::nullopt;
 }
 
-std::expected<Theme, ThemeFailure> Library::compose(std::span<const std::string> names) const {
+std::expected<Theme, ThemeFailure> Library::compose(std::span<const std::string> names, bool dark) const {
     std::scoped_lock lock(mutex_);
     auto lookup = [&](std::string_view n) -> const Layer* {
         for (const Layer& l : layers_)
@@ -146,6 +160,16 @@ std::expected<Theme, ThemeFailure> Library::compose(std::span<const std::string>
     };
     if (names.empty()) return std::unexpected(ThemeFailure{ThemeError::no_layers});
     const Layer* first = lookup(names[0]);
+    if (first && first->scheme) {
+        // A scheme: the theme it names for the person's preference stands in its place.
+        const std::string& named = dark ? first->scheme->dark : first->scheme->light;
+        const Layer* theme = lookup(named);
+        if (!theme || theme->overlay || theme->scheme)
+            return std::unexpected(ThemeFailure{ThemeError::scheme_theme, std::format("the scheme `{}` names `{}` for {}, which is {} (themes: {})", names[0], named, dark ? "dark" : "light",
+                                                                                      !theme ? "no theme" : theme->overlay ? "an overlay" : "a scheme", names_of(layers_, false)),
+                                                first->file});
+        first = theme;
+    }
     if (!first) return std::unexpected(ThemeFailure{ThemeError::unknown_theme, std::format("no theme is named `{}` (themes: {})", names[0], names_of(layers_, false)), names[0]});
     if (first->overlay) return std::unexpected(ThemeFailure{ThemeError::overlay_first, std::format("`{}` is an overlay: name a theme first, then it (themes: {})", names[0], names_of(layers_, false)), names[0]});
     std::vector<const Layer*> chain;
@@ -155,6 +179,7 @@ std::expected<Theme, ThemeFailure> Library::compose(std::span<const std::string>
         if (l->extends.empty()) break;
         const Layer* base = lookup(l->extends);
         if (!base) return std::unexpected(ThemeFailure{ThemeError::unknown_base, std::format("`{}` extends `{}`, which no theme file declares", l->name, l->extends), l->file});
+        if (base->scheme) return std::unexpected(ThemeFailure{ThemeError::scheme_theme, std::format("`{}` extends the scheme `{}`; a theme extends a theme", l->name, l->extends), l->file});
         if (base->overlay) return std::unexpected(ThemeFailure{ThemeError::extends_overlay, std::format("`{}` extends the overlay `{}`; a theme extends a theme", l->name, l->extends), l->file});
         l = base;
     }
@@ -347,6 +372,17 @@ Library& library() {
 }
 
 std::expected<void, ThemeFailure> apply(Runtime& rt, std::span<const std::string> layers) {
+    if (library().follows(layers)) {
+        // A scheme: both of its themes compose, or neither is taken; then the runtime's theme is the one for the
+        // person's preference, composed again when that changes (a theme file saved in between is read then).
+        for (const bool dark : {false, true})
+            if (auto t = library().compose(layers, dark); !t) return std::unexpected(t.error());
+        rt.set_theme_by_preference([names = std::vector<std::string>(layers.begin(), layers.end())](bool dark) {
+            auto t = library().compose(names, dark);
+            return t ? std::move(*t) : dark ? Theme::dark_theme() : Theme::light();
+        });
+        return {};
+    }
     auto t = library().compose(layers);
     if (!t) return std::unexpected(t.error());
     rt.set_theme(std::move(*t));

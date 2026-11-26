@@ -19,7 +19,7 @@ const library = readFileSync(here('../../src/js/omui_web.js'), 'utf8');
 
 // A page with a canvas at (100, 50), 200×160 CSS pixels, and the library
 // opened on it: what the program was told, in order, in `heard`.
-function page({ storage = new Storage(), clipboard = null, permissions = null, activation = undefined, fetch = undefined, modelContext = undefined } = {}) {
+function page({ storage = new Storage(), clipboard = null, permissions = null, activation = undefined, fetch = undefined, modelContext = undefined, media = undefined } = {}) {
   const window = new Window();
   const document = window.document;
   if (modelContext) document.modelContext = modelContext;
@@ -46,6 +46,12 @@ function page({ storage = new Storage(), clipboard = null, permissions = null, a
     getWasmTableEntry: (f) => f,
     fetch, setTimeout, crypto: globalThis.crypto, location: { href: 'https://example.org/app' },
   };
+  // The person's settings as media queries: `media` holds what matches now; media.change(query, matches) is the system changing one.
+  if (media) {
+    const heard = new Map();
+    context.matchMedia = (query) => ({ get matches() { return media.matching.has(query); }, addEventListener: (type, fn) => { if (type === 'change') heard.set(query, fn); } });
+    media.change = (query, matches) => { if (matches) media.matching.add(query); else media.matching.delete(query); const fn = heard.get(query); if (fn) fn({ matches }); };
+  }
   Object.defineProperty(context, 'localStorage', {
     get() {
       if (storage === 'refused') throw Object.assign(new Error('The operation is insecure.'), { name: 'SecurityError' });
@@ -70,9 +76,9 @@ function page({ storage = new Storage(), clipboard = null, permissions = null, a
 test('the C++ side and the page agree on what each kind of event is', () => {
   const cpp = readFileSync(here('../../src/native/browser/html5.cpp'), 'utf8');
   const { P } = page();
-  const m = /page_text = (\d+), page_preedit = (\d+), page_key = (\d+), page_activate = (\d+), page_focus = (\d+), page_agent = (\d+), page_link = (\d+), page_scroll = (\d+)/.exec(cpp);
+  const m = /page_text = (\d+), page_preedit = (\d+), page_key = (\d+), page_activate = (\d+), page_focus = (\d+), page_agent = (\d+), page_link = (\d+), page_scroll = (\d+), page_media = (\d+)/.exec(cpp);
   assert.ok(m, 'html5.cpp names the kinds');
-  assert.deepEqual(m.slice(1).map(Number), [P.TEXT, P.PREEDIT, P.KEY, P.ACTIVATE, P.FOCUS, P.AGENT, P.LINK, P.SCROLL]);
+  assert.deepEqual(m.slice(1).map(Number), [P.TEXT, P.PREEDIT, P.KEY, P.ACTIVATE, P.FOCUS, P.AGENT, P.LINK, P.SCROLL, P.MEDIA]);
 });
 
 test('opening: the textarea, the mirror\'s layer, the live regions, window.omui', () => {
@@ -539,6 +545,25 @@ test('a link takes the pointer: a plain press is the program\'s, one with a modi
   // A press elsewhere is as it was.
   fire(P.nodes.get('doc/p'), 'mousedown', { button: 0, ctrlKey: true });
   assert.equal(context.omui_web_trusted(), 1);
+});
+
+test('the person\'s settings: read when asked, and said when one changes while the page is open', () => {
+  const media = { matching: new Set(['(prefers-reduced-motion: reduce)']) };
+  const { P, context, heard } = page({ media });
+  assert.equal(context.omui_web_matches('(prefers-reduced-motion: reduce)'), 1);
+  assert.equal(context.omui_web_matches('(prefers-color-scheme: dark)'), 0);
+  assert.deepEqual(heard, [], 'nothing is said until something changes');
+  media.change('(prefers-color-scheme: dark)', true);
+  media.change('(prefers-reduced-motion: reduce)', false);
+  media.change('(prefers-reduced-transparency: reduce)', true);
+  media.change('(prefers-color-scheme: dark)', false);
+  assert.deepEqual(heard, [[P.MEDIA, 0, 1, ''], [P.MEDIA, 1, 0, ''], [P.MEDIA, 2, 1, ''], [P.MEDIA, 0, 0, '']]);
+  assert.equal(context.omui_web_matches('(prefers-color-scheme: dark)'), 0);
+});
+
+test('a page without media queries starts as any other', () => {
+  const { heard } = page();
+  assert.deepEqual(heard, []);
 });
 
 test('assistive technology in the mirror: a click activates, a focus moves the program\'s', () => {

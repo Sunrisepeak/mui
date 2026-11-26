@@ -297,6 +297,10 @@ struct Prepared {
 };
 
 Prepared prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& access) {
+    // An application with a dark theme of its own follows the person's preference (until its setup or a script
+    // sets a theme outright).
+    if (app.dark_theme)
+        rt.set_theme_by_preference([light = app.theme, dark = *app.dark_theme](bool preferred) { return preferred ? dark : light; });
     rt.set_agent_access(access);
     rt.set_agent_players(app.agent_players);
     for (VerbSpec& v : app.verbs)
@@ -414,7 +418,7 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
     h.level = static_cast<HeadlessLevel>(std::clamp(o.level, 0, 3));
     if (!o.agent && h.level == HeadlessLevel::session) h.level = HeadlessLevel::pixels;
     h.size = o.size.value_or(app.size);
-    h.theme = o.dark ? Theme::dark_theme() : app.theme;
+    h.theme = app.theme;
     h.app = app.id;
     h.endpoint_directory = o.agent_dir;
     h.agent_input = o.agent_input.value_or(app.agent_input);
@@ -525,6 +529,8 @@ int run(AppSpec app, const RunOptions& o) {
         }
     } profile{o.profile};
     languages_of(app, o, o.headless ? std::vector<std::string>{} : hosting::host_locales());
+    // --dark: its dark theme outright (the default one where it has none), following nothing.
+    if (o.dark) app.theme = std::exchange(app.dark_theme, std::nullopt).value_or(Theme::dark_theme());
     auto access = agent_access_of(app, o);
     if (!access) return 2;
     if (o.headless) return headless(std::move(app), o, access);

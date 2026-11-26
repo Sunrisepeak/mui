@@ -28,7 +28,7 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     d.agent_input = o.agent_input.value_or(app.agent_input);
     d.agent_directory = o.agent_dir;
     d.accessibility = o.accessibility && app.accessibility;
-    d.theme = o.dark ? Theme::dark_theme() : app.theme;
+    d.theme = app.theme;  // --dark is already in it (omui::run)
     d.effects = app.effects;
     d.effect_data = app.effect_data;
     d.reduce_transparency = o.reduce_transparency;
@@ -98,7 +98,7 @@ int terminal(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     }
     TerminalOptions t;
     t.app = app.id;
-    t.theme = o.dark ? Theme::dark_theme() : app.theme;
+    t.theme = app.theme;
     t.agent = o.agent;
     t.agent_input = o.agent_input.value_or(app.agent_input);
     t.endpoint_directory = o.agent_dir;

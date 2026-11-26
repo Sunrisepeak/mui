@@ -46,6 +46,7 @@ export default defineTheme({
 
 - **A theme** is a whole set of tokens, or the tokens it changes in the theme it `extends`.
 - **An overlay** extends nothing and does not say whether a theme is dark.
+- **A scheme** names two themes and sets nothing itself: `site: { scheme: { light: "paper", dark: "night" } }`. It stands where a theme does (`theme = ["site", "compact"]`) and is the one for the person's preference for a light or a dark appearance — the system's setting, a page's `prefers-color-scheme`, as the host reads it (`Runtime::dark_preferred`) — and the other as soon as that changes. `system` is the default pack's, between `light` and `dark`. A theme named outright stays whatever is preferred.
 - **Changes are checked.** A theme that extends another, and every overlay, may only change tokens the theme beneath already has, so `backgruond` is a typo (`did you mean background?`), not a new token.
 - **Text styles** change field by field: `body: { size: 13 }` keeps the weight.
 - **A motion token** is another token's name (`"motion.instant"`), a tween (`duration` in milliseconds, `easing`, `delay`) or a spring (`stiffness`, `damping`, `mass`).
@@ -55,11 +56,11 @@ Every mistake in a file is reported in one reading, at its JSON pointer (`/theme
 ## Where themes come from
 
 - **Theme packages** carry their file embedded and add it with one call:
-  - [default](default): light, dark, reduced_motion; the runtime's built-in tokens as data, held equal by its test.
+  - [default](default): light, dark, the scheme `system` between them, reduced_motion; the runtime's built-in tokens as data, held equal by its test.
   - [compact](compact): the compact density.
   - [styles](styles): the style packs — glass, neon, retro CRT, ink on paper, liquid; and the platforms' looks: fluent, cupertino, material.
 - **A part of a window**: `apply_style(runtime, name, scope)` gives a style to a theme scope only (`Runtime::set_scope`): the nodes whose `theme_scope` names it take the pack, and its cross-fade covers their area. The site shows S2's workshop this way, in the pack chosen, inside a page that keeps its own theme.
 - **An application's own files** are listed in its manifest: `themes = ["themes/*.theme.xdef.ts"]` and `theme = ["light"]` for the composition to start with.
 - **Scripts** choose a composition: `theme("dark", "compact")` in TypeScript.
 
-  `themes()` lists the themes and overlays and the current composition. The C ABI has `omuiTheme` and `omuiThemes`.
+  `themes()` lists the themes and overlays and the current composition (schemes are named like themes and are not listed there yet: the specification's `themes()` has no place for them). The C ABI has `omuiTheme` and `omuiThemes`.

@@ -80,6 +80,7 @@ Runtime::Runtime(RuntimeOptions options) : impl_(std::make_unique<Impl>(*this)) 
     d.size = options.size;
     d.scale = options.scale;
     d.reduce_motion = options.reduce_motion;
+    d.dark_preferred = options.dark_preferred;
     d.reduce_transparency = options.reduce_transparency;
     d.agent_players = options.agent_players;
     d.make_opaque();
@@ -551,7 +552,8 @@ NodeId Runtime::focused() const noexcept { return impl_->focus; }
 Verbs& Runtime::verbs() noexcept { return impl_->verbs; }
 UiQueue& Runtime::queue() noexcept { return impl_->queue; }
 
-void Runtime::set_theme(Theme theme) {
+// The runtime's theme replaced: every node outside a scope styled again.
+void Runtime::themed(Theme theme) {
     Impl& d = *impl_;
     d.theme = std::move(theme);
     d.make_opaque();
@@ -561,6 +563,27 @@ void Runtime::set_theme(Theme theme) {
         if (d.at(id).scope == 0) d.restyle(id);  // a scope's nodes keep their own
     d.touch(dirty_layout | dirty_paint | dirty_semantics);
 }
+
+void Runtime::set_theme(Theme theme) {
+    impl_->theme_by_preference = nullptr;  // set outright: it follows nothing
+    themed(std::move(theme));
+}
+
+void Runtime::set_theme_by_preference(std::function<Theme(bool dark)> chosen) {
+    Impl& d = *impl_;
+    d.theme_by_preference = std::move(chosen);
+    if (d.theme_by_preference) themed(d.theme_by_preference(d.dark_preferred));
+}
+
+void Runtime::set_dark_preferred(bool dark) {
+    Impl& d = *impl_;
+    if (d.dark_preferred == dark) return;
+    d.dark_preferred = dark;
+    if (d.theme_by_preference) themed(d.theme_by_preference(dark));
+}
+
+bool Runtime::dark_preferred() const noexcept { return impl_->dark_preferred; }
+bool Runtime::theme_follows_preference() const noexcept { return static_cast<bool>(impl_->theme_by_preference); }
 
 void Runtime::want_fonts() noexcept { impl_->fonts_wanted = true; }
 bool Runtime::take_font_request() noexcept { return std::exchange(impl_->fonts_wanted, false); }

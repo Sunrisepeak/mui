@@ -70,6 +70,14 @@ std::vector<std::string> L(std::initializer_list<const char*> names) { return {n
 
 }  // namespace
 
+// This test program draws a style's effects, so it is its own root (mlibs.compose): the pixel effects and the
+// morphs a window's program has, installed before any case runs — once, for every file of the directory.
+[[maybe_unused]] static const bool pixel_parts = [] {
+    (void)omui::install_morphs();
+    (void)mrender::install_effects();
+    return true;
+}();
+
 static UTest cases{"theme", [] {
 
     theme::Library lib;
@@ -172,9 +180,57 @@ static UTest cases{"theme", [] {
         expect(!syntax && syntax.error().size() == 1 && syntax.error()[0].line == 1) << (syntax ? "" : all(syntax.error()));
     };
 
+    "a scheme stands where a theme does: its light theme or its dark, by the person's preference"_test = [&] {
+        expect(lib.schemes() == L({"system"}) && lib.themes() == L({"dark", "light"})) << "the default pack's scheme, beside its themes";
+        expect(lib.follows(L({"system", "compact"})) && !lib.follows(L({"dark", "compact"})) && !lib.follows(L({"nowhere"})));
+        auto day = lib.compose(L({"system", "compact"}));
+        auto night = lib.compose(L({"system", "compact"}), true);
+        expect((day.has_value() && night.has_value())) << (day ? "" : day.error().text()) << (night ? "" : night.error().text());
+        if (!day || !night) return;
+        expect(!day->dark && night->dark) << "light for a person who prefers light, dark for one who prefers dark";
+        expect(eq(day->name, std::string("system+compact")) && eq(night->name, std::string("system+compact"))) << "named as it was composed: composed again, it follows again";
+        expect(same_color(night->color("background"), Color::hex(0x0b1120)) && same_color(day->color("background"), Theme::light().color("background")));
+        expect(day->space("s") == 6 && night->space("s") == 6) << "the overlays over either";
+        auto plain = lib.compose(L({"dark"}), false);
+        expect(plain && plain->dark) << "a theme named outright is that theme whatever is preferred";
+
+        // An application's own pair, and what a scheme may not be.
+        theme::Library own;
+        expect(own.add(default_snapshot, "default.theme.xdef.json").has_value());
+        auto added = own.add(R"t({"$format": "theme@1", "theme": {
+  "paper": {"extends": "light", "colors": {"background": "#faf9f6"}},
+  "night": {"extends": "dark", "dark": true, "colors": {"background": "#101014"}},
+  "site": {"doc": "The site's: paper by day.", "scheme": {"light": "paper", "dark": "night"}},
+  "half": {"scheme": {"light": "paper", "dark": "nowhere"}},
+  "nested": {"scheme": {"light": "site", "dark": "night"}},
+  "under": {"extends": "site"}
+}})t", "site.theme.xdef.json");
+        expect(added.has_value()) << (added ? "" : all(added.error()));
+        auto paper = own.compose(L({"site"})), dusk = own.compose(L({"site"}), true);
+        expect(paper && dusk && same_color(paper->color("background"), Color::hex(0xfaf9f6)) && same_color(dusk->color("background"), Color::hex(0x101014)) && dusk->dark);
+        auto half = own.compose(L({"half"}), true);
+        expect(!half && half.error().code == theme::ThemeError::scheme_theme &&
+               half.error().text().find("the scheme `half` names `nowhere` for dark, which is no theme") != std::string::npos) << (half ? "" : half.error().text());
+        expect(own.compose(L({"half"})).has_value()) << "its light side stands";
+        auto nested = own.compose(L({"nested"}));
+        expect(!nested && nested.error().text().find("names `site` for light, which is a scheme") != std::string::npos) << (nested ? "" : nested.error().text());
+        auto under = own.compose(L({"under"}));
+        expect(!under && under.error().text().find("`under` extends the scheme `site`") != std::string::npos) << (under ? "" : under.error().text());
+        auto over = own.compose(L({"light", "site"}));
+        expect(!over && over.error().text().find("`site` is a theme, not an overlay") != std::string::npos) << (over ? "" : over.error().text());
+
+        // A scheme sets nothing itself, and names both sides.
+        theme::Library wrong;
+        auto tokens = wrong.add(R"t({"$format": "theme@1", "theme": {"mixed": {"scheme": {"light": "a", "dark": "b"}, "colors": {"background": "#fff"}}}})t", "mixed.theme.xdef.json");
+        expect(!tokens && all(tokens.error()).find("`colors` is not a key of a scheme (`mixed`: it names two themes and sets nothing itself)") != std::string::npos)
+            << (tokens ? "" : all(tokens.error()));
+        auto one = wrong.add(R"t({"$format": "theme@1", "theme": {"lone": {"scheme": {"light": "a"}}}})t", "lone.theme.xdef.json");
+        expect(!one && all(one.error()).find("scheme `lone` must name a theme for `light` and one for `dark`") != std::string::npos) << (one ? "" : all(one.error()));
+    };
+
     "what cannot be composed, and why"_test = [&] {
         auto none = lib.compose(L({"sepia"}));
-        expect(!none && none.error().text().find("no theme is named `sepia` (themes: dark, light)") != std::string::npos) << (none ? "" : none.error().text());
+        expect(!none && none.error().text().find("no theme is named `sepia` (themes: dark, light, system)") != std::string::npos) << (none ? "" : none.error().text());
         auto overlay_first = lib.compose(L({"compact"}));
         expect(!overlay_first && overlay_first.error().text().find("`compact` is an overlay") != std::string::npos);
         auto theme_as_overlay = lib.compose(L({"light", "dark"}));

@@ -15,7 +15,7 @@ namespace omui::hosting {
 int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     AndroidOptions a;
     a.app = app.id;
-    a.theme = o.dark ? Theme::dark_theme() : app.theme;
+    a.theme = app.theme;  // --dark is already in it (omui::run)
     AndroidHost phone(a);
     phone.runtime().set_debug(o.debug);
     const auto kept = prepare(phone.runtime());

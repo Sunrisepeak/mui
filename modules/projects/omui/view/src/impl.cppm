@@ -453,6 +453,8 @@ struct Runtime::Impl {
     Size                                  size;
     float                                 scale = 1;
     bool                                  reduce_motion = false;
+    bool                                  dark_preferred = false;
+    std::function<Theme(bool)>            theme_by_preference;  // the theme follows the preference by it
     bool                                  reduce_transparency = false;
     bool                                  agent_players = false;
     std::vector<mlibs::agent::Subject*>   subjects;  // beside the interface, for agents (Services::add_subject)

@@ -625,6 +625,7 @@ mcpplibs::cmdline::App command_line() {
                         .option(Option("fonts-dir").takes_value().value_name("DIR").help("where they are"))
                         .option(Option("graph").takes_value().value_name("FILE").help("the program's graph"))
                         .option(Option("background").takes_value().value_name("#RRGGBB").help("the page's colour while it loads"))
+                        .option(Option("background-dark").takes_value().value_name("#RRGGBB").help("that colour where the person prefers a dark appearance"))
                         .option(Option("no-sdk").help("a program without the SDK"))
                         .option(Option("later").takes_value().multiple().value_name("DIR|SUFFIX|MOUNT").help("files loaded after the first frame"))
                         .option(Option("file").takes_value().multiple().value_name("PATH=FILE").help("a file in the program's file system before main (written into the page)"))

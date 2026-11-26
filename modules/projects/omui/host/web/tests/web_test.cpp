@@ -362,6 +362,31 @@ UTest cases{"host.web", [] {
         expect(node_of(*clamped, "main/list")->get("scroll")->json() == "[0,320,0,320]") << clamped->json();
     };
 
+    "the person's settings as the page says them: a theme that follows turns dark, motion is reduced, while it runs"_test = [] {
+        Web w({.size = {200, 100}, .fonts = &fonts()});
+        w.mount("main", column({.id = "page", .padding = 20, .background = "background"}, {box({.id = "swatch", .width = 40, .height = 40, .background = "text"})}));
+        w.runtime().set_theme_by_preference([](bool dark) { return dark ? Theme::dark_theme() : Theme::light(); });
+        (void)w.step();
+        const auto light = w.pixels().at(5, 5);
+        expect(!w.runtime().dark_preferred() && !w.runtime().theme().dark && light.r > 200) << std::format("{} {} {}", light.r, light.g, light.b);
+        // The system turns dark while the page is open.
+        std::array<Web::PageAction, 1> dark{{{Web::PageAction::Kind::media, {}, 0, 1}}};
+        w.synthesize(dark);
+        (void)w.step();
+        const auto night = w.pixels().at(5, 5);
+        expect(w.runtime().dark_preferred() && w.runtime().theme().dark && night.r < 60) << std::format("{} {} {}", night.r, night.g, night.b);
+        expect(w.pixels().at(40, 40).r > 200) << "the text colour of the dark theme: light";
+        // Motion reduced, and allowed again; a dark appearance no longer preferred.
+        std::array<Web::PageAction, 2> more{{{Web::PageAction::Kind::media, {}, 1, 1}, {Web::PageAction::Kind::media, {}, 0, 0}}};
+        w.synthesize(more);
+        (void)w.step();
+        expect(w.runtime().reduce_motion() && !w.runtime().theme().dark && w.pixels().at(5, 5).r > 200);
+        std::array<Web::PageAction, 1> moving{{{Web::PageAction::Kind::media, {}, 1, 0}}};
+        w.synthesize(moving);
+        (void)w.step();
+        expect(!w.runtime().reduce_motion());
+    };
+
     "the skip link: past the navigation to the main landmark's first focusable node"_test = [] {
         Runtime rt(page_options());
         Signal<bool> open{false};

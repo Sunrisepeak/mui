@@ -23,6 +23,10 @@ namespace omui::theme {
     std::string file;
     std::string extends;
     bool overlay = false;
+    struct Scheme {
+      std::string light, dark;
+    };
+    std::optional<Scheme> scheme;
     std::optional<bool> dark;
     std::optional<float> density;
     std::optional<float> corner_smoothing;
@@ -51,7 +55,7 @@ namespace omui::theme {
   };
   [[nodiscard]] std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view source, std::string_view file);
   [[nodiscard]] std::string write_style(const Style& style);
-  enum class ThemeError : std::uint8_t { no_layers, unknown_theme, overlay_first, cycle, unknown_base, extends_overlay, unknown_overlay, not_an_overlay, unknown_token, unknown_style, style_base, bad_motion };
+  enum class ThemeError : std::uint8_t { scheme_theme, no_layers, unknown_theme, overlay_first, cycle, unknown_base, extends_overlay, unknown_overlay, not_an_overlay, unknown_token, unknown_style, style_base, bad_motion };
   [[nodiscard]] constexpr mlibs::error::Description describe(ThemeError error) noexcept;
   using ThemeFailure = mlibs::error::Error<ThemeError>;
   class Library {
@@ -59,8 +63,10 @@ namespace omui::theme {
     std::expected<void, Diagnostics> add_file(const std::filesystem::path& file);
     [[nodiscard]] std::vector<std::string> themes() const;
     [[nodiscard]] std::vector<std::string> overlays() const;
+    [[nodiscard]] std::vector<std::string> schemes() const;
     [[nodiscard]] std::optional<Layer> find(std::string_view name) const;
-    [[nodiscard]] std::expected<Theme, ThemeFailure> compose(std::span<const std::string> layers) const;
+    [[nodiscard]] std::expected<Theme, ThemeFailure> compose(std::span<const std::string> layers, bool dark = false) const;
+    [[nodiscard]] bool follows(std::span<const std::string> layers) const;
     std::expected<void, Diagnostics> add_styles(std::string_view source, std::string_view file);
     [[nodiscard]] std::vector<std::string> styles() const;
     [[nodiscard]] std::optional<Style> find_style(std::string_view name) const;

@@ -57,6 +57,7 @@ namespace omui::gen {
     std::filesystem::path fonts_dir;
     std::filesystem::path graph;
     std::string background = "#000000";
+    std::string background_dark;
     bool sdk = true;
     struct Later {
       std::filesystem::path dir;

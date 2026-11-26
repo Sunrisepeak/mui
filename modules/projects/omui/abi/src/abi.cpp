@@ -691,6 +691,7 @@ OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, 
     } else if (auto missing = std::ranges::find_if(layers, [](const std::string& n) { return !omui::theme::library().find(n); }); missing != layers.end()) {
         std::string known;
         for (const auto& n : omui::theme::library().themes()) known += (known.empty() ? "" : ", ") + n;
+        for (const auto& n : omui::theme::library().schemes()) known += (known.empty() ? "" : ", ") + n;
         for (const auto& n : omui::theme::library().overlays()) known += (known.empty() ? "" : ", ") + n;
         e.error(spec::error_code::not_found, std::format("no theme or overlay is named `{}` (there are: {})", *missing, known.empty() ? "none" : known))
             .result(spec::exit_code::failure);
@@ -706,6 +707,8 @@ OmuiResult omuiTheme(OmuiRuntime rt, OmuiString layers_json, PFN_omuiSink sink, 
 OmuiResult omuiThemes(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {
     if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
     const omui::Theme& t = rt->rt->theme();
+    // What the specification's `themes()` states (its conformance scenario pins it): themes and overlays. Schemes are
+    // named like themes (`system`) and are not in this list until the specification says where they go.
     nlohmann::json out{{"themes", omui::theme::library().themes()}, {"overlays", omui::theme::library().overlays()}, {"current", t.name}, {"dark", t.dark}};
     send(sink, user, out.dump());
     return OMUI_SUCCESS;

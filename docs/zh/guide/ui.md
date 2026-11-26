@@ -88,7 +88,7 @@ omui::View view(const State& s) {
 ## 组件与主题
 
 - 组件在 [`components`](../../../modules/projects/omui/components)：按钮、输入框、开关、滑块、表格、树、标签页、画布、Markdown……都从 `openmui` 导入。
-- 主题是数据：`omui.theme("dark", "compact")` 叠加一组层（深色、紧凑、减弱动效）；自己的主题见[示例 06](../../../examples/06-theming)。
+- 主题是数据：`omui.theme("dark", "compact")` 叠加一组层（深色、紧凑、减弱动效）；`omui.theme("system")` 按使用者偏好的浅色或深色取主题，系统的设置变了它跟着变（方案：按名字指明两个主题，自己的一对也这样写）；自己的主题见[示例 06](../../../examples/06-theming)。
 - 风格包（玻璃、霓虹、墨、Fluent、Material……）换的是整套外观与动效，语义树不变：[风格画廊](../../../showcase/style-gallery)。
 - 自己的组件先写契约，绑定由工具生成：[示例 04](../../../examples/04-rating)。
 

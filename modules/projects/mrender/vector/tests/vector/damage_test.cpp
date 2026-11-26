@@ -310,6 +310,61 @@ static UTest cases{"render.damage", [] {
         expect(std::ranges::equal(c.object_ids(), b.object_ids())) << "incremental ids";
     };
 
+    if constexpr (threads) "bands cut by the frame's work give the serial bytes and ids"_test = [] {
+        // A share of a few thousand units cuts this frame into many bands (its whole work is about 160,000), each
+        // drawn by a thread of its own: the bytes and the ids are a serial render's, whole and incremental.
+        Threads pool;
+        Knobs k;
+        render::DisplayList dl;
+        scene(dl, k);
+        raster::Surface serial(W, H), parallel(W, H);
+        render::CpuRenderer a, b;
+        (void)a.render(dl, serial, {}, {.object_ids = true, .background = geom::Color::white()});
+        const auto whole = b.render(dl, parallel, {}, {.object_ids = true, .background = geom::Color::white(), .parallel = &pool, .band_work = 6000});
+        expect(whole.bands > 8) << std::format("{} bands of {} units", whole.bands, whole.work);
+        expect(std::ranges::equal(serial.bytes(), parallel.bytes())) << "whole frame";
+        expect(std::ranges::equal(a.object_ids(), b.object_ids())) << "whole frame ids";
+        render::DamageTracker t;
+        (void)t.update(dl, W, H, 1);
+        k.layer_opacity = 0.6f;  // nodes 6 and 7: rows 139 … 221 and their edges
+        scene(dl, k);
+        const auto rows = t.update(dl, W, H, 1);
+        const auto part = b.render(dl, parallel, {}, {.object_ids = true, .background = geom::Color::white(), .rows = rows, .parallel = &pool, .band_work = 3000});
+        expect(part.bands > 1 && part.rows < static_cast<std::size_t>(H)) << std::format("{} bands, {} rows", part.bands, part.rows);
+        raster::Surface full(W, H);
+        render::CpuRenderer c;
+        (void)c.render(dl, full, {}, {.object_ids = true, .background = geom::Color::white()});
+        expect(std::ranges::equal(full.bytes(), parallel.bytes())) << "incremental, in bands by work";
+        expect(std::ranges::equal(c.object_ids(), b.object_ids())) << "incremental ids";
+    };
+
+    "a few changed rows are one band, drawn by the caller: the pool is not asked"_test = [] {
+        struct Counted final : render::Parallel {
+            std::size_t runs = 0;
+            void run(std::size_t count, mlibs::memory::FunctionRef<void(std::size_t)> body) override {
+                ++runs;
+                for (std::size_t i = 0; i < count; ++i) body(i);
+            }
+        } pool;
+        Knobs k;
+        render::DisplayList dl;
+        scene(dl, k);
+        raster::Surface target(W, H);
+        render::CpuRenderer r;
+        render::DamageTracker t;
+        (void)r.render(dl, target, {}, {.background = geom::Color::white(), .rows = t.update(dl, W, H, 1), .parallel = &pool});
+        expect(eq(pool.runs, std::size_t{0})) << "a 320 x 240 frame is less than two bands' work";
+        k.accent = geom::Color::hex(0x10b981);  // the star's colour: its rows alone
+        scene(dl, k);
+        const auto rows = t.update(dl, W, H, 1);
+        const auto small = r.render(dl, target, {}, {.background = geom::Color::white(), .rows = rows, .parallel = &pool});
+        expect(eq(pool.runs, std::size_t{0}) && eq(small.bands, std::size_t{1}) && small.work > 0)
+            << std::format("{} rows, {} units, {} bands", small.rows, small.work, small.bands);
+        // The same rows with a share a tenth of their work: ten bands, one fan-out.
+        const auto split = r.render(dl, target, {}, {.background = geom::Color::white(), .rows = rows, .parallel = &pool, .band_work = std::max<std::uint64_t>(1, small.work / 10)});
+        expect(eq(pool.runs, std::size_t{1}) && split.bands >= 2 && split.bands <= 11) << std::format("{} bands", split.bands);
+    };
+
     "a reused renderer allocates its buffers once"_test = [] {
         // Two renders of the same list; the second reuses the canvas (and
         // gives the same pixels).

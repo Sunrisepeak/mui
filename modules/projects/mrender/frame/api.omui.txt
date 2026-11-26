@@ -24,7 +24,8 @@ namespace mrender {
     bool clear = true;
     std::span<const RowSpan> rows;
     Parallel* parallel = nullptr;
-    std::int32_t rows_per_task = 64;
+    std::int32_t rows_per_task = 0;
+    std::uint64_t band_work = default_band_work;
     bool measure = false;
     std::function<std::optional<mrender::raster::ImageView>(std::uint64_t id)> external;
   };

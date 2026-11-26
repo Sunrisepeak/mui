@@ -35,6 +35,10 @@ struct RenderReport {
     std::size_t missing_glyphs = 0;
     std::size_t rows = 0;      // rows drawn
     std::size_t skipped = 0;   // draw commands outside every band
+    // CPU: the bands drawn at the same time (CpuOptions::parallel; 1: drawn by the caller alone) and the work the
+    // rows were estimated at before any was drawn (CpuOptions::band_work's units).
+    std::size_t   bands = 0;
+    std::uint64_t work = 0;
     // GPU: coverage masks (glyphs, paths, shadows) rasterised and uploaded
     // this frame, and drawn from the atlas as an earlier frame left them;
     // `atlas_emptied` when the frame was encoded again with the atlas emptied.
@@ -88,6 +92,12 @@ protected:
     ~Parallel() = default;
 };
 
+// A band's share of a frame's estimated work (CpuOptions::band_work), and what a command costs beyond its area: about
+// 0.7 ms of drawing on an i9-13900K core (0.65 ns a unit, the 10,000-row list's whole frame), more than ten times what
+// waking a thread costs (tests/bench `core/list-scroll/raster*`; .agents/docs/2026-11-27-raster-pool-fan-out-design.md §4).
+inline constexpr std::uint64_t default_band_work = 1u << 20;
+inline constexpr std::uint64_t command_work = 256;
+
 struct CpuOptions {
     float scale = 1.0f;        // physical pixels per logical pixel
     bool  object_ids = false;  // fill the object-id buffer (pixel provenance)
@@ -96,10 +106,18 @@ struct CpuOptions {
     // Only these rows (sorted, not overlapping), over what the surface holds;
     // empty: the whole surface.
     std::span<const RowSpan> rows;
-    // Bands of at most `rows_per_task` rows drawn at the same time. The bytes
-    // are those of a serial render: every band is exact (restrict_rows).
-    Parallel*    parallel = nullptr;
-    std::int32_t rows_per_task = 64;
+    // Bands drawn at the same time, cut where the frame's work divides evenly:
+    // the rows to draw and the commands over them are known before any is
+    // drawn, so a band is about `band_work` of it (a pixel written once is a
+    // unit: a row's clear, a command's area over the rows, `command_work` for
+    // the command itself), and a frame of less than two bands' work is drawn
+    // by the caller alone — a few rows changed wake no thread (red 160). With
+    // `rows_per_task` above 0: bands of at most that many rows instead. The
+    // bytes are those of a serial render either way: every band is exact
+    // (restrict_rows).
+    Parallel*     parallel = nullptr;
+    std::int32_t  rows_per_task = 0;
+    std::uint64_t band_work = default_band_work;
     bool         measure = false;  // fill RenderReport::kinds (a clock read per command)
     // The device transform the list starts under (default: scale). An
     // effect's layer renders offscreen under its own (D-68).
@@ -141,6 +159,7 @@ private:
               RowSpan band, bool whole, RenderReport& report);
     void prepare_effects(const DisplayList& list, const mrender::raster::Surface& target, const Resources& resources, const CpuOptions& options,
                          RenderReport& report);
+    void share_out(const DisplayList& list, const mrender::raster::Surface& target, const CpuOptions& options, RenderReport& report);
     std::unique_ptr<Impl> impl_;
 };
 

@@ -26,6 +26,7 @@
     {"series": "omui-minimal", "app": "counter", "build": "omui", "world": "minimal", "program": "omui-bench-counter", "click": [400, 109], "label": [20, 20, 220, 42]},
     {"series": "omui-app", "app": "market", "build": "omui", "world": "app", "program": "omui-bench-market", "window": [1896, 1030], "motion": "live"},
     {"series": "omui-app", "app": "list", "build": "omui", "world": "app", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
+    {"series": "omui-app-cpu", "app": "list", "build": "omui", "world": "app", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll", "args": ["--cpu"]},
     {"series": "omui-lean", "app": "list", "build": "omui", "world": "lean", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
     {"series": "omui-lean-bridge", "app": "list", "build": "omui", "world": "lean-bridge", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
     {"series": "omui-lean-agent", "app": "list", "build": "omui", "world": "lean-agent", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},

@@ -54,6 +54,8 @@ namespace mrender {
     std::size_t missing_glyphs = 0;
     std::size_t rows = 0;
     std::size_t skipped = 0;
+    std::size_t bands = 0;
+    std::uint64_t work = 0;
     std::size_t masks_made = 0;
     std::size_t masks_reused = 0;
     bool atlas_emptied = false;
@@ -78,6 +80,8 @@ namespace mrender {
   class Parallel {
     virtual void run(std::size_t count, mlibs::memory::FunctionRef<void(std::size_t)> body) = 0;
   };
+  inline constexpr std::uint64_t default_band_work = 1u << 20;
+  inline constexpr std::uint64_t command_work = 256;
   struct CpuOptions {
     float scale = 1.0f;
     bool object_ids = false;
@@ -85,7 +89,8 @@ namespace mrender {
     Color background = Color::transparent();
     std::span<const RowSpan> rows;
     Parallel* parallel = nullptr;
-    std::int32_t rows_per_task = 64;
+    std::int32_t rows_per_task = 0;
+    std::uint64_t band_work = default_band_work;
     bool measure = false;
     std::optional<Affine> transform;
     std::optional<float> effect_scale;

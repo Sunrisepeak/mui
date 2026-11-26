@@ -32,6 +32,52 @@ static UTest cases{"core.task", [] {
         expect(eq(sum.load(), 800));
     };
 
+    "a frame's fan-out wakes one helper fewer than its chunks, never more than the crew's width"_test = [] {
+        omui::Tasks tasks(16);
+        const unsigned width = tasks.frame_width();
+        const auto fan_out = [&](std::size_t chunks) {
+            std::vector<int> hits(chunks, 0);
+            const omui::FanOutStats before = tasks.frame_stats();
+            tasks.parallel_for(chunks, 1, [&](std::size_t begin, std::size_t end) {
+                for (std::size_t i = begin; i < end; ++i) ++hits[i];
+            }, omui::Priority::frame);
+            const omui::FanOutStats after = tasks.frame_stats();
+            expect(std::ranges::all_of(hits, [](int hit) { return hit == 1; })) << std::format("{} chunks, each once", chunks);
+            return after.wakes - before.wakes;
+        };
+        if (tasks.threads() == 1) {  // the Web: the page's thread runs every chunk
+            expect(eq(fan_out(100), std::uint64_t{0}));
+            return;
+        }
+        expect(eq(width, std::min(16u, omui::frame_width_limit)));
+        expect(eq(fan_out(1), std::uint64_t{0})) << "one chunk: the caller's";
+        expect(eq(fan_out(3), std::uint64_t{2}));
+        expect(eq(fan_out(100), std::uint64_t{width - 1}));
+        expect(eq(fan_out(2), std::uint64_t{1})) << "the same helper first";
+        expect(tasks.frame_stats().helpers <= width - 1);
+    };
+
+    "a frame's fan-out from inside one, or beside another, is run by its caller"_test = [] {
+        omui::Tasks tasks(8);
+        std::atomic<int> sum = 0;
+        const omui::FanOutStats before = tasks.frame_stats();
+        tasks.parallel_for(4, 1, [&](std::size_t, std::size_t) {
+            tasks.parallel_for(10, 1, [&](std::size_t b, std::size_t e) { sum += static_cast<int>(e - b); }, omui::Priority::frame);
+        }, omui::Priority::frame);
+        expect(eq(sum.load(), 40));
+        if (tasks.threads() > 1) expect(tasks.frame_stats().alone - before.alone >= 4) << "the four inner fan-outs ran alone";
+        // Two threads fanning out at once: each gets every chunk once.
+        std::atomic<int> left = 0, right = 0;
+        std::jthread other([&] {
+            for (int round = 0; round < 200; ++round)
+                tasks.parallel_for(16, 1, [&](std::size_t b, std::size_t e) { left += static_cast<int>(e - b); }, omui::Priority::frame);
+        });
+        for (int round = 0; round < 200; ++round)
+            tasks.parallel_for(16, 1, [&](std::size_t b, std::size_t e) { right += static_cast<int>(e - b); }, omui::Priority::frame);
+        other.join();
+        expect(eq(left.load(), 3200) && eq(right.load(), 3200));
+    };
+
     "spawn, cancel, wait"_test = [] {
         omui::Tasks tasks(2);
         std::atomic<int> done = 0;

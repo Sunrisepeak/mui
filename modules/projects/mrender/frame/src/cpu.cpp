@@ -53,6 +53,7 @@ const FrameReport& CpuFrame::render(std::span<const FrameLayer> layers, raster::
         how.rows = options.rows;
         how.parallel = options.parallel;
         how.rows_per_task = options.rows_per_task;
+        how.band_work = options.band_work;
         how.measure = options.measure;
         how.transform = layer.transform;
         how.effect_scale = layer.effect_scale;

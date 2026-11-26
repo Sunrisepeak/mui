@@ -353,6 +353,29 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             reg.origins.push_back(std::move(x));
         });
     }
+    if (auto t = load("properties.json")) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        r.each(root, "property", [&](const Node& e) {
+            NodeProperty x;
+            r.named(x, e);
+            x.type = r.str(e, "type", true);
+            x.values = r.strings(e, "values");
+            x.roles = r.strings(e, "roles");
+            reg.node_properties.push_back(std::move(x));
+        });
+    }
+    if (auto t = load("marks.json")) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        r.each(root, "mark", [&](const Node& e) {
+            MarkKind x;
+            r.named(x, e);
+            x.aria = r.str(e, "aria");
+            x.node = r.boolean(e, "node", false);
+            reg.marks.push_back(std::move(x));
+        });
+    }
     if (auto t = load("actions.json")) {
         Reader r{*t, diags};
         const Node root = t->root();
@@ -478,6 +501,17 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     unique_names(reg.effects, "effect", diags);
     unique_names(reg.origins, "origin", diags);
     unique_names(reg.actions, "action", diags);
+    unique_names(reg.node_properties, "property", diags);
+    unique_names(reg.marks, "mark", diags);
+    for (const NodeProperty& property : reg.node_properties) {
+        constexpr std::array<std::string_view, 4> node_property_types{"bool", "i64", "string", "enum"};
+        if (std::ranges::find(node_property_types, property.type) == node_property_types.end())
+            diags.error(property.loc, std::format("property `{}` has type `{}`", property.name, property.type), "bool, i64, string or enum");
+        if ((property.type == "enum") == property.values.empty())
+            diags.error(property.loc, std::format("property `{}`: an enum states its values, no other type does", property.name));
+        for (const std::string& role : property.roles)
+            if (!Registry::find(reg.roles, role)) diags.error(property.loc, std::format("property `{}` names unknown role `{}`", property.name, role));
+    }
     unique_names(reg.extensions, "extension", diags);
     unique_names(reg.motion_tokens, "motion token", diags);
     unique_names(reg.motion_recipes, "motion recipe", diags);

@@ -20,9 +20,10 @@ A capability below its package's label is marked in its project's feature table 
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 32 | 5 | 0 |
+| mlibs | 32 | 6 | 0 |
 | examples | 12 | 0 | 0 |
 | build plugins (mcpp) | 1 | 0 | 0 |
+| oweb | 0 | 1 | 0 |
 | works (showcase) | 0 | 10 | 5 |
 | site | 0 | 1 | 0 |
 | repository tests | 6 | 2 | 0 |
@@ -164,6 +165,7 @@ A capability below its package's label is marked in its project's feature table 
 | `mlibs.build` | [modules/base/build](../../modules/base/build) | stable |
 | `mlibs.compose` | [modules/base/compose](../../modules/base/compose) | preview |
 | `mlibs.cts` | [modules/base/cts](../../modules/base/cts) | stable |
+| `mlibs.delivery` | [modules/base/delivery](../../modules/base/delivery) | preview |
 | `mlibs.dynamics` | [modules/base/dynamics](../../modules/base/dynamics) | preview |
 | `mlibs.geom` | [modules/base/geom](../../modules/base/geom) | stable |
 | `mlibs.image` | [modules/base/image](../../modules/base/image) | stable |
@@ -217,6 +219,12 @@ A capability below its package's label is marked in its project's feature table 
 | Package | Directory | Label |
 |---|---|---|
 | `omui.build` | [mcpp/build](../../mcpp/build) | stable |
+
+### oweb
+
+| Package | Directory | Label |
+|---|---|---|
+| `oweb` | [modules/projects/oweb](../../modules/projects/oweb) | preview |
 
 ### works (showcase)
 

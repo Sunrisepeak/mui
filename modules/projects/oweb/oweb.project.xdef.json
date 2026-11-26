@@ -1,0 +1,1 @@
+{"$format":"project@1","project":{"name":"oweb","display":"oweb","summary":"A site framework on omui: one semantic tree published as a site that people, search engines and agents each read in their own way.","packages":"oweb","programs":["oweb"],"tier":"framework","dependsOn":["mlibs","mrender","meng.sim","hanim","meng.media","spec","omui"]}}

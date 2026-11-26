@@ -46,6 +46,18 @@ std::string emit_docs(const Registry& reg) {
     out += "\n## Origins\n\n| Origin | Meaning |\n|---|---|\n";
     for (const Origin& o : reg.origins) out += std::format("| `{}` | {} |\n", o.name, cell(o.doc));
 
+    out += "\n## Node properties\n\n| Property | Type | Roles | Meaning |\n|---|---|---|---|\n";
+    for (const NodeProperty& p : reg.node_properties) {
+        std::string type = p.type, roles;
+        for (std::size_t i = 0; i < p.values.size(); ++i) type += std::format("{}`{}`", i ? ", " : ": ", p.values[i]);
+        for (std::size_t i = 0; i < p.roles.size(); ++i) roles += std::format("{}`{}`", i ? ", " : "", p.roles[i]);
+        out += std::format("| `{}` | {} | {} | {} |\n", p.name, cell(type), roles.empty() ? "any" : roles, cell(p.doc));
+    }
+
+    out += "\n## Marks\n\n| # | Mark | ARIA | A child node's place | Meaning |\n|---|---|---|---|---|\n";
+    for (std::size_t i = 0; i < reg.marks.size(); ++i)
+        out += std::format("| {} | `{}` | {} | {} | {} |\n", i, reg.marks[i].name, reg.marks[i].aria, reg.marks[i].node ? "yes" : "", cell(reg.marks[i].doc));
+
     out += "\n## Actions\n\n| Action | Default effect | Arguments | Meaning |\n|---|---|---|---|\n";
     for (const Action& a : reg.actions)
         out += std::format("| `{}` | `{}` | {} | {} |\n", a.name, a.effect, args_text(a.args), cell(a.doc));

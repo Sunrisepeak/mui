@@ -4,6 +4,7 @@ export import omui.view;
 export import mlibs.markdown;
 export import :markdown_contract;
 export import :document;
+export import :read;
 == omui.ui.markdown:document
 namespace omui {
   class Markdown : public MarkdownContract<Markdown> {
@@ -27,4 +28,9 @@ namespace omui {
     [[nodiscard]] std::size_t last_parsed() const noexcept;
   };
   void register_markdown_component();
+}
+== omui.ui.markdown:read
+namespace omui {
+  [[nodiscard]] mlibs::markdown::Document document_of(std::span<const spec::SemanticNode> nodes);
+  [[nodiscard]] std::string markdown_of(std::span<const spec::SemanticNode> nodes);
 }

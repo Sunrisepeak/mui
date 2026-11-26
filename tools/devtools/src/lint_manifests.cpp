@@ -58,6 +58,7 @@ constexpr std::pair<std::string_view, std::string_view> path_layers[]{
     {"modules/projects/omui/sdk", "sdk"},
     {"modules/projects/omui/tools", "tools"},  // omui's toolkit: the command line, MCP, the generator (plan §4.5)
     {"modules/projects/xtools", "tools"},      // the toolchain whole: every project's toolkit composed (plan §4.5, D-208)
+    {"modules/projects/oweb", "site"},         // the site framework on omui, beside the game layer (0.1.0 plan §4.4, D-275)
     {"modules/ui", "ui"},
     {"components", "components"},
     {"lang", "lang"},
@@ -106,6 +107,7 @@ const std::vector<Allowed>& layer_rules() {
             {"lang", {"utils", "base", "spec", "ui", "components", "lang"}},
             {"sdk", with({"ui", "host", "components", "sdk"})},
             {"game", with({"ui", "host", "components", "game", "gongfu.core", "gongfu"})},
+            {"site", with({"ui", "host", "components", "lang", "sdk", "site"})},  // on omui; nothing of the game layer, which has nothing of it
             {"tools", {"*"}},
             {"mcpp", {"tools", "mcpp", "base"}},  // build code only: the plugins, their shared base, the foundation's (mlibs.build) and the generator they run
             {"app", {"*"}},

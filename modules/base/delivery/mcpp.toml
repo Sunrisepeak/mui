@@ -1,0 +1,32 @@
+# mlibs.delivery — what a directory of built files weighs as a static host sends it, and whether it is within its
+# budgets: each file's bytes and its bytes compressed (gzip, what GitHub Pages serves), sums, and a verdict a
+# budget — a tool's shared library (0.1.0 plan RL7, RL8: T1). zlib through its wrap, in a native/ unit only.
+[package]
+namespace   = "mlibs"
+name        = "delivery"
+version     = "0.1.0"
+description = "A built directory as a static host sends it: every file's bytes and gzip bytes, budgets by pattern and their verdicts, the delivery manifest"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "dependency: zlib, kept from the tools and libraries that measure nothing; the delivery manifest of every tool that builds something to serve"
+kind = "tool"
+
+[package.metadata.openmui.xdef]
+kinds = { delivery = 1 }  # the manifest a tool writes (<name>.delivery.xdef.json)
+
+[targets.mlibs-delivery]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+mcpplibs.mwrap.zlib = "1.3.2"
+mcpplibs.os         = "0.4.4"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

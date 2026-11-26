@@ -238,6 +238,23 @@ public:
     void semantics(SemanticsContext& ctx, spec::SemanticNode& n) const;
 };
 
+// ── a comment: what the source keeps and no rendering shows (S-16's `comment`) ──
+
+class Comment {
+public:
+    static constexpr std::string_view name = "md_comment";
+    static constexpr Role             role = Role::none;
+
+    std::shared_ptr<const Data> data;
+
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& n) const;
+};
+
+// The text of a block of raw HTML that is one comment and nothing else (`<!-- … -->`): what is between its
+// delimiters, as written.
+[[nodiscard]] std::optional<std::string_view> comment_of(const md::Block& block);
+
 // The focus ring every focusable part draws (the theme's focus colour).
 void focus_ring(PaintContext& ctx, Rect r, float radius);
 

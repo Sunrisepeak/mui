@@ -63,6 +63,7 @@ namespace mlibs::markdown {
   [[nodiscard]] Document parse(std::string_view source, Extension extensions = gfm);
   [[nodiscard]] std::string to_html(const Document& doc);
   [[nodiscard]] std::string to_html(std::string_view source, Extension extensions = gfm);
+  [[nodiscard]] std::string to_markdown(const Document& doc);
   [[nodiscard]] Document from_html(std::string_view html, Extension extensions = gfm);
   [[nodiscard]] std::string plain_text(const Block& block);
   [[nodiscard]] std::string slug(std::string_view text);

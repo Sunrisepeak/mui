@@ -11,9 +11,12 @@ namespace omui::semantic {
 namespace {
 
 // Nodes that carry nothing for a reader: their children take their place.
+// A comment of a document: hidden by what it is, and kept — a writing of the document gives it back (S-16).
+bool comment(const spec::SemanticNode& n) { return n.properties.get("comment") != nullptr; }
+
 bool meaningless(const spec::SemanticNode& n) {
     if (n.id == "app") return false;
-    if (n.role == Role::none) return true;
+    if (n.role == Role::none) return !comment(n);
     return n.role == Role::generic && n.name.empty() && n.description.empty() && n.value.is_null() && n.actions.empty() &&
            !n.states.has(State::focusable);
 }
@@ -83,7 +86,7 @@ void Tree::refresh() {
     auto visit = [&](auto& self, NodeId id, std::optional<std::size_t> parent) -> void {
         spec::SemanticNode n = runtime_.semantic_node(id);
         // Hidden content (a closed menu) is not read, as aria-hidden content is not.
-        if (options_.compact && n.states.has(State::hidden) && n.id != "app") return;
+        if (options_.compact && n.states.has(State::hidden) && n.id != "app" && !comment(n)) return;
         std::optional<std::size_t> here = parent, was;
         const bool kept = !(options_.compact && meaningless(n));
         if (kept) {
@@ -464,7 +467,7 @@ namespace {
 Value face_of(const spec::SemanticNode& node) {
     Value all = spec::to_value(node);
     Value face(Value::Map{});
-    for (std::string_view key : {"role", "name", "description", "value", "state"})
+    for (std::string_view key : {"role", "name", "description", "value", "properties", "marks", "state"})
         if (const Value* v = all.get(key)) face.set(key, *v);
     return face;
 }
@@ -485,7 +488,7 @@ Value changes_between(const Snapshot& before, const Snapshot& after) {
         still.insert(n.id);
         const Value a = face_of(*it->second), b = face_of(n);
         Value fields(Value::Map{});
-        for (std::string_view key : {"role", "name", "description", "value", "state"}) {
+        for (std::string_view key : {"role", "name", "description", "value", "properties", "marks", "state"}) {
             const Value* x = a.get(key);
             const Value* y = b.get(key);
             const bool same = (!x && !y) || (x && y && *x == *y);

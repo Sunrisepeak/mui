@@ -145,8 +145,8 @@ UTest cases{"accessibility", [] {
         heading.value = Value(std::int64_t{2});
         expect(a11y::describe(heading).level == std::size_t{2});
         auto link = node("doc/home", Role::link, "Home", {"activate"});
-        link.value = Value("https://example.org");
-        expect(a11y::describe(link).url == "https://example.org");
+        link.properties.set("href", Value("https://example.org"));
+        expect(a11y::describe(link).url == "https://example.org") << "where a link leads is its `href` property (S-16)";
 
         auto tab = node("main/tabs/one", Role::tab, "One", {"select"});
         expect(a11y::describe(tab).selected == false) << "a tab says it is not selected, too";

@@ -131,7 +131,7 @@ UTest cases{"markdown", [] {
                              "checked><em>a</em> &amp; <b></li>\n</ul>\n")));
     };
 
-    "to_html from the source in one call: the same bytes as from the parsed document, for every page of the repository's docs and site"_test = [] {
+    "to_html from the source in one call: the same bytes as from the parsed document, for every page of the repository's docs; each page written as Markdown parses back to itself"_test = [] {
         const auto root = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path().parent_path();
         if (!std::filesystem::exists(root / "docs")) {
             skip("no docs/ here: a tree without the repository's pages (a split)");
@@ -140,19 +140,26 @@ UTest cases{"markdown", [] {
         std::size_t pages = 0, bytes = 0;
         bool same = true;
         std::string first_different;
-        for (const auto& folder : {root / "docs", root / "site" / "content"}) {
-            for (const auto& entry : std::filesystem::recursive_directory_iterator(folder)) {
-                if (entry.path().extension() != ".md") continue;
-                std::ifstream in(entry.path(), std::ios::binary);
-                const std::string text{std::istreambuf_iterator<char>(in), {}};
-                const std::string once = md::to_html(text), twice = md::to_html(md::parse(text));
-                if (once != twice && first_different.empty()) first_different = entry.path().string();
-                same = same && once == twice;
-                ++pages, bytes += once.size();
-            }
+        // The pages: docs/ (the site's own content went with the C++ site, 2026-11-21).
+        bool written_back = true;
+        std::string first_unwritten;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(root / "docs")) {
+            if (entry.path().extension() != ".md") continue;
+            std::ifstream in(entry.path(), std::ios::binary);
+            const std::string text{std::istreambuf_iterator<char>(in), {}};
+            const md::Document document = md::parse(text);
+            const std::string once = md::to_html(text), twice = md::to_html(document);
+            if (once != twice && first_different.empty()) first_different = entry.path().string();
+            same = same && once == twice;
+            // Each written as Markdown and parsed again is the page (to_markdown's promise, on real pages).
+            const bool back = md::to_html(md::parse(md::to_markdown(document))) == twice;
+            if (!back && first_unwritten.empty()) first_unwritten = entry.path().string();
+            written_back = written_back && back;
+            ++pages, bytes += once.size();
         }
         expect(pages >= 8 && bytes > 100000) << std::format("{} pages, {} bytes", pages, bytes);
         expect(same) << "differs: " + first_different;
+        expect(written_back) << "written as Markdown and read again, differs: " + first_unwritten;
         expect(md::parse("# A\n\ntext\n").root.hash != 0) << "parse still hashes its blocks";
     };
 }};

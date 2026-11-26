@@ -1,0 +1,11 @@
+# The `docs` sample: the minimal documents
+
+The site `oweb`'s `docs` preset starts from, and the one corpus 0.1.0 checks documents with (0.1.0 plan D-274; oweb's design §3.6): every kind of content a documentation site carries — headings of three levels, paragraphs with every inline format, ordered and nested lists, a task list, tables with alignment, code in three languages and one block with none, a picture, a quotation, an HTML comment, anchors within a page and links between pages, two languages, a reference generated from a catalog.
+
+It is used five ways: this template's sample, the round-trip checks (`tests/oweb/template_test.cpp`: every route's HTML read back and its Markdown parsed again are its source's document), the search's checks, the questions of the cold-start evaluation, and the content both sides build when oweb is compared side by side.
+
+`oweb.config.ts` states the site's title, address, languages and its pages in the order a reader goes through them. `pages/404.md` is the page a lost address is answered with (no route). The route `/reference/ops/` has no page of its own: the configuration names the command's catalog (`reference: "../../oweb.ops.xdef.ts"`) and each build generates the page from it; pages link to it by its address (`/reference/ops/`). Still to come with ST3: a page with a live example and a long page.
+
+```sh
+oweb site.build --site modules/projects/oweb/templates/docs --out /tmp/docs
+```

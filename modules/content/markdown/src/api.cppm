@@ -164,6 +164,12 @@ struct Document {
 // what only a renderer keeps (the blocks' hashes, the headings' anchors).
 [[nodiscard]] std::string to_html(std::string_view source, Extension extensions = gfm);
 
+// The document as Markdown: CommonMark with the document's extensions, one spelling of each construct (ATX
+// headings, fenced code, inline links), what would begin another construct escaped. Parsing it gives the document
+// back: to_html(parse(to_markdown(doc), doc.extensions)) == to_html(doc) — held on md4c's suites, the count of the
+// examples it does not hold for pinned in the tests (delimiter runs CommonMark reads another way).
+[[nodiscard]] std::string to_markdown(const Document& doc);
+
 // A document from HTML (D-141: HTML as content input, a subset): the blocks
 // and spans Markdown has — headings, paragraphs, quotes, lists and task
 // items, code with its language, rules, tables with their alignment;

@@ -433,6 +433,8 @@ struct ImageNode {
     void semantics(SemanticsContext&, spec::SemanticNode& n) const {
         if (alt.empty() && n.name.empty()) n.role = Role::none;  // decorative
         else if (n.name.empty()) n.name = alt;
+        // Where the picture is from, as its element says it (S-16); one drawn from memory (`image:<id>`) has no address.
+        if (n.role == Role::image && !source.empty() && !source.starts_with("image:")) n.properties.set("source", Value(source));
     }
 };
 

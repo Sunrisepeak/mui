@@ -113,6 +113,68 @@ std::vector<Inl> link_spans(const mlibs::markdown::Inline& in) {
     return out;
 }
 
+// What a span is in the tree's words (registry/marks.json).
+spec::MarkKind kind_of(mlibs::markdown::Span span) {
+    switch (span) {
+        case mlibs::markdown::Span::emphasis: return spec::MarkKind::emphasis;
+        case mlibs::markdown::Span::strong: return spec::MarkKind::strong;
+        case mlibs::markdown::Span::code: return spec::MarkKind::code;
+        case mlibs::markdown::Span::strikethrough: return spec::MarkKind::deletion;
+        case mlibs::markdown::Span::underline: return spec::MarkKind::underline;
+        case mlibs::markdown::Span::image: return spec::MarkKind::image;
+        case mlibs::markdown::Span::html: return spec::MarkKind::raw;
+        case mlibs::markdown::Span::math: return spec::MarkKind::math;
+        case mlibs::markdown::Span::display_math: return spec::MarkKind::math_display;
+        case mlibs::markdown::Span::link:
+        case mlibs::markdown::Span::wikilink: return spec::MarkKind::link;
+    }
+    return spec::MarkKind::emphasis;
+}
+
+// A block's inline structure as the tree states it (S-17): each span a range of the text's code points, in the order
+// they open (an outer one before what it holds); a link's or an image's names the child that is it — `children` are
+// the node's, the links' made by Text::compose as `link<i>` and `img<i>`, i counting the spans that are links.
+std::vector<spec::Mark> marks_of(const mlibs::markdown::Inline& in, std::span<const std::string> children) {
+    constexpr std::size_t none = static_cast<std::size_t>(-1);
+    std::vector<spec::Mark> out;
+    std::vector<std::size_t> open;
+    std::size_t links = 0;
+    // Code points before a byte, kept as the marks go forward.
+    std::size_t byte = 0;
+    std::uint32_t point = 0;
+    const auto at = [&](std::uint32_t offset) {
+        const std::size_t to = std::min<std::size_t>(offset, in.text.size());
+        point += spec::code_points(std::string_view(in.text).substr(byte, to - byte));
+        byte = to;
+        return point;
+    };
+    for (const mlibs::markdown::Mark& m : in.marks) {
+        if (m.op == mlibs::markdown::Op::open) {
+            spec::Mark mark;
+            mark.kind = kind_of(m.span);
+            mark.start = mark.end = at(m.at);
+            if (linky(m.span)) {
+                const std::string leaf = std::format("/{}{}", m.span == mlibs::markdown::Span::image ? "img" : "link", links++);
+                for (const std::string& child : children)
+                    if (child.ends_with(leaf)) mark.node = child;
+                // No child (its reference names no link): no mark, since a link's place is a node's (S-17).
+                if (mark.node.empty()) {
+                    open.push_back(none);
+                    continue;
+                }
+            }
+            open.push_back(out.size());
+            out.push_back(std::move(mark));
+        } else if (m.op == mlibs::markdown::Op::close && !open.empty()) {
+            if (open.back() != none) out[open.back()].end = at(m.at);
+            open.pop_back();
+        }
+    }
+    for (const std::size_t left : open)
+        if (left != none) out[left].end = at(static_cast<std::uint32_t>(in.text.size()));
+    return out;
+}
+
 // A paragraph that is one image and nothing else, with a source on disk.
 std::optional<std::pair<std::string, std::string>> lone_image(const Data& d) {
     const mlibs::markdown::Block& b = d.block;
@@ -232,13 +294,21 @@ Element element(std::shared_ptr<Data> data, std::string id) {
             if (auto img = lone_image(*data)) {
                 Element e = image({.id = id, .source = img->first, .alt = img->second});
                 e.key = key;
+                // The source as the document wrote it, and its title: what a writing of the document gives back.
+                const mlibs::markdown::Link& written = data->links[data->block.content.marks.front().ref];
+                Value stated;
+                stated.set("source", Value(written.href));
+                if (!written.title.empty()) stated.set("title", Value(written.title));
+                e.prop("properties", Source{std::move(stated), {}, {}});
                 e.prop("max_width", Source{Value("100%"), {}, {}});
                 return e;
             }
             [[fallthrough]];
         case mlibs::markdown::Kind::heading:
-        case mlibs::markdown::Kind::table_cell:
-        case mlibs::markdown::Kind::html: return make<Text>(std::move(data), id, key);
+        case mlibs::markdown::Kind::table_cell: return make<Text>(std::move(data), id, key);
+        case mlibs::markdown::Kind::html:
+            if (comment_of(data->block)) return make<Comment>(std::move(data), id, key);
+            return make<Text>(std::move(data), id, key);
         case mlibs::markdown::Kind::code: return make<Code>(std::move(data), id, key);
         case mlibs::markdown::Kind::rule: return make<Rule>(std::move(data), id, key);
         case mlibs::markdown::Kind::table: {
@@ -389,8 +459,13 @@ void Text::semantics(SemanticsContext&, spec::SemanticNode& n) const {
     if (services_ && services_->text_selection(node_)) n.states.set(State::selected);
     if (b.kind == mlibs::markdown::Kind::heading) {
         n.value = Value(static_cast<std::int64_t>(b.level));
-        n.description = b.anchor;  // the anchor scroll_to_anchor and links (#anchor) use
+        n.properties.set("level", Value(static_cast<std::int64_t>(b.level)));
+        if (!b.anchor.empty()) n.properties.set("anchor", Value(b.anchor));  // what scroll_to_anchor and links (#anchor) use
     }
+    if (b.kind == mlibs::markdown::Kind::table_cell && b.align != mlibs::markdown::Align::none)
+        n.properties.set("align", Value(b.align == mlibs::markdown::Align::left ? "left" : b.align == mlibs::markdown::Align::center ? "center" : "right"));
+    if (b.kind == mlibs::markdown::Kind::html) n.properties.set("raw", Value("html"));
+    else if (n.name == b.content.text) n.marks = marks_of(b.content, n.children);  // the ranges are of the block's own text
     n.origin = origin_of(*data->hub);
 }
 
@@ -487,12 +562,16 @@ void Link::semantics(SemanticsContext&, spec::SemanticNode& n) const {
             n.name = data->block.content.text.substr(s.begin, s.end - s.begin);
             break;
         }
+    // Where it leads and what it is called are its properties (S-16): its description says only its title.
     if (image) {
         n.role = Role::image;
-        n.description = l.href;
+        n.properties.set("source", Value(l.href));
     } else {
-        n.description = l.title.empty() ? l.href : std::format("{} — {}", l.title, l.href);
-        n.value = Value(l.href);
+        n.properties.set("href", Value(l.href));
+    }
+    if (!l.title.empty()) {
+        n.properties.set("title", Value(l.title));
+        n.description = l.title;
     }
     n.origin = origin_of(*data->hub);
 }
@@ -567,7 +646,11 @@ void Group::semantics(SemanticsContext&, spec::SemanticNode& n) const {
     const mlibs::markdown::Block& b = data->block;
     n.role = role_of(b);
     if (b.kind == mlibs::markdown::Kind::item && b.task != mlibs::markdown::Task::none) n.states.set(State::checked, b.task == mlibs::markdown::Task::done);
-    if (b.kind == mlibs::markdown::Kind::ordered_list) n.value = Value(static_cast<std::int64_t>(b.start));
+    if (b.kind == mlibs::markdown::Kind::ordered_list) {
+        n.properties.set("ordered", Value(true));
+        n.properties.set("start", Value(static_cast<std::int64_t>(b.start)));
+    }
+    if ((b.kind == mlibs::markdown::Kind::ordered_list || b.kind == mlibs::markdown::Kind::bullet_list) && b.tight) n.properties.set("tight", Value(true));
     n.origin = origin_of(*data->hub);
 }
 
@@ -751,7 +834,7 @@ void Code::semantics(SemanticsContext&, spec::SemanticNode& n) const {
     std::string_view t = data->block.content.text;
     while (t.ends_with('\n')) t.remove_suffix(1);
     n.name = std::string(t);
-    if (!data->block.language.empty()) n.description = data->block.language;
+    if (!data->block.language.empty()) n.properties.set("language", Value(data->block.language));
     n.origin = origin_of(*data->hub);
 }
 
@@ -834,6 +917,28 @@ void Copy::paint_over(PaintContext& ctx) const {
 
 void Copy::semantics(SemanticsContext&, spec::SemanticNode& n) const {
     n.name = copied_ ? "Copied" : "Copy code";
+    n.origin = origin_of(*data->hub);
+}
+
+// ── Comment ──
+
+std::optional<std::string_view> comment_of(const mlibs::markdown::Block& block) {
+    if (block.kind != mlibs::markdown::Kind::html) return std::nullopt;
+    std::string_view text = block.content.text;
+    const auto blank = [](char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; };
+    while (!text.empty() && blank(text.front())) text.remove_prefix(1);
+    while (!text.empty() && blank(text.back())) text.remove_suffix(1);
+    if (!text.starts_with("<!--") || !text.ends_with("-->") || text.size() < 7) return std::nullopt;
+    text = text.substr(4, text.size() - 7);
+    if (text.find("-->") != std::string_view::npos) return std::nullopt;  // more than the one comment
+    return text;  // as written, its spaces too: a writing of the document gives back the same bytes
+}
+
+// Takes no room and draws nothing: the runtime states it hidden.
+void Comment::style(const Theme&, mlibs::layout::Style& s) const { s.display = mlibs::layout::Display::none; }
+
+void Comment::semantics(SemanticsContext&, spec::SemanticNode& n) const {
+    if (const auto text = comment_of(data->block)) n.properties.set("comment", Value(*text));
     n.origin = origin_of(*data->hub);
 }
 

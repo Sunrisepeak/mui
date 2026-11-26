@@ -106,7 +106,7 @@ Node describe(const spec::SemanticNode& n) {
         if (n.states.has(State::checked)) out.toggled = Toggled::on;
         if (n.states.has(State::mixed)) out.toggled = Toggled::mixed;
     } else if (n.role == Role::link) {
-        out.url = std::string(v.as_string());
+        if (const Value* href = n.properties.get("href")) out.url = std::string(href->as_string());
     } else if (n.role == Role::scroll_view && v.map()) {
         out.scroll_x = number_at(v, "x");
         out.scroll_y = number_at(v, "y");

@@ -100,7 +100,9 @@ static UTest cases{"ui.base.reading", [] {
                                 link({.id = "file", .href = std::string("file:///etc/passwd"), .text = std::string("A file")})}));
         h.step();
         const auto docs = h.tree().node("main/docs");
-        expect(docs && docs->role == Role::link && docs->name == "Read the docs" && docs->value == Value("https://example.org/docs"));
+        expect(docs && docs->role == Role::link && docs->name == "Read the docs" && docs->value.is_null() && docs->properties.get("href") &&
+               *docs->properties.get("href") == Value("https://example.org/docs"))
+            << "where it leads is its property (S-16)";
         expect(docs && std::ranges::any_of(docs->actions, [](const spec::ActionDesc& action) { return action.name == "activate" && action.effect == Effect::external; }))
             << "an address: external";
         const auto notes = h.tree().node("main/notes");
@@ -144,7 +146,8 @@ static UTest cases{"ui.base.reading", [] {
                                 link({.id = "marked", .href = std::string("https://example.org"), .icon = std::string(square), .text = std::string("Read the docs")})}));
         h.step();
         const auto code = h.tree().node("main/code");
-        expect(code && code->role == Role::link && code->name == "The code" && code->value == Value("https://example.org/code")) << "alone: named by its label";
+        expect(code && code->role == Role::link && code->name == "The code" && code->properties.get("href") && *code->properties.get("href") == Value("https://example.org/code"))
+            << "alone: named by its label";
         const Rect box = h.runtime().drawn_bounds(h.runtime().find("main/code"));
         expect(eq(box.width, 28.0f) && eq(box.height, 28.0f)) << "alone: the size it is given";
         const Rect plain = h.runtime().drawn_bounds(h.runtime().find("main/plain"));

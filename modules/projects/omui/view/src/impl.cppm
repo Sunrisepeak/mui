@@ -17,6 +17,7 @@ import mrender.vector;
 import mrender.raster;
 import mlibs.text;
 import hanim.visual;
+import mlibs.compose;
 import :element;
 import :glyphs;
 import :theme;
@@ -30,6 +31,55 @@ using mlibs::memory::SlotMap;
 }
 
 namespace omui {
+
+// The pixel effects this program has: mrender's, installed at their slot by the program's root where it draws pixels
+// (omui::run, the pixel hosts), or none — a terminal names no effect, and carries none. Absent, a node's effect is
+// left out (Runtime::Impl::effect_state says so, once).
+[[nodiscard]] inline const mrender::EffectInfo* effect_info(mrender::EffectRef ref) {
+    const mrender::EffectRegistry* effects = mrender::installed_effects();
+    return effects ? effects->info(ref) : nullptr;
+}
+[[nodiscard]] inline std::optional<mrender::EffectRef> find_effect(std::string_view name) {
+    const mrender::EffectRegistry* effects = mrender::installed_effects();
+    return effects ? effects->find(name) : std::nullopt;
+}
+[[nodiscard]] inline std::vector<float> effect_params(mrender::EffectRef ref, std::span<const std::pair<std::string_view, float>> values = {}) {
+    const mrender::EffectRegistry* effects = mrender::installed_effects();
+    return effects ? effects->params(ref, values) : std::vector<float>{};
+}
+[[nodiscard]] inline std::uint64_t effect_generation(mrender::EffectRef ref) {
+    const mrender::EffectRegistry* effects = mrender::installed_effects();
+    return effects ? effects->generation(ref) : 0;
+}
+
+// The table universal motion takes drawings apart, makes, draws and catches morphs through, and reads their text's
+// glyphs by (hanim.visual's, mrender.text's glyph cache): installed at `morphs_slot` by install_morphs (motion.cpp), so
+// a program whose root installs none (a terminal) carries none of it. Called per changed root and per frame of a
+// morph, never per pixel.
+struct Morphs {
+    hanim::visual::Matter (*extract)(const mrender::DisplayList& source, std::size_t begin, std::size_t end,
+                                     const hanim::visual::Resolver& resolver) = nullptr;
+    std::shared_ptr<const hanim::visual::Morph> (*make)(hanim::visual::Matter from, hanim::visual::Matter to, hanim::visual::Options options,
+                                                        double start) = nullptr;
+    void (*draw)(const hanim::visual::Morph& morph, double t, mrender::DisplayList& out, const hanim::visual::NestedDraw& nested,
+                 const mrender::PushLayer* live) = nullptr;
+    hanim::visual::Matter (*snapshot)(const hanim::visual::Morph& morph, double t, const hanim::visual::NestedDraw& nested,
+                                      const hanim::visual::SnapshotContext& context) = nullptr;
+    // The glyphs a morph's text is read by: a source over the runtime's fonts, emptied when they change.
+    std::unique_ptr<mrender::GlyphSource> (*glyphs)(mlibs::text::FontCollection& fonts) = nullptr;
+    void (*clear)(mrender::GlyphSource& glyphs) = nullptr;
+    std::optional<Rect> (*glyph_ink_bounds)(const mrender::DrawGlyphs& run, const Affine& transform, mrender::GlyphSource& source) = nullptr;
+    std::optional<mrender::Path> (*glyph_outline)(const mrender::DrawGlyphs& run, std::size_t glyph, mrender::GlyphSource& source) = nullptr;
+};
+
+inline constexpr mlibs::compose::Slot<Morphs> morphs_slot{{
+    .id = "omui.view.morphs",
+    .summary = "universal motion's morphs: a changed drawing moving from what was on screen to what is drawn now (D-93)",
+    .absent = "install them at the program's root: omui::install_morphs() (omui::run installs them with omui.sdk's feature "
+              "`morphs`, in every world that draws pixels; the headless host where none is); without them a change shows at once"}};
+
+// The table installed at `morphs_slot`, or null: absent. Kept once found.
+[[nodiscard]] const Morphs* installed_morphs() noexcept;
 
 struct RegionState;
 
@@ -350,7 +400,7 @@ struct Runtime::Impl {
     Theme                                 theme;
     std::unique_ptr<mlibs::text::FontCollection> own_fonts;
     mlibs::text::FontCollection*                 fonts = nullptr;
-    std::unique_ptr<mrender::text::GlyphCache>      motion_glyphs;
+    std::unique_ptr<mrender::GlyphSource>           motion_glyphs;  // made by the morphs' table (Morphs::glyphs)
     std::mutex                              motion_glyph_mutex;
     mrender::ImageStore                    images;
     hanim::Clock                           clock;
@@ -626,6 +676,9 @@ struct Runtime::Impl {
     // scratch list the morphs are drawn into; what invalidates the nodes'
     // resolved slots; the nodes with a morph under way.
     mrender::DisplayList                         previous_list, morph_scratch;
+    // The morphs this program has (`morphs_slot`; a terminal's: none, and a change shows at once): read when a frame's
+    // motion runs. A node has a morph only where they are.
+    const Morphs*                                morphs = nullptr;
     // The projection is a presentation result. Automatic state morphs retain
     // the unprojected source, so a published offset cannot be animated twice.
     mrender::DisplayList                         presentation_source;

@@ -10,6 +10,7 @@ import mlibs.math;
 import mlibs.geom;
 import mrender.raster;
 import mrender.display;
+import mlibs.compose;
 import :effects;
 import :cpu;
 
@@ -1013,6 +1014,28 @@ EffectRegistry& effects() {
     static const bool builtins = (register_builtins(r), true);  // once, in a fixed order: the same refs everywhere
     (void)builtins;
     return r;
+}
+
+namespace {
+// The registry the slot gave, once it gave one: the hot paths that name effects read this, not the composition.
+std::atomic<EffectRegistry*> found_effects{nullptr};
+}  // namespace
+
+EffectRegistry* installed_effects() noexcept {
+    if (EffectRegistry* found = found_effects.load(std::memory_order_acquire)) return found;
+    const EffectsService* service = mlibs::compose::process().get(effects_slot);
+    if (!service || !service->registry) return nullptr;
+    EffectRegistry* found = &service->registry();
+    found_effects.store(found, std::memory_order_release);
+    return found;
+}
+
+std::expected<void, mlibs::compose::Error> install_effects() {
+    // Made when installed, never at program start: a program that installs none carries none of the built-ins.
+    static const EffectsService service{.registry = &effects};
+    mlibs::compose::Composition& composition = mlibs::compose::process();
+    if (composition.get(effects_slot) == &service) return {};
+    return composition.install(effects_slot, service, "mrender");
 }
 
 }  // namespace mrender

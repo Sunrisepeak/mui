@@ -117,6 +117,13 @@ namespace mlibs::image {
   [[nodiscard]] Packed pack(std::span<const Image> images, std::int32_t width, std::int32_t padding = 2);
   [[nodiscard]] Image crop(const Image& img, std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height);
   [[nodiscard]] std::expected<Image, std::string> load_png(const std::filesystem::path& file);
+  struct Decoder {
+    std::string_view name;
+    std::expected<Image, std::string> (*load)(const std::filesystem::path& file) = nullptr;
+  };
+  inline constexpr mlibs::compose::Slot<Decoder> decoder_slot{…};
+  [[nodiscard]] const Decoder* decoder() noexcept;
+  std::expected<void, mlibs::compose::Error> install();
   struct NormalOptions {
     float bevel = 12;
     float detail = 0;

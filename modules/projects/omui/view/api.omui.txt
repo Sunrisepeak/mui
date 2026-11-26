@@ -861,6 +861,8 @@ namespace omui {
     std::string reason;
     friend bool operator==(const Adaptation&, const Adaptation&) = default;
   };
+  std::expected<void, mlibs::compose::Error> install_morphs();
+  [[nodiscard]] bool morphs_installed() noexcept;
   struct MotionState {
     NodeId node;
     std::string path;

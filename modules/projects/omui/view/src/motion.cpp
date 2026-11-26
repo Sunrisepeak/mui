@@ -21,6 +21,8 @@ import mrender.vector;
 import hanim.visual;
 import :impl;
 import mrender.text;
+import mlibs.text;
+import mlibs.compose;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -71,10 +73,10 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
     o.vertex_path = spec.vertex_path;
     o.translation_path = spec.translation_path;
     if (spec.travel)
-        if (const auto ref = mrender::effects().find(spec.travel->effect)) {
+        if (const auto ref = find_effect(spec.travel->effect)) {
             hanim::visual::Options::Travel t{.effect = *ref};
-            t.params = mrender::effects().params(*ref, {});
-            if (const mrender::EffectInfo* info = mrender::effects().info(*ref)) {
+            t.params = effect_params(*ref, {});
+            if (const mrender::EffectInfo* info = effect_info(*ref)) {
                 for (const auto& [k, x] : spec.travel->params)
                     for (std::size_t i = 0; i < info->params.size() && i < t.params.size(); ++i)
                         if (info->params[i].name == k) t.params[i] = x;
@@ -95,7 +97,44 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
     return o;
 }
 
+// Universal motion's morphs at their slot: hanim.visual's, and mrender.text's glyph cache for their text.
+std::atomic<const Morphs*> found_morphs{nullptr};
+
 }  // namespace
+
+const Morphs* installed_morphs() noexcept {
+    if (const Morphs* found = found_morphs.load(std::memory_order_acquire)) return found;
+    const Morphs* found = mlibs::compose::process().get(morphs_slot);
+    if (found) found_morphs.store(found, std::memory_order_release);
+    return found;
+}
+
+bool morphs_installed() noexcept { return installed_morphs() != nullptr; }
+
+std::expected<void, mlibs::compose::Error> install_morphs() {
+    // Made when installed, never at program start: a program that installs none carries no morph and no glyph cache.
+    static const Morphs table{
+        .extract = [](const mrender::DisplayList& source, std::size_t begin, std::size_t end, const hanim::visual::Resolver& resolver) {
+            return hanim::visual::Matter::extract(source, begin, end, resolver);
+        },
+        .make = [](hanim::visual::Matter from, hanim::visual::Matter to, hanim::visual::Options options,
+                   double start) -> std::shared_ptr<const hanim::visual::Morph> {
+            return std::make_shared<const hanim::visual::Morph>(std::move(from), std::move(to), std::move(options), start);
+        },
+        .draw = [](const hanim::visual::Morph& morph, double t, mrender::DisplayList& out, const hanim::visual::NestedDraw& nested,
+                   const mrender::PushLayer* live) { morph.draw(t, out, nested, live); },
+        .snapshot = [](const hanim::visual::Morph& morph, double t, const hanim::visual::NestedDraw& nested,
+                       const hanim::visual::SnapshotContext& context) { return morph.snapshot(t, nested, context); },
+        .glyphs = [](mlibs::text::FontCollection& fonts) -> std::unique_ptr<mrender::GlyphSource> {
+            return std::make_unique<mrender::text::GlyphCache>(fonts);
+        },
+        .clear = [](mrender::GlyphSource& glyphs) { static_cast<mrender::text::GlyphCache&>(glyphs).clear(); },
+        .glyph_ink_bounds = &hanim::visual::glyph_ink_bounds,
+        .glyph_outline = &hanim::visual::glyph_outline};
+    mlibs::compose::Composition& composition = mlibs::compose::process();
+    if (composition.get(morphs_slot) == &table) return {};
+    return composition.install(morphs_slot, table, "omui.view");
+}
 
 const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool fallback) {
     // A design edit being shown (Runtime::present_design): what comes is written in and what goes
@@ -156,8 +195,8 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
     const mlibs::pipeline::Tier tier = effects_now();
     auto fits = [&](const MotionSpec& m) {
         if (!m.travel) return true;
-        const auto ref = mrender::effects().find(m.travel->effect);
-        const mrender::EffectInfo* info = ref ? mrender::effects().info(*ref) : nullptr;
+        const auto ref = find_effect(m.travel->effect);
+        const mrender::EffectInfo* info = ref ? effect_info(*ref) : nullptr;
         return info && (info->tiers & mlibs::pipeline::tier_bit(tier));
     };
     const MotionSpec* chosen = nullptr;
@@ -195,7 +234,7 @@ void Runtime::Impl::emit_motion_range(std::size_t begin, std::size_t end, mrende
                 out.begin_node(b->node);
                 const std::size_t w = b->node < marker_wrapper.size() ? marker_wrapper[b->node] : none;
                 const auto* live = w != none ? std::get_if<mrender::PushLayer>(&cmds[w]) : nullptr;
-                at(id).morph->draw(at(id).clock.local(t), out, [this, t](std::uint32_t marker, mrender::DisplayList& into) {
+                morphs->draw(*at(id).morph, at(id).clock.local(t), out, [this, t](std::uint32_t marker, mrender::DisplayList& into) {
                     if (marker < marker_ranges.size() && marker_ranges[marker].first != none)
                         emit_motion_range(marker_ranges[marker].first, marker_ranges[marker].second, into, t);
                 }, live);
@@ -225,7 +264,15 @@ bool Runtime::Impl::motions_moving() const {
 void Runtime::Impl::run_motion() {
     const double t = now().count();
     const MotionLevel level = motion_now();
-    const bool off = reduce_motion || level == MotionLevel::off ||
+    // Without morphs (a program that draws no pixels: `morphs_slot` empty) motion is off — the log an agent reads says
+    // so once (not a terminal's screen).
+    morphs = installed_morphs();
+    if (!morphs) {
+        static std::atomic<bool> said{false};
+        if (!said.exchange(true))
+            mlibs::log::info("motion: a change shows at once, this program has no morphs ({}: {})", morphs_slot.info.id, morphs_slot.info.absent);
+    }
+    const bool off = !morphs || reduce_motion || level == MotionLevel::off ||
                      (time_control.controlled && (time_control.paused || time_control.rate != 1 || time_control.seek));
     if (!repainted) return;
     const auto cmds = list.commands();
@@ -393,17 +440,17 @@ void Runtime::Impl::run_motion() {
             options.proof_scale = scale;
             options.current_proof_scale = [this] { return scale; };
             if (options.minimum_text_contrast > 0) {
-                if (!motion_glyphs) motion_glyphs = std::make_unique<mrender::text::GlyphCache>(*fonts);
-                options.glyph_bounds = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const mrender::DrawGlyphs& run, const Affine& transform) {
+                if (!motion_glyphs) motion_glyphs = morphs->glyphs(*fonts);
+                options.glyph_bounds = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex, table = morphs](const mrender::DrawGlyphs& run, const Affine& transform) {
                     const std::scoped_lock guard(*lock);
-                    return hanim::visual::glyph_ink_bounds(run, transform, *cache);
+                    return table->glyph_ink_bounds(run, transform, *cache);
                 };
             }
             if (spec.reshape && level != MotionLevel::reduced) {
-                if (!motion_glyphs) motion_glyphs = std::make_unique<mrender::text::GlyphCache>(*fonts);
-                options.glyph_outline = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const mrender::DrawGlyphs& run, std::size_t glyph) {
+                if (!motion_glyphs) motion_glyphs = morphs->glyphs(*fonts);
+                options.glyph_outline = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex, table = morphs](const mrender::DrawGlyphs& run, std::size_t glyph) {
                     const std::scoped_lock guard(*lock);
-                    return hanim::visual::glyph_outline(run, glyph, *cache);
+                    return table->glyph_outline(run, glyph, *cache);
                 };
             }
             if (press && spec.press > 0 && level != MotionLevel::reduced) {
@@ -421,7 +468,7 @@ void Runtime::Impl::run_motion() {
             const auto previous_clock = n.clock;
             const bool keep_control = external_layout && n.morph && n.clock.held;
             n.morph_presence = !from || from->pieces().empty() ? std::int8_t{1} : to.pieces().empty() ? std::int8_t{-1} : std::int8_t{0};
-            n.morph = std::make_shared<const hanim::visual::Morph>(std::move(*from), std::move(to), std::move(options), t);
+            n.morph = morphs->make(std::move(*from), std::move(to), std::move(options), t);
             n.clock = {};  // a new content change follows runtime time again
             if (keep_control) {
                 n.clock = previous_clock;
@@ -437,7 +484,7 @@ void Runtime::Impl::run_motion() {
                 n.exit_begun = true;
                 const MotionSpec* exit = slot_motion(id, 2);
                 const auto was = previous_range(static_cast<std::uint32_t>(m));
-                if (exit && was && !off) start(hanim::visual::Matter::extract(previous_list, was->first, was->second, resolver), hanim::visual::Matter{}, *exit, 0);
+                if (exit && was && !off) start(morphs->extract(previous_list, was->first, was->second, resolver), hanim::visual::Matter{}, *exit, 0);
             }
             continue;
         }
@@ -462,10 +509,10 @@ void Runtime::Impl::run_motion() {
             const bool into_drawn = n.type->overlay || (alive(parent) && at(parent).index < drawn_by.size() && drawn_by[at(parent).index] == parent);
             // Hidden, then drawn again before its ghost had vanished: from where the ghost is.
             std::optional<hanim::visual::Matter> from;
-            if (n.ghost && n.morph) from = n.morph->snapshot(n.clock.local(t), {}, snapshot_context(static_cast<std::uint32_t>(m)));
+            if (n.ghost && n.morph) from = morphs->snapshot(*n.morph, n.clock.local(t), {}, snapshot_context(static_cast<std::uint32_t>(m)));
             else from = hanim::visual::Matter{};
             n.ghost = false;
-            if (spec && into_drawn && !off) start(std::move(from), hanim::visual::Matter::extract(list, b, e, resolver), *spec, 0);
+            if (spec && into_drawn && !off) start(std::move(from), morphs->extract(list, b, e, resolver), *spec, 0);
             else n.morph.reset();
             continue;
         }
@@ -513,7 +560,7 @@ void Runtime::Impl::run_motion() {
         }
         // Held by the pointer (dragged), moving by itself, or motion off: shown as it is.
         const bool held = alive(capture) && (capture == id || contains(id, capture));
-        const bool rebase_held = external_layout && !reduce_motion && level != MotionLevel::off;
+        const bool rebase_held = morphs && external_layout && !reduce_motion && level != MotionLevel::off;
         // A press recipe asks for the press itself: held, it still moves (the hand does not move it).
         if ((off && !rebase_held) || (held && !(spec->press > 0)) || by_itself) {
             if (n.morph) n.morph.reset(), touch(dirty_semantics);
@@ -535,15 +582,15 @@ void Runtime::Impl::run_motion() {
         double velocity = 0;
         if (n.morph) {
             velocity = std::clamp(n.morph->rate(n.clock.local(t)), 0.0, 20.0);
-            from = n.morph->snapshot(n.clock.local(t), [this, t](std::uint32_t marker, mrender::DisplayList& into) {
+            from = morphs->snapshot(*n.morph, n.clock.local(t), [this, t](std::uint32_t marker, mrender::DisplayList& into) {
                 if (marker < marker_ranges.size() && marker_ranges[marker].first != none)
                     emit_motion_range(marker_ranges[marker].first, marker_ranges[marker].second, into, t);
             }, snapshot_context(static_cast<std::uint32_t>(m)));
         } else if (const auto was = previous_range(static_cast<std::uint32_t>(m))) {
-            from = hanim::visual::Matter::extract(previous_list, was->first, was->second, before);
+            from = morphs->extract(previous_list, was->first, was->second, before);
         }
         if (!from) continue;
-        start(std::move(from), hanim::visual::Matter::extract(list, b, e, resolver), *spec, velocity);
+        start(std::move(from), morphs->extract(list, b, e, resolver), *spec, velocity);
     }
 
     // Roots drawn the last frame, alive, not drawn now (hidden): their last drawing vanishes as a ghost.
@@ -564,10 +611,10 @@ void Runtime::Impl::run_motion() {
                                   if (alive(who)) key = self.path(who);
                               }};
         std::optional<hanim::visual::Matter> from;
-        if (n.morph) from = n.morph->snapshot(n.clock.local(t), {}, snapshot_context(static_cast<std::uint32_t>(m)));
-        else from = hanim::visual::Matter::extract(previous_list, was->first, was->second, keys);
+        if (n.morph) from = morphs->snapshot(*n.morph, n.clock.local(t), {}, snapshot_context(static_cast<std::uint32_t>(m)));
+        else from = morphs->extract(previous_list, was->first, was->second, keys);
         hanim::visual::Options options = options_of(*update_motion(id), level, theme_of(id));
-        n.morph = std::make_shared<const hanim::visual::Morph>(std::move(*from), hanim::visual::Matter{}, std::move(options), t);
+        n.morph = morphs->make(std::move(*from), hanim::visual::Matter{}, std::move(options), t);
         n.clock = {};
         n.ghost = true;
         n.drawn = false;  // drawn again later: from nothing
@@ -611,7 +658,7 @@ void Runtime::Impl::run_motion() {
             const Affine parent = n.type->overlay || !alive(n.parent) ? Affine{} : at(n.parent).world;
             morph_scratch.push_transform(parent);
             morph_scratch.begin_node(n.index);
-            n.morph->draw(n.clock.local(t), morph_scratch);
+            morphs->draw(*n.morph, n.clock.local(t), morph_scratch, {}, nullptr);
             morph_scratch.end_node();
             morph_scratch.pop_transform();
         }

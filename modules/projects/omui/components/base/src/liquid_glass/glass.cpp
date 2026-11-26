@@ -21,7 +21,11 @@ std::vector<float> material(const Props& p, double smoothness, const Theme& them
             static_cast<float>(p.rim)};
 }
 
-std::optional<mrender::EffectRef> glass_effect() { return mrender::effects().find("liquid_glass"); }
+// The built-in, where the program has pixel effects (mrender's slot); a terminal's has none: the glass draws nothing.
+std::optional<mrender::EffectRef> glass_effect() {
+    const mrender::EffectRegistry* effects = mrender::installed_effects();
+    return effects ? effects->find("liquid_glass") : std::nullopt;
+}
 
 CornerRadii fitted(double radius, Size size) {
     return CornerRadii::all(std::max(0.0f, std::min(static_cast<float>(radius), std::min(size.width, size.height) / 2)));

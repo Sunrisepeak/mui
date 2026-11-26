@@ -93,6 +93,14 @@ std::expected<std::vector<std::uint8_t>, ViewFailure> encoded(std::expected<std:
 Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
+    // The host brings what its renderer draws, where the program installed none: mrender's pixel effects, hanim's
+    // morphs (a change moving), mlibs.image's PNG reader (the view's `image`).
+    if (!mrender::installed_effects())
+        if (auto installed = mrender::install_effects(); !installed) warn("the pixel effects: {}", installed.error().message);
+    if (!morphs_installed())
+        if (auto installed = install_morphs(); !installed) warn("the morphs: {}", installed.error().message);
+    if (!mlibs::image::decoder())
+        if (auto installed = mlibs::image::install(); !installed) warn("the picture reader: {}", installed.error().message);
     mlibs::text::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
         // The host brings its text measure (terminal design §9): HarfBuzz, unless the program installed a shaper.

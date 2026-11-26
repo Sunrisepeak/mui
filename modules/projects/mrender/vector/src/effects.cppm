@@ -23,6 +23,7 @@ import mlibs.geom;
 import mrender.raster;
 import mlibs.rhi;
 import mrender.display;
+import mlibs.compose;
 // The built-ins' GPU paths (effects/*.slang), compiled by build.mcpp.
 export import :quad_shaders;
 export import :dissolve_shaders;
@@ -212,6 +213,30 @@ private:
 
 // The process's registry: dissolve, wipe, reveal, displace, noise,
 // chromatic, blur, pixelate, particles; then what the program adds.
+// A renderer of pixels asks it directly; whoever only names effects — the
+// view runtime, its styles and motions — asks the slot below.
 [[nodiscard]] EffectRegistry& effects();
+
+// The slot the process's pixel effects are provided at (mlibs.compose; terminal
+// design §9 step ③): a program that draws pixels installs them at its root —
+// omui::run (omui.sdk's feature `effects`), the pixel hosts, a program or test
+// of its own — and one that draws none (a terminal) does not, and carries none
+// of the built-ins (their shaders, their CPU references). Its own provider: no
+// dependency to keep apart.
+struct EffectsService {
+    EffectRegistry& (*registry)() = nullptr;
+};
+
+inline constexpr mlibs::compose::Slot<EffectsService> effects_slot{{
+    .id = "mrender.vector.effects",
+    .summary = "the pixel effects a drawing can name (dissolve, blur, glass, …) and what each reads, reaches and costs",
+    .absent = "install them at the program's root: mrender::install_effects() (omui::run installs them with omui.sdk's "
+              "feature `effects`, in every world that draws pixels; the pixel hosts where none is); a terminal draws none"}};
+
+// The registry installed at `effects_slot`, or null: absent, so no effect is
+// named (a node's effect is left out, and its owner says so). Kept once found.
+[[nodiscard]] EffectRegistry* installed_effects() noexcept;
+// Installs `effects()` at the process's slot; installed already: nothing changes.
+std::expected<void, mlibs::compose::Error> install_effects();
 
 }  // namespace mrender

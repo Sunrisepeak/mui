@@ -31,6 +31,18 @@ The retained and immediate view runtime (plan §3–§5):
   Reduced transitions use their short default spatial interpolation; off and
   system reduced motion also retire already-held morphs. Timing, render styles
   and image effects remain separate controls;
+- **pixel parts at slots** (terminal design §9 step ③; [`mlibs.compose`](../../../base/compose),
+  a preview, `lower` in the manifest): what only a program that draws pixels
+  uses is read where a program's root installed it, so a terminal carries none
+  of it. Universal motion's morphs — hanim.visual, and mrender.text's glyph
+  cache for their text — are this package's own slot `omui.view.morphs`
+  (`install_morphs()`); pixel effects by name are mrender's
+  (`mrender.vector.effects`), an image's file is read by mlibs.image's decoder
+  (`mlibs.image.decoder`). omui::run installs all three in every world that
+  draws pixels (omui.sdk's features `morphs`, `effects`, `images`), the
+  headless host where none is. Absent is unsupported: a change shows at once,
+  a node's effect is left out (both said once in the log, not on a terminal's
+  screen), an image fails and says why;
 - **the runtime**: nodes with structural and explicit ids (S-8), fine-grained
   bindings, transitions on animation channels (enter, exit with S-4), timers
   on the injected clock, incremental layout, painting into a display list with

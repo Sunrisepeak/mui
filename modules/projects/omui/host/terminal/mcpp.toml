@@ -49,3 +49,4 @@ mcpplibs.os   = "0.4.4"  # raw keys, the terminal's size, the standard streams
 mcpplibs.mtest = "0.8.4"
 mlibs.agent.cts = { path = "../../../../base/agent/cts" }  # the agent contract's suite on the terminal's subject
 omui.ui.base  = { path = "../../components/base" }         # the components a window shows, in cells
+mlibs.image   = { path = "../../../../base/image" }         # its decoder's slot, absent here as in a terminal's program

@@ -650,7 +650,7 @@ std::optional<Rect> Runtime::Impl::reach_of(NodeId id) const {
     // the effect that stands in for it below its tiers too; one moving, or that says nothing, anywhere.
     if (n.effect_moving(now(), !reduce_motion && motion_now() == MotionLevel::full)) return std::nullopt;
     const auto effect_reach = [&](const mrender::EffectRef effect, std::span<const float> params) -> std::optional<float> {
-        const mrender::EffectInfo* info = mrender::effects().info(effect);
+        const mrender::EffectInfo* info = effect_info(effect);
         if (!info || (info->identity && info->identity(params))) return 0.0f;
         if (info->output_reach) return info->output_reach(params);
         if (info->reach) return info->reach(params);
@@ -658,10 +658,10 @@ std::optional<Rect> Runtime::Impl::reach_of(NodeId id) const {
     };
     const auto effect = [&](const Node::PixelEffectState& fx) -> std::optional<float> {
         auto own = effect_reach(fx.effect, fx.params);
-        const mrender::EffectInfo* info = mrender::effects().info(fx.effect);
+        const mrender::EffectInfo* info = effect_info(fx.effect);
         if (own && info && !info->degrade.empty())
-            if (const auto instead = mrender::effects().find(info->degrade)) {
-                const auto stand_in = effect_reach(*instead, mrender::effects().params(*instead, {}));
+            if (const auto instead = find_effect(info->degrade)) {
+                const auto stand_in = effect_reach(*instead, effect_params(*instead, {}));
                 own = stand_in ? std::optional<float>(std::max(*own, *stand_in)) : std::nullopt;
             }
         return own;
@@ -822,15 +822,15 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
     // panel — its background as it looks over the theme's, made solid.
     bool solid = false;
     if (fxs && reduce_transparency)
-        if (const mrender::EffectInfo* info = mrender::effects().info(fxs->effect); info && info->backdrop) fxs = nullptr, solid = true;
+        if (const mrender::EffectInfo* info = effect_info(fxs->effect); info && info->backdrop) fxs = nullptr, solid = true;
     // Below the tiers it runs on (performance tiers, D-94: the device's, or as low as the frame budget allows): what
     // stands in for it, its defaults; none — a backdrop's effect, its panel then drawn solid.
     if (fxs)
-        if (const mrender::EffectInfo* info = mrender::effects().info(fxs->effect); info && !(info->tiers & mlibs::pipeline::tier_bit(effects_now()))) {
-            const auto instead = info->degrade.empty() ? std::nullopt : mrender::effects().find(info->degrade);
+        if (const mrender::EffectInfo* info = effect_info(fxs->effect); info && !(info->tiers & mlibs::pipeline::tier_bit(effects_now()))) {
+            const auto instead = info->degrade.empty() ? std::nullopt : find_effect(info->degrade);
             solid = solid || info->backdrop;
             if (instead) {
-                n.stood_in = {.effect = *instead, .params = mrender::effects().params(*instead, {})};
+                n.stood_in = {.effect = *instead, .params = effect_params(*instead, {})};
                 fxs = &n.stood_in;
             } else {
                 fxs = nullptr;
@@ -875,13 +875,13 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
         // UI effect wrappers carry no opacity/blend of their own. An identity
         // needs no extra isolated group (which would reapply ancestor clips).
         // The node's actual opacity layer below remains independent.
-        if (const auto* info = mrender::effects().info(fxs->effect); info && info->identity && info->identity(fxs->params)) fxs = nullptr;
+        if (const auto* info = effect_info(fxs->effect); info && info->identity && info->identity(fxs->params)) fxs = nullptr;
     }
     const bool effected = fxs != nullptr;
     // More of its own over it (a list), each where it runs (performance tiers: below its tiers, left out).
     std::size_t more = 0;
     for (auto& fx : n.more_effects)
-        if (const mrender::EffectInfo* info = mrender::effects().info(fx.effect); info && (info->tiers & mlibs::pipeline::tier_bit(effects_now())) &&
+        if (const mrender::EffectInfo* info = effect_info(fx.effect); info && (info->tiers & mlibs::pipeline::tier_bit(effects_now())) &&
                                                                                !(info->backdrop && reduce_transparency)) {
             sample(fx);
             if (!info->identity || !info->identity(fx.params)) ++more;
@@ -911,7 +911,7 @@ void Runtime::Impl::paint_node(NodeId id, std::optional<Rect> shown) {
             if (shapes[i].radii.smoothing == 0 && !shapes[i].radii.zero()) shapes[i].radii.smoothing = theme.corner_smoothing;
         // The last of the list outermost: pushed first.
         for (auto it = n.more_effects.rbegin(); it != n.more_effects.rend(); ++it) {
-            const mrender::EffectInfo* info = mrender::effects().info(it->effect);
+            const mrender::EffectInfo* info = effect_info(it->effect);
             if (!info || !(info->tiers & mlibs::pipeline::tier_bit(effects_now())) || (info->backdrop && reduce_transparency)) continue;
             if (info->identity && info->identity(it->params)) continue;
             list.push_layer(1, mrender::BlendMode::normal, it->effect, it->params, box, std::span(shapes.data(), count));
@@ -1231,7 +1231,7 @@ NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {
     // An effect that moves what is drawn (a bulging screen): the point seen
     // is where it was drawn from, for this node and what is inside it.
     if (const Node::PixelEffectState* fx = n.pixel_effect ? &*n.pixel_effect : (n.styled_effect ? &*n.styled_effect : nullptr))
-        if (const mrender::EffectInfo* info = mrender::effects().info(fx->effect); info && info->source_of) {
+        if (const mrender::EffectInfo* info = effect_info(fx->effect); info && info->source_of) {
             p = info->source_of(p, {0, 0, n.frame.width, n.frame.height}, fx->params);
             window = (presented ? n.presented_world : n.world).apply(p);
         }

@@ -8,12 +8,20 @@ import omui.abi;
 import omui.core;
 import omui.ui.base;
 import omui.native.fuzzy;
+import mlibs.text.harfbuzz;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
 using namespace omui::abi;
 
 namespace {
+
+// The program a binding runs in chooses how text is shaped (mlibs.text's slot): this one, as a program that draws its
+// frames' pixels, installs HarfBuzz before any runtime is made.
+[[maybe_unused]] const bool shaping = [] {
+    (void)mlibs::text::harfbuzz::install();
+    return true;
+}();
 
 OmuiString str(std::string_view s) { return {s.data(), s.size()}; }
 

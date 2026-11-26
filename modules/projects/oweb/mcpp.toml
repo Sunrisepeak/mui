@@ -1,0 +1,50 @@
+# oweb — a site framework on omui (0.1.0 plan §4.4, D-275; design 2026-11-26-oweb-site-framework-design.md): a
+# directory of pages built into a site in which every route is one semantic tree written three ways — the canvas
+# for people (the engine, by the page's load policy), `index.html` for a reader without scripts and for search
+# engines, `index.md` for an agent that only fetches — with the routes as the one table the navigation, the
+# sitemap and the site's description come from. One package: its duties are directories of src/ (D-99).
+[package]
+name        = "oweb"
+version     = "0.1.0"
+description = "A site framework on omui: pages built into routes, each written as HTML and as Markdown from its semantic tree; the routes table, the sitemap, the site's description for agents"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the oweb framework and command, a project of its own on omui (D-275)"
+kind = "tool"
+reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
+agent = "tool"
+
+[targets.oweb-core]
+kind = "lib"
+
+[targets.oweb]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+
+[dependencies]
+# The command is the subject `oweb` behind the tool kernel's entries (mlibs.agent:host, T0).
+mlibs.agent    = { path = "../../base/agent" }
+mlibs.json     = { path = "../../base/json" }
+mlibs.markdown = { path = "../../content/markdown" }
+mlibs.text.fonts = { path = "../../content/text/fonts" }  # every script a page shows carried with it (D-214)
+"omui.core"          = { path = "../omui/core" }
+"omui.view"          = { path = "../omui/view" }
+"omui.semantic"      = { path = "../omui/semantic" }
+"omui.host.headless" = { path = "../omui/host/headless" }
+"omui.ui.base"       = { path = "../omui/components/base" }
+"omui.ui.markdown"   = { path = "../omui/components/markdown" }
+openlifa.openas = "0.2.1"
+mcpplibs.os     = "0.4.4"
+
+[test]
+programs = "directory"  # tests/oweb/: one program, each file run and filtered on its own
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

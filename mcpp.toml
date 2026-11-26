@@ -118,6 +118,7 @@ members = [
     "modules/projects/gongfu/present2d",
     "modules/projects/gongfu/rules",
     "modules/projects/gongfu/studio",
+    "modules/projects/oweb",
     "modules/projects/xtools",
     "modules/projects/xtools/inspector",
     "modules/projects/xtools/audition",

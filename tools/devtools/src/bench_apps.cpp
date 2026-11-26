@@ -948,9 +948,14 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
               const Environment& environment, bool cold, bool whole, const fs::path& shot = {}) {
     Launch out;
     // The pointer out of every window (on a desktop: on the monitor the window is to open on, borrowed until the window
-    // is there); nothing left over from the last program.
-    Borrowed placing(display, settings.desktop);
-    (void)display.pointer(settings.park[0], settings.park[1]);
+    // is there); nothing left over from the last program. An omui side on a desktop is told where its window opens
+    // (`--position`, the window's own placement): the pointer stays its person's, untouched.
+    const bool places_itself = settings.desktop && side.build == "omui";
+    std::optional<Borrowed> placing;
+    if (!places_itself) {
+        placing.emplace(display, settings.desktop);
+        (void)display.pointer(settings.park[0], settings.park[1]);
+    }
     while (true) {
         auto pending = display.next(milliseconds{0});
         if (!pending || !*pending)
@@ -966,6 +971,8 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         variables.insert(variables.end(), environment.omui.begin(), environment.omui.end());
     variables.insert(variables.end(), side.env.begin(), side.env.end());
     std::vector<std::string> args = side.args;
+    if (places_itself)
+        args.insert(args.end(), {"--position", std::format("{},{}", settings.monitor.x + 60, settings.monitor.y + 60)});
     if (whole && side.build == "omui" && !settings.trace.empty())
         args.insert(args.end(), {"--profile", utf8(settings.trace / std::format("{}-{}.trace.json",
                                                                                side.series, side.app))});
@@ -1000,7 +1007,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         end();
         return out;
     }
-    placing.give_back();  // the window is where it opened: the pointer is its person's again
+    if (placing) placing->give_back();  // the window is where it opened: the pointer is its person's again
     const auto frames = watch.frames();
     if (!frames) {
         out.failure = frames.error();

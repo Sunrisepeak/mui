@@ -193,6 +193,7 @@ namespace omui {
     std::optional<bool> gpu;
     bool reduce_transparency = false;
     std::optional<Size> size;
+    std::optional<std::array<int, 2>> position;
     DebugOptions debug;
     std::string log;
     std::filesystem::path profile;

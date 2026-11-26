@@ -5,7 +5,6 @@ import std;
 import mcpplibs.os;
 import mcpplibs.cmdline;
 import mlibs.json;
-import nlohmann.json;
 
 namespace omui::launcher {
 
@@ -19,6 +18,10 @@ std::string joined(std::span<const std::string> words) {
     for (const std::string& word : words) out += (out.empty() ? "" : ", ") + word;
     return out;
 }
+
+// A line on this program's standard error or output, as bytes (mcpplibs.os: no C++ stream is linked for it).
+void refused(std::string line) { (void)os::stdio::write_error(line.append("\n")); }
+void answered(std::string line) { (void)os::stdio::write_output(line.append("\n")); }
 
 // "0.4" of "0.4", "0.4.2" or "0.4.2-dev.1": the specification's major and minor.
 std::string major_minor(std::string_view version) {
@@ -71,23 +74,19 @@ std::strong_ordering compare_versions(std::string_view left, std::string_view ri
     return compare_parts(left_pre, right_pre);
 }
 
+// Read in place by mlibs.json's own scanner: the launcher links no JSON parser (red 145).
 std::expected<Runtime, std::string> read_runtime(std::string_view text, const fs::path& directory) {
-    const std::string file = os::fs::utf8(directory / "runtime.json");
-    auto document = mlibs::json::Document::parse(text, file);
-    if (!document) return std::unexpected(document.error().text());
-    const auto fail = [&](const mlibs::json::Node& at, std::string message) {
-        return std::unexpected(document->problem(at, std::move(message), "omui-player --runtime writes one").text());
+    const auto described = mlibs::json::Scan::read(text, os::fs::utf8(directory / "runtime.json"));
+    if (!described) return std::unexpected(described.error().text());
+    const auto fail = [&](std::string_view at, std::string message) {
+        return std::unexpected(described->problem(at, std::move(message), "omui-player --runtime writes one").text());
     };
-    const mlibs::json::Node root = document->root();
-    if (!root.is_object() || root["$format"].text() != std::optional<std::string>("runtime@1"))
-        return fail(root["$format"] ? root["$format"] : root, "a runtime's description names its format: \"$format\": \"runtime@1\"");
-    const mlibs::json::Node said = root["runtime"];
-    Runtime out{.directory = directory, .version = said["version"].text().value_or(""), .openmui = said["openmui"].text().value_or("")};
-    if (out.version.empty()) return fail(said ? said : root, "a runtime says its version: \"version\": \"0.1.0\"");
-    if (out.openmui.empty()) return fail(said, "a runtime says the specification it implements: \"openmui\": \"0.4\"");
-    if (const mlibs::json::Node capabilities = said["capabilities"]; capabilities.is_array())
-        for (const mlibs::json::Node& capability : capabilities.items())
-            if (const auto name = capability.text()) out.capabilities.push_back(*name);
+    if (described->text("/$format") != std::optional<std::string>("runtime@1"))
+        return fail("/$format", "a runtime's description names its format: \"$format\": \"runtime@1\"");
+    Runtime out{.directory = directory, .version = described->text("/runtime/version").value_or(""), .openmui = described->text("/runtime/openmui").value_or("")};
+    if (out.version.empty()) return fail("/runtime/version", "a runtime says its version: \"version\": \"0.1.0\"");
+    if (out.openmui.empty()) return fail("/runtime/openmui", "a runtime says the specification it implements: \"openmui\": \"0.4\"");
+    out.capabilities = described->texts("/runtime/capabilities").value_or(std::vector<std::string>{});
     return out;
 }
 
@@ -112,6 +111,11 @@ std::vector<Runtime> installed(const fs::path& xlings_home) {
     }
     std::ranges::sort(out, [](const Runtime& left, const Runtime& right) { return compare_versions(left.version, right.version) > 0; });
     return out;
+}
+
+fs::path xlings_home() {
+    const auto home_variable = os::env::get("XLINGS_HOME");
+    return home_variable && !home_variable->empty() ? os::fs::from_utf8(*home_variable) : os::dirs::home().value_or(fs::current_path()) / ".xlings";
 }
 
 Choice choose(const Declared& wanted, std::span<const Runtime> runtimes) {
@@ -150,31 +154,26 @@ int launch(const Launch& what) {
     if (application.filename() == "mcpp.toml") application = application.parent_path();
     const auto manifest = os::fs::read(application / "mcpp.toml");
     if (!manifest) {
-        std::println(std::cerr, "omui-launch: no mcpp.toml in {} (an application's directory)", os::fs::utf8(application));
+        refused(std::format("omui-launch: no mcpp.toml in {} (an application's directory)", os::fs::utf8(application)));
         return 2;
     }
     auto wanted = declared(*manifest);
     if (!wanted) {
-        std::println(std::cerr, "omui-launch: {}: {}", os::fs::utf8(application / "mcpp.toml"), wanted.error());
+        refused(std::format("omui-launch: {}: {}", os::fs::utf8(application / "mcpp.toml"), wanted.error()));
         return 2;
     }
-    // xlings' home: $XLINGS_HOME, else .xlings in the person's home (each system's own, mcpplibs.os).
-    const auto home_variable = os::env::get("XLINGS_HOME");
-    const fs::path home = home_variable && !home_variable->empty() ? os::fs::from_utf8(*home_variable)
-                                                                   : os::dirs::home().value_or(fs::current_path()) / ".xlings";
-    const std::vector<Runtime> runtimes = installed(home);
+    const std::vector<Runtime> runtimes = installed(xlings_home());
     const Choice choice = choose(*wanted, runtimes);
     if (!choice.chosen) {
-        std::println(std::cerr, "omui-launch: {}\n  install one: {}", choice.why, choice.install);
+        refused(std::format("omui-launch: {}\n  install one: {}", choice.why, choice.install));
         return 2;
     }
-    if (what.which) {
-        const nlohmann::json said{{"$format", "runtime@1"},
-                                  {"runtime", {{"version", choice.chosen->version},
-                                               {"openmui", choice.chosen->openmui},
-                                               {"capabilities", choice.chosen->capabilities},
-                                               {"directory", os::fs::utf8(choice.chosen->directory)}}}};
-        std::println("{}", said.dump());
+    if (what.which) {  // runtime@1, as the player's --runtime writes it, with where it is
+        using mlibs::json::quote;
+        std::string capabilities;
+        for (const std::string& capability : choice.chosen->capabilities) capabilities += (capabilities.empty() ? "" : ",") + quote(capability);
+        answered(std::format(R"({{"$format":"runtime@1","runtime":{{"version":{},"openmui":{},"capabilities":[{}],"directory":{}}}}})", quote(choice.chosen->version),
+                             quote(choice.chosen->openmui), capabilities, quote(os::fs::utf8(choice.chosen->directory))));
         return 0;
     }
     // Its player (the package's launcher where it carries one: a self-contained runtime), given the application.
@@ -193,7 +192,7 @@ int launch(const Launch& what) {
             if (os::env::get(variable).value_or("").starts_with(*bundle)) options.env.emplace_back(variable, std::nullopt);
     }
     if (auto replaced = os::process::exec(std::move(options)); !replaced) {
-        std::println(std::cerr, "omui-launch: {} did not start: {}", os::fs::utf8(player), replaced.error().message());
+        refused(std::format("omui-launch: {} did not start: {}", os::fs::utf8(player), replaced.error().message()));
         return 1;
     }
     return 0;
@@ -211,7 +210,7 @@ int main(int argc, char** argv) {
                       .parse(argc, argv);
     if (!parsed) {
         if (!parsed.error().is_error()) return 0;  // --help, --version: said
-        std::println(std::cerr, "omui-launch: {}", parsed.error().message);
+        refused(std::format("omui-launch: {}", parsed.error().message));
         return 2;
     }
     Launch what{.which = parsed->is_flag_set("which")};

@@ -13,6 +13,7 @@ namespace omui::launcher {
   };
   [[nodiscard]] std::expected<Runtime, std::string> read_runtime(std::string_view text, const std::filesystem::path& directory);
   [[nodiscard]] std::vector<Runtime> installed(const std::filesystem::path& xlings_home);
+  [[nodiscard]] std::filesystem::path xlings_home();
   struct Choice {
     std::optional<Runtime> chosen;
     std::string why;

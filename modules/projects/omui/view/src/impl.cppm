@@ -75,13 +75,17 @@ struct Morphs {
     // here, so a program that installs no morphs carries neither — nothing moves there, a change shows at once.
     void (*move)(Runtime::Impl& runtime) = nullptr;
     const MotionSpec* (*select)(Runtime::Impl& runtime, NodeId id, std::size_t slot, bool fallback) = nullptr;
+    // The frame's pass that projects a presentation's pose and images (hanim's presentation lanes) onto what was drawn
+    // (Runtime::Impl::project_presentation): there, a lease is held and never applied.
+    void (*project)(Runtime::Impl& runtime) = nullptr;
 };
 
 inline constexpr mlibs::compose::Slot<Morphs> morphs_slot{{
     .id = "omui.view.morphs",
     .summary = "universal motion's morphs: a changed drawing moving from what was on screen to what is drawn now (D-93)",
     .absent = "install them at the program's root: omui::install_morphs() (omui::run installs them with omui.sdk's feature "
-              "`morphs`, in every world that draws pixels; the headless host where none is); without them a change shows at once"}};
+              "`morphs`, in every world that draws pixels; the headless host where none is); without them a change shows at once, "
+              "and a presentation's lease is not drawn"}};
 
 // The table installed at `morphs_slot`, or null: absent. Kept once found.
 [[nodiscard]] const Morphs* installed_morphs() noexcept;

@@ -216,7 +216,8 @@ std::optional<PresentationState> Runtime::presentation(NodeId id) const noexcept
 }
 
 std::optional<Affine> Runtime::Impl::projected_target_world(NodeId id) const {
-    if(presentation_owners.empty() || !alive(id))return std::nullopt;
+    // Without morphs no lease is drawn (run_motion): what is placed against its target is placed by layout.
+    if(presentation_owners.empty() || !alive(id) || !installed_morphs())return std::nullopt;
     // Overlay placement uses target layout. Apply the same declared local
     // projection to that target, stopping at each portal's rendered root.
     // Current sampled geometry/IME continue to use collect_presentation.

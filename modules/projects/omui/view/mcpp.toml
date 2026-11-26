@@ -19,8 +19,8 @@ reexports = ["mlibs.i18n", "mlibs.layout", "mlibs.pipeline", "mlibs.text", "omui
 kind = "runtime"
 agent = { part = "omui.agent" }
 
-# Universal motion's morphs (hanim.visual, and mrender.text's glyph cache for their text): its own slot and its own
-# provider (install_morphs; no dependency to keep apart). A program's root installs them where it draws pixels; a
+# Universal motion's morphs (hanim.visual, and mrender.text's glyph cache for their text), with the projection of a
+# presentation's pose onto what was drawn: its own slot and its own provider (install_morphs; no dependency to keep apart). A program's root installs them where it draws pixels; a
 # terminal does not, and carries none of them (terminal design §9 step ③).
 [package.metadata.openmui.compose]
 slots = ["omui.view.morphs"]

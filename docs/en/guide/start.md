@@ -70,6 +70,22 @@ omui agent act hello main/click activate       # press that button
 
 The count in the window went up by one. The agent used the button you use, not a coordinate.
 
+## 5. As it ships: data on a shared runtime
+
+A TypeScript application is data: its `mcpp.toml`, `omui.config.ts` and `app/`, a few kilobytes. Its manifest says what it needs of a runtime in `[package.metadata.openmui.runtime]`: `openmui = "0.4"`, the specification its scripts are written against; `needs = ["agent"]`, the capabilities it uses (`agent`, `generate`, `gpu`, `accessibility-bridge`); and, only if it must, one runtime exactly, `runtime = "=0.1.0"`. The template writes the first.
+
+Runtimes of several versions are installed side by side, each in a directory of its own. `omui-launch`, which the runtime's package puts on the PATH, starts the application on the newest installed one that satisfies what it declares; `omui run` goes through it when one does.
+
+```sh
+omui-launch --which .         # the runtime it would start on (runtime@1), or why none does
+omui-launch . -- --headless   # started on it; what follows -- goes to the player
+omui doctor                   # the section held to what the launcher reads, and the runtime it takes
+```
+
+When no installed runtime satisfies it, `omui-launch` says why each one does not and the command that installs one (`xlings install omui-runtime@0.1`), and exits with 2.
+
+The shared runtime needs xlings on the machine: it serves developers, tools and several omui applications on one machine. An application for people at large, an app store or the Web carries its own runtime (`omui package`, `omui build --web`). There is no release yet, so no runtime is published.
+
 ## When something goes wrong
 
 - **A tool is missing**: `omui doctor` names each missing tool and what it is for; `omui tools install` installs the ones the project names (through xlings).

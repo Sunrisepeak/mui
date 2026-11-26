@@ -36,6 +36,9 @@ struct Runtime {
 [[nodiscard]] std::expected<Runtime, std::string> read_runtime(std::string_view text, const std::filesystem::path& directory);
 // Every runtime under an xlings home (data/xpkgs/xim-x-omui-runtime/<version>/, its runtime.json there or a level below).
 [[nodiscard]] std::vector<Runtime> installed(const std::filesystem::path& xlings_home);
+// The xlings home the runtimes are installed in: $XLINGS_HOME, else .xlings in the person's home (mcpplibs.os: each
+// system's own).
+[[nodiscard]] std::filesystem::path xlings_home();
 
 // The runtime that starts it, or why none: each installed one's reason, and the command that installs one that would.
 struct Choice {

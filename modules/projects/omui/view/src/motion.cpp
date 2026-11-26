@@ -132,7 +132,8 @@ std::expected<void, mlibs::compose::Error> install_morphs() {
         .glyph_ink_bounds = &hanim::visual::glyph_ink_bounds,
         .glyph_outline = &hanim::visual::glyph_outline,
         .move = [](Runtime::Impl& runtime) { runtime.move_by_morphs(); },
-        .select = [](Runtime::Impl& runtime, NodeId id, std::size_t slot, bool fallback) { return runtime.select_motion(id, slot, fallback); }};
+        .select = [](Runtime::Impl& runtime, NodeId id, std::size_t slot, bool fallback) { return runtime.select_motion(id, slot, fallback); },
+        .project = [](Runtime::Impl& runtime) { runtime.project_presentation(); }};
     mlibs::compose::Composition& composition = mlibs::compose::process();
     if (composition.get(morphs_slot) == &table) return {};
     return composition.install(morphs_slot, table, "omui.view");
@@ -281,12 +282,14 @@ void Runtime::Impl::run_motion() {
     if (!repainted) return;
     if (morphs) {
         morphs->move(*this);
-    } else {
-        // Nothing moves: a node placed against a presentation's anchor follows it live (no motion places it).
-        for (std::size_t m = 1; m < by_index.size(); ++m)
-            if (const NodeId id = by_index[m]; alive(id)) at(id).live_anchor_placement = at(id).projected_anchor;
+        morphs->project(*this);
+    } else if (presentation_used) {
+        // Nothing moves, and nothing is projected: a presentation's lease is held, its pose and images not drawn (a
+        // program that draws pixels installs morphs). A node placed against its anchor is placed by layout.
+        static std::atomic<bool> said{false};
+        if (!said.exchange(true))
+            mlibs::log::info("presentation: a lease is held and not drawn, this program has no morphs ({}: {})", morphs_slot.info.id, morphs_slot.info.absent);
     }
-    project_presentation();
     collect_presentation();
 }
 

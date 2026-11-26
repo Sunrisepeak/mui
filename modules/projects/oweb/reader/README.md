@@ -23,12 +23,15 @@ A world (`omui-gen dist-toy --world`) is a page waiting for its document; the si
 
 - L0: `oweb site.build --engine DIR`: a site whose pages load it.
 - L1: a route's `load` (`eager`, `idle`, `interaction`): when its page takes the program.
-- L2–L4: a shell of one's own is a program of one's own over `oweb.shell`'s parts (ST2's layouts).
+- L2: the library (`import oweb.reader;`): `view(projection, markup, layout)` — the page as the program draws it; `finder(site)` — the site's search for a page's box, the index fetched at the first words, once.
+- L3–L4: a shell of one's own is a program of one's own over these and `oweb.shell`'s parts (ST2's layouts).
 
 ## Agent surface
 
 An application: at `omui.agent`'s endpoint its nodes are the page's — the navigation's links, the document's blocks — read and operated as any application's.
 
 ## Tests
+
+`tests/reader_test.cpp`, without a window: the program run on its own says it has no page; a page read back from what its builder wrote has its parts where the builder put them, and its search asks the site — nothing fetched for a page that is only read, the index once at the first words, what was asked meanwhile answered when it comes; an index that does not come, and a page that names none, find nothing and are not asked for again.
 
 `omui-devtools check takeover --page <a built site> --path /start/`: in a browser, a word of the page moves at most 2 px when the program takes it (UI5's bound).

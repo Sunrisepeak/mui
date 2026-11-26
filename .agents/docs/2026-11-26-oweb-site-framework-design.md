@@ -151,6 +151,16 @@ my-site/
 - **红 165（同一步发现并修复）**：程序接管之后，站点自己的链接（`../ui/`、页内的 `#锚点`、上一页与下一页）在画布上按了没有反应——运行时只放行 http、https、mailto，而页面自己的链接是从页面所在处写的相对地址。修法：没有 scheme 的地址属于被呈现的文档自己的站点，由呈现文档的宿主解析并跟随（`Runtime::set_url_opener(open, relative)`；Web 宿主在本标签页里走浏览器自己的一步，历史与后退照常；桌面窗口没有自己的地址，仍然拒绝；`javascript:`、`file:` 始终拒绝）。正文里的链接是同一个缺陷的另一半：Markdown 组件只把按下的链接作为事件交给应用，外壳没有接；现在外壳把它交给“跟随者”（`Layout::follow`，reader 给的是运行时的 `open_url`）。实测：导航 `../ui/`、目录 `#3-the-everyday-commands`、搜索结果、正文里的 `../ui/` 都在本标签页到达，正文里的外链开新标签页。`check takeover` 从此在接管后按一个通往另一页的链接，浏览器必须到达它的地址。
 - **文本框在带样子的页面里的高度**：文本框里没有页面排的字（值与占位文字是画出来的），按样式写出的块只有它的最小高度（36 px），程序画出来是 40 px，框下面的每个词因此在接管时移动 4 px；样子现在按画出的高度写（`min-height`）。
 
+### 4.6 站点是一个包：构建规则与 `docs` 模板（ST4 第 1 步，2026-11-27 实施）
+
+- **站点就是一个 mcpp 包**：`build.mcpp` 只有一行——`oweb::rules::site()`（包 `oweb.rules`，项目自己的构建规则，与 `gongfu.rules` 同形）。`mcpp build`（因此 `omui build`）把站点写进 `target/site`；规则是构建图里的一条边：输入是配置与 `pages/`、`public/`、`theme/`、`layouts/` 下的每个文件，页面改了才重跑，加页或删页时构建程序重跑。命令拒绝的（路由超预算、示例跑不起来）就是构建的失败。
+- **规则不链接构建器**：`oweb.rules` 只依赖 `mlibs.build`；站点的包在自己的 `[build-dependencies]` 里把命令声明成工具（`oweb = { …, tools = ["oweb"] }`，只要程序、不要库）。先试过让规则依赖 `oweb`：整个 omui 的闭包都会成为每个站点构建程序的库（并撞上 mcpp 的模块名扫描把 `omui.gen` 源码里字符串中的一行当成模块声明），所以改成这样。父包与子包同时出现，子包的键要加引号（`"oweb.rules"`）。
+- **模板**：`modules/projects/oweb/templates/docs` 是 mcpp 的包模板（`template.toml`、`mcpp.toml.in`、`build.mcpp.in`、`README.md.in`），内容就是最小核心文档集本身——样例与模板是同一份文件，不拷贝。`omui new NAME --template oweb:docs`：`omui new` 认 `<包>:<模板>`，原样交给 mcpp；哪个包带哪些模板由包自己说，命令行不登记（经汇总工具链的贡献清单列出，留给 RL）。
+- **reference 路由在新工程里也成立**：样例原来写 `reference: "../../oweb.ops.xdef.ts"`（仓库里的相对路径），新工程里没有这个文件。现在路由可以写 `reference: "oweb"`——构建这个站点的命令自己的目录，随构建器带着（`src/catalog/oweb.ops.md` 由构建规则嵌入库中）；产品自己的目录仍然写文件路径。
+- **验收**：`omui-devtools check templates --only oweb:docs`——模板按 `mcpp new` 的方式渲染、指向本仓库、作为临时成员构建：8 个路由各有 `index.html` 与 `index.md`，四张表都在；改一页再构建，站点里的那一页跟着变。
+- **`oweb.reader` 分成库与薄程序**：`omui doctor` 报它没有身份、没有无头测试（这两条从 ST2 第 5 步起就在，当时没跑 `omui.cli` 的用例）。现在 `view` 与搜索的 `finder` 在模块 `oweb.reader` 里，`tests/reader_test.cpp` 无头驱动：索引只在第一次输入时取一次，途中问的在它到达时答复，取不到或页面没有声明时不再去取。
+- **还没有的**：`page` 与 `site` 两个预设要等“页面是视图”的路由（应用作为路由，带自己的世界）；带引擎的站点在新工程里要等预置的世界（UI7、RL）；候选产物里随带 `oweb` 命令、免编译构建（RL）。
+
 ## 5. 不做的
 
 - 不做服务器端的任何东西：产物是静态文件。

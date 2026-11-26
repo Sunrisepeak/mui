@@ -321,7 +321,9 @@ cmd::App app() {
                                         .option(Option("json").takes_value().value_name("FILE").help("the report (default: target/<package>.wasm-size.json)"))
                                         .option(Option("markdown").takes_value().value_name("FILE").help("the report as a table"))
                                         .option(Option("budget").takes_value().value_name("FILE").help("its budgets (<name>.budget.xdef.json)")))
-                        .subcommand(cmd::App("templates").description("Each template rendered as mcpp new renders it, pointed at this checkout, built and tested"))
+                        .subcommand(cmd::App("templates")
+                                        .description("Each template rendered as mcpp new renders it, pointed at this checkout, built and tested; a site's (oweb:docs) built and its site read")
+                                        .option(Option("only").takes_value().value_name("NAME").help("one template: app-ts, component, oweb:docs …")))
                         .subcommand(cmd::App("reflect")
                                         .description("omui.reflect's suite where the toolchain builds reflection beside C headers (V-08); a warning where not")
                                         .option(Option("profile").takes_value().value_name("P").help("default: dev")))
@@ -1709,12 +1711,12 @@ int main(int argc, char** argv) {
         namespace step = omui::devtools::check;
         const auto& sub = parsed->subcommand()->get();
         if (!sub.has_subcommand()) {
-            std::cerr << "usage: omui-devtools check features | templates | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | distribution [--profile P] | android [--out DIR] | web [--profile P] | browser | live-page [--page DIR] | site [PART…] [--page DIR] [--omui PATH] | dist-toy-loading | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
+            std::cerr << "usage: omui-devtools check features | templates [--only NAME] | reflect [--profile P] | sweep [--profile P] | tools-e2e | agent-e2e | distribution [--profile P] | android [--out DIR] | web [--profile P] | browser | live-page [--page DIR] | site [PART…] [--page DIR] [--omui PATH] | dist-toy-loading | toy [PACKAGE…] | size -p MEMBER [--json F] [--markdown F] [--budget F] | atspi [--profile P]\n";
             return 2;
         }
         const auto& given = sub.subcommand()->get();
         if (sub.subcommand_name() == "features") return step::features(root);
-        if (sub.subcommand_name() == "templates") return step::templates(root);
+        if (sub.subcommand_name() == "templates") return step::templates(root, given.value("only").value_or(""));
         if (sub.subcommand_name() == "browser") return step::browser_checks(root);
         if (sub.subcommand_name() == "live-page") return step::live_page(root, mcpplibs::os::fs::from_utf8(given.value("page").value_or("")));
         if (sub.subcommand_name() == "site") {

@@ -518,6 +518,13 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
     }
     if (name == "templates") {
         for (const auto& [template_name, what] : templates) out << Value{}.set("template", std::string(template_name)).set("makes", std::string(what)).json() << '\n';
+        // A template another package carries is taken by its package's name (mcpp's package templates): the
+        // frameworks built on omui bring their own — a site's presets are oweb's.
+        out << Value{}
+                   .set("template", "<package>:<name>")
+                   .set("makes", "a template another package carries, by the package's name (`mcpp new --list-templates <package>` lists them): `oweb:docs` is a site of documents")
+                   .json()
+            << '\n';
         return 0;
     }
     if (name == "design.sync") return design_sync(mcpplibs::os::fs::from_utf8(a.value("dir").value_or(".")), true, out, err);
@@ -570,11 +577,15 @@ int operation(std::string_view op, const mlibs::agent::Arguments& a, std::ostrea
     Ran ran;
     if (name == "new") {
         const std::string chosen = a.value("template").value_or("app-ts");
-        if (std::ranges::find(templates, chosen, &std::pair<std::string_view, std::string_view>::first) == templates.end()) {
-            err << std::format("no template `{}` (omui templates)\n", chosen);
+        // The SDK's own by name; another package's as `package:name`, handed to mcpp as it is written (which
+        // package carries which templates is the package's to say, not this command's).
+        const std::size_t colon = chosen.find(':');
+        const bool elsewhere = colon != std::string::npos && colon > 0 && colon + 1 < chosen.size() && chosen.find(':', colon + 1) == std::string::npos;
+        if (!elsewhere && std::ranges::find(templates, chosen, &std::pair<std::string_view, std::string_view>::first) == templates.end()) {
+            err << std::format("no template `{}` (omui templates; another package's is <package>:<name>)\n", chosen);
             return 2;
         }
-        ran = run_tool("mcpp", {"new", a.value("name").value_or(""), "--template", "omui.sdk:" + chosen}, err);
+        ran = run_tool("mcpp", {"new", a.value("name").value_or(""), "--template", elsewhere ? chosen : "omui.sdk:" + chosen}, err);
     } else if (name == "test") {
         std::vector<std::string> args{"test"};
         std::ranges::move(a.values("rest"), std::back_inserter(args));

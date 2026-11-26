@@ -133,6 +133,7 @@ members = [
     "modules/projects/oweb",
     "modules/projects/oweb/shell",
     "modules/projects/oweb/reader",
+    "modules/projects/oweb/rules",
     "modules/projects/xtools",
     "modules/projects/xtools/inspector",
     "modules/projects/xtools/audition",

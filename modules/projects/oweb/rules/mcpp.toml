@@ -1,0 +1,35 @@
+# oweb.rules — oweb's build rule: a package that is a site has its site
+# written at each build (oweb's design §3.5; mcpp's 08-build-rules shape).
+#
+#   [build-dependencies]
+#   "oweb.rules" = { version = "…", host-module = true }
+#   oweb         = { version = "…", tools = ["oweb"] }   # the command, built for the build
+#
+#   // build.mcpp
+#   import mcpp;
+#   import oweb.rules;
+#   int main() { return oweb::rules::site() ? 0 : 1; }
+[package]
+namespace   = "oweb"
+name        = "rules"
+version     = "0.1.0"
+description = "oweb's build rule: a site built with its package — every route's page, tables and budget, by the oweb command built for the build"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "build-stage: the build rule that writes a site"
+kind = "rules"
+agent = { library = "a build rule: it runs in a site's build program; the site is read and built through the command it runs, the subject oweb" }
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The foundation's shared plumbing (a tool built for the build, a path's text,
+# the files a rule reads). Nothing of the builder is linked into a site's
+# build program: the site's package names the command as a tool of its build
+# (`oweb = { version = "…", tools = ["oweb"] }` beside this package), and the
+# rule runs it.
+[dependencies]
+mlibs.build = { path = "../../../base/build", reexport = true }

@@ -87,9 +87,11 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
                 return problem(path ? path : route, "a route's path is where it is served: it begins and ends with `/`", "path: \"/guide/start/\"");
             if (source && reference) return problem(reference, "a route is its page (`source`) or a catalog's reference (`reference`), not both");
             if (reference) {
-                // A catalog belongs to its product's sources: it may stand outside the site's directory.
-                if (!reference.is_string() || !(reference.text()->ends_with(".ops.xdef.ts") || reference.text()->ends_with(".ops.xdef.json")))
-                    return problem(reference, "a route's reference is an operation catalog, from the site's directory", "reference: \"../tool/tool.ops.xdef.ts\"");
+                // A catalog belongs to its product's sources: it may stand outside the site's directory. The command
+                // that builds the site carries its own, by its name: a site anywhere can show how it is built.
+                if (!reference.is_string() || !(*reference.text() == own_catalog || reference.text()->ends_with(".ops.xdef.ts") || reference.text()->ends_with(".ops.xdef.json")))
+                    return problem(reference, "a route's reference is an operation catalog, from the site's directory — or `oweb`, the catalog of the command that builds the site",
+                                   "reference: \"../tool/tool.ops.xdef.ts\"");
                 declared.reference = *reference.text();
             } else if (!source.is_string() || !source.text()->ends_with(".md") || source.text()->starts_with('/') ||
                        mcpplibs::os::fs::utf8(mcpplibs::os::fs::from_utf8(*source.text()).lexically_normal()).starts_with(".."))

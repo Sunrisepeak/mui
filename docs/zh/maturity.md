@@ -23,7 +23,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | mlibs | 33 | 6 | 0 |
 | 例子 | 12 | 0 | 0 |
 | 构建插件（mcpp） | 1 | 0 | 0 |
-| oweb | 0 | 3 | 0 |
+| oweb | 0 | 4 | 0 |
 | 作品（showcase） | 0 | 10 | 5 |
 | 官网 | 0 | 1 | 0 |
 | 仓库测试 | 6 | 2 | 0 |
@@ -228,6 +228,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `oweb` | [modules/projects/oweb](../../modules/projects/oweb) | 预览 |
 | `oweb.shell` | [modules/projects/oweb/shell](../../modules/projects/oweb/shell) | 预览 |
 | `oweb.reader` | [modules/projects/oweb/reader](../../modules/projects/oweb/reader) | 预览 |
+| `oweb.rules` | [modules/projects/oweb/rules](../../modules/projects/oweb/rules) | 预览 |
 
 ### 作品（showcase）
 

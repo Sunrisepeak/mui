@@ -280,16 +280,19 @@ std::expected<std::string, std::string> render(std::string_view text, const std:
 
 namespace {
 
-// A template rendered into `destination` (its omui dependencies and build rules pointed at this checkout).
-std::expected<void, std::string> instantiate(const fs::path& root, std::string_view template_name, const fs::path& destination, std::string_view project) {
-    const fs::path source = root / mcpplibs::os::fs::from_utf8(release::templates_directory) / template_name;
-    // As mcpp renders them from the package that carries the templates (omui.sdk: namespace omui, name sdk).
-    const std::string_view package = release::template_package;
+// A template rendered into `destination` (its omui dependencies and build rules pointed at this checkout), from
+// the package that carries it: the SDK's (omui.sdk) or a framework's own (a site's presets: oweb).
+std::expected<void, std::string> instantiate(const fs::path& root, std::string_view template_name, const fs::path& destination, std::string_view project,
+                                             std::string_view templates_directory = release::templates_directory, std::string_view package = release::template_package) {
+    const fs::path source = root / mcpplibs::os::fs::from_utf8(templates_directory) / template_name;
+    // As mcpp renders them from the package that carries the templates (omui.sdk: namespace omui, name sdk; a
+    // package without a namespace: its name).
+    const std::size_t dot = package.rfind('.');
     const std::map<std::string, std::string> values{{"project.name", std::string(project)},
                                                     {"self.name", std::string(package)},
                                                     {"self.version", "0.1.0"},
-                                                    {"template.package.namespace", std::string(package.substr(0, package.rfind('.')))},
-                                                    {"template.package.name", std::string(package.substr(package.rfind('.') + 1))}};
+                                                    {"template.package.namespace", dot == std::string_view::npos ? std::string() : std::string(package.substr(0, dot))},
+                                                    {"template.package.name", std::string(dot == std::string_view::npos ? package : package.substr(dot + 1))}};
     std::error_code error;
     for (auto it = fs::recursive_directory_iterator(source, error); it != fs::recursive_directory_iterator(); it.increment(error)) {
         if (error) return std::unexpected(error.message());
@@ -335,7 +338,70 @@ struct Restored {
 
 }  // namespace
 
-int templates(const fs::path& root) {
+namespace {
+
+// A temporary member of this workspace under .template-check/, its paths relative to the workspace: listed in the
+// workspace's manifest (put back by `Restored`), its dependencies on this checkout written from where it stands.
+std::expected<void, std::string> as_member(const fs::path& root, const fs::path& destination, std::string_view project) {
+    const std::string here = mcpplibs::os::fs::generic_utf8(fs::absolute(root).lexically_normal());
+    std::string manifest = mcpplibs::os::fs::read(root / "mcpp.toml").value_or("");
+    const std::string anchor = "    \"tests/plugins\",\n";
+    const auto at = manifest.find(anchor);
+    if (at == std::string::npos) return std::unexpected("the workspace's member list has no tests/plugins to add after");
+    manifest.insert(at + anchor.size(), std::format("    \".template-check/{}\",\n", project));
+    std::ofstream(root / "mcpp.toml", std::ios::binary) << manifest;
+    std::string own = mcpplibs::os::fs::read(destination / "mcpp.toml").value_or("");
+    for (const auto& [from, to] : {std::pair{std::format("path = \"{}/", here), std::string("path = \"../../")},
+                                   std::pair{std::format("path = \"{}\" }}", here), std::string("path = \"../..\" }")}})
+        for (std::size_t found = own.find(from); found != std::string::npos; found = own.find(from, found + to.size())) own.replace(found, from.size(), to);
+    std::ofstream(destination / "mcpp.toml", std::ios::binary) << own;
+    return {};
+}
+
+// A site's template (oweb's presets): the project as `omui new NAME --template oweb:<preset>` makes it, built —
+// its site is in target/site, every route its two files, the tables beside them.
+int site_template(const fs::path& root, const fs::path& check, std::string_view preset, std::string_view project) {
+    std::cout << std::format("== oweb:{} ({})\n", preset, project) << std::flush;
+    const fs::path destination = check / project;
+    if (auto made = instantiate(root, preset, destination, project, "modules/projects/oweb/templates", "oweb"); !made) return failed(std::format("oweb:{}: {}", preset, made.error()));
+    if (const auto problem = release::toml_problem(mcpplibs::os::fs::read(destination / "mcpp.toml").value_or("")); !problem.empty())
+        return failed(std::format("oweb:{}: mcpp.toml:{}", preset, problem));
+    if (auto member = as_member(root, destination, project); !member) return failed(member.error());
+    const auto [built, said] = mcpp(root, {"build", "-p", std::string(project)});
+    if (built != 0) {
+        std::cout << said;
+        return failed(std::format("oweb:{} did not build", preset));
+    }
+    const fs::path site = destination / "target" / "site";
+    const std::string routes = mcpplibs::os::fs::read(site / "site.routes.xdef.json").value_or("");
+    if (!routes.starts_with("{\"$format\":\"routes@1\"")) return failed(std::format("oweb:{}: no routes table in {}", preset, mcpplibs::os::fs::generic_utf8(site)));
+    std::size_t pages = 0;
+    std::error_code error;
+    for (auto it = fs::recursive_directory_iterator(site, error); it != fs::recursive_directory_iterator(); it.increment(error)) {
+        if (it->path().filename() != "index.html") continue;
+        ++pages;
+        const std::string html = mcpplibs::os::fs::read(it->path()).value_or("");
+        if (!fs::exists(it->path().parent_path() / "index.md", error) || !html.starts_with("<!doctype html>") || !html.contains("data-omui-target="))
+            return failed(std::format("oweb:{}: {} is not a route's page with its Markdown beside it", preset, mcpplibs::os::fs::generic_utf8(it->path().lexically_relative(site))));
+    }
+    for (const std::string_view table : {"site.search.xdef.json", "site.delivery.xdef.json", "llms.txt", "404.html"})
+        if (!fs::exists(site / table, error)) return failed(std::format("oweb:{}: the site has no {}", preset, table));
+    if (pages < 2) return failed(std::format("oweb:{}: {} page(s) written", preset, pages));
+    // A page changed is the site built again; nothing changed, nothing is run.
+    const fs::path first = destination / "pages" / "index.md";
+    std::ofstream(first, std::ios::binary | std::ios::app) << "\nA line added after the first build.\n";
+    const auto [again, again_said] = mcpp(root, {"build", "-p", std::string(project)});
+    if (again != 0 || !mcpplibs::os::fs::read(site / "index.md").value_or("").contains("A line added after the first build.")) {
+        std::cout << again_said;
+        return failed(std::format("oweb:{}: a page changed did not build the site again", preset));
+    }
+    std::cout << std::format("  ok   {} routes, each its index.html and index.md; a page changed builds it again\n", pages);
+    return 0;
+}
+
+}  // namespace
+
+int templates(const fs::path& root, std::string_view only) {
     const fs::path work = fs::temp_directory_path() / std::format("omui-templates-{}", std::random_device{}());
     std::error_code error;
     fs::create_directories(work, error);
@@ -346,6 +412,7 @@ int templates(const fs::path& root) {
     const std::string here = mcpplibs::os::fs::generic_utf8(fs::absolute(root).lexically_normal());
     for (const auto& [template_name, project] : std::initializer_list<std::pair<std::string_view, std::string_view>>{
              {"app-cpp", "demo"}, {"app-ts", "tsdemo"}, {"component", "widgets"}, {"native", "wordkit"}, {"theme", "brandkit"}}) {
+        if (!only.empty() && only != template_name) continue;
         std::cout << std::format("== {} ({})\n", template_name, project) << std::flush;
         const bool member = template_name == "component" || template_name == "native" || template_name == "theme";
         const fs::path destination = (member ? check : work) / project;
@@ -353,17 +420,7 @@ int templates(const fs::path& root) {
         std::pair<int, std::string> tested;
         if (member) {
             // A temporary member of this workspace, its paths relative to it.
-            std::string manifest = mcpplibs::os::fs::read(root / "mcpp.toml").value_or("");
-            const std::string anchor = "    \"tests/plugins\",\n";
-            const auto at = manifest.find(anchor);
-            if (at == std::string::npos) return failed("the workspace's member list has no tests/plugins to add after");
-            manifest.insert(at + anchor.size(), std::format("    \".template-check/{}\",\n", project));
-            std::ofstream(root / "mcpp.toml", std::ios::binary) << manifest;
-            std::string own = mcpplibs::os::fs::read(destination / "mcpp.toml").value_or("");
-            for (const auto& [from, to] : {std::pair{std::format("path = \"{}/", here), std::string("path = \"../../")},
-                                           std::pair{std::format("path = \"{}\" }}", here), std::string("path = \"../..\" }")}})
-                for (std::size_t found = own.find(from); found != std::string::npos; found = own.find(from, found + to.size())) own.replace(found, from.size(), to);
-            std::ofstream(destination / "mcpp.toml", std::ios::binary) << own;
+            if (auto member = as_member(root, destination, project); !member) return failed(member.error());
             tested = mcpp(root, {"test", "-p", std::string(project)});
         } else {
             const auto [built, built_said] = mcpp(root, {"build"}, destination);
@@ -378,6 +435,11 @@ int templates(const fs::path& root) {
             if (line.contains("test result") || line.contains("FAIL") || line.contains("error")) std::cout << line << '\n';
         }
         if (tested.first != 0 || !tested.second.contains("test result ok")) return failed(std::format("{} did not pass its tests", template_name));
+    }
+    // The frameworks' own templates: a site's presets (oweb), by their package.
+    for (const auto& [preset, project] : std::initializer_list<std::pair<std::string_view, std::string_view>>{{"docs", "docsite"}}) {
+        if (!only.empty() && only != std::format("oweb:{}", preset)) continue;
+        if (const int ran = site_template(root, check, preset, project); ran != 0) return ran;
     }
     std::cout << "templates: ok\n";
     return 0;

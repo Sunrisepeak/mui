@@ -1,0 +1,8 @@
+// The reference page of oweb's own catalog (src/catalog/oweb.ops.md, written by the catalog's generator) carried in
+// the library — partition oweb:oweb_reference — so that a site anywhere can have the page of the command that
+// builds it (a route's `reference: "oweb"`), read from no file.
+import std;
+import mcpp;
+import omui.build.embed;
+
+int main() { return omui::build::embed({.module = "oweb", .ns = "oweb", .dir = "src/catalog", .suffix = ".ops.md", .tag = "reference"}) ? 0 : 1; }

@@ -255,7 +255,7 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
             route.title = declared.title;
             route.load = declared.load;
             std::error_code missing;
-            if (!std::filesystem::is_regular_file(site / mcpplibs::os::fs::from_utf8(route.source), missing))
+            if (route.reference != own_catalog && !std::filesystem::is_regular_file(site / mcpplibs::os::fs::from_utf8(route.source), missing))
                 return std::unexpected(std::format("the route `{}` states the {} {}, which is not in {}: write it, or take the route out of oweb.config.ts", route.path,
                                                    route.reference.empty() ? "page" : "catalog", route.source, utf8(site)));
             if (std::ranges::contains(routes, route.path, &Route::path)) return std::unexpected(std::format("the route `{}` is stated twice: keep one", route.path));
@@ -619,7 +619,9 @@ std::string base_of(std::string_view url) {
 
 std::expected<std::string, std::string> source_text(const std::filesystem::path& site, const Route& route) {
     if (route.reference.empty()) return read(site / mcpplibs::os::fs::from_utf8(route.source));
-    // A reference: the catalog read now, its page what the catalog's own generator writes.
+    // A reference: the catalog read now, its page what the catalog's own generator writes. The builder's own
+    // catalog is carried with it (what the generator wrote of oweb.ops.xdef.ts when the command was built).
+    if (route.reference == own_catalog) return std::string(oweb_reference);
     const std::filesystem::path file = site / mcpplibs::os::fs::from_utf8(route.reference);
     const auto catalog = mlibs::control::gen::read_catalog_file(file);
     if (!catalog) {

@@ -57,6 +57,10 @@ omui.ui.markdown   = { path = "../omui/components/markdown" }
 openlifa.openas = "0.2.1"
 mcpplibs.os     = "0.4.4"
 
+# Its build program (build.mcpp): the catalog's reference page carried in the library.
+[build-dependencies]
+omui.build = { path = "../../../mcpp/build", host-module = true }
+
 [test]
 programs = "directory"  # tests/oweb/: one program, each file run and filtered on its own
 

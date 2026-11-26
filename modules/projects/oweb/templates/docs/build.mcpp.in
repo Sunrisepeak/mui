@@ -1,0 +1,8 @@
+// The site, written at each build (`mcpp build`, `omui build`) into target/site: every route's index.html (read
+// with no script) and index.md, the routes table, the search index, llms.txt, the sitemap, the delivery manifest.
+// A page changed, added or taken away builds it again; a route over its budget or an example that cannot run
+// fails the build, naming it.
+import mcpp;
+import oweb.rules;
+
+int main() { return oweb::rules::site() ? 0 : 1; }

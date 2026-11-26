@@ -10,3 +10,4 @@ export import :site;
 export import :config;
 export import :tool;
 export import :catalog;
+export import :oweb_reference;  // the catalog's reference page (src/catalog/oweb.ops.md), carried: a route's `reference: "oweb"`

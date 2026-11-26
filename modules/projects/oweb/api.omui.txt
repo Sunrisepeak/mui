@@ -3,6 +3,7 @@ export import :site;
 export import :config;
 export import :tool;
 export import :catalog;
+export import :oweb_reference;
 == oweb:catalog
 namespace oweb {
   inline constexpr std::array<mlibs::control::Parameter, 8> parameters_site_build{…};
@@ -29,6 +30,7 @@ namespace oweb {
     std::string text;
     std::string anchor;
   };
+  inline constexpr std::string_view own_catalog = "oweb";
   struct Route {
     std::string path;
     std::string source;

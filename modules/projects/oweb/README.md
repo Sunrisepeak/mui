@@ -33,6 +33,26 @@ The routes are one table, and the rest is made from it: `site.routes.xdef.json` 
 
 **What a visitor downloads is counted, and held**: the build's last file is the delivery manifest (`site.delivery.xdef.json`, `delivery@1`, by [`mlibs.delivery`](../../base/delivery)) — every file as stored and as a static host sends it (gzip for text, as stored for pictures), and one budget: a route's bytes before it reads, its `index.html` as sent, at most 100,000 (`--readable`; the page carries its style and needs nothing else to read). A site over it is written all the same and the build fails saying which route and by how much. The sample of seven documents: at most 1,926 B a route. For GitHub Pages: `.nojekyll`, so the directory is served as it is, and `404.html`, the page a lost address is answered with — the site's own `pages/404.md` or one that says so and leads home; it is served at any address, so its links are from the site's own address (the path of `url`, said by the document's `<base>`), and no table lists it.
 
+## Presets
+
+A site is a package: its build program (`build.mcpp`) is one line — `oweb::rules::site()` of the build rule [`oweb.rules`](rules) — and `mcpp build` (so `omui build`) writes the site into `target/site`, again whenever a page changed. `omui new NAME --template oweb:docs` makes one (mcpp's package templates: `templates/` here).
+
+| Preset | What it starts from |
+|---|---|
+| `docs` | pages in Markdown, two languages, a generated reference, a live example: the minimal documents |
+
+What the preset `docs` starts from is the minimal documents (`templates/docs`): the one corpus 0.1.0 checks documents with (0.1.0 plan D-274; oweb's design §3.6): every kind of content a documentation site carries — headings of three levels, paragraphs with every inline format, ordered and nested lists, a task list, tables with alignment, code in three languages and one block with none, a picture, a quotation, an HTML comment, anchors within a page and links between pages, two languages, a reference generated from a catalog, a page with a live example (`pages/live.md`: a view document, shown running above its source).
+
+It is used five ways: the template's content, the round-trip checks (`tests/oweb/template_test.cpp`: every route's HTML read back and its Markdown parsed again are its source's document), the search's checks, the questions of the cold-start evaluation, and the content both sides build when oweb is compared side by side.
+
+`oweb.config.ts` states the site's title, address, languages and its pages in the order a reader goes through them. `pages/404.md` is the page a lost address is answered with (no route). The route `/reference/ops/` has no page of its own: the configuration names a catalog and each build generates the page from it — here `reference: "oweb"`, the catalog of the command that builds the site, carried with it (a product's own catalog is its file: `reference: "../tool/tool.ops.xdef.ts"`); pages link to it by its address (`/reference/ops/`). The corpus' long page is not a file here: `template_test` makes it of the repository's own guides (`docs/en/guide`, seven as one page), so nothing is copied.
+
+```sh
+oweb site.build --site modules/projects/oweb/templates/docs --out /tmp/docs
+```
+
+The presets `page` (one page, a view) and `site` (a first page that is a view, and documents) follow with pages written as views.
+
 ## Signature features (candidates until their evidence is in)
 
 | Feature | State | Evidence |
@@ -76,6 +96,7 @@ The subject `oweb` (interface `oweb@1`) behind the tool kernel's three entries �
 ## Packages
 
 - `oweb` (this directory): the builder, the command and its catalog.
+- [`oweb.rules`](rules): the build rule — a package that is a site has its site written at each build.
 - [`oweb.reader`](reader): the program a site's pages load in a browser — it reads the page's own HTML back and draws it; one program for every page.
 - [`oweb.shell`](shell): a page's shell as a view — one function for the builder and for the program a page loads, so a node has one id in the page as written and as drawn.
 

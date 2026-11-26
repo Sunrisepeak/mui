@@ -33,7 +33,7 @@ export default defineOps({
       summary: "A new project from a template (app-ts by default): a directory of files, written beside the one the server runs in",
       params: [
         { name: "name", type: "string", doc: "the project's name and directory" },
-        { name: "template", type: "string", doc: "app-ts, app-cpp, component, native or theme", optional: true },
+        { name: "template", type: "string", doc: "app-ts, app-cpp, component, native or theme; or <package>:<name>, a template another package carries (oweb:docs: a site of documents)", optional: true },
       ],
       result: "json",
       cost: "heavy",

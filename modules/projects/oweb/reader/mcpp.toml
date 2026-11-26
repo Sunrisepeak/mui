@@ -15,15 +15,32 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the program a site's pages load, built for the Web and served by every site"
 kind = "app"
+id    = "org.openmui.oweb.reader"
+title = "oweb"
+reexports = ["oweb.shell"]  # what its interface re-exports (lint module-closure)
 agent = { part = "omui.agent" }  # an application: its nodes are read and operated at omui.agent's endpoint (D-174)
+
+# The page as the program draws it and the site's search (oweb.reader): what its test drives without a window.
+[targets.oweb-reader-core]
+kind = "lib"
 
 [targets.oweb-reader]
 kind = "bin"
 main = "src/main.cpp"
 
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
 [dependencies]
 omui.sdk   = { path = "../../omui/sdk", default-features = false, features = ["app"] }  # no runtime generation: it draws documents
+omui.core  = { path = "../../omui/core" }
+omui.view  = { path = "../../omui/view" }
 oweb.shell = { path = "../shell" }
+
+[dev-dependencies]
+mcpplibs.mtest     = "0.8.4"
+omui.host.headless = { path = "../../omui/host/headless" }
+omui.semantic      = { path = "../../omui/semantic" }
 
 [build-dependencies]
 omui.build = { path = "../../../../mcpp/build", host-module = true }

@@ -1,0 +1,10 @@
+== oweb.reader
+export import oweb.shell;
+namespace oweb::reader {
+  struct Site {
+    std::function<std::string(std::string_view relation)> link;
+    std::function<void(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done)> file;
+  };
+  [[nodiscard]] shell::Finder finder(Site site);
+  [[nodiscard]] omui::Element view(std::string_view projection, const std::function<std::string(std::string_view id)>& markup, shell::Layout layout);
+}

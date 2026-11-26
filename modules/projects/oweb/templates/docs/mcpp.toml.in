@@ -1,0 +1,17 @@
+[package]
+name    = "{{project.name}}"
+version = "0.1.0"
+
+# A site: its pages are pages/, what it is called, where it is served and
+# its routes are oweb.config.ts. Nothing here is compiled — the package's
+# build writes the site (build.mcpp).
+[package.metadata.openmui]
+kind = "site"
+
+# Its build program (build.mcpp): the site, written into target/site at each
+# build — the rule (oweb.rules) and the command it runs (oweb), built for the
+# machine that builds.
+[build-dependencies]
+# (The rule's key is quoted because its parent package stands beside it: unquoted, TOML reads it as a key of `oweb`.)
+"oweb.rules" = { version = "{{self.version}}", host-module = true }
+oweb         = { version = "{{self.version}}", tools = ["oweb"] }

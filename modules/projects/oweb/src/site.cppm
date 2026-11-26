@@ -24,11 +24,15 @@ struct Heading {
     std::string anchor;
 };
 
+// The catalog of the command that builds the site, by name (a route's `reference: "oweb"`): carried with the
+// builder, so a site anywhere — a project made from a template — can show how it is built.
+inline constexpr std::string_view own_catalog = "oweb";
+
 struct Route {
     std::string          path;      // where it is served: "/", "/guide/start/"
     std::string          source;    // its page, from the site's directory: "pages/guide/start.md"
-    // The operation catalog its page is the reference of, from the site's directory ("../tool/tool.ops.xdef.ts"):
-    // the page is generated from it at each build. Empty: its page is `source`.
+    // The operation catalog its page is the reference of, from the site's directory ("../tool/tool.ops.xdef.ts"),
+    // or `own_catalog`: the page is generated from it at each build. Empty: its page is `source`.
     std::string          reference;
     std::string          title;     // its first heading; its path where it has none
     std::string          language;  // "en", "zh"

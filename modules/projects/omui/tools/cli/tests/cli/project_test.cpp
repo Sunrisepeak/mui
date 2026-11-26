@@ -268,8 +268,10 @@ static UTest cases{"cli.project", [] {
     "new: the templates, TypeScript first; one it has not is refused before mcpp runs"_test = [] {
         const auto listed = records(invoke({"omui", "templates"}).out);
         expect(!listed.empty() && listed.front().get("template")->as_string() == "app-ts");
+        expect(listed.back().get("template")->as_string() == "<package>:<name>") << "and how another package's is named";
         const auto refused = invoke({"omui", "new", "x", "--template", "app-lua"});
         expect(eq(refused.code, 1));
+        for (const std::string_view misshapen : {":docs", "oweb:", "a:b:c"}) expect(eq(invoke({"omui", "new", "x", "--template", std::string(misshapen)}).code, 1)) << misshapen;
         expect(refused.out.contains("no template `app-lua`") && refused.out.contains(R"("code":"invalid-argument")")) << refused.out;
     };
 

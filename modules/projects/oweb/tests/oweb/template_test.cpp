@@ -517,11 +517,18 @@ static UTest cases{"oweb.template", [] {
         expect(routes.has_value()) << (routes ? "" : routes.error());
         if (!routes) return;
         const auto reference = std::ranges::find(*routes, "/reference/ops/", &oweb::Route::path);
-        expect(reference != routes->end() && reference->reference == "../../oweb.ops.xdef.ts" && reference->title == "oweb operations" && !reference->headings.empty());
+        expect(reference != routes->end() && reference->reference == oweb::own_catalog && reference->title == "oweb operations" && !reference->headings.empty());
         if (reference == routes->end()) return;
         expect(!std::filesystem::exists(site / "pages" / "reference")) << "no copy to go stale";
         const auto text = oweb::source_text(site, *reference);
-        expect(text.has_value() && *text == read(package() / "src" / "catalog" / "oweb.ops.md")) << "what the catalog's generator writes, read from the catalog now";
+        expect(text.has_value() && *text == read(package() / "src" / "catalog" / "oweb.ops.md")) << "what the catalog's generator writes: the builder's own, carried with it";
+        // A product's own catalog is its file, from the site's directory: read at each build.
+        {
+            oweb::Route stated = *reference;
+            stated.reference = stated.source = "../../oweb.ops.xdef.ts";
+            const auto from_file = oweb::source_text(site, stated);
+            expect(from_file.has_value() && *from_file == *text) << "the same catalog by its file: the same page";
+        }
         const auto home = oweb::evaluate(site, *routes, routes->front(), *options);
         expect(home.has_value() && home->problems.empty() && home->html.contains("href=\"reference/ops/\" title=\"The operations of the oweb command\">oweb</a>") &&
                home->markdown.contains("(reference/ops/index.md \"The operations of the oweb command\")"))

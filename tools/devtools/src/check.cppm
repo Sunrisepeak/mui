@@ -90,7 +90,8 @@ struct Size {
 
 [[nodiscard]] int features(const std::filesystem::path& root);
 [[nodiscard]] int size(const std::filesystem::path& root, const Size& asked);
-[[nodiscard]] int templates(const std::filesystem::path& root);
+// `only`: one template by its name (app-ts, oweb:docs); empty: every one.
+[[nodiscard]] int templates(const std::filesystem::path& root, std::string_view only = {});
 [[nodiscard]] int reflect(const std::filesystem::path& root, std::string_view profile);
 [[nodiscard]] int sweep(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
 [[nodiscard]] int toy(const std::filesystem::path& root, std::vector<std::string> packages);

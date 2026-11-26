@@ -13,8 +13,9 @@ export default defineSite({
     { path: "/agent/", source: "pages/agent.md" },
     // A page with a live example takes the program once the page is idle; the others when they are opened.
     { path: "/live/", source: "pages/live.md", load: "idle" },
-    // Generated at each build from the command's catalog: never a copy that goes stale.
-    { path: "/reference/ops/", reference: "../../oweb.ops.xdef.ts" },
+    // Generated at each build from a catalog, never a copy that goes stale: here the catalog of the command that
+    // builds this site (`oweb`); a product's own is its file, from this directory ("../tool/tool.ops.xdef.ts").
+    { path: "/reference/ops/", reference: "oweb" },
     { path: "/zh/", source: "pages/zh/index.md" },
     { path: "/zh/start/", source: "pages/zh/start.md" },
   ],

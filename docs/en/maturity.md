@@ -23,7 +23,7 @@ A capability below its package's label is marked in its project's feature table 
 | mlibs | 33 | 6 | 0 |
 | examples | 12 | 0 | 0 |
 | build plugins (mcpp) | 1 | 0 | 0 |
-| oweb | 0 | 3 | 0 |
+| oweb | 0 | 4 | 0 |
 | works (showcase) | 0 | 10 | 5 |
 | site | 0 | 1 | 0 |
 | repository tests | 6 | 2 | 0 |
@@ -228,6 +228,7 @@ A capability below its package's label is marked in its project's feature table 
 | `oweb` | [modules/projects/oweb](../../modules/projects/oweb) | preview |
 | `oweb.shell` | [modules/projects/oweb/shell](../../modules/projects/oweb/shell) | preview |
 | `oweb.reader` | [modules/projects/oweb/reader](../../modules/projects/oweb/reader) | preview |
+| `oweb.rules` | [modules/projects/oweb/rules](../../modules/projects/oweb/rules) | preview |
 
 ### works (showcase)
 

@@ -1,0 +1,11 @@
+== oweb.rules
+export import mlibs.build.plan;
+namespace oweb::rules {
+  struct site_options {
+    std::string site;
+    std::string out = "target/site";
+    std::string engine;
+  };
+  [[nodiscard]] std::optional<mlibs::build::edge> plan_site(const site_options& options);
+  bool site(site_options options = {…});
+}

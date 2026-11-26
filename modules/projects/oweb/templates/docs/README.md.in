@@ -1,0 +1,15 @@
+# {{project.name}}
+
+A site of documents, built by oweb: every page of `pages/` is a route, written as `index.html` (the whole page, read with no script — by people and by search engines) and as `index.md` (for an agent that only fetches).
+
+```sh
+mcpp build        # or: omui build — the site, in target/site
+```
+
+- `oweb.config.ts`: what the site is called, where it is served, its languages, and its pages in the order a reader goes through them (left out, every page of `pages/` is a route, by address).
+- `pages/`: the pages, in Markdown. `pages/zh/` is the same site in a second language; `pages/404.md` is what a lost address is answered with.
+- `pages/live.md` shows an example running: a block of the language `view` is an interface written as data, shown above its source.
+- `/reference/ops/` has no page of its own: it is generated at each build from a catalog (`reference:` in the configuration).
+- `build.mcpp`: the build — the site written again when a page changed.
+
+What is in `target/site`: each route's two files, `site.routes.xdef.json` (the routes), `site.search.xdef.json` (every section's text: what `oweb docs.search` and a page's search box read), `llms.txt`, `sitemap.xml`, `404.html`, and `site.delivery.xdef.json` (every file's bytes as stored and as sent; a route over its budget fails the build).

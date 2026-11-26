@@ -9,7 +9,7 @@ export default defineOps({
   product: "oweb",
   module: "oweb",
   namespace: "oweb",
-  doc: "Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, without building the site.",
+  doc: "Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, and search every page's sections, without building the site.",
   generated: "src/catalog",
   operations: [
     {
@@ -46,6 +46,19 @@ export default defineOps({
         { name: "site", type: "path", doc: "the site's directory" },
         { name: "route", type: "string", doc: "its address (/guide/start/)" },
         { name: "as", type: "string", doc: "markdown (default) or html", optional: true },
+        { name: "languages", type: "string", doc: "the site's languages, the default first", optional: true },
+      ],
+      result: "json",
+      cost: "bounded",
+    },
+    {
+      name: "docs.search",
+      effect: "read",
+      summary: "The sections of a site's pages that hold every word asked for, best first: each its route, its anchor, the headings it is under and the line that says so — the same index a built site serves as search.xdef.json",
+      params: [
+        { name: "site", type: "path", doc: "the site's directory" },
+        { name: "query", type: "string", doc: "the words; text without spaces between words matches by characters in a row" },
+        { name: "limit", type: "string", doc: "how many at most (default 8)", optional: true },
         { name: "languages", type: "string", doc: "the site's languages, the default first", optional: true },
       ],
       result: "json",

@@ -7,7 +7,8 @@ namespace oweb {
   inline constexpr std::array<mlibs::control::Parameter, 5> parameters_site_build{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_routes_list{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_page_read{…};
-  inline constexpr std::array<mlibs::control::CatalogEntry, 3> catalog{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_docs_search{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 4> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
   inline constexpr std::string_view listing = R"…";
 }
@@ -30,11 +31,24 @@ namespace oweb {
     std::vector<std::string> languages{…};
     std::string url;
   };
+  struct Section {
+    std::string route;
+    std::string anchor;
+    std::string title;
+    std::vector<std::string> trail;
+    std::string text;
+  };
   struct Page {
     Route route;
     std::string html;
     std::string markdown;
     std::size_t nodes = 0;
+    std::vector<Section> sections;
+  };
+  struct Hit {
+    Section section;
+    double score = 0;
+    std::string excerpt;
   };
   struct File {
     std::string path;
@@ -50,6 +64,9 @@ namespace oweb {
   [[nodiscard]] std::string routes_json(std::span<const Route> routes, const SiteOptions& options);
   [[nodiscard]] std::string llms_txt(std::span<const Route> routes, const SiteOptions& options);
   [[nodiscard]] std::string sitemap_xml(std::span<const Route> routes, const SiteOptions& options);
+  [[nodiscard]] std::string search_json(std::span<const Section> sections);
+  [[nodiscard]] std::vector<Hit> search(std::span<const Section> sections, std::string_view query, std::size_t limit = 8);
+  [[nodiscard]] std::expected<std::vector<Section>, std::string> sections_of(const std::filesystem::path& site, const SiteOptions& options = {…});
   [[nodiscard]] std::string relative(std::string_view from, std::string_view to);
 }
 == oweb:tool

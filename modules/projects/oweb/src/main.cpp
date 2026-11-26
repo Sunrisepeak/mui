@@ -4,6 +4,7 @@
 //   oweb site.build   --site DIR --out DIR [--title T] [--languages en,zh] [--url https://example.org/docs/]
 //   oweb routes.list  --site DIR [--languages en,zh]
 //   oweb page.read    --site DIR --route /guide/start/ [--as markdown|html]
+//   oweb docs.search  --site DIR --query "first window" [--limit N]
 //   oweb mcp          the same operations to an MCP client, on stdio
 //
 // Records out, one a line; exit 0 done, 1 failed (why, and the ways out), 2 arguments that make no request.

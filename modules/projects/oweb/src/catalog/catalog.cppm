@@ -24,29 +24,38 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_page_read{{
     {"as", "string", "markdown (default) or html", true},
     {"languages", "string", "the site's languages, the default first", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 4> parameters_docs_search{{
+    {"site", "path", "the site's directory", false},
+    {"query", "string", "the words; text without spaces between words matches by characters in a row", false},
+    {"limit", "string", "how many at most (default 8)", true},
+    {"languages", "string", "the site's languages, the default first", true},
+}};
 
-// Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, without building the site.
-inline constexpr std::array<mlibs::control::CatalogEntry, 3> catalog{{
+// Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, and search every page's sections, without building the site.
+inline constexpr std::array<mlibs::control::CatalogEntry, 4> catalog{{
     {{"site.build", openas::Effect::reversible, false}, "Build the site: each page of pages/ a route with its index.html (the tree as HTML: readable with no script) and index.md (the tree as Markdown), the routes table, llms.txt and, given the site's address, sitemap.xml", parameters_site_build, "json", mlibs::control::Cost::bounded, "delete the directory written", false, false, false, {}},
     {{"routes.list", openas::Effect::read, false}, "The routes a site's pages give: each its address, source, title, language and headings with their anchors", parameters_routes_list, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"page.read", openas::Effect::read, false}, "One route as it would be written, without building the site: its Markdown (what an agent that only fetches reads) or its HTML", parameters_page_read, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"docs.search", openas::Effect::read, false}, "The sections of a site's pages that hold every word asked for, best first: each its route, its anchor, the headings it is under and the line that says so — the same index a built site serves as search.xdef.json", parameters_docs_search, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
 }};
 
-inline constexpr mlibs::control::Guide guide{"Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, without building the site.", {}};
+inline constexpr mlibs::control::Guide guide{"Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, and search every page's sections, without building the site.", {}};
 
 // The listing (oweb.ops.json), as written beside this file.
 inline constexpr std::string_view listing = R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "oweb",
-  "doc": "Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, without building the site.",
+  "doc": "Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, and search every page's sections, without building the site.",
   "tools": [
     {"name": "site.build", "description": "Build the site: each page of pages/ a route with its index.html (the tree as HTML: readable with no script) and index.md (the tree as Markdown), the routes table, llms.txt and, given the site's address, sitemap.xml", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "delete the directory written", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"site": {"type": "string", "description": "a file or directory path: the site's directory (it holds pages/)"}, "out": {"type": "string", "description": "a file or directory path: the directory written"}, "title": {"type": "string", "description": "the site's title (default: its first page's)"}, "languages": {"type": "string", "description": "its languages, the default first: en,zh — a first directory of that name is that language's pages"}, "url": {"type": "string", "description": "where it is served (https://example.org/docs/): the sitemap's addresses"}}, "required": ["site", "out"]}},
     {"name": "routes.list", "description": "The routes a site's pages give: each its address, source, title, language and headings with their anchors", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"site": {"type": "string", "description": "a file or directory path: the site's directory"}, "languages": {"type": "string", "description": "its languages, the default first"}}, "required": ["site"]}},
     {"name": "page.read", "description": "One route as it would be written, without building the site: its Markdown (what an agent that only fetches reads) or its HTML", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"site": {"type": "string", "description": "a file or directory path: the site's directory"}, "route": {"type": "string", "description": "its address (/guide/start/)"}, "as": {"type": "string", "description": "markdown (default) or html"}, "languages": {"type": "string", "description": "the site's languages, the default first"}}, "required": ["site", "route"]}}
+     "inputSchema": {"type": "object", "properties": {"site": {"type": "string", "description": "a file or directory path: the site's directory"}, "route": {"type": "string", "description": "its address (/guide/start/)"}, "as": {"type": "string", "description": "markdown (default) or html"}, "languages": {"type": "string", "description": "the site's languages, the default first"}}, "required": ["site", "route"]}},
+    {"name": "docs.search", "description": "The sections of a site's pages that hold every word asked for, best first: each its route, its anchor, the headings it is under and the line that says so — the same index a built site serves as search.xdef.json", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"site": {"type": "string", "description": "a file or directory path: the site's directory"}, "query": {"type": "string", "description": "the words; text without spaces between words matches by characters in a row"}, "limit": {"type": "string", "description": "how many at most (default 8)"}, "languages": {"type": "string", "description": "the site's languages, the default first"}}, "required": ["site", "query"]}}
   ],
   "tiers": []
 }

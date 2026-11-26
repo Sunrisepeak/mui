@@ -90,12 +90,39 @@ void page_read(Reply& reply, const mlibs::agent::Arguments& args) {
     done(reply, Value{}.set("ok", true).set("route", described(page->route)).set("as", as).set("text", as == "html" ? page->html : page->markdown).set("nodes", Value(static_cast<std::int64_t>(page->nodes))));
 }
 
+void docs_search(Reply& reply, const mlibs::agent::Arguments& args) {
+    const auto site = args.value("site"), query = args.value("query");
+    if (!site || !query || query->empty()) return wrong(reply, "docs.search takes --site, the site's directory, and --query, the words to find");
+    std::size_t limit = 8;
+    if (const auto given = args.value("limit")) {
+        const auto read = std::from_chars(given->data(), given->data() + given->size(), limit);
+        if (read.ec != std::errc{} || limit == 0) return wrong(reply, std::format("--limit is a number above 0, not `{}`", *given));
+    }
+    const auto sections = sections_of(mcpplibs::os::fs::from_utf8(*site), options_of(args));
+    if (!sections) return failed(reply, sections.error());
+    Value::List found;
+    for (const Hit& hit : search(*sections, *query, limit)) {
+        Value::List trail;
+        for (const std::string& above : hit.section.trail) trail.emplace_back(above);
+        found.push_back(Value{}
+                            .set("route", hit.section.route)
+                            .set("anchor", hit.section.anchor)
+                            .set("title", hit.section.title)
+                            .set("trail", Value(std::move(trail)))
+                            .set("excerpt", hit.excerpt)
+                            .set("markdown", std::format("{}index.md", hit.section.route))
+                            .set("score", Value(hit.score)));
+    }
+    done(reply, Value{}.set("ok", true).set("query", *query).set("sections", Value(static_cast<std::int64_t>(sections->size()))).set("found", Value(std::move(found))));
+}
+
 }  // namespace
 
 mlibs::control::Guide Sites::guide() const noexcept {
-    static constexpr std::array<std::string_view, 2> read{R"({"op":"routes.list","site":"docs"})", R"({"op":"page.read","site":"docs","route":"/"})"};
+    static constexpr std::array<std::string_view, 3> read{R"({"op":"routes.list","site":"docs"})", R"({"op":"docs.search","site":"docs","query":"install"})",
+                                                           R"({"op":"page.read","site":"docs","route":"/"})"};
     static constexpr std::array<std::string_view, 1> made{R"({"op":"site.build","site":"docs","out":"dist"})"};
-    static constexpr std::array<mlibs::control::Task, 2> tasks{{{"read-a-site", "A site's routes, then one page as Markdown", read},
+    static constexpr std::array<mlibs::control::Task, 2> tasks{{{"read-a-site", "A site's routes, the sections that answer a question, then the page as Markdown", read},
                                                                {"build-a-site", "Every route written as HTML and as Markdown, with the site's tables", made}}};
     return {"A site on omui without opening a page: its pages built into routes, each its semantic tree written as HTML and as Markdown.", tasks};
 }
@@ -105,6 +132,7 @@ void Sites::operate(std::string_view operation, const mlibs::agent::Request& req
     if (operation == "site.build") site_build(reply, args);
     else if (operation == "routes.list") routes_list(reply, args);
     else if (operation == "page.read") page_read(reply, args);
+    else if (operation == "docs.search") docs_search(reply, args);
 }
 
 }  // namespace oweb

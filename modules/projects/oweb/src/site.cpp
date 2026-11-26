@@ -205,6 +205,38 @@ std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std
     Page page;
     page.route = route;
     page.nodes = snapshot.nodes.size();
+    // Its sections: a heading begins one; a block's own text is a line of the section it stands in. A node a text's
+    // mark places (a link, a picture in a line) has its words in that text already.
+    {
+        std::unordered_set<std::string_view> placed;
+        for (std::size_t at = document; at < document_end; ++at)
+            for (const spec::Mark& mark : snapshot.nodes[at].marks)
+                if (!mark.node.empty()) placed.insert(mark.node);
+        std::vector<std::pair<int, std::string>> above;  // the headings the place is under: level, text
+        page.sections.push_back({route.path, {}, route.title, {}, {}});
+        for (std::size_t at = document + 1; at < document_end; ++at) {
+            const Node& node = snapshot.nodes[at];
+            if (node.role == Role::heading) {
+                const Value* stated = node.properties.get("level");
+                const int level = static_cast<int>(stated && stated->is_number() ? stated->as_int() : 2);
+                while (!above.empty() && above.back().first >= level) above.pop_back();
+                Section section{route.path, {}, node.name, {}, {}};
+                if (const Value* anchor = node.properties.get("anchor"); anchor && anchor->type() == Value::Type::text) section.anchor = std::string(anchor->as_string());
+                for (const auto& [_, text] : above) section.trail.push_back(text);
+                above.emplace_back(level, node.name);
+                // The page's first heading names the page's beginning: one section, not two.
+                if (page.sections.size() == 1 && page.sections.front().text.empty() && level == 1) page.sections.front() = std::move(section);
+                else page.sections.push_back(std::move(section));
+                continue;
+            }
+            const bool worded = node.role == Role::paragraph || node.role == Role::code || node.role == Role::cell || node.role == Role::column_header ||
+                                node.role == Role::row_header || node.role == Role::text || (node.role == Role::image && !placed.contains(node.id));
+            if (!worded || node.name.empty() || node.properties.get("comment")) continue;
+            std::string& text = page.sections.back().text;
+            if (!text.empty()) text += '\n';
+            text += node.name;
+        }
+    }
     const std::span<const Node> all = snapshot.nodes;
     page.markdown = markdown_of(addressed(all.subspan(document, document_end - document), true));
     // The navigation's links are addresses already; the document's are rewritten.
@@ -260,7 +292,7 @@ std::string routes_json(std::span<const Route> routes, const SiteOptions& option
 
 std::string llms_txt(std::span<const Route> routes, const SiteOptions& options) {
     std::string out = std::format("# {}\n\n", options.title.empty() && !routes.empty() ? routes.front().title : options.title);
-    out += "Every page of this site is also plain Markdown: the address beside each title. The routes, with their headings: routes.xdef.json.\n\n";
+    out += "Every page of this site is also plain Markdown: the address beside each title. The routes, with their headings: routes.xdef.json. Every section's text, to search: search.xdef.json.\n\n";
     const std::string base = options.url.empty() ? std::string() : options.url.ends_with('/') ? options.url.substr(0, options.url.size() - 1) : options.url;
     for (const Route& route : routes) out += std::format("- [{}]({}{}index.md)\n", route.title, base, options.url.empty() ? route.path.substr(1) : route.path);
     return out;
@@ -273,12 +305,138 @@ std::string sitemap_xml(std::span<const Route> routes, const SiteOptions& option
     return out + "</urlset>\n";
 }
 
+std::string search_json(std::span<const Section> sections) {
+    using omui::Value;
+    Value::List list;
+    for (const Section& section : sections) {
+        Value::List trail;
+        for (const std::string& above : section.trail) trail.emplace_back(above);
+        list.push_back(Value{}.set("route", section.route).set("anchor", section.anchor).set("title", section.title).set("trail", Value(std::move(trail))).set("text", section.text));
+    }
+    return Value{}.set("$format", "search@1").set("sections", Value(std::move(list))).json() + "\n";
+}
+
+namespace {
+
+// A query's and a text's words: runs of letters and digits, lower case; each character outside ASCII a word of its
+// own beside its neighbour (two in a row), so text written without spaces matches by characters in a row.
+struct Words {
+    std::vector<std::string> latin;   // "install", "omui"
+    std::vector<std::string> joined;  // "安装", "装第"
+};
+
+Words words_of(std::string_view text) {
+    Words out;
+    std::string run;
+    std::string previous;  // the character outside ASCII just before
+    const auto end_run = [&] {
+        if (!run.empty()) out.latin.push_back(std::move(run));
+        run.clear();
+    };
+    for (std::size_t at = 0; at < text.size();) {
+        const auto byte = static_cast<unsigned char>(text[at]);
+        if (byte < 0x80) {
+            previous.clear();
+            if (std::isalnum(byte)) run += static_cast<char>(std::tolower(byte));
+            else end_run();
+            ++at;
+            continue;
+        }
+        end_run();
+        std::size_t length = byte >= 0xF0 ? 4 : byte >= 0xE0 ? 3 : 2;
+        length = std::min(length, text.size() - at);
+        const std::string character(text.substr(at, length));
+        if (!previous.empty()) out.joined.push_back(previous + character);
+        previous = character;
+        at += length;
+    }
+    end_run();
+    return out;
+}
+
+// How often a word of the query is in a text's words: whole, or as the beginning of one.
+int count_of(const Words& text, std::string_view word, bool joined) {
+    int count = 0;
+    for (const std::string& one : joined ? text.joined : text.latin) count += joined ? one == word : one.starts_with(word);
+    return count;
+}
+
+}  // namespace
+
+std::vector<Hit> search(std::span<const Section> sections, std::string_view query, std::size_t limit) {
+    const Words asked = words_of(query);
+    // One character outside ASCII alone is a word too ("树").
+    std::vector<std::string> single;
+    if (asked.joined.empty() && asked.latin.empty()) {
+        for (std::size_t at = 0; at < query.size();) {
+            const auto byte = static_cast<unsigned char>(query[at]);
+            const std::size_t length = std::min<std::size_t>(byte >= 0xF0 ? 4 : byte >= 0xE0 ? 3 : byte >= 0x80 ? 2 : 1, query.size() - at);
+            if (byte >= 0x80) single.emplace_back(query.substr(at, length));
+            at += length;
+        }
+    }
+    std::vector<Hit> hits;
+    if (asked.latin.empty() && asked.joined.empty() && single.empty()) return hits;
+    for (const Section& section : sections) {
+        std::string trail;
+        for (const std::string& above : section.trail) trail += above + "\n";
+        const Words title = words_of(section.title), over = words_of(trail), body = words_of(section.text);
+        double score = 0;
+        bool all = true;
+        const auto weigh = [&](std::string_view word, bool joined) {
+            const int in_title = count_of(title, word, joined), in_trail = count_of(over, word, joined), in_body = count_of(body, word, joined);
+            if (in_title + in_trail + in_body == 0) all = false;
+            score += 3.0 * in_title + 1.5 * in_trail + std::min(in_body, 5);
+        };
+        for (const std::string& word : asked.latin) weigh(word, false);
+        for (const std::string& word : asked.joined) weigh(word, true);
+        for (const std::string& character : single)
+            if (section.title.contains(character)) score += 3;
+            else if (section.text.contains(character)) score += 1;
+            else all = false;
+        if (!all || score <= 0) continue;
+        // The line that says so: the first of its text holding a word asked for, else its beginning.
+        std::string excerpt;
+        for (const auto line : std::views::split(std::string_view(section.text), '\n')) {
+            const std::string_view one(line.begin(), line.end());
+            const Words in_line = words_of(one);
+            const bool holds = std::ranges::any_of(asked.latin, [&](const std::string& word) { return count_of(in_line, word, false) > 0; }) ||
+                               std::ranges::any_of(asked.joined, [&](const std::string& word) { return count_of(in_line, word, true) > 0; }) ||
+                               std::ranges::any_of(single, [&](const std::string& character) { return one.contains(character); });
+            if (excerpt.empty() || holds) excerpt = std::string(one);
+            if (holds) break;
+        }
+        if (excerpt.size() > 240) {
+            std::size_t cut = 240;
+            while (cut > 0 && (static_cast<unsigned char>(excerpt[cut]) & 0xC0) == 0x80) --cut;  // at a character's start
+            excerpt = excerpt.substr(0, cut) + "…";
+        }
+        hits.push_back({section, score, std::move(excerpt)});
+    }
+    std::ranges::stable_sort(hits, [](const Hit& a, const Hit& b) { return a.score > b.score; });
+    if (hits.size() > limit) hits.resize(limit);
+    return hits;
+}
+
+std::expected<std::vector<Section>, std::string> sections_of(const std::filesystem::path& site, const SiteOptions& options) {
+    const auto routes = collect(site, options);
+    if (!routes) return std::unexpected(routes.error());
+    std::vector<Section> sections;
+    for (const Route& route : *routes) {
+        auto page = evaluate(site, *routes, route, options);
+        if (!page) return std::unexpected(page.error());
+        std::ranges::move(page->sections, std::back_inserter(sections));
+    }
+    return sections;
+}
+
 std::expected<Built, std::string> build(const std::filesystem::path& site, const std::filesystem::path& out, const SiteOptions& given) {
     auto routes = collect(site, given);
     if (!routes) return std::unexpected(routes.error());
     SiteOptions options = given;
     if (options.title.empty()) options.title = routes->front().title;
     Built built;
+    std::vector<Section> sections;
     const auto write = [&](const std::string& path, std::string_view bytes) -> std::expected<void, std::string> {
         const std::filesystem::path file = out / mcpplibs::os::fs::from_utf8(path);
         std::error_code error;
@@ -293,6 +451,7 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
         const std::string directory = route.path.substr(1);
         if (auto written = write(directory + "index.html", page->html); !written) return std::unexpected(written.error());
         if (auto written = write(directory + "index.md", page->markdown); !written) return std::unexpected(written.error());
+        std::ranges::move(page->sections, std::back_inserter(sections));
     }
     // What pages/ holds beside its pages (pictures, files to download), at the same place.
     std::error_code error;
@@ -304,6 +463,7 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     }
     if (auto written = write("routes.xdef.json", routes_json(*routes, options)); !written) return std::unexpected(written.error());
     if (auto written = write("llms.txt", llms_txt(*routes, options)); !written) return std::unexpected(written.error());
+    if (auto written = write("search.xdef.json", search_json(sections)); !written) return std::unexpected(written.error());
     if (!options.url.empty())
         if (auto written = write("sitemap.xml", sitemap_xml(*routes, options)); !written) return std::unexpected(written.error());
     built.routes = std::move(*routes);

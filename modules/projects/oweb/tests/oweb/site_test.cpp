@@ -76,7 +76,7 @@ static UTest cases{"oweb.site", [] {
         const auto built = oweb::build(data() / "docs", out, {.languages = {"en", "zh"}, .url = "https://example.org/notes/"});
         expect(built.has_value()) << (built ? "" : built.error());
         if (!built) return;
-        expect(built->routes.size() == 3u && built->files.size() == 9u) << built->files.size();
+        expect(built->routes.size() == 3u && built->files.size() == 10u) << built->files.size();
 
         // The home page: its links are each writing's own addresses.
         const std::string home = read(out / "index.html"), home_md = read(out / "index.md"), source = read(data() / "docs/pages/index.md");
@@ -127,12 +127,53 @@ static UTest cases{"oweb.site", [] {
         const auto built = oweb::build(data() / "page", out);
         expect(built.has_value()) << (built ? "" : built.error());
         if (!built) return;
-        expect(built->routes.size() == 1u && built->routes[0].path == "/" && built->files.size() == 4u) << built->files.size();
+        expect(built->routes.size() == 1u && built->routes[0].path == "/" && built->files.size() == 5u) << built->files.size();
         const std::string html = read(out / "index.html");
         expect(!html.contains("<nav")) << "one page has nowhere else to go";
         expect(html.contains("href=\"https://example.com/source\" title=\"Where it lives\">the source</a>")) << "a link out keeps its address and its title";
         expect(!std::filesystem::exists(out / "sitemap.xml") && std::filesystem::exists(out / "llms.txt") && std::filesystem::exists(out / "index.md"));
         expect(read(out / "index.md").contains("[the source](https://example.com/source \"Where it lives\")"));
+    };
+
+    "search: one index made from the tree, the sections that hold every word, best first; text without spaces by its characters"_test = [] {
+        const auto sections = oweb::sections_of(data() / "docs", {.languages = {"en", "zh"}});
+        expect(sections.has_value()) << (sections ? "" : sections.error());
+        if (!sections) return;
+        expect(sections->size() == 4u) << sections->size();
+        const auto under = std::ranges::find(*sections, std::string("what-is-here"), &oweb::Section::anchor);
+        expect(under != sections->end() && under->route == "/" && under->title == "What is here" && under->trail == std::vector<std::string>{"Field notes"} &&
+               under->text.contains("the first window"))
+            << "a heading and what stands under it, the headings it is under its trail";
+        expect((*sections)[0].text.contains("read by people") && !(*sections)[0].text.contains("code: tests")) << "a comment is no text to find";
+
+        const auto window = oweb::search(*sections, "first window");
+        expect(window.size() == 1u && window[0].section.anchor == "what-is-here" && window[0].excerpt == "the first window") << "every word, and the line that says so";
+        const auto install = oweb::search(*sections, "Install OMUI");
+        expect(!install.empty() && install[0].section.route == "/guide/start/" && install[0].excerpt.contains("Install")) << "without case";
+        const auto command = oweb::search(*sections, "xlings");
+        expect(command.size() == 1u && command[0].excerpt.contains("xlings install omui")) << "code is text to find";
+        expect(oweb::search(*sections, "start").front().section.route == "/guide/start/") << "a word in a title before one in the text";
+        const auto begun = oweb::search(*sections, "getting sta");
+        expect(begun.size() == 3u && begun[0].section.route == "/guide/start/") << "a word's beginning; the page it titles before the two sections that name it";
+        const auto chinese = oweb::search(*sections, "搜索引擎");
+        expect(chinese.size() == 1u && chinese[0].section.route == "/zh/") << "characters in a row";
+        expect(oweb::search(*sections, "笔记").front().section.title == "田野笔记");
+        expect(oweb::search(*sections, "nothing-of-the-kind").empty() && oweb::search(*sections, "  ").empty());
+
+        const auto out = scratch("search");
+        const auto built = oweb::build(data() / "docs", out, {.languages = {"en", "zh"}});
+        expect(built.has_value());
+        const std::string index = read(out / "search.xdef.json");
+        expect(index.starts_with("{\"$format\":\"search@1\"") && index.contains("\"anchor\":\"what-is-here\"") && index.contains("\"trail\":[\"Field notes\"]")) << index;
+
+        oweb::Sites sites;
+        mlibs::agent::SubjectSession session({&sites});
+        std::ostringstream found, errors;
+        expect(mlibs::agent::command_line(session, std::vector<std::string_view>{"docs.search", "--site", (data() / "docs").generic_string(), "--query", "first window", "--languages", "en,zh"}, found,
+                                          errors) == 0)
+            << errors.str();
+        expect(found.str().contains("\"anchor\":\"what-is-here\"") && found.str().contains("\"markdown\":\"/index.md\"") && found.str().contains("\"excerpt\":\"the first window\""))
+            << "the same sections to an agent, each with where its page's Markdown is: " << found.str();
     };
 
     "the subject `oweb`: a site's routes, one page read as an agent fetches it, the site built; what is not a request says why"_test = [] {

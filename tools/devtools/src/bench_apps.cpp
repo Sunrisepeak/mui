@@ -76,6 +76,11 @@ struct Settings {
     // Where an omui side's measured launch writes its trace (`--profile`): where the time goes in the
     // process, beside what is measured from outside. Empty: none.
     fs::path trace;
+    // An omui side's list scrolled by its own agent endpoint (`ui.input`, a 40 px notch a frame) instead of the
+    // X server's wheel under the real pointer: on a desktop the pointer stays its person's (red 155). Where the
+    // endpoint says it is: `agents`.
+    bool     scroll_by_agent = false;
+    fs::path agents;
 };
 
 // What a launch saw.
@@ -92,6 +97,8 @@ struct Launch {
     std::vector<double> clicks;
     bool click_changed = true;
     std::vector<double> presents;  // in motion: the intervals between presented frames (ms)
+    // Scrolled by its agent endpoint: from a single notch sent to the first frame presented after it (ms), each.
+    std::vector<double> notch_to_frame;
     bool moved = false;  // on a desktop: opened on another monitor, moved onto the one asked for
     std::string failure;
 };
@@ -677,8 +684,11 @@ public:
     // it is not shared (an X server without MIT-SHM takes a big image as many requests) — and it
     // is presented when its last draw is: `times` gets that. With `wheel`, a notch down every
     // 1/120 s, turning back every 400 notches.
+    // `turn`, where given, turns the wheel instead of the X server (the program's own agent endpoint): the pointer
+    // is not needed for it.
     std::expected<int, std::string>
-    count(milliseconds span, std::vector<Clock::time_point>* times = nullptr, bool wheel = false) {
+    count(milliseconds span, std::vector<Clock::time_point>* times = nullptr, bool wheel = false,
+          const std::function<std::expected<void, std::string>(bool down)>& turn = {}) {
         const auto until = Clock::now() + span;
         int presents = 0, notches = 0;
         std::vector<x11::Rect> current;  // what the present being drawn has covered
@@ -696,15 +706,20 @@ public:
             std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1.0 / 120.0));
         while (Clock::now() < until) {
             if (wheel && Clock::now() >= next_notch) {
-                // A desktop's pointer may be moved away by its person: the wheel turns only over
-                // the program's own window.
-                if (auto under = pointer_on_window(); !under || !*under)
-                    return std::unexpected(
-                        under ? std::string("the window was no longer under the pointer: the "
-                                            "wheel stopped")
-                              : under.error());
-                if (auto turned = display_.wheel(notches++ / 400 % 2 == 0); !turned)
-                    return std::unexpected(turned.error());
+                if (turn) {
+                    if (auto turned = turn(notches++ / 400 % 2 == 0); !turned)
+                        return std::unexpected(turned.error());
+                } else {
+                    // A desktop's pointer may be moved away by its person: the wheel turns only over
+                    // the program's own window.
+                    if (auto under = pointer_on_window(); !under || !*under)
+                        return std::unexpected(
+                            under ? std::string("the window was no longer under the pointer: the "
+                                                "wheel stopped")
+                                  : under.error());
+                    if (auto turned = display_.wheel(notches++ / 400 % 2 == 0); !turned)
+                        return std::unexpected(turned.error());
+                }
                 next_notch += step;
             }
             auto wait = std::chrono::duration_cast<milliseconds>(until - Clock::now());
@@ -991,9 +1006,13 @@ public:
     Borrowed(x11::Display& display, bool desktop) : display_(display) {
         if (!desktop)
             return;
-        if (auto where = display_.where_pointer())
+        if (auto where = display_.where_pointer()) {
             from_ = *where;
+            ++taken;
+        }
     }
+    // How many times a run borrowed the desktop's pointer: none, and it is not put back at the end either.
+    static inline int taken = 0;
     Borrowed(const Borrowed&) = delete;
     Borrowed& operator=(const Borrowed&) = delete;
     ~Borrowed() { give_back(); }
@@ -1006,6 +1025,59 @@ public:
 private:
     x11::Display& display_;
     std::optional<x11::Display::Pointer> from_;
+};
+
+// An omui side's agent endpoint (mlibs.agent's local connection, openmui.tree@0.1's lines): a notch of the wheel
+// sent as the person's input (`input`, a 40 px wheel event where the window's middle is), answered after the frame
+// that took it. Requests are not waited for: one a frame, their answers read as they come.
+class Endpoint {
+public:
+    // The endpoint the program describes in `directory` (a directory of this launch's alone: a window's endpoint is
+    // named after its application, whatever --agent-name says).
+    static std::expected<Endpoint, std::string> open(const fs::path& directory, milliseconds wait) {
+        constexpr std::string_view described = ".endpoint.xdef.json";
+        const auto until = Clock::now() + wait;
+        while (true) {
+            std::error_code error;
+            for (const auto& entry : fs::directory_iterator(directory, error)) {
+                const std::string file = utf8(entry.path().filename());
+                if (!file.ends_with(described))
+                    continue;
+                if (auto connected = mcpplibs::os::ipc::connection::connect(directory, file.substr(0, file.size() - described.size())))
+                    return Endpoint(std::move(*connected));
+            }
+            if (Clock::now() >= until)
+                return std::unexpected(std::format("no agent endpoint in {} after {} ms", utf8(directory), wait.count()));
+            std::this_thread::sleep_for(milliseconds{20});
+        }
+    }
+    std::expected<void, std::string> notch(bool down, int x, int y) {
+        drain();
+        const std::string line = std::format(
+            R"({{"op":"input","events":[{{"type":"wheel","x":{},"y":{},"dy":{}}}],"re":{}}})", x, y, down ? 40 : -40,
+            next_++);
+        if (auto written = connection_.write(line + "\n"); !written)
+            return std::unexpected("the agent endpoint: " + written.error().message());
+        return {};
+    }
+    // What has arrived, read; a refusal said once.
+    void drain() {
+        while (true) {
+            auto got = connection_.read_for(milliseconds{0});
+            if (!got || !*got || (*got)->empty())
+                return;
+            if (!refused_ && (*got)->contains(R"("kind":"error")")) {
+                refused_ = true;
+                std::cout << std::format("    the agent endpoint answered: {}\n", (*got)->substr(0, 300)) << std::flush;
+            }
+        }
+    }
+
+private:
+    explicit Endpoint(mcpplibs::os::ipc::connection connection) : connection_(std::move(connection)) {}
+    mcpplibs::os::ipc::connection connection_;
+    std::int64_t next_ = 1;
+    bool refused_ = false;
 };
 
 // One launch of a side: to its first settled frame; with `whole`, then rest, memory, the processor
@@ -1037,6 +1109,14 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         variables.insert(variables.end(), environment.omui.begin(), environment.omui.end());
     variables.insert(variables.end(), side.env.begin(), side.env.end());
     std::vector<std::string> args = side.args;
+    const bool agent_scrolls = settings.scroll_by_agent && side.build == "omui" && side.motion == "scroll";
+    const fs::path agents = settings.agents / std::format("{}-{}", side.series, side.app);
+    if (agent_scrolls) {
+        std::error_code error;
+        fs::remove_all(agents, error);
+        fs::create_directories(agents, error);
+        args.insert(args.end(), {"--agent-dir", utf8(agents)});
+    }
     if (places_itself)
         args.insert(args.end(), {"--position", std::format("{},{}", settings.monitor.x + 60, settings.monitor.y + 60)});
     if (whole && side.build == "omui" && !settings.trace.empty())
@@ -1138,16 +1218,29 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         if (auto started_watch = process::process::spawn(watching))
             switches = std::move(*started_watch);
     }
-    // The wheel turns over the list: the pointer borrowed for the span.
+    // The wheel turns over the list: the pointer borrowed for the span — or, scrolled by its agent endpoint, the
+    // pointer untouched.
     std::optional<Borrowed> scrolling;
-    if (side.motion == "scroll") {
+    std::optional<Endpoint> endpoint;
+    std::function<std::expected<void, std::string>(bool)> turn;
+    const x11::Rect area = watch.area();
+    if (agent_scrolls) {
+        auto opened = Endpoint::open(agents, milliseconds{5000});
+        if (!opened) {
+            out.failure = opened.error();
+            end();
+            return out;
+        }
+        endpoint.emplace(std::move(*opened));
+        turn = [&](bool down) { return endpoint->notch(down, area.width / 2, area.height / 2); };
+    } else if (side.motion == "scroll") {
         scrolling.emplace(display, settings.desktop);
         if (const auto where = watch.on_screen())
             (void)display.pointer(where->x + where->width / 2, where->y + where->height / 2);
     }
     std::vector<Clock::time_point> presented;
     const auto idle_from = Clock::now();
-    const auto drawn = watch.count(settings.idle, &presented, side.motion == "scroll");
+    const auto drawn = watch.count(settings.idle, &presented, side.motion == "scroll", turn);
     const double idle_seconds = ms_between(idle_from, Clock::now()) / 1000.0;
     for (std::size_t at = 1; at < presented.size(); ++at)
         out.presents.push_back(ms_between(presented[at - 1], presented[at]));
@@ -1179,6 +1272,31 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         (void)switches->wait();
         out.idle_wakeups = switches_of(said);
         out.idle_waking = waking_of(said);
+    }
+    // From a notch to its frame (scrolled by the agent endpoint): the list at rest, a single notch sent, the first
+    // frame presented after it; 30 of them, each once the list is still again, alternating down and up.
+    if (endpoint && drawn) {
+        (void)watch.count(milliseconds{300});
+        for (int notch = 0; notch < 30; ++notch) {
+            endpoint->drain();
+            const auto sent = Clock::now();
+            if (auto turned = endpoint->notch(notch % 2 == 0, area.width / 2, area.height / 2); !turned) {
+                out.failure = turned.error();
+                break;
+            }
+            const auto next = watch.next_draw(milliseconds{500});
+            if (!next) {
+                out.failure = next.error();
+                break;
+            }
+            if (*next)
+                out.notch_to_frame.push_back(ms_between(sent, **next));
+            // Until the list is still again (a notch may move it over several frames), at most a second.
+            for (int quiet = 0; quiet < 10; ++quiet)
+                if (const auto moving = watch.count(milliseconds{100}); !moving || *moving == 0)
+                    break;
+        }
+        endpoint->drain();
     }
     // At rest while the pointer moves elsewhere on the screen (red 158): in the corner it is parked in, never over the
     // window, 120 steps a second, as a hand moves a mouse — what the program's threads do with motion that is not
@@ -1470,7 +1588,11 @@ mcpplibs::cmdline::App apps_command_line() {
                     .help("measure what the last build made (target/bench-apps/built.json)"))
         .option(Option("dry-run").help("print the verdicts; write the samples, not the ledger"))
         .option(Option("trace").takes_value().value_name("DIR").help(
-            "each omui side's measured run records its trace into DIR (Chrome / Perfetto JSON)"));
+            "each omui side's measured run records its trace into DIR (Chrome / Perfetto JSON)"))
+        .option(Option("scroll-by").takes_value().value_name("HOW").help(
+            "wheel (default: the X server's wheel under the real pointer) or agent (an omui side's list scrolled "
+            "by its own agent endpoint, a 40 px notch a frame, and 30 single notches timed to their frames; the "
+            "pointer untouched; the other sides' lists are not scrolled)"));
 }
 
 int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
@@ -1496,6 +1618,11 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
         fs::create_directories(settings.trace, error);
     }
     settings.timeout = milliseconds{catalogue.value("timeout_ms", 30000)};
+    if (const auto how = given.value("scroll-by")) {
+        if (*how != "wheel" && *how != "agent")
+            return failed(std::format("--scroll-by is wheel or agent, not {}", *how));
+        settings.scroll_by_agent = *how == "agent";
+    }
     settings.clicks = catalogue.value("clicks", 5);
     const int rounds = number(given.value("rounds")).value_or(10);
     const std::optional<std::string> screen_name = given.value("screen");
@@ -1509,6 +1636,7 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
 
     Environment environment;
     environment.work = root / "target" / "bench-apps";
+    settings.agents = environment.work / "agents";
     environment.sdk = given.value("sdk")
                           ? fs::absolute(mcpplibs::os::fs::from_utf8(*given.value("sdk")), error)
                           : environment.work / "sdk";
@@ -1555,6 +1683,8 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
         if (!only.empty() && !only.contains(side.series) &&
             !only.contains(side.series + ":" + side.app))
             continue;
+        if (settings.scroll_by_agent && side.motion == "scroll" && side.build != "omui")
+            continue;  // no endpoint to scroll it by
         sides.push_back(std::move(side));
     }
 
@@ -1677,16 +1807,20 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
         if (auto pointer = display->where_pointer())
             left = *pointer;
         shown = std::format("{} {}x{} at {:.2f} Hz on this machine's X server :{} (its window "
-                            "manager and compositor){}; the real pointer borrowed only while a window opens, for "
-                            "the clicks and while the wheel turns, and given back each time",
+                            "manager and compositor){}; {}",
                             chosen->name, chosen->area.width, chosen->area.height, chosen->hertz,
-                            display_number, graphics_here(root));
+                            display_number, graphics_here(root),
+                            settings.scroll_by_agent
+                                ? "omui's lists scrolled by their own agent endpoints (the real pointer untouched for "
+                                  "them); the pointer borrowed only while another side's window opens and for the clicks"
+                                : "the real pointer borrowed only while a window opens, for the clicks and while the "
+                                  "wheel turns, and given back each time");
     }
     struct PutBack {
         x11::Display& display;
         std::optional<x11::Display::Pointer> left;
         ~PutBack() {
-            if (left)
+            if (left && Borrowed::taken > 0)  // never borrowed: never moved
                 (void)display.pointer(left->x, left->y);
         }
     } put_back{*display, left};
@@ -1772,7 +1906,7 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
     fs::remove(samples_path, error);
     struct Seen {
         std::vector<double> cold, warm, paint, private_dirty, uss, pss, rss, cpu, wakeups, frames,
-            clicks, presents;
+            clicks, presents, notches;
         bool changed = true;
         std::vector<std::string> failures;
     };
@@ -1832,10 +1966,27 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                 sample["present_p50_ms"] = percentile(cold.presents, 0.5),
                 sample["present_p95_ms"] = percentile(cold.presents, 0.95);
                 sample["present_p99_ms"] = percentile(cold.presents, 0.99);
+                sample["present_max_ms"] = std::ranges::max(cold.presents);
+                sample["present_p1_ms"] = percentile(cold.presents, 0.01);
+                // Refreshes missed, for a side that asks for every refresh (the scrolled list; the board asks for
+                // 60): an interval of one and a half refreshes or more is a frame the display did not get in time —
+                // the others' spread is when the server carried each draw out, around its refresh.
+                const double refresh = std::chrono::duration<double, std::milli>(settings.frame_gap).count() * 2;
+                sample["present_missed"] = std::ranges::count_if(cold.presents, [&](double gap) { return gap >= 1.5 * refresh; });
+                json intervals = json::array();
+                for (const double gap : cold.presents) intervals.push_back(std::round(gap * 100) / 100);
+                sample["present_intervals_ms"] = std::move(intervals);
+                if (settings.scroll_by_agent && side.motion == "scroll")
+                    sample["scrolled_by"] = "agent endpoint";
                 if (fps > 0 && cold.idle_cpu_percent)
                     sample["cpu_ms_per_frame"] = *cold.idle_cpu_percent / 100.0 * 1000.0 / fps;
                 mine.presents.insert(mine.presents.end(), cold.presents.begin(),
                                      cold.presents.end());
+            }
+            if (!cold.notch_to_frame.empty()) {
+                sample["notch_to_frame_ms"] = median_of(cold.notch_to_frame);
+                sample["notch_to_frame_p95_ms"] = percentile(cold.notch_to_frame, 0.95);
+                mine.notches.insert(mine.notches.end(), cold.notch_to_frame.begin(), cold.notch_to_frame.end());
             }
             if (!cold.clicks.empty()) {
                 sample["click_ms"] = median_of(cold.clicks);
@@ -1867,7 +2018,7 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                     threads += std::format("  {} {:.1f}/s {:.3f} %", name, woke == cold.idle_waking.end() ? 0.0 : woke->second,
                                            ran == cold.idle_cpu_by_thread.end() ? 0.0 : ran->second);
                 }
-                std::cout << std::format("    at rest:{}\n", threads) << std::flush;
+                std::cout << std::format("    {}:{}\n", side.motion.empty() ? "at rest" : "in motion", threads) << std::flush;
             }
             if (!cold.memory_parts.empty()) {
                 std::string held;
@@ -1917,11 +2068,17 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                                  ms(mine.clicks), mine.changed ? "" : " (a click changed nothing)");
         if (!mine.presents.empty())
             std::cout << std::format("  {} {} in motion: {:.1f} frames/s, present interval p50 "
-                                     "{:.2f} ms, p95 {:.2f}, p99 {:.2f}; cpu {:.1f} %\n",
+                                     "{:.2f} ms, p95 {:.2f}, p99 {:.2f}, max {:.2f}; cpu {:.1f} %, {:.2f} ms a frame\n",
                                      side.series, side.app, median_of(mine.frames),
                                      percentile(mine.presents, 0.5),
                                      percentile(mine.presents, 0.95),
-                                     percentile(mine.presents, 0.99), median_of(mine.cpu));
+                                     percentile(mine.presents, 0.99), std::ranges::max(mine.presents),
+                                     median_of(mine.cpu),
+                                     median_of(mine.frames) > 0 ? median_of(mine.cpu) * 10.0 / median_of(mine.frames) : 0.0);
+        if (!mine.notches.empty())
+            std::cout << std::format("  {} {} a notch (agent endpoint) to its frame: p50 {:.2f} ms, p95 {:.2f}, max {:.2f} ({} notches)\n",
+                                     side.series, side.app, percentile(mine.notches, 0.5), percentile(mine.notches, 0.95),
+                                     std::ranges::max(mine.notches), mine.notches.size());
         for (const auto& failure : mine.failures)
             std::cout << std::format("  {} {}: {}\n", side.series, side.app, failure);
     }

@@ -452,6 +452,20 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
     Page page;
     page.route = route;
     page.nodes = snapshot.nodes.size();
+    // What a block of the document gave when it ran (a live example; S-16's `output`): shown in the page, and no
+    // part of the document's text. One that could not run says why in its place — a problem of the page.
+    std::unordered_set<std::string_view> shown_only;
+    for (std::size_t at = document + 1; at < document_end; ++at) {
+        const Value* output = snapshot.nodes[at].properties.get("output");
+        if (!output || output->type() != Value::Type::boolean || !output->as_bool()) continue;
+        const std::string under = snapshot.nodes[at].id + "/";
+        shown_only.insert(snapshot.nodes[at].id);
+        for (std::size_t held = at + 1; held < document_end && snapshot.nodes[held].id.starts_with(under); ++held) {
+            shown_only.insert(snapshot.nodes[held].id);
+            if (snapshot.nodes[held].role == Role::status && snapshot.nodes[held].id == under + "problem")
+                page.examples.push_back(std::format("{}: an example cannot run: {}", route.source, snapshot.nodes[held].name));
+        }
+    }
     // Its sections: a heading begins one; a block's own text is a line of the section it stands in. A node a text's
     // mark places (a link, a picture in a line) has its words in that text already.
     {
@@ -463,6 +477,7 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         page.sections.push_back({route.path, {}, route.title, {}, {}});
         for (std::size_t at = document + 1; at < document_end; ++at) {
             const Node& node = snapshot.nodes[at];
+            if (shown_only.contains(node.id)) continue;
             if (node.role == Role::heading) {
                 const Value* stated = node.properties.get("level");
                 const int level = static_cast<int>(stated && stated->is_number() ? stated->as_int() : 2);
@@ -498,7 +513,7 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         const std::string under = written.nodes[document].id + "/";
         std::unordered_set<std::string> left_out;
         for (const Node& node : written.nodes)
-            if (node.role == Role::button && node.id.starts_with(under)) left_out.insert(node.id);
+            if (node.role == Role::button && node.id.starts_with(under) && !shown_only.contains(node.id)) left_out.insert(node.id);
         for (Node& node : written.nodes) std::erase_if(node.children, [&](const std::string& id) { return left_out.contains(id); });
         std::erase_if(written.nodes, [&](const Node& node) { return left_out.contains(node.id); });
     }
@@ -838,6 +853,15 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     if (found > 0)
         return std::unexpected(std::format("{} link{} inside the site lead{} nowhere; nothing was written:{}{}", found, found == 1 ? "" : "s", found == 1 ? "s" : "", problems,
                                            found > 12 ? std::format("\n  … and {} more", found - 12) : std::string{}));
+    // A live example that cannot run is not published as one: its text is no view document, and says where.
+    {
+        std::string examples;
+        std::size_t wrong = 0;
+        for (const Page& page : pages)
+            for (const std::string& example : page.examples)
+                if (++wrong <= 12) examples += std::format("\n  {}", example);
+        if (wrong > 0) return std::unexpected(std::format("{} example{} of the site's pages cannot run; nothing was written:{}", wrong, wrong == 1 ? "" : "s", examples));
+    }
     for (Page& page : pages) {
         const std::string directory = page.route.path.substr(1);
         if (auto written = write(directory + "index.html", page.html); !written) return std::unexpected(written.error());

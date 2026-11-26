@@ -98,6 +98,9 @@ struct Reader {
 
     // A node as the blocks it states, added to `into`.
     void block(const Node& n, md::Block& into) {
+        // What a block gave when it ran (S-16's `output`: a live example) is shown, and no part of the document's
+        // source: the block says it.
+        if (const Value* output = n.properties.get("output"); output && output->type() == Value::Type::boolean && output->as_bool()) return;
         if (const Value* comment = n.properties.get("comment")) {
             md::Block made{.kind = md::Kind::html};
             made.content.text = std::format("<!--{}-->\n", comment->as_string());

@@ -85,7 +85,7 @@ std::string_view tag_of(const spec::SemanticNode& n, std::string_view inside, co
     if (n.role == Role::code) return text_property(n, "raw").empty() ? "pre" : std::string_view{};
     if (n.role == Role::checkbox) return "input";
     for (const auto& [role, tag] : std::initializer_list<std::pair<Role, std::string_view>>{
-             {Role::link, "a"}, {Role::button, "button"}, {Role::main, "main"}, {Role::navigation, "nav"}, {Role::paragraph, "p"},
+             {Role::link, "a"}, {Role::button, "button"}, {Role::main, "main"}, {Role::navigation, "nav"}, {Role::paragraph, "p"}, {Role::figure, "figure"},
              {Role::list_item, "li"}, {Role::article, "article"}, {Role::region, "section"}, {Role::blockquote, "blockquote"},
              {Role::table, "table"}, {Role::row, "tr"}, {Role::cell, "td"}, {Role::column_header, "th"}, {Role::row_header, "th"},
              {Role::separator, "hr"}})
@@ -135,6 +135,9 @@ Attributes attributes_of(const spec::SemanticNode& n, std::string_view tag, bool
         if (const std::string_view align = text_property(n, "align"); !align.empty()) put("align", align);
     if (n.role == Role::row_header) put("scope", "row");
     if (tag == "button") put("type", "button");
+    // What a block of the document gave when it ran (S-16's `output`): said, so a reading of the document's source
+    // from its HTML leaves it out.
+    if (const Value* output = property(n, "output"); output && output->type() == Value::Type::boolean && output->as_bool()) put("data-output", {});
     // A checkbox as HTML has it; before the program runs it is not operated.
     if (tag == "input") {
         put("type", "checkbox");

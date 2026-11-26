@@ -17,6 +17,7 @@ maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint
 separate = "library: Markdown views for applications and the site"
 reexports = ["mlibs.markdown", "omui.core", "omui.view"]  # what its interface re-exports (lint module-closure)
 kind = "component"
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
 agent = { part = "omui.agent" }
 
 [targets.openmui-ui-markdown]
@@ -26,7 +27,17 @@ kind = "lib"
 sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
+# View documents run where a document shows them (```view: a live example above its source): omui.viewdoc at this
+# package's slot `omui.ui.markdown.live` (src/views/, `import omui.ui.markdown.views;`, omui::install_markdown_views).
+# A feature, so a program that only shows documents carries no view documents and no expressions (D-99).
+[features]
+views = { sources = ["src/views/*.cppm", "src/views/*.cpp"] }
+
+[feature-deps.views]
+omui.viewdoc = { path = "../../viewdoc" }
+
 [dependencies]
+mlibs.compose = { path = "../../../../base/compose" }  # the slot of who runs a block of code
 mrender.text = { path = "../../../mrender/text" }
 mlibs.utils = { path = "../../../../base/utils" }
 omui.core     = { path = "../../core" }
@@ -39,4 +50,6 @@ openlifa.openmui = { path = "../../../../../spec" }  # its registry/: what the c
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+omui.semantic = { path = "../../semantic" }   # markdown_live_test: the document's HTML, read back
+omui.ui.base = { path = "../base" }           # markdown_live_test: the stand-in example's button
 omui.host.headless = { path = "../../host/headless" }

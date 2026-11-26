@@ -28,4 +28,4 @@ mlibs.json       = { path = "../../../base/json" }  # the page's projection as i
 omui.core        = { path = "../../omui/core" }
 omui.view        = { path = "../../omui/view" }
 omui.ui.base     = { path = "../../omui/components/base" }
-omui.ui.markdown = { path = "../../omui/components/markdown" }
+omui.ui.markdown = { path = "../../omui/components/markdown", features = ["views"] }  # views: a page's live examples (```view)

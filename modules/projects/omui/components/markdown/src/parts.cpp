@@ -7,6 +7,8 @@ import omui.view;
 import mlibs.markdown;
 import :markdown_contract;
 import :parts;
+import :live;
+import mlibs.compose;
 import mrender.text;
 
 namespace omui::mdview {
@@ -246,6 +248,21 @@ void localize_into(mlibs::markdown::Block& b, std::span<const mlibs::markdown::L
 
 }  // namespace
 
+}  // namespace omui::mdview
+
+namespace omui {
+
+const MarkdownLive* markdown_live(std::string_view language) noexcept {
+    if (language.empty()) return nullptr;
+    for (const MarkdownLive* provider : mlibs::compose::process().all(markdown_live_slot))
+        if (provider && provider->language == language && provider->make) return provider;
+    return nullptr;
+}
+
+}  // namespace omui
+
+namespace omui::mdview {
+
 mlibs::text::TextStyle text_style(const Theme& theme, const mlibs::markdown::Block& b) {
     switch (b.kind) {
         case mlibs::markdown::Kind::heading: {
@@ -311,7 +328,33 @@ Element element(std::shared_ptr<Data> data, std::string id) {
         case mlibs::markdown::Kind::html:
             if (comment_of(data->block)) return make<Comment>(std::move(data), id, key);
             return make<Text>(std::move(data), id, key);
-        case mlibs::markdown::Kind::code: return make<Code>(std::move(data), id, key);
+        case mlibs::markdown::Kind::code: {
+            // A block someone runs, in a document of the application's own: the example above its source.
+            const MarkdownLive* live = data->hub->origin == MarkdownOrigin::app && data->hub->services ? markdown_live(data->block.language) : nullptr;
+            if (!live) return make<Code>(std::move(data), id, key);
+            std::vector<Element> shown;
+            if (auto made = live->make(*data->hub->services, data->block.content.text)) {
+                shown.push_back(std::move(*made));
+            } else {
+                // What is wrong with its text, where the example would stand: said, not hidden.
+                Element problem = text({.id = "problem", .text = std::move(made.error())});
+                problem.prop("role", Source{Value("status"), {}, {}});
+                shown.push_back(std::move(problem));
+            }
+            Element example = column({.id = "live", .padding = 16, .border_width = 1, .radius = 8}, std::move(shown));
+            // What the block gives when it runs: shown, and no part of the document's source (S-16's `output`).
+            example.prop("role", Source{Value("group"), {}, {}});
+            example.prop("label", Source{Value("Example"), {}, {}});
+            example.prop("properties", Source{Value{}.set("output", Value(true)), {}, {}});
+            example.prop("border_color", Source{Value("border"), {}, {}});
+            std::vector<Element> held;
+            held.push_back(std::move(example));
+            held.push_back(make<Code>(std::move(data), "code", std::format("{}/code", key)));
+            Element figure = column({.id = id, .gap = 8}, std::move(held));
+            figure.key = key;
+            figure.prop("role", Source{Value("figure"), {}, {}});
+            return figure;
+        }
         case mlibs::markdown::Kind::rule: return make<Rule>(std::move(data), id, key);
         case mlibs::markdown::Kind::table: {
             // As wide as its columns; wider than the document, scrolled sideways in its place (the wheel, a drag, the keys).

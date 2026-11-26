@@ -168,6 +168,26 @@ public:
                         at = close == std::string_view::npos ? html.size() : close + 1;
                         continue;
                     }
+                    if (!tag->closing && !tag->self_closing && tag->attribute("data-output")) {
+                        // What a block of the document gave when it ran (a live example): shown beside the block, and
+                        // no part of the document — the block says it. Left out whole, what it holds of its own
+                        // kind with it.
+                        for (int depth = 1; depth > 0 && at < html.size();) {
+                            const std::size_t next = html.find('<', at);
+                            if (next == std::string_view::npos) {
+                                at = html.size();
+                                break;
+                            }
+                            std::size_t past = next;
+                            if (const auto inner = read_tag(html, past)) {
+                                if (inner->name == tag->name && !inner->self_closing) depth += inner->closing ? -1 : 1;
+                                at = past;
+                            } else {
+                                at = next + 1;
+                            }
+                        }
+                        continue;
+                    }
                     element(*tag);
                     continue;
                 }

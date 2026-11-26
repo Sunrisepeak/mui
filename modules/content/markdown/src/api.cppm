@@ -179,7 +179,9 @@ struct Document {
 // article …) pass their children through; what is neither is dropped but its
 // text kept; scripts, styles and embedded objects are dropped whole, and no
 // attribute but href, src, alt, title, start, align, class (a code block's
-// language), type and checked is read. Markdown's own HTML is read back as it
+// language), type and checked is read. An element marked `data-output` — what a
+// block of the document gave when it ran, shown beside the block — is left out
+// whole: the block says it. Markdown's own HTML is read back as it
 // was written: to_html(from_html(to_html(doc))) == to_html(doc).
 [[nodiscard]] Document from_html(std::string_view html, Extension extensions = gfm);
 

@@ -23,6 +23,7 @@ omui::markdown({.id = "answer", .origin = omui::MarkdownOrigin::remote, .source 
 
   `origin` marks every node: text from an LLM is `remote` all the way down.
 - **HTML as the source** (`format: html`, D-141): the same component over a subset of HTML read into the same document (`mlibs::markdown::from_html`): the same semantic tree and the same pixels as the Markdown it was made from. Scripts, styles and handlers are not content; an append reads the whole source again; its task boxes are as written (`toggle_task` refuses).
+- **A block of code that runs** (`omui.ui.markdown:live`; oweb's design §4.3): where a provider runs a block's language, a document of the application's own (`origin: app`) shows the example above its source — a `figure` holding a group marked `output` (spec S-16: what a block gives when it runs; the example's own nodes, read and operated like any) and the `code`. The document is still the block alone: `markdown_of`, and its HTML read back, leave an output out. Who runs a language is a provider at the slot `omui.ui.markdown.live` ([`mlibs.compose`](../../../../base/compose), a preview, `lower` in the manifest; many, by language). **View documents** (```` ```view ````) are run by this package's feature `views` (`import omui.ui.markdown.views;`, `omui::install_markdown_views()`), which carries `omui.viewdoc`: the example is data — components, signals, expressions — so it runs with no script engine, and the source shown is what runs; a text that is no view document says what is wrong, at its line and column, where the example would stand. A program without the feature shows the source alone; what a person typed or a remote text says is shown and never run.
 - **Links reach outside** (effect `external`, answer `yes`). An agent states the answer or gets `needs-answer`; a person's own click or Enter is the answer (spec S-2a). The document's `open_link` follows only addresses the document links to. A `#anchor` link also scrolls to its heading.
 - **Tasks**: toggling (a click, the checkbox's `toggle`, the document's `toggle_task`) rewrites the mark in the source. A bound `source` signal learns it, and `task_toggled` reports it.
 - **Streaming**: a new `source` that extends the current one, or the `append` action, re-parses only after the last stable block boundary. Blocks are keyed by their content, so an unchanged block keeps its node, shaped text and layout.
@@ -31,7 +32,7 @@ omui::markdown({.id = "answer", .origin = omui::MarkdownOrigin::remote, .source 
 
 The look comes from the theme's tokens (`title`, `heading`, `body`, `code`, `accent`, `surface_variant` …). Images with a source on disk render as image nodes, resolved against `base_url`. Other images show their alt text, with an `image` node over it.
 
-Tests (`tests/markdown_view_test.cpp`):
+Tests (`tests/markdown_live_test.cpp`: a block that runs, with a stand-in provider — the tree, the document read back from the tree and from its HTML, a typed document that runs nothing; and `tests/markdown_view_test.cpp`):
 - the tree's roles, names, values and actions, with no spec violations;
 - links: the agent's answer versus a person's click;
 - anchors and scrolling, tasks and the binding;

@@ -69,6 +69,7 @@ namespace oweb {
     std::size_t nodes = 0;
     std::vector<Section> sections;
     std::vector<std::string> problems;
+    std::vector<std::string> examples;
     std::vector<std::string> faces;
     std::set<char32_t> characters;
   };

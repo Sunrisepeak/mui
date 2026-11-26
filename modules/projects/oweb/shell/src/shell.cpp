@@ -6,6 +6,7 @@ import omui.core;
 import omui.view;
 import omui.ui.base;
 import omui.ui.markdown;
+import omui.ui.markdown.views;
 
 namespace oweb::shell {
 
@@ -28,6 +29,10 @@ std::vector<Element> links(std::vector<Link> from) {
 
 Element document(Parts& parts) {
     using namespace omui;
+    // A page's live examples: its blocks of the language `view` run, as its builder ran them — view documents over
+    // the base components, found by name (a page's examples are its data: which it uses is not known to the program).
+    static const bool examples = (register_base_components(), install_markdown_views().has_value());
+    (void)examples;
     Element main = column({.id = "main"}, {markdown({.id = std::string(document_part), .format = parts.html ? MarkdownFormat::html : MarkdownFormat::markdown,
                                                       .origin = MarkdownOrigin::app, .source = std::move(parts.document)})});
     main.prop("role", Source{Value("main"), {}, {}});

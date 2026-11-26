@@ -5,6 +5,11 @@ export import mlibs.markdown;
 export import :markdown_contract;
 export import :document;
 export import :read;
+export import :live;
+== omui.ui.markdown.views
+namespace omui {
+  std::expected<void, mlibs::compose::Error> install_markdown_views();
+}
 == omui.ui.markdown:document
 namespace omui {
   class Markdown : public MarkdownContract<Markdown> {
@@ -28,6 +33,15 @@ namespace omui {
     [[nodiscard]] std::size_t last_parsed() const noexcept;
   };
   void register_markdown_component();
+}
+== omui.ui.markdown:live
+namespace omui {
+  struct MarkdownLive {
+    std::string_view language;
+    std::expected<Element, std::string> (*make)(Services& services, std::string_view text) = nullptr;
+  };
+  inline constexpr mlibs::compose::Slot<MarkdownLive> markdown_live_slot{…};
+  [[nodiscard]] const MarkdownLive* markdown_live(std::string_view language) noexcept;
 }
 == omui.ui.markdown:read
 namespace omui {

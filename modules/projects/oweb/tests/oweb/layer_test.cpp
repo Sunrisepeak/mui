@@ -117,7 +117,7 @@ static UTest cases{"oweb.layer", [] {
             for (const spec::SemanticNode& node : snapshot.nodes) in_tree += node.role == Role::link;
             expect(anchors == in_tree) << name << ": " << anchors << " in the page, " << in_tree << " in the tree";
         }
-        expect(documents == 7u && links > 10u && marked > 10u) << documents << " " << links << " " << marked;
+        expect(documents == 8u && links > 10u && marked > 10u) << documents << " " << links << " " << marked;
         std::println("    one mapping: {} documents, {} nodes each the same element before and over; {} links, {} texts with marks", documents, nodes, links, marked);
     };
 

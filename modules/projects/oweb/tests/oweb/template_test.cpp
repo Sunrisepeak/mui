@@ -104,7 +104,7 @@ static UTest cases{"oweb.template", [] {
         const auto built = oweb::build(site, out, *options);
         expect(built.has_value()) << (built ? "" : built.error());
         if (!built) return;
-        expect(built->routes.size() == 7u && built->routes[1].path == "/start/" && built->routes[4].path == "/reference/ops/") << built->routes.size();
+        expect(built->routes.size() == 8u && built->routes[1].path == "/start/" && built->routes[4].path == "/live/" && built->routes[5].path == "/reference/ops/") << built->routes.size();
         std::size_t html_bytes = 0, markdown_bytes = 0;
         for (const oweb::Route& route : built->routes) {
             const std::string source = oweb::source_text(site, route).value_or("");
@@ -201,7 +201,7 @@ static UTest cases{"oweb.template", [] {
                 // As the builder writes it: without what a view adds to operate its document.
                 std::unordered_set<std::string> left_out;
                 for (const spec::SemanticNode& node : again.nodes)
-                    if (node.role == Role::button && node.id.contains("/doc/")) left_out.insert(node.id);
+                    if (node.role == Role::button && node.id.contains("/doc/") && !node.id.contains("/live/")) left_out.insert(node.id);
                 for (spec::SemanticNode& node : again.nodes) std::erase_if(node.children, [&](const std::string& id) { return left_out.contains(id); });
                 std::erase_if(again.nodes, [&](const spec::SemanticNode& node) { return left_out.contains(node.id); });
                 const std::string written(body_of(plain->html)), read_back = semantic::static_html(again);
@@ -274,7 +274,7 @@ static UTest cases{"oweb.template", [] {
             semantic::Snapshot again = host.tree().snapshot({});
             std::unordered_set<std::string> left_out;
             for (const spec::SemanticNode& node : again.nodes)
-                if (node.role == Role::button && node.id.contains("/doc/")) left_out.insert(node.id);
+                if (node.role == Role::button && node.id.contains("/doc/") && !node.id.contains("/live/")) left_out.insert(node.id);
             for (spec::SemanticNode& node : again.nodes) std::erase_if(node.children, [&](const std::string& id) { return left_out.contains(id); });
             std::erase_if(again.nodes, [&](const spec::SemanticNode& node) { return left_out.contains(node.id); });
             const std::string written(body_of(page->html)), read_back = semantic::static_html(again);
@@ -288,6 +288,68 @@ static UTest cases{"oweb.template", [] {
         const auto built = oweb::build(site, out, own);
         expect(built.has_value()) << (built ? "" : built.error());
         expect(read(out / "start" / "index.html").contains("data-omui-target=\"main/page/side/toc\"") && std::filesystem::exists(out / "start" / "index.md"));
+    };
+
+    "a live example: in the page before any program, its source the block's; operated, it answers; the document is the block alone"_test = [] {
+        using namespace omui;
+        const auto site = package() / "templates" / "docs";
+        auto options = oweb::configured(site);
+        expect(options.has_value());
+        if (!options) return;
+        options->look = false;
+        const auto routes = oweb::collect(site, *options);
+        expect(routes.has_value()) << (routes ? "" : routes.error());
+        if (!routes) return;
+        const auto live = std::ranges::find(*routes, "/live/", &oweb::Route::path);
+        expect(live != routes->end() && live->load == "idle") << "its route takes the program once the page is idle";
+        if (live == routes->end()) return;
+        const auto page = oweb::evaluate(site, *routes, *live, *options);
+        expect(page.has_value()) << (page ? "" : page.error());
+        if (!page) return;
+        expect(page->problems.empty() && page->examples.empty()) << (page->examples.empty() ? "" : page->examples.front());
+        // The page as it reads with no program: the example as it starts, marked as what its block gave, and the block.
+        const std::string_view body = body_of(page->html);
+        expect(body.contains("<figure data-omui-target=\"main/page/main/doc/b3\">") && body.contains("data-omui-target=\"main/page/main/doc/b3/live\" data-output=\"\" aria-label=\"Example\" role=\"group\"")) << body;
+        expect(body.contains(">Add one</button>") && body.contains("Not pressed yet") && body.contains(">Reset</button>")) << "the example's own nodes, as they start";
+        expect(body.contains("<pre data-omui-target=\"main/page/main/doc/b3/code\"><code class=\"language-view\">{\n  \"omui\": \"0.1\",")) << "its source, the block of code";
+        // The document is the block alone: its Markdown the source's, and nothing of the example in its text or its search.
+        const std::string source = read(site / "pages" / "live.md");
+        expect(page->markdown.contains("```view\n{\n  \"omui\": \"0.1\",") && !page->markdown.contains("\nNot pressed yet") && !page->markdown.contains("\nAdd one\n")) << page->markdown;
+        expect(md::to_html(md::from_html(document_of(page->html))) == md::to_html(md::parse(page->markdown))) << "the page's HTML read back is the document its Markdown says";
+        for (const oweb::Section& section : page->sections) expect(!section.text.contains("\nNot pressed yet") && !section.text.starts_with("Not pressed yet")) << section.title;
+        // Operated — as the page's program runs it, read back from the page's own HTML — it answers.
+        const auto parts = oweb::shell::read(projection_of(page->html), [&](std::string_view) { return std::string(document_of(page->html)); });
+        expect(parts.has_value()) << (parts ? "" : parts.error());
+        if (!parts) return;
+        Headless host({.level = HeadlessLevel::layout, .size = {960, 1200}});
+        host.mount(oweb::shell::mounted_at, oweb::shell::page(*parts, {.scrolls = true}));
+        host.settle();
+        const auto named = [&](std::string_view id) {
+            const semantic::Snapshot now = host.tree().snapshot({});
+            const auto found = std::ranges::find(now.nodes, id, &spec::SemanticNode::id);
+            return found == now.nodes.end() ? std::string("(no such node)") : found->name;
+        };
+        expect(named("main/page/main/doc/b3/live/counter/said") == "Not pressed yet") << named("main/page/main/doc/b3/live/counter/said");
+        expect(host.click("main/page/main/doc/b3/live/counter/add") && host.click("main/page/main/doc/b3/live/counter/add"));
+        host.settle();
+        expect(named("main/page/main/doc/b3/live/counter/said") == "Presses: 2") << named("main/page/main/doc/b3/live/counter/said");
+        expect(host.click("main/page/main/doc/b3/live/counter/reset"));
+        host.settle();
+        expect(named("main/page/main/doc/b3/live/counter/said") == "Not pressed yet") << "reset";
+    };
+
+    "an example that cannot run: the page says what is wrong and where, and the site is not built"_test = [] {
+        const auto site = std::filesystem::temp_directory_path() / "openmui-tests" / "oweb" / "wrong-example";
+        std::filesystem::remove_all(site);
+        std::filesystem::create_directories(site / "pages");
+        std::ofstream(site / "pages" / "index.md") << "# Home\n\n```view\n{ \"omui\": \"0.1\", \"imports\": [\"omui.ui.base\"], \"view\": { \"root\": { \"type\": \"buton\", \"props\": { \"text\": \"Go\" } } } }\n```\n";
+        const auto built = oweb::build(site, site / "out", {});
+        expect(!built.has_value());
+        if (built) return;
+        expect(built.error().contains("1 example of the site's pages cannot run; nothing was written") && built.error().contains("pages/index.md: an example cannot run") &&
+               built.error().contains("button"))
+            << built.error();
+        expect(!std::filesystem::exists(site / "out" / "index.html"));
     };
 
     "its reference is the catalog's, generated at the build: no page of its own, the catalog's own reference its text; pages link to it by its address"_test = [] {

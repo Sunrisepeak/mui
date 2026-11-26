@@ -100,6 +100,9 @@ struct Page {
     // Links inside the site that lead nowhere: a page that is no route, an anchor its page has not, a file that is
     // not there. A build with any writes nothing.
     std::vector<std::string> problems;
+    // Its live examples that cannot run (a block of the language `view` whose text is no view document), each with
+    // what is wrong and where in its text. A build with any writes nothing.
+    std::vector<std::string> examples;
     // With a look: the families its text is set in — their files are the site's (`assets/<key>.ttf`) — and the
     // characters it shows: a site's faces are cut to what its pages show (mlibs.text.subset).
     std::vector<std::string> faces;

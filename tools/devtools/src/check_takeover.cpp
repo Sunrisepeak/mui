@@ -232,6 +232,34 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
         }
     }
     let(true);  // nothing waits on a check that ended
+    // The page's live examples (what a block of the document gave when it ran: `data-output`) answer once the
+    // program has the page: each one's first button that can be pressed, pressed where the canvas shows it, changes
+    // what the example shows. The page as the last row left it: taken over, at the narrowest width.
+    int examples = 0, operated = 0, answered = 0;
+    if (problem.empty()) {
+        const auto found = page.value("document.querySelectorAll('[data-omui=mirror] [data-output]').length");
+        examples = found ? static_cast<int>(number(*found)) : 0;
+        for (int index = 0; index < examples; ++index) {
+            const std::string example = std::format("document.querySelectorAll('[data-omui=mirror] [data-output]')[{}]", index);
+            const std::string button = std::format("{}.querySelector('button:not([aria-disabled=true]):not([disabled]), [role=button]:not([aria-disabled=true])')", example);
+            // Brought into view as a reader's tools bring an element there: the page tells the program, the view follows.
+            const auto there = page.value(std::format("(() => {{ const b = {}; if (!b) return false; b.scrollIntoView({{block: 'center'}}); return true; }})()", button));
+            if (!there || !truthy(*there)) continue;
+            page.pump(std::chrono::milliseconds(700));
+            const auto shown = page.value(std::format("(() => {{ const r = {}.getBoundingClientRect(); return {{x: r.left + r.width / 2, y: r.top + r.height / 2, text: {}.textContent}}; }})()", button, example));
+            if (!shown) continue;
+            ++operated;
+            const double x = number(at(*shown, "x")), y = number(at(*shown, "y"));
+            page.post("Input.dispatchMouseEvent", {{"type", "mouseMoved"}, {"x", x}, {"y", y}});
+            page.pump(std::chrono::milliseconds(100));
+            page.post("Input.dispatchMouseEvent", {{"type", "mousePressed"}, {"x", x}, {"y", y}, {"button", "left"}, {"buttons", 1}, {"clickCount", 1}});
+            page.pump(std::chrono::milliseconds(60));
+            page.post("Input.dispatchMouseEvent", {{"type", "mouseReleased"}, {"x", x}, {"y", y}, {"button", "left"}, {"buttons", 0}, {"clickCount", 1}});
+            page.pump(std::chrono::milliseconds(700));
+            const auto now = page.value(std::format("{}.textContent", example));
+            if (now && text(*now) != text(at(*shown, "text"))) ++answered;
+        }
+    }
     const std::string version = page.version();
     page.close();
     (*server)->close();
@@ -242,7 +270,8 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
                          {"browser", version},
                          {"bound", {{"median", median_bound}, {"most", most_bound}, {"lines", 0}, {"words", words_at_least}}},
                          {"rows", rows},
-                         {"ok", within}};
+                         {"examples", {{"found", examples}, {"operated", operated}, {"answered", answered}}},
+                         {"ok", within && operated == answered}};
     std::error_code made;
     fs::create_directories(root / "target", made);
     std::ofstream(root / "target/takeover.report.xdef.json", std::ios::binary) << cdp::pretty(report, 2) << '\n';
@@ -250,7 +279,11 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
     for (const auto& row : rows)
         std::cout << std::format("  {} {:>4} wide, scrolled {:>3}: {} words seen, median {} px, most {} px, {} to another line\n", truthy(at(row, "ok")) ? "ok  " : "FAIL", number(at(row, "width")),
                                  number(at(row, "scrolled")), number(at(row, "compared")), number(at(row, "median")), number(at(row, "most")), number(at(row, "lines")));
+    if (examples > 0)
+        std::cout << std::format("  {} {} live example{}: {} operated (its first button pressed on the canvas), {} answered\n", operated == answered ? "ok  " : "FAIL", examples, examples == 1 ? "" : "s", operated,
+                                 answered);
     if (!within) return failed("a word moved past the bound when the program took the page over (target/takeover.report.xdef.json)");
+    if (operated != answered) return failed("a live example did not answer when its button was pressed (target/takeover.report.xdef.json)");
     return 0;
 }
 

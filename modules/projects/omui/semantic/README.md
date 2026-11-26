@@ -49,7 +49,8 @@ technology read it (spec §3 and §9, `openmui.tree@0.1`):
   heading's anchor as its element's `id`, `<pre><code class="language-…">`,
   a table's head, body and cells' alignment, an ordered list's start, a tight
   list's bare items, inline formats as their elements with a link or an image
-  where its mark stands, a comment as a comment; embedded markup as markup
+  where its mark stands, a comment as a comment, a figure as `<figure>`, what a
+  block gave when it ran (`output`) marked `data-output`; embedded markup as markup
   only where the application wrote it (S-3). The compact tree keeps a
   document's comments (hidden nodes with a `comment`); `changes_between`
   compares `properties` and `marks` too;

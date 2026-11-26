@@ -9,6 +9,7 @@ import omui.accessibility;
 import mrender.vector;
 import mrender.raster;
 import mlibs.text;
+import mlibs.text.harfbuzz;
 import mlibs.trace;
 import omui.ui.base;
 import omui.host.headless;
@@ -496,7 +497,7 @@ void add_framework_benchmarks() {
     auto presentation = [](State& s, bool draw, bool drive=false, bool images=false) {
         constexpr std::size_t count=100;
         RuntimeOptions options;options.stages=Stages::paint;options.size={1280,720};
-        mlibs::text::FontCollection fonts;
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
         if(auto loaded=fonts.add_defaults();!loaded){s.fail(loaded.error());return;}
         options.fonts=&fonts;
         Runtime runtime(options);std::vector<Element> cards;cards.reserve(count);
@@ -791,7 +792,7 @@ void add_framework_benchmarks() {
              : "a 1080p page of small text over cards the renderer has not seen: encoded and drawn in one frame", [kept](State& s) {
         Gpu gpu(full_hd);
         if (!gpu.ready(s)) return;
-        mlibs::text::FontCollection fonts;
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
         if (auto loaded = fonts.add_defaults(); !loaded) warn("the default fonts did not load: {}", loaded.error());
         std::string text;
         for (int copy = 0; copy < 14; ++copy) text += paragraph_text();
@@ -1367,7 +1368,7 @@ void add_framework_benchmarks() {
 
     // ── pieces alone ──
     add("text/paragraph", "shaping and breaking 2 KB of text into lines 600 px wide", [](State& s) {
-        mlibs::text::FontCollection fonts;
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
         if (auto r = fonts.add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         const std::string source = paragraph_text();
         s.items(source.size());
@@ -1403,7 +1404,7 @@ void add_framework_benchmarks() {
         while (s.next()) s.counter("bytes", static_cast<double>(mlibs::markdown::to_html(doc).size()));
     });
     add("text/glyph-motion", "one frame of glyph motion over 2 KB of laid-out text: every glyph's style (D-68)", [](State& s) {
-        mlibs::text::FontCollection fonts;
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
         if (auto r = fonts.add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         mlibs::text::Paragraph p(fonts, paragraph_text(), {});
         p.layout(600);

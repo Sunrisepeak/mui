@@ -30,7 +30,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 mcpplibs.cmdline = "0.0.3"
-omui.sdk = { path = "../../modules/projects/omui/sdk" }
+omui.sdk = { path = "../../modules/projects/omui/sdk", features = ["terminal"] }  # its terminal face: tally --terminal
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

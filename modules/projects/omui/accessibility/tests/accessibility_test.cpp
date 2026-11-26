@@ -2,6 +2,7 @@
 // say, and the requests a screen reader makes performed as the person's input;
 // where AccessKit has a library, the update it would be told.
 import std;
+import mlibs.text.harfbuzz;
 import omui.core;
 import omui.view;
 import omui.semantic;
@@ -18,7 +19,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

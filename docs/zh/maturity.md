@@ -14,13 +14,13 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 
 | 项目 | 稳定 | 预览 | 实验 |
 |---|---|---|---|
-| omui | 30 | 3 | 1 |
+| omui | 30 | 4 | 1 |
 | hanim | 5 | 4 | 0 |
-| mrender | 10 | 8 | 0 |
+| mrender | 11 | 9 | 0 |
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 31 | 6 | 0 |
+| mlibs | 32 | 6 | 0 |
 | 例子 | 12 | 0 | 0 |
 | 构建插件（mcpp） | 1 | 0 | 0 |
 | oweb | 0 | 1 | 0 |
@@ -41,6 +41,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `omui.sdk` | [modules/projects/omui/sdk](../../modules/projects/omui/sdk) | 稳定 |
 | `omui.expr` | [modules/projects/omui/expr](../../modules/projects/omui/expr) | 稳定 |
 | `omui.host.headless` | [modules/projects/omui/host/headless](../../modules/projects/omui/host/headless) | 稳定 |
+| `omui.host.terminal` | [modules/projects/omui/host/terminal](../../modules/projects/omui/host/terminal) | 预览 |
 | `omui.host.android` | [modules/projects/omui/host/android](../../modules/projects/omui/host/android) | 预览 |
 | `omui.host.sdl3` | [modules/projects/omui/host/sdl3](../../modules/projects/omui/host/sdl3) | 稳定 |
 | `omui.host.sdl3.gpu` | [modules/projects/omui/host/sdl3/gpu](../../modules/projects/omui/host/sdl3/gpu) | 稳定 |
@@ -90,6 +91,8 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `mrender.text` | [modules/projects/mrender/text](../../modules/projects/mrender/text) | 稳定 |
 | `mrender.graph` | [modules/projects/mrender/graph](../../modules/projects/mrender/graph) | 稳定 |
 | `mrender.cts` | [modules/projects/mrender/cts](../../modules/projects/mrender/cts) | 稳定 |
+| `mrender.cells` | [modules/projects/mrender/cells](../../modules/projects/mrender/cells) | 预览 |
+| `mrender.display` | [modules/projects/mrender/display](../../modules/projects/mrender/display) | 稳定 |
 | `mrender.vector` | [modules/projects/mrender/vector](../../modules/projects/mrender/vector) | 稳定 |
 | `mrender.frame` | [modules/projects/mrender/frame](../../modules/projects/mrender/frame) | 稳定 |
 | `mrender.scene` | [modules/projects/mrender/scene](../../modules/projects/mrender/scene) | 预览 |
@@ -187,6 +190,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `mlibs.layout` | [modules/content/layout](../../modules/content/layout) | 稳定 |
 | `mlibs.markdown` | [modules/content/markdown](../../modules/content/markdown) | 稳定 |
 | `mlibs.text` | [modules/content/text](../../modules/content/text) | 稳定 |
+| `mlibs.text.harfbuzz` | [modules/content/text/harfbuzz](../../modules/content/text/harfbuzz) | 稳定 |
 | `mlibs.text.fonts` | [modules/content/text/fonts](../../modules/content/text/fonts) | 稳定 |
 | `mlibs.text.fonts.han` | [modules/content/text/fonts/han](../../modules/content/text/fonts/han) | 稳定 |
 | `mlibs.text.fonts.arabic` | [modules/content/text/fonts/arabic](../../modules/content/text/fonts/arabic) | 稳定 |

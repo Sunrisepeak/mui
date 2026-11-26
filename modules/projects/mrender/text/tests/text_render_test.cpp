@@ -4,6 +4,7 @@
 import std;
 import mlibs.geom;
 import mlibs.text;
+import mlibs.text.harfbuzz;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -22,7 +23,7 @@ namespace {
 
 text::FontCollection& fonts() {
     static text::FontCollection f = [] {
-        text::FontCollection c;
+        text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         auto r = c.add_defaults();
         if (!r) std::println("fonts: {}", r.error());
         return c;
@@ -139,7 +140,7 @@ UTest cases{"mrender.text", [] {
     };
 
     "a collection without fonts draws nothing instead of failing"_test = [] {
-        text::FontCollection none;
+        text::FontCollection none{mlibs::text::harfbuzz::shaper()};
         expect(none.add_defaults("/no/fonts/here").has_value() == false);
         text::Paragraph p(none, "Hello 统一 مرحبا \U0001F680", style());
         p.layout(200);

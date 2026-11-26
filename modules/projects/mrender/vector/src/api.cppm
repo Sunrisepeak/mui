@@ -1,8 +1,8 @@
 // mrender.vector — 2D vector rendering, a rendering feature of
 // mrender (D-57, D-81).
 //
-//   :display    the display list: paths, paints, strokes, clips, transforms,
-//               layers, glyph runs, images, node markers
+//   the display list (mrender.display, re-exported): paths, paints,
+//               strokes, clips, transforms, layers, glyph runs, images, node markers
 //   :resources  images by reference, glyphs from the text engine
 //   :damage     which rows a new list changes (incremental frames)
 //   :cpu        the CPU reference backend over openmui.raster
@@ -16,7 +16,7 @@ export module mrender.vector.api;
 // The graph its GPU passes are recorded into.
 export import mrender.graph;
 
-export import :display;
+export import mrender.display;
 export import :paint_mix;
 export import :resources;
 export import :damage;

@@ -1,15 +1,16 @@
 // The shaper over HarfBuzz: each grapheme's face (font fallback per cluster), script runs, HarfBuzz shaping of each
 // run with the whole text as context, CJK punctuation trimming and autospace (the glyphs' extents), the graphemes'
-// advances and the ellipsis. Bidi levels, words and line-break opportunities are shape()'s (../shape.cpp).
-module mlibs.text.api;
+// advances and the ellipsis. Bidi levels, words and line-break opportunities are mlibs.text's (its shape.cpp).
+module mlibs.text.harfbuzz;
 
 import std;
+import mlibs.text;
 import mlibs.unicode;
-import :shaped;
 import mcpplibs.mwrap.harfbuzz;
+import :native;
 using namespace mcpplibs::mwrap::harfbuzz::macros;
 
-namespace mlibs::text {
+namespace mlibs::text::harfbuzz {
 
 namespace {
 hb_script_t script_of(char32_t cp) { return hb_unicode_script(hb_unicode_funcs_get_default(), cp); }
@@ -24,12 +25,6 @@ bool is_space(char32_t cp) {
 
 bool is_newline(char32_t cp) { return cp == '\n' || cp == '\r' || cp == 0x2028 || cp == 0x2029 || cp == 0x85; }
 
-std::size_t style_at(const Paragraph::Shaped& s, std::size_t byte) {
-    for (std::size_t i = 0; i < s.ranges.size(); ++i)
-        if (byte >= s.ranges[i].begin && byte < s.ranges[i].end) return i + 1;
-    return 0;
-}
-
 void shape_run(Paragraph::Shaped& s, ShapedRun& run, hb_script_t script, hb_buffer_t* buf, std::string_view source) {
     const TextStyle& st = s.styles[run.style];
     hb_buffer_clear_contents(buf);
@@ -42,7 +37,7 @@ void shape_run(Paragraph::Shaped& s, ShapedRun& run, hb_script_t script, hb_buff
     std::vector<hb_feature_t> features;
     for (const Feature& f : st.features)
         features.push_back({HB_TAG(f.tag[0], f.tag[1], f.tag[2], f.tag[3]), f.value, 0, static_cast<unsigned>(-1)});
-    auto* font = static_cast<hb_font_t*>(s.fonts->hb_font(run.font));
+    hb_font_t* font = native(*s.fonts, run.font);
     hb_shape(font, buf, features.data(), static_cast<unsigned>(features.size()));
     unsigned n = 0;
     hb_glyph_info_t* info = hb_buffer_get_glyph_infos(buf, &n);
@@ -57,7 +52,7 @@ void shape_run(Paragraph::Shaped& s, ShapedRun& run, hb_script_t script, hb_buff
 
 }  // namespace
 
-void shape_runs(Paragraph::Shaped& s, std::span<const std::uint8_t> level_at) {
+void shape(Paragraph::Shaped& s, std::span<const std::uint8_t> level_at) {
     const std::string& text = s.text;
 
     // ── graphemes with their face, style, level and script ──
@@ -154,7 +149,7 @@ void shape_runs(Paragraph::Shaped& s, std::span<const std::uint8_t> level_at) {
         // Which half the ink is in — the font's design, Simplified or
         // Traditional (。 sits low left in one, centred in the other).
         hb_glyph_extents_t ext{};
-        if (!hb_font_get_glyph_extents(static_cast<hb_font_t*>(s.fonts->hb_font(run.font)), glyph.id, &ext)) continue;
+        if (!hb_font_get_glyph_extents(native(*s.fonts, run.font), glyph.id, &ext)) continue;
         const float k = size / static_cast<float>(s.fonts->face(s.fonts->face_of(run.font)).units_per_em);
         const float left = static_cast<float>(ext.x_bearing) * k + glyph.x_offset, right = left + static_cast<float>(ext.width) * k;
         const float mid = glyph.advance / 2, slack = glyph.advance * 0.05f;
@@ -252,4 +247,4 @@ void shape_runs(Paragraph::Shaped& s, std::span<const std::uint8_t> level_at) {
     hb_buffer_destroy(buf);
 }
 
-}  // namespace mlibs::text
+}  // namespace mlibs::text::harfbuzz

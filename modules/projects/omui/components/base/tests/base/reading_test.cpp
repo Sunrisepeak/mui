@@ -3,6 +3,7 @@
 // drive them (keys, a click, actions), their semantics, and a gallery whose
 // pixels are pinned for every platform.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
@@ -16,7 +17,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         (void)made.add_defaults();
         return made;
     }();
@@ -192,7 +193,7 @@ static UTest cases{"ui.base.reading", [] {
     };
 
     "the gallery: kbd, separators, links, a description list and a spinner at rest — the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions made = options({360, 280});
         made.fonts = &own;

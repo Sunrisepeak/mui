@@ -3,6 +3,7 @@
 module omui.showcase.promo_video;
 
 import std;
+import mlibs.text.harfbuzz;
 import hanim.core;
 import omui;
 import omui.showcase.style_gallery;
@@ -17,7 +18,7 @@ namespace omui::promo {
 const PanelPicture& panel_picture() {
     static const PanelPicture picture = [] {
         add_styles();
-        mlibs::text::FontCollection fonts;
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
         if (auto r = fonts.add_defaults(); !r) warn("promo: the default fonts did not load: {}", r.error());
         PanelPicture out;
         out.size = {1440, 900};

@@ -48,6 +48,7 @@ std::expected<AgentPolicy, Failure> application_agent_policy(const AppSpec& app,
 void RunOptions::declare(cmdline::App& app) {
     using cmdline::Option;
     (void)app
+        .option(Option("terminal").help("in this terminal: the same view in character cells, its keys and mouse"))
         .option(Option("headless").help("no window: drawn offscreen, operated through the agent protocol"))
         .option(Option("serve").help("headless, and kept running for agents (level h3)"))
         .option(Option("frames").takes_value().value_name("N").help("run N frames, then end"))
@@ -80,6 +81,7 @@ void RunOptions::declare(cmdline::App& app) {
 std::expected<RunOptions, Failure> RunOptions::from(const cmdline::ParsedArgs& parsed) {
     RunOptions o;
     o.headless = parsed.is_flag_set("headless");
+    o.terminal = parsed.is_flag_set("terminal") && !o.headless;
     if (parsed.is_flag_set("serve")) o.serve = o.headless = true;
     o.agent = !parsed.is_flag_set("no-agent");
     if (parsed.is_flag_set("agent-input")) o.agent_input = true;
@@ -523,6 +525,16 @@ int run(AppSpec app, const RunOptions& o) {
     auto access = agent_access_of(app, o);
     if (!access) return 2;
     if (o.headless) return headless(std::move(app), o, access);
+    // In this terminal's character cells (omui.host.terminal): the same view, prepared as a window's is.
+    if (o.terminal)
+        return hosting::terminal(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {
+            struct Kept {
+                Prepared prepared;
+                TearDown teardown;  // declared last: it goes first
+                Kept(AppSpec& a, Runtime& r, Prepared p) : prepared(std::move(p)), teardown(a, r) {}
+            };
+            return std::make_shared<Kept>(app, rt, prepare(rt, app, access));
+        });
     // A window on the desktop, the page's canvas on the Web (src/host/<where>/shown.cpp).
     const std::string mode = window_mode(app, o);
     return hosting::shown(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {
@@ -563,7 +575,9 @@ std::expected<CommandLine, int> command_line(cmdline::App line, int argc, char**
 std::vector<std::string> capabilities() {
     hosting::install_services();
     // A capability by the slot its provider is installed at (the manifest's installs, feature by feature).
-    static constexpr std::array<std::pair<std::string_view, std::string_view>, 4> named{{{"omui.agent.endpoint", "agent"},
+    static constexpr std::array<std::pair<std::string_view, std::string_view>, 6> named{{{"mlibs.text.shaper", "shaping"},
+                                                                                           {"omui.host.terminal.show", "terminal"},
+                                                                                           {"omui.agent.endpoint", "agent"},
                                                                                            {"omui.sdk.generation", "generate"},
                                                                                            {"omui.host.sdl3.gpu", "gpu"},
                                                                                            {"omui.accessibility.service", "accessibility-bridge"}}};

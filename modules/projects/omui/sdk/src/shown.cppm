@@ -19,6 +19,10 @@ using Prepare = std::function<std::shared_ptr<void>(Runtime&)>;
 // Shows the application until it ends; answers the exit code.
 int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare);
 
+// Shows it in this program's terminal, in character cells (omui.host.terminal), until a person ends it; where the
+// platform has no terminal host, says so and answers 2.
+int terminal(const AppSpec& app, const RunOptions& o, const Prepare& prepare);
+
 // Installs the services this program was built with: the platform's accessibility service, or nothing.
 // `omui::run` calls it first, before any host is made. Its unit is written by the build program (build.mcpp), by the manifest's
 // features and the target; what it does not name the program does not carry.

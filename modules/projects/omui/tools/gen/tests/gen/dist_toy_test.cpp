@@ -8,6 +8,7 @@ import omui.gen.font_subset;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mlibs.text;
+import mlibs.text.harfbuzz;
 import nlohmann.json;
 
 using namespace mlibs::testing;
@@ -215,7 +216,7 @@ static UTest cases{"gen.dist_toy", [] {
             for (const auto& asset : result->files) {
                 if (!asset.path.ends_with(".ttf")) continue;
                 ++fonts;
-                mlibs::text::FontCollection faces;
+                mlibs::text::FontCollection faces{mlibs::text::harfbuzz::shaper()};
                 const auto face = faces.add_file(p.out / asset.path);
                 expect(face.has_value()) << "the packaged asset is a loadable font";
                 if (face) expect(faces.covers(*face, U'A')) << "actual Latin glyph retained";
@@ -353,7 +354,7 @@ static UTest cases{"gen.dist_toy", [] {
         expect(initial != std::string::npos);
         const std::string asset = index.substr(initial + 1, index.find('"', initial + 1) - initial - 1);
         const std::string bytes = read(p.out / asset);
-        mlibs::text::FontCollection collection;
+        mlibs::text::FontCollection collection{mlibs::text::harfbuzz::shaper()};
         const auto face = collection.add_data(std::vector<std::uint8_t>(bytes.begin(), bytes.end()));
         expect(fatal(face.has_value())) << asset;
         expect(collection.covers(*face, U'≤') && collection.covers(*face, U'H') && !collection.covers(*face, U'Ж')) << asset;
@@ -387,7 +388,7 @@ static UTest cases{"gen.dist_toy", [] {
         for (const auto& f : r->files) if (f.path.ends_with(".ttf") && f.size > 100 && f.size < 1000000) tiny = p.out / f.path;
         expect(tiny.has_value()) << "a small, separately addressable initial font";
         if (tiny) {
-            mlibs::text::FontCollection fonts;
+            mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
             auto face = fonts.add_file(*tiny);
             expect(face && fonts.covers(*face, U'中') && !fonts.covers(*face, U'龙'));
         }
@@ -397,7 +398,7 @@ static UTest cases{"gen.dist_toy", [] {
         expect(subset.has_value()) << (subset ? "" : subset.error());
         int full_faces = 0;
         if (subset) for (const auto& f : subset->files) if (f.path.ends_with(".ttf")) {
-            mlibs::text::FontCollection fonts;
+            mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
             const auto face = fonts.add_file(p.out / f.path);
             if (face && fonts.covers(*face, U'A')) {
                 ++full_faces;
@@ -444,7 +445,7 @@ static UTest cases{"gen.dist_toy", [] {
         const auto packed = gen::package_for_toy(initial); expect(packed.has_value()) << (packed ? "" : packed.error());
         bool tiny_face = false, full_face = false;
         if (packed) for (const auto& file : packed->files) if (file.path.ends_with(".ttf")) {
-            mlibs::text::FontCollection faces; const auto face = faces.add_file(initial.out / file.path); expect(face.has_value());
+            mlibs::text::FontCollection faces{mlibs::text::harfbuzz::shaper()}; const auto face = faces.add_file(initial.out / file.path); expect(face.has_value());
             if (face) {
                 const bool full = faces.covers(*face, U'Z');
                 tiny_face = tiny_face || (faces.covers(*face, U'o') && !full); full_face = full_face || full;

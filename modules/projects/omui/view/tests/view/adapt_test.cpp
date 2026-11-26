@@ -4,6 +4,7 @@
 // effects, when frames keep missing the budget, and raising them with room —
 // off unless a host turns it on, set aside when an adaptation is applied.
 import std;
+import mlibs.text.harfbuzz;
 import omui.view;
 import mcpplibs.mtest;
 
@@ -14,7 +15,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         if (auto r = c.add_defaults(); !r) std::println("fonts: {}", r.error());
         return c;
     }();

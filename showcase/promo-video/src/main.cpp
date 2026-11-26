@@ -15,6 +15,7 @@
 // stretch of one, from its start: any frame renders on its own), handed to
 // the encoder in order. --dir reads edited copies of the film's files.
 import std;
+import mlibs.text.harfbuzz;
 import hanim.core;
 import mlibs.hash;
 import mcpplibs.cmdline;
@@ -151,7 +152,7 @@ private:
         mrender::raster::Surface pixels;
     };
     void work(int w) {
-        mlibs::text::FontCollection fonts;
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
         (void)fonts.add_defaults();
         promo::PlayerOptions o = l_->options;
         o.fonts = &fonts;

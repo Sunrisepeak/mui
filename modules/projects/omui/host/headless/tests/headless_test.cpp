@@ -2,6 +2,7 @@
 // steps by frames, input by point or by id, pixels and PNG, pixel
 // provenance, and an agent driving an H3 session.
 import std;
+import mlibs.text.harfbuzz;
 import omui.agent;
 import omui.host.headless;
 import mlibs.agent.cts;
@@ -18,7 +19,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

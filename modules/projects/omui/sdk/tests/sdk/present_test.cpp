@@ -2,6 +2,7 @@
 // the same display lists (the same hash, the same pixels), the images they
 // use once per revision, and the person's input travels back and is handled.
 import std;
+import mlibs.text.harfbuzz;
 import omui;
 import mrender.vector;
 import mrender.raster;
@@ -17,7 +18,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         (void)made.add_defaults();
         return made;
     }();
@@ -192,7 +193,7 @@ static UTest cases{"present", [] {
         rt.mount("main", column({.padding = 8}, {text({.id = "code", .text = "let answer = 42;", .style = "code"})}));
         const FrameOutput first = rt.frame({seconds(0), {}});
         // The host has Inter only: the monospace face is the application's to give.
-        mlibs::text::FontCollection host_fonts;
+        mlibs::text::FontCollection host_fonts{mlibs::text::harfbuzz::shaper()};
         expect(fatal(host_fonts.add_file(mlibs::text::FontCollection::default_directory() / "Inter.ttf").has_value()));
         Presentation host(std::move(ends.host), &host_fonts);
         Presenter presenter(rt, std::move(ends.application));

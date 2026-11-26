@@ -1,6 +1,7 @@
 // A node-addressed device input targets what is actually presented. Semantic
 // act remains a separate operation; explicit point input keeps its coordinates.
 import std;
+import mlibs.text.harfbuzz;
 import omui.agent;
 import mcpplibs.mtest;
 
@@ -9,7 +10,7 @@ using namespace mcpplibs::mtest;
 
 namespace {
 struct Moving {
-    mlibs::text::FontCollection fonts;
+    mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
     Runtime runtime;
     Signal<double> offset = signal(10.0);
     int presses = 0;

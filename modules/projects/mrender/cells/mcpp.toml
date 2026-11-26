@@ -1,0 +1,34 @@
+# mrender.cells — a display list as a terminal's character cells (terminal
+# design §3 ①, D-249): another reader of contract ⑤, beside the CPU and GPU
+# renderers, for the terminal host. It depends on the list's types alone — no
+# rasteriser, vector renderer or shaper is in a terminal program through it.
+[package]
+namespace   = "mrender"
+name        = "cells"
+version     = "0.1.0"
+description = "A display list as a terminal's character cells: frames as values, text baselines, ANSI output with only what changed"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: new with the terminal host (D-249), its API may still move
+separate = "closure: the terminal's reader of the display list, whose closure (lint `closure`) holds no rasteriser, vector renderer or shaper (terminal design §4)"
+reexports = ["mrender.display"]  # what its interface re-exports (lint module-closure)
+kind = "backend"
+agent = { part = "mrender.frame" }  # a renderer of the frame; the terminal host serves its frames (`terminal.frame`)
+
+[targets.mrender-cells]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mrender.display = { path = "../display" }
+mlibs.geom      = { path = "../../../base/geom" }
+mlibs.unicode   = { path = "../../../base/unicode" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"

@@ -1,6 +1,7 @@
 // The semantic tree as HTML (D-236, G2): the static projection a reader without JavaScript reads, its text the tree's,
 // its elements what HTML has for each role, the same attributes the Web host's live mirror gives them.
 import std;
+import mlibs.text.harfbuzz;
 import omui.semantic;
 import mcpplibs.mtest;
 
@@ -21,7 +22,7 @@ spec::SemanticNode node(std::string id, Role role, std::string name, std::vector
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

@@ -227,6 +227,35 @@ UTest cases{"example.counter", [] {
         expect(eq(h.tree().node("main/count")->name, std::string("2")));
     };
 
+    "the same view in a terminal: the window's tree, its picture as text, and the mouse and keys work it (CF1)"_test = [] {
+        // The window and the terminal, each with its own count: the same view, two hosts.
+        tally::State in_window, in_terminal;
+        Headless window(HeadlessOptions{.size = {360, 300}});
+        window.mount("main", tally::view(in_window));
+        window.settle();
+        Terminal terminal({.columns = 45, .rows = 18, .agent = false});
+        terminal.mount("main", tally::view(in_terminal));
+        terminal.settle();
+        const auto essence = [](semantic::Tree& t) {
+            std::string out;
+            for (const auto& n : t.snapshot().nodes) out += std::format("{} {} '{}' {}\n", n.id, spec::name(n.role), n.name, n.value.json());
+            return out;
+        };
+        expect(eq(essence(terminal.tree()), essence(window.tree()))) << "one tree: ids, roles, names and values";
+        std::println("example.counter in a terminal:\n{}", terminal.frame().text());
+        expect(terminal.frame().text().contains("10 to go")) << terminal.frame().text();
+        // A person clicks +1 where its cells are; then Shift+Tab back to it and Enter.
+        const auto plus = terminal.cell_of("main/controls/plus");
+        expect(fatal(plus.has_value()));
+        terminal.step(std::format("\x1b[<0;{};{}M\x1b[<0;{};{}m", plus->first + 1, plus->second + 1, plus->first + 1, plus->second + 1));
+        terminal.settle();
+        expect(eq(in_terminal.count.peek(), 1) && terminal.frame().text().contains("9 to go")) << terminal.frame().text();
+        terminal.step("\r");  // the button clicked has the focus: Enter presses it again
+        terminal.settle();
+        expect(eq(in_terminal.count.peek(), 2) && terminal.frame().text().contains("8 to go")) << terminal.frame().text();
+        expect(eq(in_window.count.peek(), 0)) << "the window's count is its own";
+    };
+
     "pixels"_test = [] {
         Headless h(HeadlessOptions{.size = {360, 300}});
         tally::State st;

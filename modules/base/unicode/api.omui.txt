@@ -17,6 +17,7 @@ namespace mlibs::unicode {
   [[nodiscard]] Ea east_asian_width(char32_t cp) noexcept;
   [[nodiscard]] bool extended_pictographic(char32_t cp) noexcept;
   [[nodiscard]] bool unassigned(char32_t cp) noexcept;
+  [[nodiscard]] int columns(std::u32string_view grapheme) noexcept;
   enum class Break : std::uint8_t { none, allowed, mandatory };
   [[nodiscard]] std::vector<std::size_t> grapheme_boundaries(std::string_view text);
   [[nodiscard]] std::vector<std::size_t> word_boundaries(std::string_view text);

@@ -14,7 +14,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: paths and paint for every 2D drawing"
-reexports = ["mrender.graph"]  # what its interface re-exports (lint module-closure)
+reexports = ["mrender.display", "mrender.graph"]  # what its interface re-exports (lint module-closure)
 kind = "backend"
 agent = { part = "mrender.frame" }
 
@@ -38,6 +38,7 @@ mlibs.shader.rules = { path = "../../../gfx/shader/rules", host-module = true }
 mlibs.math = { path = "../../../base/math" }
 mlibs.utils = { path = "../../../base/utils" }
 mrender.graph = { path = "../graph" }
+mrender.display = { path = "../display" }  # the display list it renders (re-exported)
 mlibs.rhi    = { path = "../../../gfx/rhi" }
 mlibs.geom   = { path = "../../../base/geom" }
 mlibs.memory = { path = "../../../base/memory" }

@@ -16,8 +16,8 @@ repo        = "https://github.com/Sunrisepeak/mui"
 primary-module = "omui"  # the SDK's umbrella: `import omui;` (D-207)
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: the SDK umbrella an application imports"
-lower = ["omui.host.android", "mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
-reexports = ["hanim.visual", "mlibs.i18n", "omui.agent", "omui.core", "omui.expr", "omui.host.android", "omui.host.headless", "omui.host.sdl3", "omui.host.web", "omui.semantic", "omui.ui.base", "omui.view", "omui.viewdoc"]  # what its interface re-exports (lint module-closure)
+lower = ["omui.host.android", "omui.host.terminal", "mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+reexports = ["hanim.visual", "mlibs.i18n", "omui.agent", "omui.core", "omui.expr", "omui.host.android", "omui.host.headless", "omui.host.sdl3", "omui.host.terminal", "omui.host.web", "omui.semantic", "omui.ui.base", "omui.view", "omui.viewdoc"]  # what its interface re-exports (lint module-closure)
 agent = { library = "the umbrella: it re-exports the packages of omui; its own part, runtime generation (src/generate/, module omui.generate), is reached through omui.agent's generate.* catalog" }
 
 [package.metadata.openmui.compose]
@@ -28,9 +28,11 @@ worlds = ["lean", "app", "full"]                         # a chain that only add
 reductions = ["no-gamepad-hidapi", "software-present"]   # take away: no world implies them (`minimal` is `lean` with all of them)
 # What the unit installs, as build.mcpp's rows say it (lint compose holds the two alike): a build's report reads this.
 [package.metadata.openmui.compose.installs]
+"mlibs.text.harfbuzz" = { feature = "shaping", targets = "all" }  # text shaped with fonts (mlibs.text's slot; a terminal's world measures in cells)
 "omui.agent" = { feature = "agent", targets = "all" }
 "omui.sdk" = { feature = "generate", targets = "all" }  # its own: runtime generation (module omui.generate)
 "omui.host.sdl3.gpu" = { feature = "gpu", targets = "desktop" }
+"omui.host.terminal" = { feature = "terminal", targets = "desktop" }
 "omui.accessibility.bridge" = { feature = "accessibility-bridge", targets = "desktop" }
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): runtime generation's customization layer
@@ -53,15 +55,21 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp
 # capability's provider (build.mcpp: `install_services`); one not installed is not in the program.
 [features]
 default = ["full"]
-lean = {}
+lean = { implies = ["shaping"] }
 app  = { implies = ["lean", "agent", "gpu", "accessibility-bridge"] }
 full = { implies = ["app", "generate"] }
+# Text shaped with fonts: HarfBuzz at mlibs.text's slot `mlibs.text.shaper` (mlibs.text.harfbuzz), in every world that
+# draws pixels. Without it text has no faces and takes no room, as a terminal's build measures in cells instead.
+shaping = {}
 # The application's agent surface: the endpoint agents find it at and talk to it through, and its captures (omui.agent).
 # Without it the program serves no agent, as a platform without local endpoints does not.
 agent = {}
 # Runtime generation (omui.generate, preview): interface an agent makes while the application runs. An application
 # that asks for it (AppSpec::generation) in a program built without it runs, and says what it lacks.
 generate = {}
+# The application in this program's terminal, in character cells (`--terminal`; omui.host.terminal, preview): in no
+# world — an application that has a terminal face names it (features = ["terminal"]); without it --terminal says so.
+terminal = {}
 # The GPU path of a desktop window: SDL_GPU's device and mrender's renderer (omui.host.sdl3.gpu). Without it the CPU
 # renderer draws every frame, as on a machine without a GPU.
 gpu = {}
@@ -88,6 +96,7 @@ omui.expr          = { path = "../expr" }
 omui.viewdoc       = { path = "../viewdoc" }
 mlibs.utils         = { path = "../../../base/utils" }
 mlibs.compose       = { path = "../../../base/compose" }  # the agent surface's slot: tasks, replay
+mlibs.text.harfbuzz = { path = "../../../content/text/harfbuzz" }  # installed by the generated unit (feature shaping)
 mlibs.image         = { path = "../../../base/image" }    # a replay's frame, handed to the surface's encoder
 omui.ui.base       = { path = "../components/base" }
 omui.host.headless = { path = "../host/headless" }
@@ -106,6 +115,7 @@ mcpplibs.cmdline      = "0.0.3"
 # (src/host/<where>/shown.cpp) that name it.
 [target.'cfg(all(not(os = "emscripten"), not(env = "android")))'.dependencies]
 omui.host.sdl3 = { path = "../host/sdl3" }
+omui.host.terminal = { path = "../host/terminal" }  # installed by the generated unit (feature terminal): --terminal
 "omui.host.sdl3.gpu" = { path = "../host/sdl3/gpu" }  # installed by the generated unit (feature gpu)
 omui.accessibility.bridge = { path = "../accessibility/bridge" }  # installed by the generated unit (feature accessibility-bridge)
 

@@ -9,6 +9,7 @@ import mrender.raster;
 import mrender.vector;
 import mrender.frame;
 import mlibs.text;
+import mlibs.text.harfbuzz;
 import mlibs.image;
 import mlibs.compose;
 import mlibs.trace;
@@ -94,6 +95,9 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     d.options = std::move(options);
     mlibs::text::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
+        // The host brings its text measure (terminal design §9): HarfBuzz, unless the program installed a shaper.
+        if (!mlibs::compose::process().get(mlibs::text::shaper_slot))
+            if (auto installed = mlibs::text::harfbuzz::install(); !installed) warn("the text shaper: {}", installed.error().message);
         d.own_fonts = std::make_unique<mlibs::text::FontCollection>();
         if (auto r = d.own_fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         fonts = d.own_fonts.get();

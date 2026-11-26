@@ -8,7 +8,7 @@ export module mrender.vector.api:resources;
 import std;
 import mlibs.geom;
 import mrender.raster;
-import :display;
+import mrender.display;
 
 export namespace mrender {
 

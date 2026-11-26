@@ -41,5 +41,6 @@ mcpplibs.os      = "0.4.4"
 omui.build = { path = "../../../mcpp/build", host-module = true }
 
 [dev-dependencies]
+mlibs.text.harfbuzz = { path = "../../../modules/content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
 mcpplibs.mtest = "0.8.4"
 omui.host.headless = { path = "../../../modules/projects/omui/host/headless" }

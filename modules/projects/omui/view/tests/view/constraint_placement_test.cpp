@@ -1,6 +1,7 @@
 // External allocation transactions preserve content motion without sweeping
 // controls through their siblings. Ordinary model layout remains seekable.
 import std;
+import mlibs.text.harfbuzz;
 import omui.view;
 import hanim.visual;
 import mrender.raster;
@@ -143,7 +144,7 @@ static UTest cases{"view.constraint_placement", [] {
         expect(run.origin.x==30 && run.size==16 && run.styles.front().transform.e==3) << "unchanged allocation cannot snap text alignment/content motion to its target";
     };
     "default action follows sibling allocation while state colour still morphs"_test = [] {
-        mlibs::text::FontCollection fonts; Runtime rt(options(fonts)); auto width=signal(20.0f); auto hot=signal(false);
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()}; Runtime rt(options(fonts)); auto width=signal(20.0f); auto hot=signal(false);
         auto button=box({.id="button",.width=60,.height=30,.background=derive([hot]{return Fill(hot.get()?"#1d4ed8":"#e11d48");})});
         button.prop("motion",Source(Value("default.action motion.normal")));
         rt.mount("main",row({}, {offset_box("spacer",width),std::move(button)})); frame(rt,0);frame(rt,0.1);
@@ -152,7 +153,7 @@ static UTest cases{"view.constraint_placement", [] {
         expect(!rt.motions().empty()) << "state feedback remains active";
     };
     "resize transaction spans deferred laid_out reflow and contains parent field caption and status"_test = [] {
-        mlibs::text::FontCollection fonts;expect(fonts.add_defaults().has_value()); Runtime rt(options(fonts));
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};expect(fonts.add_defaults().has_value()); Runtime rt(options(fonts));
         Element responsive; responsive.id="responsive";responsive.type=&component_type<Responsive>();responsive.prop("width",Source(Value("100%")));
         rt.mount("main",std::move(responsive));frame(rt,0);frame(rt,0.1);frame(rt,0.2);
         auto* model=rt.component<Responsive>(rt.find("main"));expect(model!=nullptr); if(!model)return;
@@ -174,7 +175,7 @@ static UTest cases{"view.constraint_placement", [] {
         }
     };
     "same viewport auto-height list-grid model still has real intermediate allocation"_test = [] {
-        mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto grid=signal(false);
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};Runtime rt(options(fonts));auto grid=signal(false);
         rt.mount("main",column({}, {dynamic([grid] {
             std::vector<Element> items;
             for(int i=0;i<3;++i) items.push_back(box({.id=std::format("item{}",i),.width=50,.height=30,.background="#e11d48"}));
@@ -194,7 +195,7 @@ static UTest cases{"view.constraint_placement", [] {
         expect(!near(now,before)&&!near(now,target)) << "auto-height change does not masquerade as external constraint change";
     };
     "explicit animate opts out and explicit subtree constraint leaves sibling motion alone"_test = [] {
-        mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto width=signal(20.0f);
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};Runtime rt(options(fonts));auto width=signal(20.0f);
         auto lane=[&](std::string id,std::string policy) {
             return row({.id=std::move(id)}, {offset_box("spacer",width),moving(box({.id="control",.width=60,.height=30,.background="#e11d48"}),policy)});
         };
@@ -208,7 +209,7 @@ static UTest cases{"view.constraint_placement", [] {
         expect(!near(rt.drawn_bounds(scoped),rt.screen_bounds(scoped))) << "ended transaction cannot leak into future ordinary model changes";
     };
     "natural width driven by model is not an external allocation transaction"_test = [] {
-        mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto width=signal(50.0f);
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};Runtime rt(options(fonts));auto width=signal(50.0f);
         auto child=offset_box("child",width);
         auto surface=moving(row({.id="surface",.align_self="start",.background="#e11d48"},{std::move(child)}));
         rt.mount("main",column({}, {std::move(surface)}));frame(rt,0);frame(rt,0.1);
@@ -217,7 +218,7 @@ static UTest cases{"view.constraint_placement", [] {
         expect(middle.width>before.width && middle.width<target.width) << "child-driven natural width keeps its explicit model trajectory";
     };
     "held local motion rebases allocation without losing its pause or internal endpoint"_test = [] {
-        mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto prefix=signal(20.0f);auto x=signal(0.0f);
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};Runtime rt(options(fonts));auto prefix=signal(20.0f);auto x=signal(0.0f);
         auto control=moving(box({.id="control",.width=60,.height=30,.background="#e11d48"}));
         control.prop("translate_x",Source(derive([x]{return Value(static_cast<double>(x.get()));})));
         rt.mount("main",row({}, {offset_box("prefix",prefix),std::move(control)}));frame(rt,0);frame(rt,0.1);
@@ -230,7 +231,7 @@ static UTest cases{"view.constraint_placement", [] {
     };
     "reduced and off use current allocation and remain within their motion policy"_test = [] {
         for(const MotionLevel level:{MotionLevel::reduced,MotionLevel::off}) {
-            mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto width=signal(20.0f);
+            mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};Runtime rt(options(fonts));auto width=signal(20.0f);
             rt.set_motion_level(level);rt.mount("main",row({}, {offset_box("prefix",width),moving(box({.id="control",.width=60,.height=30,.background="#e11d48"}))}));
             frame(rt,0);frame(rt,0.1);const auto id=rt.find("main/control");width.set(200);rt.constraints_changed(id);frame(rt,1);frame(rt,1.2);
             expect(near(rt.drawn_bounds(id),rt.screen_bounds(id))) << "policy never retains old external placement after constraints change";
@@ -238,7 +239,7 @@ static UTest cases{"view.constraint_placement", [] {
         }
     };
     "external rebase keeps inherited current rounded clip at exact zero and mid frame"_test = [] {
-        mlibs::text::FontCollection fonts;Runtime rt(options(fonts,{200,100}));auto prefix=signal(60.0f);
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};Runtime rt(options(fonts,{200,100}));auto prefix=signal(60.0f);
         auto child=box({.id="control",.width=60,.height=30,.background="#e11d48"});child.prop("motion",Source(Value("none")));
         auto row_view=row({.id="lane"},{offset_box("prefix",prefix),std::move(child)});row_view.prop("motion",Source(Value("none")));
         rt.mount("main",moving(stack({.width=100,.height=60,.radius=10,.clip=true},{std::move(row_view)})));

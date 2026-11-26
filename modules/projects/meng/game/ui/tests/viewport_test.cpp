@@ -2,6 +2,7 @@
 // the renderer's mesh reference — in a frame with no window and no device; the node says which subject it
 // shows, and that subject is found beside the interface while the node shows it.
 import std;
+import mlibs.text.harfbuzz;
 import omui.core;
 import omui.view;
 import omui.semantic;
@@ -25,7 +26,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection made = [] {
-        mlibs::text::FontCollection collection;
+        mlibs::text::FontCollection collection{mlibs::text::harfbuzz::shaper()};
         (void)collection.add_defaults();
         return collection;
     }();

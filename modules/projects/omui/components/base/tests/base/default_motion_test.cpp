@@ -2,6 +2,7 @@
 // public runtime: semantic actions, pixels between states, accessibility
 // preferences, input during focus feedback and the theme's cascade.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
@@ -15,7 +16,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection result;
+        mlibs::text::FontCollection result{mlibs::text::harfbuzz::shaper()};
         (void)result.add_defaults();
         return result;
     }();

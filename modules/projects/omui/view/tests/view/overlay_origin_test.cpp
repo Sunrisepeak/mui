@@ -1,6 +1,7 @@
 // Overlays open from what opened them (component quality B5, origin-aware): a menu below its button grows from
 // the button's edge and goes back there; an overlay over the window's middle keeps its course's own anchor.
 import std;
+import mlibs.text.harfbuzz;
 import omui.view;
 import mcpplibs.mtest;
 
@@ -97,7 +98,7 @@ Element toggled(Signal<std::string> display) {
 }
 
 struct Toggled {
-    mlibs::text::FontCollection fonts;
+    mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
     Runtime runtime{options(fonts)};
     Signal<std::string> display = signal(std::string("none"));
     Toggled() {
@@ -112,7 +113,7 @@ struct Toggled {
 
 template <Placement::Side side>
 struct Scene {
-    mlibs::text::FontCollection fonts;
+    mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
     Runtime runtime{options(fonts)};
     Scene() {
         runtime.mount("main", tree<side>(false));

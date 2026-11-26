@@ -3,6 +3,7 @@
 // the picture is the cavern, and the recording of each step's input, played by the game with no window, ends at
 // the same bits; a gamepad walks and casts too.
 import std;
+import mlibs.text.harfbuzz;
 import omui;
 import omui.host.headless;
 import omui.showcase.kiln.window;
@@ -15,7 +16,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection made = [] {
-        mlibs::text::FontCollection collection;
+        mlibs::text::FontCollection collection{mlibs::text::harfbuzz::shaper()};
         (void)collection.add_defaults();
         return collection;
     }();

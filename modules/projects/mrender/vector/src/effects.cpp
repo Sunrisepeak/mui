@@ -9,7 +9,7 @@ import mlibs.rhi;
 import mlibs.math;
 import mlibs.geom;
 import mrender.raster;
-import :display;
+import mrender.display;
 import :effects;
 import :cpu;
 

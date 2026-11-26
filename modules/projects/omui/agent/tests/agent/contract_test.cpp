@@ -3,6 +3,7 @@
 // protocol's own by their catalog names, and held to the contract every
 // subject is — the eight native properties, on a small settings page.
 import std;
+import mlibs.text.harfbuzz;
 import openas;
 import omui.agent;
 import omui.ui.base;
@@ -18,7 +19,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         (void)made.add_defaults();
         return made;
     }();

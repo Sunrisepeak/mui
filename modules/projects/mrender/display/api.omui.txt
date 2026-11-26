@@ -1,0 +1,320 @@
+== mrender.display
+namespace mrender {
+  using mlibs::geom::Affine;
+  using mlibs::geom::Color;
+  using mlibs::geom::CornerRadii;
+  using mlibs::geom::Point;
+  using mlibs::geom::Rect;
+  using mlibs::geom::Size;
+  [[nodiscard]] Affine rotate(float radians) noexcept;
+  using mlibs::geom::FillRule;
+  enum class LineCap : std::uint8_t { butt, round, square };
+  enum class LineJoin : std::uint8_t { miter, round, bevel };
+  using mlibs::geom::PathVerb;
+  using mlibs::geom::PathView;
+  using mlibs::geom::MutablePathView;
+  enum class PathRecordError : std::uint8_t { invalid_storage_count, invalid_path };
+  class DisplayList;
+  class RecordedPath {
+    [[nodiscard]] Rect bounds() const noexcept;
+  };
+  class Path {
+    Path& move_to(Point p);
+    Path& line_to(Point p);
+    Path& quad_to(Point control, Point p);
+    Path& cubic_to(Point c1, Point c2, Point p);
+    Path& arc_to(Point radii, float x_rotation, bool large_arc, bool sweep, Point p);
+    Path& close();
+    Path& add_rect(const Rect& r);
+    Path& add_rounded_rect(const Rect& r, const CornerRadii& radii);
+    Path& add_ellipse(const Rect& r);
+    Path& add_circle(Point center, float radius);
+    [[nodiscard]] Path transformed(const Affine& m) const;
+    [[nodiscard]] Rect bounds() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    [[nodiscard]] PathView view() const noexcept;
+    [[nodiscard]] std::span<const PathVerb> verbs() const noexcept;
+    [[nodiscard]] std::span<const Point> points() const noexcept;
+    void clear() noexcept;
+  };
+  struct StrokeStyle {
+    float width = 1;
+    LineCap cap = LineCap::butt;
+    LineJoin join = LineJoin::miter;
+    float miter_limit = 4;
+    std::span<const float> dashes;
+    float dash_offset = 0;
+    float trim_start = 0;
+    float trim_end = 1;
+    float trim_offset = 0;
+  };
+  struct GradientStop {
+    float offset = 0;
+    Color color;
+  };
+  enum class GradientKind : std::uint8_t { linear, radial, conic };
+  enum class Spread : std::uint8_t { pad, repeat, reflect };
+  struct Gradient {
+    GradientKind kind = GradientKind::linear;
+    Point start;
+    Point end;
+    float radius = 0;
+    Spread spread = Spread::pad;
+    std::span<const GradientStop> stops;
+  };
+  struct ImageRef {
+    std::uint32_t id = 0;
+    friend constexpr bool operator==(ImageRef a, ImageRef b) noexcept;
+  };
+  struct FontRef {
+    std::uint32_t id = 0;
+    friend constexpr bool operator==(FontRef a, FontRef b) noexcept;
+  };
+  struct EffectRef {
+    std::uint32_t id = 0;
+  };
+  enum class Sampling : std::uint8_t { nearest, linear };
+  struct Material {
+    ImageRef normal;
+    Point light{…};
+    float light_z = 0.5f;
+    Color shadow{…};
+    float shadow_strength = 0.6f;
+    int bands = 2;
+    float softness = 0.08f;
+    Color rim{…};
+    float rim_strength = 0.6f;
+    float rim_width = 0.35f;
+    Color key{…};
+    friend constexpr bool operator==(const Material&, const Material&) noexcept = default;
+  };
+  struct WeightedPaint;
+  inline constexpr std::size_t max_paint_mix_terms = 16;
+  struct Paint {
+    enum class Kind : std::uint8_t { solid, gradient, image, image_mask, mix };
+    Kind kind = Kind::solid;
+    Color color;
+    Gradient gradient;
+    ImageRef image;
+    Affine image_transform;
+    Sampling sampling = Sampling::linear;
+    const Material* material = nullptr;
+    mlibs::memory::View<const WeightedPaint> mix;
+    float mix_opacity = 1;
+    [[nodiscard]] static Paint solid(Color c) noexcept;
+  };
+  struct WeightedPaint {
+    Paint paint;
+    float weight = 0;
+  };
+  enum class PaintMixError : std::uint8_t { invalid_weight, not_normalized, nested_mix, term_budget, invalid_progress, output_too_small, unprepared, invalid_options, invalid_leaf };
+  [[nodiscard]] std::expected<void, PaintMixError> validate_paint_mix(const Paint& paint) noexcept;
+  enum class BlendMode : std::uint8_t { normal, multiply, screen, overlay, darken, lighten, color_dodge, color_burn, hard_light, soft_light, difference, exclusion, plus, erase, };
+  struct Glyph {
+    std::uint32_t id = 0;
+    Point position;
+    std::uint32_t cluster = 0, grapheme = 0, word = 0, line = 0;
+  };
+  struct GlyphStyle {
+    Affine transform;
+    float opacity = 1;
+    Color tint{…};
+    [[nodiscard]] bool plain() const noexcept;
+    [[nodiscard]] bool translation_only() const noexcept;
+  };
+  struct Ring {
+    Rect outer;
+    CornerRadii outer_radii;
+    Rect inner;
+    CornerRadii inner_radii;
+    bool hollow = false;
+  };
+  inline Ring stroke_ring(const Rect& r, const CornerRadii& radii, float width) noexcept;
+  enum class PixelAlign : std::uint8_t { none, device };
+  struct FillRect {
+    Rect rect;
+    Paint paint;
+    PixelAlign align = PixelAlign::none;
+  };
+  struct FillRoundRect {
+    Rect rect;
+    CornerRadii radii;
+    Paint paint;
+  };
+  struct StrokeRoundRect {
+    Rect rect;
+    CornerRadii radii;
+    float width;
+    Paint paint;
+    PixelAlign align = PixelAlign::none;
+  };
+  struct BoxShadow {
+    Rect rect;
+    CornerRadii radii;
+    Point offset;
+    float blur;
+    float spread;
+    Color color;
+    bool inset;
+  };
+  struct FillPath {
+    PathView path;
+    FillRule rule;
+    Paint paint;
+  };
+  struct StrokePath {
+    PathView path;
+    StrokeStyle style;
+    Paint paint;
+  };
+  struct DrawImage {
+    ImageRef image;
+    Rect source;
+    Rect dest;
+    Sampling sampling;
+    float opacity;
+  };
+  struct DrawGlyphs {
+    FontRef font;
+    float size;
+    Point origin;
+    std::span<const Glyph> glyphs;
+    Paint paint;
+    std::span<const GlyphStyle> styles;
+  };
+  struct PushClipRect {
+    Rect rect;
+    CornerRadii radii;
+  };
+  struct PushClipPath {
+    PathView path;
+    FillRule rule;
+  };
+  struct PopClip {
+  };
+  struct PushTransform {
+    Affine transform;
+  };
+  struct PopTransform {
+  };
+  struct EffectShape {
+    Rect rect;
+    CornerRadii radii;
+  };
+  enum class LayerBoundsMode : std::uint8_t { declared, content };
+  struct PushLayer {
+    float opacity;
+    BlendMode blend;
+    EffectRef effect;
+    std::span<const float> params;
+    Rect bounds;
+    std::span<const EffectShape> shapes = {…};
+    LayerBoundsMode bounds_mode = LayerBoundsMode::declared;
+  };
+  struct PopLayer {
+  };
+  struct ExternalTexture {
+    std::uint64_t texture;
+    Rect dest;
+    float opacity;
+    Sampling sampling = Sampling::linear;
+  };
+  struct BeginNode {
+    std::uint32_t node;
+  };
+  struct EndNode {
+  };
+  struct NodeFrame {
+    std::uint32_t node;
+    Rect rect;
+    float opacity = 1;
+    Rect placement;
+    Size constraint;
+    Affine visual;
+    std::optional<Point> sampled_placement_origin;
+  };
+  struct ReferenceWeight {
+    std::string_view key;
+    double weight = 1;
+  };
+  enum class PartKind : std::uint8_t { content, box };
+  struct PartFrame {
+    std::uint32_t owner = 0;
+    std::string_view role, id;
+    Rect allocation;
+    Point anchor{…};
+    PartKind kind = PartKind::content;
+    std::span<const ReferenceWeight> lineage;
+  };
+  struct ReferenceBox {
+    std::uint32_t owner;
+    std::string_view key;
+    Rect allocation;
+  };
+  struct BeginPart {
+    const PartFrame* frame;
+  };
+  struct EndPart {
+  };
+  [[nodiscard]] StrokeRoundRect placed(const StrokeRoundRect& stroke, const Affine& m) noexcept;
+  [[nodiscard]] FillRect placed(const FillRect& fill, const Affine& m) noexcept;
+  using Command = std::variant<FillRect, FillRoundRect, StrokeRoundRect, BoxShadow, FillPath, StrokePath, DrawImage, DrawGlyphs, PushClipRect, PushClipPath, PopClip, PushTransform, PopTransform, PushLayer, PopLayer, ExternalTexture, BeginNode, EndNode, NodeFrame, ReferenceBox, BeginPart, EndPart>;
+  [[nodiscard]] std::uint64_t hash_command(const Command& command, std::uint64_t seed) noexcept;
+  class DisplayList {
+    DisplayList() = default;
+    DisplayList(const DisplayList&) = delete;
+    DisplayList& operator=(const DisplayList&) = delete;
+    DisplayList(DisplayList&& other) noexcept;
+    DisplayList& operator=(DisplayList&& other) noexcept;
+    void fill_rect(const Rect& r, const Paint& p, PixelAlign align = PixelAlign::none);
+    void fill_rect(const Rect& r, Color c, PixelAlign align = PixelAlign::none);
+    void fill_round_rect(const Rect& r, const CornerRadii& radii, const Paint& p);
+    void stroke_round_rect(const Rect& r, const CornerRadii& radii, float width, const Paint& p, PixelAlign align = PixelAlign::none);
+    void box_shadow(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, Color c, bool inset = false);
+    void fill_path(const Path& path, FillRule rule, const Paint& p);
+    void stroke_path(const Path& path, const StrokeStyle& style, const Paint& p);
+    [[nodiscard]] std::expected<RecordedPath, PathRecordError> record_path( std::size_t verbs, std::size_t points, mlibs::memory::FunctionRef<void(MutablePathView)> writer);
+    [[nodiscard]] bool fill_path(const RecordedPath& path, FillRule rule, const Paint& p);
+    [[nodiscard]] bool stroke_path(const RecordedPath& path, const StrokeStyle& style, const Paint& p);
+    [[nodiscard]] std::expected<Paint, PaintMixError> record_paint_mix( std::size_t terms, mlibs::memory::FunctionRef<void(std::span<WeightedPaint>)> writer, float opacity = 1);
+    void draw_image(ImageRef image, const Rect& source, const Rect& dest, Sampling s = Sampling::linear, float opacity = 1);
+    void draw_mesh(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices, Sampling s = Sampling::linear, float opacity = 1, float seam = 0.5f, const Material* material = nullptr);
+    void draw_mesh_mask(ImageRef image, std::span<const Point> positions, std::span<const Point> uvs, std::span<const std::uint16_t> indices, Color color, Sampling s = Sampling::linear, float seam = 0.5f, const Material* material = nullptr);
+    void draw_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> glyphs, const Paint& p, std::span<const GlyphStyle> styles = {…});
+    template <class Fill> requires std::invocable<Fill&, std::span<Glyph>> void draw_glyphs(FontRef font, float size, Point origin, std::size_t count, Fill&& fill, const Paint& p);
+    void style_glyphs(std::size_t index, std::span<const GlyphStyle> styles);
+    void move_fill(std::size_t index, Point offset, float opacity);
+    void push_clip(const Rect& r, const CornerRadii& radii = {…});
+    void push_clip(const Path& path, FillRule rule = FillRule::nonzero);
+    void pop_clip();
+    void push_transform(const Affine& m);
+    void pop_transform();
+    void push_layer(float opacity, BlendMode blend = BlendMode::normal, EffectRef effect = {…}, std::span<const float> params = {…}, Rect bounds = {…}, std::span<const EffectShape> shapes = {…}, LayerBoundsMode bounds_mode = LayerBoundsMode::declared);
+    void pop_layer();
+    void external_texture(std::uint64_t texture, const Rect& dest, float opacity = 1, Sampling sampling = Sampling::linear);
+    void begin_node(std::uint32_t node);
+    void end_node();
+    void node_frame(std::uint32_t node, Rect rect, float opacity = 1, Rect placement = {…}, Size constraint = {…}, Affine visual = {…}, std::optional<Point> sampled_placement_origin = {…});
+    void reference_box(std::uint32_t owner, std::string_view key, Rect allocation);
+    void begin_part(const PartFrame& frame);
+    void begin_part(const PartFrame& from, const PartFrame& to, double progress);
+    void end_part();
+    void append(const DisplayList& other);
+    void append(const DisplayList& other, std::uint64_t id, std::uint64_t revision);
+    struct KeptRun {
+      std::size_t first = 0, count = 0;
+      std::uint64_t id = 0, revision = 0;
+    };
+    [[nodiscard]] std::span<const KeptRun> kept_runs() const noexcept;
+    void append_command(const Command& c);
+    [[nodiscard]] std::span<const Command> commands() const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    [[nodiscard]] bool balanced() const noexcept;
+    [[nodiscard]] std::uint64_t hash() const noexcept;
+    void clear() noexcept;
+    void reserve(std::size_t commands);
+    template <class F> void recolor(std::size_t from, std::size_t to, F&& f);
+    void smooth_corners(std::size_t from, std::size_t to, float smoothing);
+  };
+}

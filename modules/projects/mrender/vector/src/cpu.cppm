@@ -19,7 +19,7 @@ import std;
 import mlibs.geom;
 import mlibs.memory;
 import mrender.raster;
-import :display;
+import mrender.display;
 import :resources;
 import :damage;
 

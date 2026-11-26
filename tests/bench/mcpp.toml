@@ -48,6 +48,7 @@ meng.matter = { path = "../../modules/projects/meng/kernel/matter" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
 sunrisepeak.hanim = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 omui.sdk             = { path = "../../modules/projects/omui/sdk" }
+mlibs.text.harfbuzz  = { path = "../../modules/content/text/harfbuzz" }  # the shaper its scenes' fonts are read with
 omui.view            = { path = "../../modules/projects/omui/view", features = ["hanim"] }
 # The mirror assistive technology reads (core/list-scroll/reading).
 omui.accessibility   = { path = "../../modules/projects/omui/accessibility" }

@@ -7,6 +7,7 @@ import omui.gen.font_subset;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mlibs.text;
+import mlibs.text.harfbuzz;
 import mrender.text;
 
 using namespace mlibs::testing;
@@ -140,7 +141,7 @@ static UTest cases{"gen.font_subset", [] {
         auto cut = gen::subset_font(font, {U'中', U'文'});
         expect(cut.has_value()) << (cut ? "" : cut.error());
         if (!cut) return;
-        mlibs::text::FontCollection fonts;
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
         const auto initial = fonts.add_data(*cut), full = fonts.add_data(font);
         expect(initial.has_value() && full.has_value());
         if (!initial || !full) return;
@@ -161,7 +162,7 @@ static UTest cases{"gen.font_subset", [] {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
         auto sparse = gen::subset_font(inter, {U'A', U' '});
         expect(sparse.has_value()) << (sparse ? "" : sparse.error()); if (!sparse) return;
-        mlibs::text::FontCollection fonts;
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};
         const auto small = fonts.add_data(*sparse);
         expect(small.has_value()); if (!small) return;
         const auto reference = fonts.font(*small, 500, mlibs::text::Slant::normal);
@@ -201,7 +202,7 @@ static UTest cases{"gen.font_subset", [] {
         for (const auto& sample : samples) gen::characters_of(sample, keep);
         auto cut = gen::subset_font(inter, keep);
         expect(cut.has_value()) << (cut ? "" : cut.error()); if (!cut) return;
-        mlibs::text::FontCollection full, small;
+        mlibs::text::FontCollection full{mlibs::text::harfbuzz::shaper()}, small{mlibs::text::harfbuzz::shaper()};
         expect(full.add_data(inter).has_value() && small.add_data(*cut).has_value());
         mrender::text::GlyphCache full_cache(full), small_cache(small);
         bool saw_substitution = false;
@@ -249,7 +250,7 @@ static UTest cases{"gen.font_subset", [] {
 
     "all GSUB output forms close transitively with composite glyphs without retaining unrelated outlines"_test = [&] {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
-        mlibs::text::FontCollection fonts; expect(fonts.add_data(inter).has_value());
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()}; expect(fonts.add_data(inter).has_value());
         const auto a = glyph_id(fonts, "A"), b = glyph_id(fonts, "B"), c = glyph_id(fonts, "C"), d = glyph_id(fonts, "D"),
                    e = glyph_id(fonts, "E"), f = glyph_id(fonts, "F"), g = glyph_id(fonts, "G"), h = glyph_id(fonts, "H"),
                    i = glyph_id(fonts, "I"), k = glyph_id(fonts, "K"), y = glyph_id(fonts, "Y"), z = glyph_id(fonts, "Z"), accented = glyph_id(fonts, "é");
@@ -292,7 +293,7 @@ static UTest cases{"gen.font_subset", [] {
 
     "malformed and unsupported GSUB structures are rejected explicitly"_test = [&] {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
-        mlibs::text::FontCollection fonts; expect(fonts.add_data(inter).has_value());
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()}; expect(fonts.add_data(inter).has_value());
         const auto a = glyph_id(fonts, "A"), b = glyph_id(fonts, "B");
         const auto valid = gsub_table({{1, words({2, 8, 1, b, 1, 1, a})}});
         for (std::size_t size = 0; size < valid.size(); ++size) {

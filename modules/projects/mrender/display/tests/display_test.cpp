@@ -1,5 +1,5 @@
 import std;
-import mrender.vector;
+import mrender.display;
 import mlibs.geom;
 import mlibs.memory;
 import mlibs.math;

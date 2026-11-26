@@ -2,6 +2,7 @@
 // bullets where the state has them; the same state, the same bytes), and the window played by a person's keys,
 // pointer and gamepad, its recording the headless game to the bit.
 import std;
+import mlibs.text.harfbuzz;
 import omui;
 import omui.host.headless;
 import omui.showcase.swarm.window;
@@ -15,7 +16,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection made = [] {
-        mlibs::text::FontCollection collection;
+        mlibs::text::FontCollection collection{mlibs::text::harfbuzz::shaper()};
         (void)collection.add_defaults();
         return collection;
     }();

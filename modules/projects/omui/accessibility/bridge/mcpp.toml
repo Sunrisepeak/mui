@@ -55,4 +55,5 @@ omui.view          = { path = "../../view" }
 mlibs.utils        = { path = "../../../../base/utils" }  # mlibs.error, mlibs.trace
 
 [dev-dependencies]
+mlibs.text.harfbuzz = { path = "../../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
 mcpplibs.mtest = "0.8.4"

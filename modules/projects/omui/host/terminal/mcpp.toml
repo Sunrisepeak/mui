@@ -1,0 +1,51 @@
+# omui.host.terminal — openmui in a terminal's character cells (terminal
+# design, D-249): the same tree, layout and display list as a window's, read
+# into cells (mrender.cells), text measured in cells (mlibs.text's cell
+# measure), the terminal's keys, mouse, paste and focus as the events every
+# host delivers. A frame is a value: compared as text, written as what changed.
+[package]
+namespace   = "omui.host"
+name        = "terminal"
+version     = "0.1.0"
+description = "openmui in a terminal: character cells from the display list, keys, mouse and paste, frames as values, the agent endpoint"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows"]
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: new (CF1), its options may still move; real terminals verified as the README says
+separate = "platform: the terminal's host, which a window's program does not carry, nor a terminal's the window's"
+kind = "host"
+reexports = ["mrender.cells", "omui.core", "omui.semantic", "omui.view"]  # what its interface re-exports (lint module-closure)
+agent = "subject"  # the picture in cells (terminal.ops.xdef.ts), beside the interface's `ui.*` at the endpoint
+
+# How omui::run shows an application in a terminal (--terminal): its own slot and its own provider (no dependency to
+# keep apart); omui.sdk installs it by its feature `terminal`, so a window's program carries none of it.
+[package.metadata.openmui.compose]
+slots = ["omui.host.terminal.show"]
+provides = ["omui.host.terminal.show"]
+
+[targets.openmui-host-terminal]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.core     = { path = "../../core" }
+omui.view     = { path = "../../view" }
+omui.semantic = { path = "../../semantic" }
+omui.agent    = { path = "../../agent" }  # the endpoint, through the agent surface's slot (installed by the program's root)
+mrender.cells = { path = "../../../mrender/cells" }
+mlibs.text    = { path = "../../../../content/text" }  # the cell measure, its own
+mlibs.compose = { path = "../../../../base/compose" }
+mlibs.agent   = { path = "../../../../base/agent" }
+mlibs.control = { path = "../../../../base/control" }
+mlibs.utils   = { path = "../../../../base/utils" }
+openlifa.openas = "0.2.1"
+mcpplibs.os   = "0.4.4"  # raw keys, the terminal's size, the standard streams
+
+[dev-dependencies]
+mcpplibs.mtest = "0.8.4"
+mlibs.agent.cts = { path = "../../../../base/agent/cts" }  # the agent contract's suite on the terminal's subject
+omui.ui.base  = { path = "../../components/base" }         # the components a window shows, in cells

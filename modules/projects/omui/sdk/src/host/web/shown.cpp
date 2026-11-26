@@ -43,6 +43,11 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
 
 std::vector<std::string> host_locales() { return browser_locales(); }
 
+int terminal(const AppSpec&, const RunOptions&, const Prepare&) {
+    std::println(std::cerr, "--terminal: this platform has no terminal host (omui.host.terminal runs on Linux, macOS and Windows)");
+    return 2;
+}
+
 }  // namespace omui::hosting
 
 namespace omui {

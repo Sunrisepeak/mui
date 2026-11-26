@@ -14,13 +14,13 @@ A capability below its package's label is marked in its project's feature table 
 
 | Project | stable | preview | experimental |
 |---|---|---|---|
-| omui | 30 | 3 | 1 |
+| omui | 30 | 4 | 1 |
 | hanim | 5 | 4 | 0 |
-| mrender | 10 | 8 | 0 |
+| mrender | 11 | 9 | 0 |
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 31 | 6 | 0 |
+| mlibs | 32 | 6 | 0 |
 | examples | 12 | 0 | 0 |
 | build plugins (mcpp) | 1 | 0 | 0 |
 | oweb | 0 | 1 | 0 |
@@ -41,6 +41,7 @@ A capability below its package's label is marked in its project's feature table 
 | `omui.sdk` | [modules/projects/omui/sdk](../../modules/projects/omui/sdk) | stable |
 | `omui.expr` | [modules/projects/omui/expr](../../modules/projects/omui/expr) | stable |
 | `omui.host.headless` | [modules/projects/omui/host/headless](../../modules/projects/omui/host/headless) | stable |
+| `omui.host.terminal` | [modules/projects/omui/host/terminal](../../modules/projects/omui/host/terminal) | preview |
 | `omui.host.android` | [modules/projects/omui/host/android](../../modules/projects/omui/host/android) | preview |
 | `omui.host.sdl3` | [modules/projects/omui/host/sdl3](../../modules/projects/omui/host/sdl3) | stable |
 | `omui.host.sdl3.gpu` | [modules/projects/omui/host/sdl3/gpu](../../modules/projects/omui/host/sdl3/gpu) | stable |
@@ -90,6 +91,8 @@ A capability below its package's label is marked in its project's feature table 
 | `mrender.text` | [modules/projects/mrender/text](../../modules/projects/mrender/text) | stable |
 | `mrender.graph` | [modules/projects/mrender/graph](../../modules/projects/mrender/graph) | stable |
 | `mrender.cts` | [modules/projects/mrender/cts](../../modules/projects/mrender/cts) | stable |
+| `mrender.cells` | [modules/projects/mrender/cells](../../modules/projects/mrender/cells) | preview |
+| `mrender.display` | [modules/projects/mrender/display](../../modules/projects/mrender/display) | stable |
 | `mrender.vector` | [modules/projects/mrender/vector](../../modules/projects/mrender/vector) | stable |
 | `mrender.frame` | [modules/projects/mrender/frame](../../modules/projects/mrender/frame) | stable |
 | `mrender.scene` | [modules/projects/mrender/scene](../../modules/projects/mrender/scene) | preview |
@@ -187,6 +190,7 @@ A capability below its package's label is marked in its project's feature table 
 | `mlibs.layout` | [modules/content/layout](../../modules/content/layout) | stable |
 | `mlibs.markdown` | [modules/content/markdown](../../modules/content/markdown) | stable |
 | `mlibs.text` | [modules/content/text](../../modules/content/text) | stable |
+| `mlibs.text.harfbuzz` | [modules/content/text/harfbuzz](../../modules/content/text/harfbuzz) | stable |
 | `mlibs.text.fonts` | [modules/content/text/fonts](../../modules/content/text/fonts) | stable |
 | `mlibs.text.fonts.han` | [modules/content/text/fonts/han](../../modules/content/text/fonts/han) | stable |
 | `mlibs.text.fonts.arabic` | [modules/content/text/fonts/arabic](../../modules/content/text/fonts/arabic) | stable |

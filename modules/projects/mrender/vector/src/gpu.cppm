@@ -35,7 +35,7 @@ export module mrender.vector.api:gpu;
 import std;
 import mlibs.geom;
 import mlibs.rhi;
-import :display;
+import mrender.display;
 import :resources;
 import :cpu;
 export import :ui_shaders;

@@ -6,6 +6,7 @@ import omui.view;
 import omui.accessibility;
 import omui.accessibility.bridge;
 import mlibs.text;
+import mlibs.text.harfbuzz;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -16,7 +17,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

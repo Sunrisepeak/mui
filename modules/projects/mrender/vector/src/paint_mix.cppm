@@ -1,7 +1,7 @@
 // A prepared material transition is graphics data, independent of UI/hanim.
 export module mrender.vector.api:paint_mix;
 import std;
-import :display;
+import mrender.display;
 
 export namespace mrender {
 struct PaintMixOptions { std::size_t max_terms = max_paint_mix_terms; };

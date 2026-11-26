@@ -3,6 +3,7 @@
 // actions, an item of a component as a node of its own), their semantics,
 // their history, and a gallery whose pixels are pinned for every platform.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
@@ -16,7 +17,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();
@@ -271,7 +272,7 @@ static UTest cases{"ui.base.more", [] {
     };
 
     "the pickers open, the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions o = options({660, 400});
         o.fonts = &own;
@@ -419,7 +420,7 @@ static UTest cases{"ui.base.more", [] {
     };
 
     "a split view and a drawer, the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions o = options({560, 320});
         o.fonts = &own;
@@ -636,7 +637,7 @@ static UTest cases{"ui.base.more", [] {
     };
 
     "a tree view and a data grid, the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions o = options({720, 260});
         o.fonts = &own;
@@ -720,7 +721,7 @@ static UTest cases{"ui.base.more", [] {
     };
 
     "a combobox open and a tag input, the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions o = options({600, 300});
         o.fonts = &own;
@@ -803,7 +804,7 @@ static UTest cases{"ui.base.more", [] {
     };
 
     "a code editor, the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions o = options({480, 250});
         o.fonts = &own;
@@ -822,7 +823,7 @@ static UTest cases{"ui.base.more", [] {
     };
 
     "the gallery: the second batch, the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions o = options({480, 380});
         o.fonts = &own;

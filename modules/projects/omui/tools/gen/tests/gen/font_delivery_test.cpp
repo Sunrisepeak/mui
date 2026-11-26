@@ -4,6 +4,7 @@ import std;
 import omui.gen.dist_toy;
 import omui.gen.font_subset;
 import mlibs.text;
+import mlibs.text.harfbuzz;
 import mlibs.hash;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -135,7 +136,7 @@ void preserved_tables(const Bytes& before, const Bytes& after) {
     valid_directory(after);
 }
 void text_is_identical(const Bytes& original, const Bytes& delivered, std::string sample) {
-    mlibs::text::FontCollection before, after;
+    mlibs::text::FontCollection before{mlibs::text::harfbuzz::shaper()}, after{mlibs::text::harfbuzz::shaper()};
     const auto a = before.add_data(original), b = after.add_data(delivered);
     expect(a && b); if (!a || !b) return;
     const auto& ai = before.face(*a); const auto& bi = after.face(*b);
@@ -208,7 +209,7 @@ static UTest cases{"gen.font_delivery", [] {
         for (const auto& file : result->files) if (file.path.ends_with(".ttf")) {
             const auto bytes = read(options.out / file.path);
             expect(file.path == std::format("assets/{:012x}.ttf", mlibs::hash::fnv1a(std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())) & 0xffffffffffffull)) << "the content hash names the actual derived payload, not the source font";
-            mlibs::text::FontCollection faces; const auto face = faces.add_data(bytes); expect(face.has_value()); if (!face) continue;
+            mlibs::text::FontCollection faces{mlibs::text::harfbuzz::shaper()}; const auto face = faces.add_data(bytes); expect(face.has_value()); if (!face) continue;
             const auto& family = faces.face(*face).family;
             const bool is_mono = family == "JetBrains Mono", is_full = faces.covers(*face, U'Z');
             const auto& source = is_mono ? mono : is_full ? inter : *initial;

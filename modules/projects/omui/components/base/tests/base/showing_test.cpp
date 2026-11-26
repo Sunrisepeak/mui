@@ -3,6 +3,7 @@
 // and agents drive them (pointing, arrows, dots, keys, a swipe), and a gallery
 // whose pixels are pinned for every platform.
 import std;
+import mlibs.text.harfbuzz;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
@@ -16,7 +17,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {
-        mlibs::text::FontCollection made;
+        mlibs::text::FontCollection made{mlibs::text::harfbuzz::shaper()};
         (void)made.add_defaults();
         return made;
     }();
@@ -153,7 +154,7 @@ static UTest cases{"ui.base.showing", [] {
     };
 
     "the gallery: a line, bars and an area over the same months, and a carousel — the same pixels on every platform"_test = [] {
-        mlibs::text::FontCollection own;
+        mlibs::text::FontCollection own{mlibs::text::harfbuzz::shaper()};
         expect(own.add_defaults().has_value());
         HeadlessOptions made = options({760, 500});
         made.fonts = &own;

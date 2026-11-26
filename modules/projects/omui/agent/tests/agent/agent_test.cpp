@@ -1,6 +1,7 @@
 // The agent endpoint: the protocol's operations and errors, waits served
 // between frames, and the same conversation over a real local endpoint.
 import std;
+import mlibs.text.harfbuzz;
 import omui.agent;
 import mlibs.image;
 import mlibs.testing;
@@ -25,7 +26,7 @@ namespace {
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
-        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
         (void)c.add_defaults();
         return c;
     }();

@@ -22,7 +22,7 @@ import std;
 import mlibs.geom;
 import mrender.raster;
 import mlibs.rhi;
-import :display;
+import mrender.display;
 // The built-ins' GPU paths (effects/*.slang), compiled by build.mcpp.
 export import :quad_shaders;
 export import :dissolve_shaders;

@@ -1,6 +1,6 @@
 # Lead: measured against the best
 
-Every metric is ours against the strongest competitor, measured on one machine in the same job, the sides taking turns; the verdict is from the ratio's 95 % interval: behind below 0.95×, par to 1.2×, ahead from 1.2×, far ahead from 10× or where the competitor cannot do it. What is behind stays here; a device we do not have is said so. Generated from the lead ledger (2026-11-26).
+Every metric is ours against the strongest competitor, measured on one machine in the same job, the sides taking turns; the verdict is from the ratio's 95 % interval: behind below 0.95×, par to 1.2×, ahead from 1.2×, far ahead from 10× or where the competitor cannot do it. What is behind stays here; a device we do not have is said so. Generated from the lead ledger (2026-11-27).
 
 ## Metrics
 
@@ -62,8 +62,8 @@ Every metric is ours against the strongest competitor, measured on one machine i
 | omui | `core.size.hello.executable.bytes` | omui-app 1.72139e+07 | slint 1.74696e+07 | 1.01× [1.01, 1.01] | **par** |
 | omui | `core.size.hello.package.bytes` | omui-app 8.14642e+06 | slint 8.62023e+06 | 1.06× [1.06, 1.06] | **par** |
 | omui | `core.size.hello.app-code.bytes` | — | nsh | — | planned |
-| omui | `terminal.size.counter.program.bytes` | omui-terminal 3.39254e+06 | ftxui 334208 | 0.10× [0.10, 0.10] | **behind** |
-| omui | `terminal.size.counter.runtime.bytes` | omui-terminal 3.39254e+06 | ftxui 334208 | 0.10× [0.10, 0.10] | **behind** |
+| omui | `terminal.size.counter.program.bytes` | omui-terminal 2.22347e+06 | ftxui 334208 | 0.15× [0.15, 0.15] | **behind** |
+| omui | `terminal.size.counter.runtime.bytes` | omui-terminal 2.22347e+06 | ftxui 334208 | 0.15× [0.15, 0.15] | **behind** |
 | omui.components | `components.canvas-1000.frame_ms` | — | figma-like-dom | — | planned |
 | meng | `physics.pyramid.step_ms` | — | box2d-v3, rapier | — | planned |
 | meng | `world.iterate-100k.ms` | — | bevy | — | planned |

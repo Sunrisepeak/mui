@@ -22,8 +22,8 @@ agent = "subject"  # the picture in cells (terminal.ops.xdef.ts), beside the int
 # How omui::run shows an application in a terminal (--terminal): its own slot and its own provider (no dependency to
 # keep apart); omui.sdk installs it by its feature `terminal`, so a window's program carries none of it.
 [package.metadata.openmui.compose]
-slots = ["omui.host.terminal.show"]
-provides = ["omui.host.terminal.show"]
+slots = ["omui.host.terminal.show", "omui.host.terminal.agent"]     # how omui::run shows it; its agent face
+provides = ["omui.host.terminal.show", "omui.host.terminal.agent"]
 
 [targets.openmui-host-terminal]
 kind = "lib"
@@ -49,3 +49,4 @@ mcpplibs.os   = "0.4.4"  # raw keys, the terminal's size, the standard streams
 mcpplibs.mtest = "0.8.4"
 mlibs.agent.cts = { path = "../../../../base/agent/cts" }  # the agent contract's suite on the terminal's subject
 omui.ui.base  = { path = "../../components/base" }         # the components a window shows, in cells
+mlibs.image   = { path = "../../../../base/image" }         # its decoder's slot, absent here as in a terminal's program

@@ -219,6 +219,12 @@ namespace mrender {
     [[nodiscard]] std::optional<float> output_reach(EffectRef ref, std::span<const float> params) const;
   };
   [[nodiscard]] EffectRegistry& effects();
+  struct EffectsService {
+    EffectRegistry& (*registry)() = nullptr;
+  };
+  inline constexpr mlibs::compose::Slot<EffectsService> effects_slot{…};
+  [[nodiscard]] EffectRegistry* installed_effects() noexcept;
+  std::expected<void, mlibs::compose::Error> install_effects();
 }
 == mrender.vector.api:gpu
 export import :ui_shaders;

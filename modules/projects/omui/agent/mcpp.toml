@@ -20,8 +20,8 @@ kind = "runtime"
 agent = "subject"
 
 [package.metadata.openmui.compose]
-slots = ["omui.agent.endpoint"]     # the application's agent surface (src/service.cppm)
-provides = ["omui.agent.endpoint"]  # its own: no dependency to keep apart, so no package of its own
+slots = ["omui.agent.endpoint", "omui.agent.captures"]     # the application's agent surface and its pictures (src/service.cppm)
+provides = ["omui.agent.endpoint", "omui.agent.captures"]  # its own: no dependency to keep apart, so no package of its own
 
 [targets.openmui-agent]
 kind = "lib"

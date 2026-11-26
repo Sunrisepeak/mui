@@ -22,6 +22,7 @@ import mrender.raster;
 import mlibs.rhi;
 import mlibs.pipeline;
 import mlibs.text;
+import mlibs.compose;
 import :element;
 import :theme;
 import :error;
@@ -49,6 +50,15 @@ struct Adaptation {
     std::string    reason;                        // why it is so now, said plainly
     friend bool operator==(const Adaptation&, const Adaptation&) = default;
 };
+
+// The morphs universal motion moves a changed drawing by (D-93): hanim.visual's, and the glyph source their text
+// is read through, installed at the slot `omui.view.morphs` (mlibs.compose; terminal design §9 step ③) by a
+// program's root that draws pixels — omui::run (omui.sdk's feature `morphs`), the headless host where none is, a
+// program or test of its own. A program that draws none (a terminal) does not, and carries none of them: there a
+// change shows at once, as with motion off, and the log says so once. Installed already: nothing changes.
+std::expected<void, mlibs::compose::Error> install_morphs();
+// Whether they are installed.
+[[nodiscard]] bool morphs_installed() noexcept;
 
 // A node's drawing moving between two (Runtime::motions).
 struct MotionState {

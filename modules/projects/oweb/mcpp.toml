@@ -45,12 +45,12 @@ mlibs.ts       = { path = "../../base/ts" }    # oweb.config.ts evaluated to its
 mlibs.xdef     = { path = "../../base/xdef" }  # a snapshot's format checked before it is read
 mlibs.markdown = { path = "../../content/markdown" }
 mlibs.text.fonts = { path = "../../content/text/fonts" }  # every script a page shows carried with it (D-214)
-"omui.core"          = { path = "../omui/core" }
-"omui.view"          = { path = "../omui/view" }
-"omui.semantic"      = { path = "../omui/semantic" }
-"omui.host.headless" = { path = "../omui/host/headless" }
-"omui.ui.base"       = { path = "../omui/components/base" }
-"omui.ui.markdown"   = { path = "../omui/components/markdown" }
+omui.core          = { path = "../omui/core" }
+omui.view          = { path = "../omui/view" }
+omui.semantic      = { path = "../omui/semantic" }
+omui.host.headless = { path = "../omui/host/headless" }
+omui.ui.base       = { path = "../omui/components/base" }
+omui.ui.markdown   = { path = "../omui/components/markdown" }
 openlifa.openas = "0.2.1"
 mcpplibs.os     = "0.4.4"
 
@@ -59,4 +59,4 @@ programs = "directory"  # tests/oweb/: one program, each file run and filtered o
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
-"omui.host.web" = { path = "../omui/host/web" }  # the layer over the canvas, held to the page before the program (layer_test)
+omui.host.web = { path = "../omui/host/web" }  # the layer over the canvas, held to the page before the program (layer_test)

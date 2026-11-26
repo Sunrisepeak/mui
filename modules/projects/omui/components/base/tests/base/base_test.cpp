@@ -16,6 +16,15 @@ using namespace omui;
 
 namespace {
 
+// This test program draws pixels, so it is its own root (mlibs.compose): the morphs, pixel effects and picture reader a
+// window's program has, installed before any case runs — once, for every file of the directory (one program).
+[[maybe_unused]] const bool pixel_parts = [] {
+    (void)omui::install_morphs();
+    (void)mrender::install_effects();
+    (void)mlibs::image::install();
+    return true;
+}();
+
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
         mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};

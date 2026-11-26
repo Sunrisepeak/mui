@@ -158,9 +158,9 @@ std::expected<void,PresentationFailure> Runtime::publish_presentation(const Pres
                     if(layer.parameters.size()>current.images->parameter_limit-parameters)
                         return std::unexpected(PresentationFailure{PresentationError::capacity,i});
                     parameters+=layer.parameters.size();
-                    if(mrender::effects().generation(layer.effect)!=layer.generation)
+                    if(effect_generation(layer.effect)!=layer.generation)
                         return std::unexpected(PresentationFailure{PresentationError::stale_effect,i});
-                    const auto* info=mrender::effects().info(layer.effect);
+                    const auto* info=effect_info(layer.effect);
                     if(!info || !info->cpu || info->backdrop || !info->preserves_hit_geometry || info->source_of || layer.parameters.size()!=info->params.size())
                         return std::unexpected(PresentationFailure{PresentationError::invalid_effect,i});
                     for(std::size_t p=0;p<layer.parameters.size();++p)if(!std::isfinite(layer.parameters[p]) ||
@@ -300,8 +300,8 @@ void Runtime::Impl::project_presentation() {
     for(auto& range:projection_ranges) {
         auto& p=at(by_index[range.marker]).presentation;
         if(p.images)for(const auto& layer:p.images->layers) {
-            if(mrender::effects().generation(layer.effect)!=layer.generation){p.error=PresentationError::stale_effect;break;}
-            const auto* info=mrender::effects().info(layer.effect);
+            if(effect_generation(layer.effect)!=layer.generation){p.error=PresentationError::stale_effect;break;}
+            const auto* info=effect_info(layer.effect);
             if(!info || !info->cpu || info->backdrop || !info->preserves_hit_geometry || info->source_of){p.error=PresentationError::invalid_effect;break;}
             const auto params=std::span(p.images->parameters).subspan(layer.offset,layer.count);
             if(!info->identity || !info->identity(params))++range.image_count;
@@ -321,7 +321,7 @@ void Runtime::Impl::project_presentation() {
             if(range.frame && (!identity(range.delta) || range.image_count)) {
                 const auto& p=at(by_index[range.marker]).presentation;
                 if(p.images)for(auto layer=p.images->layers.rbegin();layer!=p.images->layers.rend();++layer) {
-                    const auto* info=mrender::effects().info(layer->effect);
+                    const auto* info=effect_info(layer->effect);
                     const auto params=std::span(p.images->parameters).subspan(layer->offset,layer->count);
                     if(info->identity && info->identity(params))continue;
                     list.push_layer(1,mrender::BlendMode::normal,layer->effect,params,{}, {},mrender::LayerBoundsMode::content);

@@ -9,6 +9,7 @@
 export module mlibs.image.api;
 
 import std;
+import mlibs.compose;
 
 export namespace mlibs::image {
 
@@ -229,6 +230,31 @@ struct Packed {
 // A region of a picture as a picture of its own.
 [[nodiscard]] Image crop(const Image& img, std::int32_t x, std::int32_t y, std::int32_t width, std::int32_t height);
 [[nodiscard]] std::expected<Image, std::string> load_png(const std::filesystem::path& file);
+
+// ── the slot a picture's file is read at ────────────────────────────────
+
+// Whoever reads a picture by name rather than by format — the view's `image`
+// — reads it through the decoder installed at `decoder_slot` (mlibs.compose;
+// terminal design §9 step ③). A program that shows pictures installs it at
+// its root (omui::run with omui.sdk's feature `images`, the headless host
+// where none is); a terminal does not, and carries no PNG reader (libpng,
+// zlib). Its own provider: the formats are this package's.
+struct Decoder {
+    std::string_view name;
+    // A picture's file as straight-alpha pixels (PNG), or why not.
+    std::expected<Image, std::string> (*load)(const std::filesystem::path& file) = nullptr;
+};
+
+inline constexpr mlibs::compose::Slot<Decoder> decoder_slot{{
+    .id = "mlibs.image.decoder",
+    .summary = "how a picture's file becomes pixels (PNG), for whoever shows a picture by its file",
+    .absent = "install it at the program's root: mlibs::image::install() (omui::run installs it with omui.sdk's feature "
+              "`images`, in every world that draws pixels; the headless host where none is); a terminal shows no pictures"}};
+
+// The decoder installed at `decoder_slot`, or null: absent.
+[[nodiscard]] const Decoder* decoder() noexcept;
+// Installs this package's at the process's slot; installed already: nothing changes.
+std::expected<void, mlibs::compose::Error> install();
 
 // ── a picture's volume ──────────────────────────────────────────────────
 

@@ -371,8 +371,11 @@ int replay(Headless& host, const AppSpec& app, const std::filesystem::path& file
         const mrender::raster::Surface& shown = host.pixels();
         const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(shown.row(0)), shown.width(), shown.height(), shown.width() * 4,
                                       mlibs::image::Alpha::premultiplied};
-        if (auto png = surface->png(view)) {
-            auto pixels = surface->pixels_hash(*png);
+        const agent::CaptureService* captures = agent::captures();  // installed with the surface (agent::install)
+        if (!captures) {
+            got = mlibs::compose::process().missing(agent::captures_slot.info).message;
+        } else if (auto png = captures->png(view)) {
+            auto pixels = captures->pixels_hash(*png);
             got = pixels ? *pixels : pixels.error().text();
         } else {
             got = png.error();

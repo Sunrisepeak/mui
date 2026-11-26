@@ -7,7 +7,7 @@
       "why": "18,519,893 B (2026-11-18, GCC 16 on Linux x64, the world `full`). It was 18,473,342 B before the program could be composed: the 46 KB more is what being able to leave things out costs the default — mlibs.compose's run time (about 10 KiB) and three seams (the accessibility service, the GPU path with effects, the agent surface; 6–11 KB each) — accepted in review; `lean` is 15,178 KiB for it. Code 14.1 MB, data 4.0 MB — std 10.7%, SDL 7.9%, omui.ui.base 7.6%, omui.view 5.7%. The plan's bound after B1 (unreached code not linked: 26.7 MB before); what brings it down is in the compose design §13.2"
     }
   ],
-  "installs": ["mlibs.text.harfbuzz", "omui.accessibility.bridge", "omui.agent", "omui.host.sdl3.gpu", "omui.sdk"],
+  "installs": ["mlibs.image", "mlibs.text.harfbuzz", "mrender.vector", "omui.accessibility.bridge", "omui.agent", "omui.host.sdl3.gpu", "omui.sdk", "omui.view"],
   "installs_why": "The providers the program installs (mlibs.compose): its world, `full`, held as the links are.",
   "links_why": "The packages built into the program (B5): a change to this list is a change to what the smallest application carries, said in review. Owed cuts: the image decoders (mcpplibs.mwrap.libjpeg_turbo, .libpng, .libwebp; compat.libpng, compat.libwebp, compat.zlib) reached through the view's Image and the agent's screenshots, and the solver (mlibs.dynamics, mlibs.simulation) through hanim — each to become its owner's feature (B6)",
   "links": [

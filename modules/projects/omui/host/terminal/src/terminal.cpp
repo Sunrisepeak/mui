@@ -101,6 +101,10 @@ void Subject::operate(std::string_view operation, const mlibs::agent::Request& r
 
 namespace {
 
+// The agent face of a terminal: its picture as a subject beside the interface, and the endpoint wired to its cells
+// (pixels and vectors refused with the way to the text, a pointer's cell back to its node).
+void attach_agents(Terminal& host, Terminal::Impl& d, const agent::EndpointService& surface);
+
 int show(TerminalOptions options, const std::function<std::shared_ptr<void>(Runtime&)>& prepare) {
     Terminal host(std::move(options));
     const std::shared_ptr<void> kept = prepare ? prepare(host.runtime()) : nullptr;
@@ -109,7 +113,17 @@ int show(TerminalOptions options, const std::function<std::shared_ptr<void>(Runt
 
 }  // namespace
 
+void install_agent() {
+    // Made when installed, never at program start: a program that installs none carries no subject and no endpoint
+    // wiring (and through them none of the JSON the subject answers in).
+    static const AgentService service{.attach = &attach_agents};
+    if (mlibs::compose::process().get(agent_slot) == &service) return;
+    if (auto installed = mlibs::compose::process().install(agent_slot, service, "terminal"); !installed)
+        warn("the terminal's agent face: {}", installed.error().message);
+}
+
 void install() {
+    install_agent();  // omui::run's terminal serves agents where the program has the agent surface, as a window does
     // Made when installed, never at program start: a program that installs none carries none of it.
     static const ShowService service{.run = &show};
     if (mlibs::compose::process().provider(show_slot.info) == "terminal") return;
@@ -133,7 +147,9 @@ struct Terminal::Impl {
     std::int64_t                        index = -1;
     seconds                             last{0};
     agent::Served                       endpoint;
-    std::unique_ptr<terminal::Subject>  subject;
+    // The picture as a subject (the agent face's, terminal::install_agent): held by its kind, so a program without the
+    // face names none of the subject's code.
+    std::unique_ptr<mlibs::agent::Subject> subject;
     std::atomic<bool>                   quitting{false};
 
     Size size() const { return {static_cast<float>(columns) * options.grid.column, static_cast<float>(rows) * options.grid.row}; }
@@ -187,6 +203,36 @@ struct Terminal::Impl {
     std::optional<seconds> next_work;
 };
 
+namespace terminal {
+namespace {
+
+void attach_agents(Terminal& host, Terminal::Impl& d, const agent::EndpointService& surface) {
+    d.subject = std::make_unique<Subject>(host);
+    d.runtime->add_subject(*d.subject);
+    agent::EndpointOptions eo;
+    eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;
+    eo.directory = d.options.endpoint_directory;
+    eo.protocol.app = d.options.app;
+    eo.protocol.capture = [](Rect) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
+        return std::unexpected(ViewFailure{ViewError::no_pixel_capture});
+    };
+    eo.protocol.capture_svg = [](Rect) -> std::expected<agent::VectorCapture, ViewFailure> { return std::unexpected(ViewFailure{ViewError::no_vector_capture}); };
+    eo.protocol.pixel_owner = [&d](Point at) {
+        const int column = static_cast<int>(at.x / d.options.grid.column), row = static_cast<int>(at.y / d.options.grid.row);
+        const std::uint32_t node = d.frame.node_at(column, row);
+        return node ? d.runtime->node_at_index(node) : NodeId{};
+    };
+    eo.protocol.input = d.options.agent_input;
+    d.endpoint = agent::Served(surface, *d.runtime, std::move(eo));
+    if (auto started = d.endpoint.start(); !started) {
+        warn("the agent endpoint did not start: {}", started.error());
+        d.endpoint.reset();
+    }
+}
+
+}  // namespace
+}  // namespace terminal
+
 Terminal::Terminal(TerminalOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
@@ -209,29 +255,16 @@ Terminal::Terminal(TerminalOptions options) : impl_(std::make_unique<Impl>()) {
     d.runtime->set_renderer("cells");
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
     // Its endpoint is the agent surface's, as a window's is (agent::endpoint_slot); the picture is a subject beside it.
+    // Both are the terminal's agent face (terminal::agent_slot), made where the program installed it: a terminal's
+    // program that serves no agent carries neither.
     const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot);
     if (surface && d.options.agent) {
-        d.subject = std::make_unique<terminal::Subject>(*this);
-        d.runtime->add_subject(*d.subject);
-        agent::EndpointOptions eo;
-        eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;
-        eo.directory = d.options.endpoint_directory;
-        eo.protocol.app = d.options.app;
-        eo.protocol.capture = [](Rect) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
-            return std::unexpected(ViewFailure{ViewError::no_pixel_capture});
-        };
-        eo.protocol.capture_svg = [](Rect) -> std::expected<agent::VectorCapture, ViewFailure> { return std::unexpected(ViewFailure{ViewError::no_vector_capture}); };
-        eo.protocol.pixel_owner = [this](Point at) {
-            const Impl& held = *impl_;
-            const int column = static_cast<int>(at.x / held.options.grid.column), row = static_cast<int>(at.y / held.options.grid.row);
-            const std::uint32_t node = held.frame.node_at(column, row);
-            return node ? held.runtime->node_at_index(node) : NodeId{};
-        };
-        eo.protocol.input = d.options.agent_input;
-        d.endpoint = agent::Served(*surface, *d.runtime, std::move(eo));
-        if (auto started = d.endpoint.start(); !started) {
-            warn("the agent endpoint did not start: {}", started.error());
-            d.endpoint.reset();
+        if (const terminal::AgentService* face = mlibs::compose::process().get(terminal::agent_slot)) {
+            face->attach(*this, d, *surface);
+        } else {
+            static std::atomic<bool> said{false};  // said once, in the log an agent reads: not on the terminal's screen
+            if (!said.exchange(true))
+                mlibs::log::info("the terminal serves no agent: {} ({})", terminal::agent_slot.info.id, terminal::agent_slot.info.absent);
         }
     }
     d.frame = mrender::cells::Frame(d.columns, d.rows, d.options.theme.color("text"), d.options.theme.color("background", Color::white()));

@@ -25,7 +25,15 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "library: picture formats every renderer, tool and test reads"
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
 kind = "runtime"
+
+# How a picture's file becomes pixels, for whoever shows a picture by its file (the view's `image`): its own slot and
+# its own provider (the formats are this package's). A program that shows no pictures (a terminal) installs none
+# and carries no PNG reader (terminal design §9 step ③).
+[package.metadata.openmui.compose]
+slots = ["mlibs.image.decoder"]
+provides = ["mlibs.image.decoder"]
 
 [targets.mlibs-image]
 kind = "lib"
@@ -43,6 +51,7 @@ mcpplibs.mwrap.basis_universal = "2.50.1"
 features = ["ktx2"]
 
 [dependencies]
+mlibs.compose = { path = "../compose" }  # the decoder's slot
 mcpplibs.mwrap.libpng = "1.6.43"
 mcpplibs.mwrap.libjpeg_turbo = "3.2.1"
 mcpplibs.mwrap.libwebp = { version = "1.5.0", features = ["demux", "mux"] }

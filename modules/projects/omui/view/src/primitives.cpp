@@ -388,7 +388,14 @@ struct ImageNode {
             }
             return;
         }
-        auto img = mlibs::image::load_png(source);
+        // Read by the decoder the program installed (mlibs.image's slot): a terminal shows no pictures, and says so.
+        const mlibs::image::Decoder* decoder = mlibs::image::decoder();
+        if (!decoder || !decoder->load) {
+            services->emit(node, "failed", Value{}.set("reason", std::format("this program reads no pictures: nothing is installed at {} ({})",
+                                                                             mlibs::image::decoder_slot.info.id, mlibs::image::decoder_slot.info.absent)));
+            return;
+        }
+        auto img = decoder->load(source);
         if (!img) {
             services->emit(node, "failed", Value{}.set("reason", img.error()));
             return;

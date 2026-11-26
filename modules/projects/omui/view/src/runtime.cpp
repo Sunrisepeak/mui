@@ -570,7 +570,7 @@ void Runtime::fonts_changed() {
     // Active Morph callbacks retain this exact cache address.
     {
         const std::scoped_lock guard(d.motion_glyph_mutex);
-        if (d.motion_glyphs) d.motion_glyphs->clear();
+        if (d.motion_glyphs && d.morphs) d.morphs->clear(*d.motion_glyphs);
     }
     // Their paragraphs are stale (their fonts' revision moved): each measured, laid out and drawn again.
     walk([&](NodeId id, int) { d.layout.mark_dirty(d.at(id).layout); });

@@ -578,13 +578,22 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
 std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& value, std::string_view where, const Theme* theme) {
     const Value* fx = value.get("name");
     if (!fx || !value.map()) return std::nullopt;
-    const auto ref = mrender::effects().find(fx->as_string());
+    if (!mrender::installed_effects()) {
+        // Absent is unsupported (compose): a program that draws no pixels (a terminal) has no effects. Said once, in the
+        // log an agent reads (not on the terminal's screen).
+        static std::atomic<bool> said{false};
+        if (!said.exchange(true))
+            mlibs::log::info("{}: the effect '{}' is left out, and every other: this program has no pixel effects ({}: {})", where, fx->as_string(),
+                             mrender::effects_slot.info.id, mrender::effects_slot.info.absent);
+        return std::nullopt;
+    }
+    const auto ref = find_effect(fx->as_string());
     if (!ref) {
         warn("{}: no effect is named '{}' (mrender::effects().names())", where, fx->as_string());
         return std::nullopt;
     }
     std::vector<std::pair<std::string_view, float>> given;
-    const mrender::EffectInfo* about = mrender::effects().info(*ref);
+    const mrender::EffectInfo* about = effect_info(*ref);
     const auto param = [&](std::string_view n) -> std::string_view {  // its name as the effect keeps it (lives as long as the effect)
         if (about)
             for (const auto& ep : about->params)
@@ -605,7 +614,7 @@ std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& v
     }
     Node::PixelEffectState st;
     st.effect = *ref;
-    st.params = mrender::effects().params(*ref, given);
+    st.params = effect_params(*ref, given);
     st.start = now();
     const auto bad = [&](std::string_view reason) -> std::optional<Node::PixelEffectState> {
         warn("{}: {}", where, reason); return std::nullopt;

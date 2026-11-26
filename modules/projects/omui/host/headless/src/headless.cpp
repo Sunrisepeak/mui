@@ -93,6 +93,14 @@ std::expected<std::vector<std::uint8_t>, ViewFailure> encoded(std::expected<std:
 Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
+    // The host brings what its renderer draws, where the program installed none: mrender's pixel effects, hanim's
+    // morphs (a change moving), mlibs.image's PNG reader (the view's `image`).
+    if (!mrender::installed_effects())
+        if (auto installed = mrender::install_effects(); !installed) warn("the pixel effects: {}", installed.error().message);
+    if (!morphs_installed())
+        if (auto installed = install_morphs(); !installed) warn("the morphs: {}", installed.error().message);
+    if (!mlibs::image::decoder())
+        if (auto installed = mlibs::image::install(); !installed) warn("the picture reader: {}", installed.error().message);
     mlibs::text::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
         // The host brings its text measure (terminal design §9): HarfBuzz, unless the program installed a shaper.
@@ -136,6 +144,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     // none, as where local endpoints are not supported. What it captures goes through the surface's table, so
     // such a program does not carry the encoders either (png() and svg() are theirs who call them).
     const agent::EndpointService* surface = mlibs::compose::process().get(agent::endpoint_slot);
+    const agent::CaptureService* captures = agent::captures();  // its pictures: absent, a capture says so
     // Asked for and not there: said, with the way to it (D-186) — a test that makes its own host is its program's root.
     if (!surface && d.options.level == HeadlessLevel::session)
         warn("a session was asked for, but this program has not installed the agent surface: no endpoint is served "
@@ -145,18 +154,20 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
         eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;
         eo.directory = d.options.endpoint_directory;
         eo.protocol.app = d.options.app;
-        eo.protocol.capture = [this, surface](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
+        eo.protocol.capture = [this, captures](Rect region) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
             Impl& held = *impl_;
             if (held.options.level < HeadlessLevel::pixels) return std::unexpected(ViewFailure{ViewError::below_level});
+            if (!captures) return std::unexpected(ViewFailure{ViewError::no_pixel_capture});
             held.render_now();
             auto view = view_of(held.surface, held.options.scale, region);
             if (!view) return std::unexpected(view.error());
-            return encoded(surface->png(*view));
+            return encoded(captures->png(*view));
         };
-        eo.protocol.capture_svg = [this, surface](Rect region) {
+        eo.protocol.capture_svg = [this, captures](Rect region) -> std::expected<agent::VectorCapture, ViewFailure> {
             Impl& held = *impl_;
+            if (!captures) return std::unexpected(ViewFailure{ViewError::no_vector_capture});
             const mrender::Resources resources{&held.runtime->images(), held.glyphs.get()};
-            return surface->vector_capture(*held.runtime, resources, region, held.options.scale, held.options.background);
+            return captures->vector_capture(*held.runtime, resources, region, held.options.scale, held.options.background);
         };
         eo.protocol.pixel_owner = [this](Point at) { return node_at_pixel(at); };
         eo.protocol.input = d.options.agent_input;

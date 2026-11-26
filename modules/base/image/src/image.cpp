@@ -1,6 +1,7 @@
 module mlibs.image.api;
 
 import std;
+import mlibs.compose;
 
 namespace mlibs::image {
 
@@ -120,6 +121,26 @@ std::expected<Animation, std::string> load_animated_webp(const std::filesystem::
 }
 
 std::expected<Image, std::string> load_png(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode_png(b); }); }
+
+namespace {
+// The decoder the slot gave, once it gave one.
+std::atomic<const Decoder*> found_decoder{nullptr};
+}  // namespace
+
+const Decoder* decoder() noexcept {
+    if (const Decoder* found = found_decoder.load(std::memory_order_acquire)) return found;
+    const Decoder* found = mlibs::compose::process().get(decoder_slot);
+    if (found) found_decoder.store(found, std::memory_order_release);
+    return found;
+}
+
+std::expected<void, mlibs::compose::Error> install() {
+    // Made when installed, never at program start: a program that installs none reads no PNG.
+    static const Decoder png{.name = "png", .load = &load_png};
+    mlibs::compose::Composition& composition = mlibs::compose::process();
+    if (composition.get(decoder_slot) == &png) return {};
+    return composition.install(decoder_slot, png, "mlibs.image");
+}
 
 std::expected<Image, std::string> load_webp(const std::filesystem::path& file) { return read_file(file).and_then([](const auto& b) { return decode_webp(b); }); }
 

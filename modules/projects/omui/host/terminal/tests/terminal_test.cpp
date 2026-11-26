@@ -3,6 +3,7 @@
 // back to the node that drew it; the agent contract's suite on its subject.
 import std;
 import mlibs.agent.cts;
+import mlibs.image;
 import mlibs.json;
 import mlibs.testing;
 import omui.agent;
@@ -140,6 +141,27 @@ UTest cases{"terminal", [] {
         expect(t.frame().text().contains("Count 2"));
     };
 
+    "a terminal carries no pixel parts: a change shows at once, an effect is left out, a picture says why it is not there"_test = [] {
+        // Nothing here installs them, as a terminal's program does not (terminal design §9 step ③): absent, not broken.
+        expect(!morphs_installed() && mrender::installed_effects() == nullptr && mlibs::image::decoder() == nullptr);
+        const Signal<int> count = signal(0);
+        std::string failed;
+        Element picture = image({.id = "logo", .source = "logo.png", .alt = "the logo", .width = Dim(16), .height = Dim(32)});
+        picture.on("failed", [&](const Value& why) { failed = std::string(why.get("reason") ? why.get("reason")->as_string() : ""); });
+        Terminal t({.columns = 30, .rows = 6, .agent = false});
+        t.mount("main", column({}, {
+            text({.id = "count", .text = derive([=] { return std::format("Count {}", count()); })})
+                .prop("pixel_effect", Source(Value{}.set("name", "dissolve").set("progress", 0.5))),
+            std::move(picture),
+        }));
+        t.settle();
+        expect(t.frame().text().contains("Count 0")) << t.frame().text();
+        expect(failed.contains("mlibs.image.decoder")) << failed;
+        count.set(1);
+        t.step();
+        expect(t.frame().text().contains("Count 1")) << "the next frame, not a morph's: " << t.frame().text();
+    };
+
     "an agent reads the picture and goes from a cell back to the node that drew it"_test = [] {
         Counter counter;
         Terminal t({.columns = 30, .rows = 6, .agent = false});
@@ -173,6 +195,7 @@ UTest cases{"terminal", [] {
 
     "an agent operates it through the endpoint as it does a window: the interface's actions, and the picture's text"_test = [] {
         omui::agent::install();  // this program makes its own host: it is its root (K6)
+        omui::terminal::install_agent();  // and the terminal's agent face, as omui::run's terminal has it
         const auto dir = scratch_dir("terminal-endpoint");
         Counter counter;
         Terminal t({.columns = 30, .rows = 6, .app = "counter-terminal", .endpoint_directory = dir});

@@ -183,7 +183,7 @@ Value Runtime::inspect(NodeId node) const {
             Value::List layers;
             for(const auto& layer:p.images->layers) {
                 Value::List params;for(float value:std::span(p.images->parameters).subspan(layer.offset,layer.count))params.emplace_back(value);
-                const auto* info=mrender::effects().info(layer.effect);
+                const auto* info=effect_info(layer.effect);
                 layers.push_back(Value{}.set("id",info?info->name:std::string_view{}).set("generation",std::to_string(layer.generation))
                     .set("parameters",Value(std::move(params))));
             }

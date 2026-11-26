@@ -29,6 +29,9 @@ reductions = ["no-gamepad-hidapi", "software-present"]   # take away: no world i
 # What the unit installs, as build.mcpp's rows say it (lint compose holds the two alike): a build's report reads this.
 [package.metadata.openmui.compose.installs]
 "mlibs.text.harfbuzz" = { feature = "shaping", targets = "all" }  # text shaped with fonts (mlibs.text's slot; a terminal's world measures in cells)
+"mrender.vector" = { feature = "effects", targets = "all" }  # its own slot: the pixel effects a drawing names (a terminal's world names none)
+"omui.view" = { feature = "morphs", targets = "all" }  # its own slot: universal motion's morphs (a terminal's world shows a change at once)
+"mlibs.image" = { feature = "images", targets = "all" }  # its own slot: a picture's file read (a terminal's world shows no pictures)
 "omui.agent" = { feature = "agent", targets = "all" }
 "omui.sdk" = { feature = "generate", targets = "all" }  # its own: runtime generation (module omui.generate)
 "omui.host.sdl3.gpu" = { feature = "gpu", targets = "desktop" }
@@ -55,12 +58,21 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generate/*.cppm", "src/generate/*.cpp
 # capability's provider (build.mcpp: `install_services`); one not installed is not in the program.
 [features]
 default = ["full"]
-lean = { implies = ["shaping"] }
+lean = { implies = ["shaping", "effects", "morphs", "images"] }
 app  = { implies = ["lean", "agent", "gpu", "accessibility-bridge"] }
 full = { implies = ["app", "generate"] }
 # Text shaped with fonts: HarfBuzz at mlibs.text's slot `mlibs.text.shaper` (mlibs.text.harfbuzz), in every world that
 # draws pixels. Without it text has no faces and takes no room, as a terminal's build measures in cells instead.
 shaping = {}
+# The pixel effects a drawing names (dissolve, blur, glass, a style pack's neon …): mrender's built-ins at its slot
+# `mrender.vector.effects`, in every world that draws pixels. Without them a node's effect is left out, and said.
+effects = {}
+# Universal motion's morphs (hanim.visual, and mrender.text's glyph cache for their text) at omui.view's slot
+# `omui.view.morphs`, in every world that draws pixels. Without them a change shows at once, as with motion off.
+morphs = {}
+# Pictures read from their files (the view's `image`): mlibs.image's PNG reader at its slot `mlibs.image.decoder`, in
+# every world that draws pixels. Without it an image says it failed, and why.
+images = {}
 # The application's agent surface: the endpoint agents find it at and talk to it through, and its captures (omui.agent).
 # Without it the program serves no agent, as a platform without local endpoints does not.
 agent = {}

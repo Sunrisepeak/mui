@@ -24,6 +24,16 @@ namespace agent = omui::agent;
 
 namespace {
 
+// This test program draws pixels and makes its runtimes itself, so it is its own root (mlibs.compose): the morphs,
+// pixel effects and picture reader a window's program has, installed before any case runs — once, for every file
+// of tests/agent/ (one program).
+[[maybe_unused]] const bool pixel_parts = [] {
+    (void)omui::install_morphs();
+    (void)mrender::install_effects();
+    (void)mlibs::image::install();
+    return true;
+}();
+
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection f = [] {
         mlibs::text::FontCollection c{mlibs::text::harfbuzz::shaper()};
@@ -727,7 +737,9 @@ static UTest cases{"agent", [] {
             return Value{}.set("reloaded", Value(Value::List{Value("app/main.ts")})).set("took_ms", 1.0).set("changes", Value{});
         });
         // The window as a picture: its lower right quarter coloured by the version, its first pixel
-        // moving with the time for 0.1 s after a reload (a motion the reload started), then still.
+        // moving with the time for 0.1 s after a reload (a motion the reload started), then still. Read by the
+        // captures this test installs, as a root that draws pixels does (agent::captures_slot).
+        agent::install();
         agent::Protocol p(app.rt, {.capture = [&](Rect) -> std::expected<std::vector<std::uint8_t>, ViewFailure> {
             mlibs::image::Image picture{.width = 8, .height = 8, .rgba = std::vector<std::uint8_t>(8 * 8 * 4, 255)};
             for (int y = 4; y < 8; ++y)

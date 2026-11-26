@@ -9,6 +9,7 @@ import omui.generate;
 import omui.viewdoc;
 import omui.ui.base;
 import mlibs.agent;
+import mlibs.image;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -16,6 +17,16 @@ using namespace omui;
 namespace agent = omui::agent;
 
 namespace {
+
+// This test program draws pixels and makes its runtimes itself (not through omui::run), so it is its own root
+// (mlibs.compose): the morphs, pixel effects and picture reader a window's program has, installed before any case
+// runs — once, for every file of tests/sdk/ (one program).
+[[maybe_unused]] const bool pixel_parts = [] {
+    (void)omui::install_morphs();
+    (void)mrender::install_effects();
+    (void)mlibs::image::install();
+    return true;
+}();
 
 mlibs::text::FontCollection& fonts() {
     static mlibs::text::FontCollection collection = [] {

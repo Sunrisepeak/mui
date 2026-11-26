@@ -487,6 +487,9 @@ void add_framework_benchmarks() {
     static bool added = false;
     if (added) return;
     added = true;
+    // Its scenes draw pixels, so it installs what they name, as a program's root does: effects and morphs.
+    if (auto installed = mrender::install_effects(); !installed) warn("the pixel effects: {}", installed.error().message);
+    if (auto installed = omui::install_morphs(); !installed) warn("the morphs: {}", installed.error().message);
     register_base_components();
     add_game_benchmarks();
     add_render_benchmarks();

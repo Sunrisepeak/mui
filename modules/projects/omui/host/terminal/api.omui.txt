@@ -43,6 +43,11 @@ namespace omui {
       int (*run)(TerminalOptions options, const std::function<std::shared_ptr<void>(Runtime&)>& prepare) = nullptr;
     };
     inline constexpr mlibs::compose::Slot<ShowService> show_slot{…};
+    struct AgentService {
+      void (*attach)(Terminal& host, Terminal::Impl& impl, const agent::EndpointService& surface) = nullptr;
+    };
+    inline constexpr mlibs::compose::Slot<AgentService> agent_slot{…};
+    void install_agent();
     void install();
     class Subject final : public mlibs::agent::Subject {
       explicit Subject(Terminal& host) noexcept : host_(host);

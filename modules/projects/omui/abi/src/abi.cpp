@@ -20,6 +20,7 @@ import nlohmann.json;
 import :c;
 import :api;
 import mrender.text;
+import mlibs.image;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -223,6 +224,15 @@ OmuiResult omuiCreateRuntime(const OmuiRuntimeCreateInfo* info, OmuiRuntime* out
     auto r = std::make_unique<OmuiRuntime_T>();
     r->app_id = text(info->app_id).empty() ? std::string("openmui-app") : std::string(text(info->app_id));
     r->headless = info->headless != 0;
+    // A runtime of the full profile draws frames with pixels: what they name is installed where the program installed
+    // none (as the headless host does) — mrender's pixel effects, universal motion's morphs, mlibs.image's PNG reader,
+    // each its owner's own provider. The text shaper is the program's root's to choose (mlibs.text.shaper).
+    if (!mrender::installed_effects())
+        if (auto installed = mrender::install_effects(); !installed) log.warn("the pixel effects: {}", installed.error().message);
+    if (!morphs_installed())
+        if (auto installed = install_morphs(); !installed) log.warn("the morphs: {}", installed.error().message);
+    if (!mlibs::image::decoder())
+        if (auto installed = mlibs::image::install(); !installed) log.warn("the picture reader: {}", installed.error().message);
     r->fonts = std::make_unique<mlibs::text::FontCollection>();
     if (auto f = r->fonts->add_defaults(); !f) log.warn("the default fonts did not load: {}", f.error());
     RuntimeOptions o;

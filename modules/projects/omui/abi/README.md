@@ -3,6 +3,7 @@
 `openmui.h` implemented (spec §8). It is the one boundary every language binding is written against: TypeScript, and any language that can call C.
 
 - **Only handles and values cross it.** No C++ type and no exception crosses (every function is `noexcept`). Every function returns `OmuiResult`. Text and structured results reach a sink the caller supplies, so no memory changes hands.
+- **A runtime draws pixels** (terminal design §9 step ③): `omuiCreateRuntime` installs what its frames name where the program installed none — mrender's pixel effects, universal motion's morphs (`omui.view.morphs`) and mlibs.image's PNG reader, each its owner's own provider — as the headless host does. The text shaper (`mlibs.text.shaper`) is the program's root's to install: HarfBuzz where it draws pixels.
 - **Views are view documents.**
   - `omuiMount` loads a `*.view.xdef.json` text at a slot ([omui.viewdoc](../viewdoc/README.md)). Mounting the same slot again reconciles in place and keeps the state.
   - `omuiCheck` returns the diagnostics as JSON lines.

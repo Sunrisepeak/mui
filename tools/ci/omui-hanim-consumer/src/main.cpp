@@ -323,6 +323,8 @@ void driver_checks(mlibs::text::FontCollection& fonts,const std::filesystem::pat
 int main(int argc,char** argv) {
     if(!check(argc==2,"output_directory_argument"))return finish();
     const auto output=mcpplibs::os::fs::from_utf8(argv[1]);
+    // It draws pixels, so it is the root that installs what they need: the effects and morphs its views name.
+    if(!check(mrender::install_effects().has_value() && install_morphs().has_value(),"pixel_effects_and_morphs_installed"))return finish();
     mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()};const auto loaded=fonts.add_defaults();
     if(!check(loaded && fonts.face_count()>0,"font_resources_loaded")) {
         if(!loaded)std::println(std::cerr,"{}",loaded.error());return finish();

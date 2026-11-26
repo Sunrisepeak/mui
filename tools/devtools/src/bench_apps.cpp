@@ -84,6 +84,7 @@ struct Launch {
     std::optional<Memory> memory;
     std::optional<double> idle_cpu_percent, idle_wakeups, idle_frames;
     std::map<std::string, double> idle_waking;  // at rest: each thread's name, its switches a second (those that woke)
+    std::map<std::string, double> idle_cpu_by_thread;  // at rest: each thread's share of a core (%), "main" the first
     std::vector<double> clicks;
     bool click_changed = true;
     std::vector<double> presents;  // in motion: the intervals between presented frames (ms)
@@ -1021,6 +1022,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     out.memory = memory_now(root, pid);
     // At rest: the processor (mcpplibs.os), the switches a second (pidstat), the frames drawn.
     const auto before = process::describe(pid);
+    const auto threads_before = process::threads(pid);
     std::optional<process::process> switches;
     if (const auto pidstat = mcpplibs::os::env::find_executable("pidstat")) {
         process::spawn_options watching{.program = *pidstat,
@@ -1054,6 +1056,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     if (before && after)
         out.idle_cpu_percent =
             static_cast<double>(after->cpu_ns - before->cpu_ns) / 1e9 / idle_seconds * 100.0;
+    out.idle_cpu_by_thread = cpu_by_thread(threads_before, process::threads(pid), pid, idle_seconds);
     if (drawn && side.motion.empty())
         out.idle_frames = *drawn / idle_seconds;
     if (switches) {
@@ -1235,9 +1238,16 @@ std::optional<Memory> memory_of(std::string_view pmap_output) {
                   .swap = value.contains("Swap") ? value["Swap"] : 0};
 }
 
-// Which threads woke at rest, by name (pidstat's Command, "|__" dropped): what an idle process's switches are.
+// Which threads woke at rest (pidstat's Command, "|__" dropped): what an idle process's switches are. The first
+// thread is "main" whatever its name — a thread no one named carries the program's name too (NVIDIA's Vulkan driver
+// starts one in vkCreateDevice), so a name alone does not say the main thread woke.
 std::map<std::string, double> waking_of(std::string_view pidstat_output) {
     std::map<std::string, double> waking;
+    std::string process;  // the process's line: its TGID, the TID of its first thread
+    for (const auto line : lines(pidstat_output)) {
+        const auto split = words(line);
+        if (split.size() >= 7 && split[0] == "Average:" && split[3] == "-") process = split[2];
+    }
     for (const auto line : lines(pidstat_output)) {
         const auto split = words(line);
         if (split.size() < 7 || split[0] != "Average:" || split[3] == "-" || split[3] == "TID") continue;
@@ -1247,9 +1257,25 @@ std::map<std::string, double> waking_of(std::string_view pidstat_output) {
             continue;
         std::string name(split[6]);
         if (name.starts_with("|__")) name.erase(0, 3);
+        if (!process.empty() && split[3] == process) name = "main";
         if (voluntary + involuntary > 0) waking[name] += voluntary + involuntary;
     }
     return waking;
+}
+
+std::map<std::string, double> cpu_by_thread(const std::vector<process::thread_info>& before, const std::vector<process::thread_info>& after,
+                                            std::uint64_t pid, double seconds) {
+    std::map<std::string, double> share;
+    if (seconds <= 0) return share;
+    for (const process::thread_info& now : after) {
+        const auto then = std::ranges::find(before, now.id, &process::thread_info::id);
+        const std::uint64_t from = then == before.end() ? 0 : then->cpu_ns;  // a thread started meanwhile: all of it
+        if (now.cpu_ns <= from) continue;
+        // Its first word, as pidstat names it ("[vkrt] Analysis" is "[vkrt]").
+        const std::string name = now.id == pid ? std::string("main") : now.name.substr(0, now.name.find(' '));
+        share[name] += static_cast<double>(now.cpu_ns - from) / 1e9 / seconds * 100.0;
+    }
+    return share;
 }
 
 std::optional<double> switches_of(std::string_view pidstat_output) {
@@ -1652,6 +1678,7 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                 sample["idle_wakeups_per_s"] = *cold.idle_wakeups,
                 mine.wakeups.push_back(*cold.idle_wakeups);
             if (!cold.idle_waking.empty()) sample["idle_waking"] = cold.idle_waking;
+            if (!cold.idle_cpu_by_thread.empty()) sample["idle_cpu_by_thread"] = cold.idle_cpu_by_thread;
             if (cold.idle_frames)
                 sample["idle_frames_per_s"] = *cold.idle_frames,
                 mine.frames.push_back(*cold.idle_frames);
@@ -1683,6 +1710,20 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                                      cold.clicks.empty() ? -1.0 : median_of(cold.clicks),
                                      cold.failure.empty() ? "" : "  (" + cold.failure + ")")
                       << std::flush;
+            // At rest, thread by thread: the main thread apart from the others of the same name.
+            if (!cold.idle_waking.empty() || !cold.idle_cpu_by_thread.empty()) {
+                std::string threads;
+                std::set<std::string> names;
+                for (const auto& [name, rate] : cold.idle_waking) names.insert(name);
+                for (const auto& [name, share] : cold.idle_cpu_by_thread) names.insert(name);
+                for (const std::string& name : names) {
+                    const auto woke = cold.idle_waking.find(name);
+                    const auto ran = cold.idle_cpu_by_thread.find(name);
+                    threads += std::format("  {} {:.1f}/s {:.3f} %", name, woke == cold.idle_waking.end() ? 0.0 : woke->second,
+                                           ran == cold.idle_cpu_by_thread.end() ? 0.0 : ran->second);
+                }
+                std::cout << std::format("    at rest:{}\n", threads) << std::flush;
+            }
         }
     }
 

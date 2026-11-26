@@ -35,8 +35,10 @@ The retained and immediate view runtime (plan §3–§5):
   a preview, `lower` in the manifest): what only a program that draws pixels
   uses is read where a program's root installed it, so a terminal carries none
   of it. Universal motion's morphs — hanim.visual, and mrender.text's glyph
-  cache for their text — are this package's own slot `omui.view.morphs`
-  (`install_morphs()`); pixel effects by name are mrender's
+  cache for their text, the frame's pass that moves what changed and the
+  choice of a node's motion for a slot by the theme's rules — are this
+  package's own slot `omui.view.morphs` (`install_morphs()`; without it no
+  slot holds a motion, and a removed node goes at once); pixel effects by name are mrender's
   (`mrender.vector.effects`), an image's file is read by mlibs.image's decoder
   (`mlibs.image.decoder`). omui::run installs all three in every world that
   draws pixels (omui.sdk's features `morphs`, `effects`, `images`), the

@@ -49,6 +49,7 @@ namespace omui::devtools::bench {
   [[nodiscard]] std::optional<Memory> memory_of(std::string_view pmap_output);
   [[nodiscard]] std::optional<double> switches_of(std::string_view pidstat_output);
   [[nodiscard]] std::map<std::string, double> waking_of(std::string_view pidstat_output);
+  [[nodiscard]] std::map<std::string, double> cpu_by_thread(const std::vector<mcpplibs::os::process::thread_info>& before, const std::vector<mcpplibs::os::process::thread_info>& after, std::uint64_t pid, double seconds);
 }
 == omui.devtools.browser
 namespace omui::devtools::browser {

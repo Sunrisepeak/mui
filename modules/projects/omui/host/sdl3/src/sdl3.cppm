@@ -126,6 +126,9 @@ public:
     [[nodiscard]] std::size_t frames_shown() const noexcept;
     // Whether the GPU renderer draws the frames (after open()).
     [[nodiscard]] bool gpu() const noexcept;
+    // Whether the CPU draws while a device is made that takes over when it is ready (UI9): the loop takes it between
+    // frames, woken by the device's thread.
+    [[nodiscard]] bool gpu_pending() const noexcept;
     // The effect library of `effects` (null: none asked for).
     [[nodiscard]] mrender::effect::Library* effects() noexcept;
 

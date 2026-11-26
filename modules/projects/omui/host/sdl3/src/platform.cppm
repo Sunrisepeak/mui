@@ -49,6 +49,12 @@ void release();  // its hold given back, then `stop`
 void stop();
 
 std::expected<WindowPtr, std::string> open(const WindowOptions& options);
+// Whether a window of the video driver SDL is up with keeps a framebuffer of its own (X11, Windows, offscreen): the
+// CPU's frames shown there need no renderer, so a GPU device can claim the window later (UI9).
+[[nodiscard]] bool own_framebuffer();
+// The window's framebuffer let go, so that a GPU device claims the window: what it shows stays until the device
+// presents (no renderer was made for it).
+void release_framebuffer(Window& w);
 
 struct Polled {
     std::vector<InputEvent>    events;

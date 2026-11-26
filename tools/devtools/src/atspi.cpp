@@ -172,10 +172,22 @@ public:
         : tree_(tree), report_(report), window_name_(std::move(window)), desktop_(desktop) {
         mcpplibs::os::process::spawn_options spawn;
         spawn.program = binary;
+        // The real pointer is its person's: borrowed only while the window opens and given back once it is placed.
+        struct Borrowed {
+            x11::Display* display = nullptr;
+            std::optional<x11::Display::Pointer> from;
+            void give_back() {
+                if (display && from) (void)display->pointer(from->x, from->y);
+                from.reset();
+            }
+            ~Borrowed() { give_back(); }
+        } placing;
         if (desktop_) {
             // A real window on the machine's display, drawn as the example draws by default; opened on the monitor
-            // the pointer is on (the window manager's rule), so the pointer waits there.
+            // the pointer is on (the window manager's rule), so the pointer waits there until the window is placed.
             const x11::Rect& on = desktop_->monitor.area;
+            placing.display = &desktop_->display;
+            if (const auto where = desktop_->display.where_pointer()) placing.from = *where;
             (void)desktop_->display.pointer(on.x + 4, on.y + on.height - 4);
             spawn.args = {"--no-agent"};
             spawn.env = {{"DBUS_SESSION_BUS_ADDRESS", "unix:path=" + mcpplibs::os::fs::utf8(desktop_->session)},
@@ -243,6 +255,7 @@ public:
             report_.display += std::format("{}{} 0x{:x} at {},{} on {} ({}x{} at {:.2f} Hz)", report_.display.empty() ? "" : "; ", window_name_, xwindow_,
                                            corner_[0], corner_[1], desktop_->monitor.name, on.width, on.height, desktop_->monitor.hertz);
         }
+        placing.give_back();
         // Its tree as the application tells it once AT-SPI listens (the window may come first, alone, for a frame).
         for (int attempt = 0; window_ && attempt < 50 && nodes_.size() < 2; ++attempt) {
             if (attempt > 0) std::this_thread::sleep_for(std::chrono::milliseconds(200));

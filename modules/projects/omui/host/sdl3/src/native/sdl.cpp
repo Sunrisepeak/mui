@@ -244,6 +244,28 @@ void stop() {
     SDL_Quit();
 }
 
+namespace {
+
+// The video drivers whose windows keep a framebuffer in memory (else a renderer, as asked).
+constexpr std::array framebuffer_drivers{std::string_view("offscreen"), std::string_view("x11"), std::string_view("windows"),
+                                         std::string_view("dummy"), std::string_view("emscripten")};
+
+std::string_view video_driver() {
+    const char* name = SDL_GetCurrentVideoDriver();
+    return name ? std::string_view(name) : std::string_view();
+}
+
+}  // namespace
+
+bool own_framebuffer() { return sdl_ready && std::ranges::contains(framebuffer_drivers, video_driver()); }
+
+void release_framebuffer(Window& w) {
+    if (!w.framebuffer) return;
+    (void)SDL_DestroyWindowSurface(w.window);
+    w.framebuffer = false;
+    w.shown = false;  // nothing to read back from it any more
+}
+
 std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     if (auto started = start(o.video_driver); !started) return std::unexpected(started.error());
     ++windows_open;
@@ -256,10 +278,8 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     // context; saying so stops SDL on macOS from implying OpenGL for any
     // driver that has it — the offscreen driver's is EGL, which macOS lacks.
     // The window's own framebuffer: where the video driver keeps one in memory (else a renderer, as asked).
-    const std::string_view video = SDL_GetCurrentVideoDriver() ? SDL_GetCurrentVideoDriver() : "";
-    constexpr std::array own_framebuffer{std::string_view("offscreen"), std::string_view("x11"), std::string_view("windows"),
-                                         std::string_view("dummy"), std::string_view("emscripten")};
-    const bool framebuffer = !o.gpu && o.framebuffer && std::ranges::contains(own_framebuffer, video);
+    const std::string_view video = video_driver();
+    const bool framebuffer = !o.gpu && o.framebuffer && std::ranges::contains(framebuffer_drivers, video);
     const bool software = !o.gpu && (o.render_driver == "software" || framebuffer);
     const SDL_PropertiesID props = SDL_CreateProperties();
     SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, o.title.c_str());
@@ -280,7 +300,7 @@ std::expected<WindowPtr, std::string> open(const WindowOptions& o) {
     // and Android have none, and there the accelerated one is the only one
     // (red 55: "Window framebuffer support not available" under cocoa).
     if (software) {
-        if (std::ranges::contains(own_framebuffer, video)) SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+        if (std::ranges::contains(framebuffer_drivers, video)) SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
         else SDL_ResetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION);
     }
     if (o.gpu) return w;  // the GPU device claims it and presents

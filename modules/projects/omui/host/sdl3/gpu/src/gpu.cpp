@@ -7,6 +7,7 @@ import mrender.rhi.sdl;
 import mrender.frame;
 import mrender.vector;
 import mrender.effect;
+import mlibs.trace;
 import omui.host.sdl3;
 
 namespace omui::host::sdl3::gpu {
@@ -24,12 +25,6 @@ mrender::rhi::sdl::Options options_of(const GpuDeviceOptions& asked) {
     return options;
 }
 
-struct Making final : GpuMaking {
-    explicit Making(mrender::rhi::sdl::Making making) : making_(std::move(making)) {}
-    mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> get() override { return making_.get(); }
-    mrender::rhi::sdl::Making making_;
-};
-
 struct Renderer final : GpuRenderer {
     explicit Renderer(mrender::GpuFrame frame) : frame_(std::move(frame)) {}
     mlibs::rhi::Result<void> render(std::span<const mrender::FrameLayer> layers, mlibs::rhi::Texture target, std::uint32_t width, std::uint32_t height,
@@ -41,8 +36,36 @@ struct Renderer final : GpuRenderer {
     mrender::GpuFrame frame_;
 };
 
+struct Making final : GpuMaking {
+    Making() = default;
+    Making(const Making&) = delete;
+    Making& operator=(const Making&) = delete;
+    // Not taken: waited for, the renderer let go before its device.
+    ~Making() override {
+        if (!making_.valid()) return;
+        auto device = making_.get();
+        renderer_.reset();
+    }
+    bool ready() const override { return making_.ready(); }
+    mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> get() override { return making_.get(); }
+    std::unique_ptr<GpuRenderer> renderer() override { return std::move(renderer_); }
+    std::unique_ptr<GpuRenderer> renderer_;  // made on the making thread; read once the making is ready
+    mrender::rhi::sdl::Making    making_;    // last: gone first, its thread done before what it writes goes
+};
+
+// The device, and its renderer's pipelines beside it on the same thread (a host drawing its first frames with the CPU
+// meanwhile takes both over at once): none for a software device an automatic host lets go.
 std::unique_ptr<GpuMaking> begin(const GpuDeviceOptions& asked) {
-    return std::make_unique<Making>(mrender::rhi::sdl::create_async(options_of(asked)));
+    auto making = std::make_unique<Making>();
+    making->making_ = mrender::rhi::sdl::create_async(
+        options_of(asked), [into = making.get(), automatic = asked.hardware_only, told = asked.made](mlibs::rhi::Device* device) {
+            if (device && !(device->caps().software && automatic)) {
+                mlibs::trace::Span span("device.renderer", "rhi");
+                if (auto frame = mrender::GpuFrame::create(*device)) into->renderer_ = std::make_unique<Renderer>(std::move(*frame));
+            }
+            if (told) told();
+        });
+    return making;
 }
 
 mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> create(const GpuDeviceOptions& asked) { return mrender::rhi::sdl::create(options_of(asked)); }

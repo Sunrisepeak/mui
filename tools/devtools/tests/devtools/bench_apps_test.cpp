@@ -5,6 +5,7 @@
 // builds), not this test's.
 import std;
 import mcpplibs.mtest;
+import mcpplibs.os;
 import omui.devtools.bench;
 import omui.devtools.x11;
 
@@ -78,11 +79,32 @@ static UTest cases{
                 expect(fatal(switches.has_value()));
                 expect(std::abs(*switches - 3.6) < 1e-9) << *switches;
                 expect(!bench::switches_of("Linux 6.8.0\n").has_value());
-                // Which threads woke, by name: what an idle process's switches are made of.
+                // Which threads woke: the first thread as "main" (by its TID, the process's), the others by name.
                 const auto waking = bench::waking_of(pidstat_output);
-                expect(waking.size() == 2 && std::abs(waking.at("omui") - 2.2) < 1e-9 && std::abs(waking.at("omui-render") - 1.4) < 1e-9)
+                expect(waking.size() == 2 && std::abs(waking.at("main") - 2.2) < 1e-9 && std::abs(waking.at("omui-render") - 1.4) < 1e-9)
                     << waking.size();
             };
+
+        "a thread no one named is not the main thread: the first thread by its TID, the others by name"_test = [] {
+            // NVIDIA's Vulkan driver starts a thread in vkCreateDevice that has the program's name and wakes every 10 ms.
+            constexpr std::string_view unnamed =
+                "Average:     1000      4242         -    100.00      0.00  omui\n"
+                "Average:     1000         -      4242      0.20      0.00  |__omui\n"
+                "Average:     1000         -      4260     99.20      0.00  |__omui\n"
+                "Average:     1000         -      4258     10.00      0.00  |__[vkrt] Analysis\n";
+            const auto waking = bench::waking_of(unnamed);
+            expect(std::abs(waking.at("main") - 0.2) < 1e-9 && std::abs(waking.at("omui") - 99.2) < 1e-9) << waking.size();
+        };
+
+        "each thread's processor time at rest: the first thread as main, the others by their first word, a new thread in full"_test = [] {
+            using mcpplibs::os::process::thread_info;
+            const std::vector<thread_info> before{{4242, "omui", 1'000'000'000}, {4260, "omui", 0}},
+                after{{4242, "omui", 1'000'000'000}, {4260, "omui", 20'000'000}, {4270, "[vkrt] Analysis", 5'000'000}};
+            const auto share = bench::cpu_by_thread(before, after, 4242, 5.0);
+            expect(!share.contains("main")) << "the main thread did not run";
+            expect(std::abs(share.at("omui") - 0.4) < 1e-9) << "20 ms in 5 s";
+            expect(std::abs(share.at("[vkrt]") - 0.1) < 1e-9) << "a thread started meanwhile, all of its time";
+        };
 
         "a picture's hash ignores the unused byte; a cleared window is uniform, a drawn one is not"_test =
             [] {

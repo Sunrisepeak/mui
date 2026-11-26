@@ -84,6 +84,7 @@ struct Launch {
     std::optional<Memory> memory;
     std::optional<double> idle_cpu_percent, idle_wakeups, idle_frames;
     std::map<std::string, double> idle_waking;  // at rest: each thread's name, its switches a second (those that woke)
+    std::map<std::string, double> idle_cpu_by_thread;  // at rest: each thread's share of a core (%), "main" the first
     std::vector<double> clicks;
     bool click_changed = true;
     std::vector<double> presents;  // in motion: the intervals between presented frames (ms)
@@ -912,13 +913,40 @@ private:
     std::uint64_t final_ = 0;
 };
 
+// The real pointer, borrowed where a measurement cannot do without it and given back where its person had it as soon as
+// that part is done (on a desktop the person is using it): while a window opens (the window manager opens a new window on
+// the pointer's monitor), for a click through the X server, while the wheel turns over the list. On the harness's own
+// server no one else uses it: nothing is given back there.
+class Borrowed {
+public:
+    Borrowed(x11::Display& display, bool desktop) : display_(display) {
+        if (!desktop)
+            return;
+        if (auto where = display_.where_pointer())
+            from_ = *where;
+    }
+    Borrowed(const Borrowed&) = delete;
+    Borrowed& operator=(const Borrowed&) = delete;
+    ~Borrowed() { give_back(); }
+    void give_back() {
+        if (from_)
+            (void)display_.pointer(from_->x, from_->y);
+        from_.reset();
+    }
+
+private:
+    x11::Display& display_;
+    std::optional<x11::Display::Pointer> from_;
+};
+
 // One launch of a side: to its first settled frame; with `whole`, then rest, memory, the processor
 // and the frames at rest, and the clicks.
 Launch launch(const fs::path& root, x11::Display& display, Side& side, const Settings& settings,
               const Environment& environment, bool cold, bool whole, const fs::path& shot = {}) {
     Launch out;
-    // The pointer out of every window (on a desktop: on the monitor the window is to open on);
-    // nothing left over from the last program.
+    // The pointer out of every window (on a desktop: on the monitor the window is to open on, borrowed until the window
+    // is there); nothing left over from the last program.
+    Borrowed placing(display, settings.desktop);
     (void)display.pointer(settings.park[0], settings.park[1]);
     while (true) {
         auto pending = display.next(milliseconds{0});
@@ -969,6 +997,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         end();
         return out;
     }
+    placing.give_back();  // the window is where it opened: the pointer is its person's again
     const auto frames = watch.frames();
     if (!frames) {
         out.failure = frames.error();
@@ -1021,6 +1050,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     out.memory = memory_now(root, pid);
     // At rest: the processor (mcpplibs.os), the switches a second (pidstat), the frames drawn.
     const auto before = process::describe(pid);
+    const auto threads_before = process::threads(pid);
     std::optional<process::process> switches;
     if (const auto pidstat = mcpplibs::os::env::find_executable("pidstat")) {
         process::spawn_options watching{.program = *pidstat,
@@ -1031,7 +1061,10 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
         if (auto started_watch = process::process::spawn(watching))
             switches = std::move(*started_watch);
     }
+    // The wheel turns over the list: the pointer borrowed for the span.
+    std::optional<Borrowed> scrolling;
     if (side.motion == "scroll") {
+        scrolling.emplace(display, settings.desktop);
         if (const auto where = watch.on_screen())
             (void)display.pointer(where->x + where->width / 2, where->y + where->height / 2);
     }
@@ -1041,8 +1074,10 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     const double idle_seconds = ms_between(idle_from, Clock::now()) / 1000.0;
     for (std::size_t at = 1; at < presented.size(); ++at)
         out.presents.push_back(ms_between(presented[at - 1], presented[at]));
-    if (side.motion == "scroll")
-        (void)display.pointer(settings.park[0], settings.park[1]);
+    if (scrolling) {
+        if (settings.desktop) scrolling->give_back();
+        else (void)display.pointer(settings.park[0], settings.park[1]);
+    }
     if (!drawn) {  // a part of the span is no measurement of it
         out.failure = drawn.error();
         out.presents.clear();
@@ -1054,6 +1089,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     if (before && after)
         out.idle_cpu_percent =
             static_cast<double>(after->cpu_ns - before->cpu_ns) / 1e9 / idle_seconds * 100.0;
+    out.idle_cpu_by_thread = cpu_by_thread(threads_before, process::threads(pid), pid, idle_seconds);
     if (drawn && side.motion.empty())
         out.idle_frames = *drawn / idle_seconds;
     if (switches) {
@@ -1070,6 +1106,7 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
     // The clicks: pointer onto the button, pressed, let go; from letting go to the next frame on
     // the window.
     if (side.click) {
+        Borrowed clicking(display, settings.desktop);  // the clicks go through the X server: the real pointer, for them
         const auto where = watch.on_screen();
         for (int click = 0; where && click < settings.clicks; ++click) {
             (void)display.pointer(where->x + (*side.click)[0], where->y + (*side.click)[1]);
@@ -1098,7 +1135,8 @@ Launch launch(const fs::path& root, x11::Display& display, Side& side, const Set
             (void)watch.settle(Clock::now() + std::chrono::seconds{5}, milliseconds{300},
                                &*program);
         }
-        (void)display.pointer(settings.park[0], settings.park[1]);
+        if (settings.desktop) clicking.give_back();
+        else (void)display.pointer(settings.park[0], settings.park[1]);
     }
     auto [files, driver] = mapped_files(root, pid);
     side.mapped = std::move(files);
@@ -1235,9 +1273,16 @@ std::optional<Memory> memory_of(std::string_view pmap_output) {
                   .swap = value.contains("Swap") ? value["Swap"] : 0};
 }
 
-// Which threads woke at rest, by name (pidstat's Command, "|__" dropped): what an idle process's switches are.
+// Which threads woke at rest (pidstat's Command, "|__" dropped): what an idle process's switches are. The first
+// thread is "main" whatever its name — a thread no one named carries the program's name too (NVIDIA's Vulkan driver
+// starts one in vkCreateDevice), so a name alone does not say the main thread woke.
 std::map<std::string, double> waking_of(std::string_view pidstat_output) {
     std::map<std::string, double> waking;
+    std::string process;  // the process's line: its TGID, the TID of its first thread
+    for (const auto line : lines(pidstat_output)) {
+        const auto split = words(line);
+        if (split.size() >= 7 && split[0] == "Average:" && split[3] == "-") process = split[2];
+    }
     for (const auto line : lines(pidstat_output)) {
         const auto split = words(line);
         if (split.size() < 7 || split[0] != "Average:" || split[3] == "-" || split[3] == "TID") continue;
@@ -1247,9 +1292,25 @@ std::map<std::string, double> waking_of(std::string_view pidstat_output) {
             continue;
         std::string name(split[6]);
         if (name.starts_with("|__")) name.erase(0, 3);
+        if (!process.empty() && split[3] == process) name = "main";
         if (voluntary + involuntary > 0) waking[name] += voluntary + involuntary;
     }
     return waking;
+}
+
+std::map<std::string, double> cpu_by_thread(const std::vector<process::thread_info>& before, const std::vector<process::thread_info>& after,
+                                            std::uint64_t pid, double seconds) {
+    std::map<std::string, double> share;
+    if (seconds <= 0) return share;
+    for (const process::thread_info& now : after) {
+        const auto then = std::ranges::find(before, now.id, &process::thread_info::id);
+        const std::uint64_t from = then == before.end() ? 0 : then->cpu_ns;  // a thread started meanwhile: all of it
+        if (now.cpu_ns <= from) continue;
+        // Its first word, as pidstat names it ("[vkrt] Analysis" is "[vkrt]").
+        const std::string name = now.id == pid ? std::string("main") : now.name.substr(0, now.name.find(' '));
+        share[name] += static_cast<double>(now.cpu_ns - from) / 1e9 / seconds * 100.0;
+    }
+    return share;
 }
 
 std::optional<double> switches_of(std::string_view pidstat_output) {
@@ -1485,8 +1546,9 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
     std::string shown = std::format("Xvfb :{} {}x{} (the harness's own: no window manager, no "
                                     "compositor)",
                                     display_number, settings.screen_width, settings.screen_height);
-    // On a desktop: the monitor named, the pointer parked on it (a window manager opens a new
-    // window on the pointer's monitor), and put back where its person left it when the run ends.
+    // On a desktop: the monitor named; the pointer parked on it only while a window opens (a window manager opens a new
+    // window on the pointer's monitor), for the clicks and while the wheel turns, given back each time (Borrowed), and
+    // put back where its person left it when the run ends.
     std::optional<x11::Display::Pointer> left;
     if (settings.desktop) {
         const auto monitors = display->monitors();
@@ -1510,7 +1572,8 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
         if (auto pointer = display->where_pointer())
             left = *pointer;
         shown = std::format("{} {}x{} at {:.2f} Hz on this machine's X server :{} (its window "
-                            "manager and compositor){}",
+                            "manager and compositor){}; the real pointer borrowed only while a window opens, for "
+                            "the clicks and while the wheel turns, and given back each time",
                             chosen->name, chosen->area.width, chosen->area.height, chosen->hertz,
                             display_number, graphics_here(root));
     }
@@ -1652,6 +1715,7 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                 sample["idle_wakeups_per_s"] = *cold.idle_wakeups,
                 mine.wakeups.push_back(*cold.idle_wakeups);
             if (!cold.idle_waking.empty()) sample["idle_waking"] = cold.idle_waking;
+            if (!cold.idle_cpu_by_thread.empty()) sample["idle_cpu_by_thread"] = cold.idle_cpu_by_thread;
             if (cold.idle_frames)
                 sample["idle_frames_per_s"] = *cold.idle_frames,
                 mine.frames.push_back(*cold.idle_frames);
@@ -1683,6 +1747,20 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
                                      cold.clicks.empty() ? -1.0 : median_of(cold.clicks),
                                      cold.failure.empty() ? "" : "  (" + cold.failure + ")")
                       << std::flush;
+            // At rest, thread by thread: the main thread apart from the others of the same name.
+            if (!cold.idle_waking.empty() || !cold.idle_cpu_by_thread.empty()) {
+                std::string threads;
+                std::set<std::string> names;
+                for (const auto& [name, rate] : cold.idle_waking) names.insert(name);
+                for (const auto& [name, share] : cold.idle_cpu_by_thread) names.insert(name);
+                for (const std::string& name : names) {
+                    const auto woke = cold.idle_waking.find(name);
+                    const auto ran = cold.idle_cpu_by_thread.find(name);
+                    threads += std::format("  {} {:.1f}/s {:.3f} %", name, woke == cold.idle_waking.end() ? 0.0 : woke->second,
+                                           ran == cold.idle_cpu_by_thread.end() ? 0.0 : ran->second);
+                }
+                std::cout << std::format("    at rest:{}\n", threads) << std::flush;
+            }
         }
     }
 

@@ -60,13 +60,28 @@ UTest cases{"rhi.sdl", [] {
         expect(!sdl::backends().empty());
     };
 
-    "a device made on a thread of its own (create_async): taken once, it draws; one not taken is let go"_test = [] {
+    "a device made on a thread of its own (create_async): told on that thread once it is made, ready without waiting, taken once, it draws; one not taken is let go"_test = [] {
         sdl::Options o;
         o.formats = cts::shader_formats();
         o = environment_options(std::move(o));
-        auto making = sdl::create_async(o);
+        std::atomic<int> told{0};
+        std::atomic<bool> told_device{false};
+        const auto caller = std::this_thread::get_id();
+        std::atomic<bool> on_its_thread{false};
+        auto making = sdl::create_async(o, [&](Device* device) {
+            told_device = device != nullptr;
+            on_its_thread = std::this_thread::get_id() != caller;
+            ++told;
+        });
         expect(making.valid());
+        // `ready` waits for nothing: false at first (the driver takes a while), true once it is done.
+        const auto asked = std::chrono::steady_clock::now();
+        while (!making.ready() && std::chrono::steady_clock::now() - asked < std::chrono::seconds(30)) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        expect(making.ready()) << "done within 30 s";
+        expect(eq(told.load(), 1)) << "told once, before ready said so";
         auto made = making.get();
+        expect(told_device.load() == made.has_value()) << "told the device it was made with, or none";
+        if (made) expect(on_its_thread.load()) << "on the making thread";
         if (!made) {
             if (required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", made.error().message);
             return;

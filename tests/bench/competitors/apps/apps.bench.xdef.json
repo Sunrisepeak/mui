@@ -19,6 +19,7 @@
   "sides": [
     {"series": "omui-full", "app": "hello", "build": "omui", "world": "full", "program": "omui-bench-hello"},
     {"series": "omui-app", "app": "hello", "build": "omui", "world": "app", "program": "omui-bench-hello"},
+    {"series": "omui-app-cpu", "app": "hello", "build": "omui", "world": "app", "program": "omui-bench-hello", "args": ["--cpu"]},
     {"series": "omui-lean", "app": "hello", "build": "omui", "world": "lean", "program": "omui-bench-hello"},
     {"series": "omui-minimal", "app": "hello", "build": "omui", "world": "minimal", "program": "omui-bench-hello"},
     {"series": "omui-app", "app": "counter", "build": "omui", "world": "app", "program": "omui-bench-counter", "click": [400, 109], "label": [20, 20, 220, 42]},

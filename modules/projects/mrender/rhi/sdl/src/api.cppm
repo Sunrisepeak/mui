@@ -62,10 +62,11 @@ struct VulkanDriverChoice {
 // backend for those formats; the caller falls back to the CPU renderer).
 [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {});
 
-// A device made on a thread of its own while the caller goes on (a window's host loading its fonts and building its
-// first frame meanwhile; the driver's start, ~0.2 s on a discrete GPU, overlapped rather than waited for). SDL's video
-// is brought up on the calling thread, as SDL asks; the device is made on the other. `get` waits for it and hands it
-// over (once); a window is then claimed with `claim`, on the calling thread. Options::window is not used here.
+// A device made on a thread of its own while the caller goes on (a window's host loading its fonts and drawing its
+// first frames meanwhile; the driver's start, ~0.3 s on a discrete GPU, overlapped rather than waited for). SDL's video
+// is brought up on the calling thread, as SDL asks; the device is made on the other. `ready` says whether it is done
+// (made or failed) without waiting; `get` waits for it and hands it over (once); a window is then claimed with
+// `claim`, on the calling thread. Options::window is not used here.
 class Making {
 public:
     Making() = default;
@@ -73,14 +74,19 @@ public:
     Making& operator=(Making&&) noexcept;
     ~Making();  // not taken: waited for and let go
     [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] bool ready() const;
     [[nodiscard]] Result<std::unique_ptr<Device>> get();
 
 private:
-    friend Making create_async(const Options& options);
+    friend Making create_async(const Options& options, std::function<void(Device*)> made);
     std::future<Result<std::unique_ptr<Device>>> made_;
     bool video_held_ = false;  // released here when no device came (a device releases its own)
 };
-[[nodiscard]] Making create_async(const Options& options = {});
+// `made`, when given, runs on the making thread once the device is made (null: none was), before `ready` says so (at
+// once on the calling thread when no thread was started): the caller's own work on the device while it is still that
+// thread's (a renderer's pipelines), and its notice that the device is there (a sleeping loop woken). A Device is used
+// from one thread at a time: what `made` does with it is done before `get` hands it over.
+[[nodiscard]] Making create_async(const Options& options = {}, std::function<void(Device*)> made = {});
 
 // A window (SDL_GetWindowID) claimed for a device this module made (`create` or `create_async`), its swapchain
 // waiting for the display or not: what Options::window does at creation, later.

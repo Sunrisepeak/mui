@@ -23,13 +23,24 @@ struct GpuDeviceOptions {
     // The renderer chosen by the host (automatic): only the drivers of the machine's GPUs loaded, none that draws on
     // the CPU — the host's CPU renderer is the better one there (mrender.rhi.sdl's hardware_only).
     bool          hardware_only = false;
+    // A device begun on a thread of its own (`begin`): told from that thread once it is made or failed — a host whose
+    // loop sleeps until an event is woken to take it (UI9: the CPU draws the first frames meanwhile).
+    std::function<void()> made;
 };
 
-// A device being made on a thread of its own while the host goes on; `get` waits for it, once.
+class GpuRenderer;
+
+// A device being made on a thread of its own while the host goes on — with the renderer's pipelines, made there too
+// once the device is (the device is that thread's until it is handed over). `ready` says whether it is done without
+// waiting; `get` waits for it, once; `renderer` hands over what was made beside it, once, after `get`.
 class GpuMaking {
 public:
     virtual ~GpuMaking() = default;
+    [[nodiscard]] virtual bool ready() const = 0;
     [[nodiscard]] virtual mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> get() = 0;
+    // None: not made there (no device, a software one an automatic host lets go, or it failed — the host makes it
+    // with GpuService::renderer, which says why).
+    [[nodiscard]] virtual std::unique_ptr<GpuRenderer> renderer() = 0;
 };
 
 // The renderer of a device: a frame's layers drawn into a colour target the host made, the work submitted.
@@ -60,7 +71,7 @@ public:
 // The GPU path's provider: only what the host calls.
 struct GpuService {
     std::string_view name;  // "sdl-gpu"
-    // A device begun on a thread of its own, for no window yet (`claim` gives it one).
+    // A device begun on a thread of its own, for no window yet (`claim` gives it one), its renderer made there too.
     std::unique_ptr<GpuMaking> (*begin)(const GpuDeviceOptions& options) = nullptr;
     // A device made now, for the options' window.
     mlibs::rhi::Result<std::unique_ptr<mlibs::rhi::Device>> (*create)(const GpuDeviceOptions& options) = nullptr;

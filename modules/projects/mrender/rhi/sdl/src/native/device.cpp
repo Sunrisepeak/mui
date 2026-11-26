@@ -464,6 +464,7 @@ public:
     // The window this device draws into: claimed, its swapchain in sync with
     // the display (or as fast as it goes).
     Result<void> claim(SDL_Window* window, bool vsync) {
+        std::optional<mlibs::trace::Span> claiming{std::in_place, "device.claim", "rhi"};  // the surface and the swapchain
         if (!SDL_ClaimWindowForGPUDevice(device_, window)) {
             // A window of the offscreen video driver has no display: when the
             // backend makes no swapchain for it (no headless surface), the
@@ -476,10 +477,12 @@ public:
             return fail(Errc::unsupported, sdl_error("claiming the window for the GPU"));
         }
         window_ = window;
-        const SDL_GPUPresentMode mode =
-            vsync || !SDL_WindowSupportsGPUPresentMode(device_, window, SDL_GPU_PRESENTMODE_IMMEDIATE) ? SDL_GPU_PRESENTMODE_VSYNC
-                                                                                                       : SDL_GPU_PRESENTMODE_IMMEDIATE;
-        if (!SDL_SetGPUSwapchainParameters(device_, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, mode))
+        claiming.reset();
+        // The claim made the swapchain with SDL's own parameters, which are SDR and in step with the display: set again
+        // only when they are not what is asked — setting them makes the swapchain anew (48 ms on an RTX 4080, X11).
+        if (vsync || !SDL_WindowSupportsGPUPresentMode(device_, window, SDL_GPU_PRESENTMODE_IMMEDIATE)) return {};
+        mlibs::trace::Span parameters("device.swapchain", "rhi");
+        if (!SDL_SetGPUSwapchainParameters(device_, window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_IMMEDIATE))
             return fail(Errc::unsupported, sdl_error("setting the window's swapchain"));
         return {};
     }
@@ -950,6 +953,7 @@ Making::~Making() {
     if (made_.valid()) (void)get();  // a device made and not taken goes now (on this thread)
 }
 bool Making::valid() const noexcept { return made_.valid(); }
+bool Making::ready() const { return made_.valid() && made_.wait_for(std::chrono::seconds(0)) == std::future_status::ready; }
 
 Result<std::unique_ptr<Device>> Making::get() {
     if (!made_.valid()) return fail(Errc::invalid, "the device was taken already (Making::get once)");
@@ -959,12 +963,13 @@ Result<std::unique_ptr<Device>> Making::get() {
     return made;
 }
 
-Making create_async(const Options& options) {
+Making create_async(const Options& options, std::function<void(Device*)> made) {
     Making making;
     if (options.formats.empty()) {
         std::promise<Result<std::unique_ptr<Device>>> none;
         none.set_value(fail(Errc::invalid, "no shader format: say which formats the program's shaders carry"));
         making.made_ = none.get_future();
+        if (made) made(nullptr);  // no thread: at once, here
         return making;
     }
     if (!options.vulkan_library.empty()) SDL_SetHint(SDL_HINT_VULKAN_LIBRARY, options.vulkan_library.c_str());
@@ -973,17 +978,23 @@ Making create_async(const Options& options) {
         std::promise<Result<std::unique_ptr<Device>>> none;
         none.set_value(fail(Errc::unsupported, sdl_error("initialising SDL's video subsystem")));
         making.made_ = none.get_future();
+        if (made) made(nullptr);
         return making;
     }
     making.video_held_ = true;
     // SDL's GPU device made off the main thread: the window opened meanwhile on the calling thread must not load a
     // graphics library of its own (the host's windows say their graphics are external), and the device claims no
     // window there — `claim` comes later, on the calling thread. Verified on Vulkan (lavapipe, an RTX 4080).
-    making.made_ = std::async(std::launch::async, [options]() -> Result<std::unique_ptr<Device>> {
-        mlibs::trace::Span span("device.make", "rhi");  // its own thread's: what a start waits for, if it does
-        auto made = make(options, false);
-        if (!made) return std::unexpected(made.error());
-        return std::unique_ptr<Device>(std::move(*made));
+    making.made_ = std::async(std::launch::async, [options, then = std::move(made)]() -> Result<std::unique_ptr<Device>> {
+        std::optional<mlibs::trace::Span> span{std::in_place, "device.make", "rhi"};  // its own thread's: what a start waits for, if it does
+        auto device = make(options, false);
+        span.reset();
+        if (!device) {
+            if (then) then(nullptr);
+            return std::unexpected(device.error());
+        }
+        if (then) then(device->get());
+        return std::unique_ptr<Device>(std::move(*device));
     });
     return making;
 }

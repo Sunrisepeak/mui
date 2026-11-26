@@ -17,6 +17,7 @@ export module omui.devtools.bench;
 
 import std;
 import mcpplibs.cmdline;
+import mcpplibs.os;
 
 export namespace omui::devtools::bench {
 
@@ -50,7 +51,15 @@ struct Memory {
 
 // The context switches a second of a process's threads (`pidstat -w -t`'s averages, voluntary and not).
 [[nodiscard]] std::optional<double> switches_of(std::string_view pidstat_output);
-// The threads that woke in it, by name, each its switches a second.
+// The threads that woke in it, each its switches a second: the process's first thread (TID = TGID) as "main", the
+// others by name (a thread no one named has the program's name: a driver's, a library's).
 [[nodiscard]] std::map<std::string, double> waking_of(std::string_view pidstat_output);
+
+// Each thread's share of a core between two readings of a process's threads (mcpplibs.os's process::threads), in
+// percent over `seconds`: "main" for the first thread (its id the process's), the others by name (its first word, as
+// pidstat gives it), those that ran.
+[[nodiscard]] std::map<std::string, double> cpu_by_thread(const std::vector<mcpplibs::os::process::thread_info>& before,
+                                                          const std::vector<mcpplibs::os::process::thread_info>& after, std::uint64_t pid,
+                                                          double seconds);
 
 }  // namespace omui::devtools::bench

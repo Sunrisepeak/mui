@@ -7,6 +7,7 @@ import std;
 import mcpplibs.mwrap.sdl3;
 import omui.core;
 import mrender.raster;
+import mrender.vector;
 import omui.view;
 import mcpplibs.os;
 import :platform;
@@ -178,6 +179,8 @@ struct Window {
     int                     tw = 0, th = 0;
     bool                    framebuffer = false;  // frames copied into the window's surface (no renderer)
     bool                    shown = false;        // a frame is there (read back from it)
+    SDL_Surface*            surface = nullptr;    // the framebuffer the frame shown last went into
+    std::vector<SDL_Rect>   bands;                // the bands sent last
     std::unordered_map<std::string, SDL_Cursor*> cursors;
     std::string             shape = "default";
     bool                    typing = false;
@@ -263,6 +266,7 @@ bool own_framebuffer() { return sdl_ready && std::ranges::contains(framebuffer_d
 void release_framebuffer(Window& w) {
     if (!w.framebuffer) return;
     (void)SDL_DestroyWindowSurface(w.window);
+    w.surface = nullptr;
     w.framebuffer = false;
     w.shown = false;  // nothing to read back from it any more
 }
@@ -594,6 +598,10 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
             case SDL_EVENT_WINDOW_ENTER_FULLSCREEN:
             case SDL_EVENT_WINDOW_LEAVE_FULLSCREEN: out.state = state(w); break;
             case SDL_EVENT_SYSTEM_THEME_CHANGED: out.appearance = true; break;
+            case SDL_EVENT_WINDOW_EXPOSED:
+                // What the server lost of the window (no compositor keeps it): the frame shown, sent again whole.
+                if (w.framebuffer && w.shown) (void)SDL_UpdateWindowSurface(w.window);
+                break;
             case SDL_EVENT_WINDOW_FOCUS_GAINED: out.events.push_back(FocusEvent{true}); break;
             case SDL_EVENT_WINDOW_FOCUS_LOST: out.events.push_back(FocusEvent{false}); break;
             case SDL_EVENT_WINDOW_MOUSE_LEAVE: {
@@ -747,18 +755,33 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
     return out;
 }
 
-void present(Window& w, const mrender::raster::Surface& frame) {
+void present(Window& w, const mrender::raster::Surface& frame, std::optional<std::span<const mrender::RowSpan>> rows) {
     if (frame.width() <= 0 || frame.height() <= 0) return;
     if (w.framebuffer) {
-        // The frame's bytes (R, G, B, A) as the window's surface keeps its pixels (X11's: B, G, R, x), then shown.
+        // The frame's bytes (R, G, B, A) as the window's surface keeps its pixels (X11's: B, G, R, x), then shown — the
+        // changed bands only, where the surface still holds the frame before (the same one, of the same size).
         SDL_Surface* surface = SDL_GetWindowSurface(w.window);
         if (!surface) return;
         const int width = std::min(surface->w, frame.width()), height = std::min(surface->h, frame.height());
+        const bool whole = !rows || !w.shown || surface != w.surface || surface->w != frame.width() || surface->h != frame.height();
         const bool locked = SDL_MUSTLOCK(surface) && SDL_LockSurface(surface);
-        (void)SDL_ConvertPixels(width, height, SDL_PIXELFORMAT_RGBA32, frame.row(0), frame.width() * 4, surface->format, surface->pixels,
-                                surface->pitch);
+        const auto convert = [&](int top, int bottom) {
+            (void)SDL_ConvertPixels(width, bottom - top, SDL_PIXELFORMAT_RGBA32, frame.row(top), frame.width() * 4, surface->format,
+                                    static_cast<std::uint8_t*>(surface->pixels) + static_cast<std::ptrdiff_t>(top) * surface->pitch, surface->pitch);
+        };
+        w.bands.clear();
+        if (whole) convert(0, height);
+        else
+            for (const mrender::RowSpan band : *rows) {
+                const int top = std::clamp(band.top, 0, height), bottom = std::clamp(band.bottom, top, height);
+                if (bottom <= top) continue;
+                convert(top, bottom);
+                w.bands.push_back(SDL_Rect{0, top, width, bottom - top});
+            }
         if (locked) SDL_UnlockSurface(surface);
-        (void)SDL_UpdateWindowSurface(w.window);
+        if (whole) (void)SDL_UpdateWindowSurface(w.window);
+        else if (!w.bands.empty()) (void)SDL_UpdateWindowSurfaceRects(w.window, w.bands.data(), static_cast<int>(w.bands.size()));
+        w.surface = surface;
         w.shown = true;
         return;
     }

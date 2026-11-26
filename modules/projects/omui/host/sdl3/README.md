@@ -71,11 +71,21 @@ when the machine has one and the CPU renderer when the only device is a
 software rasteriser (lavapipe, WARP), which the CPU renderer outruns; `cpu`
 and `gpu` insist.
 
-**The first frame is not the device's to wait for** (UI9, [design](../../../../../.agents/docs/2026-11-27-gpu-window-first-frame-design.md)).
+**The first frame is not the device's to wait for** (UI9, [design](../../../../../.agents/docs/2026-11-27-gpu-window-first-frame-design.md)),
+**and a window that does not need a device makes none** (UI10, [design](../../../../../.agents/docs/2026-11-27-window-device-on-demand-design.md)).
 An `automatic` window draws its first frames with the CPU into the window's
-own framebuffer; once the first is shown, the device — and the renderer's
-pipelines, on the same thread — is made, off the first frame's path, and its
-thread wakes the loop when it is done. At rest (the loop asleep, no input come;
+own framebuffer. The device — and the renderer's pipelines, on the same
+thread — is begun only once the window's frames need it
+(`DesktopOptions::device_when`, `needed` by default): its first frame, the
+whole window, took the CPU more than the display's interval to draw and show
+(8.3 ms at 120 Hz), or three of its last ten frames in motion more than half of
+it. The window's own framebuffer is sent only the bands of rows that changed,
+so a small change costs the CPU little however large the window. A window the
+CPU draws well enough — a dialog, a form, hello — loads no driver and has none
+of a device's memory or its threads' wakeups; a large one whose full redraw is
+dearer than that begins its device right after its first frame, as UI9 did for
+every window (`first_frame` asks for that). Either way it is made off the first
+frame's path, and its thread wakes the loop when it is done. At rest (the loop asleep, no input come;
 a second after it is ready where something keeps moving) the device claims the
 window — about 75 ms on an RTX 4080 under X11, SDL syncing the window and the
 driver making the swapchain —, the framebuffer is let go, and the CPU's frame on

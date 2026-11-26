@@ -264,6 +264,13 @@ struct Desktop::Impl final : WindowHost {
     bool                                            taking_over = false;
     std::optional<std::chrono::steady_clock::time_point> ready_at;          // when the device was first seen ready
     bool                                            cpu_on_screen = false;  // taken over: the CPU's frame still shown
+    // UI10: what the CPU's frames cost — the last one drawn and shown (render and present), and whether each of the
+    // last ten in motion took more than half the display's interval — and whether the window needs its device.
+    double                                          cpu_frame_ms = 0;
+    std::span<const mrender::RowSpan>               changed_rows;  // the last update's bands (the tracker's, until its next)
+    std::array<bool, 10>                            over_budget{};
+    std::size_t                                     motion_frames = 0;
+    bool                                            device_needed = false;
     std::unique_ptr<GpuRenderer>                    gpu;
     mlibs::rhi::Texture                             gpu_frame;
     std::size_t                                     devices_lost = 0;  // how many times the device was lost and made again
@@ -540,6 +547,33 @@ struct Desktop::Impl final : WindowHost {
         return out;
     }
 
+    // UI10: whether the frame just shown by the CPU says the window needs its device. A frame in motion has half the
+    // display's interval (4.2 ms at 120 Hz) for the CPU to draw and show it: D-187 holds the whole frame to the
+    // interval, the rest is the runtime's own work. Three of the last ten frames in motion above that: the device is
+    // begun. The first frame is the whole window, with what is done once (glyphs rasterised, the framebuffer made):
+    // above a whole interval, every full redraw of the window (a scroll, a resize, a page) would be above its half,
+    // so the device is begun at once — a large window takes UI9's path, its takeover at its first rest rather than
+    // in its first scroll. A window at rest, or one whose changes are small, never needs it.
+    void weigh_cpu_frame(bool in_motion, double display_hz) {
+        if (device_needed) return;
+        const double interval = 1000.0 / (display_hz > 0 ? display_hz : 60.0), budget = 0.5 * interval;
+        if (frames_shown == 1) {
+            if (cpu_frame_ms > interval)
+                need_device(std::format("its first frame, the whole window, took the CPU {:.1f} ms (an interval is {:.1f})", cpu_frame_ms, interval));
+            return;
+        }
+        if (!in_motion) return;
+        over_budget[motion_frames++ % over_budget.size()] = cpu_frame_ms > budget;
+        if (std::ranges::count(over_budget, true) >= 3)
+            need_device(std::format("three of its last ten frames in motion took the CPU more than {:.1f} ms (the last {:.1f})", budget, cpu_frame_ms));
+    }
+
+    void need_device(std::string why) {
+        device_needed = true;
+        mlibs::trace::mark("device.needed", "host");
+        debug("desktop: the window needs its GPU device: {}", why);
+    }
+
     void show() {
         const mrender::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
@@ -551,12 +585,14 @@ struct Desktop::Impl final : WindowHost {
             return;
         }
         if (h == shown && frame.width() == w && frame.height() == hgt) return;
+        const auto drawing = std::chrono::steady_clock::now();
         if (frame.width() != w || frame.height() != hgt) frame = mrender::raster::Surface(w, hgt);
         {
             mlibs::trace::Span span("render", "host");
             const mrender::Resources resources{&runtime->images(), glyphs.get()};
             // Only the rows the new list can change: the same bytes as a full render.
             const auto rows = damage.update(list, w, hgt, scale, resources);
+            changed_rows = rows;
             const mrender::FrameLayer ui_layer{.name = "ui", .list = &list, .resources = resources, .scale = scale};
             mrender::FrameOptions how;
             how.background = options.background;
@@ -567,10 +603,15 @@ struct Desktop::Impl final : WindowHost {
             how.external = [this](std::uint64_t number) { return runtime->picture(number); };  // a world in a viewport
             if (!rows.empty()) (void)composed.render({&ui_layer, 1}, frame, how);
         }
-        mlibs::trace::Span span("present", "host");
-        platform::present(*window, frame);
+        {
+            mlibs::trace::Span span("present", "host");
+            // The bands that changed, which is all the window's own framebuffer is sent (UI10: a small change costs
+            // the CPU little, however large the window); every row the first time and after a resize.
+            platform::present(*window, frame, damage.full() ? std::nullopt : std::optional(changed_rows));
+        }
         shown = h;
         ++frames_shown;
+        cpu_frame_ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - drawing).count();
     }
 
     // A picture a component shows from elsewhere (Services::add_picture: a world in a viewport), as a texture of
@@ -917,7 +958,7 @@ accessibility::Mirror* Desktop::accessibility_mirror() noexcept { return impl_->
 accessibility::Adapter* Desktop::accessibility_adapter() noexcept { return impl_->access.get(); }
 std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
 bool Desktop::gpu() const noexcept { return impl_->gpu != nullptr; }
-bool Desktop::gpu_pending() const noexcept { return impl_->taking_over; }
+bool Desktop::gpu_pending() const noexcept { return impl_->taking_over && impl_->making != nullptr; }
 mrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &impl_->effects->library() : nullptr; }
 float Desktop::scale() const noexcept { return impl_->runtime->scale(); }
 NodeId Desktop::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
@@ -1069,9 +1110,16 @@ bool Desktop::step(bool wait) {
     platform::text_input(*d.window, d.runtime->text_input_rect());
     platform::cursor(*d.window, d.runtime->cursor());
     d.idle = !out.animating && out.demand.idle() && !d.closed_at;
-    // The first frame shown by the CPU: the device begun now, off its path (UI9).
-    if (d.taking_over && !d.making && d.frames_shown > 0)
-        if (const GpuService* service = mlibs::compose::process().get(gpu_slot)) d.making = service->begin(d.device_options);
+    // The device begun off the first frame's path (UI9): once the window needs it (UI10, `needed`: what the CPU's
+    // frames cost says so), or once the first frame is shown (`first_frame`).
+    if (d.taking_over && !d.making && d.frames_shown > 0) {
+        if (d.frames_shown != before && !d.gpu) d.weigh_cpu_frame(!was_idle, display);
+        if (d.device_needed || d.options.device_when == DesktopOptions::DeviceWhen::first_frame)
+            if (const GpuService* service = mlibs::compose::process().get(gpu_slot)) {
+                mlibs::trace::Span begun("device.begin", "host");
+                d.making = service->begin(d.device_options);
+            }
+    }
     return !d.quitting;
 }
 

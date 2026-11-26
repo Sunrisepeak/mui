@@ -5,6 +5,7 @@ module omui.host.sdl3:platform;
 import std;
 import omui.core;
 import mrender.raster;
+import mrender.vector;
 import omui.view;
 
 namespace omui::platform {
@@ -101,7 +102,9 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
 // Whether a present waits for the display's refresh, as a renderer's and a GPU's do when vsync is asked: a window's
 // own framebuffer shows a frame at once, and the loop holds itself to the rate.
 [[nodiscard]] bool held_to_refresh(Window& w);
-void present(Window& w, const mrender::raster::Surface& frame);
+// The frame shown. `rows`: only those bands changed since the frame shown last (a window's own framebuffer copies
+// and sends no more: what the CPU's frame costs is its change, not its size); none: the whole frame.
+void present(Window& w, const mrender::raster::Surface& frame, std::optional<std::span<const mrender::RowSpan>> rows = std::nullopt);
 void text_input(Window& w, std::optional<Rect> caret);
 void cursor(Window& w, std::string_view shape);
 [[nodiscard]] std::string clipboard();

@@ -67,6 +67,13 @@ struct DesktopOptions {
     // else the CPU; or either, insisted on (gpu: no device is an error).
     enum class Renderer : std::uint8_t { automatic, cpu, gpu };
     Renderer                renderer = Renderer::automatic;
+    // When an `automatic` window whose first frames the CPU draws (UI9) begins its device (UI10): once its frames
+    // need one (`needed`, the default) — its first frame, the whole window, took the CPU more than the display's
+    // interval to draw and show, or three of its last ten frames in motion more than half of it —, so that a window
+    // the CPU draws well enough (a dialog, a form, a counter) never loads the GPU's driver; or as soon as its first
+    // frame is shown (`first_frame`, UI9's).
+    enum class DeviceWhen : std::uint8_t { needed, first_frame };
+    DeviceWhen              device_when = DeviceWhen::needed;
     std::string             vulkan_library;   // the Vulkan loader the GPU device uses ("" the system's)
     // A directory of effects (mrender.effect): `*.effect.xdef.json`, or
     // `*.effect.xdef.ts` read through `effect_data`; loaded with the window,
@@ -135,8 +142,8 @@ public:
     [[nodiscard]] std::size_t frames_shown() const noexcept;
     // Whether the GPU renderer draws the frames (after open()).
     [[nodiscard]] bool gpu() const noexcept;
-    // Whether the CPU draws while a device is made that takes over when it is ready (UI9): the loop takes it between
-    // frames, woken by the device's thread.
+    // Whether a device is being made — or made, not yet taken — for a window whose frames the CPU draws meanwhile
+    // (UI9, UI10): the loop takes it over between frames, woken by the device's thread.
     [[nodiscard]] bool gpu_pending() const noexcept;
     // The effect library of `effects` (null: none asked for).
     [[nodiscard]] mrender::effect::Library* effects() noexcept;

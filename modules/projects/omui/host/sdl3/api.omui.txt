@@ -30,6 +30,8 @@ namespace omui {
     bool parallel_raster = true;
     enum class Renderer : std::uint8_t { automatic, cpu, gpu };
     Renderer renderer = Renderer::automatic;
+    enum class DeviceWhen : std::uint8_t { needed, first_frame };
+    DeviceWhen device_when = DeviceWhen::needed;
     std::string vulkan_library;
     std::filesystem::path effects;
     std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;

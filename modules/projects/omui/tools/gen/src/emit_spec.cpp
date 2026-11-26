@@ -104,6 +104,38 @@ export namespace omui::spec {
                 [](const Origin& o) { return std::format("{}, {}", q(o.name), q(o.doc)); },
                 "Where a node's text came from (origins.json; S-3).");
 
+    // node properties
+    out += "struct NodePropertyInfo {\n    std::string_view                  name;\n    PropType                          type;\n"
+           "    std::span<const Role>             roles;   // none: any role\n    std::span<const std::string_view> values;  // an enum's\n"
+           "    std::string_view                  doc;\n};\n\n";
+    for (const NodeProperty& p : reg.node_properties) {
+        if (!p.roles.empty()) {
+            out += std::format("inline constexpr Role node_property_roles_{}[] = {{", p.name);
+            for (std::size_t i = 0; i < p.roles.size(); ++i) out += std::format("{}Role::{}", i ? ", " : "", ident(p.roles[i]));
+            out += "};\n";
+        }
+        if (!p.values.empty()) {
+            out += std::format("inline constexpr std::string_view node_property_values_{}[] = {{", p.name);
+            for (std::size_t i = 0; i < p.values.size(); ++i) out += std::format("{}{}", i ? ", " : "", q(p.values[i]));
+            out += "};\n";
+        }
+    }
+    out += "\n";
+    enumeration(out, "NodeProperty", "parse_node_property", reg.node_properties, "NodePropertyInfo", "node_properties",
+                [](const NodeProperty& p) {
+                    const std::string_view type = p.type == "bool" ? "boolean" : p.type == "enum" ? "choice" : std::string_view(p.type);
+                    return std::format("{}, PropType::{}, {}, {}, {}", q(p.name), type, p.roles.empty() ? std::string("{}") : "node_property_roles_" + p.name,
+                                       p.values.empty() ? std::string("{}") : "node_property_values_" + p.name, q(p.doc));
+                },
+                "What a node of a document is beyond its text (properties.json; S-16).");
+
+    // marks
+    out += "struct MarkInfo {\n    std::string_view name;\n    std::string_view aria;\n    bool             node;  // the range is a child node's place\n"
+           "    std::string_view doc;\n};\n\n";
+    enumeration(out, "MarkKind", "parse_mark", reg.marks, "MarkInfo", "marks",
+                [](const MarkKind& m) { return std::format("{}, {}, {}, {}", q(m.name), q(m.aria), m.node ? "true" : "false", q(m.doc)); },
+                "What a range of a node's text is (marks.json; S-17).");
+
     // actions
     std::string decls;
     std::vector<std::string> arg_names;

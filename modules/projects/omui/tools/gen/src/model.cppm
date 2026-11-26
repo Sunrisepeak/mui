@@ -61,6 +61,19 @@ struct Effect : Named {
 
 struct Origin : Named {};
 
+// What a node of a document is beyond its text (properties.json; S-16).
+struct NodeProperty : Named {
+    std::string              type;    // bool, i64, string, enum
+    std::vector<std::string> values;  // an enum's
+    std::vector<std::string> roles;   // none: any role
+};
+
+// What a range of a node's text is (marks.json; S-17).
+struct MarkKind : Named {
+    std::string aria;          // the ARIA role of the same meaning; empty: none
+    bool        node = false;  // the range is a child node's place (a link, an image)
+};
+
 struct Action : Named {
     std::string      effect;
     std::vector<Arg> args;
@@ -240,6 +253,8 @@ struct Registry {
     std::vector<State>         states;
     std::vector<Effect>        effects;
     std::vector<Origin>        origins;
+    std::vector<NodeProperty>  node_properties;
+    std::vector<MarkKind>      marks;
     std::vector<Action>        actions;
     std::vector<Extension>     extensions;
     std::vector<Profile>       profiles;

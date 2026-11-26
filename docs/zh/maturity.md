@@ -26,7 +26,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | oweb | 0 | 1 | 0 |
 | 作品（showcase） | 0 | 10 | 5 |
 | 官网 | 0 | 1 | 0 |
-| 仓库测试 | 6 | 0 | 0 |
+| 仓库测试 | 6 | 2 | 0 |
 | 仓库工具 | 1 | 0 | 0 |
 
 ### omui
@@ -259,6 +259,8 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `omui.bench` | [tests/bench](../../tests/bench) | 稳定 |
 | `omui.bench.competitors` | [tests/bench/competitors](../../tests/bench/competitors) | 稳定 |
 | `omui.bench.competitors.apps` | [tests/bench/competitors/apps](../../tests/bench/competitors/apps) | 稳定 |
+| `omui.size.terminal` | [tests/size/terminal](../../tests/size/terminal) | 预览 |
+| `omui.size.terminal-agent` | [tests/size/terminal-agent](../../tests/size/terminal-agent) | 预览 |
 | `omui.size.yard` | [tests/size/yard](../../tests/size/yard) | 稳定 |
 | `omui.features` | [tests/features](../../tests/features) | 稳定 |
 | `acme.plugins` | [tests/plugins](../../tests/plugins) | 稳定 |

@@ -322,6 +322,13 @@ namespace omui {
 == omui.core:task
 namespace omui {
   enum class Priority : std::uint8_t { frame, background };
+  struct FanOutStats {
+    std::uint64_t runs = 0;
+    std::uint64_t alone = 0;
+    std::uint64_t wakes = 0;
+    std::uint64_t chunks = 0;
+    std::uint64_t helpers = 0;
+  };
   class Tasks {
     explicit Tasks(unsigned threads = 0);
     ~Tasks();
@@ -329,11 +336,14 @@ namespace omui {
     Tasks& operator=(const Tasks&) = delete;
     [[nodiscard]] static Tasks& shared();
     [[nodiscard]] unsigned threads() const noexcept;
-    void parallel_for(std::size_t count, std::size_t grain, FunctionRef<void(std::size_t, std::size_t)> body);
+    [[nodiscard]] unsigned frame_width() const noexcept;
+    [[nodiscard]] FanOutStats frame_stats() const noexcept;
+    void parallel_for(std::size_t count, std::size_t grain, FunctionRef<void(std::size_t, std::size_t)> body, Priority priority = Priority::background);
     std::future<void> spawn(std::function<void(std::stop_token)> fn, Priority priority = Priority::background);
     void cancel_all() noexcept;
     void wait_idle();
   };
+  inline constexpr unsigned frame_width_limit = 16;
   class UiQueue {
     UiQueue();
     ~UiQueue();

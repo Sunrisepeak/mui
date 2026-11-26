@@ -32,11 +32,13 @@ WebAssembly, with the method and the numbers.
 | `ui/frame/idle` | a frame with nothing to do (and its allocations: none) |
 | `ui/layout/resize` | the window's width changes: layout alone |
 | `ui/raster/full-1080p` | the whole display list through the CPU renderer, on one thread |
-| `ui/raster/full-1080p-parallel` | the same in bands of 64 rows on the task pool — the same bytes |
+| `ui/raster/full-1080p-parallel` | the same in bands cut by its work on the pool's frame crew — the same bytes |
+| `ui/raster/full-1080p-workers-64` | the same, a task a 64-row band on the pool's own workers (how bands were drawn before red 160) |
 | `ui/mount` | building, mounting and laying out the dashboard |
 | `core/engine-start`, `core/first-frame/counter`, `core/start-to-first-pixels/counter` | D-247: the runtime made; a counter's first frame as a list; from nothing to its first pixels |
 | `core/tap-to-commit/counter`, `core/tap-to-pixels/counter` | one tap on the counter, to the frame's list and to its pixels |
 | `core/list-scroll/frame`, `-gpu` | 10,000 rows scrolled 60 px every frame at 1896×1030 |
+| `core/list-scroll/raster`, `-workers-64`, `-serial` | red 160: the list scrolled a notch (40 px) a frame, its changed rows rasterised by the frame crew in bands by their work, by a task a 64-row band on the pool's workers (before), on one thread; each frame's processor on every thread to the end of a 3 ms rest (`cpu_ms`), the helpers it woke (`wakes`), its bands and estimated work |
 | `core/live-dashboard/frame`, `-gpu` | 22 live sparklines, a 40-level book and a 30-row tape changing every frame at 1896×1030 |
 | `core/rows/*` | js-framework-benchmark's eight row operations on a table of 1000 rows, each to the frame's pixels |
 | `agent/snapshot` | the semantic snapshot an agent receives, as JSON |

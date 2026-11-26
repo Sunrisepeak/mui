@@ -278,7 +278,15 @@ struct CpuRenderer::Impl {
     std::mutex                            lock;
     std::vector<std::uint32_t>            ids;     // object ids, shared by the canvases
     bool                                  ids_on = false;
-    std::vector<RowSpan>                  tasks;
+    std::vector<RowSpan>                  tasks;       // the rows drawn, in order: each within one of the rows asked for
+    std::vector<std::size_t>              task_ends;   // band i draws tasks [task_ends[i − 1], task_ends[i])
+    std::vector<std::int64_t>             work_rows;   // the work estimate's: a change of each row's work at that row
+    std::vector<std::int64_t>             work_before; // the work of the rows above each row (one more than the rows)
+    std::vector<Affine>                   work_transforms;
+    // share_out's too: each command's device bounds, top and bottom (NaN: none), so that a band culls a command
+    // without measuring it again — a glyph run's bounds are its glyphs' — when `command_rows_ready`.
+    std::vector<std::array<float, 2>>     command_rows;
+    bool                                  command_rows_ready = false;
     std::vector<Affine>                   transforms;  // the glyph pass's
     std::vector<RenderReport>             reports;     // one per task
     Resolved                              resolved;
@@ -342,14 +350,21 @@ RenderReport CpuRenderer::render(const DisplayList& list, mrender::raster::Surfa
     const std::size_t pixels = static_cast<std::size_t>(target.width()) * static_cast<std::size_t>(target.height());
     if (options.object_ids && d.ids.size() != pixels) d.ids.assign(pixels, 0);
 
-    // The bands to draw, cut into tasks of at most rows_per_task rows.
+    // The rows to draw (in `tasks`), and how they are shared out (`task_ends`): with rows_per_task, a band of at most
+    // that many rows each; otherwise cut where the frame's estimated work divides evenly (estimate_work).
     d.tasks.clear();
+    d.task_ends.clear();
+    d.command_rows_ready = false;
+    const bool by_rows = options.parallel && options.rows_per_task > 0;
     auto add = [&](RowSpan band) {
         band.top = std::clamp(band.top, 0, target.height());
         band.bottom = std::clamp(band.bottom, band.top, target.height());
         if (band.bottom <= band.top) return;
-        const std::int32_t step = options.parallel ? std::max(8, options.rows_per_task) : band.bottom - band.top;
-        for (std::int32_t y = band.top; y < band.bottom; y += step) d.tasks.push_back({y, std::min(band.bottom, y + step)});
+        const std::int32_t step = by_rows ? std::max(8, options.rows_per_task) : band.bottom - band.top;
+        for (std::int32_t y = band.top; y < band.bottom; y += step) {
+            d.tasks.push_back({y, std::min(band.bottom, y + step)});
+            if (by_rows) d.task_ends.push_back(d.tasks.size());
+        }
     };
     prepare_effects(list, target, res, options, report);
     const bool whole = options.rows.empty();
@@ -388,8 +403,10 @@ RenderReport CpuRenderer::render(const DisplayList& list, mrender::raster::Surfa
     if (whole) add({0, target.height()});
     else
         for (RowSpan band : options.rows) add(band);
+    if (options.parallel && !by_rows && !d.tasks.empty()) share_out(list, target, options, report);
+    report.bands = std::max<std::size_t>(1, d.task_ends.size());
 
-    if (!options.parallel || d.tasks.size() < 2) {
+    if (!options.parallel || d.task_ends.size() < 2) {
         Scratch& sc = d.take(target);
         if (whole && !options.parallel) draw(sc, list, target, res, options, {0, target.height()}, true, report);
         else
@@ -411,10 +428,10 @@ RenderReport CpuRenderer::render(const DisplayList& list, mrender::raster::Surfa
         d.resolved.resolving_ = false;
         shared.glyphs = &d.resolved;
     }
-    d.reports.assign(d.tasks.size(), RenderReport{});
-    options.parallel->run(d.tasks.size(), [&](std::size_t i) {
+    d.reports.assign(d.task_ends.size(), RenderReport{});
+    options.parallel->run(d.task_ends.size(), [&](std::size_t i) {
         Scratch& sc = d.take(target);
-        draw(sc, list, target, shared, options, d.tasks[i], false, d.reports[i]);
+        for (std::size_t at = i ? d.task_ends[i - 1] : 0; at < d.task_ends[i]; ++at) draw(sc, list, target, shared, options, d.tasks[at], false, d.reports[i]);
         d.give(sc);
     });
     for (const RenderReport& r : d.reports) {
@@ -459,6 +476,93 @@ float folded_opacity(std::span<const Command> all, std::size_t push_at, std::siz
 }
 
 }  // namespace
+
+// The frame's work over the rows to draw, estimated before any is drawn (red 160; D-185 ①: the damage and the list are
+// known before the fan-out), and the rows shared out into bands of about `band_work` each. A unit is a pixel written
+// once: each row's clear (its width), each command's device bounds over the target (its area), `command_work` for the
+// command itself; an effect layer prepared offscreen is the one image it draws here. Rows are cut in steps of eight
+// where the work done so far reaches the next band's share; a band never crosses rows the frame does not draw (it may
+// hold several runs of them). Fewer than two bands' work: one band, drawn by the caller alone.
+void CpuRenderer::share_out(const DisplayList& list, const mrender::raster::Surface& target, const CpuOptions& options, RenderReport& report) {
+    Impl& d = *impl_;
+    const int width = target.width(), height = target.height();
+    d.work_rows.assign(static_cast<std::size_t>(height) + 1, 0);
+    const auto over = [&](const Rect& bounds, std::int64_t extra) {
+        const auto x0 = std::clamp(static_cast<int>(std::floor(bounds.x)), 0, width), x1 = std::clamp(static_cast<int>(std::ceil(bounds.right())), 0, width);
+        const auto y0 = std::clamp(static_cast<int>(std::floor(bounds.y)), 0, height), y1 = std::clamp(static_cast<int>(std::ceil(bounds.bottom())), 0, height);
+        if (x1 <= x0 || y1 <= y0) return;
+        d.work_rows[static_cast<std::size_t>(y0)] += x1 - x0 + extra;
+        d.work_rows[static_cast<std::size_t>(y0) + 1] -= extra;
+        d.work_rows[static_cast<std::size_t>(y1)] -= x1 - x0;
+    };
+    d.work_transforms.assign(1, options.transform.value_or(Affine::scale(options.scale, options.scale)));
+    const auto& all = list.commands();
+    constexpr float none = std::numeric_limits<float>::quiet_NaN();
+    d.command_rows.assign(all.size(), {none, none});
+    const auto extra = static_cast<std::int64_t>(command_work);
+    std::size_t next_effect = 0;
+    for (std::size_t index = 0; index < all.size(); ++index) {
+        const Command& command = all[index];
+        while (next_effect < d.effect_count && d.effect_layers[next_effect].pop < index) ++next_effect;
+        if (next_effect < d.effect_count && d.effect_layers[next_effect].push == index && d.effect_layers[next_effect].fold < 0) {
+            const auto& layer = d.effect_layers[next_effect];
+            if (layer.device.width > 0) over(layer.device, extra);
+            index = layer.pop;
+            continue;
+        }
+        if (const auto* push = std::get_if<PushTransform>(&command)) {
+            d.work_transforms.push_back(d.work_transforms.back() * push->transform);
+            continue;
+        }
+        if (std::holds_alternative<PopTransform>(command)) {
+            if (d.work_transforms.size() > 1) d.work_transforms.pop_back();
+            continue;
+        }
+        if (const auto bounds = device_bounds(command, d.work_transforms.back(), nullptr)) {
+            over(*bounds, extra);
+            d.command_rows[index] = {bounds->y, bounds->bottom()};
+        }
+    }
+    d.command_rows_ready = true;
+    const std::int64_t clear = options.clear ? width : 0;
+    d.work_before.assign(static_cast<std::size_t>(height) + 1, 0);
+    std::int64_t row = 0;
+    for (std::size_t y = 0; y < static_cast<std::size_t>(height); ++y) {
+        row += d.work_rows[y];
+        d.work_before[y + 1] = d.work_before[y] + row + clear;
+    }
+    std::int64_t total = 0;
+    for (RowSpan rows : d.tasks) total += d.work_before[static_cast<std::size_t>(rows.bottom)] - d.work_before[static_cast<std::size_t>(rows.top)];
+    report.work = static_cast<std::uint64_t>(std::max<std::int64_t>(total, 0));
+    const std::uint64_t share = std::max<std::uint64_t>(options.band_work, 1);
+    const std::size_t bands = static_cast<std::size_t>(std::min<std::uint64_t>((report.work + share - 1) / share, 1u << 16));
+    if (bands < 2) {
+        d.task_ends.push_back(d.tasks.size());
+        return;
+    }
+    // The runs of rows to draw, cut again where a band's share is reached.
+    const std::size_t runs = d.tasks.size();
+    std::size_t band = 0;
+    std::int64_t done = 0;
+    for (std::size_t at = 0; at < runs; ++at) {
+        const RowSpan rows = d.tasks[at];
+        std::int32_t from = rows.top;
+        for (std::int32_t y = rows.top; y < rows.bottom;) {
+            const std::int32_t next = std::min(rows.bottom, y + 8);
+            done += d.work_before[static_cast<std::size_t>(next)] - d.work_before[static_cast<std::size_t>(y)];
+            y = next;
+            if (band + 1 < bands && done * static_cast<std::int64_t>(bands) >= static_cast<std::int64_t>(band + 1) * total) {
+                d.tasks.push_back({from, y});
+                d.task_ends.push_back(d.tasks.size() - runs);
+                ++band;
+                from = y;
+            }
+        }
+        if (from < rows.bottom) d.tasks.push_back({from, rows.bottom});
+    }
+    if (d.task_ends.empty() || d.task_ends.back() != d.tasks.size() - runs) d.task_ends.push_back(d.tasks.size() - runs);
+    d.tasks.erase(d.tasks.begin(), d.tasks.begin() + static_cast<std::ptrdiff_t>(runs));
+}
 
 void CpuRenderer::prepare_effects(const DisplayList& list, const mrender::raster::Surface& target, const Resources& res, const CpuOptions& options,
                                   RenderReport& report) {
@@ -655,11 +759,20 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, mrender::raster::Su
                 r.kinds[kind].ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count();
             }
         } measure{options, report, command.index(), measured_from};
-        if (!whole)
-            if (auto b = device_bounds(command, m(), nullptr); b && (b->bottom() <= static_cast<float>(band.top) || b->y >= static_cast<float>(band.bottom))) {
+        if (!whole) {
+            // Measured once for every band when the frame was shared out (the same bounds, under the same transform).
+            const auto [top, bottom] = impl_->command_rows_ready ? impl_->command_rows[index] : std::array<float, 2>{0, 0};
+            const bool outside = impl_->command_rows_ready
+                                     ? !std::isnan(top) && (bottom <= static_cast<float>(band.top) || top >= static_cast<float>(band.bottom))
+                                     : [&] {
+                                           const auto b = device_bounds(command, m(), nullptr);
+                                           return b && (b->bottom() <= static_cast<float>(band.top) || b->y >= static_cast<float>(band.bottom));
+                                       }();
+            if (outside) {
                 ++report.skipped;  // cannot reach these rows
                 continue;
             }
+        }
         std::visit(
             [&](const auto& c) {
                 using T = std::decay_t<decltype(c)>;

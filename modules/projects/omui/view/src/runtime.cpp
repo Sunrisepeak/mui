@@ -19,11 +19,16 @@ namespace omui {
 
 namespace {
 
+// A frame's bands are frame work: the pool's frame crew runs them (red 160), at most frame_width() at once, and one
+// band is drawn by the caller alone.
 struct TasksParallel final : mrender::Parallel {
     void run(std::size_t count, FunctionRef<void(std::size_t)> body) override {
-        Tasks::shared().parallel_for(count, 1, [&](std::size_t begin, std::size_t end) {
-            for (std::size_t i = begin; i < end; ++i) body(i);
-        });
+        Tasks::shared().parallel_for(
+            count, 1,
+            [&](std::size_t begin, std::size_t end) {
+                for (std::size_t i = begin; i < end; ++i) body(i);
+            },
+            Priority::frame);
     }
 };
 

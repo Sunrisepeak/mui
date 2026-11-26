@@ -58,8 +58,9 @@ struct FrameOptions {
     bool  clear = true;                       // false: over what the target holds
     // Only these rows (sorted, not overlapping), over what the target holds; empty: every row.
     std::span<const RowSpan> rows;
-    Parallel*    parallel = nullptr;  // bands drawn at the same time, the bytes a serial render's
-    std::int32_t rows_per_task = 64;
+    Parallel*     parallel = nullptr;  // bands drawn at the same time, the bytes a serial render's
+    std::int32_t  rows_per_task = 0;   // 0: bands cut by the frame's work (CpuOptions::band_work)
+    std::uint64_t band_work = default_band_work;
     bool         measure = false;
     // On the CPU: the pictures the layers' external_texture() commands name, as pixels (`CpuOptions::external`).
     // A device's frame is given textures instead (`GpuFrame`'s options).

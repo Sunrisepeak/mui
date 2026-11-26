@@ -14,6 +14,7 @@ namespace omui {
 
 struct Tasks::Impl {
     std::stop_source stop;
+    FanOutStats      stats;  // every frame fan-out runs on the page's thread
 };
 
 Tasks::Tasks(unsigned) : impl_(std::make_unique<Impl>()) {}
@@ -27,10 +28,19 @@ Tasks& Tasks::shared() {
 
 unsigned Tasks::threads() const noexcept { return 1; }
 
-void Tasks::parallel_for(std::size_t count, std::size_t grain, FunctionRef<void(std::size_t, std::size_t)> body) {
+unsigned Tasks::frame_width() const noexcept { return 1; }
+
+FanOutStats Tasks::frame_stats() const noexcept { return impl_->stats; }
+
+void Tasks::parallel_for(std::size_t count, std::size_t grain, FunctionRef<void(std::size_t, std::size_t)> body, Priority priority) {
     if (count == 0) return;
     if (grain == 0) grain = 1;
     const std::size_t chunks = (count + grain - 1) / grain;
+    if (priority == Priority::frame) {
+        ++impl_->stats.runs;
+        ++impl_->stats.alone;
+        impl_->stats.chunks += chunks;
+    }
     for (std::size_t c = 0; c < chunks; ++c) body(c * grain, std::min(count, (c + 1) * grain));
 }
 

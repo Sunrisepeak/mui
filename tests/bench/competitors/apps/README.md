@@ -165,23 +165,32 @@ What the real display shows that the software path did not:
 
 ## The list scrolled by its agent endpoint (red 155, 160)
 
-2026-11-27 06:37–07:12, `bench apps --screen HDMI-0 --scroll-by agent --dry-run`: omui's list (1896 × 1030) on this machine's display (RTX 4080, HDMI-0 at 120 Hz), the window placed by the program, the list turned a 40 px notch every 1/120 s by its own endpoint; the real pointer was not touched. Other sessions built throughout (1-minute load 2.0–14.0). One run of 5 rounds alternated six sides of the same program: as it was built before (2d25af71) and as it is now, on the GPU and with `--cpu`, and three ways of presenting on the GPU (variables a build of the experiment read, since taken out). Medians of the rounds; the intervals of every round together; a refresh missed is an interval of 1.5 refreshes or more.
+`bench apps --screen HDMI-0 --scroll-by agent --dry-run`, 2026-11-27: omui's list (1896 × 1030) on this machine's display (RTX 4080, HDMI-0 at 120 Hz), the window placed by the program, the list turned a 40 px notch every 1/120 s by its own endpoint; the real pointer was not touched. Each run alternated, round by round, sides of the same program as built before (2d25af71) and as built since; other sessions built throughout. Medians of the rounds; the intervals of every round together; a refresh missed is an interval of 1.5 refreshes or more.
+
+On the GPU, 06:55–07:05, 5 rounds, 1-minute load 2.0–13.9, with three ways of presenting tried (variables a build of the experiment read, since taken out):
+
+| side | frames/s | CPU ms a frame (main, other threads) | interval p1 / p50 / p95 / p99 / max ms | refreshes missed | notch → frame ms (p50, p95) |
+|---|---:|---|---|---:|---|
+| before | 119.8 | 2.18 (2.09, 0.05) | 7.30 / 8.33 / 9.03 / 9.42 / 10.86 | 0 of 2,988 | 8.22, 9.01 |
+| waited for in the present (as before) | 119.8 | 2.01 (1.94, 0.05) | 6.85 / 8.33 / 9.62 / 9.81 / 9.96 | 0 of 2,989 | 8.21, 9.47 |
+| the swapchain waited for before the frame's input | 119.8 | 2.38 (2.30, 0.05) | 6.99 / 8.33 / 9.48 / 9.82 / 11.09 | 0 of 2,990 | 8.17, 8.64 |
+| the same, one frame in flight | 119.6 | 3.13 (3.04, 0.07) | 7.22 / 8.34 / 9.20 / 9.43 / 16.63 | 1 of 2,987 | 8.20, 9.98 |
+
+Separate runs of 3 rounds each the same morning: mailbox presenting (the loop holding itself to the refresh) missed refreshes in every round, max 16.7–25.0 ms (with one frame in flight 24.9–33.7); immediate presenting brought a notch to its frame in 3.6–3.9 ms (8.1–8.2 waiting for the refresh) at p99 11.0–11.7 ms and max 15.4–27.9.
+
+Before and after red 160, 07:57–08:03, 5 rounds, 1-minute load 1.5–5.8:
 
 | side | frames/s | CPU ms a frame (main, other threads) | other threads' switches a frame | interval p1 / p50 / p95 / p99 / max ms | refreshes missed | notch → frame ms (p50, p95) |
 |---|---:|---|---:|---|---:|---|
-| GPU, before | 119.8 | 2.18 (2.09, 0.05) | 2.8 | 7.30 / 8.33 / 9.03 / 9.42 / 10.86 | 0 of 2,988 | 8.22, 9.01 |
-| GPU, waited for in the present (as before) | 119.8 | 2.01 (1.94, 0.05) | 2.7 | 6.85 / 8.33 / 9.62 / 9.81 / 9.96 | 0 of 2,989 | 8.21, 9.47 |
-| GPU, the swapchain waited for before the frame's input | 119.8 | 2.38 (2.30, 0.05) | 2.7 | 6.99 / 8.33 / 9.48 / 9.82 / 11.09 | 0 of 2,990 | 8.17, 8.64 |
-| the same, one frame in flight | 119.6 | 3.13 (3.04, 0.07) | 2.7 | 7.22 / 8.34 / 9.20 / 9.43 / 16.63 | 1 of 2,987 | 8.20, 9.98 |
-| `--cpu`, before | 119.4 | 13.38 (5.90, 7.24) | 23.0 | 4.11 / 8.32 / 11.71 / 14.10 / 18.92 | 80 of 2,959 | 3.91, 4.69 |
-| `--cpu`, now (red 160) | 120.0 | 10.53 (6.37, 4.05) | 6.0 | 4.40 / 8.69 / 11.72 / 13.85 / 21.50 | 73 of 2,835 | 4.28, 5.31 |
-
-Separate runs of 3 rounds each the same morning: mailbox presenting (the loop holding itself to the refresh) missed refreshes in every round, max 16.7–25.0 ms (with one frame in flight 24.9–33.7); immediate presenting brought a notch to its frame in 3.6–3.9 ms (8.1–8.2 waiting for the refresh) at p99 11.0–11.7 ms and max 15.4–27.9. Before that run, with less load (3.2–8.0), `--cpu` before and now: 8.8–9.5 and 6.2–6.3 ms of CPU a frame, the other threads' switches 18 and 5.8 a frame.
+| GPU, before | 119.8 | 1.74 (1.69, 0.00) | 2.7 | 7.69 / 8.33 / 8.62 / 8.97 / 11.02 | 0 of 2,988 | 8.21, 8.53 |
+| GPU, now | 119.8 | 1.78 (1.72, 0.02) | 2.7 | 6.76 / 8.33 / 9.39 / 9.91 / 12.24 | 0 of 2,989 | 8.20, 8.50 |
+| `--cpu`, before | 121.2 | 8.45 (2.25, 5.92) | 18.1 | 3.44 / 8.31 / 9.83 / 11.28 / 16.24 | 11 of 3,023 | 2.68, 3.55 |
+| `--cpu`, now | 121.2 | 5.04 (2.56, 2.48) | 5.8 | 3.03 / 8.31 / 10.45 / 12.65 / 18.26 | 34 of 3,024 (23 in one round, 1–4 in the others) | 2.66, 3.51 |
 
 What it shows:
 
-- **On the GPU the list misses no refresh.** Every way of presenting kept 120 frames a second and missed at most one refresh in about 3,000; the intervals' spread (p1 7.3, p99 9.4 ms around 8.33) is when the X server carried each present out, early and late alike. The long gaps a profile saw inside the process (waits on the swapchain of 12–33 ms, red 155) do not show from outside in these runs, which recorded no trace. Waiting for the swapchain before the frame, or one frame in flight, changed nothing measurable — the frame's CPU, the spread, a notch's way to the screen — and was not kept; mailbox and immediate are worse at the tail. A notch reaches the screen in one refresh (8.2 ms) on the GPU, and in 3.1–4.3 ms on the CPU, whose frame is shown at once.
-- **The CPU window's pool no longer looks for work** (red 160): its other threads take 4.1 ms a frame where they took 7.2, and switch 6 times a frame where they switched 23. The CPU window still misses refreshes at this size (73–80 in 3,000): sending 7.8 MB a frame to the X server is UI10's reason a window this large begins its device at its first frame.
+- **On the GPU the list misses no refresh.** Every way of presenting kept 120 frames a second and missed at most one refresh in about 3,000; the intervals' spread (p1 6.8–7.7, p99 9.0–9.9 ms around 8.33) is when the X server carried each present out, early and late alike. The long gaps a profile saw inside the process (waits on the swapchain of 12–33 ms, red 155) do not show from outside in these runs, which recorded no trace. Waiting for the swapchain before the frame, or one frame in flight, changed nothing measurable — the frame's CPU, the spread, a notch's way to the screen — and was not kept; mailbox and immediate are worse at the tail. A notch reaches the screen in one refresh (8.2 ms) on the GPU, and in 2.7–4.3 ms on the CPU, whose frame is shown at once.
+- **The CPU window's pool no longer looks for work** (red 160): its other threads take 2.5 ms a frame where they took 5.9, and switch 6 times a frame where they switched 18; the frame's CPU is 5.0 ms where it was 8.5. The CPU window still misses refreshes at this size, before and now (the count moves with the machine's load: 82–133 a 5-round run for every side when another session's build took the load to 15): sending 7.8 MB a frame to the X server is UI10's reason a window this large begins its device at its first frame.
 
 ## What the runs found in omui
 

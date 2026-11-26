@@ -23,6 +23,7 @@ import omui.theme.styles;
 import mlibs.rhi;
 import mrender.rhi.sdl;
 import mrender.text;
+import mcpplibs.os;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -33,6 +34,26 @@ using mlibs::log::warn;
 namespace omui::bench {
 
 namespace {
+
+// The processor this process has used, every thread (ms): what a frame's fan-out costs beside its time.
+double processor_ms() {
+    const auto used = mcpplibs::os::process::resources();
+    return used ? std::chrono::duration<double, std::milli>(used->user + used->system).count() : 0.0;
+}
+
+// A frame's processor on every thread to the end of a 3 ms rest after it (untimed), as a 120 Hz window rests between
+// frames: what the threads spend after the frame, looking for work, is the frame's (red 160).
+template <class Draw>
+void framed(State& s, Draw&& draw) {
+    const FanOutStats before = Tasks::shared().frame_stats();
+    const double      used = processor_ms();
+    draw();
+    s.pause();
+    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+    s.counter("cpu_ms", processor_ms() - used);
+    s.counter("wakes", static_cast<double>(Tasks::shared().frame_stats().wakes - before.wakes));
+    s.resume();
+}
 
 class PlaybackStage final : public mlibs::pipeline::Stage {
 public:
@@ -1135,7 +1156,7 @@ void add_framework_benchmarks() {
         for (std::size_t k = 0; k < r.kinds.size(); ++k)
             if (r.kinds[k].count) s.counter(std::format("{}_ms", mrender::command_kind_name(k)), r.kinds[k].ms);
     });
-    add("ui/raster/full-1080p-parallel", "the same, in bands of 64 rows on the task pool (the same bytes)", [](State& s) {
+    add("ui/raster/full-1080p-parallel", "the same, in bands cut by its work on the pool's frame crew (the same bytes)", [](State& s) {
         Dashboard d;
         Headless h(scene_options());
         h.mount("main", d.view());
@@ -1146,8 +1167,29 @@ void add_framework_benchmarks() {
         mrender::CpuOptions o;
         o.background = Color::white();
         o.parallel = &raster_parallel();
-        s.counter("threads", static_cast<double>(Tasks::shared().threads()));
-        while (s.next()) (void)renderer.render(h.runtime().display_list(), target, {&h.runtime().images(), &glyphs}, o);
+        s.note("pool", std::format("{} threads, a frame's crew {} wide", Tasks::shared().threads(), Tasks::shared().frame_width()));
+        while (s.next()) framed(s, [&] { (void)renderer.render(h.runtime().display_list(), target, {&h.runtime().images(), &glyphs}, o); });
+    });
+    add("ui/raster/full-1080p-workers-64", "the same, a task a band of 64 rows on the pool's own workers (how bands were drawn before red 160)", [](State& s) {
+        struct WorkerBands final : mrender::Parallel {
+            void run(std::size_t count, mlibs::memory::FunctionRef<void(std::size_t)> body) override {
+                Tasks::shared().parallel_for(count, 1, [&](std::size_t begin, std::size_t end) {
+                    for (std::size_t i = begin; i < end; ++i) body(i);
+                });
+            }
+        } workers;
+        Dashboard d;
+        Headless h(scene_options());
+        h.mount("main", d.view());
+        h.settle();
+        mrender::text::GlyphCache glyphs(h.runtime().fonts());
+        mrender::CpuRenderer renderer;
+        mrender::raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
+        mrender::CpuOptions o;
+        o.background = Color::white();
+        o.parallel = &workers;
+        o.rows_per_task = 64;
+        while (s.next()) framed(s, [&] { (void)renderer.render(h.runtime().display_list(), target, {&h.runtime().images(), &glyphs}, o); });
     });
     add("ui/mount", "the dashboard is built, mounted and laid out (its first frame)", [](State& s) {
         Dashboard d;
@@ -1271,6 +1313,81 @@ void add_framework_benchmarks() {
     };
     add("core/list-scroll/frame", "10,000 rows of three parts each, the wheel scrolling 60 px every frame at 1896×1030: the frame, drawn by the CPU",
         list_scroll(false));
+    // Red 160: the list's frames rasterised as a window's CPU path does (only the rows the new list changes, from
+    // mrender's damage tracker), three ways — the frame crew with bands cut by the frame's work (what a window does),
+    // a task a band of 64 rows on the pool's own workers (what it did before), one thread. Each frame is followed by
+    // 3 ms of rest, untimed, as a 120 Hz window rests between frames: the processor a frame takes (`cpu_ms`, every
+    // thread of the process, from the frame's start to the end of its rest) counts what threads spend after the
+    // frame, looking for work. `wakes`: the crew's helpers woken a frame; `bands`; `work_mu`: the frame's estimated
+    // work (millions of CpuOptions::band_work's units) — `ns_per_unit` on one thread is how band_work was chosen.
+    struct WorkerBands final : mrender::Parallel {
+        void run(std::size_t count, mlibs::memory::FunctionRef<void(std::size_t)> body) override {
+            Tasks::shared().parallel_for(count, 1, [&](std::size_t begin, std::size_t end) {
+                for (std::size_t i = begin; i < end; ++i) body(i);
+            });
+        }
+    };
+    enum class Bands { crew, workers_64, serial };
+    const auto list_raster = [](Bands way, float stride) {
+        return [way, stride](State& s) {
+            HeadlessOptions o = scene_options();
+            o.size = market_size;
+            Headless h(o);
+            Model&   model = h.runtime().model("orders");
+            std::vector<Row> rows;
+            for (int i = 0; i < 10000; ++i)
+                rows.push_back({std::format("o{}", i), Value{}.set("title", std::format("Order {} — {} shares at {}.{:02}", i, 100 + i % 900, 10 + i % 400, i % 100))});
+            if (!model.push(std::move(rows))) return s.fail("the model refused its rows");
+            h.mount("main", column({.id = "page", .background = "background"},
+                                   {list_view({.id = "orders", .estimate = 36.0, .model = "orders", .height = Dim(mlibs::layout::pct(100))},
+                                              [](const Row& entry, std::size_t index) {
+                                                  return row({.id = "line", .padding = 8, .gap = 12, .align = "center"},
+                                                                {text({.id = "title", .text = Model::label_of(entry), .grow = 1}),
+                                                                 text({.id = "state", .text = index % 3 == 0 ? "filled" : "open", .style = "caption"}),
+                                                                 button({.id = "open", .text = "Open"})});
+                                              })}));
+            h.settle();
+            mrender::text::GlyphCache glyphs(h.runtime().fonts());
+            const int width = static_cast<int>(market_size.width), height = static_cast<int>(market_size.height);
+            mrender::raster::Surface target(width, height);
+            mrender::DamageTracker   damage;
+            mrender::CpuRenderer     renderer;
+            WorkerBands              workers;
+            mrender::CpuOptions      how;
+            how.background = Color::white();
+            how.parallel = way == Bands::crew ? &raster_parallel() : way == Bands::workers_64 ? static_cast<mrender::Parallel*>(&workers) : nullptr;
+            how.rows_per_task = way == Bands::workers_64 ? 64 : 0;
+            const mrender::Resources resources{&h.runtime().images(), &glyphs};
+            const auto draw = [&] {
+                const auto changed = damage.update(h.runtime().display_list(), width, height, 1, resources);
+                how.rows = changed;
+                return changed.empty() ? mrender::RenderReport{} : renderer.render(h.runtime().display_list(), target, resources, how);
+            };
+            const mrender::RenderReport whole = draw();
+            if (way == Bands::crew) s.note("whole frame", std::format("{} units of work in {} bands", whole.work, whole.bands));
+            const Point at{market_size.width / 2, market_size.height / 2};
+            float       position = 0, direction = 1;
+            while (s.next()) {
+                s.pause();
+                constexpr float extent = 36.0f * 9000;  // back before the end
+                position += stride * direction;
+                if (position > extent || position <= 0) direction = -direction;
+                h.scroll(at, {0, stride * direction});
+                s.resume();
+                mrender::RenderReport report;
+                framed(s, [&] { report = draw(); });
+                s.counter("bands", static_cast<double>(report.bands));
+                s.counter("rows", static_cast<double>(report.rows));
+                s.counter("work_mu", static_cast<double>(report.work) / 1e6);
+            }
+            s.note("pool", std::format("{} threads, a frame's crew {} wide", Tasks::shared().threads(), Tasks::shared().frame_width()));
+        };
+    };
+    add("core/list-scroll/raster", "the list scrolled 40 px a frame (a wheel's notch), its changed rows drawn by the frame crew in bands by their work (red 160)",
+        list_raster(Bands::crew, 40));
+    add("core/list-scroll/raster-workers-64", "the same, a task a band of 64 rows on the pool's own workers (how a window drew before red 160)",
+        list_raster(Bands::workers_64, 40));
+    add("core/list-scroll/raster-serial", "the same on one thread: against `raster`'s work_mu, a unit's time (how band_work was chosen)", list_raster(Bands::serial, 40));
     add("core/list-scroll/frame-gpu", "the same, the GPU drawing every frame (submitted and waited for)", list_scroll(true));
     add("core/list-scroll/reading", "the same drawn by the CPU, with assistive technology reading: each frame's changes told to the accessibility mirror",
         list_scroll(false, true));

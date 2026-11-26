@@ -352,6 +352,52 @@ static UTest cases{"oweb.template", [] {
         expect(!std::filesystem::exists(site / "out" / "index.html"));
     };
 
+    "a long page: the repository's guides as one page — written within a route's budget with its look, read back to its document"_test = [] {
+        // The seven guides of docs/en/guide, one after another under one title: a page of some twenty screens, the
+        // corpus' long one (real documents, none copied). A link from one guide to another is its words here.
+        const auto guides = package().parent_path().parent_path().parent_path() / "docs" / "en" / "guide";
+        std::string source = "# The guides, on one page\n";
+        std::size_t words = 0;
+        for (const std::string_view name : {"start", "ui", "motion", "agent", "world", "world3d", "game"}) {
+            const std::string guide = read(guides / std::format("{}.md", name));
+            expect(!guide.empty()) << name;
+            bool fenced = false;
+            for (const auto part : std::views::split(guide, '\n')) {
+                std::string line(part.begin(), part.end());
+                if (line.starts_with("```")) fenced = !fenced;
+                if (!fenced && line.starts_with('#')) line.insert(line.begin(), '#');
+                // [words](another guide) — its words; a link to the Web or to a place in the page stays.
+                for (std::size_t at = line.find("]("); !fenced && at != std::string::npos; at = line.find("](", at + 1)) {
+                    const std::size_t open = line.rfind('[', at), close = line.find(')', at);
+                    if (open == std::string::npos || close == std::string::npos || line.compare(at + 2, 4, "http") == 0 || line[at + 2] == '#') continue;
+                    line = line.substr(0, open) + line.substr(open + 1, at - open - 1) + line.substr(close + 1);
+                    at = open;
+                }
+                source += '\n' + line;
+            }
+            source += '\n';
+        }
+        for (const auto word : std::views::split(source, ' ')) words += !std::ranges::empty(word);
+        const auto site = std::filesystem::temp_directory_path() / "openmui-tests" / "oweb" / "long";
+        std::filesystem::remove_all(site);
+        std::filesystem::create_directories(site / "pages");
+        std::ofstream(site / "pages" / "index.md", std::ios::binary) << source;
+        oweb::SiteOptions options;
+        options.look = true;
+        const auto built = oweb::build(site, site / "out", options);
+        expect(built.has_value()) << (built ? "" : built.error());
+        if (!built) return;
+        const std::string html = read(site / "out" / "index.html"), markdown = read(site / "out" / "index.md");
+        md::Document read_back = md::from_html(document_of(html));
+        for (md::Link& link : read_back.links) link.href = "…";
+        expect(md::to_html(read_back) == shape_of(source)) << "its HTML read back is its source's document";
+        expect(shape_of(markdown) == shape_of(source)) << "and so is its Markdown";
+        expect(words > 5000 && built->routes.front().headings.size() > 40) << words;
+        expect(built->delivery.within() && built->delivery.verdicts.front().found < 60'000) << built->delivery.verdicts.front().found;
+        std::println("    a long page: {} words under {} headings, index.html {} B stored and {} B sent of a budget of {}", words, built->routes.front().headings.size(), html.size(),
+                     built->delivery.verdicts.front().found, built->delivery.verdicts.front().budget.most);
+    };
+
     "its reference is the catalog's, generated at the build: no page of its own, the catalog's own reference its text; pages link to it by its address"_test = [] {
         const auto site = package() / "templates" / "docs";
         const auto options = oweb::configured(site);

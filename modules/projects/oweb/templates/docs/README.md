@@ -4,7 +4,7 @@ The site `oweb`'s `docs` preset starts from, and the one corpus 0.1.0 checks doc
 
 It is used five ways: this template's sample, the round-trip checks (`tests/oweb/template_test.cpp`: every route's HTML read back and its Markdown parsed again are its source's document), the search's checks, the questions of the cold-start evaluation, and the content both sides build when oweb is compared side by side.
 
-`oweb.config.ts` states the site's title, address, languages and its pages in the order a reader goes through them. `pages/404.md` is the page a lost address is answered with (no route). The route `/reference/ops/` has no page of its own: the configuration names the command's catalog (`reference: "../../oweb.ops.xdef.ts"`) and each build generates the page from it; pages link to it by its address (`/reference/ops/`). Still to come with ST3: a long page.
+`oweb.config.ts` states the site's title, address, languages and its pages in the order a reader goes through them. `pages/404.md` is the page a lost address is answered with (no route). The route `/reference/ops/` has no page of its own: the configuration names the command's catalog (`reference: "../../oweb.ops.xdef.ts"`) and each build generates the page from it; pages link to it by its address (`/reference/ops/`). The corpus' long page is not a file here: `template_test` makes it of the repository's own guides (`docs/en/guide`, seven as one page), so nothing is copied.
 
 ```sh
 oweb site.build --site modules/projects/oweb/templates/docs --out /tmp/docs

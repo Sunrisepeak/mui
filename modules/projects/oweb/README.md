@@ -58,6 +58,8 @@ Measured on the documents template (headless Chromium 159, `omui-devtools check 
 
 **A page may hold a live example** (ST3 step 3): a block of the language `view` is a view document ([`omui.viewdoc`](../omui/viewdoc)) — an interface as data — and the page shows it running above its source. With no program the example is there as it starts (its buttons, its text; marked `data-output`, so the document read back is the block alone); with the program it answers — the same nodes — and the program needs no script engine for it. `index.md` has the block as written: a view document an agent can check and run. An example whose text is no view document fails the build, saying what is wrong and where. The sample's `/live/` (a counter) takes the program once the page is idle (`load: "idle"`).
 
+**A long page holds**: the repository's seven guides as one page (5,928 words) are written in 23,090 B as sent with their look (the budget 100,000), read back to their document, and taken over 15,000 px down with a word moving 0.4 px at the median — the distance does not grow with the page. Scrolling it in a browser drops frames (red 164, open).
+
 Not yet here (0.1.0's tasks ST2–ST7): pages written as views (`*.ts`), an example written in TypeScript, a layout written in TypeScript (`layouts/`; a view in C++ is here), a picture drawn at the screen's own density (the page's pixels are its natural size's), the search box on a page, code highlighting, the three presets and `omui new`, the window itself scrolling a page that has a program, the program cut to what reading needs (2.5 MB as sent now), the GitHub Pages action (the Pages workflow builds the documents template with its engine and checks three routes).
 
 ## Entry points by level

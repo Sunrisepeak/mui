@@ -10,7 +10,9 @@
 // read the snapshot through this. A value is a Node: its JSON and its JSON
 // pointer (RFC 6901), so a problem names where it is — the pointer, and the
 // line and column in the text, found when a problem is made. Members keep
-// the order the text has them. Parsing is nlohmann.json's (D-56).
+// the order the text has them. Parsing is nlohmann.json's (D-56); the module's
+// own scanner places pointers and, for a program that must stay small, reads a
+// few values in place (Scan) without linking a parser.
 export module mlibs.json;
 
 import std;
@@ -31,6 +33,10 @@ struct Place {
 // A key as a pointer's token: `~` is `~0`, `/` is `~1`.
 [[nodiscard]] std::string escape(std::string_view key);
 
+// A text as a JSON string: quoted, `"` and `\` escaped, a control character as `\n`, `\t` … or `\u00XX`, the
+// rest as it is (what nlohmann's dump writes).
+[[nodiscard]] std::string quote(std::string_view text);
+
 // What is wrong with a document, where.
 struct Problem {
     std::string file;
@@ -42,6 +48,31 @@ struct Problem {
 
     // file:line:column: at: message (hint)
     [[nodiscard]] std::string text() const;
+};
+
+// A text read in place by this module's own scanner — nothing built, no parser linked: for a program that reads a
+// few values of a small file and must stay small (omui-launch reads each runtime's runtime.json so). The text is
+// checked when it is read against RFC 8259's grammar (its bytes taken as they are: UTF-8 is not checked); malformed,
+// it is one problem at its line and column, as Document::parse says it.
+class Scan {
+public:
+    [[nodiscard]] static std::expected<Scan, Problem> read(std::string_view text, std::string file);
+
+    // The string at a pointer, decoded; nothing when the pointer names no string.
+    [[nodiscard]] std::optional<std::string> text(std::string_view pointer) const;
+    // The strings of the array at a pointer, in order (an element that is not a string left out); nothing when the
+    // pointer names no array.
+    [[nodiscard]] std::optional<std::vector<std::string>> texts(std::string_view pointer) const;
+    // A problem with what is at a pointer, placed in the text (an absent member at the object that would hold it).
+    [[nodiscard]] Problem problem(std::string_view pointer, std::string message, std::string hint = {}) const;
+
+    [[nodiscard]] const std::string& file() const noexcept { return file_; }
+
+private:
+    Scan() = default;
+
+    std::string file_;
+    std::string text_;
 };
 
 class Document;

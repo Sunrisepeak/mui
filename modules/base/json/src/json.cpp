@@ -9,11 +9,22 @@ namespace mlibs::json {
 
 namespace {
 
-// A scanner of JSON that is known to parse, for json_location: it follows
-// one pointer down and skips everything else.
+// The module's own scanner (RFC 8259): it follows one pointer down and skips
+// everything else (locate, Scan), and checks the grammar as it goes — where it
+// stops, `failure` says why and `i` is the place.
 struct Seek {
     std::string_view text;
     std::size_t      i = 0;
+    std::string_view failure;  // empty while it has not stopped
+
+    // A text's first value begins after its byte order mark, as nlohmann's lexer skips it.
+    static Seek of(std::string_view text) { return {text, text.starts_with("\xEF\xBB\xBF") ? std::size_t{3} : std::size_t{0}}; }
+
+    bool fail(std::string_view why) {
+        if (failure.empty()) failure = why;
+        return false;
+    }
+    static bool digit(char c) { return c >= '0' && c <= '9'; }
 
     void space() {
         while (i < text.size() && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n' || text[i] == '\r')) ++i;
@@ -46,47 +57,109 @@ struct Seek {
 
     // A string at i (at its quote), decoded.
     std::optional<std::string> string() {
-        if (i >= text.size() || text[i] != '"') return std::nullopt;
+        if (i >= text.size() || text[i] != '"') {
+            fail("a string begins with `\"`");
+            return std::nullopt;
+        }
         ++i;
         std::string out;
-        while (i < text.size() && text[i] != '"') {
-            if (text[i] != '\\') {
-                out += text[i++];
+        while (true) {
+            if (i >= text.size()) {
+                fail("a string ends with `\"`");
+                return std::nullopt;
+            }
+            const char here = text[i];
+            if (here == '"') break;
+            if (static_cast<unsigned char>(here) < 0x20) {
+                fail("a control character in a string is escaped (\\n, \\t, \\u0001)");
+                return std::nullopt;
+            }
+            if (here != '\\') {
+                out += here;
+                ++i;
                 continue;
             }
-            if (++i >= text.size()) return std::nullopt;
-            const char e = text[i++];
-            switch (e) {
+            if (++i >= text.size()) {
+                fail("a string ends with `\"`");
+                return std::nullopt;
+            }
+            const char escaped = text[i++];
+            switch (escaped) {
+                case '"':
+                case '\\':
+                case '/': out += escaped; break;
                 case 'b': out += '\b'; break;
                 case 'f': out += '\f'; break;
                 case 'n': out += '\n'; break;
                 case 'r': out += '\r'; break;
                 case 't': out += '\t'; break;
                 case 'u': {
-                    auto cp = hex4();
-                    if (!cp) return std::nullopt;
-                    if (*cp >= 0xD800 && *cp < 0xDC00 && text.substr(i, 2) == "\\u") {
-                        i += 2;
-                        auto lo = hex4();
-                        if (!lo) return std::nullopt;
-                        *cp = 0x10000 + ((*cp - 0xD800) << 10) + (*lo - 0xDC00);
+                    auto code = hex4();
+                    if (!code) {
+                        fail("`\\u` is followed by four hexadecimal digits");
+                        return std::nullopt;
                     }
-                    utf8(out, *cp);
+                    if (*code >= 0xDC00 && *code < 0xE000) {
+                        fail("a low surrogate (\\uDC00 to \\uDFFF) follows a high one");
+                        return std::nullopt;
+                    }
+                    if (*code >= 0xD800 && *code < 0xDC00) {
+                        std::optional<std::uint32_t> low;
+                        if (text.substr(i, 2) == "\\u") {
+                            i += 2;
+                            low = hex4();
+                        }
+                        if (!low || *low < 0xDC00 || *low >= 0xE000) {
+                            fail("a high surrogate (\\uD800 to \\uDBFF) is followed by a low one (\\uDC00 to \\uDFFF)");
+                            return std::nullopt;
+                        }
+                        *code = 0x10000 + ((*code - 0xD800) << 10) + (*low - 0xDC00);
+                    }
+                    utf8(out, *code);
                     break;
                 }
-                default: out += e;
+                default:
+                    --i;
+                    fail("an escape is one of \\\" \\\\ \\/ \\b \\f \\n \\r \\t \\uXXXX");
+                    return std::nullopt;
             }
         }
-        if (i >= text.size()) return std::nullopt;
         ++i;
         return out;
     }
 
+    // A number at i: -?(0|[1-9][0-9]*)(.[0-9]+)?([eE][+-]?[0-9]+)?
+    bool number() {
+        if (i < text.size() && text[i] == '-') ++i;
+        if (i >= text.size() || !digit(text[i])) return fail("a number has a digit after its sign");
+        if (text[i] == '0') ++i;
+        else
+            while (i < text.size() && digit(text[i])) ++i;
+        if (i < text.size() && text[i] == '.') {
+            ++i;
+            if (i >= text.size() || !digit(text[i])) return fail("a number's fraction has a digit after its point");
+            while (i < text.size() && digit(text[i])) ++i;
+        }
+        if (i < text.size() && (text[i] == 'e' || text[i] == 'E')) {
+            ++i;
+            if (i < text.size() && (text[i] == '+' || text[i] == '-')) ++i;
+            if (i >= text.size() || !digit(text[i])) return fail("a number's exponent has a digit");
+            while (i < text.size() && digit(text[i])) ++i;
+        }
+        return true;
+    }
+
+    bool word(std::string_view expected) {
+        if (text.substr(i, expected.size()) != expected) return fail("a value is an object, an array, a string, a number, true, false or null");
+        i += expected.size();
+        return true;
+    }
+
     // Skips the value at i.
     bool skip(int depth = 0) {
-        if (depth > 10000) return false;
+        if (depth > 10000) return fail("nested deeper than 10,000 levels");
         space();
-        if (i >= text.size()) return false;
+        if (i >= text.size()) return fail("a value is missing: the text ends");
         const char c = text[i];
         if (c == '"') return string().has_value();
         if (c == '{' || c == '[') {
@@ -100,27 +173,28 @@ struct Seek {
             while (true) {
                 if (c == '{') {
                     space();
+                    if (i >= text.size() || text[i] != '"') return fail("a member's name is a string");
                     if (!string()) return false;
                     space();
-                    if (i >= text.size() || text[i] != ':') return false;
+                    if (i >= text.size() || text[i] != ':') return fail("a member's name is followed by `:`");
                     ++i;
                 }
                 if (!skip(depth + 1)) return false;
                 space();
-                if (i >= text.size()) return false;
-                if (text[i] == ',') {
+                if (i < text.size() && text[i] == ',') {
                     ++i;
                     continue;
                 }
-                if (text[i] != close) return false;
+                if (i >= text.size() || text[i] != close) return fail(c == '{' ? "a member is followed by `,` or `}`" : "an element is followed by `,` or `]`");
                 ++i;
                 return true;
             }
         }
-        while (i < text.size() && text[i] != ',' && text[i] != '}' && text[i] != ']' && text[i] != ' ' && text[i] != '\n' &&
-               text[i] != '\r' && text[i] != '\t')
-            ++i;
-        return true;
+        if (c == 't') return word("true");
+        if (c == 'f') return word("false");
+        if (c == 'n') return word("null");
+        if (c == '-' || digit(c)) return number();
+        return fail("a value is an object, an array, a string, a number, true, false or null");
     }
 
     // Moves i to the start of the member or element `token` of the value at i.
@@ -208,10 +282,9 @@ Place place_at(std::string_view text, std::size_t offset) {
     return at;
 }
 
-}  // namespace
-
-std::optional<Place> locate(std::string_view text, std::string_view pointer) {
-    Seek s{text};
+// The scanner at the start of the value a pointer names in a text that parses, or nothing.
+std::optional<Seek> walk(std::string_view text, std::string_view pointer) {
+    Seek seek = Seek::of(text);
     if (!pointer.empty() && pointer.front() != '/') return std::nullopt;
     while (!pointer.empty()) {
         pointer.remove_prefix(1);
@@ -225,17 +298,116 @@ std::optional<Place> locate(std::string_view text, std::string_view pointer) {
                 token += pointer[k];
             }
         }
-        if (!s.enter(token)) return std::nullopt;
+        if (!seek.enter(token)) return std::nullopt;
         pointer = end == std::string_view::npos ? std::string_view{} : pointer.substr(end);
     }
-    s.space();
-    return place_at(text, s.i);
+    seek.space();
+    return seek;
+}
+
+// A problem with what is at a pointer of a text that parses, placed: an absent member at the place of what would
+// hold it.
+Problem placed(std::string_view text, std::string file, std::string_view pointer, std::string message, std::string hint) {
+    Problem out{std::move(file), 0, 0, std::string(pointer), std::move(message), std::move(hint)};
+    while (true) {
+        if (const auto place = locate(text, pointer)) {
+            out.line = place->line;
+            out.column = place->column;
+            break;
+        }
+        if (pointer.empty()) break;
+        pointer = pointer.substr(0, pointer.rfind('/'));
+    }
+    return out;
+}
+
+}  // namespace
+
+std::optional<Place> locate(std::string_view text, std::string_view pointer) {
+    const auto seek = walk(text, pointer);
+    if (!seek) return std::nullopt;
+    return place_at(text, seek->i);
 }
 
 std::string escape(std::string_view key) {
     std::string out;
     for (char c : key) out += c == '~' ? std::string("~0") : c == '/' ? std::string("~1") : std::string(1, c);
     return out;
+}
+
+std::string quote(std::string_view text) {
+    std::string out;
+    out.reserve(text.size() + 2);
+    out += '"';
+    for (const char here : text) {
+        switch (here) {
+            case '"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\b': out += "\\b"; break;
+            case '\f': out += "\\f"; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default:
+                if (static_cast<unsigned char>(here) < 0x20) {
+                    constexpr std::string_view digits = "0123456789abcdef";
+                    out += "\\u00";
+                    out += digits[static_cast<unsigned char>(here) >> 4];
+                    out += digits[static_cast<unsigned char>(here) & 0xF];
+                } else {
+                    out += here;
+                }
+        }
+    }
+    out += '"';
+    return out;
+}
+
+std::expected<Scan, Problem> Scan::read(std::string_view text, std::string file) {
+    Seek seek = Seek::of(text);
+    if (seek.skip()) {
+        seek.space();
+        if (seek.i < text.size()) seek.fail("one value, then nothing but white space");
+    }
+    if (!seek.failure.empty()) {
+        const Place at = place_at(text, std::min(seek.i, text.size()));
+        return std::unexpected(Problem{std::move(file), at.line, at.column, "", std::string(seek.failure), ""});
+    }
+    Scan out;
+    out.file_ = std::move(file);
+    out.text_ = std::string(text);
+    return out;
+}
+
+std::optional<std::string> Scan::text(std::string_view pointer) const {
+    auto seek = walk(text_, pointer);
+    if (!seek || seek->i >= text_.size() || text_[seek->i] != '"') return std::nullopt;
+    return seek->string();
+}
+
+std::optional<std::vector<std::string>> Scan::texts(std::string_view pointer) const {
+    auto seek = walk(text_, pointer);
+    if (!seek || seek->i >= text_.size() || text_[seek->i] != '[') return std::nullopt;
+    std::vector<std::string> out;
+    ++seek->i;
+    while (true) {  // the text parses: an element, then `,` or `]`
+        seek->space();
+        if (seek->i >= text_.size() || text_[seek->i] == ']') break;
+        if (text_[seek->i] == '"') {
+            if (auto element = seek->string()) out.push_back(std::move(*element));
+            else break;
+        } else if (!seek->skip()) {
+            break;
+        }
+        seek->space();
+        if (seek->i >= text_.size() || text_[seek->i] != ',') break;
+        ++seek->i;
+    }
+    return out;
+}
+
+Problem Scan::problem(std::string_view pointer, std::string message, std::string hint) const {
+    return placed(text_, file_, pointer, std::move(message), std::move(hint));
 }
 
 std::string Problem::text() const {
@@ -349,19 +521,7 @@ std::expected<Document, Problem> Document::parse(std::string_view text, std::str
 }
 
 Problem Document::problem(const Node& at, std::string message, std::string hint) const {
-    Problem out{file_, 0, 0, at.pointer(), std::move(message), std::move(hint)};
-    // An absent member: the place of what would hold it.
-    std::string_view pointer = at.pointer();
-    while (true) {
-        if (const auto place = locate(text_, pointer)) {
-            out.line = place->line;
-            out.column = place->column;
-            break;
-        }
-        if (pointer.empty()) break;
-        pointer = pointer.substr(0, pointer.rfind('/'));
-    }
-    return out;
+    return placed(text_, file_, at.pointer(), std::move(message), std::move(hint));
 }
 
 }  // namespace mlibs::json

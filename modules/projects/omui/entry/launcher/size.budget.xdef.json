@@ -1,0 +1,21 @@
+{
+  "about": "What the shared runtime's launcher loads (E3b, D-250; red 145): omui-launch built for size, as its own dist profile packs it (the workspace's `small` profile: -Oz, NDEBUG, trimmed paths), the C++ runtime shared (`cxx_runtime = \"toolchain-coupled\"`: xim:gcc-runtime, one copy a machine like the C library), its symbol table kept, the allocated sections of its program counted (.bss and the symbols left out). Bytes.",
+  "budgets": [
+    {
+      "metric": "program.shipped",
+      "profile": "small",
+      "max": 200000,
+      "why": "The shared runtime's design (2026-11-19, §4): a launcher of at most 200 KB that links no runtime. 2026-11-20: 1.25 MB with libstdc++ linked in, 510 KB with it shared. 2026-11-27, at -Oz: 493,062 B loaded (505,664 B stripped), then runtime.json read in place by mlibs.json's own scanner and --which quoted by it, nlohmann no longer linked (-71,652 B), its lines written through mcpplibs.os (-1,706): 419,704 B. What it holds: openkal-linux's tables of attenuated directories in .data, 141,824 B (mcpplibs/openkal-linux#61, open: both in .bss, then the pins of mcpplibs.os and openkal that reach it); toml++ for the application's mcpp.toml, 76,998 B with its unwind tables (a decision: the reader of [package.metadata.openmui.runtime]); by owner, the standard library's instantiations 76,506 B (std::format's engine and its Unicode width and escape tables, about 18 KB of these, which mcpplibs.os and mcpplibs.cmdline format with too), mcpplibs.os 23,981, the launcher's own code 19,719, mcpplibs.cmdline 9,700 (omui-gen counts its 3,972 B parse_impl twice, by its local alias), openkal's C 6,246, mlibs.json 6,109; beside the code, .rodata 32,588 and the unwind tables 44,437. Measured without toml++: 344,412 B, so 202,588 B with openkal-linux#61 — over it by 2,588 B before any reader of the manifest"
+    }
+  ],
+  "links_why": "The packages built into the program (B5): a change to this list is a change to what the launcher carries, said in review. nlohmann.json is built in through mlibs.json (its Document), its bytes are not: the launcher reads with mlibs.json's own scanner (2026-11-27). Owed: marzer.tomlplusplus, once the manifest's reader is decided (red 145)",
+  "links": [
+    "marzer.tomlplusplus",
+    "mcpplibs.cmdline",
+    "mcpplibs.openkal",
+    "mcpplibs.openkal-linux",
+    "mcpplibs.os",
+    "mlibs.json",
+    "nlohmann.json"
+  ]
+}

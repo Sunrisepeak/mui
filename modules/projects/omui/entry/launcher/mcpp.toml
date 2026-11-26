@@ -34,16 +34,17 @@ cxx_runtime = "toolchain-coupled"
 [dependencies]
 mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
-marzer.tomlplusplus = "3.4.0"
-mlibs.json = { path = "../../../../base/json" }
-nlohmann.json = "3.12.0"  # --which writes its answer
+marzer.tomlplusplus = "3.4.0"  # the application's mcpp.toml: 76,998 B of the program (red 145: its reader is a decision)
+mlibs.json = { path = "../../../../base/json" }  # runtime.json read in place by its own scanner, --which quoted by it: no parser linked
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
 
-# Small (E3b: ≤ 200 KB): built for size when it is the build's root
-# (`mcpp pack omui-launch -p …`). No link-time optimisation: the toolchain's
-# GCC 16.1 is built without it.
+# Small (E3b: ≤ 200 KB): built for the fewest bytes when it is the build's root
+# (`mcpp pack omui-launch -p …`), -Oz as the workspace's `small` profile its
+# budget is measured at (size.budget.xdef.json; -Os was 4,096 B more stripped,
+# 2026-11-27): it starts one program and becomes it. No link-time optimisation:
+# the toolchain's GCC 16.1 is built without it.
 [profile.dist]
-opt   = "s"
+opt   = "z"
 strip = true

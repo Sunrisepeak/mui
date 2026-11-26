@@ -95,4 +95,48 @@ UTest cases{"json", [] {
         const auto said = json::validate(*unknown, *thing);
         expect(said.size() == 1 && said.front().message.contains("fancyKeyword")) << "a keyword it does not know is said, not passed over";
     };
+
+    "read in place: the module's own scanner takes what nlohmann takes and refuses what it refuses"_test = [] {
+        // UTF-8 aside (the scanner takes a text's bytes as they are), the grammar's edges each way.
+        const std::vector<std::string_view> texts{
+            R"({})", R"([])", R"("")", "0", "-0", "-0.5e+10", "1E5", "1.25", "true", "null", " \n\t[1, {\"a\": [false]}] \r\n",
+            "\xEF\xBB\xBF{\"a\": 1}", R"("\" \\ \/ \b \f \n \r \t é 😀")", R"({"a": {"b": [1, 2, {"c": "d"}]}, "e": -1})",
+            "", " ", "{", "}", "[1,]", R"({"a": 1,})", "[1 2]", R"({"a" 1})", R"({a: 1})", "01", "1.", ".5", "-", "1e", "+1", "tru",
+            "nul", "True", "[1]]", "1 2", R"("\x")", R"("\u12")", R"("\ud800")", R"("\udc00")", R"("\ud800A")", "\"a\nb\"", "\"open",
+            R"({"a": [1, 2})", "[\"a\" \"b\"]", "{\"a\":}", "[,1]", "NaN", "Infinity", "/* */ 1"};
+        for (const std::string_view text : texts) {
+            const bool parsed = json::Document::parse(text, "t.json").has_value();
+            const auto scanned = json::Scan::read(text, "t.json");
+            expect(eq(scanned.has_value(), parsed)) << "`" << text << "`: nlohmann " << (parsed ? "takes" : "refuses") << " it"
+                                                     << (scanned ? std::string() : ", the scanner: " + scanned.error().text());
+        }
+        const auto broken = json::Scan::read("{\n  \"a\": [1, 2\n}", "bad.json");
+        expect(!broken && broken.error().line == 3 && broken.error().column == 1 && broken.error().message.contains("`]`")) << broken.error().text();
+    };
+
+    "read in place: strings and arrays of strings by pointer; a problem at its place"_test = [] {
+        const std::string text = "{\n  \"$format\": \"runtime@1\",\n  \"runtime\": {\"version\": \"0.1.0\", \"capabilities\": [\"agent\", 3, \"gpu\\u00e9\"], \"n\": 1}\n}\n";
+        const auto scan = json::Scan::read(text, "runtime.json");
+        expect(fatal(scan.has_value())) << (scan ? "" : scan.error().text());
+        expect(scan->text("/$format") == std::optional<std::string>("runtime@1") && scan->text("/runtime/version") == std::optional<std::string>("0.1.0"));
+        expect(!scan->text("/runtime/n") && !scan->text("/runtime") && !scan->text("/nowhere") && !scan->text("runtime")) << "a string, or nothing";
+        expect(scan->texts("/runtime/capabilities") == std::optional<std::vector<std::string>>(std::vector<std::string>{"agent", "gpu\xC3\xA9"}));
+        expect(!scan->texts("/runtime/version") && scan->texts("/runtime/capabilities/0") == std::nullopt);
+        const auto missing = scan->problem("/runtime/openmui", "a runtime says the specification it implements");
+        expect(eq(missing.text(), std::string("runtime.json:3:14: /runtime/openmui: a runtime says the specification it implements"))) << missing.text();
+        const auto document = json::Document::parse(text, "runtime.json");
+        expect(fatal(document.has_value()));
+        expect(eq(document->problem(document->root()["runtime"]["openmui"], "a runtime says the specification it implements").text(), missing.text()))
+            << "placed as a document places it";
+    };
+
+    "quoted as nlohmann writes a string"_test = [] {
+        for (const std::string_view text : {std::string_view("plain"), std::string_view("a \"b\" \\ c/d"), std::string_view("\b\f\n\r\t\x01\x1f"),
+                                            std::string_view("caf\xC3\xA9 \xF0\x9F\x98\x80"), std::string_view("")}) {
+            const auto quoted = json::quote(text);
+            const auto document = json::Document::parse(R"({"s": )" + quoted + "}", "q.json");
+            expect(fatal(document.has_value())) << quoted;
+            expect(document->root()["s"].text() == std::optional<std::string>(std::string(text)) && eq(document->root()["s"].dump(), quoted)) << quoted;
+        }
+    };
 }};

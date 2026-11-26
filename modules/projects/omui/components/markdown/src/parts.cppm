@@ -41,8 +41,9 @@ struct Data {
     std::uint32_t        number = 0;        // ordered item: its number
     char                 bullet = 0;        // bullet item: its list's bullet
     std::int32_t         task = 0;          // the index of the first task in the block (an item's own, if it is one)
-    // A table's columns (min-content, max-content widths, padding included):
-    // handed from the table to its sections and rows, which size their cells.
+    // A table's columns (min-content, max-content widths, padding included, in
+    // whole pixels): handed from the table to its sections and rows, which
+    // size their cells.
     std::shared_ptr<const std::vector<std::pair<float, float>>> columns;
     std::shared_ptr<Hub> hub;
 };
@@ -144,9 +145,14 @@ public:
     std::vector<Element> compose();
 
 private:
+    using Columns = std::shared_ptr<const std::vector<std::pair<float, float>>>;
+    // A table's columns, measured once: its own width (styled before it composes) and its cells' widths are the same.
+    const Columns& table_columns(const Theme& theme) const;
+
     Services* services_ = nullptr;
     NodeId    node_;
     mutable std::optional<mlibs::text::Paragraph> marker_;  // an ordered item's number
+    mutable Columns columns_;
 };
 
 // ── a task item's checkbox ──

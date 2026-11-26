@@ -404,6 +404,9 @@ mlibs::text::Paragraph& Text::shaped(Services& s) const {
         const Theme& theme = s.theme();
         mlibs::text::ParagraphStyle ps;
         ps.style = text_style(theme, data->block);
+        // Its lines all of one height, as a page sets a block's: a line of Chinese with a Latin word in it is no
+        // taller than the next one (UI5: the page written before its program draws the same lines).
+        ps.uniform_lines = true;
         if (data->block.kind == mlibs::markdown::Kind::table_cell) {
             if (data->block.align == mlibs::markdown::Align::center) ps.align = mlibs::text::TextAlign::center;
             else if (data->block.align == mlibs::markdown::Align::right) ps.align = mlibs::text::TextAlign::end;
@@ -633,7 +636,25 @@ void Link::semantics(SemanticsContext&, spec::SemanticNode& n) const {
 
 // ── Group ──
 
-void Group::style(const Theme&, mlibs::layout::Style& s) const {
+const Group::Columns& Group::table_columns(const Theme& theme) const {
+    if (columns_ || !services_) return columns_;
+    auto cols = std::make_shared<std::vector<std::pair<float, float>>>();
+    for (const mlibs::markdown::Block& section : data->block.children)
+        for (const mlibs::markdown::Block& row : section.children)
+            for (std::size_t c = 0; c < row.children.size(); ++c) {
+                const mlibs::markdown::Block& cell = row.children[c];
+                mlibs::text::ParagraphStyle ps;
+                ps.style = text_style(theme, cell);
+                mlibs::text::Paragraph p(services_->fonts(), cell.content.text, ps, ranges_of(theme, cell.content, ps.style));
+                if (cols->size() <= c) cols->resize(c + 1, {0.0f, 0.0f});
+                (*cols)[c].first = std::max((*cols)[c].first, std::ceil(p.min_intrinsic_width()) + 2 * cell_pad_x);
+                (*cols)[c].second = std::max((*cols)[c].second, std::ceil(p.max_intrinsic_width()) + 2 * cell_pad_x);
+            }
+    columns_ = std::move(cols);
+    return columns_;
+}
+
+void Group::style(const Theme& theme, mlibs::layout::Style& s) const {
     if (!data) return;
     const mlibs::markdown::Block& b = data->block;
     s.direction = mlibs::layout::Direction::column;
@@ -652,10 +673,22 @@ void Group::style(const Theme&, mlibs::layout::Style& s) const {
             s.row_gap = data->tight ? tight_gap : block_gap;
             break;
         }
-        case mlibs::markdown::Kind::table:
-            s.align_self = mlibs::layout::Align::start;  // as wide as its columns, not the document (its scroll view is)
+        case mlibs::markdown::Kind::table: {
+            // As wide as its columns' widest cells, but no wider than its scroll view while its columns' longest
+            // words fit; narrower than those, it keeps them and scrolls sideways (CSS's automatic table layout).
+            float least = 0, natural = 0;
+            if (const Columns& cols = table_columns(theme))
+                for (const auto& [lo, hi] : *cols) {
+                    least += lo;
+                    natural += hi;
+                }
+            s.align_self = mlibs::layout::Align::start;
             s.border = Insets{1, 1, 1, 1};
+            s.width = mlibs::layout::pt(natural + s.border.horizontal());
+            s.min_width = mlibs::layout::pt(least + s.border.horizontal());
+            s.max_width = mlibs::layout::pct(100);
             break;
+        }
         case mlibs::markdown::Kind::table_head:
         case mlibs::markdown::Kind::table_body: break;
         case mlibs::markdown::Kind::table_row: s.direction = mlibs::layout::Direction::row; break;
@@ -730,28 +763,16 @@ std::vector<Element> Group::compose() {
         });
         out.push_back(std::move(e));
     }
-    // A table's columns: every cell of a column gets the column's widest
-    // content as its flex basis and the column's longest word as its minimum,
-    // shrinking by what lies between, so every row lays out to the same
-    // widths and a narrow table keeps its natural size (CSS's automatic table
-    // layout, by flex).
-    auto columns = data->columns;
-    if (b.kind == mlibs::markdown::Kind::table) {
-        const Theme& theme = services_->theme();
-        auto cols = std::make_shared<std::vector<std::pair<float, float>>>();
-        for (const mlibs::markdown::Block& section : b.children)
-            for (const mlibs::markdown::Block& row : section.children)
-                for (std::size_t c = 0; c < row.children.size(); ++c) {
-                    const mlibs::markdown::Block& cell = row.children[c];
-                    mlibs::text::ParagraphStyle ps;
-                    ps.style = text_style(theme, cell);
-                    mlibs::text::Paragraph p(services_->fonts(), cell.content.text, ps, ranges_of(theme, cell.content, ps.style));
-                    if (cols->size() <= c) cols->resize(c + 1, {0.0f, 0.0f});
-                    (*cols)[c].first = std::max((*cols)[c].first, std::ceil(p.min_intrinsic_width()) + 2 * cell_pad_x);
-                    (*cols)[c].second = std::max((*cols)[c].second, std::ceil(p.max_intrinsic_width()) + 2 * cell_pad_x);
-                }
-        columns = std::move(cols);
-    }
+    // A table's columns: every cell of a column starts at the column's longest
+    // word and grows by the room the row has past all of those, in proportion
+    // to what its column's widest content needs more — so every row lays out
+    // to the same widths, a table at its natural width has each column at its
+    // widest content, and a narrower one gives each column its share (CSS's
+    // automatic table layout, by flex). Growing, not shrinking: a browser
+    // grows items by their factors alone and shrinks them by factor × content
+    // box, the engine by factor × border box, so a page written before its
+    // program sets the same widths only for growing.
+    auto columns = b.kind == mlibs::markdown::Kind::table ? table_columns(services_->theme()) : data->columns;
     std::uint32_t number = b.kind == mlibs::markdown::Kind::ordered_list ? b.start : 0;
     std::int32_t task = data->task + (b.kind == mlibs::markdown::Kind::item && b.task != mlibs::markdown::Task::none ? 1 : 0);
     for (std::size_t i = 0; i < b.children.size(); ++i) {
@@ -781,12 +802,10 @@ std::vector<Element> Group::compose() {
         }
         Element e = element(std::move(d), id);
         if (b.kind == mlibs::markdown::Kind::table_row && columns && i < columns->size()) {
+            // Whole pixels both: the factor is written exactly where the page says it (CSS).
             const auto [lo, hi] = (*columns)[i];
-            e.prop("basis", Source{Value(static_cast<double>(hi)), {}, {}});
-            e.prop("min_width", Source{Value(static_cast<double>(lo)), {}, {}});
-            e.prop("grow", Source{Value(0.0), {}, {}});
-            // CSS scales shrinking by the basis: (hi - lo) / hi shrinks a column by what it can give.
-            e.prop("shrink", Source{Value(hi > 0 ? static_cast<double>((hi - lo) / hi) : 0.0), {}, {}});
+            e.prop("basis", Source{Value(static_cast<double>(lo)), {}, {}});
+            e.prop("grow", Source{Value(static_cast<double>(hi - lo)), {}, {}});
         }
         out.push_back(std::move(e));
     }
@@ -852,6 +871,7 @@ mlibs::text::Paragraph& Code::shaped(Services& s) const {
         mlibs::text::ParagraphStyle ps;
         ps.style = text_style(s.theme(), data->block);
         ps.wrap = false;
+        ps.uniform_lines = true;  // a line with a comment in Chinese no taller than the rest
         std::string text = data->block.content.text;
         while (text.ends_with('\n')) text.pop_back();
         paragraph_.emplace(s.fonts(), std::move(text), ps);

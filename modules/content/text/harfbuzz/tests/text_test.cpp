@@ -209,6 +209,39 @@ UTest cases{"text", [] {
         expect(p.min_intrinsic_width() < p.max_intrinsic_width());
     };
 
+    "one line height for a paragraph: a line of Chinese with a Latin word is no taller than one without (uniform_lines)"_test = [] {
+        // Inter's lines and Noto Sans SC's: each as tall as the style's line height alone, taller where they meet
+        // (Noto's ascent above Inter's descent). The Latin word is on one line, the rest are Chinese alone.
+        text::ParagraphStyle ps = style(15);
+        ps.style.line_height = 1.45f;
+        const std::string mixed = "统一 openmui 的语义层让像素无障碍和代理看到同一棵树统一的语义层让像素无障碍";
+        text::Paragraph faces(fonts(), mixed, ps);
+        faces.layout(150);
+        ps.uniform_lines = true;
+        text::Paragraph uniform(fonts(), mixed, ps);
+        uniform.layout(150);
+        expect(faces.lines().size() >= 3 && eq(uniform.lines().size(), faces.lines().size()));
+        if (faces.lines().size() < 3 || uniform.lines().size() != faces.lines().size()) return;
+        float tallest = 0, lowest = 1e9f;
+        for (const auto& line : faces.lines()) {
+            tallest = std::max(tallest, line.height);
+            lowest = std::min(lowest, line.height);
+        }
+        expect(tallest > lowest + 0.5f) << std::format("by its faces: lines from {} to {}", lowest, tallest);
+        for (const auto& line : uniform.lines()) expect(eq(line.height, tallest)) << std::format("uniform: {} of {}", line.height, tallest);
+        expect(eq(uniform.size().height, tallest * static_cast<float>(uniform.lines().size()))) << "the block: its lines × one height";
+        // At any width the same height: it is the paragraph's, not its lines'.
+        uniform.layout(400);
+        for (const auto& line : uniform.lines()) expect(eq(line.height, tallest));
+        // Text of one face: the same lines whether or not.
+        text::Paragraph plain(fonts(), "The quick brown fox jumps over the lazy dog", ps);
+        plain.layout(120);
+        ps.uniform_lines = false;
+        text::Paragraph plain_faces(fonts(), "The quick brown fox jumps over the lazy dog", ps);
+        plain_faces.layout(120);
+        expect(eq(plain.size().height, plain_faces.size().height));
+    };
+
     "Chinese breaks between characters"_test = [] {
         text::Paragraph p(fonts(), "统一的语义层让像素无障碍和代理看到同一棵树", style(16));
         p.layout(100);

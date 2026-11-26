@@ -175,6 +175,7 @@ namespace mlibs::text {
     bool wrap = true;
     int max_lines = 0;
     bool ellipsis = true;
+    bool uniform_lines = false;
   };
   struct Glyph {
     std::uint32_t id = 0;

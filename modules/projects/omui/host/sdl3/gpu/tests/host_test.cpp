@@ -202,6 +202,52 @@ UTest cases{"host.sdl3.gpu.host", [] {
         expect(le(worst_rest, takeover_bound_rest)) << std::format("elsewhere: {} (at most {})", worst_rest, takeover_bound_rest);
     };
 
+    "UI9: a window that keeps moving is taken over too — a second after its device is ready, not at rest, which never comes"_test = [] {
+        DesktopOptions o = offscreen("sdl3-takeover-moving");
+        o.renderer = DesktopOptions::Renderer::automatic;
+        o.render_driver.clear();
+        if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
+        if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
+        Desktop d(o);
+        expect(fatal(d.open().has_value()));
+        // A swatch that changes every frame, and frames wanted at 60 a second: the loop never rests.
+        auto colour = signal(std::string("#2563eb"));
+        d.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40,
+                                                      .background = Prop<Fill>(Source{std::nullopt, [colour] { return Value(colour.get()); }, {}})})}));
+        auto lease = d.runtime().demand_frames({.min_hz = 60, .max_hz = 60, .preferred_hz = 60, .reason = "test"});
+        bool red = false;
+        const auto change = [&] {
+            red = !red;
+            colour.set(red ? "#dc2626" : "#2563eb");
+        };
+        expect(d.step(false));
+        if (!d.gpu_pending()) {
+            std::println("  no device is being made here: nothing to take over");
+            return;
+        }
+        const auto from = std::chrono::steady_clock::now();
+        const std::size_t first = d.frames_shown();
+        while (d.gpu_pending() && std::chrono::steady_clock::now() - from < std::chrono::seconds(20)) {
+            change();
+            (void)d.step(true);
+        }
+        const double taken = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - from).count();
+        expect(!d.gpu_pending()) << "taken, or let go, within 20 s";
+        if (!d.gpu()) {
+            std::println("  no device took over (none here, or a software one): the CPU draws on");
+            return;
+        }
+        const std::size_t by_cpu = d.frames_shown() - first;
+        std::println("  moving all along: the device took over {:.0f} ms after the first frame; the CPU showed {} frames before", taken, by_cpu);
+        expect(gt(by_cpu, std::size_t{10})) << "the CPU drew the frames meanwhile";
+        const std::size_t shown = d.frames_shown();
+        for (int i = 0; i < 10; ++i) {
+            change();
+            (void)d.step(true);
+        }
+        expect(eq(d.frames_shown(), shown + 10)) << "and the GPU draws them after";
+    };
+
     "no device to be made: the CPU's frames go into the window's own framebuffer — shown, read back exactly, at the rate the loop wants"_test = [] {
         DesktopOptions o = offscreen("sdl3-framebuffer");
         o.renderer = DesktopOptions::Renderer::automatic;

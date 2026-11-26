@@ -352,16 +352,24 @@ struct Desktop::Impl final : WindowHost {
     }
 
     // The CPU's frame on screen, sent to the device's frame texture as it is (the same premultiplied bytes): the frame
-    // shown is the device's from now on, with nothing drawn again.
+    // shown is the device's from now on, with nothing drawn again. In bands of about 256 KB, each waited for: the
+    // device's staging buffer is written that much and no more (the whole frame at once would leave all of its pages
+    // written for as long as the window lives — 1.9 MB at 800 × 600, 7.8 at 1896 × 1030).
     bool adopt_cpu_frame() {
         const auto width = static_cast<std::uint32_t>(frame.width()), height = static_cast<std::uint32_t>(frame.height());
         if (!frame_texture(width, height)) return false;
-        mlibs::rhi::CommandList sent;
-        sent.upload_borrowed(gpu_frame, mlibs::rhi::Region{0, 0, width, height}, std::as_bytes(frame.pixels()));
-        auto submitted = device->submit(sent);
-        if (!submitted || !device->wait(*submitted)) {
-            warn("the CPU's frame did not reach the device: the GPU draws from the next change");
-            return false;
+        const std::uint32_t band = std::max<std::uint32_t>(1, (256u << 10) / (width * 4));
+        const auto bytes = std::as_bytes(frame.pixels());
+        for (std::uint32_t top = 0; top < height; top += band) {
+            const std::uint32_t rows = std::min(band, height - top);
+            mlibs::rhi::CommandList sent;
+            sent.upload_borrowed(gpu_frame, mlibs::rhi::Region{0, top, width, rows},
+                                 bytes.subspan(static_cast<std::size_t>(top) * width * 4, static_cast<std::size_t>(rows) * width * 4));
+            auto submitted = device->submit(sent);
+            if (!submitted || !device->wait(*submitted)) {
+                warn("the CPU's frame did not reach the device: the GPU draws from the next change");
+                return false;
+            }
         }
         return true;
     }

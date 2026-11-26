@@ -71,7 +71,8 @@ thread wakes the loop when it is done. At rest (the loop asleep, no input come;
 a second after it is ready where something keeps moving) the device claims the
 window — about 75 ms on an RTX 4080 under X11, SDL syncing the window and the
 driver making the swapchain —, the framebuffer is let go, and the CPU's frame on
-screen is sent to the device's frame texture as it is. The two renderers are
+screen is sent to the device's frame texture as it is (in bands of about
+256 KB, so the device's staging buffer is not left written through). The two renderers are
 one contract (D-184), so nothing is drawn again at the takeover; from the next
 change of the display list on the GPU draws. Where a window keeps no framebuffer of its own
 (macOS, Wayland: a CPU frame there needs an SDL renderer the device could not

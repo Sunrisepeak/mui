@@ -59,6 +59,8 @@ namespace omui {
   };
   [[nodiscard]] bool in_browser() noexcept;
   [[nodiscard]] std::vector<std::string> browser_locales();
+  [[nodiscard]] std::string page_projection();
+  [[nodiscard]] std::string page_projected(std::string_view id);
   [[nodiscard]] std::string page_query(std::string_view name);
   [[nodiscard]] bool page_prefers(std::string_view media);
   bool reload_page_with(std::string_view name, std::string_view value);

@@ -96,6 +96,9 @@ public:
     [[nodiscard]] float min_content(Services& services, Color color);
     [[nodiscard]] float baseline(Services& services, Color color);
     void paint(PaintContext& ctx, Point origin, Color color);
+    // Its lines as last painted, for a node at `node_at` in the window: what a component says of its text
+    // (`text_lines`), so the page's own text over a canvas stands on the words drawn. None before it was painted.
+    [[nodiscard]] std::vector<TextLineBox> lines(Point node_at) const;
 
 private:
     mlibs::text::Paragraph& shaped(Services& services, Color color, float width);
@@ -107,6 +110,7 @@ private:
     Color                             color_{};
     float                             width_ = -1;
     bool                              dirty_ = true;
+    std::optional<Point>              painted_at_;  // in its node, where it was last painted
 };
 
 }  // namespace omui::parts

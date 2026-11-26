@@ -108,6 +108,8 @@ int terminal(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
 }
 
 std::vector<std::string> host_locales() { return preferred_locales(); }
+std::string host_document() { return {}; }
+std::string host_document(std::string_view) { return {}; }
 
 }  // namespace omui::hosting
 

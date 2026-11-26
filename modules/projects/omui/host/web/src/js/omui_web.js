@@ -209,7 +209,9 @@ addToLibrary({
         '[data-omui=mirror] pre,[data-omui=mirror] pre code{white-space:pre}' +
         // A line is as wide as its words at least: the space it broke at hangs past its end, and a word that did
         // not fit the line's own width went below it (seen where the last word follows a link).
-        '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre;min-width:max-content}' +
+        // A word begins at the left of its place: where its line is set (a cell to the right, a centred title) is in the
+        // line's and the words' own places, not said again inside each (a word 3 px off where its box is wider than it).
+        '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre;min-width:max-content;text-align:left}' +
         '[data-omui=mirror] [data-omui-word]{display:inline-block;vertical-align:top;white-space:pre;transform-origin:0 0}' +
         // Selected, the layer's text stays unseen and the canvas's words show through the highlight.
         '[data-omui=mirror] ::selection{color:transparent;background:color-mix(in srgb,Highlight 40%,transparent)}' +
@@ -312,6 +314,22 @@ addToLibrary({
     reading: function () {
       var P = omuiPage;
       P.places().forEach(function (at, id) { P.send(P.SCROLL, at[0], at[1], id); });
+    },
+    // The page's own document read back (D-284: what was written is the page's data): every written node in order
+    // — its id, its element's label and address, the words of an element that holds only words — and one node's
+    // element as markup.
+    projection: function () {
+      var page = document.querySelector('[data-omui="static"]'), nodes = [];
+      if (page && page.querySelectorAll) page.querySelectorAll('[data-omui-target]').forEach(function (el) {
+        nodes.push({ id: el.getAttribute('data-omui-target'), label: el.getAttribute('aria-label') || '', href: el.getAttribute('href') || '',
+                     text: el.firstElementChild ? '' : el.textContent });
+      });
+      return JSON.stringify({ lang: (document.documentElement && document.documentElement.lang) || '', nodes: nodes });
+    },
+    projected: function (id) {
+      var page = document.querySelector('[data-omui="static"]'), all = page && page.querySelectorAll ? page.querySelectorAll('[data-omui-target]') : [];
+      for (var i = 0; i < all.length; i++) if (all[i].getAttribute('data-omui-target') === id) return all[i].outerHTML;
+      return '';
     },
 
     // WebMCP (Part 2 §4.1, C; the W3C WebML community group's draft of
@@ -846,13 +864,15 @@ addToLibrary({
           current.splice(i, 0, child);
         });
       });
-      P.fit();
-      // Where each view that scrolls is, once what it scrolls is in place.
-      nodes.forEach(function (n) { if ('scroll' in n) P.scrolls(P.nodes.get(n.id), n.id, n.scroll); });
+      // In the page before anything is measured or scrolled: an element outside it has no size and stays where it is
+      // (the first batch's views would be left at their tops, the canvas elsewhere).
       if (b.root) {
         var root = P.nodes.get(b.root);
         if (root && root.parentNode !== P.layer) P.layer.appendChild(root);
       }
+      P.fit();
+      // Where each view that scrolls is, once what it scrolls is in place.
+      nodes.forEach(function (n) { if ('scroll' in n) P.scrolls(P.nodes.get(n.id), n.id, n.scroll); });
       P.answerPress();
       if ('focus' in b) P.focusTo(b.focus);
       if ('skip' in b) {
@@ -1229,6 +1249,10 @@ addToLibrary({
     var f = window.omuiWantFace;
     if (typeof f === 'function') f(UTF8ToString(family), codePoint);
   },
+  omui_web_projection__deps: ['$omuiPage', '$stringToNewUTF8'],
+  omui_web_projection: function () { return stringToNewUTF8(omuiPage.projection()); },
+  omui_web_projected__deps: ['$omuiPage', '$stringToNewUTF8', '$UTF8ToString'],
+  omui_web_projected: function (id) { return stringToNewUTF8(omuiPage.projected(UTF8ToString(id))); },
   // Where the application's agent.md is: beside the page.
   omui_web_agent_guide__deps: ['$stringToNewUTF8'],
   omui_web_agent_guide: function () {

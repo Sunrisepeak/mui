@@ -59,6 +59,8 @@ public:
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     ActResult activate(ActContext& ctx);
+    // Its words as drawn: the line a page's own text over a canvas, and a page written before its program, set them on.
+    [[nodiscard]] std::vector<TextLineBox> text_lines() const;
 
     // Whether an address is one the system is asked to open (http, https, mailto).
     [[nodiscard]] static bool opens(std::string_view href);

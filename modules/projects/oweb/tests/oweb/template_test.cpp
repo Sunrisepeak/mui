@@ -129,7 +129,7 @@ static UTest cases{"oweb.template", [] {
             for (const oweb::Heading& heading : route.headings)
                 if (heading.level >= 2 && heading.level <= 3 && !heading.anchor.empty()) ++sections;
             const bool chinese = route.language == "zh";
-            expect(html.contains(chinese ? "<nav data-omui-target=\"page/toc\" aria-label=\"本页目录\">" : "<nav data-omui-target=\"page/toc\" aria-label=\"On this page\">") == (sections >= 2))
+            expect(html.contains(chinese ? "<nav data-omui-target=\"main/page/toc\" aria-label=\"本页目录\">" : "<nav data-omui-target=\"main/page/toc\" aria-label=\"On this page\">") == (sections >= 2))
                 << route.path << " has " << sections << " sections";
             if (sections >= 2)
                 for (const oweb::Heading& heading : route.headings)
@@ -137,14 +137,14 @@ static UTest cases{"oweb.template", [] {
                         expect(html.contains(std::format("href=\"#{}\">", heading.anchor)) && html.contains(std::format(" id=\"{}\"", heading.anchor))) << route.path << "#" << heading.anchor;
             const oweb::Route* before = at > 0 && built->routes[at - 1].language == route.language ? &built->routes[at - 1] : nullptr;
             const oweb::Route* after = at + 1 < built->routes.size() && built->routes[at + 1].language == route.language ? &built->routes[at + 1] : nullptr;
-            expect(html.contains("data-omui-target=\"page/turn/before\"") == (before != nullptr) && html.contains("data-omui-target=\"page/turn/after\"") == (after != nullptr)) << route.path;
+            expect(html.contains("data-omui-target=\"main/page/turn/before\"") == (before != nullptr) && html.contains("data-omui-target=\"main/page/turn/after\"") == (after != nullptr)) << route.path;
             if (before) expect(html.contains(std::format("href=\"{}\">← ", oweb::relative(route.path, before->path)))) << route.path;
             if (after) expect(html.contains(std::format("href=\"{}\">", oweb::relative(route.path, after->path)))) << route.path;
         }
         expect(read(out / "start/index.html").contains("href=\"../\">← The minimal documents</a>") && read(out / "zh/start/index.html").contains("aria-label=\"上一页与下一页\""));
         // The other language: this page in it where the site has it, that language's first page where not.
         const std::string start_en = read(out / "start/index.html"), start_zh = read(out / "zh/start/index.html"), ui_en = read(out / "ui/index.html");
-        expect(start_en.contains("<nav data-omui-target=\"page/nav\"") && start_en.contains("href=\"../zh/start/\">开始</a>")) << "from a page to the same page in Chinese";
+        expect(start_en.contains("<nav data-omui-target=\"main/page/nav\"") && start_en.contains("href=\"../zh/start/\">开始</a>")) << "from a page to the same page in Chinese";
         expect(start_zh.contains("href=\"../../start/\">Start</a>")) << "and back: the first language has no part in its addresses";
         expect(ui_en.contains("href=\"../zh/\">最小文档集</a>")) << "a page the other language has not: that language's first page";
         expect(start_en.contains("<link rel=\"alternate\" hreflang=\"zh\" href=\"../zh/start/\">") && start_en.contains("<link rel=\"alternate\" hreflang=\"en\" href=\"./\">") &&
@@ -193,13 +193,13 @@ static UTest cases{"oweb.template", [] {
                 if (!parts) continue;
                 expect(parts->html && !parts->document.empty());
                 Headless host({.level = HeadlessLevel::layout, .size = {960, 1200}});
-                host.mount("page", oweb::shell::page(*parts));
+                host.mount(oweb::shell::mounted_at, oweb::shell::page(*parts));
                 host.settle();
                 semantic::Snapshot again = host.tree().snapshot({});
                 // As the builder writes it: without what a view adds to operate its document.
                 std::unordered_set<std::string> left_out;
                 for (const spec::SemanticNode& node : again.nodes)
-                    if (node.role == Role::button && node.id.starts_with("page/main/doc/")) left_out.insert(node.id);
+                    if (node.role == Role::button && node.id.starts_with(std::format("{}/", oweb::shell::document_id))) left_out.insert(node.id);
                 for (spec::SemanticNode& node : again.nodes) std::erase_if(node.children, [&](const std::string& id) { return left_out.contains(id); });
                 std::erase_if(again.nodes, [&](const spec::SemanticNode& node) { return left_out.contains(node.id); });
                 const std::string written(body_of(plain->html)), read_back = semantic::static_html(again);

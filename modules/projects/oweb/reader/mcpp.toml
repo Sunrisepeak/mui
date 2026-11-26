@@ -1,0 +1,29 @@
+# oweb.reader — the program a site's pages load in a browser: it draws the page it finds. One program for every
+# page of every site of oweb's own shell — it is built with no page: it reads the page's own HTML back (D-284) and
+# makes the view the builder made (oweb.shell), so the layer over the canvas takes the written elements over one
+# for one. Packed for the Web as a world (`omui build --web`: dist-toy's world), which `oweb site.build --engine`
+# gives a site's pages.
+[package]
+namespace   = "oweb"
+name        = "reader"
+version     = "0.1.0"
+description = "The program a site's pages load: it reads the page's own HTML back and draws it — one program for every page of a site"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the program a site's pages load, built for the Web and served by every site"
+kind = "app"
+agent = { part = "omui.agent" }  # an application: its nodes are read and operated at omui.agent's endpoint (D-174)
+
+[targets.oweb-reader]
+kind = "bin"
+main = "src/main.cpp"
+
+[dependencies]
+omui.sdk   = { path = "../../omui/sdk", default-features = false, features = ["app"] }  # no runtime generation: it draws documents
+oweb.shell = { path = "../shell" }
+
+[build-dependencies]
+omui.build = { path = "../../../../mcpp/build", host-module = true }

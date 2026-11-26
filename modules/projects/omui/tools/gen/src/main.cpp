@@ -628,6 +628,7 @@ mcpplibs::cmdline::App command_line() {
                         .option(Option("background-dark").takes_value().value_name("#RRGGBB").help("that colour where the person prefers a dark appearance"))
                         .option(Option("load").takes_value().value_name("eager|idle|interaction").help("when the page takes its program (default eager)"))
                         .option(Option("no-sdk").help("a program without the SDK"))
+                        .option(Option("world").help("a page waiting for its document: one program for every page of a site, each page made from this one by its builder"))
                         .option(Option("later").takes_value().multiple().value_name("DIR|SUFFIX|MOUNT").help("files loaded after the first frame"))
                         .option(Option("file").takes_value().multiple().value_name("PATH=FILE").help("a file in the program's file system before main (written into the page)"))
                         .option(Option("data").takes_value().multiple().value_name("PATH=FILE").help("a TypeScript data module evaluated now, its JSON snapshot at PATH (a page does not evaluate data modules)"))

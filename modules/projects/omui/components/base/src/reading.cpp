@@ -280,6 +280,11 @@ void Link::paint(PaintContext& ctx) const {
     if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, {-2, -1, left + text.width + 4, ctx.size.height + 2}, CornerRadii::all(4));
 }
 
+std::vector<TextLineBox> Link::text_lines() const {
+    const Rect at = services().bounds(node());
+    return label_.lines({at.x, at.y});
+}
+
 void Link::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (node.name.empty()) node.name = props.text;
     if (!props.href.empty()) node.properties.set("href", Value(props.href));  // where it leads: its property (S-16)

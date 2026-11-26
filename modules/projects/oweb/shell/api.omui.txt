@@ -19,6 +19,7 @@ namespace oweb::shell {
     bool scrolls = false;
   };
   [[nodiscard]] omui::Element page(Parts parts, Layout layout = {…});
+  inline constexpr std::string_view mounted_at = "main";
+  inline constexpr std::string_view document_id = "main/page/main/doc";
   [[nodiscard]] std::expected<Parts, std::string> read(std::string_view projection, std::string_view document);
-  [[nodiscard]] std::string_view document_id(Layout layout = {…});
 }

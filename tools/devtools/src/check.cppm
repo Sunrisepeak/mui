@@ -127,8 +127,9 @@ struct Size {
 // A built page with a look (`omui build --web --look`) in headless Chromium, its program held until its document
 // is read: each word a reader sees, where the page's document sets it and where the layer does once the program
 // has presented — at each width, at the top and scrolled. Held to the bound (UI5): at most 2 px, half of them at
-// most 1 px, none to another line. The report: target/takeover.report.xdef.json.
-[[nodiscard]] int takeover(const std::filesystem::path& root, const std::filesystem::path& page, std::span<const int> widths);
+// most 1 px, none to another line. `path`: the page among a site's ("/start/"; "/" the directory's own). The report:
+// target/takeover.report.xdef.json.
+[[nodiscard]] int takeover(const std::filesystem::path& root, const std::filesystem::path& page, std::string_view path, std::span<const int> widths);
 
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.
 [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);

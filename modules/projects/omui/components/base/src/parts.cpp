@@ -190,8 +190,15 @@ float Label::baseline(Services& services, Color color) {
 }
 
 void Label::paint(PaintContext& ctx, Point origin, Color color) {
+    painted_at_.reset();
     if (text_.empty()) return;
     mrender::text::paint(shaped(ctx.services, color, width_ < 0 ? std::numeric_limits<float>::infinity() : width_), ctx.list, origin);
+    painted_at_ = origin;
+}
+
+std::vector<TextLineBox> Label::lines(Point node_at) const {
+    if (!painted_at_ || !paragraph_ || dirty_) return {};
+    return text_line_boxes(*paragraph_, {node_at.x + painted_at_->x, node_at.y + painted_at_->y});
 }
 
 Pressed::Pressed(PaintContext& ctx, const Rect& box, float pressed) : ctx_(ctx) {

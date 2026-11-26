@@ -41,6 +41,10 @@ std::optional<SiteOptions> options_of(Reply& reply, const mlibs::agent::Argument
     SiteOptions options = std::move(*stated);
     if (const auto title = args.value("title")) options.title = *title;
     if (const auto url = args.value("url")) options.url = *url;
+    // A request's engine is from where the request is made, not from the site's directory.
+    if (const auto engine = args.value("engine"); engine && !engine->empty())
+        options.engine = mcpplibs::os::fs::utf8(std::filesystem::absolute(mcpplibs::os::fs::from_utf8(*engine)));
+    if (const auto load = args.value("load"); load && !load->empty()) options.load = *load;
     if (const auto readable = args.value("readable")) {
         // Not a number of bytes: marked, and refused where the build is asked for (site_build).
         const auto read = std::from_chars(readable->data(), readable->data() + readable->size(), options.readable);

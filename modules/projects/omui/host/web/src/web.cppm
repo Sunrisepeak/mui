@@ -165,6 +165,12 @@ private:
 // The person's languages as the browser states them (navigator.languages).
 [[nodiscard]] std::vector<std::string> browser_locales();
 
+// The page's own document as it was written, read back (D-284: a written page's HTML is its data): every written
+// node in order as JSON ({"lang", "nodes": [{"id", "label", "href", "text"}]}), and one node's element as markup.
+// Read before the program's first frame; empty off the Web or where the page was written with no document.
+[[nodiscard]] std::string page_projection();
+[[nodiscard]] std::string page_projected(std::string_view id);
+
 // The page's address: a parameter of its query (empty when absent or off
 // the Web), and the page loaded again with one set (empty: removed) —
 // false off the Web.

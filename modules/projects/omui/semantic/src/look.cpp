@@ -70,8 +70,9 @@ std::string track_css(const mlibs::layout::Track& track) {
     return one(track.kind, track.value);
 }
 
-// A node's layout style as CSS says the same thing. `in_stack`: its parent lays its children over one another.
-std::string layout_css(const Style& style, bool in_stack) {
+// A node's layout style as CSS says the same thing. `in_stack`: its parent lays its children over one another;
+// `in_row`: its parent sets them in a row.
+std::string layout_css(const Style& style, bool in_stack, bool in_row) {
     using namespace mlibs::layout;
     std::string css;
     switch (style.display) {
@@ -134,6 +135,15 @@ std::string layout_css(const Style& style, bool in_stack) {
     if (style.grow != 0) put(css, "flex-grow", number(style.grow));
     if (style.shrink != 1) put(css, "flex-shrink", number(style.shrink));
     length(css, "flex-basis", style.basis);
+    // An item that does not grow counts in its row's own width by its basis, as the engine sizes the row (a table's
+    // columns: every row as wide as the widest cells make it). CSS counts the item's content there unless its width
+    // says more — a row a few pixels narrower, each item shrunk under what its words need.
+    if (in_row && style.grow == 0) {
+        std::string own, by_basis;
+        length(own, "width", style.width);
+        length(by_basis, "width", style.basis);
+        if (own.empty() && by_basis.ends_with("px;")) css += by_basis;
+    }
     if (style.align_self != Align::auto_) put(css, "align-self", align_name(style.align_self));
     if (style.justify_self != Align::auto_) put(css, "justify-self", align_name(style.justify_self) == "flex-start" ? "start" : align_name(style.justify_self) == "flex-end" ? "end" : align_name(style.justify_self));
     if (style.overflow_x != Overflow::visible || style.overflow_y != Overflow::visible) {
@@ -422,6 +432,12 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
         const Style* held = parent.valid() ? runtime.layout_style(parent) : nullptr;
         return held && held->display == mlibs::layout::Display::stack;
     };
+    const auto in_row = [&](NodeId node) {
+        const NodeId parent = runtime.parent(node);
+        const Style* held = parent.valid() ? runtime.layout_style(parent) : nullptr;
+        return held && held->display == mlibs::layout::Display::flex &&
+               (held->direction == mlibs::layout::Direction::row || held->direction == mlibs::layout::Direction::row_reverse);
+    };
     const auto font_of = [&](const Run& run) {
         const auto& face = fonts.face(fonts.face_of(run.font));
         Look::Font font{face.family, static_cast<int>(std::lround(fonts.weight_of(run.font))), fonts.slant_of(run.font) != mlibs::text::Slant::normal};
@@ -430,13 +446,27 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
     };
     for (const auto& [n, node] : nodes) {
         std::string css;
-        if (const Style* style = runtime.layout_style(node)) css = layout_css(*style, in_stack(node));
+        if (const Style* style = runtime.layout_style(node)) css = layout_css(*style, in_stack(node), in_row(node));
         if (const auto own = painted.find(node.index); own != painted.end()) css += own->second;
         // The window's own ground, where the root drew none over it: what a frame is cleared to before anything is drawn.
         if (n == &snapshot.nodes.front() && !css.contains("background")) put(css, "background-color", colour(runtime.theme().color("background")));
+        // A picture is as large as the engine set it — by its file's own size, which a browser reads otherwise (a
+        // drawing with no size of its own fills the column) — and no wider than what holds it, its shape kept.
+        if (n->role == Role::image) {
+            if (const Rect box = runtime.bounds(node); box.width > 0 && box.height > 0) {
+                put(css, "width", px(box.width));
+                put(css, "height", "auto");
+                put(css, "aspect-ratio", std::format("{}/{}", number(box.width), number(box.height)));
+            }
+        }
         if (const auto text = drawn.find(node.index); text != drawn.end()) {
-            // What holds text sets it in lines, as a block does: its runs and the links in them flow together.
-            if (css.starts_with("display:flex;")) css.replace(0, 13, "display:block;");
+            // What holds text sets it in lines, as a block does: its runs and the links in them flow together. A node
+            // that holds more than its text places (a list's item: its paragraph and the list inside it, beside the
+            // number it drew) keeps the layout that sets them apart.
+            const bool holds_blocks = std::ranges::any_of(n->children, [&](const std::string& child) {
+                return std::ranges::none_of(n->marks, [&](const spec::Mark& mark) { return mark.node == child; });
+            });
+            if (!holds_blocks && css.starts_with("display:flex;")) css.replace(0, 13, "display:block;");
             // The node's own: what most of its glyphs were drawn with. The rest are parts of it (below).
             const std::vector<Run>& runs = text->second;
             const Run* own = &runs.front();
@@ -459,6 +489,15 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
             // Its lines as the frame set them: one line's height.
             const auto lines = runtime.text_lines(node);
             if (!lines.empty() && lines.front().bounds.height > 0) put(css, "line-height", px(lines.front().bounds.height));
+            // A control (a link, a button) measures itself whole: its words on one line, its box its own — a whole
+            // pixel at least, room for its underline or its ring — whatever the words alone would take. The box's
+            // height is the least it is; its width too where the box is its words' (not one a column stretched).
+            if (n->role == Role::link || n->role == Role::button) {
+                const Rect box = runtime.bounds(node);
+                css += "white-space:nowrap;";
+                put(css, "min-height", px(box.height));
+                if (!lines.empty() && box.width - lines.front().bounds.width < 2) put(css, "min-width", px(box.width));
+            }
             // The space between its letters: what the frame's last line is wider by than the same text set plainly
             // in the same face, over its graphemes. Read where the whole text is in one face and size.
             if (!lines.empty() && std::ranges::all_of(runs, [&](const Run& run) { return run.font.id == own->font.id && run.size == own->size; })) {
@@ -489,6 +528,9 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
                 std::string differs;
                 if (other.family != font.family) put(differs, "font-family", std::format("'{}',system-ui,sans-serif", font_key(other.family)));
                 if (run.size != own->size) put(differs, "font-size", px(run.size));
+                // A part in another face or size stands on the line its node set: in CSS its own ascent and descent
+                // would make that line taller (a line with code in it 2 px more), so its box adds no height of its own.
+                if (other.family != font.family || run.size != own->size) put(differs, "line-height", "0");
                 if (other.weight != font.weight) put(differs, "font-weight", std::format("{}", other.weight));
                 if (other.italic != font.italic) put(differs, "font-style", other.italic ? "italic" : "normal");
                 if (!run.same_colour(*own)) put(differs, "color", colour(run.color));
@@ -501,7 +543,7 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
         std::vector<Look::Wrapper> around;
         for (NodeId up = runtime.parent(node); up.valid() && !stated.contains(up.index); up = runtime.parent(up)) {
             const Style* style = runtime.layout_style(up);
-            std::string css = style ? layout_css(*style, in_stack(up)) : std::string();
+            std::string css = style ? layout_css(*style, in_stack(up), in_row(up)) : std::string();
             if (const auto own = painted.find(up.index); own != painted.end()) css += own->second;
             around.push_back({up.index, std::move(css)});
         }
@@ -522,6 +564,8 @@ std::string look_sheet(const Look& look) {
         "[data-omui-look] *{box-sizing:border-box;margin:0;padding:0;border:0;list-style:none;font:inherit;text-rendering:inherit;color:inherit;background:none;scrollbar-width:none;text-decoration:none}"
         "[data-omui-look] ::-webkit-scrollbar{display:none}[data-omui-look] a[href]{text-decoration:underline}"
         "[data-omui-look] strong,[data-omui-look] b{font-weight:700}[data-omui-look] em,[data-omui-look] i{font-style:italic}"
+        // A table's heading stands where its column does: at the left unless the column says (a browser's own sheet centres it).
+        "[data-omui-look] th:not([align]){text-align:left}"
         // On paper the document is whole: nothing of it stays inside a view that scrolls or a box of the window's size.
         "@media print{[data-omui-look],[data-omui-look] *{overflow:visible!important;height:auto!important;max-height:none!important}}";
     if (!look.dark.empty()) {

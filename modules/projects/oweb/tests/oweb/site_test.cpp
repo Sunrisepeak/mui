@@ -151,6 +151,61 @@ static UTest cases{"oweb.site", [] {
         for (const auto& verdict : built->delivery.verdicts) expect(verdict.within) << verdict.budget.name << ": " << verdict.found << " in " << verdict.where;
     };
 
+    "a site with an engine: each page made from the world's page — still its document, the program's files served once, each route saying when it takes it"_test = [] {
+        // A world as dist-toy packs one (omui-gen dist-toy --world): a page waiting for its document, the program beside it.
+        const auto world = scratch("world");
+        const auto put = [&](const std::string& name, std::string_view bytes) {
+            std::filesystem::create_directories((world / name).parent_path());
+            std::ofstream(world / name, std::ios::binary) << bytes;
+        };
+        put("index.html", "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>oweb</title>\n<!--omui:head-->\n</head>\n<body>\n"
+                          "<div data-omui=\"static\">\n<!--omui:document-->\n</div>\n<canvas id=\"canvas\"></canvas>\n<script>\nvar omuiRoot = \"\";\nvar omuiTakes = \"eager\";\n"
+                          "var omuiLauncher = \"reader-0123.js\";\n</script>\n</body>\n</html>\n");
+        put("reader-0123.js", "/* the launcher */");
+        put("reader-4567.wasm", std::string("\0asm\1\0\0\0", 8));
+        put("assets/89ab.ttf", "a face");
+        const auto out = scratch("docs-engine"), looked_out = scratch("docs-engine-look");
+        const auto built = oweb::build(data() / "docs", out, {.languages = {"en", "zh"}, .engine = world.string(), .load = "idle"});
+        const auto looked = oweb::build(data() / "docs", looked_out, {.languages = {"en", "zh"}, .look = true});
+        expect(built.has_value() && looked.has_value()) << (built ? "" : built.error());
+        if (!built || !looked) return;
+        const std::string home = read(out / "index.html"), deep = read(out / "guide/start/index.html"), chinese = read(out / "zh/index.html");
+        // The world's page, this page's document in it: the title, the language, the head, the document.
+        expect(home.starts_with("<!doctype html>\n<html lang=\"en\">") && chinese.contains("<html lang=\"zh\">") && deep.contains("<title>") && !deep.contains("<title>oweb</title>"));
+        expect(home.contains("<meta name=\"generator\" content=\"oweb\">") && home.contains("<link rel=\"alternate\" type=\"text/markdown\" href=\"index.md\">") &&
+               home.contains("[data-omui-look] *{box-sizing:border-box;") && home.contains("src:url('assets/omui-inter.ttf')"))
+            << "what its head says more: where its Markdown is, its look's sheet, its faces";
+        expect(home.contains("<div data-omui=\"static\">\n<div data-omui-target=\"app\" data-omui-look=\"") && home.contains("<canvas id=\"canvas\">")) << "its document over the canvas's place";
+        expect(!home.contains("<!--omui:") && !home.contains("var omuiRoot = \"\";")) << "no place left unfilled";
+        // The world's files once for the site, found from each page; each route says when it takes the program.
+        expect(home.contains("var omuiRoot = \"engine/\";") && deep.contains("var omuiRoot = \"../../engine/\";") && chinese.contains("var omuiRoot = \"../engine/\";"));
+        expect(home.contains("var omuiTakes = \"idle\";"));
+        expect(read(out / "engine/reader-0123.js") == "/* the launcher */" && std::filesystem::file_size(out / "engine/reader-4567.wasm") == 8u &&
+               read(out / "engine/assets/89ab.ttf") == "a face" && !std::filesystem::exists(out / "engine/index.html"))
+            << "the program's files, not the page they waited in";
+        expect(std::ranges::any_of(built->delivery.files, [](const auto& file) { return file.path == "engine/reader-4567.wasm"; })) << "counted in the delivery";
+        expect(read(out / "site.routes.xdef.json").contains("\"load\":\"idle\"") && !read(looked_out / "site.routes.xdef.json").contains("\"load\"")) << "a route's load, where the site has a program";
+        // The page scrolls in a view of the window's size (a canvas is not scrolled by its window); the page for a
+        // lost address takes no program.
+        expect(home.contains("overflow-y:auto") || home.contains("overflow:auto") || home.contains("overflow-y:scroll")) << "a view that scrolls";
+        expect(!read(out / "404.html").contains("omuiRoot") && read(out / "404.html").contains("<base href=")) << "a lost address reads, and leads home";
+        // The same document as the page without a program, and the same Markdown.
+        for (const std::string_view route : {"", "guide/start/", "zh/"}) {
+            expect(md::to_html(md::from_html(document_of(read(out / route / "index.html")))) == md::to_html(md::from_html(document_of(read(looked_out / route / "index.html"))))) << "/" << route;
+            expect(read(out / route / "index.md") == read(looked_out / route / "index.md")) << "/" << route << " as Markdown";
+        }
+        for (const auto& verdict : built->delivery.verdicts) expect(verdict.within) << verdict.budget.name << ": " << verdict.found << " in " << verdict.where;
+        // A route says its own; what is no world's page, and what is no time to take a program, are said.
+        const auto stated = oweb::collect(data() / "docs", {.languages = {"en", "zh"}, .routes = {{.path = "/", .source = "pages/index.md", .load = "interaction"},
+                                                                                                    {.path = "/start/", .source = "pages/guide/start.md"}}, .load = "idle"});
+        expect(stated.has_value() && stated->size() == 2u && (*stated)[0].load == "interaction" && (*stated)[1].load == "idle") << (stated ? "" : stated.error());
+        const auto never = oweb::collect(data() / "docs", {.load = "soon"});
+        expect(!never && never.error().contains("`eager`, `idle` or on `interaction`")) << (never ? "" : never.error());
+        put("index.html", "<!doctype html><html lang=\"en\"><head><title>x</title></head><body></body></html>");
+        const auto refused = oweb::build(data() / "docs", scratch("docs-no-world"), {.languages = {"en", "zh"}, .engine = world.string()});
+        expect(!refused && refused.error().contains("no world's page") && refused.error().contains("dist-toy --world")) << (refused ? "" : refused.error());
+    };
+
     "a site of one page: one route, no navigation, no sitemap without an address"_test = [] {
         const auto out = scratch("page");
         const auto built = oweb::build(data() / "page", out);

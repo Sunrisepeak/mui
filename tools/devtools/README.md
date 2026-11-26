@@ -162,7 +162,7 @@ The site's checks in a real browser (moved from `tools/ci/site-browser.sh`, the 
 ```sh
 omui-devtools check site [delivery] [path] [--page DIR] [--omui PATH]   # the site (G5): site/'s omui build --web unless given
 omui-devtools check dist-toy-loading [--fixture FILE]                  # omui.gen's dist_toy tests first unless a fixture is given
-omui-devtools check takeover --page DIR [--widths 1280,768,390]        # a page built with its look (omui build --web --look)
+omui-devtools check takeover --page DIR [--path /ROUTE/] [--widths 1280,768,390]   # a page built with its look (omui build --web --look), or a route of a site with its engine
 ```
 
 `takeover` holds the bound of a page with a look (UI5, D-288): the page is served with its program held back, each word a reader sees is placed where the page's own document sets it, the program is let through, and when it has presented the same word is placed where the document layer sets it over the canvas — at each width, at the top of the document and with the reader scrolled 700 px down it. A word moves at most 2 px, half of them at most 1 px, none goes to another line, and at least 50 words are compared; one row over it fails, naming the two words that moved furthest (`target/takeover.report.xdef.json`). Chromium only: Firefox's and WebKit's numbers are the design's own measurements.

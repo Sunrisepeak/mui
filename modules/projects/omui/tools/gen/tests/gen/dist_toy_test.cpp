@@ -232,6 +232,38 @@ static UTest cases{"gen.dist_toy", [] {
         expect(!refused && refused.error().contains("`soon` is not when a page takes its program (eager, idle, interaction)")) << (refused ? "" : refused.error());
     };
 
+    "a world: a page waiting for its document — one program for every page of a site, each page made from this one by replacing text"_test = [] {
+        Tree t;
+        auto p = t.package(); p.sdk = false; p.world = true; p.out = t.root / "out" / "world";
+        auto made = gen::package_for_toy(p);
+        expect(made.has_value()) << (made ? "" : made.error());
+        if (!made) return;
+        const std::string page = read(p.out / "index.html");
+        const auto once = [&](std::string_view text) { return page.find(text) != std::string::npos && page.find(text, page.find(text) + 1) == std::string::npos; };
+        expect(once(gen::world_head) && once(gen::world_document) && once(gen::world_root) && once(gen::world_takes)) << "each place there once";
+        expect(page.find(gen::world_head) < page.find("</head>") && page.find("<div data-omui=\"static\">\n<!--omui:document-->\n</div>") < page.find("<canvas id=\"canvas\""))
+            << "the head's place in the head, the document's over the canvas's";
+        expect(page.contains("[data-omui=static]>[data-omui-look]{width:100%!important;height:100%!important}")) << "the document is set by its look";
+        expect(page.contains("var launcher = omuiRoot + omuiLauncher, idle = omuiTakes === 'idle', eager = omuiTakes === 'eager';") && page.contains("if (eager) start(); else omuiPublish('waiting');") &&
+               !page.contains("<script defer src="))
+            << "the program is found from the world's directory, and taken when the page says";
+        expect(page.contains("await fetch(omuiRoot + a.url, {") && page.contains("new URL(omuiRoot + omuiLauncher, document.URL)")) << "every file of the world from its directory";
+        expect(page.contains("function omuiArguments() {\n  return [];") && !page.contains("location.reload(); });")) << "what follows # is a place in the document: no flag, no reload";
+        expect(page.contains("window.omuiFontLanguage = document.documentElement.lang;")) << "a language's font by the document's language";
+        expect(!page.contains("data-omui=\"faces\"") && !page.contains("user-scalable=no")) << "a page's look names its own faces; a reader may zoom a document";
+        // One page of a site: made by replacing text, and nothing else of the world changes.
+        std::string one = page;
+        const auto fill = [&](std::string_view at, std::string_view text) { one.replace(one.find(at), at.size(), text); };
+        fill(gen::world_document, "<main data-omui-target=\"page/main\"><p data-omui-target=\"page/main/doc/b0\">Read me.</p></main>");
+        fill(gen::world_root, "var omuiRoot = \"../../engine/\";");
+        fill(gen::world_takes, "var omuiTakes = \"interaction\";");
+        expect(one.contains("<div data-omui=\"static\">\n<main data-omui-target=\"page/main\">") && one.size() > page.size());
+        // A document of its own is another kind of page's: a world waits for a builder's.
+        put(t.root / "own.html", "<main data-omui-target=\"main\"><p data-omui-target=\"main/note\">A note.</p></main>\n");
+        const auto refused = gen::adopt_document({.dir = p.out, .static_html = t.root / "own.html"});
+        expect(!refused && refused.error().contains("a world's page")) << (refused ? "" : refused.error());
+    };
+
     "--lazy's routes: the bare page is a route, an empty field too"_test = [] {
         expect(gen::lazy_routes("") == std::vector<std::string>{""}) << "--lazy \"\": the bare page (the site's split)";
         expect(gen::lazy_routes("home") == std::vector<std::string>{"home"});

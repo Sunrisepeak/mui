@@ -23,6 +23,8 @@ export default defineOps({
         { name: "languages", type: "string", doc: "its languages, the default first: en,zh — a first directory of that name is that language's pages", optional: true },
         { name: "url", type: "string", doc: "where it is served (https://example.org/docs/): the sitemap's addresses", optional: true },
         { name: "readable", type: "string", doc: "the most bytes a route sends before it reads, its index.html as gzip (default 100000; 0 holds none)", optional: true },
+        { name: "engine", type: "path", doc: "the program its pages load in a browser: a world's directory (omui build --web of oweb.reader) — served once from engine/, each page still its document until it takes the program", optional: true },
+        { name: "load", type: "string", doc: "when a page takes the program where its route does not say: eager (default), idle, interaction", optional: true },
       ],
       result: "json",
       cost: "bounded",

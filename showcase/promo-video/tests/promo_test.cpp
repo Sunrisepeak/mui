@@ -161,7 +161,9 @@ UTest cases{"showcase.promo_video", [] {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        expect(eq(all.hex(), std::string("a2cd43d9cce05c73")));  // the end card types `omui new hello`; names promo.timeline.xdef.ts
+        // The end card types `omui new hello`; names promo.timeline.xdef.ts. The wall's frame (1500) since a Markdown
+        // block's height is its text's own, not rounded up (UI5 step 2: the wall's own pin moved with it).
+        expect(eq(all.hex(), std::string("5c28e70265c7d725")));
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         expect(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080) << "1080p";

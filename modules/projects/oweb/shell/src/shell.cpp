@@ -43,15 +43,13 @@ omui::Element page(Parts parts, Layout layout) {
     inside.push_back(std::move(main));
     if (!parts.beside.empty()) inside.push_back(navigation(row({.id = "turn", .gap = 16, .wrap = "wrap"}, links(parts.beside)), parts.turn));
     // One column a reader's eye can follow, in the middle of a wide window: as wide as the window up to that.
-    Element shell = column({.id = "page", .width = mlibs::layout::Length::percent(100), .max_width = 760, .padding = 24, .gap = 16}, std::move(inside));
-    shell.prop("justify_self", Source{Value("center"), {}, {}});
-    if (!layout.scrolls) return shell;
-    std::vector<Element> scrolled;
-    scrolled.push_back(std::move(shell));
-    return scroll({.id = "view", .width = mlibs::layout::Length::percent(100), .height = mlibs::layout::Length::percent(100)}, std::move(scrolled));
+    std::vector<Element> held;
+    held.push_back(column({.id = "page", .width = mlibs::layout::Length::percent(100), .max_width = 760, .padding = 24, .gap = 16, .align_self = "center"}, std::move(inside)));
+    // The view's root takes the name of where it is mounted (an application's view: `main`); the page is under it
+    // either way, so its nodes are named the same in a window that scrolls it and in a view that does.
+    if (layout.scrolls) return scroll({.id = "view", .width = mlibs::layout::Length::percent(100), .height = mlibs::layout::Length::percent(100)}, std::move(held));
+    return column({.id = "view", .width = mlibs::layout::Length::percent(100)}, std::move(held));
 }
-
-std::string_view document_id(Layout layout) { return layout.scrolls ? "view/page/main/doc" : "page/main/doc"; }
 
 std::expected<Parts, std::string> read(std::string_view projection, std::string_view document) {
     const auto parsed = mlibs::json::Document::parse(projection, "the page's projection");
@@ -60,25 +58,27 @@ std::expected<Parts, std::string> read(std::string_view projection, std::string_
     parts.document = std::string(document);
     parts.html = true;
     bool found = false;
-    // A node's place: the part it is in and its own id there, whatever stands above the page.
-    const auto placed = [](std::string_view id, std::string_view part) -> std::optional<std::string_view> {
-        const std::size_t at = id.rfind(part);
-        if (at == std::string_view::npos || (at > 0 && id[at - 1] != '/')) return std::nullopt;
-        return id.substr(at + part.size());
+    // A node's place under the page: the part it is in, or its own id in a part.
+    constexpr std::string_view under = "main/page/";
+    const auto within = [](std::string_view place, std::string_view part) -> std::optional<std::string_view> {
+        if (!place.starts_with(part) || place.substr(part.size()).contains('/')) return std::nullopt;
+        return place.substr(part.size());
     };
     for (const mlibs::json::Node& node : parsed->root()["nodes"].items()) {
         const std::string id = node["id"].text().value_or({});
+        if (!id.starts_with(under)) continue;
+        const std::string_view place = std::string_view(id).substr(under.size());
         const auto label = [&] { return node["label"].text().value_or({}); };
         const auto link = [&](std::string_view own) { return Link{std::string(own), node["href"].text().value_or({}), node["text"].text().value_or({})}; };
-        if (const auto own = placed(id, "page/nav"); own && own->empty()) parts.site = label();
-        else if (const auto own = placed(id, "page/nav/"); own && !own->contains('/')) parts.pages.push_back(link(*own));
-        else if (const auto own = placed(id, "page/toc"); own && own->empty()) parts.contents = label();
-        else if (const auto own = placed(id, "page/toc/"); own && !own->contains('/')) parts.sections.push_back(link(*own));
-        else if (const auto own = placed(id, "page/turn"); own && own->empty()) parts.turn = label();
-        else if (const auto own = placed(id, "page/turn/"); own && !own->contains('/')) parts.beside.push_back(link(*own));
-        else if (const auto own = placed(id, "page/main/doc"); own && own->empty()) found = true;
+        if (place == "nav") parts.site = label();
+        else if (const auto own = within(place, "nav/")) parts.pages.push_back(link(*own));
+        else if (place == "toc") parts.contents = label();
+        else if (const auto own = within(place, "toc/")) parts.sections.push_back(link(*own));
+        else if (place == "turn") parts.turn = label();
+        else if (const auto own = within(place, "turn/")) parts.beside.push_back(link(*own));
+        else if (place == "main/doc") found = true;
     }
-    if (!found) return std::unexpected("the page has no document of a site's shell (no node page/main/doc)");
+    if (!found) return std::unexpected(std::format("the page has no document of a site's shell (no node {})", document_id));
     return parts;
 }
 

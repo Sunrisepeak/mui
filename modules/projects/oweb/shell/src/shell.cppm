@@ -37,16 +37,18 @@ struct Layout {
     bool scrolls = false;
 };
 
-// The page as a view. Its ids: `page` the column; in it `nav` (`r…`), `toc` (`t…`), `main` holding `doc`, and `turn`
-// (`before`, `after`) — each part only where it has something to show; around it `view` where the layout scrolls.
+// The page as a view, for where an application's view is mounted (`main`). Its ids there: `main/page` the column; in
+// it `nav` (`r…`), `toc` (`t…`), `main` holding `doc`, and `turn` (`before`, `after`) — each part only where it has
+// something to show. The same in either layout.
 [[nodiscard]] omui::Element page(Parts parts, Layout layout = {});
+
+// Where an application's view is mounted, and the document's node in a page mounted there.
+inline constexpr std::string_view mounted_at = "main";
+inline constexpr std::string_view document_id = "main/page/main/doc";
 
 // The parts a page's own HTML says: `projection` as the Web host reads it (omui.host.web's page::projection — every
 // written node's id, its element's label, address and words) and the document's markup (page::projected of its
 // node). Or why the page is none of this shell's (it has no document).
 [[nodiscard]] std::expected<Parts, std::string> read(std::string_view projection, std::string_view document);
-
-// The document's node in a page of this shell, with and without the view around it.
-[[nodiscard]] std::string_view document_id(Layout layout = {});
 
 }  // namespace oweb::shell

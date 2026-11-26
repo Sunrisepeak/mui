@@ -31,4 +31,9 @@ void install_services();
 // The person's languages as the host states them.
 [[nodiscard]] std::vector<std::string> host_locales();
 
+// The document the host showed before the program (a Web page's own, read back): its nodes, and one node's markup.
+// Empty on a host that shows none.
+[[nodiscard]] std::string host_document();
+[[nodiscard]] std::string host_document(std::string_view id);
+
 }  // namespace omui::hosting

@@ -47,6 +47,10 @@ struct toy_options {
     std::string              background_dark;        // that colour where the person prefers a dark appearance (a page that follows it)
     std::string              load = "eager";         // when the page takes its program: eager, idle, interaction (D-260)
     bool                     sdk = true;             // the page loads Toy's SDK (window.toy)
+    // A world: the page of a program that draws documents it was not built with (one program for every page of a
+    // site) — index.html a page waiting for its document, which a site's builder gives each of its pages
+    // (omui-gen dist-toy --world; oweb's `engine`).
+    bool                     world = false;
     std::vector<later_files> later;                  // fetched after the program is drawn
     std::vector<font_subset> subsets;                // fonts cut down to the program's characters
     // Fonts for some languages ({"NotoSansSC", {"zh"}}): before the program

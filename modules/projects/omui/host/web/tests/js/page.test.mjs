@@ -452,6 +452,46 @@ test('a program whose frame is never shown takes nothing of the page\'s document
   assert.equal(P.nodes.get('doc/title').tagName, 'H1', 'the layer has its own');
 });
 
+test('a view that scrolls in the layer\'s first batch: the element is where the program is (it is in the page before it is scrolled)', () => {
+  const { P, context } = page();
+  context.omui_web_mirror(JSON.stringify({
+    root: 'app',
+    nodes: [{ id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['main'] }, { id: 'main', tag: 'div', box: [0, 0, 200, 160], scroll: [0, 421, 0, 900] }],
+  }));
+  assert.equal(P.nodes.get('main').scrollTop, 421);
+});
+
+test('the page\'s own document read back: every written node with its label, address and words, and one node\'s markup — all a program that draws a written page is sent', () => {
+  const { P, document } = page();
+  assert.deepEqual(JSON.parse(P.projection()).nodes, [], 'a page with no document says none');
+  assert.equal(P.projected('main/page/main/doc'), '');
+  const made = (tag, id, said = {}, inside = []) => {
+    const el = document.createElement(tag);
+    el.setAttribute('data-omui-target', id);
+    for (const [k, v] of Object.entries(said)) el.setAttribute(k, v);
+    for (const one of inside) el.appendChild(typeof one === 'string' ? document.createTextNode(one) : one);
+    return el;
+  };
+  const projection = document.createElement('div');
+  projection.setAttribute('data-omui', 'static');
+  projection.appendChild(made('div', 'app', {}, [
+    made('nav', 'main/page/nav', { 'aria-label': 'The docs' }, [made('a', 'main/page/nav/r0', { href: '../' }, ['Home']), made('a', 'main/page/nav/r1', { href: './' }, ['Start & go'])]),
+    made('main', 'main/page/main', {}, [made('div', 'main/page/main/doc', { role: 'document' }, [
+      made('p', 'main/page/main/doc/b0', {}, ['Read ', made('a', 'main/page/main/doc/b0/link0', { href: 'guide/' }, ['the guide']), '.']),
+    ])]),
+  ]));
+  document.body.appendChild(projection);
+  const said = JSON.parse(P.projection());
+  assert.deepEqual(said.nodes.map((n) => n.id), ['app', 'main/page/nav', 'main/page/nav/r0', 'main/page/nav/r1', 'main/page/main', 'main/page/main/doc', 'main/page/main/doc/b0',
+                                               'main/page/main/doc/b0/link0'], 'every written node, in the document\'s order');
+  assert.deepEqual(said.nodes[1], { id: 'main/page/nav', label: 'The docs', href: '', text: '' }, 'a part: its label');
+  assert.deepEqual(said.nodes[3], { id: 'main/page/nav/r1', label: '', href: './', text: 'Start & go' }, 'a link: its address as written, its words');
+  assert.equal(said.nodes[6].text, '', 'an element that holds more than words says them through its markup');
+  assert.equal(P.projected('main/page/main/doc'),
+               '<div data-omui-target="main/page/main/doc" role="document"><p data-omui-target="main/page/main/doc/b0">Read <a data-omui-target="main/page/main/doc/b0/link0" href="guide/">the guide</a>.</p></div>');
+  assert.equal(P.projected('main/page/none'), '', 'no such node: nothing');
+});
+
 test('a view the reader scrolled in the page\'s own document: the program is told where at its start, and where they went on to when the layer takes it', () => {
   const { P, document, context, heard } = page();
   const projection = document.createElement('div');

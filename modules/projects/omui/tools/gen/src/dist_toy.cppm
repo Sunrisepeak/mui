@@ -70,6 +70,13 @@ struct ToyPackage {
     // scheme); empty: the same as `background`.
     std::string           background_dark;
     bool                  sdk = true;     // load the Toy SDK in the page
+    // A world (0.1.0 plan ST2; oweb's design §3.3): the page of a program that draws documents it was not built
+    // with — one program for every page of a site. Its index.html is a page waiting for its document: a site's
+    // builder makes each of its pages from it by replacing text at the places below, and serves the other files
+    // once, from one directory. Such a page's address after `#` is a place in its document, not the program's flags;
+    // its fonts' languages are chosen by the document's own (`<html lang>`); it declares no faces (a page's look
+    // names its own); a reader may zoom it.
+    bool                  world = false;
     // Files fetched once the program is drawn: a directory's files with a
     // suffix, written under `mount` (/later/…) in its file system.
     struct Later {
@@ -114,6 +121,15 @@ struct ToyPackage {
     // character the cut lacks (or no face has), as another language's face is — not once the program is drawn.
     std::vector<std::string> fonts_on_demand;
 };
+
+// A world page's places (ToyPackage::world), each there once: where the builder writes what the page's head says
+// more (its sheet, its faces, its other languages), its document (the projection, `data-omui-target` on each
+// node's element); the directory the world's files are served from, as the page finds it ("../../engine/"); and
+// when the page takes its program (eager, idle, interaction). Its `<title>` and `<html lang>` are replaced too.
+inline constexpr std::string_view world_head = "<!--omui:head-->";
+inline constexpr std::string_view world_document = "<!--omui:document-->";
+inline constexpr std::string_view world_root = "var omuiRoot = \"\";";
+inline constexpr std::string_view world_takes = "var omuiTakes = \"eager\";";
 
 struct ToyFile {
     std::string   path;   // relative to the package

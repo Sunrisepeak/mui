@@ -46,12 +46,16 @@ The routes are one table, and the rest is made from it: `site.routes.xdef.json` 
 
 **A page may look as the engine draws it** (`look: true` in the configuration; UI5 step 4, preview): each route is drawn once, light and dark, and its `index.html` says what the frame drew — every element its node's layout (the view's flexbox and grid as CSS), the face, size, colour and spacing of its text, its ground, corners, borders and shadows (`omui.semantic`'s look) — in place of the default sheet. The faces are the site's own files (`assets/omui-<family>.ttf`), asked for by each page from where it is served, each cut to the characters the site's pages show ([`mlibs.text.subset`](../../content/text/subset); the documents template: 5.2 MB of faces to 0.84 MB, 0.35 MB as sent — glyph ids are kept, so a face used for two characters is still 0.38 MB: the look stays opt-in until that is cut too). The document is the same: its HTML read back and its Markdown are those of the page without a look. A browser lays the page out by the same model at any width, with no program; when the engine is on a page (not yet) the canvas shows what the page showed.
 
-Not yet here (0.1.0's tasks ST2–ST7): pages written as views (`*.ts`), layouts of one's own and their slots, the search box on a page, code highlighting, the three presets and `omui new`, the engine on a page by its load policy, the engine's share in the delivery manifest, the GitHub Pages action.
+**A page may load the program that draws it** (`engine: "<a world's directory>"` in the configuration, or `--engine DIR`; ST2 step 5, preview). A world is a program packed as a page waiting for its document (`omui build --web` of [`oweb.reader`](reader); `omui-gen dist-toy --world`). The site serves its files once, from `engine/`, and every page is made from the world's page with the page's own document in it: it reads with no script exactly as before, and takes the program when its route says — `load: "eager"` at once (the default), `"idle"` once the page has loaded and is idle, `"interaction"` when the reader first operates something only a program answers (reading never takes it: scrolling, the browser's find, a selection, a link); the site's `load`, or a stated route's own; the routes table says each route's. The program is sent nothing else: it reads the page's own HTML back — the navigation's links, the document's markup — and makes the view the builder made ([`oweb.shell`](shell)), so the layer over the canvas takes the written elements over one for one (D-284). Such a site's pages are written with their look, in a view of the window's size that scrolls (a canvas is not scrolled by its window); the page for a lost address takes no program.
+
+Measured on the documents template (headless Chromium 159, `omui-devtools check takeover --path`, seven routes at three widths, at the top and scrolled): 24 of 42 rows within UI5's bound — a word moves at most 2 px, half of them at most 1 px, none to another line — with every word matched by its node's id; the rows outside it are a page's pictures (the program does not draw them yet), a table that never narrows (red 162) and lines that mix Chinese and Latin words (the engine sets each line by the faces it uses).
+
+Not yet here (0.1.0's tasks ST2–ST7): pages written as views (`*.ts`), layouts of one's own and their slots, a page's pictures drawn by its program, the search box on a page, code highlighting, the three presets and `omui new`, the window itself scrolling a page that has a program, the program cut to what reading needs (2.5 MB as sent now), the GitHub Pages action.
 
 ## Entry points by level
 
 - L0: `oweb site.build --site DIR --out DIR`.
-- L1: the site's `oweb.config.ts`, and a request's options over it (`--languages`, `--title`, `--url`, `--readable`); `routes.list`, `page.read`, `docs.search`.
+- L1: the site's `oweb.config.ts`, and a request's options over it (`--languages`, `--title`, `--url`, `--readable`, `--engine`, `--load`); `routes.list`, `page.read`, `docs.search`.
 - L2: the library — `oweb::configured`, `oweb::collect`, `oweb::evaluate`, `oweb::build`, and the tables' writers (`routes_json`, `llms_txt`, `sitemap_xml`, `search_json`).
 - L3, L4: a route's tree before it is written, and build stages of one's own: with ST2's layouts and ST3's content pipeline.
 
@@ -62,6 +66,7 @@ The subject `oweb` (interface `oweb@1`) behind the tool kernel's three entries �
 ## Packages
 
 - `oweb` (this directory): the builder, the command and its catalog.
+- [`oweb.reader`](reader): the program a site's pages load in a browser — it reads the page's own HTML back and draws it; one program for every page.
 - [`oweb.shell`](shell): a page's shell as a view — one function for the builder and for the program a page loads, so a node has one id in the page as written and as drawn.
 
 ## Dependencies

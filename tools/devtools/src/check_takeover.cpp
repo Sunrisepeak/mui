@@ -33,6 +33,20 @@ constexpr int words_at_least = 50;
 // Evaluated in the page. `before`: every word of every node's own text in the page's document, kept on the
 // window. `after`: the same words in the layer over the canvas, and how far each one seen moved.
 constexpr std::string_view words_script = R"js((() => {
+// The middle of the line a word stands on: the layer's own line where the word is in one; else, in a block whose
+// lines are of one stated height, the line of that height its letters' middle falls in; else its letters' middle.
+const line = (node, r) => {
+  const middle = r.top + r.height / 2;
+  let up = node.parentElement;
+  const set = up && up.closest ? up.closest('[data-omui-line]') : null;
+  if (set) { const box = set.getBoundingClientRect(); return box.top + box.height / 2; }
+  while (up && getComputedStyle(up).display === 'inline') up = up.parentElement;
+  if (!up) return middle;
+  const style = getComputedStyle(up), high = parseFloat(style.lineHeight);
+  if (!(high > 0)) return middle;
+  const from = up.getBoundingClientRect().top + (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.paddingTop) || 0);
+  return from + (Math.max(0, Math.floor((middle - from) / high)) + 0.5) * high;
+};
 const words = (root, attribute) => {
   const all = [], top = document.querySelector(root);
   if (!top) return all;
@@ -51,8 +65,10 @@ const words = (root, attribute) => {
         range.setStart(node, m.index);
         range.setEnd(node, m.index + m[0].length);
         const r = range.getBoundingClientRect();
-        // A word's place: its left edge and the middle of its height (the layer sets a line in a size that fits its width).
-        if (r.width > 0) all.push({ id, index: index++, word: m[0], x: r.left, y: r.top + r.height / 2, h: r.height });
+        // A word's place: its left edge and the middle of the line it stands on. Not the middle of its own letters'
+        // box: that is its face's (a word of code in a line of prose, a character another face drew, stand on the
+        // same line 2–4 px apart by their faces' heights), and the layer sets every word in one face.
+        if (r.width > 0) all.push({ id, index: index++, word: m[0], x: r.left, y: line(node, r), h: r.height });
       }
     }
   }
@@ -104,9 +120,13 @@ struct Held {
 
 }  // namespace
 
-int takeover(const fs::path& root, const fs::path& directory, std::span<const int> widths) {
-    if (!fs::is_regular_file(directory / "index.html"))
-        return failed(std::format("no page in {} (build one with its look: omui build --web --look)", mcpplibs::os::fs::utf8(directory)));
+int takeover(const fs::path& root, const fs::path& directory, std::string_view path, std::span<const int> widths) {
+    // The page's address on the check's own host: a site's route, or the directory's own page.
+    std::string route(path);
+    if (!route.starts_with('/')) route.insert(route.begin(), '/');
+    if (!route.ends_with('/')) route += '/';
+    if (!fs::is_regular_file(directory / mcpplibs::os::fs::from_utf8(route.substr(1)) / "index.html"))
+        return failed(std::format("no page at {} in {} (omui build --web --look, or a site built with its engine)", route, mcpplibs::os::fs::utf8(directory)));
     const auto chrome = browser::chromium();
     if (!chrome) return failed("no headless Chromium for the takeover's check");
     auto held = std::make_shared<Held>();
@@ -146,6 +166,9 @@ int takeover(const fs::path& root, const fs::path& directory, std::span<const in
         }
         return std::format("{} did not come", what);
     };
+    std::string address = (*server)->url();
+    if (address.ends_with('/')) address.pop_back();
+    address += route;
     json rows = json::array();
     std::string problem;
     bool within = true;
@@ -154,7 +177,7 @@ int takeover(const fs::path& root, const fs::path& directory, std::span<const in
             if (!problem.empty()) break;
             let(false);
             if (const auto sized = page.call("Emulation.setDeviceMetricsOverride", {{"width", width}, {"height", 800}, {"deviceScaleFactor", 1}, {"mobile", false}}); !sized) problem = sized.error();
-            if (const auto gone = page.call("Page.navigate", {{"url", (*server)->url()}}); problem.empty() && !gone) problem = gone.error();
+            if (const auto gone = page.call("Page.navigate", {{"url", address}}); problem.empty() && !gone) problem = gone.error();
             if (problem.empty())
                 if (const auto late = wait("document.readyState !== 'loading' && !!document.fonts && document.fonts.status === 'loaded' && !!document.querySelector('[data-omui=static] [data-omui-target]')", 300,
                                            "the page's document");
@@ -182,6 +205,11 @@ int takeover(const fs::path& root, const fs::path& directory, std::span<const in
             }
             page.pump(std::chrono::milliseconds(300));
             let(true);
+            // A page that waits for its reader to operate something is told to take its program now.
+            if (const auto taken = page.value("(window.omuiLoad && typeof window.omuiLoad.start === 'function' && (window.omuiLoad.start(), true)) || false"); !taken) {
+                problem = taken.error();
+                break;
+            }
             if (const auto late = wait("window.omuiHasPresented === true && document.querySelectorAll('[data-omui=mirror] [data-omui-line]').length > 0", 900, "the program's first frame"); late) {
                 problem = *late;
                 break;
@@ -209,6 +237,7 @@ int takeover(const fs::path& root, const fs::path& directory, std::span<const in
     if (!problem.empty()) return failed(std::format("the takeover's check did not run: {}", problem));
     const json report = {{"$format", "takeover-report@1"},
                          {"page", mcpplibs::os::fs::utf8(directory)},
+                         {"path", route},
                          {"browser", version},
                          {"bound", {{"median", median_bound}, {"most", most_bound}, {"lines", 0}, {"words", words_at_least}}},
                          {"rows", rows},

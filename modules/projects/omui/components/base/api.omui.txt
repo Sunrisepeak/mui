@@ -1066,6 +1066,7 @@ namespace omui::parts {
     [[nodiscard]] float min_content(Services& services, Color color);
     [[nodiscard]] float baseline(Services& services, Color color);
     void paint(PaintContext& ctx, Point origin, Color color);
+    [[nodiscard]] std::vector<TextLineBox> lines(Point node_at) const;
   };
 }
 == omui.ui.base:path
@@ -1331,6 +1332,7 @@ namespace omui {
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     ActResult activate(ActContext& ctx);
+    [[nodiscard]] std::vector<TextLineBox> text_lines() const;
     [[nodiscard]] static bool opens(std::string_view href);
   };
   class DescriptionList : public DescriptionListContract<DescriptionList> {

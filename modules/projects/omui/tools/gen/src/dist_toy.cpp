@@ -112,6 +112,35 @@ std::string js_string(std::string_view s) {
     return out + "\"";
 }
 
+// The document's place in a page: over the canvas until the program has presented, then put aside.
+std::string static_part(std::string_view fragment) {
+    return std::format("<div data-omui=\"static\">\n{}</div>\n"
+                       "<script>window.addEventListener('omui-load', function (e) {{\n"
+                       "  // Presented: the program draws the page and its mirror reads it to assistive technology; the document steps aside.\n"
+                       "  var page = e.detail && e.detail.presented && document.querySelector('[data-omui=static]');\n"
+                       "  if (page) page.hidden = true;\n"
+                       "}});</script>\n",
+                       fragment);
+}
+
+// How the document is set: over the canvas's place until it steps aside; a document's own scrolling, selection and
+// touch. `set`: its own box; `inside`: the rules of what it holds.
+std::string static_style(std::string_view set, std::string_view colour, std::string_view inside) {
+    return std::format("<style>[data-omui=static]{{position:fixed;inset:0;z-index:1;{}color:{};background:inherit;"
+                       "touch-action:auto;-webkit-user-select:text;user-select:text}}[data-omui=static][hidden]{{display:none}}"
+                       "{}"
+                       // Printed before the program has it (or where it never does): the document whole, over as many
+                       // sheets as it takes, not the one screen it lies over.
+                       "@media print{{html,body{{height:auto!important;overflow:visible!important}}"
+                       "[data-omui=static]{{position:static;overflow:visible;padding:0}}}}</style>\n",
+                       set, colour, inside);
+}
+
+// A document with a look is set by it: every box as its node's, the window's box its root's, the scrolling its own
+// views'.
+constexpr std::string_view looked_set = "overflow:hidden;";
+constexpr std::string_view looked_inside = "@media screen{[data-omui=static]>[data-omui-look]{width:100%!important;height:100%!important}}";
+
 // The page: a canvas filling the frame, a word while it loads, and the
 // loader — the program's arguments from the hash route, its /fonts filled
 // before main, its .wasm by its hashed name.
@@ -136,8 +165,10 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
     }
     for (const auto& [path, file] : later) later_list += std::format("{}[{}, {}]", later_list.empty() ? "" : ",\n  ", js_string(path), js_string(file));
     std::string html;
-    html += "<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n";
-    html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover\">\n";
+    html += std::format("<!doctype html>\n<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n", p.world ? "en" : "zh-CN");
+    // A document's page is a reader's to zoom; an application's canvas is not.
+    html += p.world ? "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n"
+                    : "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover\">\n";
     html += std::format("<title>{}</title>\n", escape_html(p.title.empty() ? p.target : p.title));
     html += std::format(
         "<style>html,body{{margin:0;height:100%;overflow:hidden;background:{0};touch-action:none;-webkit-user-select:none;user-select:none}}"
@@ -146,7 +177,7 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
         escape_html(p.background));
     // The page's faces by name (omui-<file's letters and digits>): what a document with a look sets its text in
     // (omui.semantic's font_key). A face is fetched only where an element uses it.
-    {
+    if (!p.world) {
         std::string faces;
         for (const auto& [name, file] : fonts) {
             std::string key = "omui-";
@@ -162,7 +193,13 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
         html += std::format("<style>@media (prefers-color-scheme:dark){{html,body{{color-scheme:dark;background:{}}}}}</style>\n", escape_html(p.background_dark));
     // Toy's SDK (window.toy): Bilibili's own script, loaded by the page itself (Toy's guide).
     if (p.sdk) html += "<script src=\"//s1.hdslb.com/bfs/seed/toy/app/sdk/toy-sdk.js\"></script>\n";
-    html += "</head>\n<body>\n<canvas id=\"canvas\" tabindex=\"0\"></canvas>\n<div id=\"status\">…</div>\n<script>\n";
+    // A world's page waits for its document: where it goes, how it is set (by its look), and what its head says more.
+    if (p.world) html += std::format("{}{}\n", static_style(looked_set, "inherit", looked_inside), world_head);
+    html += "</head>\n<body>\n";
+    if (p.world) html += static_part(std::format("{}\n", world_document));
+    html += "<canvas id=\"canvas\" tabindex=\"0\"></canvas>\n<div id=\"status\">…</div>\n<script>\n";
+    // Where a world's files are, as its page finds them, and when the page takes its program: a builder's to say.
+    if (p.world) html += std::format("{}\n{}\n", world_root, world_takes);
     html += std::format("var omuiFonts = [{}];\n", font_list);
     html += std::format("var omuiWasm = {};\n", js_string(wasm));
     html += std::format("var omuiLauncher = {};\n", js_string(js));
@@ -650,10 +687,11 @@ document.getElementById('canvas').addEventListener('pointerdown', function () { 
     // Deferred, though it is the page's last element (so it runs as it would anyway): a parser-blocking script is
     // fetched twice by Chrome 157 when it caches nothing (the preload scanner's request and the parser's), 51 KB
     // over the delivery budget measured without a cache (red 106); deferred, the two are one.
-    if (p.load == "eager") {
+    if (p.load == "eager" && !p.world) {
         html += std::format("<script defer src=\"{}\"></script>\n</body>\n</html>\n", js);
         return html;
     }
+    const std::size_t loader = html.size();
     // Later (D-260): the page is its document until the program is taken — once it is idle, or when the reader
     // first operates something only the program answers. Reading never takes it: scrolling, the browser's find, a
     // selection and links are the document's own. The press that took it is kept — the node of the element
@@ -698,7 +736,28 @@ document.getElementById('canvas').addEventListener('pointerdown', function () { 
 </body>
 </html>
 )";
-    return html;
+    if (!p.world) return html;
+    // A world's page: the program is found from the world's directory and taken when the page says; what follows
+    // `#` in its address is a place in its document — not the program's flags, not a route the page is loaded again
+    // for; a font for some languages is the document's language's.
+    bool whole = true;
+    const auto swap = [&](std::string_view from, std::string_view to, std::size_t after = 0) {
+        const std::size_t at = html.find(from, after);
+        if (at == std::string::npos || html.find(from, at + 1) != std::string::npos) whole = false;
+        else html.replace(at, from.size(), to);
+    };
+    swap(std::format("  var launcher = \"{}\", idle = {};\n", js, p.load == "idle" ? "true" : "false"),
+         "  var launcher = omuiRoot + omuiLauncher, idle = omuiTakes === 'idle', eager = omuiTakes === 'eager';\n", loader);
+    swap("  omuiStatus.style.display = 'none';\n  function start() {", "  if (!eager) omuiStatus.style.display = 'none';\n  function start() {", loader);
+    swap("{value: idle ? 'idle' : 'interaction'}", "{value: omuiTakes}", loader);
+    swap("  omuiPublish('waiting');\n})();", "  if (eager) start(); else omuiPublish('waiting');\n})();", loader);
+    swap("var response = await fetch(a.url, {", "var response = await fetch(omuiRoot + a.url, {");
+    swap("  var launcher = new URL(omuiLauncher, document.URL).href;", "  var launcher = new URL(omuiRoot + omuiLauncher, document.URL).href;");
+    swap("function omuiArguments() {\n", "function omuiArguments() {\n  return [];\n");
+    swap("function omuiWants(langs) {\n", "function omuiWants(langs) {\n  if (typeof window.omuiFontLanguage !== 'string' && document.documentElement.lang) "
+                                          "window.omuiFontLanguage = document.documentElement.lang;\n");
+    swap("window.addEventListener('hashchange', function () { if (!window.omuiFollowsRoute) location.reload(); });\n", "");
+    return whole ? html : std::string();
 }
 
 }  // namespace
@@ -923,6 +982,7 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
         files[f.path] = std::move(*bytes);
     }
     const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes, coverage, files);
+    if (index.empty()) return std::unexpected("a world's page could not be made: the loader is not as dist-toy's world expects it (omui.gen's dist_toy.cpp)");
     if (auto w = write(p.out / "index.html", index); !w) return std::unexpected(w.error());
 
     return finish_package(p.out, p.target, p.title, index.size());
@@ -954,6 +1014,7 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
     if (auto load = args.value("load")) p.load = *load;
     if (auto fonts = args.value("fonts")) p.fonts = items(*fonts);
     if (args.is_flag_set("no-sdk")) p.sdk = false;
+    if (args.is_flag_set("world")) p.world = true;
     for (const std::string& value : args.option_or_empty("subset").values) {  // <font>=<path>,<path>…
         const auto eq = value.find('=');
         if (eq == std::string::npos) return usage("--subset is <font>=<path>,<path>…");
@@ -993,6 +1054,7 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
     if (p.stage.empty() || p.target.empty() || p.out.empty()) return usage("a staged tree, --target and --out");
     auto document = document_of(args);
     if (!document) return usage(document.error());
+    if (p.world && !document->static_html.empty()) return usage("--world makes a page waiting for its document: --static-html gives one page its own");
 
     auto r = package_for_toy(p);
     if (!r) {
@@ -1091,6 +1153,7 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
     const auto head = html.find("</head>");
     if (close == std::string::npos || canvas == std::string::npos || head == std::string::npos)
         return std::unexpected(std::format("{}: not a page dist-toy made", utf8(index_file)));
+    if (html.contains(world_document)) return std::unexpected(std::format("{}: a world's page — a site's builder gives each page its document", utf8(index_file)));
     if (html.contains("data-omui=\"static\"")) return std::unexpected(std::format("{}: has its document already (once a page)", utf8(index_file)));
     if (html.contains("id=\"omui-static\"")) return std::unexpected(std::format("{}: has a static page of its own", utf8(index_file)));
     const std::string name = html.substr(wasm + key.size(), close - wasm - key.size());
@@ -1113,13 +1176,7 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
 
     // Body first (after the head): the inserts in the head shift nothing before them.
     const std::string_view colour = text_colour_on(html);
-    html.insert(canvas, std::format("<div data-omui=\"static\">\n{}</div>\n"
-                                    "<script>window.addEventListener('omui-load', function (e) {{\n"
-                                    "  // Presented: the program draws the page and its mirror reads it to assistive technology; the document steps aside.\n"
-                                    "  var page = e.detail && e.detail.presented && document.querySelector('[data-omui=static]');\n"
-                                    "  if (page) page.hidden = true;\n"
-                                    "}});</script>\n",
-                                    *fragment));
+    html.insert(canvas, static_part(*fragment));
     std::string meta;
     std::string title;
     if (const auto from = html.find("<title>"), to = html.find("</title>"); from != std::string::npos && to != std::string::npos && from < to)
@@ -1139,20 +1196,13 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
     // root's, the scrolling its own views' — else as plain text in a column that scrolls.
     const bool looked = !look_sheet.empty();
     const std::string set = looked
-        ? std::string("overflow:hidden;")
+        ? std::string(looked_set)
         : std::string("overflow:auto;box-sizing:border-box;padding:32px max(24px,calc((100vw - 760px) / 2));font:16px/1.6 system-ui,sans-serif;");
     const std::string inside = looked
-        ? std::format("{}@media screen{{[data-omui=static]>[data-omui-look]{{width:100%!important;height:100%!important}}}}", look_sheet)
+        ? std::format("{}{}", look_sheet, looked_inside)
         : std::string("[data-omui=static] a{color:inherit}[data-omui=static] button{font:inherit;color:inherit;background:none;"
                       "border:1px solid currentColor;border-radius:8px;padding:4px 12px;margin:4px 8px 4px 0}");
-    meta += std::format("<style>[data-omui=static]{{position:fixed;inset:0;z-index:1;{}color:{};background:inherit;"
-                        "touch-action:auto;-webkit-user-select:text;user-select:text}}[data-omui=static][hidden]{{display:none}}"
-                        "{}"
-                        // Printed before the program has it (or where it never does): the document whole, over as many
-                        // sheets as it takes, not the one screen it lies over.
-                        "@media print{{html,body{{height:auto!important;overflow:visible!important}}"
-                        "[data-omui=static]{{position:static;overflow:visible;padding:0}}}}</style>\n",
-                        set, colour, inside);
+    meta += static_style(set, colour, inside);
     // Where the page is dark for a person who prefers dark, its document's text is readable on that too.
     if (const std::string_view dark = text_colour_on(html, "(prefers-color-scheme:dark){html,body{color-scheme:dark;background:#", {}); !dark.empty())
         meta += std::format("<style>@media (prefers-color-scheme:dark){{[data-omui=static]{{color:{}}}}}</style>\n", dark);

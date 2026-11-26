@@ -81,17 +81,17 @@ constexpr std::string_view sheet =
     "body{margin:0;font:16px/1.6 system-ui,-apple-system,\"Segoe UI\",\"Noto Sans\",\"PingFang SC\",\"Microsoft YaHei\",sans-serif}"
     "[data-omui-target=app]{max-width:46rem;margin:0 auto;padding:1.5rem 1.25rem 4rem}"
     "nav{display:flex;flex-wrap:wrap;gap:.25rem 1rem}"
-    "[data-omui-target=\"page/nav\"]{padding-bottom:1rem;border-bottom:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
-    "[data-omui-target=\"page/toc\"]{flex-direction:column;gap:.15rem;padding:.75rem 0;font-size:.9em;border-bottom:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
-    "[data-omui-target=\"page/turn\"]{justify-content:space-between;margin-top:2.5rem;padding-top:1rem;border-top:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
+    "[data-omui-target=\"main/page/nav\"]{padding-bottom:1rem;border-bottom:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
+    "[data-omui-target=\"main/page/toc\"]{flex-direction:column;gap:.15rem;padding:.75rem 0;font-size:.9em;border-bottom:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
+    "[data-omui-target=\"main/page/turn\"]{justify-content:space-between;margin-top:2.5rem;padding-top:1rem;border-top:1px solid color-mix(in srgb,currentColor 18%,transparent)}"
     // A wide window: the site's pages at the left, the page's contents at the right, both staying as the page scrolls.
     "@media(min-width:72rem){"
     "[data-omui-target=app]{max-width:78rem;display:grid;grid-template-columns:14rem minmax(0,46rem) 14rem;column-gap:2rem;align-items:start}"
-    "[data-omui-target=\"page/nav\"],[data-omui-target=\"page/toc\"]{flex-direction:column;flex-wrap:nowrap;position:sticky;top:1.5rem;max-height:calc(100vh - 3rem);overflow:auto;padding:0;border:0}"
-    "[data-omui-target=\"page/nav\"]{grid-column:1;grid-row:1/span 2}"
-    "[data-omui-target=\"page/main\"]{grid-column:2;grid-row:1}"
-    "[data-omui-target=\"page/turn\"]{grid-column:2;grid-row:2}"
-    "[data-omui-target=\"page/toc\"]{grid-column:3;grid-row:1/span 2}"
+    "[data-omui-target=\"main/page/nav\"],[data-omui-target=\"main/page/toc\"]{flex-direction:column;flex-wrap:nowrap;position:sticky;top:1.5rem;max-height:calc(100vh - 3rem);overflow:auto;padding:0;border:0}"
+    "[data-omui-target=\"main/page/nav\"]{grid-column:1;grid-row:1/span 2}"
+    "[data-omui-target=\"main/page/main\"]{grid-column:2;grid-row:1}"
+    "[data-omui-target=\"main/page/turn\"]{grid-column:2;grid-row:2}"
+    "[data-omui-target=\"main/page/toc\"]{grid-column:3;grid-row:1/span 2}"
     "}"
     "pre{overflow:auto;padding:.75rem 1rem;border-radius:8px;background:color-mix(in srgb,currentColor 7%,transparent)}"
     "code{font:.9em ui-monospace,\"SF Mono\",Menlo,Consolas,\"Cascadia Mono\",\"DejaVu Sans Mono\",\"Liberation Mono\",\"Noto Sans Mono\",monospace}"
@@ -121,6 +121,51 @@ const Route* translated(std::span<const Route> routes, const Route& route, std::
     const std::string there = language == first ? std::string(bare) : std::format("/{}{}", language, bare);
     const auto found = std::ranges::find_if(routes, [&](const Route& other) { return other.path == there && other.language == language; });
     return found == routes.end() ? nullptr : &*found;
+}
+
+// When a page takes its program (D-260).
+bool takes(std::string_view load) { return load == "eager" || load == "idle" || load == "interaction"; }
+
+// A world's page (omui-gen dist-toy --world; omui.gen's dist_toy): a page waiting for its document. Its places, each
+// there once.
+constexpr std::string_view world_head = "<!--omui:head-->", world_document = "<!--omui:document-->", world_root = "var omuiRoot = \"\";",
+                           world_takes = "var omuiTakes = \"eager\";";
+
+std::filesystem::path world_of(const std::filesystem::path& site, const SiteOptions& options) {
+    const std::filesystem::path stated = mcpplibs::os::fs::from_utf8(options.engine);
+    return stated.is_absolute() ? stated : site / stated;
+}
+
+// What one page of a site puts at a world's places.
+struct Filled {
+    std::string language, title, head, document, root, load;
+};
+
+// The world's page as one page of a site; or why it is no world's page.
+std::expected<std::string, std::string> from_world(std::string page, const Filled& filled, const std::filesystem::path& world) {
+    const auto wrong = [&](std::string_view missing) {
+        return std::unexpected(std::format("{}: no world's page — {} is not there once (a world is a program packed with `omui-gen dist-toy --world`: `omui build --web` of oweb.reader)",
+                                           utf8(world / "index.html"), missing));
+    };
+    const auto put = [&](std::string_view place, std::string_view text) {
+        const std::size_t at = page.find(place);
+        if (at == std::string::npos || page.find(place, at + 1) != std::string::npos) return false;
+        page.replace(at, place.size(), text);
+        return true;
+    };
+    // The document last: what it says is its own, not a place.
+    if (!put(world_head, filled.head)) return wrong(world_head);
+    if (!put(world_root, std::format("var omuiRoot = \"{}\";", filled.root))) return wrong(world_root);
+    if (!put(world_takes, std::format("var omuiTakes = \"{}\";", filled.load))) return wrong(world_takes);
+    constexpr std::string_view opening = "<html lang=\"", title = "<title>";
+    const std::size_t language = page.find(opening), language_end = language == std::string::npos ? language : page.find('"', language + opening.size());
+    if (language_end == std::string::npos) return wrong("<html lang=…>");
+    page.replace(language + opening.size(), language_end - language - opening.size(), escaped(filled.language));
+    const std::size_t titled = page.find(title), titled_end = titled == std::string::npos ? titled : page.find("</title>", titled);
+    if (titled_end == std::string::npos) return wrong("<title>");
+    page.replace(titled + title.size(), titled_end - titled - title.size(), escaped(filled.title));
+    if (!put(world_document, filled.document)) return wrong(world_document);
+    return page;
 }
 
 struct Evaluated {
@@ -161,6 +206,9 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
         const std::string first = end == std::string::npos ? std::string{} : route.path.substr(1, end - 1);
         const auto language = std::ranges::find(options.languages, first);
         route.language = language != options.languages.end() ? *language : options.languages.empty() ? std::string("en") : options.languages.front();
+        if (route.load.empty()) route.load = options.load;
+        if (!takes(route.load))
+            return std::unexpected(std::format("the route `{}` takes its program `{}`: a page takes it `eager`, `idle` or on `interaction`", route.path, route.load));
         return {};
     };
     std::vector<Route> routes;
@@ -172,6 +220,7 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
             route.source = declared.reference.empty() ? declared.source : declared.reference;
             route.reference = declared.reference;
             route.title = declared.title;
+            route.load = declared.load;
             std::error_code missing;
             if (!std::filesystem::is_regular_file(site / mcpplibs::os::fs::from_utf8(route.source), missing))
                 return std::unexpected(std::format("the route `{}` states the {} {}, which is not in {}: write it, or take the route out of oweb.config.ts", route.path,
@@ -209,10 +258,15 @@ namespace {
 // A page evaluated from its text and written. `base` is stated for the page a host answers a lost address with: it
 // is served at any address, so its links are from the site's own and the document says where that is; it has no
 // contents of its own to choose between and no page before or after.
-std::expected<Page, std::string> written(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options, std::string_view page_text,
+std::expected<Page, std::string> written(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& given, std::string_view page_text,
                                          std::string_view base) {
     using namespace omui;
     const bool lost = !base.empty();
+    // A site with a program: its pages look as the program draws them. The page for a lost address is served at any
+    // address and takes none: it reads, and leads home.
+    SiteOptions options = given;
+    if (!options.engine.empty()) options.look = true;
+    const bool engine = !options.engine.empty() && !lost;
 
     // The page as an interface: the navigation the routes give (a site of one page has none) and its document.
     Headless host({.level = options.look ? HeadlessLevel::pixels : HeadlessLevel::layout, .size = {960, 1200}});
@@ -265,7 +319,7 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         parts.turn = named_in(route.language).turn;
     }
     parts.document = std::string(page_text);
-    host.mount("page", shell::page(std::move(parts)));
+    host.mount(shell::mounted_at, shell::page(std::move(parts), {.scrolls = engine}));
     host.settle();
 
     semantic::Snapshot snapshot = host.tree().snapshot({});
@@ -441,12 +495,31 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         }
         if (count > 0) said += others;
     }
-    page.html = std::format(
-        "<!doctype html>\n<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "<title>{}</title>\n<meta name=\"generator\" content=\"oweb\">\n{}\n<style>{}</style>\n"
-        "</head>\n<body>\n{}</body>\n</html>\n",
-        escaped(route.language), escaped(options.title.empty() || options.title == route.title ? route.title : std::format("{} · {}", route.title, options.title)), said, style,
-        body);
+    const std::string title = options.title.empty() || options.title == route.title ? route.title : std::format("{} · {}", route.title, options.title);
+    if (engine) {
+        // The world's page with this page's document in it: the same document, read with no script until the page
+        // takes the program; the world's files from the site's one copy of them.
+        const std::filesystem::path world = world_of(site, options);
+        auto waiting = read(world / "index.html");
+        if (!waiting) return std::unexpected(std::format("the site's engine: {}", waiting.error()));
+        const std::string top = relative(route.path, "/");
+        auto made = from_world(std::move(*waiting),
+                               {.language = route.language,
+                                .title = title,
+                                .head = std::format("<meta name=\"generator\" content=\"oweb\">\n{}\n<style>html{{color-scheme:light dark}}{}{}</style>", said, faces, semantic::look_sheet(look)),
+                                .document = body,
+                                .root = std::format("{}engine/", top == "./" ? std::string() : top),
+                                .load = route.load},
+                               world);
+        if (!made) return std::unexpected(made.error());
+        page.html = std::move(*made);
+    } else {
+        page.html = std::format(
+            "<!doctype html>\n<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+            "<title>{}</title>\n<meta name=\"generator\" content=\"oweb\">\n{}\n<style>{}</style>\n"
+            "</head>\n<body>\n{}</body>\n</html>\n",
+            escaped(route.language), escaped(title), said, style, body);
+    }
     page.problems = std::move(problems);
     return page;
 }
@@ -525,6 +598,8 @@ std::string routes_json(std::span<const Route> routes, const SiteOptions& option
                            .set("language", route.language)
                            .set("markdown", std::format("{}index.md", route.path))
                            .set("headings", Value(std::move(headings))));
+        // When its page takes the site's program, where the site has one.
+        if (!options.engine.empty()) list.back().set("load", route.load);
     }
     Value::List languages;
     for (const std::string& language : options.languages) languages.emplace_back(language);
@@ -681,6 +756,7 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     if (!routes) return std::unexpected(routes.error());
     SiteOptions options = given;
     if (options.title.empty()) options.title = routes->front().title;
+    if (!options.engine.empty()) options.look = true;
     Built built;
     std::vector<Section> sections;
     std::vector<mlibs::delivery::File> files;
@@ -744,6 +820,21 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
             }
             if (auto written = write(std::format("assets/{}.ttf", omui::semantic::font_key(family)), std::string_view(reinterpret_cast<const char*>(sent.data()), sent.size())); !written)
                 return std::unexpected(written.error());
+        }
+    }
+    // The program its pages load, once for the site: the world's files but its page, which every page was made from.
+    if (!options.engine.empty()) {
+        const std::filesystem::path world = world_of(site, options);
+        std::error_code walking;
+        std::vector<std::filesystem::path> held;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(world, walking))
+            if (entry.is_regular_file() && entry.path() != world / "index.html") held.push_back(entry.path());
+        if (walking) return std::unexpected(std::format("the site's engine {}: {}", utf8(world), walking.message()));
+        std::ranges::sort(held);
+        for (const std::filesystem::path& file : held) {
+            const auto bytes = read(file);
+            if (!bytes) return std::unexpected(bytes.error());
+            if (auto written = write(std::format("engine/{}", generic(file.lexically_relative(world))), *bytes); !written) return std::unexpected(written.error());
         }
     }
     // What pages/ holds beside its pages (pictures, files to download), at the same place.

@@ -32,6 +32,7 @@ bool dist_toy(toy_options opt) {
         a.arg(arg.c_str());
     if (!fonts.empty()) a.arg("--fonts").arg(fonts.c_str());
     if (!opt.sdk) a.arg("--no-sdk");
+    if (opt.world) a.arg("--world");
     if (!opt.background_dark.empty()) a.arg("--background-dark").arg(opt.background_dark.c_str());
     if (opt.load != "eager") a.arg("--load").arg(opt.load.c_str());
     for (const later_files& l : opt.later) {

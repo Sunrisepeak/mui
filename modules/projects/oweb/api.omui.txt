@@ -5,7 +5,7 @@ export import :tool;
 export import :catalog;
 == oweb:catalog
 namespace oweb {
-  inline constexpr std::array<mlibs::control::Parameter, 6> parameters_site_build{…};
+  inline constexpr std::array<mlibs::control::Parameter, 8> parameters_site_build{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_routes_list{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_page_read{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_docs_search{…};
@@ -35,12 +35,14 @@ namespace oweb {
     std::string title;
     std::string language;
     std::vector<Heading> headings;
+    std::string load;
   };
   struct Declared {
     std::string path;
     std::string source;
     std::string title;
     std::string reference;
+    std::string load;
   };
   struct SiteOptions {
     std::string title;
@@ -48,6 +50,8 @@ namespace oweb {
     std::string url;
     std::uintmax_t readable = 100'000; // Stated routes: these pages and no others, in this order — the navigation's. Empty: every page of pages/, by std::vector<Declared> routes;
     bool look = false;
+    std::string engine;
+    std::string load = "eager";
   };
   struct Section {
     std::string route;

@@ -360,7 +360,8 @@ cmd::App app() {
                                         .option(Option("fixture").takes_value().value_name("FILE").help("this generated index.html, the tests not run")))
                         .subcommand(cmd::App("takeover")
                                         .description("A built page with a look, its program held until its document is read: how far each word a reader sees moves when the program takes over, held to the bound")
-                                        .option(Option("page").takes_value().value_name("DIR").help("the built page (omui build --web --look)"))
+                                        .option(Option("page").takes_value().value_name("DIR").help("the built page (omui build --web --look), or a built site whose pages load a program (oweb site.build --engine)"))
+                                        .option(Option("path").takes_value().value_name("/ROUTE/").help("the page among a site's (default: /)"))
                                         .option(Option("widths").takes_value().value_name("W,W").help("the window's widths (default: 1280,768,390)")))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
@@ -1734,7 +1735,7 @@ int main(int argc, char** argv) {
                 const std::string_view digits(part.begin(), part.end());
                 if (std::from_chars(digits.data(), digits.data() + digits.size(), width).ec == std::errc{} && width > 0) widths.push_back(width);
             }
-            return step::takeover(root, mcpplibs::os::fs::from_utf8(*given.value("page")), widths);
+            return step::takeover(root, mcpplibs::os::fs::from_utf8(*given.value("page")), given.value("path").value_or("/"), widths);
         }
         if (sub.subcommand_name() == "web") return step::web(root, given.value("profile").value_or("wasm-test"));
         if (sub.subcommand_name() == "reflect") return step::reflect(root, given.value("profile").value_or("dev"));

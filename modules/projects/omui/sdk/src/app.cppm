@@ -227,6 +227,14 @@ struct CommandLine {
 int run(AppSpec app, const RunOptions& options);
 int run(AppSpec app, int argc, char** argv);
 
+// The document the host showed before the program was there: a Web page's own HTML, read back by the page (D-284:
+// a written page is its own data — a program that draws it is sent nothing else). Every written node in order as
+// JSON ({"lang", "nodes": [{"id", "label", "href", "text"}]}: a node's id, its element's label and address, the
+// words of an element that holds only words); and one node's element as markup. Read while the view is made (the
+// layer over the canvas takes the elements over at the first frame). Empty on a host that shows no document.
+[[nodiscard]] std::string shown_document();
+[[nodiscard]] std::string shown_document(std::string_view id);
+
 // The capabilities this program carries — its world's, by the providers installed (agent, generate, gpu,
 // accessibility-bridge: the features of [package.metadata.openmui.compose.installs]) — installing them first as
 // `run` does. What a runtime says it can do (`omui-player --runtime`, E3b), sorted.

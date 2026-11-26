@@ -132,6 +132,7 @@ members = [
     "modules/projects/gongfu/studio",
     "modules/projects/oweb",
     "modules/projects/oweb/shell",
+    "modules/projects/oweb/reader",
     "modules/projects/xtools",
     "modules/projects/xtools/inspector",
     "modules/projects/xtools/audition",

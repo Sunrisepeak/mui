@@ -686,4 +686,8 @@ bool reload_page_with(std::string_view name, std::string_view value) { return pa
 
 std::vector<std::string> browser_locales() { return page::exists() ? page::locales() : std::vector<std::string>{}; }
 
+std::string page_projection() { return page::exists() ? page::projection() : std::string(); }
+
+std::string page_projected(std::string_view id) { return page::exists() ? page::projected(id) : std::string(); }
+
 }  // namespace omui

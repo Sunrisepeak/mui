@@ -60,6 +60,7 @@ namespace omui::gen {
     std::string load = "eager";
     std::string background_dark;
     bool sdk = true;
+    bool world = false;
     struct Later {
       std::filesystem::path dir;
       std::string suffix, mount;
@@ -81,6 +82,10 @@ namespace omui::gen {
     std::vector<std::pair<std::string, std::vector<std::filesystem::path>>> font_initial_text;
     std::vector<std::string> fonts_on_demand;
   };
+  inline constexpr std::string_view world_head = "<!--omui:head-->";
+  inline constexpr std::string_view world_document = "<!--omui:document-->";
+  inline constexpr std::string_view world_root = "var omuiRoot = \"\";";
+  inline constexpr std::string_view world_takes = "var omuiTakes = \"eager\";";
   struct ToyFile {
     std::string path;
     std::uintmax_t size = 0;

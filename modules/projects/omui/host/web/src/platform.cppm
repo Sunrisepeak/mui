@@ -96,6 +96,13 @@ void first_frame();
 // Where the reader is in the page's own document (the views they scrolled before the program): said as the page's
 // scrolls are, taken with the next `take`. Asked until the first frame is shown, so that frame is at their place.
 void reading();
+// The page's own document as it was written, read back (D-284: a page's HTML is its data — the program that draws a
+// written page is sent nothing else). `projection`: every written node, in order — its id, its element's label
+// and address, and the words of an element that holds only words — as JSON
+// ({"lang": "en", "nodes": [{"id", "label", "href", "text"}]}). `projected`: one node's element, as markup. Read
+// before the first frame (the layer takes the elements over then); empty where there is no page or no document.
+[[nodiscard]] std::string projection();
+[[nodiscard]] std::string projected(std::string_view id);
 // The program needs a face the page deferred until asked (another
 // language's): one that draws `code_point`, or every one (none) — the page's
 // hook (window.omuiWantFonts); they arrive as later fonts do.

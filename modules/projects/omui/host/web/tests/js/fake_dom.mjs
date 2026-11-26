@@ -63,6 +63,11 @@ export class Element extends Target {
     this.selectionEnd = 0;
     this.box = { left: 0, top: 0, width: 0, height: 0 };
   }
+  // As a browser has it: an element outside the page has no box, so it does not scroll — setting where it is does nothing.
+  get scrollTop() { return this.scrolledTop || 0; }
+  set scrollTop(y) { if (this.ownerDocument.body.contains(this)) this.scrolledTop = y; }
+  get scrollLeft() { return this.scrolledLeft || 0; }
+  set scrollLeft(x) { if (this.ownerDocument.body.contains(this)) this.scrolledLeft = x; }
   setAttribute(k, v) { this.attributes.set(k, String(v)); }
   getAttribute(k) { return this.attributes.has(k) ? this.attributes.get(k) : null; }
   hasAttribute(k) { return this.attributes.has(k); }
@@ -112,6 +117,13 @@ export class Element extends Target {
     for (const c of this.childNodes) c.parentNode = null;
     this.childNodes = t ? [new Text(t)] : [];
     for (const c of this.childNodes) c.parentNode = this;
+  }
+  // As a browser writes it out: what the library hands a program that reads the page back.
+  get outerHTML() {
+    const tag = this.tagName.toLowerCase();
+    const said = [...this.attributes].map(([k, v]) => ` ${k}="${String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`).join('');
+    const inside = this.childNodes.map((c) => (c.nodeType === 1 ? c.outerHTML : String(c.textContent).replace(/&/g, '&amp;').replace(/</g, '&lt;'))).join('');
+    return `<${tag}${said}>${inside}</${tag}>`;
   }
   getBoundingClientRect() { return { ...this.box }; }
   // As a browser does: focus() fires a trusted focus event (the browser's,

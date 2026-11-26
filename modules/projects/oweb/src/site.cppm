@@ -32,6 +32,10 @@ struct Route {
     std::string          title;     // its first heading; its path where it has none
     std::string          language;  // "en", "zh"
     std::vector<Heading> headings;
+    // When its page takes the site's program (D-260): "eager" at once, "idle" once the page has loaded and is idle,
+    // "interaction" when the reader first operates something only a program answers — reading never takes it.
+    // The route's own, or the site's. Nothing is taken by a site that has no program (`SiteOptions::engine`).
+    std::string          load;
 };
 
 // A route a site's configuration states: where it is served, its page, and what the navigation calls it.
@@ -40,6 +44,7 @@ struct Declared {
     std::string source;  // "pages/guide/start.md"; empty where it is a reference
     std::string title;   // empty: its page's first heading
     std::string reference;  // an operation catalog (<product>.ops.xdef.ts, or its snapshot): the page is its reference
+    std::string load;    // when its page takes the program; empty: as the site says
 };
 
 struct SiteOptions {
@@ -57,6 +62,15 @@ struct SiteOptions {
     // (`assets/`), each cut to the characters the site's pages show. What the canvas shows when the engine is
     // there is then what the page showed before it.
     bool                     look = false;
+    // The program its pages load in a browser (0.1.0 plan ST2): a world's directory — `omui build --web` of
+    // oweb.reader, or a program of one's own packed as a world (omui-gen dist-toy --world) — from the site's
+    // directory, or absolute. Its files are served once, from `engine/`; every page is made from the world's page
+    // and is still the document it was, read with no script, until it takes the program — which reads the page's
+    // own HTML back and draws it (D-284). The pages are written with their look, in a view of the window's size that
+    // scrolls (a canvas is not scrolled by its window). Empty: pages that load nothing.
+    std::string              engine;
+    // When a page takes the program, where its route does not say: "eager", "idle", "interaction" (D-260).
+    std::string              load = "eager";
 };
 
 // A part of a page a reader can be sent to: a heading and what stands under it up to the next heading. What a

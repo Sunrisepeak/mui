@@ -636,6 +636,9 @@ std::vector<std::string> capabilities() {
     return out;
 }
 
+std::string shown_document() { return hosting::host_document(); }
+std::string shown_document(std::string_view id) { return hosting::host_document(id); }
+
 int run(AppSpec app, int argc, char** argv) {
     auto command = command_line(cmdline::App(app.id.empty() ? std::string("application") : app.id).description(app.title), argc, argv);
     if (!command) return command.error();

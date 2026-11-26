@@ -13,8 +13,9 @@ namespace oweb {
 
 namespace {
 
-constexpr std::array<std::string_view, 6> site_fields{"title", "url", "languages", "routes", "budgets", "look"};
-constexpr std::array<std::string_view, 4> route_fields{"path", "source", "reference", "title"};
+constexpr std::array<std::string_view, 8> site_fields{"title", "url", "languages", "routes", "budgets", "look", "engine", "load"};
+constexpr std::array<std::string_view, 5> route_fields{"path", "source", "reference", "title", "load"};
+constexpr std::array<std::string_view, 3> loads{"eager", "idle", "interaction"};
 constexpr std::array<std::string_view, 1> budget_fields{"readable"};
 
 }  // namespace
@@ -51,6 +52,15 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
         if (!look.is_boolean()) return problem(look, "whether the pages are written as their frames look is yes or no", "look: true");
         options.look = *look.boolean();
     }
+    if (const auto engine = site["engine"]) {
+        if (!engine.is_string() || engine.text()->empty())
+            return problem(engine, "the site's engine is the directory of the program its pages load, from the site's directory", "engine: \"../reader/target/web/oweb-reader\"");
+        options.engine = *engine.text();
+    }
+    if (const auto load = site["load"]) {
+        if (!load.is_string() || !std::ranges::contains(loads, *load.text())) return problem(load, "when a page takes the program is eager, idle or interaction", "load: \"idle\"");
+        options.load = *load.text();
+    }
     if (const auto url = site["url"]) {
         if (!url.is_string() || !(url.text()->starts_with("https://") || url.text()->starts_with("http://")))
             return problem(url, "where the site is served is an address", "url: \"https://example.org/docs/\"");
@@ -85,6 +95,10 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
                        mcpplibs::os::fs::utf8(mcpplibs::os::fs::from_utf8(*source.text()).lexically_normal()).starts_with(".."))
                 return problem(source ? source : route, "a route's source is its page, a Markdown file inside the site's directory", "source: \"pages/guide/start.md\"");
             if (title && !title.is_string()) return problem(title, "a route's title is text (left out: its page's first heading)");
+            if (const auto load = route["load"]) {
+                if (!load.is_string() || !std::ranges::contains(loads, *load.text())) return problem(load, "when a route's page takes the program is eager, idle or interaction", "load: \"interaction\"");
+                declared.load = *load.text();
+            }
             declared.path = *path.text();
             declared.source = source ? *source.text() : std::string{};
             declared.title = title ? *title.text() : std::string{};

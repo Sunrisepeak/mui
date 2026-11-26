@@ -41,6 +41,8 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
 }
 
 std::vector<std::string> host_locales() { return browser_locales(); }
+std::string host_document() { return page_projection(); }
+std::string host_document(std::string_view id) { return page_projected(id); }
 
 int terminal(const AppSpec&, const RunOptions&, const Prepare&) {
     std::println(std::cerr, "--terminal: this platform has no terminal host (omui.host.terminal runs on Linux, macOS and Windows)");

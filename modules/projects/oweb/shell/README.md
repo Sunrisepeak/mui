@@ -11,7 +11,7 @@ The builder (`oweb`) evaluates every route headless and writes it; the program a
 ## What it holds
 
 - `Parts`: the shell as data — the pages (`r…`), the sections (`t…`), the page before and after, what each navigation is called, and the document (Markdown, or the page's own HTML).
-- `page(parts, layout)`: the view. Ids: `page` the column; in it `nav`, `toc`, `main` holding `doc`, `turn`; around it `view` where the layout scrolls (a canvas is not scrolled by its window).
+- `page(parts, layout)`: the view, for where an application's view is mounted (`main`). Ids there: `main/page` the column; in it `nav`, `toc`, `main` holding `doc`, `turn` — the same whether the window scrolls the page or a view of the window's size does (`Layout::scrolls`: a canvas is not scrolled by its window).
 - `read(projection, document)`: the parts a page's own HTML says, as the Web host hands the page over (`omui.host.web`'s `page::projection`, and the document's markup). Nothing else is sent to a page for its program to draw it: no routes table, no serialized state, no Markdown source.
 
 ## Entry points by level

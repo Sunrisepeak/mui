@@ -26,6 +26,39 @@ std::string spoken(const spec::SemanticNode& n) {
 }
 
 std::int64_t round(float v) { return static_cast<std::int64_t>(std::lround(v)); }
+// A line's place over the canvas, to a quarter of a pixel.
+double quarter(float v) { return std::round(static_cast<double>(v) * 4.0) / 4.0; }
+
+// The pieces of a text between two of its bytes — a line of it: runs cut there, the line's break left out (the
+// line ends), an element kept with what of it lies between. A child node standing in the text is itself on the
+// first line it is on; where it goes on into the next line an element like it stands there (the same attributes,
+// `data-omui-part` naming the node), since one element is in one place.
+std::vector<semantic::Inline> cut(const std::vector<semantic::Inline>& pieces, std::size_t from, std::size_t to, std::unordered_set<std::string>& stood) {
+    std::vector<semantic::Inline> out;
+    for (const semantic::Inline& piece : pieces) {
+        if (piece.end <= from || piece.begin >= to || piece.tag == "br") continue;
+        const std::size_t begin = std::max(piece.begin, from), end = std::min(piece.end, to);
+        if (piece.tag.empty()) {
+            std::string text = piece.text.substr(begin - piece.begin, end - begin);
+            while (text.ends_with('\n')) text.pop_back();
+            if (!text.empty()) out.push_back({.text = std::move(text), .begin = begin, .end = end});
+            continue;
+        }
+        semantic::Inline part{.tag = piece.tag, .node = piece.node, .attributes = piece.attributes, .begin = begin, .end = end};
+        if (piece.children.empty()) {
+            if (piece.begin < from) continue;  // what holds nothing (a picture in a line) is on the line it begins on
+        } else {
+            part.children = cut(piece.children, from, to, stood);
+            if (part.children.empty()) continue;
+        }
+        if (!part.node.empty() && !stood.insert(part.node).second) {
+            part.attributes.emplace_back("data-omui-part", part.node);
+            part.node.clear();
+        }
+        out.push_back(std::move(part));
+    }
+    return out;
+}
 
 }  // namespace
 
@@ -137,12 +170,36 @@ std::optional<Value> DomMirror::sync() {
         // Its own text: one run as `text`, the elements its marks make as `content`. What stands in its parent's
         // text has its words there.
         if (!e.inlined) {
-            Value::List pieces;
-            for (const semantic::Inline& from : made.content) pieces.push_back(piece(from));
-            const bool plain = pieces.empty() || (pieces.size() == 1 && pieces.front().type() == Value::Type::text);
-            std::string text = pieces.empty() ? std::string{} : Value(pieces).json();
+            // Where the canvas draws the text line by line (a paragraph, a heading, a block of code), each line's
+            // words stand in the line's box: what is found or selected is then where it is seen. The lines are the
+            // text's own bytes; where they are not (a text the component draws otherwise) the element holds its
+            // words as they flow.
+            const std::vector<semantic::Inline>& whole = made.tag == "pre" && !made.content.empty() ? made.content.front().children : made.content;
+            std::size_t covered = 0;
+            for (const semantic::Inline& from : whole) covered = std::max(covered, from.end);
+            std::vector<TextLineBox> drawn;
+            if (covered > 0 && n.bounds) drawn = tree_.runtime().text_lines(tree_.runtime().find(n.id));
+            if (!drawn.empty() && (drawn.front().begin != 0 || drawn.back().end != covered)) drawn.clear();
+            // Words without width were not drawn (no shaper gave them glyphs): nothing to stand them by.
+            if (std::ranges::any_of(drawn, [](const TextLineBox& line) { return line.end > line.begin && !(line.bounds.width > 0); })) drawn.clear();
+            Value::List pieces, lines;
+            std::unordered_set<std::string> stood;
+            for (const TextLineBox& line : drawn) {
+                Value::List held;
+                for (const semantic::Inline& from : cut(whole, line.begin, line.end, stood)) held.push_back(piece(from));
+                if (held.empty()) continue;  // an empty line holds nothing to find
+                lines.push_back(Value{}
+                                    .set("box", Value(Value::List{Value(quarter(line.bounds.x - n.bounds->x)), Value(quarter(line.bounds.y - n.bounds->y)),
+                                                                  Value(quarter(line.bounds.width)), Value(quarter(line.bounds.height))}))
+                                    .set("c", Value(std::move(held))));
+            }
+            if (lines.empty())
+                for (const semantic::Inline& from : made.content) pieces.push_back(piece(from));
+            const bool plain = lines.empty() && (pieces.empty() || (pieces.size() == 1 && pieces.front().type() == Value::Type::text));
+            std::string text = !lines.empty() ? Value(lines).json() : pieces.empty() ? std::string{} : Value(pieces).json();
             if (fresh ? !text.empty() : text != e.text) {
-                if (plain) entry(n.id).set("text", pieces.empty() ? std::string{} : std::string(pieces.front().as_string()));
+                if (!lines.empty()) entry(n.id).set("lines", Value(std::move(lines)));
+                else if (plain) entry(n.id).set("text", pieces.empty() ? std::string{} : std::string(pieces.front().as_string()));
                 else entry(n.id).set("content", Value(std::move(pieces)));
                 e.text = std::move(text);
             }

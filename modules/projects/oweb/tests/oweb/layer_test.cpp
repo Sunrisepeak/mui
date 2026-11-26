@@ -116,4 +116,111 @@ static UTest cases{"oweb.layer", [] {
         expect(documents == 7u && links > 10u && marked > 10u) << documents << " " << links << " " << marked;
         std::println("    one mapping: {} documents, {} nodes each the same element before and over; {} links, {} texts with marks", documents, nodes, links, marked);
     };
+
+    "a drawn text stands line by line where the canvas draws it: each line's words in its box, a link going on into the next line"_test = [] {
+        const auto pages = package() / "templates" / "docs" / "pages";
+        std::size_t texts = 0, lines_seen = 0, wrapped = 0, parts = 0, anchors = 0, in_tree = 0;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(pages)) {
+            if (!entry.is_regular_file() || entry.path().extension() != ".md") continue;
+            const std::string name = entry.path().lexically_relative(pages).generic_string();
+            // Drawn (the lines are those of the frame painted), in a narrow window so that sentences wrap.
+            Headless host({.level = HeadlessLevel::pixels, .size = {420, 4000}});
+            host.mount("page", column({.id = "page"}, {markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = read(entry.path())})}));
+            host.settle();
+            const semantic::Snapshot snapshot = host.tree().snapshot({});
+            DomMirror mirror(host.runtime());
+            const auto batch = mirror.sync();
+            expect(batch.has_value() && batch->get("nodes")) << name;
+            if (!batch || !batch->get("nodes")) continue;
+            std::unordered_map<std::string, const Value*> entries;
+            for (const Value& one : *batch->get("nodes")->list()) entries.emplace(std::string(one.get("id")->as_string()), &one);
+            const auto count = [&](this auto const& self, const Value& piece) -> void {
+                if (piece.type() == Value::Type::text) return;
+                if (piece.get("tag")->as_string() == "a") {
+                    if (piece.get("node")) ++anchors;
+                    else if (piece.get("set") && piece.get("set")->get("data-omui-part")) ++parts;
+                }
+                if (const Value* inner = piece.get("c"))
+                    for (const Value& child : *inner->list()) self(child);
+            };
+            for (const spec::SemanticNode& node : snapshot.nodes) {
+                in_tree += node.role == Role::link;
+                const auto made = entries.find(node.id);
+                if (made == entries.end()) continue;
+                if (made->second->get("tag") && made->second->get("tag")->as_string() == "a" && !made->second->get("inline")) ++anchors;  // a link of its own box
+                const Value* lines = made->second->get("lines");
+                if (!lines) {
+                    if (const Value* content = made->second->get("content"))
+                        for (const Value& piece : *content->list()) count(piece);
+                    continue;
+                }
+                ++texts;
+                std::string held;
+                std::unordered_map<std::string, std::string> placed;
+                double below = -1;
+                for (const Value& line : *lines->list()) {
+                    ++lines_seen;
+                    for (const Value& piece : *line.get("c")->list()) {
+                        words(piece, held, placed);
+                        count(piece);
+                    }
+                    const auto& box = *line.get("box")->list();
+                    // A block of code does not wrap: a long line runs past its box and is cut there, on the canvas and here.
+                    const bool unwrapped = node.role == Role::code;
+                    expect(box[2].as_double() > 0 && box[3].as_double() > 0 && box[0].as_double() >= -1 && box[1].as_double() >= -1 && node.bounds &&
+                           (unwrapped || box[0].as_double() + box[2].as_double() <= node.bounds->width + 1.5) && box[1].as_double() + box[3].as_double() <= node.bounds->height + 1.5)
+                        << name << ": " << node.id << " a line outside its element: " << line.json();
+                    expect(box[1].as_double() > below) << name << ": " << node.id << " its lines go down the page";
+                    below = box[1].as_double();
+                }
+                wrapped += lines->list()->size() > 1;
+                // Every word of the text, in order: a line's break is the line's end, not a word.
+                std::string said = node.name;
+                std::erase(said, '\n');
+                std::erase(held, '\n');
+                expect(held == said) << name << ": " << node.id << " holds \"" << held << "\", the tree \"" << said << "\"";
+            }
+        }
+        expect(texts > 60u && wrapped > 10u && anchors == in_tree) << texts << " " << wrapped << " " << anchors << " " << in_tree;
+        std::println("    by lines: {} texts in {} lines ({} of more than one line); {} links each one element", texts, lines_seen, wrapped, anchors);
+
+        // A link too long for its line: the link itself on its first line, an element like it — the same address,
+        // naming the node — where it goes on.
+        Headless host({.level = HeadlessLevel::pixels, .size = {260, 600}});
+        host.mount("page", column({.id = "page"}, {markdown({.id = "doc", .origin = MarkdownOrigin::app,
+                                                           .source = "Read [the guide to every operation of the command line and what each one answers](guide/ops.md) first.\n"})}));
+        host.settle();
+        DomMirror mirror(host.runtime());
+        const auto batch = mirror.sync();
+        expect(batch.has_value());
+        if (!batch) return;
+        std::size_t itself = 0, going_on = 0;
+        std::string said;
+        for (const Value& one : *batch->get("nodes")->list()) {
+            const Value* lines = one.get("lines");
+            if (!lines) continue;
+            expect(lines->list()->size() >= 3u) << "wrapped: " << one.json();
+            for (const Value& line : *lines->list())
+                for (const Value& piece : *line.get("c")->list()) {
+                    if (piece.type() == Value::Type::text) {
+                        said += piece.as_string();
+                        continue;
+                    }
+                    expect(piece.get("tag")->as_string() == "a") << piece.json();
+                    if (piece.get("node")) {
+                        ++itself;
+                        expect(going_on == 0u && !piece.get("set")) << "the link itself first; its attributes are its own entry's";
+                    } else {
+                        ++going_on;
+                        const Value* set = piece.get("set");
+                        expect(set && set->get("href") && set->get("href")->as_string() == "guide/ops.md" && set->get("data-omui-part") &&
+                               set->get("data-omui-part")->as_string().ends_with("link0"))
+                            << piece.json();
+                    }
+                    for (const Value& inner : *piece.get("c")->list()) said += inner.as_string();
+                }
+        }
+        expect(itself == 1u && going_on >= 1u) << itself << " " << going_on;
+        expect(said == "Read the guide to every operation of the command line and what each one answers first.") << said;
+    };
 }};

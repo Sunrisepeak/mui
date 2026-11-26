@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { Event, Storage, Window } from './fake_dom.mjs';
+import { Element, Event, Storage, Window } from './fake_dom.mjs';
 
 // Values made in the library's realm, compared as data.
 const plain = (v) => JSON.parse(JSON.stringify(v));
@@ -315,6 +315,50 @@ test('the document layer: each node the element it is, its text with the element
   assert.notEqual(again, h);
   assert.deepEqual([again.tagName, again.getAttribute('id'), again.textContent, again.style.top, again.parentNode], ['H3', 'install', 'Install', '8px', P.nodes.get('app')]);
   assert.deepEqual(P.nodes.get('app').children.map((c) => c.getAttribute('data-omui-id')), ['doc/h', 'doc/p', 'doc/list']);
+});
+
+test('a text the canvas draws line by line: each line\'s words in the line\'s box, fitted to the width drawn', () => {
+  const { P, document, context } = page();
+  // No layout here: a line is as wide as its letters at its size, half an em each (what a browser would measure).
+  const measured = Element.prototype.getBoundingClientRect;
+  Element.prototype.getBoundingClientRect = function () {
+    if (!this.hasAttribute('data-omui-line')) return measured.call(this);
+    return { left: 0, top: 0, width: this.textContent.length * parseFloat(this.style.fontSize) * 0.5, height: parseFloat(this.style.height) };
+  };
+  try {
+    context.omui_web_mirror(JSON.stringify({ root: 'app', nodes: [
+      { id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['doc/p'] },
+      { id: 'doc/p', tag: 'p', box: [8, 8, 184, 48], lines: [
+        { box: [0, 0, 180, 24], c: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the long'] }] },
+        { box: [0, 24, 96.5, 24], c: [{ tag: 'a', set: { href: 'guide/', 'data-omui-part': 'doc/p/link0' }, c: ['guide'] }, ' first.'] },
+      ] },
+      { id: 'doc/p/link0', set: { href: 'guide/' }, inline: true },
+    ] }));
+    const p = P.nodes.get('doc/p'), link = P.nodes.get('doc/p/link0');
+    const [first, second] = p.children;
+    assert.ok(first.hasAttribute('data-omui-line') && second.hasAttribute('data-omui-line'));
+    assert.deepEqual([first.style.left, first.style.top, first.style.height, first.style.lineHeight], ['0px', '0px', '24px', '24px']);
+    assert.equal(second.style.top, '24px');
+    assert.equal(p.textContent, 'Read the longguide first.', 'the text\'s words, line after line');
+    assert.equal(link.parentNode, first, 'the link itself on its first line');
+    const part = second.children[0];
+    assert.deepEqual([part.tagName, part.getAttribute('href'), part.getAttribute('data-omui-part'), part.textContent], ['A', 'guide/', 'doc/p/link0', 'guide'], 'and an element like it where it goes on');
+    // Fitted: the first line's 13 letters at half an em each are 180 px wide at 27.7 px — over the line's height, so
+    // its size is the height's and the rest is a stretch; the second's 12 letters are 96.5 px at 16.08 px.
+    assert.equal(first.style.fontSize, '24px');
+    assert.equal(first.style.transform, 'scaleX(' + (180 / (13 * 24 * 0.5)) + ')');
+    assert.ok(Math.abs(parseFloat(second.style.fontSize) - 96.5 / (12 * 0.5)) < 1e-9, second.style.fontSize);
+    assert.equal(second.style.transform, '', 'a line that fits by its size is not stretched');
+    assert.equal(P.fitting.length, 0);
+
+    // The text set again as it flows (its lines unknown): the lines go.
+    context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'doc/p', content: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the long guide'] }, ' first.'] }] }));
+    assert.equal(p.children.length, 1);
+    assert.equal(p.children[0], link);
+    assert.equal(p.textContent, 'Read the long guide first.');
+  } finally {
+    Element.prototype.getBoundingClientRect = measured;
+  }
 });
 
 test('the page\'s own projection goes on as the layer: the same elements, placed over the canvas', () => {

@@ -40,6 +40,7 @@ addToLibrary({
     assertive: null,
     nodes: null,          // id -> element
     adoptable: null,      // the page's own projection: id -> its element, until the layer takes it
+    fitting: [],          // the lines a batch made, to be fitted to their widths
     focused: null,        // the mirror's focus
     skip: null,           // the skip link, and the node it goes to
     skipTo: null,
@@ -150,6 +151,7 @@ addToLibrary({
         '[data-omui=mirror] [data-omui-id]{position:absolute;display:block;box-sizing:border-box;overflow:hidden;white-space:pre-wrap}' +
         '[data-omui=mirror] [data-omui-inline]{position:static;display:inline;overflow:visible}' +
         '[data-omui=mirror] pre,[data-omui=mirror] pre code{white-space:pre}' +
+        '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre;transform-origin:0 0}' +
         // Selected, the layer's text stays unseen and the canvas's words show through the highlight.
         '[data-omui=mirror] ::selection{color:transparent;background:color-mix(in srgb,Highlight 40%,transparent)}';
       (document.head || body).appendChild(sheet);
@@ -509,6 +511,48 @@ addToLibrary({
       el.omuiContent = pieces.map(function (p) { return el.insertBefore(P.piece(p), before); });
     },
 
+    // An element's own text as the canvas draws it, line by line: each line's words in the line's box, so what the
+    // browser finds and what a person selects is where it is seen. A line begins at a size taken from its height
+    // and is fitted to its width with the batch's other lines (fit).
+    setLines: function (el, lines) {
+      var P = omuiPage;
+      el.omuiContent.forEach(function (n) { if (n.parentNode === el) el.removeChild(n); });
+      var before = el.firstChild;
+      el.omuiContent = lines.map(function (line) {
+        var span = document.createElement('span'), s = span.style, b = line.box;
+        span.setAttribute('data-omui-line', '');
+        s.left = b[0] + 'px';
+        s.top = b[1] + 'px';
+        s.height = b[3] + 'px';
+        s.lineHeight = b[3] + 'px';
+        s.fontSize = Math.max(4, b[3] * 0.72) + 'px';
+        span.omuiWidth = b[2];
+        line.c.map(P.piece).forEach(function (n) { span.appendChild(n); });
+        P.fitting.push(span);
+        return el.insertBefore(span, before);
+      });
+    },
+
+    // The lines a batch made, fitted to the widths the canvas drew them at: measured together, then set together
+    // (one layout of the page, not one a line) — first the size of the letters, so their shapes stay their own,
+    // then what is left by a stretch along the line.
+    fit: function () {
+      var P = omuiPage, lines = P.fitting;
+      if (!lines.length) return;
+      P.fitting = [];
+      var measure = function () { return lines.map(function (s) { return s.getBoundingClientRect().width; }); };
+      var wide = measure();
+      lines.forEach(function (s, i) {
+        if (!(wide[i] > 0) || !(s.omuiWidth > 0)) return;
+        s.style.fontSize = Math.min(parseFloat(s.style.fontSize) * s.omuiWidth / wide[i], parseFloat(s.style.height)) + 'px';
+      });
+      wide = measure();
+      lines.forEach(function (s, i) {
+        if (!(wide[i] > 0) || !(s.omuiWidth > 0)) return;
+        s.style.transform = Math.abs(wide[i] - s.omuiWidth) > 0.25 ? 'scaleX(' + (s.omuiWidth / wide[i]) + ')' : '';
+      });
+    },
+
     // The skip link followed: the page's focus back on the canvas, the
     // program's on the main landmark's first focusable node.
     followSkip: function () {
@@ -553,6 +597,7 @@ addToLibrary({
         if ('inline' in n) P.inline(el, n.inline);
         if ('text' in n) P.setContent(el, n.text ? [n.text] : []);
         if (n.content) P.setContent(el, n.content);
+        if (n.lines) P.setLines(el, n.lines);
         if (n.box && !el.omuiInline) {
           el.style.left = n.box[0] + 'px';
           el.style.top = n.box[1] + 'px';
@@ -583,6 +628,7 @@ addToLibrary({
           current.splice(i, 0, child);
         });
       });
+      P.fit();
       if (b.root) {
         var root = P.nodes.get(b.root);
         if (root && root.parentNode !== P.layer) P.layer.appendChild(root);

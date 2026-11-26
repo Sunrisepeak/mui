@@ -146,7 +146,9 @@ UTest cases{"host.web", [] {
         expect(set_of(node_of(*first, "main/status"), "aria-live") == "off") << "the live region speaks for a status";
         expect(set_of(node_of(*first, "app"), "role") == "<unset>") << "the root is no application";
         const Value* title = node_of(*first, "main/title");
-        expect(title && title->get("text") && title->get("text")->as_string() == "Notes") << "a text's name is its element's text";
+        // This collection has no shaper, so the title's words have no width and are not stood by lines: its text
+        // flows in its element (lines by a real shaping: oweb's layer_test).
+        expect(title && title->get("text") && title->get("text")->as_string() == "Notes" && !title->get("lines")) << "a text's name is its element's text";
         expect(set_of(title, "aria-label") == "<unset>") << "ARIA names no text";
         // Boxes over the canvas, each relative to its parent's (the column
         // is lifted: a nameless wrapper; the root is the canvas's whole).

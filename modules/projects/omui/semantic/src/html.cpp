@@ -153,16 +153,17 @@ Attributes attributes_of(const spec::SemanticNode& n, std::string_view tag, bool
     return out;
 }
 
-// Text as an element holds it: a line feed a line's break (S-17), but where lines are kept as written.
-void runs(std::vector<Inline>& into, std::string_view text, bool lines_kept) {
+// Text as an element holds it: a line feed a line's break (S-17), but where lines are kept as written. `from` is
+// where `text` begins in the node's text.
+void runs(std::vector<Inline>& into, std::string_view text, bool lines_kept, std::size_t from = 0) {
     if (lines_kept) {
-        if (!text.empty()) into.push_back({.text = std::string(text)});
+        if (!text.empty()) into.push_back({.text = std::string(text), .begin = from, .end = from + text.size()});
         return;
     }
     for (std::size_t at = 0; at <= text.size();) {
         const std::size_t feed = std::min(text.find('\n', at), text.size());
-        if (feed > at) into.push_back({.text = std::string(text.substr(at, feed - at))});
-        if (feed < text.size()) into.push_back({.tag = "br"});
+        if (feed > at) into.push_back({.text = std::string(text.substr(at, feed - at)), .begin = from + at, .end = from + feed});
+        if (feed < text.size()) into.push_back({.tag = "br", .begin = from + feed, .end = from + feed + 1});
         at = feed + 1;
     }
 }
@@ -198,7 +199,7 @@ std::vector<Inline> marked(const spec::SemanticNode& n, std::string_view text, b
             const spec::Mark& mark = n.marks[next];
             const std::size_t begin = bytes[next].first, end = std::min(bytes[next].second, to);
             ++next;
-            runs(into, text.substr(cursor, begin - cursor), lines_kept);
+            runs(into, text.substr(cursor, begin - cursor), lines_kept, cursor);
             const spec::SemanticNode* node = mark.node.empty() ? nullptr : find(mark.node);
             if (node) placed.push_back(node->id);
             const auto pass_inner = [&] {
@@ -206,7 +207,7 @@ std::vector<Inline> marked(const spec::SemanticNode& n, std::string_view text, b
             };
             if (mark.kind == spec::MarkKind::image && node) {
                 // A picture in a line: its text alternative is the range. Over the canvas the canvas shows it.
-                Inline image{.tag = where == HtmlFor::live ? "span" : "img", .node = node->id};
+                Inline image{.tag = where == HtmlFor::live ? "span" : "img", .node = node->id, .begin = begin, .end = end};
                 if (where == HtmlFor::live) {
                     image.attributes = {{"role", "img"}, {"aria-label", std::string(text.substr(begin, end - begin))}};
                 } else {
@@ -216,27 +217,27 @@ std::vector<Inline> marked(const spec::SemanticNode& n, std::string_view text, b
                 into.push_back(std::move(image));
                 pass_inner();
             } else if (mark.kind == spec::MarkKind::link && node) {
-                Inline link{.tag = "a", .node = node->id, .attributes = attributes_of(*node, "a", true, where)};
+                Inline link{.tag = "a", .node = node->id, .attributes = attributes_of(*node, "a", true, where), .begin = begin, .end = end};
                 self(link.children, begin, end);
                 into.push_back(std::move(link));
             } else if (mark.kind == spec::MarkKind::raw) {
                 // Markup as markup only where the application wrote it (S-3), and only in a document: over the canvas
                 // it is the text it is.
-                if (n.origin == spec::Origin::app && where == HtmlFor::document) into.push_back({.text = std::string(text.substr(begin, end - begin)), .markup = true});
-                else runs(into, text.substr(begin, end - begin), lines_kept);
+                if (n.origin == spec::Origin::app && where == HtmlFor::document) into.push_back({.text = std::string(text.substr(begin, end - begin)), .begin = begin, .end = end, .markup = true});
+                else runs(into, text.substr(begin, end - begin), lines_kept, begin);
                 pass_inner();
             } else if (const std::string_view tag = tag_of(mark.kind); !tag.empty()) {
-                Inline element{.tag = std::string(tag)};
+                Inline element{.tag = std::string(tag), .begin = begin, .end = end};
                 self(element.children, begin, end);
                 into.push_back(std::move(element));
             } else {
-                Inline element{.tag = "span", .attributes = {{"data-omui-mark", std::string(spec::name(mark.kind))}}};
+                Inline element{.tag = "span", .attributes = {{"data-omui-mark", std::string(spec::name(mark.kind))}}, .begin = begin, .end = end};
                 self(element.children, begin, end);
                 into.push_back(std::move(element));
             }
             cursor = end;
         }
-        runs(into, text.substr(cursor, to - cursor), lines_kept);
+        runs(into, text.substr(cursor, to - cursor), lines_kept, cursor);
     };
     run(out, 0, text.size());
     return out;
@@ -290,7 +291,7 @@ HtmlElement html_element(const spec::SemanticNode& n, std::string_view inside, c
         Inline code{.tag = "code"};
         if (const std::string_view language = text_property(n, "language"); !language.empty())
             code.attributes = {{"class", std::format("{}{}", language.starts_with("language-") ? "" : "language-", language)}};
-        if (!n.name.empty()) code.children.push_back({.text = n.name});
+        if (!n.name.empty()) code.children.push_back({.text = n.name, .begin = 0, .end = n.name.size()});
         element.content.push_back(std::move(code));
         element.lines_kept = true;
         return element;

@@ -16,6 +16,7 @@ namespace omui::semantic {
     std::string node;
     std::vector<std::pair<std::string, std::string>> attributes;
     std::vector<Inline> children;
+    std::size_t begin = 0, end = 0;
     bool markup = false;
     bool operator==(const Inline&) const = default;
   };

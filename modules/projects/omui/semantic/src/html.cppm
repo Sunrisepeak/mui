@@ -28,6 +28,9 @@ struct Inline {
     std::string node;  // the child node an element here is (a link, a picture)
     std::vector<std::pair<std::string, std::string>> attributes;  // an element's
     std::vector<Inline> children;
+    // The bytes of the node's text a run or an element covers (a line's break: the line feed's place, one byte): how
+    // a text is cut where its lines break. Zero for what is no part of the node's text (a block of code's wrapper).
+    std::size_t begin = 0, end = 0;
     bool markup = false;  // a run that is markup the application wrote: written as it is (S-3)
     bool operator==(const Inline&) const = default;
 };

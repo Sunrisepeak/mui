@@ -76,16 +76,21 @@ and `gpu` insist.
 An `automatic` window draws its first frames with the CPU into the window's
 own framebuffer. The device — and the renderer's pipelines, on the same
 thread — is begun only once the window's frames need it
-(`DesktopOptions::device_when`, `needed` by default): its first frame, the
-whole window, took the CPU more than the display's interval to draw and show
-(8.3 ms at 120 Hz), or three of its last ten frames in motion more than half of
-it. The window's own framebuffer is sent only the bands of rows that changed,
-so a small change costs the CPU little however large the window. A window the
-CPU draws well enough — a dialog, a form, hello — loads no driver and has none
-of a device's memory or its threads' wakeups; a large one whose full redraw is
-dearer than that begins its device right after its first frame, as UI9 did for
-every window (`first_frame` asks for that). Either way it is made off the first
-frame's path, and its thread wakes the loop when it is done. At rest (the loop asleep, no input come;
+(`DesktopOptions::device_when`, `needed` by default): the window has a
+megapixel or more (every full redraw sends 4 MB to the display: 4.4–18.9 ms for
+7.8 MB on this machine's X server, more than a 120 Hz frame's budget), or
+three of its last ten frames in motion took the CPU more than half the
+display's interval to draw and show (4.2 ms at 120 Hz). No single frame
+decides it: a first frame is mostly what is done once, and one sample of it is
+the machine's load as much as the window's. Why a window began its device is
+an `info` record among its recent ones (`ui.logs`). The window's own
+framebuffer is sent only the bands of rows that changed, so a small change
+costs the CPU little however large the window. A window the CPU draws well
+enough — a dialog, a form, hello — loads no driver and has none of a device's
+memory or its threads' wakeups; a large one begins its device right after its
+first frame, as UI9 did for every window (`first_frame` asks for that). Either
+way it is made off the first frame's path, and its thread wakes the loop when
+it is done. At rest (the loop asleep, no input come;
 a second after it is ready where something keeps moving) the device claims the
 window — about 75 ms on an RTX 4080 under X11, SDL syncing the window and the
 driver making the swapchain —, the framebuffer is let go, and the CPU's frame on

@@ -68,10 +68,10 @@ struct DesktopOptions {
     enum class Renderer : std::uint8_t { automatic, cpu, gpu };
     Renderer                renderer = Renderer::automatic;
     // When an `automatic` window whose first frames the CPU draws (UI9) begins its device (UI10): once its frames
-    // need one (`needed`, the default) — its first frame, the whole window, took the CPU more than the display's
-    // interval to draw and show, or three of its last ten frames in motion more than half of it —, so that a window
-    // the CPU draws well enough (a dialog, a form, a counter) never loads the GPU's driver; or as soon as its first
-    // frame is shown (`first_frame`, UI9's).
+    // need one (`needed`, the default) — the window has a megapixel or more (each full redraw sends 4 MB to the
+    // display), or three of its last ten frames in motion took the CPU more than half the display's interval to draw
+    // and show —, so that a window the CPU draws well enough (a dialog, a form, a counter) never loads the GPU's
+    // driver; or as soon as its first frame is shown (`first_frame`, UI9's).
     enum class DeviceWhen : std::uint8_t { needed, first_frame };
     DeviceWhen              device_when = DeviceWhen::needed;
     std::string             vulkan_library;   // the Vulkan loader the GPU device uses ("" the system's)

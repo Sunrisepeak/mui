@@ -550,28 +550,31 @@ struct Desktop::Impl final : WindowHost {
     // UI10: whether the frame just shown by the CPU says the window needs its device. A frame in motion has half the
     // display's interval (4.2 ms at 120 Hz) for the CPU to draw and show it: D-187 holds the whole frame to the
     // interval, the rest is the runtime's own work. Three of the last ten frames in motion above that: the device is
-    // begun. The first frame is the whole window, with what is done once (glyphs rasterised, the framebuffer made):
-    // above a whole interval, every full redraw of the window (a scroll, a resize, a page) would be above its half,
-    // so the device is begun at once — a large window takes UI9's path, its takeover at its first rest rather than
-    // in its first scroll. A window at rest, or one whose changes are small, never needs it.
+    // begun. A window of a megapixel or more begins it with its first frame at that size (its full redraws alone
+    // are above the budget: below). No single frame decides it: a first frame is mostly what is done once (glyphs
+    // rasterised, the framebuffer made, the display's first round trips), and one sample of it is the machine's
+    // load as much as the window's. A window at rest, or one whose changes are small, never needs it.
     void weigh_cpu_frame(bool in_motion, double display_hz) {
         if (device_needed) return;
-        const double interval = 1000.0 / (display_hz > 0 ? display_hz : 60.0), budget = 0.5 * interval;
-        if (frames_shown == 1) {
-            if (cpu_frame_ms > interval)
-                need_device(std::format("its first frame, the whole window, took the CPU {:.1f} ms (an interval is {:.1f})", cpu_frame_ms, interval));
-            return;
-        }
-        if (!in_motion) return;
+        const double budget = 0.5 * 1000.0 / (display_hz > 0 ? display_hz : 60.0);
+        // A window of a megapixel or more sends 4 MB and more to the display with every full redraw (a scroll, a resize,
+        // a page): 4.4–18.9 ms for 7.8 MB on this machine's X server, more than a 120 Hz frame's whole budget. Its
+        // device is begun with its first frame at that size, so that its takeover comes at its first rest, not in its
+        // first scroll.
+        if (static_cast<double>(frame.width()) * static_cast<double>(frame.height()) >= 1.0e6)
+            return need_device(std::format("the window is {} x {}: every full redraw sends {:.1f} MB", frame.width(), frame.height(),
+                                           static_cast<double>(frame.width()) * frame.height() * 4 / 1.0e6));
+        if (frames_shown == 1 || !in_motion) return;  // the first frame is the window's, not its motion's
         over_budget[motion_frames++ % over_budget.size()] = cpu_frame_ms > budget;
         if (std::ranges::count(over_budget, true) >= 3)
             need_device(std::format("three of its last ten frames in motion took the CPU more than {:.1f} ms (the last {:.1f})", budget, cpu_frame_ms));
     }
 
+    // Once a window: a fact an agent reads among the recent records (ui.logs), not only in a debug log.
     void need_device(std::string why) {
         device_needed = true;
         mlibs::trace::mark("device.needed", "host");
-        debug("desktop: the window needs its GPU device: {}", why);
+        info("desktop: the window begins its GPU device: {}", why);
     }
 
     void show() {

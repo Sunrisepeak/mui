@@ -61,6 +61,7 @@ static UTest cases{"oweb.config", [] {
         expect(home.contains("href=\"start/#the-second-step\">the first steps</a>") && read(out / "index.md").contains("(start/index.md#the-second-step)")) << "a link follows the page to its stated address";
         expect(start.contains("src=\"../media/mark.svg\"") && std::filesystem::exists(out / "media" / "mark.svg")) << "a picture stands where it stands in pages/, found from the route";
         expect(start.contains("href=\"../\">the beginning</a>"));
+        expect(home.contains("href=\"about/\">about</a>") && home.contains("src=\"media/mark.svg\"") && read(out / "index.md").contains("[about](about/index.md)")) << "by the site's own address";
         const std::string routes = read(out / "site.routes.xdef.json"), sitemap = read(out / "sitemap.xml"), agents = read(out / "llms.txt");
         expect(routes.find("\"/start/\"") < routes.find("\"/about/\"") && !routes.contains("draft") && sitemap.contains("<loc>https://example.org/stated/start/</loc>") &&
                agents.find("Start here") < agents.find("About"))
@@ -99,8 +100,11 @@ static UTest cases{"oweb.config", [] {
         expect(says(R"({"routes":[{"path":"start","source":"pages/start.md"}]})", "/site/routes/0/path", "begins and ends with `/`"));
         expect(says(R"({"routes":[{"path":"/a/","source":"../outside.md"}]})", "/site/routes/0/source", "inside the site's directory"));
         expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md"},{"path":"/a/","source":"pages/b.md"}]})", "/site/routes/1/path", "stated twice"));
-        expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md","nav":true}]})", "/site/routes/0/nav", "it has: path, source, title"));
+        expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md","nav":true}]})", "/site/routes/0/nav", "it has: path, source, reference, title"));
         expect(says(R"({"budgets":{"readable":-1}})", "/site/budgets/readable", "number of bytes"));
+        expect(of(R"({"routes":[{"path":"/ops/","reference":"../tool/tool.ops.xdef.ts"}]})").has_value()) << "a route that is a catalog's reference";
+        expect(says(R"({"routes":[{"path":"/ops/","source":"pages/ops.md","reference":"tool.ops.xdef.ts"}]})", "/site/routes/0/reference", "not both"));
+        expect(says(R"({"routes":[{"path":"/ops/","reference":"tool.md"}]})", "/site/routes/0/reference", "an operation catalog"));
         const auto other = oweb::options_from("{\"$format\":\"routes@1\",\"routes\":[]}\n", "oweb.config.ts");
         expect(!other.has_value() && other.error().contains("a routes snapshot, not a site one")) << (other ? "" : other.error());
 
@@ -122,6 +126,7 @@ static UTest cases{"oweb.config", [] {
     "a link inside the site that leads nowhere: the page, the link and why, each said; nothing is written"_test = [] {
         const auto site = scratch("links-wrong");
         write(site / "pages/index.md", "# Home\n\nSee [the guide](guide.md#setup), [a draft](draft.md), [a place](guide.md#nowhere), [marked](guide.md#marked) and ![a picture](media/none.png).\n\n"
+                                       "By address: [the guide](/guide/#setup), [no route](/nowhere/), ![no file](/media/none.svg).\n\n"
                                        "Out of the site: [elsewhere](https://example.org/x.md), [mail](mailto:a@example.org), [here](#home).\n");
         write(site / "pages/guide.md", "# Guide\n\n## Setup\n\n<a id=\"marked\"></a>\n\nBack [home](index.md).\n");
         const auto out = scratch("links-wrong-out");
@@ -129,7 +134,8 @@ static UTest cases{"oweb.config", [] {
         expect(!built.has_value());
         if (built) return;
         const std::string& why = built.error();
-        expect(why.contains("3 links inside the site lead nowhere") && why.contains("nothing was written")) << why;
+        expect(why.contains("5 links inside the site lead nowhere") && why.contains("nothing was written")) << why;
+        expect(why.contains("links to /nowhere/, which is no route of the site") && why.contains("names /media/none.svg, which is not there") && !why.contains("/guide/#setup")) << why;
         expect(why.contains("pages/index.md links to draft.md, which is no page of the site") && why.contains("guide.md#nowhere: pages/guide.md has no heading of the anchor `nowhere`") &&
                why.contains("pages/index.md names media/none.png, which is not there"))
             << why;
@@ -140,7 +146,7 @@ static UTest cases{"oweb.config", [] {
         expect(routes.has_value());
         if (routes) {
             const auto home = oweb::evaluate(site, *routes, routes->back().path == "/" ? routes->back() : routes->front());
-            expect(home.has_value() && home->problems.size() == 3u);
+            expect(home.has_value() && home->problems.size() == 5u);
         }
     };
 }};

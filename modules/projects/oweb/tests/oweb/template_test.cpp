@@ -54,7 +54,7 @@ static UTest cases{"oweb.template", [] {
         expect(built->routes.size() == 7u && built->routes[1].path == "/start/" && built->routes[4].path == "/reference/ops/") << built->routes.size();
         std::size_t html_bytes = 0, markdown_bytes = 0;
         for (const oweb::Route& route : built->routes) {
-            const std::string source = read(site / route.source);
+            const std::string source = oweb::source_text(site, route).value_or("");
             const std::string html = read(out / route.path.substr(1) / "index.html"), markdown = read(out / route.path.substr(1) / "index.md");
             html_bytes += html.size(), markdown_bytes += markdown.size();
             md::Document read_back = md::from_html(document_of(html));
@@ -106,9 +106,28 @@ static UTest cases{"oweb.template", [] {
         expect(read(out / "zh/index.html").contains("<html lang=\"zh\">") && read(out / "zh/start/index.md").contains("# 开始"));
     };
 
-    "its reference is the catalog's, generated: the page and src/catalog/oweb.ops.md are the same bytes"_test = [] {
-        expect(read(package() / "templates" / "docs" / "pages" / "reference" / "ops.md") == read(package() / "src" / "catalog" / "oweb.ops.md"))
-            << "copy src/catalog/oweb.ops.md over templates/docs/pages/reference/ops.md after ops-gen";
+    "its reference is the catalog's, generated at the build: no page of its own, the catalog's own reference its text; pages link to it by its address"_test = [] {
+        const auto site = package() / "templates" / "docs";
+        const auto options = oweb::configured(site);
+        expect(options.has_value());
+        if (!options) return;
+        const auto routes = oweb::collect(site, *options);
+        expect(routes.has_value()) << (routes ? "" : routes.error());
+        if (!routes) return;
+        const auto reference = std::ranges::find(*routes, "/reference/ops/", &oweb::Route::path);
+        expect(reference != routes->end() && reference->reference == "../../oweb.ops.xdef.ts" && reference->title == "oweb operations" && !reference->headings.empty());
+        if (reference == routes->end()) return;
+        expect(!std::filesystem::exists(site / "pages" / "reference")) << "no copy to go stale";
+        const auto text = oweb::source_text(site, *reference);
+        expect(text.has_value() && *text == read(package() / "src" / "catalog" / "oweb.ops.md")) << "what the catalog's generator writes, read from the catalog now";
+        const auto home = oweb::evaluate(site, *routes, routes->front(), *options);
+        expect(home.has_value() && home->problems.empty() && home->html.contains("href=\"reference/ops/\" title=\"The operations of the oweb command\">oweb</a>") &&
+               home->markdown.contains("(reference/ops/index.md \"The operations of the oweb command\")"))
+            << "a link by the site's own address, written as each writing's";
+        const auto chinese = std::ranges::find(*routes, "/zh/", &oweb::Route::path);
+        const auto page = oweb::evaluate(site, *routes, *chinese, *options);
+        expect(page.has_value() && page->html.contains("href=\"../reference/ops/\">oweb</a>"));
+        expect(oweb::routes_json(*routes, *options).contains("\"generated\":true"));
     };
 
     "the questions asked of it: each answered by the section that holds the answer"_test = [] {

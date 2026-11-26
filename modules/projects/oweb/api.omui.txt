@@ -31,6 +31,7 @@ namespace oweb {
   struct Route {
     std::string path;
     std::string source;
+    std::string reference;
     std::string title;
     std::string language;
     std::vector<Heading> headings;
@@ -39,6 +40,7 @@ namespace oweb {
     std::string path;
     std::string source;
     std::string title;
+    std::string reference;
   };
   struct SiteOptions {
     std::string title;
@@ -71,6 +73,7 @@ namespace oweb {
     mlibs::delivery::Manifest delivery;
   };
   [[nodiscard]] std::expected<std::vector<Route>, std::string> collect(const std::filesystem::path& site, const SiteOptions& options = {…});
+  [[nodiscard]] std::expected<std::string, std::string> source_text(const std::filesystem::path& site, const Route& route);
   [[nodiscard]] std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options = {…});
   [[nodiscard]] std::expected<Page, std::string> lost_page(const std::filesystem::path& site, std::span<const Route> routes, const SiteOptions& options = {…});
   [[nodiscard]] std::expected<Built, std::string> build(const std::filesystem::path& site, const std::filesystem::path& out, const SiteOptions& options = {…});

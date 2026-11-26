@@ -7,7 +7,8 @@
 // `index.md`, the document as Markdown (omui.ui.markdown's markdown_of) for an agent that only fetches. Nothing is
 // written that the tree does not hold, and the tree's writings lose nothing of it (0.1.0 plan UI1, UI2). Links
 // between pages are written as each writing's own addresses: a route's directory in HTML, its `index.md` in
-// Markdown. The routes are one table: the navigation, `site.routes.xdef.json`, `llms.txt` and `sitemap.xml` are made
+// Markdown; a link that begins with `/` is the site's own address (a route's, or a file's beside the pages), written
+// the same way. The routes are one table: the navigation, `site.routes.xdef.json`, `llms.txt` and `sitemap.xml` are made
 // from it.
 export module oweb:site;
 
@@ -25,6 +26,9 @@ struct Heading {
 struct Route {
     std::string          path;      // where it is served: "/", "/guide/start/"
     std::string          source;    // its page, from the site's directory: "pages/guide/start.md"
+    // The operation catalog its page is the reference of, from the site's directory ("../tool/tool.ops.xdef.ts"):
+    // the page is generated from it at each build. Empty: its page is `source`.
+    std::string          reference;
     std::string          title;     // its first heading; its path where it has none
     std::string          language;  // "en", "zh"
     std::vector<Heading> headings;
@@ -33,8 +37,9 @@ struct Route {
 // A route a site's configuration states: where it is served, its page, and what the navigation calls it.
 struct Declared {
     std::string path;    // "/start/"
-    std::string source;  // "pages/guide/start.md"
+    std::string source;  // "pages/guide/start.md"; empty where it is a reference
     std::string title;   // empty: its page's first heading
+    std::string reference;  // an operation catalog (<product>.ops.xdef.ts, or its snapshot): the page is its reference
 };
 
 struct SiteOptions {
@@ -88,6 +93,9 @@ struct Built {
 // The routes a site's pages give, by address — or the routes it states, in their order; or why not (no pages/, two
 // pages of one address, a stated page that is not there).
 [[nodiscard]] std::expected<std::vector<Route>, std::string> collect(const std::filesystem::path& site, const SiteOptions& options = {});
+
+// A route's page as Markdown: its source's text, or the reference generated from its catalog.
+[[nodiscard]] std::expected<std::string, std::string> source_text(const std::filesystem::path& site, const Route& route);
 
 // One route evaluated and written, the others its navigation.
 [[nodiscard]] std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options = {});

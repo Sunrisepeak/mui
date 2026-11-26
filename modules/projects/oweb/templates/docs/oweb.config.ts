@@ -11,7 +11,8 @@ export default defineSite({
     { path: "/start/", source: "pages/start.md" },
     { path: "/ui/", source: "pages/ui.md" },
     { path: "/agent/", source: "pages/agent.md" },
-    { path: "/reference/ops/", source: "pages/reference/ops.md" },
+    // Generated at each build from the command's catalog: never a copy that goes stale.
+    { path: "/reference/ops/", reference: "../../oweb.ops.xdef.ts" },
     { path: "/zh/", source: "pages/zh/index.md" },
     { path: "/zh/start/", source: "pages/zh/start.md" },
   ],

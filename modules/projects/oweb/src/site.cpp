@@ -2,6 +2,7 @@ module oweb;
 
 import std;
 import mcpplibs.os;
+import mlibs.control.gen;
 import mlibs.delivery;
 import mlibs.markdown;
 import omui.core;
@@ -136,7 +137,7 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
     // What the navigation and the tables say of a page, read from its document: no page is drawn for that. Its
     // language is its address's first part where that is one of the site's, the site's first otherwise.
     const auto described = [&](Route& route) -> std::expected<void, std::string> {
-        const auto text = read(site / mcpplibs::os::fs::from_utf8(route.source));
+        const auto text = source_text(site, route);
         if (!text) return std::unexpected(text.error());
         const md::Document document = md::parse(*text);
         md::walk(document.root, [&](const md::Block& block) {
@@ -155,11 +156,13 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
         for (const Declared& declared : options.routes) {
             Route route;
             route.path = declared.path;
-            route.source = declared.source;
+            route.source = declared.reference.empty() ? declared.source : declared.reference;
+            route.reference = declared.reference;
             route.title = declared.title;
             std::error_code missing;
             if (!std::filesystem::is_regular_file(site / mcpplibs::os::fs::from_utf8(route.source), missing))
-                return std::unexpected(std::format("the route `{}` states the page {}, which is not in {}: write it, or take the route out of oweb.config.ts", route.path, route.source, utf8(site)));
+                return std::unexpected(std::format("the route `{}` states the {} {}, which is not in {}: write it, or take the route out of oweb.config.ts", route.path,
+                                                   route.reference.empty() ? "page" : "catalog", route.source, utf8(site)));
             if (std::ranges::contains(routes, route.path, &Route::path)) return std::unexpected(std::format("the route `{}` is stated twice: keep one", route.path));
             if (auto read_in = described(route); !read_in) return std::unexpected(read_in.error());
             routes.push_back(std::move(route));
@@ -193,7 +196,7 @@ namespace {
 // A page evaluated from its text and written. `base` is stated for the page a host answers a lost address with: it
 // is served at any address, so its links are from the site's own and the document says where that is; it has no
 // contents of its own to choose between and no page before or after.
-std::expected<Page, std::string> written(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options, std::string_view source_text,
+std::expected<Page, std::string> written(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options, std::string_view page_text,
                                          std::string_view base) {
     using namespace omui;
     const bool lost = !base.empty();
@@ -232,7 +235,7 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
             parts.push_back(std::move(contents));
         }
     }
-    Element main = column({.id = "main"}, {markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = std::string(source_text)})});
+    Element main = column({.id = "main"}, {markdown({.id = "doc", .origin = MarkdownOrigin::app, .source = std::string(page_text)})});
     main.prop("role", Source{Value("main"), {}, {}});
     parts.push_back(std::move(main));
     // The page before and the page after, among its language's in the routes' order.
@@ -282,15 +285,30 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         if (!std::ranges::contains(problems, text)) problems.push_back(std::move(text));
     };
     const auto rewritten = [&](std::string_view href, bool markdown) -> std::optional<std::string> {
-        const auto target = inside(route.source, href);
-        if (!target) return std::nullopt;
-        const auto page = std::ranges::find(routes, target->first, &Route::source);
+        // A link that begins with `/` is the site's own address: a route's, or a file's beside the pages.
+        std::optional<std::pair<std::string, std::string>> target;
+        auto page = routes.end();
+        if (href.starts_with('/') && !href.starts_with("//")) {
+            const std::size_t cut = href.find_first_of("#?");
+            std::string path(href.substr(0, cut));
+            const std::string rest(cut == std::string_view::npos ? std::string_view{} : href.substr(cut));
+            page = std::ranges::find_if(routes, [&](const Route& other) { return other.path == path || other.path == path + "/"; });
+            target = page != routes.end() ? std::pair{page->source, rest} : std::pair{std::format("pages{}", path), rest};
+            if (page == routes.end() && (path.ends_with('/') || !path.contains('.'))) {
+                problem(std::format("{} links to {}, which is no route of the site", route.source, href));
+                return std::nullopt;
+            }
+        } else {
+            target = inside(route.source, href);
+            if (!target) return std::nullopt;
+            page = std::ranges::find(routes, target->first, &Route::source);
+        }
         if (page != routes.end()) {
             if (target->second.starts_with('#') && target->second.size() > 1) {
                 const std::string_view anchor = std::string_view(target->second).substr(1);
                 // A heading's anchor, or a place the page's own markup names (id="…").
                 if (!std::ranges::contains(page->headings, anchor, &Heading::anchor)) {
-                    const auto text = read(site / mcpplibs::os::fs::from_utf8(page->source));
+                    const auto text = source_text(site, *page);
                     if (!text || !text->contains(std::format("\"{}\"", anchor)))
                         problem(std::format("{} links to {}: {} has no heading of the anchor `{}`", route.source, href, page->source, anchor));
                 }
@@ -399,8 +417,21 @@ std::string base_of(std::string_view url) {
 
 }  // namespace
 
+std::expected<std::string, std::string> source_text(const std::filesystem::path& site, const Route& route) {
+    if (route.reference.empty()) return read(site / mcpplibs::os::fs::from_utf8(route.source));
+    // A reference: the catalog read now, its page what the catalog's own generator writes.
+    const std::filesystem::path file = site / mcpplibs::os::fs::from_utf8(route.reference);
+    const auto catalog = mlibs::control::gen::read_catalog_file(file);
+    if (!catalog) {
+        std::string problems;
+        for (const std::string& problem : catalog.error()) problems += std::format("\n  {}", problem);
+        return std::unexpected(std::format("the route `{}`: {} is no operation catalog:{}", route.path, utf8(file), problems));
+    }
+    return mlibs::control::gen::emit_catalog_markdown(*catalog);
+}
+
 std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options) {
-    const auto text = read(site / mcpplibs::os::fs::from_utf8(route.source));
+    const auto text = source_text(site, route);
     if (!text) return std::unexpected(text.error());
     return written(site, routes, route, options, *text, {});
 }
@@ -443,6 +474,7 @@ std::string routes_json(std::span<const Route> routes, const SiteOptions& option
         list.push_back(Value{}
                            .set("path", route.path)
                            .set("source", route.source)
+                           .set("generated", !route.reference.empty())
                            .set("title", route.title)
                            .set("language", route.language)
                            .set("markdown", std::format("{}index.md", route.path))

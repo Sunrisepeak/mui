@@ -13,7 +13,7 @@ namespace oweb {
 namespace {
 
 constexpr std::array<std::string_view, 5> site_fields{"title", "url", "languages", "routes", "budgets"};
-constexpr std::array<std::string_view, 3> route_fields{"path", "source", "title"};
+constexpr std::array<std::string_view, 4> route_fields{"path", "source", "reference", "title"};
 constexpr std::array<std::string_view, 1> budget_fields{"readable"};
 
 std::string listed(std::span<const std::string_view> names) {
@@ -73,15 +73,21 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
             if (!route.is_object()) return problem(route, "a route is an object", "{ path: \"/start/\", source: \"pages/start.md\" }");
             if (const auto stray = known(route, route_fields)) return problem(*stray, "no field of a route", std::format("it has: {}", listed(route_fields)));
             Declared declared;
-            const auto path = route["path"], source = route["source"], title = route["title"];
+            const auto path = route["path"], source = route["source"], title = route["title"], reference = route["reference"];
             if (!path.is_string() || !path.text()->starts_with('/') || !path.text()->ends_with('/') || path.text()->contains("//"))
                 return problem(path ? path : route, "a route's path is where it is served: it begins and ends with `/`", "path: \"/guide/start/\"");
-            if (!source.is_string() || !source.text()->ends_with(".md") || source.text()->starts_with('/') ||
-                mcpplibs::os::fs::utf8(mcpplibs::os::fs::from_utf8(*source.text()).lexically_normal()).starts_with(".."))
+            if (source && reference) return problem(reference, "a route is its page (`source`) or a catalog's reference (`reference`), not both");
+            if (reference) {
+                // A catalog belongs to its product's sources: it may stand outside the site's directory.
+                if (!reference.is_string() || !(reference.text()->ends_with(".ops.xdef.ts") || reference.text()->ends_with(".ops.xdef.json")))
+                    return problem(reference, "a route's reference is an operation catalog, from the site's directory", "reference: \"../tool/tool.ops.xdef.ts\"");
+                declared.reference = *reference.text();
+            } else if (!source.is_string() || !source.text()->ends_with(".md") || source.text()->starts_with('/') ||
+                       mcpplibs::os::fs::utf8(mcpplibs::os::fs::from_utf8(*source.text()).lexically_normal()).starts_with(".."))
                 return problem(source ? source : route, "a route's source is its page, a Markdown file inside the site's directory", "source: \"pages/guide/start.md\"");
             if (title && !title.is_string()) return problem(title, "a route's title is text (left out: its page's first heading)");
             declared.path = *path.text();
-            declared.source = *source.text();
+            declared.source = source ? *source.text() : std::string{};
             declared.title = title ? *title.text() : std::string{};
             if (std::ranges::contains(options.routes, declared.path, &Declared::path)) return problem(path, std::format("the route `{}` is stated twice", declared.path));
             options.routes.push_back(std::move(declared));

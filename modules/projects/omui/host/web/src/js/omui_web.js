@@ -512,6 +512,15 @@ addToLibrary({
       el.omuiContent.forEach(function (n) { if (n.parentNode === el) el.removeChild(n); });
       var before = el.firstChild;  // what is left is its children
       el.omuiContent = pieces.map(function (p) { return el.insertBefore(P.piece(p), before); });
+      P.ended(el, before);
+    },
+
+    // An element's own text ends where it ends: a line's break after it, so that a selection across elements reads
+    // them apart ("…tests." and "Install", not "…tests.Install") in every browser — an element placed over the
+    // canvas is out of the page's flow, and not every browser parts such elements' words itself.
+    ended: function (el, before) {
+      if (!el.omuiContent.length || el.omuiInline) return;
+      el.omuiContent.push(el.insertBefore(document.createElement('br'), before));
     },
 
     // An element's own text as the canvas draws it, line by line: a line is a span at the line's box, and in it each
@@ -544,6 +553,7 @@ addToLibrary({
         if (span.omuiWords.length) P.fitting.push(span);
         return el.insertBefore(span, before);
       });
+      P.ended(el, before);
     },
 
     // A word of a line: its letters (and the white space after them) at the place the canvas draws them.

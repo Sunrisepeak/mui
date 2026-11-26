@@ -285,7 +285,7 @@ test('the document layer: each node the element it is, its text with the element
   assert.equal(link.getAttribute('href'), 'guide/');
   assert.equal(link.textContent, 'the guide');
   assert.ok(link.hasAttribute('data-omui-inline') && !link.style.left && link.style.position === '', 'placed by the text: no box of its own');
-  assert.deepEqual(p.children.map((c) => c.tagName), ['A', 'EM', 'BR']);
+  assert.deepEqual(p.children.map((c) => c.tagName), ['A', 'EM', 'BR', 'BR'], 'its pieces, and a break where its text ends: a selection reads it apart from what follows');
   assert.equal(link.children[0].tagName, 'STRONG');
   assert.equal(p.style.left, '8px');
   assert.deepEqual(P.nodes.get('app').children.map((c) => c.getAttribute('data-omui-id')), ['doc/h', 'doc/p', 'doc/list']);
@@ -297,7 +297,7 @@ test('the document layer: each node the element it is, its text with the element
   ] }));
   assert.equal(P.nodes.get('doc/p/link0'), link, 'the same element');
   assert.equal(p.textContent, 'The guide comes first.a note');
-  assert.deepEqual(p.children.map((c) => c.getAttribute('data-omui-id') || c.tagName), ['doc/p/link0', 'doc/p/note']);
+  assert.deepEqual(p.children.map((c) => c.getAttribute('data-omui-id') || c.tagName), ['doc/p/link0', 'BR', 'doc/p/note']);
   assert.equal(P.nodes.get('doc/p/note').style.top, '24px');
 
   // The link stands in the text no more: an element of its own, with its own text and box.
@@ -307,7 +307,7 @@ test('the document layer: each node the element it is, its text with the element
   ] }));
   assert.equal(p.textContent, 'Plain now.The guidea note');
   assert.ok(!link.hasAttribute('data-omui-inline') && link.style.position === 'absolute' && link.style.top === '48px');
-  assert.deepEqual(p.children.map((c) => c.getAttribute('data-omui-id')), ['doc/p/link0', 'doc/p/note']);
+  assert.deepEqual(p.children.map((c) => c.getAttribute('data-omui-id') || c.tagName), ['BR', 'doc/p/link0', 'doc/p/note']);
 
   // Another level: another element in the same place, with what the first had.
   context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'doc/h', tag: 'h3' }] }));
@@ -338,8 +338,9 @@ test('a text the canvas draws line by line: each line at its box, each word wher
       { id: 'doc/p/link0', set: { href: 'guide/' }, inline: true },
     ] }));
     const p = P.nodes.get('doc/p'), link = P.nodes.get('doc/p/link0');
-    const [first, second] = p.children;
+    const [first, second, ended] = p.children;
     assert.ok(first.hasAttribute('data-omui-line') && second.hasAttribute('data-omui-line'));
+    assert.equal(ended.tagName, 'BR', 'the text ends with a break: read apart from the next element\'s');
     assert.deepEqual([first.style.left, first.style.top, first.style.width, first.style.height, first.style.lineHeight], ['0px', '0px', '180px', '24px', '24px']);
     assert.equal(second.style.top, '24px');
     assert.equal(p.textContent, 'Read the longguide first.', 'the text\'s words, line after line');
@@ -364,7 +365,7 @@ test('a text the canvas draws line by line: each line at its box, each word wher
 
     // The text set again as it flows (its lines unknown): the lines go.
     context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'doc/p', content: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the long guide'] }, ' first.'] }] }));
-    assert.equal(p.children.length, 1);
+    assert.deepEqual(p.children.map((c) => c.tagName), ['A', 'BR']);
     assert.equal(p.children[0], link);
     assert.equal(p.textContent, 'Read the long guide first.');
   } finally {

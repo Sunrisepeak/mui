@@ -152,6 +152,14 @@ struct Desktop::Impl final : WindowHost {
     // The device being made on a thread of its own from the start (RC3.6): the driver's start overlaps the fonts,
     // the runtime and the window rather than following them; the window claimed when it is taken.
     std::unique_ptr<GpuMaking>                      making;
+    // UI9: the CPU draws the first frames into the window's own framebuffer while the device is made; the device takes
+    // over between frames once it is ready (its thread wakes the loop). The two paths are one contract (D-184): the
+    // CPU's frame stays on screen until the list changes, and from then on the GPU draws.
+    GpuDeviceOptions                                device_options;         // what the device is begun with
+    bool                                            cpu_first = false;      // the CPU's first frames, the device begun after the first
+    bool                                            taking_over = false;
+    std::optional<std::chrono::steady_clock::time_point> ready_at;          // when the device was first seen ready
+    bool                                            cpu_on_screen = false;  // taken over: the CPU's frame still shown
     std::unique_ptr<GpuRenderer>                    gpu;
     mlibs::rhi::Texture                             gpu_frame;
     std::size_t                                     devices_lost = 0;  // how many times the device was lost and made again
@@ -243,6 +251,7 @@ struct Desktop::Impl final : WindowHost {
         const bool made_early = making != nullptr;
         std::optional<mlibs::trace::Span> waited{std::in_place, made_early ? "start.device.wait" : "start.device", "host"};
         auto made = made_early ? making->get() : service->create(o);
+        std::unique_ptr<GpuRenderer> early = made_early && made ? making->renderer() : nullptr;  // made on its thread
         making.reset();
         waited.reset();
         // Made before the window: claimed now (a software device is let go below, unclaimed, when the CPU is faster).
@@ -255,7 +264,7 @@ struct Desktop::Impl final : WindowHost {
         }
         if ((*made)->caps().software && options.renderer == R::automatic) return {};  // the CPU renderer is faster
         std::optional<mlibs::trace::Span> renderer{std::in_place, "start.renderer", "host"};
-        auto r = service->renderer(**made);
+        auto r = early ? mlibs::rhi::Result<std::unique_ptr<GpuRenderer>>(std::move(early)) : service->renderer(**made);
         renderer.reset();
         if (!r) {
             if (options.renderer == R::gpu) return std::unexpected(ViewFailure{ViewError::device_failed, std::format("the GPU renderer: {}", r.error().message)});
@@ -265,6 +274,112 @@ struct Desktop::Impl final : WindowHost {
         gpu = std::move(*r);
         if (runtime) runtime->set_on_device(true), runtime->set_device(device.get());  // content as lists where it may be (a canvas's `content: auto`); worlds drawn on it
         return {};
+    }
+
+    // UI9: the device made while the CPU drew the first frames, taken over between frames once it is ready (its thread
+    // woke the loop): the window claimed — then its framebuffer let go —, the renderer its thread made. What is on
+    // screen is the CPU's frame of the same list, the same picture by the one contract (D-184): nothing is drawn again
+    // until the list changes. No device, a software one (the CPU renderer is faster), or a window the device cannot
+    // claim (a transparent one): the CPU goes on drawing, as it would have without a GPU.
+    // The claim holds the loop: SDL syncs the window with its manager and the driver makes the swapchain (75 ms on an
+    // RTX 4080 under X11). So it is taken at rest — the loop asleep, no input come — or, where something keeps
+    // moving, a second after the device is ready: one pause in place of CPU frames that go on.
+    void take_over(bool at_rest) {
+        if (!taking_over || !making || !making->ready()) return;
+        const auto now = std::chrono::steady_clock::now();
+        if (!ready_at) ready_at = now;
+        if (!at_rest && now - *ready_at < std::chrono::seconds(1)) return;
+        taking_over = false;
+        mlibs::trace::Span span("takeover", "host");
+        const GpuService* service = mlibs::compose::process().get(gpu_slot);
+        auto made = making->get();
+        std::unique_ptr<GpuRenderer> early = made ? making->renderer() : nullptr;
+        making.reset();
+        if (!made) {
+            info("no GPU device ({}): the CPU draws", made.error().message);
+            return;
+        }
+        const auto let_go = [&] { early.reset(); };  // the renderer before its device
+        if ((*made)->caps().software) return let_go();  // automatic: the CPU renderer is faster
+        std::optional<mlibs::trace::Span> claiming{std::in_place, "takeover.claim", "host"};
+        if (auto claimed = service->claim(**made, platform::window_id(*window), options.vsync); !claimed) {
+            info("the GPU device does not take the window ({}): the CPU draws", claimed.error().message);
+            return let_go();
+        }
+        claiming.reset();
+        auto r = early ? mlibs::rhi::Result<std::unique_ptr<GpuRenderer>>(std::move(early)) : service->renderer(**made);
+        if (!r) {
+            warn("the GPU renderer: {}; the CPU draws", r.error().message);
+            return;
+        }
+        platform::release_framebuffer(*window);
+        device = std::move(*made);
+        gpu = std::move(*r);
+        // What is on screen — the CPU's frame of the list — becomes the device's frame texture: captures read it there,
+        // and the CPU's side goes (its surface, its renderer's caches): at rest the window holds the device's alone.
+        if (frame.width() > 0) {
+            mlibs::trace::Span adopting("takeover.adopt", "host");
+            if (adopt_cpu_frame()) {
+                frame = mrender::raster::Surface();
+                composed = mrender::CpuFrame();
+                damage = mrender::DamageTracker();
+            } else {
+                cpu_on_screen = true;
+            }
+        }
+        runtime->set_on_device(true);
+        runtime->set_device(device.get());
+        tell_renderer();
+        debug("the GPU took over from the CPU after {} frames", frames_shown);
+    }
+
+    // The frame texture the swapchain is shown from, at this size (made again when the size changes).
+    bool frame_texture(std::uint32_t width, std::uint32_t height) {
+        if (gpu_frame && width == gpu_w && height == gpu_h) return true;
+        if (gpu_frame) device->destroy(gpu_frame);
+        gpu_frame = {};
+        gpu_w = gpu_h = 0;
+        auto made = device->create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, width, height,
+                                                           mlibs::rhi::TextureUsage::color_target | mlibs::rhi::TextureUsage::sampled, "host.frame"});
+        if (!made) {
+            warn("the frame texture: {}", made.error().message);
+            return false;
+        }
+        gpu_frame = *made;
+        gpu_w = width;
+        gpu_h = height;
+        return true;
+    }
+
+    // The CPU's frame on screen, sent to the device's frame texture as it is (the same premultiplied bytes): the frame
+    // shown is the device's from now on, with nothing drawn again.
+    bool adopt_cpu_frame() {
+        const auto width = static_cast<std::uint32_t>(frame.width()), height = static_cast<std::uint32_t>(frame.height());
+        if (!frame_texture(width, height)) return false;
+        mlibs::rhi::CommandList sent;
+        sent.upload_borrowed(gpu_frame, mlibs::rhi::Region{0, 0, width, height}, std::as_bytes(frame.pixels()));
+        auto submitted = device->submit(sent);
+        if (!submitted || !device->wait(*submitted)) {
+            warn("the CPU's frame did not reach the device: the GPU draws from the next change");
+            return false;
+        }
+        return true;
+    }
+
+    // Who draws, as the runtime and its tools see it: the renderer's name and the machine's tier (performance tiers
+    // §1: a discrete GPU T4, integrated graphics T3, the CPU drawing T2).
+    void tell_renderer() {
+        runtime->set_renderer(gpu ? std::string(mlibs::rhi::name(device->caps().backend)) : std::string("cpu"));
+        mlibs::pipeline::Tier tier = mlibs::pipeline::Tier::t2;
+        std::string why = "the CPU draws";
+        if (gpu) {
+            const std::string name = device->caps().device;
+            const bool integrated = std::ranges::any_of(std::array<std::string_view, 6>{"Intel", "UHD", "Iris", "Mali", "Adreno", "Vega"},
+                                                        [&](std::string_view s) { return name.find(s) != std::string::npos; });
+            tier = integrated ? mlibs::pipeline::Tier::t3 : mlibs::pipeline::Tier::t4;
+            why = std::format("{}: {}", integrated ? "integrated graphics" : "a GPU", name);
+        }
+        runtime->set_device_tier(tier, std::move(why));
     }
 
     // The device lost (a driver reset, a resume from sleep, a GPU taken away): what it held is gone, and what the
@@ -282,7 +397,7 @@ struct Desktop::Impl final : WindowHost {
 
     // The frame as shown, read back (the GPU's texture, or the CPU's surface).
     std::expected<mrender::raster::Surface, ViewFailure> pixels() {
-        if (!gpu) {
+        if (!gpu || cpu_on_screen) {
             if (frame.width() <= 0) return std::unexpected(ViewFailure{ViewError::nothing_shown});
             return frame;
         }
@@ -315,7 +430,9 @@ struct Desktop::Impl final : WindowHost {
             mrender::FrameOptions how;
             how.background = options.background;
             how.rows = rows;
-            if (options.parallel_raster) how.parallel = &raster_parallel();
+            // In bands at once — but not the first frames of a window the device takes over (UI9): the pool's threads
+            // would stay for frames the CPU no longer draws.
+            if (options.parallel_raster && !taking_over) how.parallel = &raster_parallel();
             how.external = [this](std::uint64_t number) { return runtime->picture(number); };  // a world in a viewport
             if (!rows.empty()) (void)composed.render({&ui_layer, 1}, frame, how);
         }
@@ -338,18 +455,8 @@ struct Desktop::Impl final : WindowHost {
         if (w <= 0 || hgt <= 0) return;
         const auto uw = static_cast<std::uint32_t>(w), uh = static_cast<std::uint32_t>(hgt);
         if (h == shown && uw == gpu_w && uh == gpu_h) return;
-        if (uw != gpu_w || uh != gpu_h) {
-            if (gpu_frame) device->destroy(gpu_frame);
-            auto t = device->create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, uw, uh, mlibs::rhi::TextureUsage::color_target | mlibs::rhi::TextureUsage::sampled,
-                                                     "host.frame"});
-            if (!t) {
-                warn("the frame texture: {}", t.error().message);
-                return;
-            }
-            gpu_frame = *t;
-            gpu_w = uw;
-            gpu_h = uh;
-        }
+        if (cpu_on_screen && h == shown && frame.width() == w && frame.height() == hgt) return;  // the CPU's frame of this list (UI9)
+        if (!frame_texture(uw, uh)) return;
         {
             mlibs::trace::Span span("render", "host");
             const mrender::Resources resources{&runtime->images(), glyphs.get()};
@@ -373,6 +480,10 @@ struct Desktop::Impl final : WindowHost {
         }
         shown = h;
         ++frames_shown;
+        if (cpu_on_screen) {
+            cpu_on_screen = false;
+            frame = mrender::raster::Surface();  // the CPU's frame is no longer what is shown
+        }
     }
 
     // Effects whose files changed, loaded again; the next frame redrawn.
@@ -388,20 +499,24 @@ struct Desktop::Impl final : WindowHost {
 Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
-    // The GPU's device begun at once, when the GPU may draw: SDL brought up here, the device made on a thread of its
-    // own while the fonts, the runtime and the window are (RC3.6: the first frame no longer waits for the driver's
-    // start after them). Where SDL cannot start, the window's opening says so.
-    // The start's parts as spans (a run's --profile): where a cold start's time goes before the first frame.
+    // When the GPU may draw, SDL is brought up here and the device is made on a thread of its own. A window that
+    // waits for it (the GPU insisted on, effects, a window with no framebuffer of its own) begins it at once, so the
+    // driver's start overlaps the fonts, the runtime and the window (RC3.6). A window whose first frames the CPU draws
+    // (UI9) begins it once the first frame is shown: the driver's start — its libraries read and loaded, the device
+    // made — is then wholly off the first frame's path, cold or warm. Where SDL cannot start, the window's opening
+    // says so. The start's parts as spans (a run's --profile): where a cold start's time goes before the first frame.
     std::optional<mlibs::trace::Span> sdl{std::in_place, "start.sdl", "host"};
     if (const GpuService* service = mlibs::compose::process().get(gpu_slot);
         service && d.options.renderer != DesktopOptions::Renderer::cpu && platform::start(d.options.video_driver)) {
-        GpuDeviceOptions early;
-        early.vulkan_library = d.options.vulkan_library;
-        early.hardware_only = d.options.renderer == DesktopOptions::Renderer::automatic;
+        d.device_options.vulkan_library = d.options.vulkan_library;
+        d.device_options.hardware_only = d.options.renderer == DesktopOptions::Renderer::automatic;
+        d.device_options.video_driver = d.options.video_driver;
+        d.device_options.made = [] { platform::wake(); };  // a loop asleep with the CPU's frame on screen takes the device (UI9)
         platform::hold();  // no other host's end, and no last window closing, quits SDL under this making
         d.holds_sdl = true;
-        early.video_driver = d.options.video_driver;
-        d.making = service->begin(early);
+        d.cpu_first = d.options.renderer == DesktopOptions::Renderer::automatic && d.options.effects.empty() && d.options.render_driver.empty() &&
+                      platform::own_framebuffer();
+        if (!d.cpu_first) d.making = service->begin(d.device_options);
     }
     sdl.reset();
     // The interface answers as the platform it runs on does (D6): Command for shortcuts, a scroll's
@@ -475,6 +590,11 @@ std::expected<void, ViewFailure> Desktop::open() {
     // (No provider of the GPU path: the CPU's window at once — unless the GPU is insisted on, which open_gpu refuses.)
     const bool try_gpu = d.options.renderer != DesktopOptions::Renderer::cpu &&
                          (mlibs::compose::process().get(gpu_slot) != nullptr || d.options.renderer == DesktopOptions::Renderer::gpu);
+    // UI9: the CPU draws the first frames into the window's own framebuffer, the device is made meanwhile and takes
+    // over when it is ready — where the window keeps a framebuffer (X11, Windows, offscreen; elsewhere the CPU's frames
+    // need a renderer the device could not share the window with). Not when the GPU is insisted on, nor with effects
+    // (only the GPU draws them): the first frames would not be the picture the GPU draws.
+    const bool cpu_first = try_gpu && d.cpu_first;
     d.framework = d.options.frame == DesktopOptions::Frame::framework;
     platform::WindowOptions wo{.title = d.options.title,
                                .size = d.options.size,
@@ -482,7 +602,7 @@ std::expected<void, ViewFailure> Desktop::open() {
                                .vsync = d.options.vsync,
                                .video_driver = d.options.video_driver,
                                .render_driver = d.options.render_driver,
-                               .gpu = try_gpu,
+                               .gpu = try_gpu && !cpu_first,
                                .framework = d.framework,
                                .hidden = true,
                                // The CPU's frames into the window's own framebuffer where its driver keeps one (X11's,
@@ -497,7 +617,8 @@ std::expected<void, ViewFailure> Desktop::open() {
     opening.reset();
     if (!w) return std::unexpected(ViewFailure{ViewError::window_failed, w.error()});
     d.window = std::move(*w);
-    if (try_gpu) {
+    if (cpu_first) d.taking_over = true;
+    else if (try_gpu) {
         if (auto g = d.open_gpu(); !g) return std::unexpected(g.error());
         if (!d.gpu) {
             // No GPU after all: the window again, for the CPU's frames (into its own framebuffer, as above).
@@ -520,22 +641,9 @@ std::expected<void, ViewFailure> Desktop::open() {
         if (d.effects && !d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
     }
     d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
-    d.runtime->set_renderer(d.gpu ? std::string(mlibs::rhi::name(d.device->caps().backend)) : std::string("cpu"));
-    // The machine's tier (performance tiers §1): a discrete GPU T4; integrated graphics T3; the CPU drawing, T2.
-    // And the governor on: these frames are a person's.
-    {
-        mlibs::pipeline::Tier tier = mlibs::pipeline::Tier::t2;
-        std::string why = "the CPU draws";
-        if (d.gpu) {
-            const std::string name = d.device->caps().device;
-            const bool integrated = std::ranges::any_of(std::array<std::string_view, 6>{"Intel", "UHD", "Iris", "Mali", "Adreno", "Vega"},
-                                                        [&](std::string_view s) { return name.find(s) != std::string::npos; });
-            tier = integrated ? mlibs::pipeline::Tier::t3 : mlibs::pipeline::Tier::t4;
-            why = std::format("{}: {}", integrated ? "integrated graphics" : "a GPU", name);
-        }
-        d.runtime->set_device_tier(tier, std::move(why));
-        d.runtime->set_governor(true);
-    }
+    // Who draws, and the machine's tier (told again when a device takes over); the governor on: these frames are a person's.
+    d.tell_renderer();
+    d.runtime->set_governor(true);
     // The window's operations are verbs (window.*), its state the interface's to read.
     omui::window().attach(&d, d.runtime->verbs());
     d.window_state();
@@ -650,6 +758,7 @@ accessibility::Mirror* Desktop::accessibility_mirror() noexcept { return impl_->
 accessibility::Adapter* Desktop::accessibility_adapter() noexcept { return impl_->access.get(); }
 std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
 bool Desktop::gpu() const noexcept { return impl_->gpu != nullptr; }
+bool Desktop::gpu_pending() const noexcept { return impl_->taking_over; }
 mrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &impl_->effects->library() : nullptr; }
 float Desktop::scale() const noexcept { return impl_->runtime->scale(); }
 NodeId Desktop::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
@@ -700,7 +809,9 @@ bool Desktop::step(bool wait) {
     }
     // Gamepads once the application takes their input (an idle window polls no devices).
     if (d.runtime->gamepads_wanted()) platform::start_gamepads();
+    const bool was_idle = d.idle;
     platform::Polled polled = platform::poll(*d.window, sleep, timeout);
+    d.take_over(was_idle && polled.events.empty());  // the device, when it became ready meanwhile (UI9)
     if (polled.state) omui::window().set_state(*polled.state);
     if (polled.quit || d.close_requested) {
         d.close_requested = false;
@@ -782,6 +893,9 @@ bool Desktop::step(bool wait) {
     platform::text_input(*d.window, d.runtime->text_input_rect());
     platform::cursor(*d.window, d.runtime->cursor());
     d.idle = !out.animating && out.demand.idle() && !d.closed_at;
+    // The first frame shown by the CPU: the device begun now, off its path (UI9).
+    if (d.taking_over && !d.making && d.frames_shown > 0)
+        if (const GpuService* service = mlibs::compose::process().get(gpu_slot)) d.making = service->begin(d.device_options);
     return !d.quitting;
 }
 

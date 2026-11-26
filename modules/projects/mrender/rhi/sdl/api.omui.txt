@@ -25,9 +25,10 @@ namespace mrender::rhi::sdl {
     Making& operator=(Making&&) noexcept;
     ~Making();
     [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] bool ready() const;
     [[nodiscard]] Result<std::unique_ptr<Device>> get();
   };
-  [[nodiscard]] Making create_async(const Options& options = {…});
+  [[nodiscard]] Making create_async(const Options& options = {…}, std::function<void(Device*)> made = {…});
   [[nodiscard]] Result<void> claim(Device& device, std::uint32_t window, bool vsync = true);
   [[nodiscard]] Options environment_options(Options base = {…});
   [[nodiscard]] bool device_required();

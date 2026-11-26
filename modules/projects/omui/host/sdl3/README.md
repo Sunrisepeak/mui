@@ -18,7 +18,9 @@ openmui on the desktop, through SDL3 (`compat.sdl3` from mcpp-index):
 - the system clipboard and cursors (an I-beam over text fields);
 - frames drawn by the GPU renderer into the window's swapchain (omui.rhi on
   SDL_GPU) when the machine has a GPU, else by the CPU renderer and streamed
-  into a texture — presented only when the display list changed;
+  into a texture — presented only when the display list changed; while the
+  device is still being made the CPU draws the first frames, and the device
+  takes over when it is ready (UI9);
 - a loop that sleeps until an event, the next timer or an agent's request
   (`Desktop::wake` from other threads), and paces animation by vsync;
 - the agent endpoint (`openmui.tree@0.1`), with capture of the shown frame.
@@ -59,7 +61,25 @@ acceleration (not yet timed on a display: only the first frame, offscreen, which
 `DesktopOptions::renderer` says who: `automatic` (the default) uses the GPU
 when the machine has one and the CPU renderer when the only device is a
 software rasteriser (lavapipe, WARP), which the CPU renderer outruns; `cpu`
-and `gpu` insist. `DesktopOptions::effects` names a directory of
+and `gpu` insist.
+
+**The first frame is not the device's to wait for** (UI9, [design](../../../../../.agents/docs/2026-11-27-gpu-window-first-frame-design.md)).
+An `automatic` window draws its first frames with the CPU into the window's
+own framebuffer; once the first is shown, the device — and the renderer's
+pipelines, on the same thread — is made, off the first frame's path, and its
+thread wakes the loop when it is done. At rest (the loop asleep, no input come;
+a second after it is ready where something keeps moving) the device claims the
+window — about 75 ms on an RTX 4080 under X11, SDL syncing the window and the
+driver making the swapchain —, the framebuffer is let go, and the CPU's frame on
+screen is sent to the device's frame texture as it is. The two renderers are
+one contract (D-184), so nothing is drawn again at the takeover; from the next
+change of the display list on the GPU draws. Where a window keeps no framebuffer of its own
+(macOS, Wayland: a CPU frame there needs an SDL renderer the device could not
+share the window with), with effects (only the GPU draws them), or with the GPU
+insisted on, the window waits for the device as before. `Desktop::gpu_pending()`
+says a takeover is to come; `Desktop::gpu()` says who draws now. A device the
+window cannot use (a software one, a transparent window SDL_GPU refuses) is let
+go and the CPU draws on. `DesktopOptions::effects` names a directory of
 `*.effect.xdef.ts` or `.json` (mrender.effect): loaded with the window, loaded again
 between frames when a file in it — or a file its shader imports — changes, so
 a shader saved while the program runs shows on the next frame; a file that

@@ -34,11 +34,11 @@ mrender.rhi.sdl = { path = "../../../../mrender/rhi/sdl" }
 mrender.frame   = { path = "../../../../mrender/frame" }
 mrender.vector  = { path = "../../../../mrender/vector" }  # the formats its shaders are compiled to
 mrender.effect  = { path = "../../../../mrender/effect" }  # a program's effect files, which the GPU renderer draws
+mlibs.utils     = { path = "../../../../../base/utils" }     # mlibs.trace: the renderer's making, a span of its own
 
 [dev-dependencies]
 "mlibs.text.harfbuzz" = { path = "../../../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
 mcpplibs.mtest = "0.8.4"
 mcpplibs.os    = "0.4.4"
 omui.ui.base   = { path = "../../../components/base" }  # a button in the first frame
-mlibs.utils    = { path = "../../../../../base/utils" }     # mlibs.testing: kept output directories
 mlibs.text     = { path = "../../../../../content/text" }   # the hosts' fonts

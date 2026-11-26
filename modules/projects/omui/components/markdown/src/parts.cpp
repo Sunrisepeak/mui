@@ -359,6 +359,9 @@ mlibs::text::Paragraph& Text::shaped(Services& s) const {
         const Theme& theme = s.theme();
         mlibs::text::ParagraphStyle ps;
         ps.style = text_style(theme, data->block);
+        // Its lines all of one height, as a page sets a block's: a line of Chinese with a Latin word in it is no
+        // taller than the next one (UI5: the page written before its program draws the same lines).
+        ps.uniform_lines = true;
         if (data->block.kind == mlibs::markdown::Kind::table_cell) {
             if (data->block.align == mlibs::markdown::Align::center) ps.align = mlibs::text::TextAlign::center;
             else if (data->block.align == mlibs::markdown::Align::right) ps.align = mlibs::text::TextAlign::end;
@@ -823,6 +826,7 @@ mlibs::text::Paragraph& Code::shaped(Services& s) const {
         mlibs::text::ParagraphStyle ps;
         ps.style = text_style(s.theme(), data->block);
         ps.wrap = false;
+        ps.uniform_lines = true;  // a line with a comment in Chinese no taller than the rest
         std::string text = data->block.content.text;
         while (text.ends_with('\n')) text.pop_back();
         paragraph_.emplace(s.fonts(), std::move(text), ps);

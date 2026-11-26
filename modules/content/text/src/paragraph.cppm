@@ -67,6 +67,10 @@ struct ParagraphStyle {
     bool          wrap = true;
     int           max_lines = 0;       // 0: unlimited
     bool          ellipsis = true;     // with max_lines: end the last line with "…"
+    // Every line as tall as the tallest line the paragraph's faces make (each run's face, a fallback's too, with
+    // its style's line height), whatever words a line holds and at any width: a block of one line height, as a
+    // page sets one. Off: each line as tall as the faces on it.
+    bool          uniform_lines = false;
 };
 
 // A glyph placed by layout: its id in its font and its origin. Where it came

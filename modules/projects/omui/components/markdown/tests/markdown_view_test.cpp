@@ -571,6 +571,27 @@ UTest cases{"ui.markdown", [] {
                      narrow.table.width, narrow.lines.size() == 3 && narrow.lines[1].size() == 3 ? narrow.lines[1][1] : 0, least.table.width, least.max_x);
     };
 
+    "a block's lines are of one height, as a page sets them: Chinese with a Latin word, a cell whose last line is code alone (UI5)"_test = [] {
+        constexpr std::string_view source = R"(构建用 mcpp，经 xlings 安装；编译器等由项目钉住，第一次构建时取回。窗口开着的时候改界面并保存：界面随之改变，计数保留，不用重新启动它。
+
+| 属性 | 动作 |
+|:--|:--|
+| `disabled`, `label`, `max`, `min`, `step`, `value` | `decrement`, `increment` |
+)";
+        Headless h({.size = {300, 900}});
+        h.mount("main", column({}, {markdown({.id = "doc", .source = std::string(source)})}));
+        h.settle();
+        std::size_t blocks = 0;
+        for (const auto& n : h.tree().snapshot({}).nodes) {
+            const auto lines = h.runtime().text_lines(h.runtime().find(n.id));
+            if (lines.size() < 2) continue;
+            ++blocks;
+            for (const auto& line : lines)
+                expect(eq(line.bounds.height, lines.front().bounds.height)) << std::format("{} ({}): a line {} after one {}", n.id, n.name.substr(0, 24), line.bounds.height, lines.front().bounds.height);
+        }
+        expect(blocks >= 2u) << "the paragraph and a cell wrap";
+    };
+
     "remote text is marked so on every node"_test = [] {
         Headless h({.size = {720, 600}});
         h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .origin = MarkdownOrigin::remote, .source = std::string(readme)})}));

@@ -157,6 +157,15 @@ void Paragraph::layout(float width) {
 
     // Which way each run's clusters go, found when first asked: 1 rising, 2 falling, 3 neither.
     std::vector<std::uint8_t> cluster_way(s.runs.size(), 0);
+    // One line height for the whole paragraph (uniform_lines): the tallest ascent and descent of all its runs.
+    float uniform_ascent = 0, uniform_descent = 0;
+    const bool uniform = s.paragraph.uniform_lines && !s.runs.empty();
+    if (uniform)
+        for (const ShapedRun& run : s.runs) {
+            const float extra = (line_height_of(s.styles[run.style], run.metrics) - (run.metrics.ascent + run.metrics.descent)) / 2;
+            uniform_ascent = std::max(uniform_ascent, run.metrics.ascent + extra);
+            uniform_descent = std::max(uniform_descent, run.metrics.descent + extra);
+        }
     // ── each line ──
     float top = 0, widest = 0;
     for (std::size_t li = 0; li < keep; ++li) {
@@ -243,6 +252,11 @@ void Paragraph::layout(float width) {
                 ascent = m.ascent + extra;
                 descent = m.descent + extra;
             }
+        }
+        if (uniform) {
+            // At least what this line's own faces need, which the paragraph's tallest always is.
+            ascent = uniform_ascent;
+            descent = uniform_descent;
         }
         height = ascent + descent;
         line.top = top;

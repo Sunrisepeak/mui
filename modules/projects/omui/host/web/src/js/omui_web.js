@@ -149,7 +149,9 @@ addToLibrary({
         'list-style:none;outline:none}' +
         '[data-omui=mirror] [data-omui-id]{position:absolute;display:block;box-sizing:border-box;overflow:hidden;white-space:pre-wrap}' +
         '[data-omui=mirror] [data-omui-inline]{position:static;display:inline;overflow:visible}' +
-        '[data-omui=mirror] pre,[data-omui=mirror] pre code{white-space:pre}';
+        '[data-omui=mirror] pre,[data-omui=mirror] pre code{white-space:pre}' +
+        // Selected, the layer's text stays unseen and the canvas's words show through the highlight.
+        '[data-omui=mirror] ::selection{color:transparent;background:color-mix(in srgb,Highlight 40%,transparent)}';
       (document.head || body).appendChild(sheet);
       var layer = document.createElement('div');
       layer.style.position = 'fixed';

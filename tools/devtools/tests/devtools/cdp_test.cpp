@@ -7,6 +7,7 @@
 import std;
 import mcpplibs.mtest;
 import mcpplibs.os;
+import mlibs.delivery;
 import nlohmann.json;
 import omui.devtools.cdp;
 
@@ -103,26 +104,11 @@ static UTest cases{
                       std::string("s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")));
         };
 
-        "gzip as Pages serves it: the kinds it compresses, the word in Accept-Encoding, a member that inflates back"_test =
+        "what Pages serves: the word in Accept-Encoding, the content types (gzip and its kinds are mlibs.delivery's)"_test =
             [] {
-                for (const std::string_view kind :
-                     {".html", ".js", ".wasm", ".ttf", ".json", ".md"})
-                    expect(cdp::compressed_kind(kind)) << kind;
-                for (const std::string_view kind : {".png", ".webp", ".txt", ""})
-                    expect(!cdp::compressed_kind(kind)) << kind;
                 expect(cdp::accepts_gzip("gzip, deflate, br") &&
                        cdp::accepts_gzip("br;q=1, gzip;q=0.8") &&
                        !cdp::accepts_gzip("br, x-gzipped") && !cdp::accepts_gzip(""));
-                std::string text;
-                for (int line = 0; line < 2000; ++line)
-                    text += std::format("<p>line {} of a page</p>\n", line % 37);
-                const std::string packed = cdp::gzip(text);
-                expect(packed.size() > 18 && static_cast<std::uint8_t>(packed[0]) == 0x1f &&
-                       static_cast<std::uint8_t>(packed[1]) == 0x8b);
-                expect(packed.size() < text.size() / 5);
-                const auto back = cdp::gunzip(packed);
-                expect(back.has_value() && *back == text);
-                expect(!cdp::gunzip("not gzip").has_value());
                 expect(eq(cdp::pages_type(".wasm"), std::string_view("application/wasm")) &&
                        eq(cdp::pages_type(".svg"), std::string_view("application/octet-stream")));
             };
@@ -216,7 +202,7 @@ static UTest cases{
                         const std::size_t second =
                             arrived.find("\r\n\r\n", arrived.find("HTTP/1.1 200", 10));
                         if (second != std::string::npos)
-                            expect(cdp::gunzip(std::string_view(arrived).substr(second + 4))
+                            expect(mlibs::delivery::gunzip(std::string_view(arrived).substr(second + 4))
                                        .value_or("") == std::string(4000, 'a'));
                     }
                     (*server)->close();

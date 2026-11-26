@@ -3,6 +3,7 @@ module omui.devtools.site;
 import std;
 import mcpplibs.os;
 import nlohmann.json;
+import mlibs.delivery;
 import omui.devtools.browser;
 import omui.devtools.cdp;
 import omui.devtools.run;
@@ -244,7 +245,7 @@ int split(const fs::path& root, const fs::path& given, const std::vector<std::st
     for (const std::string name : {"whole.wasm", "first.wasm", "deferred.wasm"}) {
         const std::string data = mcpplibs::os::fs::read(work / name).value_or("");
         std::cout << std::format("site-split: {:<14} {:6.2f} MiB, gzip {:5.2f} MiB\n", name,
-                                 mib(data.size()), mib(cdp::gzip(data, 9).size()));
+                                 mib(data.size()), mib(mlibs::delivery::gzip(data, 9).size()));
     }
     // The first half by owner: the functions the first screen ran (the profile, by their index among the program's
     // own functions) named by the release's symbol map — the same program, so its bytes, not an analysis build's.

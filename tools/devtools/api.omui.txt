@@ -68,9 +68,6 @@ namespace omui::devtools::browser {
 == omui.devtools.cdp
 namespace omui::devtools::cdp {
   using json = nlohmann::json;
-  [[nodiscard]] std::string gzip(std::string_view bytes, int level = 6);
-  [[nodiscard]] std::expected<std::string, std::string> gunzip(std::string_view bytes);
-  [[nodiscard]] bool compressed_kind(std::string_view extension);
   [[nodiscard]] bool accepts_gzip(std::string_view accept_encoding);
   [[nodiscard]] std::string_view pages_type(std::string_view extension);
   [[nodiscard]] std::string resolved_path(std::string_view target);

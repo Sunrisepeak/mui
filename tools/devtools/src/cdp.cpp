@@ -4,6 +4,7 @@ import std;
 import mcpplibs.os;
 import nlohmann.json;
 import mlibs.base64;
+import mlibs.delivery;
 import mlibs.hash;
 import mlibs.http;
 
@@ -32,12 +33,6 @@ std::uint32_t random_word() {
 }  // namespace
 
 // --- what Pages serves ---
-
-bool compressed_kind(std::string_view extension) {
-    return std::ranges::contains(std::array<std::string_view, 6>{".html", ".js", ".wasm", ".ttf",
-                                                                 ".json", ".md"},
-                                 extension);
-}
 
 bool accepts_gzip(std::string_view accept_encoding) {
     static const std::regex word(R"(\bgzip\b)");
@@ -405,7 +400,7 @@ Handler pages(fs::path directory) {
         std::error_code error;
         for (const auto& entry : fs::recursive_directory_iterator(directory, error))
             if (entry.is_regular_file(error) &&
-                compressed_kind(os::fs::utf8(entry.path().extension())))
+                mlibs::delivery::compressed_kind(os::fs::utf8(entry.path().extension())))
                 files.push_back(entry.path());
         std::atomic<std::size_t> next{0};
         std::vector<std::jthread> workers;
@@ -415,7 +410,7 @@ Handler pages(fs::path directory) {
             workers.emplace_back([&] {
                 for (std::size_t index = next++; index < files.size(); index = next++) {
                     auto packed = std::make_shared<const std::string>(
-                        gzip(mcpplibs::os::fs::read(files[index]).value_or(""), 6));
+                        mlibs::delivery::gzip(mcpplibs::os::fs::read(files[index]).value_or(""), 6));
                     const std::scoped_lock hold(zipped->lock);
                     zipped->files.emplace(files[index], std::move(packed));
                 }
@@ -434,7 +429,7 @@ Handler pages(fs::path directory) {
                     .body = "",
                     .type = std::string(pages_type(extension)),
                     .headers = {{"cache-control", "max-age=600"}}};
-        if (compressed_kind(extension) && accepts_gzip(request.header("accept-encoding"))) {
+        if (mlibs::delivery::compressed_kind(extension) && accepts_gzip(request.header("accept-encoding"))) {
             std::shared_ptr<const std::string> packed;
             {
                 const std::scoped_lock hold(zipped->lock);
@@ -442,7 +437,7 @@ Handler pages(fs::path directory) {
                     packed = found->second;
             }
             if (!packed) {
-                packed = std::make_shared<const std::string>(gzip(mcpplibs::os::fs::read(file).value_or(""), 6));
+                packed = std::make_shared<const std::string>(mlibs::delivery::gzip(mcpplibs::os::fs::read(file).value_or(""), 6));
                 const std::scoped_lock hold(zipped->lock);
                 zipped->files.emplace(file, packed);
             }

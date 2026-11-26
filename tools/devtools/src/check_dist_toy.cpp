@@ -10,6 +10,7 @@ module omui.devtools.check;
 
 import std;
 import mcpplibs.os;
+import mlibs.delivery;
 import mlibs.http;
 import omui.devtools.browser;
 import omui.devtools.cdp;
@@ -477,7 +478,7 @@ int dist_toy_loading(const fs::path& root, const fs::path& given_fixture) {
         const auto bytes = mcpplibs::os::fs::read(directory / mcpplibs::os::fs::from_utf8(name));
         if (!bytes || name.empty())
             return {.status = 404, .body = "", .type = ""};
-        std::string encoded = cdp::gzip(*bytes, 6);
+        std::string encoded = mlibs::delivery::gzip(*bytes, 6);
         if (!request.query.contains("omui-unlogged")) {
             const std::scoped_lock hold(logged->lock);
             logged->requests.push_back(

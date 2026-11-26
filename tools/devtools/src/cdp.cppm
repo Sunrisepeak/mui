@@ -2,9 +2,9 @@
 // served as GitHub Pages serves it (moved from tools/ci/page.mjs, D-206): what the site's browser
 // checks share.
 //
-// - Server: a directory on a free port of 127.0.0.1 (pages(): gzip for what Pages compresses —
-// HTML, scripts, wasm,
-//   fonts, JSON, Markdown — the rest as it is, keep-alive as Pages' HTTP is), or any handler.
+// - Server: a directory on a free port of 127.0.0.1 (pages(): gzip for the kinds a host compresses —
+//   mlibs.delivery's, the same a site's delivery is measured by — the rest as it is, keep-alive as
+//   Pages' HTTP is), or any handler.
 // - Browser: Chromium headless on about:blank with --remote-debugging-port=0 (it writes the port it
 // chose to
 //   DevToolsActivePort in its profile), its page's WebSocket; `call` sends a method and waits for
@@ -19,8 +19,7 @@
 // - The JavaScript value helpers: a missing member read as undefined, truthiness, JSON.stringify.
 //
 // The framing is mlibs.http's (HTTP/1.1) and websocket here (RFC 6455: masked client frames,
-// fragments, ping and pong, payloads of many MB); gzip is zlib's, through its module wrap
-// (native/gzip.cpp).
+// fragments, ping and pong, payloads of many MB); gzip is mlibs.delivery's.
 export module omui.devtools.cdp;
 
 import std;
@@ -30,16 +29,8 @@ export namespace omui::devtools::cdp {
 
 using json = nlohmann::json;
 
-// --- gzip (native/gzip.cpp) ---
+// --- what Pages serves ---
 
-// A gzip member of `bytes` at `level` (zlib's deflate, a 32 KiB window, memLevel 8: what node's
-// gzipSync writes).
-[[nodiscard]] std::string gzip(std::string_view bytes, int level = 6);
-// `bytes` inflated from a gzip member; or why not.
-[[nodiscard]] std::expected<std::string, std::string> gunzip(std::string_view bytes);
-// Whether Pages compresses a file of this extension (".html", ".js", ".wasm", ".ttf", ".json",
-// ".md").
-[[nodiscard]] bool compressed_kind(std::string_view extension);
 // Whether an Accept-Encoding header asks for gzip (the word, \bgzip\b).
 [[nodiscard]] bool accepts_gzip(std::string_view accept_encoding);
 // The content type Pages' check server gives an extension (the eight it names;

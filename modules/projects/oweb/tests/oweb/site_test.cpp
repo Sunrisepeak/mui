@@ -76,7 +76,7 @@ static UTest cases{"oweb.site", [] {
         const auto built = oweb::build(data() / "docs", out, {.languages = {"en", "zh"}, .url = "https://example.org/notes/"});
         expect(built.has_value()) << (built ? "" : built.error());
         if (!built) return;
-        expect(built->routes.size() == 3u && built->files.size() == 10u) << built->files.size();
+        expect(built->routes.size() == 3u && built->delivery.files.size() == 11u) << built->delivery.files.size();
 
         // The home page: its links are each writing's own addresses.
         const std::string home = read(out / "index.html"), home_md = read(out / "index.md"), source = read(data() / "docs/pages/index.md");
@@ -127,7 +127,7 @@ static UTest cases{"oweb.site", [] {
         const auto built = oweb::build(data() / "page", out);
         expect(built.has_value()) << (built ? "" : built.error());
         if (!built) return;
-        expect(built->routes.size() == 1u && built->routes[0].path == "/" && built->files.size() == 5u) << built->files.size();
+        expect(built->routes.size() == 1u && built->routes[0].path == "/" && built->delivery.files.size() == 6u) << built->delivery.files.size();
         const std::string html = read(out / "index.html");
         expect(!html.contains("<nav")) << "one page has nowhere else to go";
         expect(html.contains("href=\"https://example.com/source\" title=\"Where it lives\">the source</a>")) << "a link out keeps its address and its title";
@@ -174,6 +174,56 @@ static UTest cases{"oweb.site", [] {
             << errors.str();
         expect(found.str().contains("\"anchor\":\"what-is-here\"") && found.str().contains("\"markdown\":\"/index.md\"") && found.str().contains("\"excerpt\":\"the first window\""))
             << "the same sections to an agent, each with where its page's Markdown is: " << found.str();
+    };
+
+    "the delivery manifest: every file as stored and as a static host sends it, a route's bytes before it reads held to its budget"_test = [] {
+        namespace delivery = mlibs::delivery;
+        const auto out = scratch("delivery");
+        const auto built = oweb::build(data() / "docs", out, {.languages = {"en", "zh"}});
+        expect(built.has_value()) << (built ? "" : built.error());
+        if (!built) return;
+        // The manifest's numbers are those of what is on disk: the directory measured again says the same of each.
+        const auto on_disk = delivery::measure(out);
+        expect(on_disk.has_value() && on_disk->files.size() == built->delivery.files.size() + 1) << "the manifest is written too, and is not of itself";
+        if (!on_disk) return;
+        for (const delivery::File& file : built->delivery.files) {
+            const auto same = std::ranges::find(on_disk->files, file.path, &delivery::File::path);
+            expect(same != on_disk->files.end() && same->bytes == file.bytes && same->gzip == file.gzip && same->compressed == file.compressed) << file.path;
+        }
+        expect(std::filesystem::exists(out / ".nojekyll")) << "a static host serves the directory as it is";
+        // A route reads once its index.html has come: that file as the host sends it, each route held.
+        expect(built->delivery.verdicts.size() == 1u && built->delivery.within());
+        const delivery::Verdict& readable = built->delivery.verdicts.front();
+        expect(readable.files == 3u && readable.budget.most == 100'000u && readable.found > 0u && readable.found < 100'000u && readable.where.ends_with("index.html")) << readable.found;
+        const auto largest = std::ranges::find(built->delivery.files, readable.where, &delivery::File::path);
+        expect(largest != built->delivery.files.end() && largest->compressed && largest->sent() == readable.found && largest->gzip < largest->bytes);
+        std::println("    a route readable: at most {} B sent ({}), of {} B stored; the site {} B stored, {} B sent", readable.found, readable.where, largest->bytes, built->delivery.bytes,
+                     built->delivery.sent);
+        const std::string manifest = read(out / "delivery.xdef.json");
+        expect(manifest.starts_with("{\"$format\":\"delivery@1\"") && manifest.contains("\"name\":\"a route readable\"") && manifest.contains("\"within\":true") &&
+               manifest.contains("{\"path\":\"guide/start/index.html\",") && !manifest.contains("delivery.xdef.json"))
+            << manifest;
+
+        // Held to less than its largest route sends: written all the same, and the verdict names the route.
+        const auto tight = oweb::build(data() / "docs", scratch("delivery-tight"), {.languages = {"en", "zh"}, .readable = readable.found - 1});
+        expect(tight.has_value() && !tight->delivery.within() && tight->delivery.verdicts.front().where == readable.where && tight->delivery.verdicts.front().found == readable.found);
+        const auto unheld = oweb::build(data() / "docs", scratch("delivery-unheld"), {.languages = {"en", "zh"}, .readable = 0});
+        expect(unheld.has_value() && unheld->delivery.verdicts.empty() && unheld->delivery.within());
+
+        // The command: a site over its budget is a build that failed, saying where and what to do.
+        oweb::Sites sites;
+        mlibs::agent::SubjectSession session({&sites});
+        const std::string site = (data() / "docs").generic_string(), to = scratch("delivery-command").generic_string();
+        std::ostringstream over, within, not_a_number, errors;
+        expect(mlibs::agent::command_line(session, std::vector<std::string_view>{"site.build", "--site", site, "--out", to, "--languages", "en,zh", "--readable", "300"}, over, errors) == 1);
+        expect(over.str().contains("\"ok\":false") && over.str().contains("over the budget of 300") && over.str().contains(readable.where) && over.str().contains("--readable") &&
+               over.str().contains("\"within\":false"))
+            << over.str();
+        expect(std::filesystem::exists(std::filesystem::path(to) / "delivery.xdef.json")) << "written all the same: the manifest says where";
+        expect(mlibs::agent::command_line(session, std::vector<std::string_view>{"site.build", "--site", site, "--out", to, "--languages", "en,zh"}, within, errors) == 0) << errors.str();
+        expect(within.str().contains("\"ok\":true") && within.str().contains("\"sent\":") && within.str().contains("\"most\":100000") && within.str().contains("\"within\":true")) << within.str();
+        expect(mlibs::agent::command_line(session, std::vector<std::string_view>{"site.build", "--site", site, "--out", to, "--readable", "small"}, not_a_number, errors) != 0);
+        expect(not_a_number.str().contains("--readable is a number of bytes")) << not_a_number.str();
     };
 
     "the subject `oweb`: a site's routes, one page read as an agent fetches it, the site built; what is not a request says why"_test = [] {

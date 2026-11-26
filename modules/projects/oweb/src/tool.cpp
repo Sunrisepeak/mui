@@ -3,6 +3,7 @@ module oweb;
 
 import std;
 import mcpplibs.os;
+import mlibs.delivery;
 import mlibs.agent;
 import openas;
 import omui.core;
@@ -26,11 +27,18 @@ void failed(Reply& reply, std::string_view why) {
     reply.fail("failed", why);
 }
 
+inline constexpr std::uintmax_t not_a_number = std::numeric_limits<std::uintmax_t>::max();
+
 // "en,zh": a site's languages, the default first.
 SiteOptions options_of(const mlibs::agent::Arguments& args) {
     SiteOptions options;
     if (const auto title = args.value("title")) options.title = *title;
     if (const auto url = args.value("url")) options.url = *url;
+    if (const auto readable = args.value("readable")) {
+        // Not a number of bytes: marked, and refused where the build is asked for (site_build).
+        const auto read = std::from_chars(readable->data(), readable->data() + readable->size(), options.readable);
+        if (read.ec != std::errc{} || read.ptr != readable->data() + readable->size()) options.readable = not_a_number;
+    }
     if (const auto languages = args.value("languages"); languages && !languages->empty()) {
         options.languages.clear();
         for (const auto part : std::views::split(*languages, ','))
@@ -49,16 +57,42 @@ Value described(const Route& route) {
 void site_build(Reply& reply, const mlibs::agent::Arguments& args) {
     const auto site = args.value("site"), out = args.value("out");
     if (!site || !out) return wrong(reply, "site.build takes --site, the site's directory, and --out, the directory written");
-    const auto built = build(mcpplibs::os::fs::from_utf8(*site), mcpplibs::os::fs::from_utf8(*out), options_of(args));
+    const SiteOptions options = options_of(args);
+    if (options.readable == not_a_number) return wrong(reply, std::format("--readable is a number of bytes (0 holds no budget), not `{}`", *args.value("readable")));
+    const auto built = build(mcpplibs::os::fs::from_utf8(*site), mcpplibs::os::fs::from_utf8(*out), options);
     if (!built) return failed(reply, built.error());
-    Value::List routes, files;
-    std::uintmax_t bytes = 0;
+    const auto number = [](std::uintmax_t value) { return Value(static_cast<std::int64_t>(value)); };
+    Value::List routes, files, budgets;
     for (const Route& route : built->routes) routes.push_back(described(route));
-    for (const File& file : built->files) {
-        files.push_back(Value{}.set("path", file.path).set("bytes", Value(static_cast<std::int64_t>(file.bytes))));
-        bytes += file.bytes;
+    const mlibs::delivery::Manifest& delivery = built->delivery;
+    for (const mlibs::delivery::File& file : delivery.files)
+        files.push_back(Value{}.set("path", file.path).set("bytes", number(file.bytes)).set("sent", number(file.sent())));
+    std::string over;
+    for (const mlibs::delivery::Verdict& verdict : delivery.verdicts) {
+        budgets.push_back(Value{}
+                              .set("name", verdict.budget.name)
+                              .set("pattern", verdict.budget.pattern)
+                              .set("most", number(verdict.budget.most))
+                              .set("found", number(verdict.found))
+                              .set("where", verdict.where)
+                              .set("files", number(verdict.files))
+                              .set("within", verdict.within));
+        if (!verdict.within && over.empty())
+            over = std::format("{}: {} sends {} bytes, over the budget of {} — shorten the page, or state the budget it is held to with --readable", verdict.budget.name, verdict.where,
+                               verdict.found, verdict.budget.most);
     }
-    done(reply, Value{}.set("ok", true).set("out", *out).set("routes", Value(std::move(routes))).set("files", Value(std::move(files))).set("bytes", Value(static_cast<std::int64_t>(bytes))));
+    Value data = Value{}
+                     .set("ok", over.empty())
+                     .set("out", *out)
+                     .set("routes", Value(std::move(routes)))
+                     .set("files", Value(std::move(files)))
+                     .set("bytes", number(delivery.bytes))
+                     .set("sent", number(delivery.sent))
+                     .set("budgets", Value(std::move(budgets)));
+    if (over.empty()) return done(reply, data);
+    // Written all the same (the manifest says where it is over); the build did not pass.
+    reply.data(data.set("error", over).json());
+    reply.fail("failed", over);
 }
 
 void routes_list(Reply& reply, const mlibs::agent::Arguments& args) {

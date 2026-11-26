@@ -1,0 +1,42 @@
+== mlibs.delivery
+namespace mlibs::delivery {
+  [[nodiscard]] std::string gzip(std::string_view bytes, int level = 9);
+  [[nodiscard]] std::expected<std::string, std::string> gunzip(std::string_view bytes);
+  [[nodiscard]] bool compressed_kind(std::string_view extension) noexcept;
+  [[nodiscard]] bool matches(std::string_view pattern, std::string_view path) noexcept;
+  struct File {
+    std::string path;
+    std::uintmax_t bytes = 0;
+    std::uintmax_t gzip = 0;
+    bool compressed = false;
+    [[nodiscard]] std::uintmax_t sent() const noexcept;
+  };
+  enum class Measure : std::uint8_t { bytes, gzip, sent };
+  enum class Over : std::uint8_t { each, sum };
+  struct Budget {
+    std::string name;
+    std::string pattern;
+    Measure measure = Measure::sent;
+    Over over = Over::each;
+    std::uintmax_t most = 0;
+  };
+  [[nodiscard]] File measured(std::string path, std::string_view bytes);
+  struct Verdict {
+    Budget budget;
+    std::uintmax_t found = 0;
+    std::string where;
+    std::size_t files = 0;
+    bool within = true;
+  };
+  struct Manifest {
+    std::vector<File> files;
+    std::uintmax_t bytes = 0, gzip = 0, sent = 0;
+    std::vector<Verdict> verdicts;
+    [[nodiscard]] bool within() const noexcept;
+  };
+  [[nodiscard]] std::expected<Manifest, std::string> measure(const std::filesystem::path& directory, std::span<const Budget> budgets = {…});
+  [[nodiscard]] Manifest held(std::vector<File> files, std::span<const Budget> budgets);
+  [[nodiscard]] std::string to_json(const Manifest& manifest);
+  [[nodiscard]] constexpr std::string_view name(Measure measure) noexcept;
+  [[nodiscard]] constexpr std::string_view name(Over over) noexcept;
+}

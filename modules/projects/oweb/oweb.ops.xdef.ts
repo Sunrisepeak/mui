@@ -15,13 +15,14 @@ export default defineOps({
     {
       name: "site.build",
       effect: "reversible",
-      summary: "Build the site: each page of pages/ a route with its index.html (the tree as HTML: readable with no script) and index.md (the tree as Markdown), the routes table, llms.txt and, given the site's address, sitemap.xml",
+      summary: "Build the site: each page of pages/ a route with its index.html (the tree as HTML: readable with no script) and index.md (the tree as Markdown), the routes table, llms.txt, the search index, given the site's address sitemap.xml, and the delivery manifest — every file as stored and as a static host sends it, each route's bytes before it reads held to a budget (over it: written, and failed with where)",
       params: [
         { name: "site", type: "path", doc: "the site's directory (it holds pages/)" },
         { name: "out", type: "path", doc: "the directory written" },
         { name: "title", type: "string", doc: "the site's title (default: its first page's)", optional: true },
         { name: "languages", type: "string", doc: "its languages, the default first: en,zh — a first directory of that name is that language's pages", optional: true },
         { name: "url", type: "string", doc: "where it is served (https://example.org/docs/): the sitemap's addresses", optional: true },
+        { name: "readable", type: "string", doc: "the most bytes a route sends before it reads, its index.html as gzip (default 100000; 0 holds none)", optional: true },
       ],
       result: "json",
       cost: "bounded",

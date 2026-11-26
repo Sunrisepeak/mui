@@ -20,9 +20,10 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | meng | 0 | 21 | 2 |
 | gongfu | 0 | 0 | 5 |
 | xtools | 1 | 0 | 2 |
-| mlibs | 31 | 5 | 0 |
+| mlibs | 31 | 6 | 0 |
 | 例子 | 12 | 0 | 0 |
 | 构建插件（mcpp） | 1 | 0 | 0 |
+| oweb | 0 | 1 | 0 |
 | 作品（showcase） | 0 | 10 | 5 |
 | 官网 | 0 | 1 | 0 |
 | 仓库测试 | 6 | 0 | 0 |
@@ -161,6 +162,7 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | `mlibs.build` | [modules/base/build](../../modules/base/build) | 稳定 |
 | `mlibs.compose` | [modules/base/compose](../../modules/base/compose) | 预览 |
 | `mlibs.cts` | [modules/base/cts](../../modules/base/cts) | 稳定 |
+| `mlibs.delivery` | [modules/base/delivery](../../modules/base/delivery) | 预览 |
 | `mlibs.dynamics` | [modules/base/dynamics](../../modules/base/dynamics) | 预览 |
 | `mlibs.geom` | [modules/base/geom](../../modules/base/geom) | 稳定 |
 | `mlibs.image` | [modules/base/image](../../modules/base/image) | 稳定 |
@@ -213,6 +215,12 @@ omui 0.1 的每个包都在 manifest 里带三种标注之一（`[package.metada
 | 包 | 目录 | 标注 |
 |---|---|---|
 | `omui.build` | [mcpp/build](../../mcpp/build) | 稳定 |
+
+### oweb
+
+| 包 | 目录 | 标注 |
+|---|---|---|
+| `oweb` | [modules/projects/oweb](../../modules/projects/oweb) | 预览 |
 
 ### 作品（showcase）
 

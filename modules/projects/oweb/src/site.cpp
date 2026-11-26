@@ -2,6 +2,7 @@ module oweb;
 
 import std;
 import mcpplibs.os;
+import mlibs.delivery;
 import mlibs.markdown;
 import omui.core;
 import omui.view;
@@ -437,12 +438,13 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     if (options.title.empty()) options.title = routes->front().title;
     Built built;
     std::vector<Section> sections;
+    std::vector<mlibs::delivery::File> files;
     const auto write = [&](const std::string& path, std::string_view bytes) -> std::expected<void, std::string> {
         const std::filesystem::path file = out / mcpplibs::os::fs::from_utf8(path);
         std::error_code error;
         std::filesystem::create_directories(file.parent_path(), error);
         if (auto written = mcpplibs::os::fs::write_atomic(file, bytes); !written) return std::unexpected(std::format("{}: {}", utf8(file), written.error().message()));
-        built.files.push_back({path, bytes.size()});
+        files.push_back(mlibs::delivery::measured(path, bytes));
         return {};
     };
     for (const Route& route : *routes) {
@@ -466,6 +468,17 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     if (auto written = write("search.xdef.json", search_json(sections)); !written) return std::unexpected(written.error());
     if (!options.url.empty())
         if (auto written = write("sitemap.xml", sitemap_xml(*routes, options)); !written) return std::unexpected(written.error());
+    // GitHub Pages serves the directory as it is (no Jekyll pass over it).
+    if (auto written = write(".nojekyll", ""); !written) return std::unexpected(written.error());
+    std::vector<mlibs::delivery::Budget> budgets;
+    if (options.readable > 0) budgets.push_back({"a route readable", "**/index.html", mlibs::delivery::Measure::sent, mlibs::delivery::Over::each, options.readable});
+    built.delivery = mlibs::delivery::held(std::move(files), budgets);
+    // The manifest is of the site, not of itself: written last and not listed.
+    {
+        const std::filesystem::path file = out / "delivery.xdef.json";
+        if (auto written = mcpplibs::os::fs::write_atomic(file, mlibs::delivery::to_json(built.delivery)); !written)
+            return std::unexpected(std::format("{}: {}", utf8(file), written.error().message()));
+    }
     built.routes = std::move(*routes);
     return built;
 }

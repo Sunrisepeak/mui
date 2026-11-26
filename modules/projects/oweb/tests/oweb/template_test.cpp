@@ -59,6 +59,10 @@ static UTest cases{"oweb.template", [] {
             expect(shape_of(markdown) == shape_of(source)) << std::format("{} as Markdown:\n{}", route.path, markdown);
         }
         std::println("    the minimal documents: {} routes, {} B of HTML, {} B of Markdown", built->routes.size(), html_bytes, markdown_bytes);
+        // Each route's bytes before it reads, against the budget (0.1.0 plan ST6): the largest named.
+        expect(built->delivery.within() && built->delivery.verdicts.size() == 1u && built->delivery.verdicts.front().files == built->routes.size());
+        std::println("    a route readable: at most {} B sent ({}) of a budget of {}; the site {} B stored, {} B sent", built->delivery.verdicts.front().found,
+                     built->delivery.verdicts.front().where, built->delivery.verdicts.front().budget.most, built->delivery.bytes, built->delivery.sent);
         // What the set is there to carry, each found in what was built.
         const std::string home = read(out / "index.html"), ui = read(out / "ui/index.html"), agent = read(out / "agent/index.html"), start = read(out / "start/index.html");
         expect(home.contains("<h3") && home.contains("<em>small</em>") && home.contains("<strong>complete</strong>") && home.contains("<del>") && home.contains("<br>") &&

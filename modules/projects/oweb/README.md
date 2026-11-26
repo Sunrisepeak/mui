@@ -31,6 +31,8 @@ Nothing is written that the tree does not hold, and neither writing loses what t
 
 The routes are one table, and the rest is made from it: `routes.xdef.json` (`routes@1`: each route's address, source, title, language, headings and anchors), `llms.txt` (each title beside its Markdown's address), and `sitemap.xml` when the site's address is given.
 
+**What a visitor downloads is counted, and held**: the build's last file is the delivery manifest (`delivery.xdef.json`, `delivery@1`, by [`mlibs.delivery`](../../base/delivery)) — every file as stored and as a static host sends it (gzip for text, as stored for pictures), and one budget: a route's bytes before it reads, its `index.html` as sent, at most 100,000 (`--readable`; the page carries its style and needs nothing else to read). A site over it is written all the same and the build fails saying which route and by how much. The sample of seven documents: at most 1,926 B a route. `.nojekyll` is written so GitHub Pages serves the directory as it is.
+
 ## Signature features (candidates until their evidence is in)
 
 | Feature | State | Evidence |
@@ -38,7 +40,7 @@ The routes are one table, and the rest is made from it: `routes.xdef.json` (`rou
 | One content, three readings: the canvas, the HTML, the Markdown are writings of one tree, and none loses what it holds | first two writings here; the canvas with the engine's load policies (UI3, UI5) | `site_test`: every route's HTML and Markdown read back to its source's document |
 | An agent arrives as a person does: an address is enough — it reads `llms.txt`, a page's Markdown, or connects to the page | the fetching door here; the site's operations on the page and the connected door (AG5) | to come with AG5 and AG6 (the cold-start task on a site) |
 
-Not yet here (0.1.0's tasks ST2–ST7): `oweb.config.ts` and routes declared in TypeScript, pages written as views (`*.ts`), layouts and their slots, the search box on a page, code highlighting, the three presets and `omui new`, the engine on a page by its load policy, the delivery manifest and the GitHub Pages adapter.
+Not yet here (0.1.0's tasks ST2–ST7): `oweb.config.ts` and routes declared in TypeScript, pages written as views (`*.ts`), layouts and their slots, the search box on a page, code highlighting, the three presets and `omui new`, the engine on a page by its load policy, the engine's share in the delivery manifest, the rest of the GitHub Pages adapter (the base address, `404.html`, the action).
 
 ## Entry points by level
 
@@ -49,7 +51,7 @@ Not yet here (0.1.0's tasks ST2–ST7): `oweb.config.ts` and routes declared in 
 
 ## Agent surface
 
-The subject `oweb` (interface `oweb@1`) behind the tool kernel's three entries — the command line, MCP (`oweb mcp`) and the protocol. Its operations are a catalog ([`oweb.ops.xdef.ts`](oweb.ops.xdef.ts), listed in [`src/catalog`](src/catalog)): `site.build` (reversible: delete what was written), `routes.list`, `page.read` and `docs.search` (read). Every answer is data; a failure says why and what the site's routes are. How an agent uses them is [`skill.omui.md`](skill.omui.md). A built site is itself an agent surface: `llms.txt`, each route's `index.md`, `routes.xdef.json` and `search.xdef.json` need no engine and no script.
+The subject `oweb` (interface `oweb@1`) behind the tool kernel's three entries — the command line, MCP (`oweb mcp`) and the protocol. Its operations are a catalog ([`oweb.ops.xdef.ts`](oweb.ops.xdef.ts), listed in [`src/catalog`](src/catalog)): `site.build` (reversible: delete what was written), `routes.list`, `page.read` and `docs.search` (read). Every answer is data; a failure says why and what the site's routes are. How an agent uses them is [`skill.omui.md`](skill.omui.md). A built site is itself an agent surface: `llms.txt`, each route's `index.md`, `routes.xdef.json`, `search.xdef.json` and `delivery.xdef.json` need no engine and no script.
 
 ## Dependencies
 

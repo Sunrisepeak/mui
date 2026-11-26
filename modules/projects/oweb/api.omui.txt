@@ -4,7 +4,7 @@ export import :tool;
 export import :catalog;
 == oweb:catalog
 namespace oweb {
-  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_site_build{…};
+  inline constexpr std::array<mlibs::control::Parameter, 6> parameters_site_build{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_routes_list{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_page_read{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_docs_search{…};
@@ -13,6 +13,7 @@ namespace oweb {
   inline constexpr std::string_view listing = R"…";
 }
 == oweb:site
+export import mlibs.delivery;
 namespace oweb {
   struct Heading {
     int level = 1;
@@ -30,13 +31,9 @@ namespace oweb {
     std::string title;
     std::vector<std::string> languages{…};
     std::string url;
-  };
-  struct Section {
-    std::string route;
-    std::string anchor;
-    std::string title;
-    std::vector<std::string> trail;
-    std::string text;
+    std::uintmax_t readable = 100'000; }; // A part of a page a reader can be sent to: a heading and what stands under it up to the next heading. What a // person's search box and an agent's query both answer with (one index, made from the tree: 0.1.0 plan ST5). struct Section { std::string route; // "/guide/start/" std::string anchor; // the heading's;
+    empty: the page's beginning std::string title; // the heading's text;
+    the page's title for what stands before any std::vector<std::string> trail; // the headings it is under, the page's first std::string text;
   };
   struct Page {
     Route route;
@@ -50,13 +47,9 @@ namespace oweb {
     double score = 0;
     std::string excerpt;
   };
-  struct File {
-    std::string path;
-    std::uintmax_t bytes = 0;
-  };
   struct Built {
     std::vector<Route> routes;
-    std::vector<File> files;
+    mlibs::delivery::Manifest delivery;
   };
   [[nodiscard]] std::expected<std::vector<Route>, std::string> collect(const std::filesystem::path& site, const SiteOptions& options = {…});
   [[nodiscard]] std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options = {…});

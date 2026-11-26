@@ -12,6 +12,7 @@
 export module oweb:site;
 
 import std;
+export import mlibs.delivery;
 
 export namespace oweb {
 
@@ -33,6 +34,9 @@ struct SiteOptions {
     std::string              title;              // empty: the first route's
     std::vector<std::string> languages{"en"};    // the default first; a first directory of that name is that language's pages
     std::string              url;                // where the site is served; empty: no sitemap
+    // The most a route sends before it reads: its index.html as a static host sends it (gzip) — the page carries its
+    // style and needs nothing else to read. 100 KB is the plan's assumed budget (0.1.0 plan §6); 0 holds none.
+    std::uintmax_t           readable = 100'000;
 };
 
 // A part of a page a reader can be sent to: a heading and what stands under it up to the next heading. What a
@@ -61,14 +65,11 @@ struct Hit {
     std::string excerpt;
 };
 
-struct File {
-    std::string    path;  // from the directory written
-    std::uintmax_t bytes = 0;
-};
-
 struct Built {
-    std::vector<Route> routes;
-    std::vector<File>  files;
+    std::vector<Route>        routes;
+    // Every file written, as stored and as a static host sends it, and the budgets' verdicts (mlibs.delivery): what
+    // the site's delivery.xdef.json says. A site over a budget is written all the same — the verdict says where.
+    mlibs::delivery::Manifest delivery;
 };
 
 // The routes a site's pages give, by address; or why not (no pages/, two pages of one address).
@@ -78,7 +79,8 @@ struct Built {
 [[nodiscard]] std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options = {});
 
 // The site written to `out`: every route's two files, what pages/ holds beside its pages (pictures) at the same
-// place, and the site's tables.
+// place, the site's tables, `.nojekyll` (GitHub Pages serves the directory as it is) and, last, the delivery
+// manifest of all of it (delivery.xdef.json).
 [[nodiscard]] std::expected<Built, std::string> build(const std::filesystem::path& site, const std::filesystem::path& out, const SiteOptions& options = {});
 
 // The routes table as its snapshot (`routes@1`), the list for agents (llms.txt: each route's title and its Markdown's

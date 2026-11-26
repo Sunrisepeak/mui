@@ -15,7 +15,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
 separate = "product: the oweb framework and command, a project of its own on omui (D-275)"
 kind = "tool"
-reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
+reexports = ["mlibs.agent", "mlibs.delivery"]  # what its interface re-exports (lint module-closure)
 agent = "tool"
 
 [targets.oweb-core]
@@ -31,6 +31,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 [dependencies]
 # The command is the subject `oweb` behind the tool kernel's entries (mlibs.agent:host, T0).
 mlibs.agent    = { path = "../../base/agent" }
+mlibs.delivery = { path = "../../base/delivery" }  # the delivery manifest and its budgets (ST6)
 mlibs.json     = { path = "../../base/json" }
 mlibs.markdown = { path = "../../content/markdown" }
 mlibs.text.fonts = { path = "../../content/text/fonts" }  # every script a page shows carried with it (D-214)

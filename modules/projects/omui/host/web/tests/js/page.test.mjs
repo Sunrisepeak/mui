@@ -275,6 +275,11 @@ test('the document layer: each node the element it is, its text with the element
   const sheet = document.querySelector('[data-omui="layer"]');
   assert.ok(sheet && sheet.textContent.includes('color:transparent') && sheet.textContent.includes('user-select:text'), 'text that is found and selected, drawn by the canvas');
   assert.ok(sheet.textContent.includes('::selection{color:transparent;'), 'selected, it is still the canvas that is read');
+  // Printed, the page is its document: the canvas steps aside, the layer's elements flow and their text is seen.
+  const print = sheet.textContent.slice(sheet.textContent.indexOf('@media print{'));
+  assert.ok(print.includes('#canvas,#status,') && print.includes('{display:none!important}'), 'the canvas is not what is printed');
+  assert.ok(print.includes('[data-omui=mirror]{position:static!important;') && print.includes('color:#000'), 'the layer is: in the page\'s flow, its text seen');
+  assert.ok(print.includes('[data-omui=mirror] [data-omui-line]{position:static!important;display:inline;'), 'a paragraph\'s lines are one paragraph again');
   const layer = document.querySelector('[data-omui="mirror"]');
   assert.notEqual(layer.style.opacity, '0', 'the layer is there to be found in');
   const h = P.nodes.get('doc/h'), p = P.nodes.get('doc/p'), link = P.nodes.get('doc/p/link0');

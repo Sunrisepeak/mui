@@ -187,7 +187,40 @@ addToLibrary({
         '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre}' +
         '[data-omui=mirror] [data-omui-word]{display:inline-block;vertical-align:top;white-space:pre;transform-origin:0 0}' +
         // Selected, the layer's text stays unseen and the canvas's words show through the highlight.
-        '[data-omui=mirror] ::selection{color:transparent;background:color-mix(in srgb,Highlight 40%,transparent)}';
+        '[data-omui=mirror] ::selection{color:transparent;background:color-mix(in srgb,Highlight 40%,transparent)}' +
+        // Printed, the page is its document: the canvas steps aside and the layer's elements flow as the document
+        // they are — its text seen, in the order read, over as many sheets as it takes; a paragraph's lines are
+        // one paragraph again at the paper's width, a link keeps its address, code keeps its lines.
+        '@media print{' +
+        'html,body{height:auto!important;overflow:visible!important;background:#fff!important}' +
+        selector + ',#status,[data-omui=input],[data-omui=live],[data-omui=alert],[data-omui=skip]{display:none!important}' +
+        '[data-omui=mirror]{position:static!important;width:auto!important;height:auto!important;overflow:visible!important;' +
+        'color:#000;font:11pt/1.5 system-ui,sans-serif}' +
+        '[data-omui=mirror] *{color:inherit}' +
+        '[data-omui=mirror] [data-omui-id]{position:static!important;width:auto!important;height:auto!important;overflow:visible!important}' +
+        '[data-omui=mirror] [data-omui-line]{position:static!important;display:inline;width:auto!important;height:auto!important;' +
+        'font-size:inherit!important;line-height:inherit!important;white-space:inherit}' +
+        '[data-omui=mirror] [data-omui-word]{display:inline;width:auto!important;margin:0!important;transform:none!important;white-space:inherit}' +
+        '[data-omui=mirror] [data-omui-extent]{display:none}' +
+        '[data-omui=mirror] h1,[data-omui=mirror] h2,[data-omui=mirror] h3,[data-omui=mirror] h4,[data-omui=mirror] h5,[data-omui=mirror] h6' +
+        '{font-weight:700;margin:1.2em 0 .5em;break-after:avoid}' +
+        '[data-omui=mirror] h1{font-size:1.8em}[data-omui=mirror] h2{font-size:1.4em}[data-omui=mirror] h3{font-size:1.15em}' +
+        '[data-omui=mirror] p,[data-omui=mirror] ul,[data-omui=mirror] ol,[data-omui=mirror] pre,[data-omui=mirror] blockquote,' +
+        '[data-omui=mirror] table{margin:0 0 .8em}' +
+        '[data-omui=mirror] ul,[data-omui=mirror] ol{padding-left:1.6em}' +
+        '[data-omui=mirror] li[data-omui-id]{display:list-item}[data-omui=mirror] ul>li{list-style:disc}[data-omui=mirror] ol>li{list-style:decimal}' +
+        '[data-omui=mirror] li p{margin:0}' +
+        '[data-omui=mirror] pre,[data-omui=mirror] code{font-family:ui-monospace,monospace;font-size:.92em}' +
+        '[data-omui=mirror] pre{white-space:pre-wrap;border:1px solid #ccc;padding:.6em;break-inside:avoid}' +
+        '[data-omui=mirror] pre [data-omui-line]{display:block}' +
+        '[data-omui=mirror] a[href]{text-decoration:underline}' +
+        '[data-omui=mirror] strong,[data-omui=mirror] b,[data-omui=mirror] th{font-weight:700}[data-omui=mirror] em,[data-omui=mirror] i{font-style:italic}' +
+        '[data-omui=mirror] blockquote{border-left:3px solid #ccc;padding-left:1em}' +
+        '[data-omui=mirror] table[data-omui-id]{display:table;border-collapse:collapse}' +
+        '[data-omui=mirror] thead[data-omui-id]{display:table-header-group}[data-omui=mirror] tbody[data-omui-id]{display:table-row-group}' +
+        '[data-omui=mirror] tr[data-omui-id]{display:table-row}' +
+        '[data-omui=mirror] td[data-omui-id],[data-omui=mirror] th[data-omui-id]{display:table-cell;border:1px solid #999;padding:.2em .5em}' +
+        '}';
       (document.head || body).appendChild(sheet);
       var layer = document.createElement('div');
       layer.style.position = 'fixed';

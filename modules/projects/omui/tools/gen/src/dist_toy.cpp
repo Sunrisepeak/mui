@@ -1060,7 +1060,11 @@ std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document
                         "padding:32px max(24px,calc((100vw - 760px) / 2));color:{};background:inherit;font:16px/1.6 system-ui,sans-serif;"
                         "touch-action:auto;-webkit-user-select:text;user-select:text}}[data-omui=static][hidden]{{display:none}}"
                         "[data-omui=static] a{{color:inherit}}[data-omui=static] button{{font:inherit;color:inherit;background:none;"
-                        "border:1px solid currentColor;border-radius:8px;padding:4px 12px;margin:4px 8px 4px 0}}</style>\n",
+                        "border:1px solid currentColor;border-radius:8px;padding:4px 12px;margin:4px 8px 4px 0}}"
+                        // Printed before the program has it (or where it never does): the document whole, over as many
+                        // sheets as it takes, not the one screen it lies over.
+                        "@media print{{html,body{{height:auto!important;overflow:visible!important}}"
+                        "[data-omui=static]{{position:static;overflow:visible;padding:0}}}}</style>\n",
                         colour);
     html.insert(head, meta);
     // The document's language: as given, else as the projection's root says it (static_html's `lang`).

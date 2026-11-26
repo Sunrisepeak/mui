@@ -507,6 +507,15 @@ struct Desktop::Impl final : WindowHost {
 Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
+    // The host brings what its renderers draw, where the program installed none (as the headless host does):
+    // mrender's pixel effects (a node's `pixel_effect`, a framework-drawn window's closing dissolve), hanim's morphs
+    // (a change moving), mlibs.image's picture reader (the view's `image`).
+    if (!mrender::installed_effects())
+        if (auto installed = mrender::install_effects(); !installed) warn("the pixel effects: {}", installed.error().message);
+    if (!morphs_installed())
+        if (auto installed = install_morphs(); !installed) warn("the morphs: {}", installed.error().message);
+    if (!mlibs::image::decoder())
+        if (auto installed = mlibs::image::install(); !installed) warn("the picture reader: {}", installed.error().message);
     // When the GPU may draw, SDL is brought up here and the device is made on a thread of its own. A window that
     // waits for it (the GPU insisted on, effects, a window with no framebuffer of its own) begins it at once, so the
     // driver's start overlaps the fonts, the runtime and the window (RC3.6). A window whose first frames the CPU draws

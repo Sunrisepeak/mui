@@ -258,6 +258,109 @@ test('the semantic DOM mirror: elements made, then only what changed', () => {
   assert.equal(document.querySelector('[data-omui="alert"]').textContent, 'Delete everything?');
 });
 
+test('the document layer: each node the element it is, its text with the elements its marks make, a link standing in a sentence', () => {
+  const { P, document, context } = page();
+  context.omui_web_mirror(JSON.stringify({
+    root: 'app',
+    nodes: [
+      { id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['doc/h', 'doc/p', 'doc/list'] },
+      { id: 'doc/h', tag: 'h2', set: { id: 'install' }, text: 'Install', box: [8, 8, 180, 24] },
+      { id: 'doc/p', tag: 'p', box: [8, 40, 180, 48],
+        content: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the ', { tag: 'strong', c: ['guide'] }] }, ' ', { tag: 'em', c: ['first'] }, { tag: 'br' }, 'now.'] },
+      { id: 'doc/p/link0', set: { href: 'guide/' }, inline: true },
+      { id: 'doc/list', tag: 'ul', box: [8, 96, 180, 40], children: ['doc/list/i0'] },
+      { id: 'doc/list/i0', tag: 'li', text: 'One', box: [16, 0, 164, 20] },
+    ],
+  }));
+  const sheet = document.querySelector('[data-omui="layer"]');
+  assert.ok(sheet && sheet.textContent.includes('color:transparent') && sheet.textContent.includes('user-select:text'), 'text that is found and selected, drawn by the canvas');
+  const layer = document.querySelector('[data-omui="mirror"]');
+  assert.notEqual(layer.style.opacity, '0', 'the layer is there to be found in');
+  const h = P.nodes.get('doc/h'), p = P.nodes.get('doc/p'), link = P.nodes.get('doc/p/link0');
+  assert.deepEqual([h.tagName, p.tagName, link.tagName, P.nodes.get('doc/list').tagName, P.nodes.get('doc/list/i0').tagName], ['H2', 'P', 'A', 'UL', 'LI']);
+  assert.equal(h.getAttribute('id'), 'install', 'an anchor is an id: the page can be sent to it');
+  assert.equal(p.textContent, 'Read the guide firstnow.');
+  assert.equal(link.parentNode, p, 'the link stands in the sentence');
+  assert.equal(link.getAttribute('href'), 'guide/');
+  assert.equal(link.textContent, 'the guide');
+  assert.ok(link.hasAttribute('data-omui-inline') && !link.style.left && link.style.position === '', 'placed by the text: no box of its own');
+  assert.deepEqual(p.children.map((c) => c.tagName), ['A', 'EM', 'BR']);
+  assert.equal(link.children[0].tagName, 'STRONG');
+  assert.equal(p.style.left, '8px');
+  assert.deepEqual(P.nodes.get('app').children.map((c) => c.getAttribute('data-omui-id')), ['doc/h', 'doc/p', 'doc/list']);
+
+  // The sentence changes: its pieces again, the same link element in its new place; a child comes after the text.
+  context.omui_web_mirror(JSON.stringify({ nodes: [
+    { id: 'doc/p', content: [{ tag: 'a', node: 'doc/p/link0', c: ['The guide'] }, ' comes first.'], children: ['doc/p/note'] },
+    { id: 'doc/p/note', tag: 'div', text: 'a note', box: [0, 24, 100, 20] },
+  ] }));
+  assert.equal(P.nodes.get('doc/p/link0'), link, 'the same element');
+  assert.equal(p.textContent, 'The guide comes first.a note');
+  assert.deepEqual(p.children.map((c) => c.getAttribute('data-omui-id') || c.tagName), ['doc/p/link0', 'doc/p/note']);
+  assert.equal(P.nodes.get('doc/p/note').style.top, '24px');
+
+  // The link stands in the text no more: an element of its own, with its own text and box.
+  context.omui_web_mirror(JSON.stringify({ nodes: [
+    { id: 'doc/p', text: 'Plain now.', children: ['doc/p/link0', 'doc/p/note'] },
+    { id: 'doc/p/link0', inline: false, tag: 'a', text: 'The guide', box: [0, 48, 80, 20] },
+  ] }));
+  assert.equal(p.textContent, 'Plain now.The guidea note');
+  assert.ok(!link.hasAttribute('data-omui-inline') && link.style.position === 'absolute' && link.style.top === '48px');
+  assert.deepEqual(p.children.map((c) => c.getAttribute('data-omui-id')), ['doc/p/link0', 'doc/p/note']);
+
+  // Another level: another element in the same place, with what the first had.
+  context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'doc/h', tag: 'h3' }] }));
+  const again = P.nodes.get('doc/h');
+  assert.notEqual(again, h);
+  assert.deepEqual([again.tagName, again.getAttribute('id'), again.textContent, again.style.top, again.parentNode], ['H3', 'install', 'Install', '8px', P.nodes.get('app')]);
+  assert.deepEqual(P.nodes.get('app').children.map((c) => c.getAttribute('data-omui-id')), ['doc/h', 'doc/p', 'doc/list']);
+});
+
+test('the page\'s own projection goes on as the layer: the same elements, placed over the canvas', () => {
+  const { P, document, context, heard, fire } = page();
+  // What a reader had before the program: the static projection (omui.semantic's static_html, in the page).
+  const make = (tag, target, text) => {
+    const el = document.createElement(tag);
+    el.setAttribute('data-omui-target', target);
+    if (text) el.textContent = text;
+    return el;
+  };
+  const projection = document.createElement('div');
+  projection.setAttribute('data-omui', 'static');
+  const root = make('div', 'app'), title = make('h1', 'doc/title', 'Notes'), para = make('p', 'doc/p', 'Read '), link = make('a', 'doc/p/link0', 'the guide'), save = make('button', 'doc/save', 'Save');
+  para.appendChild(link);
+  [title, para, save].forEach((el) => root.appendChild(el));
+  projection.appendChild(root);
+  document.body.appendChild(projection);
+
+  context.omui_web_mirror(JSON.stringify({
+    root: 'app',
+    nodes: [
+      { id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['doc/title', 'doc/p', 'doc/save'] },
+      { id: 'doc/title', tag: 'h1', text: 'Notes', box: [8, 8, 180, 24] },
+      { id: 'doc/p', tag: 'p', box: [8, 40, 180, 24], content: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the guide'] }, '.'] },
+      { id: 'doc/p/link0', set: { href: 'guide/' }, inline: true },
+      { id: 'doc/save', tag: 'div', set: { role: 'button', 'aria-label': 'Save', tabindex: '-1' }, box: [8, 72, 60, 24] },
+    ],
+  }));
+  const layer = document.querySelector('[data-omui="mirror"]');
+  assert.equal(P.nodes.get('app'), root);
+  assert.equal(P.nodes.get('doc/title'), title, 'the heading a reader had is the layer\'s');
+  assert.equal(P.nodes.get('doc/p'), para);
+  assert.equal(P.nodes.get('doc/p/link0'), link);
+  assert.ok(layer.contains(title) && layer.contains(link) && !projection.contains(title), 'moved over the canvas');
+  assert.equal(title.style.left, '8px');
+  assert.equal(para.textContent, 'Read the guide.', 'its text the tree\'s now, once');
+  assert.equal(link.getAttribute('href'), 'guide/');
+  // What a person operates is the program's over the canvas: the document's button stays behind.
+  assert.notEqual(P.nodes.get('doc/save'), save);
+  assert.equal(P.nodes.get('doc/save').tagName, 'DIV');
+  assert.ok(projection.contains(save) || save.parentNode === null);
+  // An adopted element is activated as any: the program answers.
+  fire(link, 'click');
+  assert.deepEqual(heard, [[P.ACTIVATE, 0, 0, 'doc/p/link0']]);
+});
+
 test('assistive technology in the mirror: a click activates, a focus moves the program\'s', () => {
   const { P, context, heard, fire, document } = page();
   context.omui_web_mirror(first);

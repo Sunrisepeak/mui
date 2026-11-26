@@ -58,3 +58,4 @@ programs = "directory"  # tests/oweb/: one program, each file run and filtered o
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"
+"omui.host.web" = { path = "../omui/host/web" }  # the layer over the canvas, held to the page before the program (layer_test)

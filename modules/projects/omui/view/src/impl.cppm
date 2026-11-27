@@ -573,6 +573,7 @@ struct Runtime::Impl {
     // `record_capacity`), the input events numbered, the one being dispatched.
     // Live Design's presentation: until when, and its recipes by slot (update, enter, exit).
     double                      design_until = -1;
+    bool                        design_changes = false;  // its changes spring at its pace too (present_design's)
     std::array<MotionSpec, 3>   design_slots;
     MotionSpec                  design_grow;  // what a design step adds that holds others: it grows (W14 step 4)
     Runtime::DesignPresentation design_presentation;

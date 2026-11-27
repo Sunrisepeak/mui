@@ -1141,6 +1141,7 @@ namespace omui {
       enum class Kind : std::uint8_t { edit, undo, switch_to };
       Kind kind = Kind::edit;
       double pace = 1;
+      bool changes = false;
     };
     void set_design_presentation(DesignPresentation presentation);
     [[nodiscard]] DesignPresentation design_presentation() const noexcept;

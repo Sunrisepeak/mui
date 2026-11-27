@@ -485,11 +485,14 @@ public:
     //   switch_to  the shared elements (the same id, or found again by role
     //              and name) carried from where they were to where they are;
     //              the rest fades in and out.
-    // `pace` scales its time (0.25 … 4; 2 is twice as fast).
+    // `pace` scales its time (0.25 … 4; 2 is twice as fast). `changes`: what the step changes (its words,
+    // its places) springs at the pace too — a show played (generate.replay: each change seen over its beat);
+    // otherwise a change keeps the application's own motion (a preview flying, an undo's order).
     struct DesignPresentation {
         enum class Kind : std::uint8_t { edit, undo, switch_to };
         Kind   kind = Kind::edit;
         double pace = 1;
+        bool   changes = false;
     };
     void set_design_presentation(DesignPresentation presentation);
     [[nodiscard]] DesignPresentation design_presentation() const noexcept;

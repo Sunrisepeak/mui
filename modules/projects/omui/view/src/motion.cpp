@@ -147,9 +147,13 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
 
 const MotionSpec* Runtime::Impl::select_motion(NodeId id, std::size_t slot, bool fallback) {
     // A design edit being shown (Runtime::present_design): what comes is written in and what goes
-    // unwritten, over the layers below. Its updates keep the application's own motion — what did not
-    // change must not move — and the window's root is never one (it would move the whole window).
-    if ((slot == 1 || slot == 2) && id != root && clock.now().count() < design_until)
+    // unwritten, over the layers below. Its updates keep the application's own motion (a preview's
+    // flight, an undo's order) unless the presentation says its changes spring at its pace too (a show
+    // played, each change seen over its beat: its words morphed glyph by glyph, its places sprung) — only
+    // a node whose drawing changed reaches that slot. The window's root is never one (it would move the
+    // whole window).
+    const bool presenting = id != root && clock.now().count() < design_until;
+    if (presenting && (slot == 1 || slot == 2 || (slot == 0 && design_changes)))
         return slot == 1 && !at(id).children.empty() ? &design_grow : &design_slots[slot];
     Node& n = at(id);
     if (n.motion_gen != motion_gen) {
@@ -853,6 +857,7 @@ void Runtime::present_design(seconds duration) {
             break;
     }
     d.design_slots = {update, enter, exit};
+    d.design_changes = how.changes;
     d.design_until = d.clock.now().count() + duration.count() / pace;
     ++d.motion_gen;  // the slots resolved again as the presentation begins (and once it ends)
     d.touch(dirty_paint);

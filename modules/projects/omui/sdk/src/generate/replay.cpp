@@ -116,7 +116,7 @@ std::expected<void, std::string> Replayer::show(std::size_t step, bool playing) 
     const Runtime::DesignPresentation before = runtime_.design_presentation();
     if (playing) {
         const double on_screen = std::max(0.05, seconds_of(step) / speed_);
-        runtime_.set_design_presentation({Runtime::DesignPresentation::Kind::edit, 0.9 / (presented * on_screen)});
+        runtime_.set_design_presentation({Runtime::DesignPresentation::Kind::edit, 0.9 / (presented * on_screen), true});
         runtime_.present_design();
     }
     auto ran = show_ ? show_(shown.texts) : std::expected<void, std::string>{};

@@ -2,8 +2,8 @@
 // development mode), its replay played by the Live Design key's verb, stepped at 60 frames a second, every frame's
 // picture against the one before outside the replay's own card — how much of the time the page is seen to change.
 // Twice: as the replay played before it had a show (each step 1.5 s, shown at once), and as its show plays it (each
-// step for its beat, what it changes presented over most of the beat). Both numbers are printed; the show changes
-// more of the time than the replay did. The design's bound (30% still, AG1 §5) is AG3's open acceptance.
+// step for its beat, what it changes — its nodes, its words, its places — presented over most of the beat). Both are
+// printed; the show changes more of the time than the replay did and is still at most 30% of its frames (AG1 §5).
 import std;
 import mcpplibs.mtest;
 import omui;
@@ -24,9 +24,11 @@ std::string file_text(const std::filesystem::path& file) {
     return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
 }
 
-// How a run of frames went: how long, the share of its frames with nothing changed, its longest still stretch.
+// How a run of frames went: how long, the share of its frames with nothing changed, its longest still stretch (in which
+// step, how far into it).
 struct Seen {
-    double seconds = 0, still_share = 0, longest_still = 0;
+    double seconds = 0, still_share = 0, longest_still = 0, longest_into = 0;
+    std::int64_t longest_step = 0;
     std::size_t frames = 0;
 };
 
@@ -39,7 +41,7 @@ extern "C++" void omui_application_components();
 static UTest cases{"site.show", [] {
     omui_application_components();
 
-    "the design played in the page as a show: each step for its beat, presented over it — changing more of the time than before"_test = [] {
+    "the design played in the page as a show: each step for its beat, presented over it — still at most 30% of the time"_test = [] {
         auto manifest = read_manifest(here() / "mcpp.toml");
         expect(fatal(manifest.has_value())) << (manifest ? std::string() : manifest.error());
         const std::string replay_text = file_text(here() / "design" / "main.replay.xdef.json");
@@ -81,6 +83,7 @@ static UTest cases{"site.show", [] {
             double still_run = 0;
             std::map<std::int64_t, std::pair<std::size_t, std::size_t>> by_step;  // a step's frames, and its still ones
             std::int64_t step_now = 0;
+            double step_began = 0;  // when the step shown began (the time of its first frame)
             const auto take = [&] {
                 at += frame;
                 (void)host.step({}, seconds(at));
@@ -104,7 +107,11 @@ static UTest cases{"site.show", [] {
                 } else {
                     ++still;
                     still_run += frame;
-                    seen.longest_still = std::max(seen.longest_still, still_run);
+                    if (still_run > seen.longest_still) {
+                        seen.longest_still = still_run;
+                        seen.longest_step = step_now;
+                        seen.longest_into = at - step_began - still_run + frame;
+                    }
                 }
             };
             if (as_show) {
@@ -115,7 +122,10 @@ static UTest cases{"site.show", [] {
                     take();
                     const Envelope asked = invoke(Value(Value::Map{}));
                     const Value* state = asked.data_value();
-                    if (const Value* step = state ? state->get("at") : nullptr; step && step->is_number()) step_now = step->as_int();
+                    if (const Value* step = state ? state->get("at") : nullptr; step && step->is_number() && step->as_int() != step_now) {
+                        step_now = step->as_int();
+                        step_began = at;
+                    }
                     if (const Value* ended = state ? state->get("ended") : nullptr; ended && ended->as_bool(false)) break;
                 }
             } else {
@@ -123,6 +133,7 @@ static UTest cases{"site.show", [] {
                 for (std::size_t step = 1; step <= steps->steps.size(); ++step) {
                     expect(invoke(Value{}.set("at", static_cast<std::int64_t>(step))).exit_code().value_or(-1) == 0);
                     step_now = static_cast<std::int64_t>(step);
+                    step_began = at;
                     for (double held = 0; held < steps->steps[step - 1].seconds; held += frame) take();
                 }
             }
@@ -140,13 +151,13 @@ static UTest cases{"site.show", [] {
         // the test program measures with it too, else a change of words would show at once here and not there.
         if (!omui::morphs_installed()) expect(fatal(omui::install_morphs().has_value())) << "the morphs' provider";
         const Seen unpaced = played(false), shown = played(true);
-        std::println("    the site's replay before its show: {:.1f} s, still {:.0f}% of the frames, longest still {:.2f} s", unpaced.seconds,
-                     unpaced.still_share * 100, unpaced.longest_still);
-        std::println("    as its show plays it:            {:.1f} s, still {:.0f}% of the frames, longest still {:.2f} s", shown.seconds,
-                     shown.still_share * 100, shown.longest_still);
-        // Held: the show is seen to change more of the time than the replay was, and ends. The design's bound (30% still,
-        // AG1 §5) is AG3's acceptance, open while the beats are read's (§4.5): printed above, not asserted here.
+        for (const auto& [name, seen] : {std::pair{"the site's replay before its show:", unpaced}, std::pair{"as its show plays it:           ", shown}})
+            std::println("    {} {:.1f} s, still {:.0f}% of the frames, longest still {:.2f} s (step {}, {:.2f} s in)", name, seen.seconds,
+                         seen.still_share * 100, seen.longest_still, seen.longest_step, seen.longest_into);
+        // Held: the show is seen to change more of the time than the replay was, within the design's bound (AG1 §5:
+        // still at most 30% of its frames, from 86%), and ends.
         expect(shown.still_share < unpaced.still_share) << "the show changes more of the time";
+        expect(shown.still_share <= 0.30) << std::format("still {:.0f}% of the show's frames (AG1 §5: at most 30%)", shown.still_share * 100);
         expect(shown.seconds < 120) << "it ends";
     };
 }};

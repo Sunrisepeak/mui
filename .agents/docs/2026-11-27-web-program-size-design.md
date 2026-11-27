@@ -248,3 +248,11 @@
 **结果**（阅读器，同 §7 的步骤）：第一部分 1,639,127 → 1,634,870（−4,257），launcher 54,487 → 54,663（+176，放回的 JS）；一个没有示例、CPU 画、不问 Agent 的页面 1,693,614 → 1,689,533（−4,081）；清单文件 `data.json` 26,319 B 原样、5,278 B gzip，只有 Agent 来问时取。`check takeover` `/start/` 7/7、`/live/` 8/8。`site drive`（`/start/`）：问之前 `omuiApartState` 里没有 `data`（没取）；`subjects` 是 `ui` 与 `site`，两者的 `describe … detail: full` 都完整回来（`site` 4 个工具、`omui` 32 个），之后 `omuiApartState.data` 是 `synchronous`（取了一次）。
 
 官网（同 §7 的步骤）：首帧之前 1,357,344 → 1,352,304（−5,040），合计 2,759,557 → 2,754,697，首帧 864 ms；`check site path` 27/27（其中访客的 Agent 经 `omui connect` 连上并操作页面）。剩下的 Agent 文字——目录表里的说明、参数的说明、入门的任务（`CatalogEntry`、`Guide`）——由派发与 `describe` 的简述在很多处读，要逐处经由 `present`；没做，见 §13.5。
+
+### 13.3 omui.core 的 `Value` 读法：与 mlibs.json 同一个解析器实例
+
+**量。** 阅读器（`omui-gen size`，`web` profile 的整个程序）里 nlohmann 两个实例：`ordered_json`（mlibs.json 的 `Document`）124 个函数 41,533 B，`json`（`std::map`）112 个函数 17,658 B。把 omui.core 的 SAX 读法改成 `ordered_json`、从 `std::string` 的迭代器读（mlibs.json 读文档用的同一个词法器与解析器；文字先复制一份），`json` 那一份只剩 107 个函数 16,738 B——它的大头不是 omui.core，是 `omui.native.store`（存储的原生模块，`define` 里的四个函数与 `json` 的树、序列化器）与 `omui.native`。
+
+**结果**（同 §7 的步骤）：第一部分 1,634,870 → 1,634,326，launcher 54,663 → 54,662；没有示例、CPU 画的页面 1,689,533 → 1,688,988（−545）。小，但是一个读法少一个实例；`parse_json` 的错误（行、列、偏移、nlohmann 的说明）不变：同一个 SAX 的 `parse_error`，偏移同样从文字开头算。验证：`mcpp test -p omui.core -p omui.view -p omui.agent -p oweb.reader --profile ci`（46 个程序全过）。
+
+**提议。** 剩下的 `json` 实例归 `omui.native.store`（阅读器不跑脚本，却因为 `omui.native` 链接了存储模块的 `define`）：要么存储模块也用 `ordered_json`（或 mlibs.json），要么不跑脚本的程序不带原生模块（由谁登记原生模块决定）。属主 omui.native，未做。

@@ -8,13 +8,15 @@ namespace omui {
 
 namespace {
 
-// nlohmann's SAX protocol, building a Value tree.
+// nlohmann's SAX protocol, building a Value tree — over the instance mlibs.json reads documents with (`ordered_json`
+// from a std::string's iterators: one lexer and parser in a program, not one for each reader).
+using Parsed = nlohmann::ordered_json;
 struct Builder {
-    using number_integer_t  = nlohmann::json::number_integer_t;
-    using number_unsigned_t = nlohmann::json::number_unsigned_t;
-    using number_float_t    = nlohmann::json::number_float_t;
-    using string_t          = nlohmann::json::string_t;
-    using binary_t          = nlohmann::json::binary_t;
+    using number_integer_t  = Parsed::number_integer_t;
+    using number_unsigned_t = Parsed::number_unsigned_t;
+    using number_float_t    = Parsed::number_float_t;
+    using string_t          = Parsed::string_t;
+    using binary_t          = Parsed::binary_t;
 
     struct Frame {
         Value       value;
@@ -115,7 +117,8 @@ std::optional<JsonError> json_location(std::string_view text, std::string_view p
 
 std::expected<Value, JsonError> parse_json(std::string_view text) {
     Builder b;
-    bool ok = nlohmann::json::sax_parse(text.begin(), text.end(), &b, nlohmann::json::input_format_t::json, true, false);
+    const std::string owned(text);  // read as mlibs.json reads its documents: the same lexer
+    bool ok = Parsed::sax_parse(owned.begin(), owned.end(), &b, Parsed::input_format_t::json, true, false);
     if (!ok || !b.have_root) {
         if (b.error.empty()) b.error = "not a JSON value";
         return std::unexpected(locate(text, b.error_offset, std::move(b.error)));

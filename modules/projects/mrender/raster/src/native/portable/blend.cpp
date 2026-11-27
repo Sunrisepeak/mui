@@ -20,6 +20,10 @@ void over_coverage(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint
     over_coverage_reference(out, count, source, coverage);
 }
 
+void over_coverage_padded(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept {
+    over_coverage_reference(out, count, source, coverage);
+}
+
 std::string_view blend_path() noexcept { return "scalar"; }
 
 }  // namespace mrender::raster

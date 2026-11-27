@@ -233,8 +233,10 @@ void blur(const EffectInput& in) {
         each_pixel(in, [](int, int, Rgba8 s) { return s; });
         return;
     }
-    // Three box passes each way approach a Gaussian of the given radius.
-    Surface a = in.source;
+    // Three box passes each way approach a Gaussian of the given radius, on a copy of the source kept by the thread
+    // (grown, never freed: a blur drawn again allocates nothing).
+    thread_local Surface a;
+    a = in.source;
     box_blur(a, r);
     each_pixel(in, [&](int x, int y, Rgba8) { return a.at(x, y); });
 }
@@ -917,7 +919,9 @@ float smooth_min(float a, float b, float k) noexcept {
 
 void box_blur(mrender::raster::Surface& surface, int radius, Parallel* parallel) {
     if (radius <= 0) return;
-    mrender::raster::Surface scratch(surface.width(), surface.height());
+    // Every pixel of it is written by a pass before it is read; kept by the thread (grown, never freed).
+    thread_local mrender::raster::Surface scratch;
+    if (scratch.width() != surface.width() || scratch.height() != surface.height()) scratch.resize(surface.width(), surface.height());
     // Each pass's lines are independent: in groups on the pool, the same bytes.
     auto pass = [&](const Surface& from, Surface& to, bool horizontal) {
         const int lines = horizontal ? from.height() : from.width();

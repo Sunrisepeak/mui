@@ -13,6 +13,8 @@ namespace mrender::raster {
   [[nodiscard, gnu::always_inline]] inline Rgba8 scaled_scalar(Rgba8 s, std::uint32_t k) noexcept;
   void over_run(Rgba8* out, std::int32_t count, Rgba8 source) noexcept;
   void over_coverage(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
+  inline constexpr std::int32_t coverage_slack = 8;
+  void over_coverage_padded(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
   void over_coverage_reference(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
   [[nodiscard]] std::string_view blend_path() noexcept;
   void over_run_reference(Rgba8* out, std::int32_t count, Rgba8 source) noexcept;
@@ -21,6 +23,11 @@ namespace mrender::raster {
 namespace mrender::raster {
   using mlibs::geom::CornerRadii;
   enum class Blend : std::uint8_t { normal, multiply, screen, overlay, darken, lighten, color_dodge, color_burn, hard_light, soft_light, difference, exclusion, plus, erase, };
+  struct ShadowScratch {
+    PathBuilder shape, box;
+    Coverage blurred, inside, hole;
+    std::vector<std::uint32_t> sums, passed;
+  };
   class Canvas {
     explicit Canvas(Surface& target);
     Canvas(const Canvas&) = delete;
@@ -49,8 +56,10 @@ namespace mrender::raster {
     [[nodiscard]] inline std::size_t depth() const noexcept;
   };
   void blur(Coverage& coverage, float sigma);
+  void blur(Coverage& coverage, float sigma, std::vector<std::uint32_t>& sums, std::vector<std::uint32_t>& passed);
   void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii);
   void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, bool inset, const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons, Rasterizer& rasterizer);
+  void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, bool inset, const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons, Rasterizer& rasterizer, ShadowScratch& scratch);
 }
 == mrender.raster.api:paint
 namespace mrender::raster {
@@ -112,6 +121,7 @@ namespace mrender::raster {
   };
   class Shader {
     explicit Shader(const Paint& paint);
+    [[nodiscard]] static Rgba8 solid_of(const Paint& paint) noexcept;
     [[nodiscard]] inline bool opaque_solid() const noexcept;
     [[nodiscard]] inline bool solid() const noexcept;
     [[nodiscard]] inline Rgba8 solid_color() const noexcept;
@@ -121,6 +131,14 @@ namespace mrender::raster {
     [[nodiscard]] inline std::span<const std::uint8_t, 256> hard() const noexcept;
     [[nodiscard]] Rgba8 ramp_colour(float t) const noexcept;
     [[nodiscard]] static Rgba8 lit(Rgba8 color, Rgba8 normal, const MaterialSetup& m) noexcept;
+  };
+  struct SolidShading {
+    Rgba8 color;
+    explicit SolidShading(const Paint& paint) noexcept : color(Shader::solid_of(paint));
+    [[nodiscard]] bool solid() const noexcept;
+    [[nodiscard]] Rgba8 solid_color() const noexcept;
+    [[nodiscard]] bool opaque() const noexcept;
+    void shade(int, int, int, Rgba8*) const noexcept;
   };
   class MixShader {
     [[nodiscard]] bool reset(const Paint& paint);
@@ -160,6 +178,7 @@ namespace mrender::raster {
     [[nodiscard]] inline bool empty() const noexcept;
   };
   class Rasterizer {
+    static constexpr std::int32_t piece_slack = 8;
     void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Coverage& out);
     void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Spans& out);
     template <class Emit> void rasterize_runs(const Polygons& polygons, FillRule rule, PixelRect clip, Emit&& emit);
@@ -183,7 +202,14 @@ namespace mrender::raster {
     float trim_end = 1;
     float trim_offset = 0;
   };
+  struct StrokeScratch {
+    Polygons flat, lines, cut, local;
+    std::vector<Point> poly, normals;
+    std::array<std::vector<double>, 2> angles;
+    std::vector<float> lengths;
+  };
   void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygons& out);
+  void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygons& out, StrokeScratch& scratch);
   void stroke_coverage(PathData path, const Stroke& stroke, const Affine& m, PixelRect clip, Coverage& out);
 }
 == mrender.raster.api:surface

@@ -29,6 +29,10 @@ export namespace mrender::raster {
 void over_run(Rgba8* out, std::int32_t count, Rgba8 source) noexcept;
 // out[i] = over(out[i], source scaled by coverage[i]) for `count` pixels.
 void over_coverage(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
+// The same, the coverage readable for coverage_slack bytes past its last
+// (a caller's buffer padded so): the last few pixels' coverage read whole.
+inline constexpr std::int32_t coverage_slack = 8;
+void over_coverage_padded(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
 void over_coverage_reference(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
 
 // The path over_run takes here: "avx2" or "scalar" (a trace, a report).

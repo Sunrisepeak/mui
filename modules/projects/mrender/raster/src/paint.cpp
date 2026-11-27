@@ -54,13 +54,17 @@ std::atomic<std::uint64_t> serials{0};
 
 }  // namespace
 
+Rgba8 Shader::solid_of(const Paint& paint) noexcept {
+    Color c = paint.color;
+    c.a *= std::clamp(paint.opacity, 0.0f, 1.0f);
+    return premultiply(c);
+}
+
 Shader::Shader(const Paint& paint) : paint_(&paint) {
     opacity8_ = static_cast<std::uint32_t>(std::clamp(paint.opacity, 0.0f, 1.0f) * 255.0f + 0.5f);
     if (paint.kind == Paint::Kind::solid) {
         solid_ = true;
-        Color c = paint.color;
-        c.a *= std::clamp(paint.opacity, 0.0f, 1.0f);
-        solid_color_ = premultiply(c);
+        solid_color_ = solid_of(paint);
         return;
     }
     inverse_ = paint.transform.inverse();

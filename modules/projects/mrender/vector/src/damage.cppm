@@ -109,10 +109,13 @@ private:
     std::vector<RowSpan>       rows_;
     std::vector<Rect>          backdrops_;  // the current list's backdrop effects' regions
     // Images updated in place (ImageStore::update): each drawn image's
-    // revision at the last update and at this one, and what changed of them.
-    std::unordered_map<std::uint32_t, std::uint64_t> image_revisions_, next_image_revisions_;
+    // revision at the last update and at this one (by id, sorted once the
+    // list is read: a frame of the same images allocates nothing), and what
+    // changed of them.
+    std::vector<std::pair<std::uint32_t, std::uint64_t>> image_revisions_, next_image_revisions_;
     std::vector<Rect>          image_damage_;
     std::vector<mlibs::geom::PixelRect> image_changes_;
+    std::vector<float>         params_;  // an effect's parameters with their defaults
     LayerBoundsMap             layer_bounds_;
     std::int32_t               width_ = 0, height_ = 0;
     float                      scale_ = 0;

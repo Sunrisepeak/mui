@@ -36,9 +36,22 @@ struct Stroke {
     float                  trim_offset = 0;
 };
 
+// What making a stroke's outline works in — the path flattened, its lines
+// trimmed and dashed, the loops before the transform, each side's offsets —
+// kept by a caller that strokes again (a Canvas has one), so a stroke drawn
+// again allocates nothing.
+struct StrokeScratch {
+    Polygons flat, lines, cut, local;
+    std::vector<Point> poly, normals;
+    std::array<std::vector<double>, 2> angles;
+    std::vector<float> lengths;
+};
+
 // Appends the stroke outline of `path` (transformed by `m`) to `out`. The
-// width is in path units: a scaled transform scales it.
+// width is in path units: a scaled transform scales it. Without `scratch`:
+// one of its own for this call.
 void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygons& out);
+void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygons& out, StrokeScratch& scratch);
 
 // The coverage of a stroked path, as Canvas::stroke_path composites it (the
 // outline filled nonzero), cut to `clip`.

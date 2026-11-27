@@ -132,6 +132,24 @@ struct Size {
 // target/takeover.report.xdef.json.
 [[nodiscard]] int takeover(const std::filesystem::path& root, const std::filesystem::path& page, std::string_view path, std::span<const int> widths);
 
+// A built site's pages scrolled by the wheel in a headed Chromium on a monitor of the desktop (red 164): each route
+// in turn, round after round — at rest, the wheel down to the page's end and back up — measured by the browser's own
+// trace and the page's long tasks and animation frames, the machine's load beside each phase. The report:
+// target/scroll.report.xdef.json (with `keep_trace`, each phase's trace in target/scroll/).
+struct Scroll {
+    std::filesystem::path    page;             // a site built with its engine (oweb site.build --engine)
+    std::vector<std::string> paths;            // its routes, visited in turn ("/long/", "/start/")
+    int                      rounds = 2;
+    std::string              screen;           // the monitor (RANDR's name: HDMI-0); empty: the primary
+    int                      width = 1280, height = 900;  // the window's
+    double                   speed = 3000;     // how fast the wheel turns, px a second
+    std::string              query;            // after each route's address (?renderer=cpu)
+    std::vector<std::string> flags;            // more switches for Chromium
+    bool                     headless = false;  // no window: a headless Chromium (not a performance number)
+    bool                     keep_trace = false;
+};
+[[nodiscard]] int scroll(const std::filesystem::path& root, const Scroll& asked);
+
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.
 [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);
 

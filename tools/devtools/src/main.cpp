@@ -365,6 +365,18 @@ cmd::App app() {
                                         .option(Option("page").takes_value().value_name("DIR").help("the built page (omui build --web --look), or a built site whose pages load a program (oweb site.build --engine)"))
                                         .option(Option("path").takes_value().value_name("/ROUTE/").help("the page among a site's (default: /)"))
                                         .option(Option("widths").takes_value().value_name("W,W").help("the window's widths (default: 1280,768,390)")))
+                        .subcommand(cmd::App("scroll")
+                                        .description("A built site's pages scrolled by the wheel in a headed Chromium on a monitor: each route in turn, round after round, at rest and down and up — the browser's own frames, tasks and layouts, the machine's load beside each")
+                                        .option(Option("page").takes_value().value_name("DIR").help("a site built with its engine (oweb site.build --engine)"))
+                                        .option(Option("paths").takes_value().value_name("/A/,/B/").help("its routes, visited in turn (default: /)"))
+                                        .option(Option("rounds").takes_value().value_name("N").help("how many times each (default: 2)"))
+                                        .option(Option("screen").takes_value().value_name("MONITOR").help("the monitor the window opens on (RANDR's name: HDMI-0; default: the primary)"))
+                                        .option(Option("size").takes_value().value_name("W,H").help("the window's size (default: 1280,900)"))
+                                        .option(Option("speed").takes_value().value_name("PX").help("how fast the wheel turns, px a second (default: 3000)"))
+                                        .option(Option("query").takes_value().value_name("?Q").help("after each route's address (?renderer=cpu)"))
+                                        .option(Option("flag").takes_value().multiple().value_name("SWITCH").help("a switch for Chromium (--flag=--enable-unsafe-webgpu)"))
+                                        .option(Option("headless").help("no window (not a performance number)"))
+                                        .option(Option("trace").help("each phase's trace kept for Perfetto (target/scroll/)")))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
                                         .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))
@@ -1739,6 +1751,33 @@ int main(int argc, char** argv) {
                 if (std::from_chars(digits.data(), digits.data() + digits.size(), width).ec == std::errc{} && width > 0) widths.push_back(width);
             }
             return step::takeover(root, mcpplibs::os::fs::from_utf8(*given.value("page")), given.value("path").value_or("/"), widths);
+        }
+        if (sub.subcommand_name() == "scroll") {
+            if (!given.value("page")) {
+                std::cerr << "omui-devtools check scroll: --page DIR (a site built with its engine: oweb site.build --engine)\n";
+                return 2;
+            }
+            step::Scroll asked;
+            asked.page = mcpplibs::os::fs::from_utf8(*given.value("page"));
+            for (const auto part : std::views::split(given.value("paths").value_or("/"), ',')) asked.paths.emplace_back(part.begin(), part.end());
+            const auto whole = [](std::string_view digits, int fallback) {
+                int value = 0;
+                return std::from_chars(digits.data(), digits.data() + digits.size(), value).ec == std::errc{} && value > 0 ? value : fallback;
+            };
+            asked.rounds = whole(given.value("rounds").value_or(""), 2);
+            asked.screen = given.value("screen").value_or("");
+            if (const auto size = given.value("size")) {
+                const std::string_view text = *size;
+                const auto comma = text.find(',');
+                asked.width = whole(text.substr(0, comma), asked.width);
+                if (comma != std::string_view::npos) asked.height = whole(text.substr(comma + 1), asked.height);
+            }
+            asked.speed = whole(given.value("speed").value_or(""), 3000);
+            asked.query = given.value("query").value_or("");
+            asked.flags = given.option_or_empty("flag").values;
+            asked.headless = given.is_flag_set("headless");
+            asked.keep_trace = given.is_flag_set("trace");
+            return step::scroll(root, asked);
         }
         if (sub.subcommand_name() == "web") return step::web(root, given.value("profile").value_or("wasm-test"));
         if (sub.subcommand_name() == "reflect") return step::reflect(root, given.value("profile").value_or("dev"));

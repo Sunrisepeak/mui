@@ -14,6 +14,8 @@ import omui.semantic;
 import omui.agent;
 import omui.player;
 import mlibs.agent;
+import mrender.raster;
+import hanim.timeline;
 import :views;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -700,6 +702,141 @@ private:
             .set("script", generic_utf8(script_file));
     }
 
+    // The design's history as a show (FE4; the presentation design's §4.2, D-282): the facts are measured here, the
+    // decisions are hanim's. Each step the film's script keeps is run in an unseen twin and settled; its beat is what
+    // it changed from the step kept before it — the regions of the picture whose pixels differ (in the window's
+    // logical pixels, a region weighing the pixels that differ in it), its nodes by what happened to them (added,
+    // removed, their words changed, their place changed, anything else) and its caption. The first step changes the
+    // whole picture. hanim::timeline::direct makes the show of them under the design's rules (`<branch>.direction
+    // .xdef.json` beside the film's script, when there is one; every default otherwise), written as a timeline.
+    std::expected<Value, std::string> show(const Value& args) {
+        // The steps: the film's script over the branch's commits, or a replay as a release ships it (`replay`: its
+        // steps' texts and captions, every one kept; what a page plays in place).
+        struct Step {
+            std::string                        label;  // what a failure names
+            std::map<std::string, std::string> texts;
+            std::string                        caption;
+            bool                               keep = true;
+        };
+        std::vector<Step> steps;
+        std::string branch;
+        std::filesystem::path beside;  // where the rules and the timeline go by default
+        std::string script_named;      // what answers name as the steps' source
+        if (const Value* named = args.get("replay"); named && !named->as_string().empty()) {
+            const std::filesystem::path file = path_of(named->as_string());
+            std::ifstream in{file, std::ios::binary};
+            if (!in) return std::unexpected(std::format("{}: no such file (a replay@1 file: design.history.export writes one)", named->as_string()));
+            const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            auto replay = mlibs::agent::read_replay(text, generic_utf8(file));
+            if (!replay) return std::unexpected(replay.error());
+            branch = replay->branch.empty() ? std::string("main") : replay->branch;
+            beside = file.parent_path();
+            script_named = generic_utf8(file);
+            for (std::size_t index = 0; index < replay->steps.size(); ++index)
+                steps.push_back({std::format("step {}", index + 1), std::move(replay->steps[index].texts), std::move(replay->steps[index].caption)});
+        } else {
+            auto script = script_of(args);
+            if (!script) return std::unexpected(script.error());
+            branch = script->branch;
+            beside = history.directory() / "film";
+            script_named = generic_utf8(script->file);
+            for (std::size_t index = 0; index < script->shots.size(); ++index) {
+                auto texts = history.texts_of(script->commits[index].id);
+                if (!texts) return std::unexpected(texts.error());
+                steps.push_back({script->commits[index].id.substr(0, 8), std::move(*texts), script->shots[index].caption, script->shots[index].keep});
+            }
+        }
+        auto made = twin(false);
+        if (!made) return std::unexpected(made.error().text());
+        Twin& shown = **made;
+        const Size window = shown.runtime().size();
+        const double scale = std::max(0.25f, shown.runtime().scale());
+        std::vector<hanim::timeline::Beat> beats;
+        std::optional<mrender::raster::Surface> picture;  // the step kept before, as drawn
+        std::optional<semantic::Snapshot> nodes;          // and its nodes
+        for (const Step& step : steps) {
+            // A step left out is still run (the next builds on it); what it changed is the next kept step's.
+            if (auto ran = shown.player().show(step.texts); !ran) return std::unexpected(std::format("{}: {}", step.label, ran.error()));
+            shown.settle();
+            if (!step.keep) continue;
+            semantic::Tree tree(shown.runtime());
+            semantic::Snapshot now = tree.snapshot();
+            hanim::timeline::Beat beat{.source = std::format("design:{}#{}", branch, beats.size() + 1), .caption = step.caption};
+            if (!picture) {
+                beat.regions.push_back({0, 0, window.width, window.height});
+                beat.appeared = static_cast<std::uint32_t>(now.nodes.size());
+            } else {
+                for (const mrender::raster::ChangedRegion& region : mrender::raster::changed_regions(*picture, shown.pixels()))
+                    beat.regions.push_back({region.x / scale, region.y / scale, region.width / scale, region.height / scale, static_cast<double>(region.pixels)});
+                const Value changes = semantic::changes_between(*nodes, now);
+                const auto count = [&](std::string_view kind) {
+                    const Value* list = changes.get(kind);
+                    return list && list->list() ? static_cast<std::uint32_t>(list->list()->size()) : 0u;
+                };
+                beat.appeared = count("added");
+                beat.removed = count("removed");
+                std::set<std::string, std::less<>> changed;
+                if (const Value* list = changes.get("changed"); list && list->list())
+                    for (const Value& node : *list->list()) {
+                        changed.emplace(node.get("id")->as_string());
+                        const Value* fields = node.get("fields");
+                        const bool words = fields && (fields->get("name") || fields->get("value") || fields->get("description"));
+                        ++(words ? beat.retexted : beat.restyled);
+                    }
+                // A node in both whose box moved, with nothing else said of it: moved.
+                std::map<std::string_view, const spec::SemanticNode*> was;
+                for (const auto& node : nodes->nodes)
+                    if (node.bounds) was.emplace(node.id, &node);
+                for (const auto& node : now.nodes)
+                    if (const auto there = was.find(node.id); there != was.end() && node.bounds && !changed.contains(node.id) && !(node.bounds == there->second->bounds))
+                        ++beat.moved;
+            }
+            picture = shown.pixels();
+            nodes = std::move(now);
+            beats.push_back(std::move(beat));
+        }
+        if (beats.empty()) return std::unexpected(std::format("no step of `{}` is kept ({})", branch, script_named));
+        // The rules: the design's own, else every default.
+        const std::string rules_text(args.get("direction") ? args.get("direction")->as_string() : std::string());
+        const std::filesystem::path rules_file =
+            rules_text.empty() ? beside / std::format("{}.direction.xdef.json", branch) : path_of(rules_text);
+        hanim::timeline::Direction rules;
+        if (std::ifstream in{rules_file, std::ios::binary}) {
+            const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            auto read = hanim::timeline::read_direction(text, generic_utf8(rules_file));
+            if (!read) return std::unexpected(read.error().front().text());
+            rules = *read;
+        } else if (!rules_text.empty()) {
+            return std::unexpected(std::format("{}: no such file (a direction@1 file; leave `direction` out for the defaults)", rules_text));
+        }
+        hanim::timeline::Timeline timeline =
+            hanim::timeline::direct(beats, static_cast<std::int32_t>(std::lround(window.width)), static_cast<std::int32_t>(std::lround(window.height)), rules);
+        timeline.name = std::format("{} — {}", player.manifest().title.empty() ? player.manifest().id : player.manifest().title, branch);
+        const std::string out_text(args.get("out") ? args.get("out")->as_string() : std::string());
+        const std::filesystem::path out = out_text.empty() ? beside / std::format("{}.show.timeline.xdef.json", branch) : path_of(out_text);
+        std::error_code error;
+        if (out.has_parent_path()) std::filesystem::create_directories(out.parent_path(), error);
+        std::ofstream(out, std::ios::binary) << hanim::timeline::write_timeline(timeline);
+        if (!std::filesystem::exists(out)) return std::unexpected(std::format("{}: not written", generic_utf8(out)));
+        // What the show is: its beats, how long, how much of it shows a change, how often the camera moves.
+        std::size_t still = 0;
+        for (const auto& beat : beats) still += beat.regions.empty() ? 1 : 0;
+        const auto& camera = *std::ranges::find(timeline.tracks, "camera", &hanim::timeline::Track::name);
+        const std::size_t moves = camera.clips.empty() ? 0 : (camera.clips.front().properties.front().keys.keys().size() - 1) / 2;
+        Value::List lengths;
+        for (const auto& clip : timeline.tracks.front().clips) lengths.push_back(Value(mlibs::time::to_seconds(clip.length)));
+        return Value{}
+            .set("timeline", generic_utf8(out))
+            .set("branch", branch)
+            .set("beats", static_cast<std::int64_t>(beats.size()))
+            .set("still", static_cast<std::int64_t>(still))
+            .set("seconds", mlibs::time::to_seconds(timeline.duration()))
+            .set("lengths", Value(std::move(lengths)))
+            .set("moves", static_cast<std::int64_t>(moves))
+            .set("rules", std::filesystem::exists(rules_file) ? Value(generic_utf8(rules_file)) : Value("defaults"))
+            .set("steps_from", script_named);
+    }
+
     // A motion measured (design.expect's `motion`, §2.12.4): the action done
     // in a twin of the design as it runs, then the node's drawn box sampled
     // every 1/120 s until it rests — where it went from and to, when it
@@ -962,6 +1099,7 @@ private:
             return Value{}.set("intent", intent).set("branch", history.head_branch()).set("commit", start ? Value(start->id) : Value{});
         });
         add("design.film", [this](const Value& args) -> VerbResult { return film(args); });
+        add("design.show", [this](const Value& args) -> VerbResult { return show(args); });
         add("design.history.export", [this](const Value& args) -> VerbResult { return export_replay(args); });
         add("design.timeline", [this](const Value& args) -> VerbResult {
             std::size_t pictured = 0;

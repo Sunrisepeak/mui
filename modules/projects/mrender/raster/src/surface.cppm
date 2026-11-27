@@ -73,6 +73,19 @@ private:
     std::vector<Rgba8> pixels_;
 };
 
+// Where two pictures differ (a step's beat, D-282: what a design step changed on screen): the tiles of `tile` pixels
+// in which any pixel differs, a run of them across a row of tiles one region and a region carried down while the next
+// row's run spans the same tiles, each region with how many of its pixels differ; ordered top to bottom, left to right.
+// Pictures of different sizes differ everywhere: one region, the later picture whole. A pure function.
+struct ChangedRegion {
+    int           x = 0, y = 0, width = 0, height = 0;
+    std::uint64_t pixels = 0;
+    friend constexpr bool operator==(const ChangedRegion& a, const ChangedRegion& b) noexcept {
+        return a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height && a.pixels == b.pixels;
+    }
+};
+[[nodiscard]] std::vector<ChangedRegion> changed_regions(const Surface& before, const Surface& after, int tile = 16);
+
 class Mask {
 public:
     Mask() = default;

@@ -50,6 +50,7 @@ public:
         host_.settle();
     }
     std::expected<std::vector<std::uint8_t>, ViewFailure> png() override { return host_.png(); }
+    const mrender::raster::Surface& pixels() override { return host_.pixels(); }
     std::expected<std::vector<std::uint8_t>, ViewFailure> framed_png(Rect frame, std::string_view fixed) override { return host_.framed_png(frame, fixed); }
 
 private:

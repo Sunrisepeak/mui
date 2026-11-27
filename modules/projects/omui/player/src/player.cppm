@@ -18,6 +18,7 @@ import omui.core;
 import omui.view;
 import omui.abi;
 import omui.semantic;
+import mrender.raster;
 
 export namespace omui::player {
 
@@ -138,6 +139,8 @@ public:
     // Its scripts done, nothing moving.
     virtual void settle() = 0;
     [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, ViewFailure> png() = 0;
+    // Its picture as drawn (device pixels, the runtime's scale): what a step changed is read from two of them.
+    [[nodiscard]] virtual const mrender::raster::Surface& pixels() = 0;
     // Its picture with a camera on `frame` (logical pixels): that region filling the window (a film's
     // close-up), the slot `fixed` (a caption) drawn over it as it is.
     [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, ViewFailure> framed_png(Rect frame, std::string_view fixed) = 0;

@@ -12,6 +12,7 @@ import omui.semantic;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.image;
+import hanim.timeline;
 import mlibs.agent;
 import mlibs.testing;
 import mcpplibs.mtest;
@@ -110,6 +111,7 @@ public:
     void step(std::optional<seconds> at) override { (void)host_.step({}, at); }
     void settle() override { host_.settle(); }
     std::expected<std::vector<std::uint8_t>, omui::ViewFailure> png() override { return host_.png(); }
+    const mrender::raster::Surface& pixels() override { return host_.pixels(); }
     std::expected<std::vector<std::uint8_t>, omui::ViewFailure> framed_png(Rect frame, std::string_view fixed) override {
         cameras.push_back(frame);
         return host_.framed_png(frame, fixed);
@@ -669,6 +671,80 @@ static UTest cases{"designer", [] {
             << replay->steps[0].caption;
         expect(eq(replay->steps[1].caption, std::string("The end")) && eq(replay->steps[1].seconds, 1.0) && replay->steps[1].texts.at("logic/side.stub").contains("\"three\""));
         expect(replay->steps[0].texts.at("logic/side.stub").contains("\"one\"")) << "each step the texts as they were then";
+    };
+
+    "the design as a show: each kept step's beat measured in a twin, the timeline hanim's director makes of them, its rules the design's"_test = [] {
+        const auto dir = scratch_dir("designer-show");
+        std::error_code error;
+        std::filesystem::remove_all(dir / ".omui", error);
+        const std::string doc = R"j({"omui": "0.1", "view": {"root": {"type": "column", "children": [
+  {"type": "text", "id": "hello", "props": {"text": "one"}}]}}}
+)j";
+        write(dir / "logic" / "side.stub", doc);
+        player::Manifest m;
+        m.id = "org.openmui.designer-show";
+        m.base = dir;
+        m.scripts = {{"stub", "logic/side.stub"}};
+        Headless h(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true, .twin = stub_twins(m)});
+        expect(p.start().has_value());
+        h.settle();
+        const auto invoke = [&](std::string_view verb, Value args) {
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"agent", "designer", {}};
+            const Envelope answer = h.runtime().verbs().invoke(verb, call);
+            h.settle();
+            return std::pair{answer.exit_code().value_or(-1), answer.data_value() ? *answer.data_value() : Value{answer.ndjson()}};
+        };
+        expect(eq(invoke("design.begin", Value{}.set("intent", "a show")).first, 0));
+        std::string text = doc;
+        text.replace(text.find("\"one\""), 5, "\"two\"");  // its words, in a small place
+        expect(eq(invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", text)).first, 0));
+        text.replace(text.rfind("}]}}}"), 5, R"j(},
+  {"type": "text", "id": "more", "props": {"text": "a second line of words"}}]}}})j");  // a node added
+        expect(eq(invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", text).set("say", "a second line")).first, 0));
+
+        const auto [made, answer] = invoke("design.show", Value(Value::Map{}));
+        expect(eq(made, 0)) << answer.json();
+        expect(answer.get("beats") && answer.get("beats")->as_int() == 3 && answer.get("still")->as_int() == 0) << answer.json();
+        expect(eq(std::string(answer.get("rules")->as_string()), std::string("defaults")));
+        const auto file = dir / ".omui" / "design" / "film" / "main.show.timeline.xdef.json";
+        const auto show = hanim::timeline::read_timeline(file_text(file), "main.show.timeline.xdef.json");
+        expect(fatal(show.has_value())) << (show ? std::string() : show.error().front().text());
+        expect(show->width == 320 && show->height == 240 && hanim::timeline::check(*show).empty());
+        const auto& states = show->tracks.front();
+        expect(fatal(states.name == "states" && states.clips.size() == 3));
+        std::vector<std::string> names;
+        for (const auto& clip : states.clips) names.push_back(clip.name);
+        // The first step shows the page whole (added); then its words; then a node added.
+        expect(names == std::vector<std::string>{"settle_in", "morph", "settle_in"}) << std::format("{}", names);
+        expect(eq(states.clips[1].source, std::string("design:main#2")));
+        expect(answer.get("moves")->as_int() >= 1) << "pushed in on the small change: " << answer.json();
+        const auto& captions = *std::ranges::find(show->tracks, "captions", &hanim::timeline::Track::name);
+        expect(eq(captions.clips.size(), std::size_t{3}) && captions.clips.back().name.contains("a second line")) << "each step's words";
+        expect(eq(name_of(h, "side/hello"), std::string("two"))) << "what the person sees untouched";
+
+        // The design's own rules, beside the script: read and followed.
+        std::ofstream(dir / ".omui" / "design" / "film" / "main.direction.xdef.json", std::ios::binary)
+            << R"({"$format": "direction@1", "direction": {"appear": "rise_in", "longest": 1.2}})";
+        const auto [again, ruled] = invoke("design.show", Value(Value::Map{}));
+        expect(eq(again, 0) && ruled.get("rules")->as_string().ends_with("main.direction.xdef.json")) << ruled.json();
+        const auto ruled_show = hanim::timeline::read_timeline(file_text(file), "main.show.timeline.xdef.json");
+        expect(fatal(ruled_show.has_value()));
+        expect(eq(ruled_show->tracks.front().clips.front().name, std::string("rise_in")) &&
+               ruled_show->tracks.front().clips.front().length <= mlibs::time::from_seconds(1.2))
+            << "the design's rules";
+        std::ofstream(dir / ".omui" / "design" / "film" / "main.direction.xdef.json", std::ios::binary) << R"({"$format": "direction@1", "direction": {"stil": 1}})";
+        const auto [refused, why] = invoke("design.show", Value(Value::Map{}));
+        expect(refused != 0 && why.json().contains("still")) << "a rule misspelt is refused with the right word: " << why.json();
+
+        // A replay as a release ships it, measured as it is: its steps, every one kept; the timeline beside it.
+        expect(eq(invoke("design.history.export", Value(Value::Map{})).first, 0));
+        const auto replay_file = dir / ".omui" / "design" / "main.replay.xdef.json";
+        const auto [replayed, from_replay] = invoke("design.show", Value{}.set("replay", generic_utf8(replay_file)));
+        expect(eq(replayed, 0) && from_replay.get("beats")->as_int() == 3 && from_replay.get("rules")->as_string() == "defaults") << from_replay.json();
+        expect(std::filesystem::exists(dir / ".omui" / "design" / "main.show.timeline.xdef.json")) << "beside the replay";
     };
 
     "a motion expected and measured in a twin: how long it took, how far it sprang past — a fact against the person's words; fixed, it holds"_test = [] {

@@ -119,6 +119,7 @@ namespace omui::agent::design {
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_variants{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_variants_pick{…};
   inline constexpr std::array<mlibs::control::Parameter, 5> parameters_design_film{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_design_show{…};
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_timeline{…};
   inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_history_commit{…};
@@ -132,7 +133,7 @@ namespace omui::agent::design {
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_expect{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_save_scenario{…};
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_replay{…};
-  inline constexpr std::array<mlibs::control::CatalogEntry, 33> catalog{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 34> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
 }
 namespace omui::agent::design {

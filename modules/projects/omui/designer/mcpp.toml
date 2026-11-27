@@ -40,6 +40,9 @@ mlibs.agent   = { path = "../../../base/agent" }
 omui.viewdoc  = { path = "../viewdoc" }
 mcpplibs.os   = "0.4.8"
 mlibs.json    = { path = "../../../base/json" }
+# The show (design.show, FE4): a step's changed regions read from two pictures, the timeline directed from them.
+mrender.raster = { path = "../../mrender/raster" }
+hanim.timeline = { path = "../../hanim/timeline" }
 mlibs.utils   = { path = "../../../base/utils" }
 
 [test]

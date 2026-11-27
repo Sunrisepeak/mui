@@ -159,7 +159,7 @@ UTest cases{"mcp", [] {
             expect(eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui")));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        expect(tools && tools->list() && tools->list()->size() == 72) << "twenty ui_* tools (ui_apps and nineteen of the protocol's operations), Live Design's thirty-three, runtime generation's sixteen and the tasks' three (nothing runs: all listed)";
+        expect(tools && tools->list() && tools->list()->size() == 73) << "twenty ui_* tools (ui_apps and nineteen of the protocol's operations), Live Design's thirty-four, runtime generation's sixteen and the tasks' three (nothing runs: all listed)";
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -170,7 +170,7 @@ UTest cases{"mcp", [] {
                                                   "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_describe", "ui_redo",
                                                   "ui_timeline", "ui_explain", "ui_reload", "ui_record", "design_begin", "design_sources", "design_api",
                                                   "design_locate", "design_edit", "design_set", "design_insert", "design_remove", "design_preview", "design_preview_accept", "design_preview_reject", "design_variants",
-                                                  "design_variants_pick", "design_variants_close", "design_film", "design_timeline", "design_history", "design_history_commit", "design_history_branch",
+                                                  "design_variants_pick", "design_variants_close", "design_film", "design_show", "design_timeline", "design_history", "design_history_commit", "design_history_branch",
                                                   "design_history_switch", "design_history_revert", "design_history_diff", "design_history_merge", "design_history_tag", "design_history_export", "design_expect", "design_check", "design_handover", "design_save_scenario",
                                                   "design_replay", "design_discard", "design_commit", "design_pace",
                                                   "generate_surfaces", "generate_draft", "generate_preview", "generate_commit", "generate_restore",
@@ -215,7 +215,7 @@ UTest cases{"mcp", [] {
         serve(notes.h, server, c);
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
         expect(tools && tools->list() && tools->list()->size() == 20) << (tools ? tools->json() : std::string("<none>"));
-        expect(eq(server.tools().size(), std::size_t{72})) << "every tool still known";
+        expect(eq(server.tools().size(), std::size_t{73})) << "every tool still known";
         expect(c.reply(3) && c.error(3)) << "a tool not listed answers as a verb the application lacks";
     };
 

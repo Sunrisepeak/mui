@@ -249,6 +249,12 @@ namespace mrender::raster {
     void resize(int width, int height);
     [[nodiscard]] std::uint64_t hash() const noexcept;
   };
+  struct ChangedRegion {
+    int x = 0, y = 0, width = 0, height = 0;
+    std::uint64_t pixels = 0;
+    friend constexpr bool operator==(const ChangedRegion& a, const ChangedRegion& b) noexcept;
+  };
+  [[nodiscard]] std::vector<ChangedRegion> changed_regions(const Surface& before, const Surface& after, int tile = 16);
   class Mask {
     Mask() = default;
     Mask(int width, int height, std::uint8_t fill = 0);

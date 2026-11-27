@@ -191,6 +191,21 @@ export default defineOps({
       undo: "delete the directory it names",
     },
     {
+      name: "design.show",
+      effect: "reversible",
+      summary: "The design's history as a show (FE4, D-282): each step the film's script keeps run in an unseen twin of the application, its beat measured — the regions of the picture it changed, its nodes by what happened to them (added, removed, words, place, the rest), its caption — and hanim's director makes the show's timeline of them: how long each beat lasts (a beat with no visible change 0.3 s, its words joined to the next), where the camera looks (pushed in on a small change, kept for a place close by), the transition into each step. Written as a timeline (<branch>.show.timeline.xdef.json) that the film and the page play; the rules are <branch>.direction.xdef.json beside the script, or every default",
+      params: [
+        { name: "branch", type: "string", doc: "whose commits (the one designed on when absent)", optional: true },
+        { name: "out", type: "path", doc: "the timeline (.omui/design/film/<branch>.show.timeline.xdef.json)", optional: true },
+        { name: "direction", type: "path", doc: "the director's rules, direction@1 (<branch>.direction.xdef.json beside the steps when there is one)", optional: true },
+        { name: "script", type: "path", doc: "the film's script, edited (.omui/design/film/<branch>.film.xdef.json)", optional: true },
+        { name: "replay", type: "path", doc: "measure a replay's steps instead (replay@1, as a release ships it); the timeline is written beside it", optional: true },
+      ],
+      result: "json",
+      cost: "heavy",
+      undo: "delete the file it names",
+    },
+    {
       name: "design.timeline",
       effect: "reversible",
       summary: "The design's history and its time in one picture, shown over the application (D-151): a lane for each branch, its commits by when they were made with their pictures; a commit pressed is seen, ◀ ▶ go through time, two compared. Answers the same as data; `at` sees a commit, `step` goes back or forward, `pictures` makes the latest commits' pictures in stand-ins",

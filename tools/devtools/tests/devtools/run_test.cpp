@@ -7,6 +7,7 @@ import mcpplibs.os;
 import omui.devtools.check;
 import omui.devtools.consumer;
 import omui.devtools.run;
+import mlibs.apart;
 
 using namespace mcpplibs::mtest;
 namespace run = omui::devtools::run;
@@ -90,15 +91,17 @@ UTest shader_cases{"devtools.check.shaders", [] {
         std::ofstream(scratch / "pass_shaders.cppm") << "inline constexpr mlibs::rhi::ShaderDesc vs_main{\n    .stage = mlibs::rhi::Stage::vertex,\n};\n"
                                                      << "inline constexpr std::array<std::byte, 11> vs_main_wgsl{" << bytes("fn vs() {}\n") << "};\n"
                                                      << "inline constexpr std::array<std::byte, 9> vs_main_essl{" << bytes("void m(){}") << "};\n"
+                                                     << "inline constexpr std::array<std::byte, 30> fs_main_wgsl{" << bytes(mlibs::apart::mark("wgsl", 11) + "fn fs() {}\n") << "};\n"
                                                      << "inline constexpr std::array<std::byte, 2> other_spirv{0x01, 0x02};\n";
         const std::vector<std::filesystem::path> partitions{scratch / "pass_shaders.cppm"};
         const auto script = check::shader_check_script(partitions);
         std::filesystem::remove_all(scratch);
         expect(script.has_value()) << script.error_or("");
         if (!script) return;
-        expect(script->contains(R"(var wgsl = {"pass_shaders:vs_main":"fn vs() {}\n"};)")) << script->substr(0, 400);
+        expect(script->contains(R"(var wgsl = {"pass_shaders:fs_main":"fn fs() {}\n","pass_shaders:vs_main":"fn vs() {}\n"};)")) << script->substr(0, 400);
         expect(script->contains(R"("pass_shaders:vs_main":{"code":"void m(){}","file":"pass_shaders","stage":"vertex"})")) << script->substr(0, 400);
-        expect(script->contains("1 WGSL and 1 ESSL entry points") && !script->contains("spirv"));
+        expect(script->contains(R"("pass_shaders:fs_main":"fn fs() {}\n")")) << "a marked text read after its mark (mlibs.apart, as mlibs.shader writes it)";
+        expect(script->contains("2 WGSL and 1 ESSL entry points") && !script->contains("spirv"));
         expect(!check::shader_check_script(std::vector<std::filesystem::path>{}).has_value());
     };
 }};

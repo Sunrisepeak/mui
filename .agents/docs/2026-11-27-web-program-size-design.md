@@ -135,7 +135,7 @@
 
 **③ 业界做法。** 用 Emscripten 的通用机制（数据段、`--embed-file`、`--preload-file`）把着色器随程序一起发，每种后端的变体都在包里。没有取。
 
-**实施**（提交 `a4f43f13` 为第一步，字节与验证为第二步）：`mlibs.apart`（mlibs.utils）；`mlibs.shader` 的 `emit_cpp`；`omui-gen` 的 `carry_apart`（`omui.gen.part`）与 `dist_toy`（写旁边的文件、加载器的 `Module.omuiApart`；“部分”的切分读打包后的程序）；`mrender.rhi.webgpu` 与 `mrender.rhi.webgl` 的页面一侧（`start` 里取自己那一套，`text()` 按地址读）。
+**实施**（提交 `a4f43f13` 为第一步，字节与验证为第二步）：`mlibs.apart`（mlibs.utils）；`mlibs.shader` 的 `emit_cpp`；`omui-gen` 的 `carry_apart`（`omui.gen.part`）与 `dist_toy`（写旁边的文件、加载器的 `Module.omuiApart`；“部分”的切分读打包后的程序）；`mrender.rhi.webgpu` 与 `mrender.rhi.webgl` 的页面一侧（`start` 里取自己那一套，`text()` 按地址读）。`omui-devtools check browser` 从生成的分区里取每个入口的文字时，取标记之后的那一段（与 `ShaderCode` 的范围一致）。
 
 **结果**（2026-11-27，本机 Linux x64，emsdk 6.0.9；阅读器 `mcpp pack --profile web`，文档模板 `site.build --engine` 用它，`site.delivery.xdef.json` 的行，mlibs.delivery 的 gzip）：
 

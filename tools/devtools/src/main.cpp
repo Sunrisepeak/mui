@@ -365,6 +365,12 @@ cmd::App app() {
                                         .option(Option("page").takes_value().value_name("DIR").help("the built page (omui build --web --look), or a built site whose pages load a program (oweb site.build --engine)"))
                                         .option(Option("path").takes_value().value_name("/ROUTE/").help("the page among a site's (default: /)"))
                                         .option(Option("widths").takes_value().value_name("W,W").help("the window's widths (default: 1280,768,390)")))
+                        .subcommand(cmd::App("doors")
+                                        .description("A built site's four doors held to one answer: fetching its files, the oweb command, the tools its page offers, connected to the page by omui connect")
+                                        .option(Option("page").takes_value().value_name("DIR").help("the built site whose pages load a program (oweb site.build --engine)"))
+                                        .option(Option("path").takes_value().value_name("/ROUTE/").help("the page among the site's (default: /)"))
+                                        .option(Option("oweb").takes_value().value_name("PATH").help("this oweb program rather than oweb built here"))
+                                        .option(Option("omui").takes_value().value_name("PATH").help("this omui program rather than omui.cli built here")))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
                                         .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))
@@ -1739,6 +1745,14 @@ int main(int argc, char** argv) {
                 if (std::from_chars(digits.data(), digits.data() + digits.size(), width).ec == std::errc{} && width > 0) widths.push_back(width);
             }
             return step::takeover(root, mcpplibs::os::fs::from_utf8(*given.value("page")), given.value("path").value_or("/"), widths);
+        }
+        if (sub.subcommand_name() == "doors") {
+            if (!given.value("page")) {
+                std::cerr << "omui-devtools check doors: --page DIR (a built site whose pages load a program: oweb site.build --engine)\n";
+                return 2;
+            }
+            return step::doors(root, mcpplibs::os::fs::from_utf8(*given.value("page")), given.value("path").value_or("/"), mcpplibs::os::fs::from_utf8(given.value("oweb").value_or("")),
+                               mcpplibs::os::fs::from_utf8(given.value("omui").value_or("")));
         }
         if (sub.subcommand_name() == "web") return step::web(root, given.value("profile").value_or("wasm-test"));
         if (sub.subcommand_name() == "reflect") return step::reflect(root, given.value("profile").value_or("dev"));

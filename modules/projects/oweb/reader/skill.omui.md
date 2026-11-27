@@ -4,7 +4,7 @@ How an Agent inside a page of a site asks the site — the subject `site` the pa
 
 ## Before
 
-1. The page has taken its program (a route that loads it `eager` has at once; one that waits takes it at the first thing only a program answers). The subject is asked on the connection the page's interface is asked on: beside `ui.*`, by its operations' whole names.
+1. The page has taken its program (a route that loads it `eager` has at once; one that waits takes it at the first thing only a program answers). The subject is asked where the page's interface is asked, by its operations' whole names: in the page, `window.omui.request({op: "site.describe"})`, or the tools the page offers a browser's agent (WebMCP: `site_describe`, `routes_list`, `page_read`, `docs_search`); connected by `omui connect <the page's code>`, `omui page call '{"op":"site.describe"}'`. `{"op":"subjects"}` says who is there.
 2. Nothing of the site is fetched until something is asked. The first asking fetches the table it needs (the routes, or the search's index), once.
 
 ## Reading

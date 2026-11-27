@@ -207,6 +207,7 @@ namespace omui::devtools::check {
   [[nodiscard]] int site(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui, std::vector<std::string> parts);
   [[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);
   [[nodiscard]] int takeover(const std::filesystem::path& root, const std::filesystem::path& page, std::string_view path, std::span<const int> widths);
+  [[nodiscard]] int doors(const std::filesystem::path& root, const std::filesystem::path& site, std::string_view path, const std::filesystem::path& oweb, const std::filesystem::path& omui);
   [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);
   [[nodiscard]] std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>& measured, std::string_view budget_text, std::string_view profile = {…}, std::string_view fallback = {…});
   [[nodiscard]] std::vector<std::string> budget_profiles(std::string_view budget_text, std::string_view fallback);

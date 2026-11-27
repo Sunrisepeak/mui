@@ -367,6 +367,13 @@ addToLibrary({
     // say so (readOnlyHint). What needs the person's answer: the draft gives
     // the page no way to ask through the browser, so the page asks the person
     // itself and, if they say yes, sends it again as theirs to allow.
+    //
+    // Beside the interface, what else the program holds (a site's pages, a
+    // game in a viewport — the runtime's other subjects): each operation of
+    // each is a tool too, named as an MCP server names it (`site.describe`:
+    // `site_describe`), its description, input schema and whether it only
+    // reads taken from the subject's own listing — asked of the program once,
+    // when the page begins, again with no line of the application's.
     offerWebMcp: function (omui) {
       var mc = typeof document !== 'undefined' && document.modelContext;
       if (!mc || typeof mc.registerTool !== 'function') return false;
@@ -427,6 +434,28 @@ addToLibrary({
       ];
       tools.forEach(function (t) { mc.registerTool(t); });
       omuiPage.webMcpTools = tools.map(function (t) { return t.name; });
+      // The other subjects' operations, from their listings (`describe` a subject, whole).
+      var offered = function (listed) {
+        return tool(String(listed.name).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 64), listed.description || '',
+                    (listed.inputSchema && listed.inputSchema.properties) || {}, (listed.inputSchema && listed.inputSchema.required) || [],
+                    listed.effect === 'read', function (i) {
+                      var request = Object.assign({}, i || {}, { op: listed.name, actor: actor });
+                      return omui.request(request).then(function (a) { return decided(request, a); });
+                    });
+      };
+      omuiPage.webMcpSubjects = omui.request({ op: 'subjects' }).then(function (here) {
+        var others = ((here.data && here.data.subjects) || []).filter(function (s) { return s && s.name && s.name !== 'ui'; });
+        return Promise.all(others.map(function (s) {
+          return omui.request({ op: 'describe', subject: s.name, detail: 'full' }).then(function (whole) {
+            ((whole.data && whole.data.tools) || []).forEach(function (listed) {
+              var t = offered(listed);
+              if (omuiPage.webMcpTools.indexOf(t.name) >= 0) return;  // a name once
+              mc.registerTool(t);
+              omuiPage.webMcpTools.push(t.name);
+            });
+          });
+        }));
+      });
       return true;
     },
 

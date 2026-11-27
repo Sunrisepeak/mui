@@ -158,6 +158,32 @@ addToLibrary({
       gl.deleteVertexArray(G.vao);
       G.gl = null; G.canvas = null; G.ubo = null; G.uboSize = 0; G.framebuffers = null; G.indexed = null;
       G.buffers = []; G.textures = []; G.samplers = []; G.pipelines = []; G.errors = []; G.lost = '';
+      G.watch = G.WATCHED; G.always = false;
+    },
+
+    // Where GL's errors are read. Reading one (getError) is a round trip to the GPU process: it waits for all the
+    // work before it — a long page scrolled waited 7.7 ms a frame for the two a frame used to read (red 164). So
+    // they are read where that costs nothing more or where an error comes from: a resource made, a readback (it
+    // waits anyway), wait(); and a submission or a present only while watched — the first frames, and the next
+    // ones after anything is made (what a frame does for the first time). A steady frame reads none. GL keeps an
+    // error until it is read, so it is still said, by the first look after it; what is lost is which submission
+    // made it. `always` reads every submission and present (Options::checked; a page with ?gl-checks).
+    WATCHED: 4,           // submissions and presents read after the context is made and after anything is made
+    watch: 4,
+    always: false,
+    look: function (what) {
+      var G = omuiGl;
+      if (!G.always) {
+        if (G.watch <= 0) return true;
+        --G.watch;
+      }
+      return G.check(what);
+    },
+    // A resource made: its errors read now, and the next submissions and presents watched.
+    made: function (what) {
+      var G = omuiGl;
+      G.watch = G.WATCHED;
+      return G.check(what) ? 1 : 0;
     },
 
     // What GL says went wrong since the last look, as an error of `what`.
@@ -514,7 +540,7 @@ addToLibrary({
         }
       }
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      return G.check('the submission') ? 1 : 0;
+      return G.look('the submission') ? 1 : 0;
     },
 
     // Rows of a region from the program's memory, `pitch` bytes apart (0: tight).
@@ -650,7 +676,7 @@ addToLibrary({
       gl.bindBuffer(target, b);
       gl.bufferData(target, size, gl.DYNAMIC_DRAW);
       G.buffers[id] = { buffer: b, size: size, index: index };
-      return G.check('creating a buffer') ? 1 : 0;
+      return G.made('creating a buffer');
     } catch (e) { return G.fail(e); }
   },
 
@@ -672,7 +698,7 @@ addToLibrary({
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       }
       G.textures[id] = t;
-      return G.check('creating a texture') ? 1 : 0;
+      return G.made('creating a texture');
     } catch (e) { return G.fail(e); }
   },
 
@@ -687,7 +713,7 @@ addToLibrary({
       gl.samplerParameteri(s, gl.TEXTURE_WRAP_S, gl[G.ADDRESS[u]]);
       gl.samplerParameteri(s, gl.TEXTURE_WRAP_T, gl[G.ADDRESS[v]]);
       G.samplers[id] = s;
-      return G.check('creating a sampler') ? 1 : 0;
+      return G.made('creating a sampler');
     } catch (e) { return G.fail(e); }
   },
 
@@ -697,7 +723,7 @@ addToLibrary({
     try {
       var w = HEAPU32.slice(words >> 2, (words >> 2) + count);
       G.pipelines[id] = G.graphics(w, UTF8ToString(vs, vsLength), UTF8ToString(fs, fsLength), UTF8ToString(label));
-      return G.check('creating the pipeline') ? 1 : 0;
+      return G.made('creating the pipeline');
     } catch (e) { return G.fail(e); }
   },
 
@@ -758,6 +784,22 @@ addToLibrary({
   omui_webgl_lost__deps: ['$omuiGl'],
   omui_webgl_lost: function () { return omuiGl.lost ? 1 : 0; },
 
+  // Every submission and present read for GL's errors (Options::checked), or as the page asks: an address with
+  // ?gl-checks in it.
+  omui_webgl_checked__deps: ['$omuiGl'],
+  omui_webgl_checked: function (on) {
+    var asked = typeof location !== 'undefined' && /[?&]gl-checks(?:[=&]|$)/.test(location.search || '');
+    omuiGl.always = !!on || asked;
+  },
+
+  // What GL says of the work so far (wait(): a caller that waits wants to know). 1 nothing, 0 an error (said).
+  omui_webgl_settle__deps: ['$omuiGl'],
+  omui_webgl_settle: function () {
+    var G = omuiGl;
+    if (!G.gl) return 1;
+    return G.check('the work before waiting') ? 1 : 0;
+  },
+
   // The frame onto the canvas the context is: flipped (the canvas is GL's,
   // bottom-up), texel for pixel at the same size, filtered when scaled.
   // 1 shown, 0 nothing to show (a canvas of no size), -1 failed.
@@ -773,7 +815,7 @@ addToLibrary({
       var same = t.width === c.width && t.height === c.height;
       gl.blitFramebuffer(0, 0, t.width, t.height, 0, c.height, c.width, 0, gl.COLOR_BUFFER_BIT, same ? gl.NEAREST : gl.LINEAR);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
-      return G.check('presenting') ? 1 : -1;
+      return G.look('presenting') ? 1 : -1;
     } catch (e) { G.fail(e); return -1; }
   },
 });

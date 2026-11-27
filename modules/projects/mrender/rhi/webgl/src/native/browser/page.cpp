@@ -24,6 +24,8 @@ int   omui_webgl_read_buffer(std::uint32_t id, std::uint32_t offset, std::uint32
 char* omui_webgl_error();
 int   omui_webgl_lost();
 int   omui_webgl_present(std::uint32_t id);
+void  omui_webgl_checked(int on);
+int   omui_webgl_settle();
 }
 
 namespace mrender::rhi::webgl { using namespace mlibs::rhi; }  // the interface it implements
@@ -84,5 +86,9 @@ std::string error() { return take(omui_webgl_error()); }
 bool lost() { return omui_webgl_lost() != 0; }
 
 int present(std::uint32_t texture) { return omui_webgl_present(texture); }
+
+void checked(bool on) { omui_webgl_checked(on ? 1 : 0); }
+
+bool settle() { return omui_webgl_settle() != 0; }
 
 }  // namespace mrender::rhi::webgl::page

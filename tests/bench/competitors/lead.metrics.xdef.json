@@ -902,6 +902,144 @@
         "icu4x"
       ],
       "status": "planned"
+    },
+    {
+      "project": "oweb",
+      "id": "site.build.ms",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the build's wall time, nothing written before it",
+      "better": "lower",
+      "key": "docs",
+      "field": "build_ms",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured",
+      "doc": "--- oweb: a site of documents (documents alone; then with the program that draws them) ---"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.transfer.bytes",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): what a route transfers on a cold visit, scripts on (the median route)",
+      "better": "lower",
+      "key": "docs",
+      "field": "route_transfer_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.blocking.bytes",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): what a route's first paint waits for: the document and what the browser marks as blocking the rendering",
+      "better": "lower",
+      "key": "docs",
+      "field": "route_blocking_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.requests",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the requests of a cold visit of a route",
+      "better": "lower",
+      "key": "docs",
+      "field": "route_requests",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.fcp.mobile.ms",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): a route's first contentful paint under Lighthouse's mobile profile (1.6 Mbps, 150 ms, 4× CPU)",
+      "better": "lower",
+      "key": "docs",
+      "field": "fcp_ms",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.lcp.mobile.ms",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): a route's largest contentful paint under the same profile",
+      "better": "lower",
+      "key": "docs",
+      "field": "lcp_ms",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.written.bytes",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the whole site as stored",
+      "better": "lower",
+      "core": false,
+      "key": "docs",
+      "field": "written_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.engine.route.transfer.bytes",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the same route once its page has taken the program that draws and operates it (oweb.reader), against their pages with their scripts",
+      "better": "lower",
+      "key": "docs",
+      "field": "route_transfer_bytes",
+      "ours": "oweb-engine",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.engine.build.ms",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the build with every page written as its frame looks, for the program to take over",
+      "better": "lower",
+      "core": false,
+      "key": "docs",
+      "field": "build_ms",
+      "ours": "oweb-engine",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
     }
   ]
 }

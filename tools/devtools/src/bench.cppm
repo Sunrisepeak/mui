@@ -43,6 +43,12 @@ struct Options {
 [[nodiscard]] mcpplibs::cmdline::App apps_command_line();
 [[nodiscard]] int apps(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
 
+// `bench sites` (ST7): sites of documents side by side — oweb's beside VitePress's, Astro Starlight's and mdBook's —
+// one corpus built by each at its pin (tests/bench/competitors/sites), the build timed, what is written measured,
+// each route visited cold in headless Chromium with scripts on and off. Its command line, and the run.
+[[nodiscard]] mcpplibs::cmdline::App sites_command_line();
+[[nodiscard]] int sites(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
+
 // What `pmap -XX` says a process holds, in bytes: its totals line read by the header's names.
 struct Memory {
     std::uint64_t rss = 0, pss = 0, uss = 0, private_dirty = 0, swap = 0;

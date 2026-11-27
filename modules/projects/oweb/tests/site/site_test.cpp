@@ -410,6 +410,8 @@ static UTest cases{"oweb.site", [] {
         expect(start.contains(">Tide &amp; moon</a>") && start.contains("href=\"../\">the front</a>") && start.contains("href=\"../#tides\">its tides</a>")) << start;
         expect(read(out / "404.html").contains("Tide &amp; moon")) << "the page for a lost address leads to it";
         expect(std::ranges::contains(made->delivery.files, std::string("tide-1a2b.wasm"), &mlibs::delivery::File::path)) << "its files are the site's, in the delivery manifest";
+        // Each file was written beside its name and renamed over it: none is left beside.
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(out)) expect(entry.path().extension() != ".writing") << "a file left beside its name";
 
         // A link of the page that leads to no place of the site is said, as any page's; so is an anchor its page has not.
         put(app / "index.html", [&] {

@@ -62,7 +62,7 @@ mcpplibs.os     = "0.4.4"
 omui.build = { path = "../../../mcpp/build", host-module = true }
 
 [test]
-programs = "directory"  # tests/oweb/: one program, each file run and filtered on its own
+programs = "directory"  # tests/site/: one program, each file run and filtered on its own (not named as the program `oweb`: mcpp#1028)
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

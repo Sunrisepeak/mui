@@ -75,6 +75,15 @@
 | mlibs | markdown.html.web.median_ms | mlibs.markdown-wasm 21.336 | md4w 20.788 | 0.97× [0.96, 0.98] | par |
 | mlibs | markdown.commonmark.pass | — | md4c, cmark-gfm | — | planned |
 | mlibs | i18n.data.bytes | — | icu4x | — | planned |
+| oweb | site.build.ms | oweb 29.2937 | mdbook 51.9566 | 1.80× [0.89, 2.26] | behind |
+| oweb | site.route.transfer.bytes | oweb 2424 | starlight 53891 | 22.23× [22.23, 22.23] | far_ahead |
+| oweb | site.route.blocking.bytes | oweb 2535.5 | starlight 18389.5 | 7.25× [7.25, 7.25] | ahead |
+| oweb | site.route.requests | oweb 1 | starlight 10 | 10.00× [10.00, 10.00] | far_ahead |
+| oweb | site.route.fcp.mobile.ms | oweb 248 | starlight 468 | 1.91× [1.49, 2.02] | ahead |
+| oweb | site.route.lcp.mobile.ms | oweb 248 | starlight 512 | 2.08× [1.71, 2.21] | ahead |
+| oweb | site.written.bytes | oweb 91025 | mdbook 1.12953e+06 | 12.41× [12.41, 12.41] | far_ahead |
+| oweb | site.engine.route.transfer.bytes | oweb-engine 3.39254e+06 | starlight 53891 | 0.02× [0.02, 0.02] | behind |
+| oweb | site.engine.build.ms | oweb-engine 813.308 | mdbook 51.9566 | 0.06× [0.05, 0.07] | behind |
 
 ## 标志性特性
 
@@ -107,6 +116,8 @@
 | gongfu | gongfu.characters-as-data 角色即数据，由 Agent 制作，诊断带行列号 | build-reliably | planned | — |
 | gongfu | gongfu.sparring Agent 陪练：人类档约束，能解释自己的选择 | together | planned | — |
 | gongfu | gongfu.replay-tutor 回放即教程：逐帧解释判定框、帧优势与取消 | together | planned | — |
+| oweb | oweb.one-content 一份内容三种读法：画布、HTML、Markdown 是同一棵语义树的三种写法，互不丢失 | build-reliably | evidence | — |
+| oweb | oweb.agent-door Agent 与人走同一个地址：读 llms.txt 与每页的 Markdown，查同一份搜索索引，或连到页面 | use-safely | planned | — |
 | spec | spec.model 模型完整度：事务、预演、撤销、执行者、授权、存在、接管、确定性（openas + openmui） | use-safely | planned | — |
 | spec | spec.second-implementation 第二个实现：只按规范文本写的 DOM 语义适配器 | craft | planned | — |
 | spec | E 生成式 UI 的安全运行时（候选）：Agent 生成的界面以 omui 树渲染 | together | planned | — |

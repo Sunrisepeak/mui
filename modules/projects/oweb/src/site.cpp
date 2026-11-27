@@ -223,6 +223,13 @@ std::pair<int, int> drawing_size(std::string_view svg) {
     return {300, 150};
 }
 
+// The default fonts for every page this process evaluates: one collection, each face described and read once — a
+// site's build makes a host a page.
+mlibs::text::FontCollection& site_fonts() {
+    static const std::unique_ptr<mlibs::text::FontCollection> shared = omui::headless_fonts();
+    return *shared;
+}
+
 struct Evaluated {
     std::vector<Node> nodes;  // the whole page's, pre-order
     std::size_t       document = 0, document_end = 0;  // the document's subtree in them
@@ -350,7 +357,7 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
     const bool engine = !options.engine.empty() && !lost;
 
     // The page as an interface: the navigation the routes give (a site of one page has none) and its document.
-    Headless host({.level = options.look ? HeadlessLevel::pixels : HeadlessLevel::layout, .size = {960, 1200}});
+    Headless host({.level = options.look ? HeadlessLevel::pixels : HeadlessLevel::layout, .size = {960, 1200}, .fonts = &site_fonts()});
     if (options.look) {
         // Its look is read from what the frame drew: all of it, in each scheme a reader may prefer.
         host.runtime().set_draws_unseen(true);
@@ -653,6 +660,25 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
     return page;
 }
 
+// A file of a built site: written beside its name, then renamed over it — whoever serves the directory while it is
+// built again reads the old file or the new, never part of one. Not made durable: a site is built again from its
+// sources, and a file's sync to the disk — one a file — was most of a small site's build (mcpplibs.os's
+// `write_atomic` is the durable form).
+std::expected<void, std::string> replaced(const std::filesystem::path& file, std::string_view bytes) {
+    std::error_code error;
+    std::filesystem::create_directories(file.parent_path(), error);
+    std::filesystem::path beside = file;
+    beside += ".writing";
+    if (auto written = mcpplibs::os::fs::write(beside, bytes); !written) return std::unexpected(std::format("{}: {}", utf8(file), written.error().message()));
+    std::filesystem::rename(beside, file, error);
+    if (error) {
+        const std::string why = error.message();
+        std::filesystem::remove(beside, error);
+        return std::unexpected(std::format("{}: {}", utf8(file), why));
+    }
+    return {};
+}
+
 // The site's own address on its host: the path of where it is served ("https://example.org/notes/" → "/notes/").
 std::string base_of(std::string_view url) {
     const std::size_t scheme = url.find("://");
@@ -818,9 +844,7 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
         // One file at one place: two things of the site that would be served at the same address are said.
         if (!placed.insert(path).second) return std::unexpected(std::format("two files of the site are `{}`: a route's page, its files and the site's own share one directory — move one", path));
         const std::filesystem::path file = out / mcpplibs::os::fs::from_utf8(path);
-        std::error_code error;
-        std::filesystem::create_directories(file.parent_path(), error);
-        if (auto written = mcpplibs::os::fs::write_atomic(file, bytes); !written) return std::unexpected(std::format("{}: {}", utf8(file), written.error().message()));
+        if (auto written = replaced(file, bytes); !written) return std::unexpected(written.error());
         files.push_back(mlibs::delivery::measured(path, bytes));
         return {};
     };
@@ -888,8 +912,7 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
         for (const Page& page : pages) shown.insert(page.characters.begin(), page.characters.end());
         for (char32_t character = 0x20; character < 0x7F; ++character) shown.insert(character);
         shown.insert(U'\u2026');
-        mlibs::text::FontCollection fonts;
-        if (auto loaded = fonts.add_defaults(); !loaded) return std::unexpected(std::format("the faces of the site's look: {}", loaded.error()));
+        mlibs::text::FontCollection& fonts = site_fonts();
         for (const std::string& family : families) {
             const auto face = fonts.find_family(family);
             if (!face) return std::unexpected(std::format("the face `{}` a page is set in is not among the fonts here", family));
@@ -948,11 +971,7 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     }
     built.delivery = mlibs::delivery::held(std::move(files), budgets);
     // The manifest is of the site, not of itself: written last and not listed.
-    {
-        const std::filesystem::path file = out / "site.delivery.xdef.json";
-        if (auto written = mcpplibs::os::fs::write_atomic(file, mlibs::delivery::to_json(built.delivery)); !written)
-            return std::unexpected(std::format("{}: {}", utf8(file), written.error().message()));
-    }
+    if (auto written = replaced(out / "site.delivery.xdef.json", mlibs::delivery::to_json(built.delivery)); !written) return std::unexpected(written.error());
     built.routes = std::move(*routes);
     return built;
 }

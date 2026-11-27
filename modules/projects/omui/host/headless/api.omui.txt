@@ -25,6 +25,7 @@ namespace omui {
     bool complete_frames = false;
     mlibs::pipeline::Tier tier = mlibs::pipeline::Tier::t3;
   };
+  [[nodiscard]] std::unique_ptr<mlibs::text::FontCollection> headless_fonts();
   class Headless {
     explicit Headless(HeadlessOptions options = {…});
     ~Headless();

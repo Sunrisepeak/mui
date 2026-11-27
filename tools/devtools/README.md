@@ -169,6 +169,14 @@ omui-devtools check takeover --page DIR [--path /ROUTE/] [--widths 1280,768,390]
 
 `site` holds the site to `site/delivery.budget.xdef.json` (a cold visit, frames timed while its design plays; `target/site-perf.json`), then walks the visitor's path with real clicks (`target/site.json`, pictures in `target/site-pictures/`): the Live Design key, Copy with a pairing code on the clipboard and the circle breathing, the command tab, `omui connect <code>` pairing, the page connected with the agent's name, omui and platform, `omui page describe` and `snapshot`, the bridge stopped, reduced motion. `dist-toy-loading` runs the generated loader in a frame of its own in the page (node's vm context before), against the browser's own fetch, streams and WebAssembly.
 
+`bench sites` (ST7) measures sites of documents side by side (tests/bench/competitors/sites): one corpus — the minimal documents — built by oweb (documents alone, and with the program that draws them), VitePress, Astro Starlight and mdBook, each at its pin. A round is, for each side in turn, a build from nothing written (the wall time of the side's own command) and a cold visit of every route in headless Chromium on the catalogue's connection and processor (Lighthouse's mobile profile): the bytes transferred, the requests, what the first paint waits for (the document and what the browser marks as blocking the rendering), the first and the largest contentful paint, the time long tasks blocked, when a page's program had drawn it. The first round also measures what was written (as stored, as a static host sends it) and visits each route with scripts off (are its words there). `--ledger` judges the rounds' samples into the lead ledger (`site.*` of the project `oweb`).
+
+```sh
+omui-devtools bench sites                      # every side, the catalogue's rounds; npm installs their pins into target/bench-sites
+omui-devtools bench sites --no-install --rounds 1 --only oweb,mdbook
+omui-devtools bench sites --no-install --ledger
+```
+
 `omui-devtools bench material3 OUT` captures Material 3's controls in four states from their page (`tests/bench/competitors/compare/material3`, once bundled), the competitor's side of the controls' review.
 
 ## check, browser, media, ci local

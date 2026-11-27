@@ -4,7 +4,7 @@ The toolchain whole: one command and one MCP server over every project's toolkit
 
 | Capability | Label | Packages | Evidence |
 |---|---|---|---|
-| One command and one MCP server over every toolkit, each command as it is on its own | experimental | `xtools` | [xtools_test](tests/xtools_test.cpp), [workspace_test](tests/workspace_test.cpp) |
+| One command and one MCP server over every toolkit, each command as it is on its own | experimental | `xtools` | [xtools_test](tests/tool/xtools_test.cpp), [workspace_test](tests/tool/workspace_test.cpp) |
 | The Inspector: a running application's tree, frames and clock; the motion workbench; the Reaction lab | stable | `xtools.inspector` | [inspector_test](inspector/tests/inspector_test.cpp), [motion_test](inspector/tests/motion_test.cpp) |
 
 It is a thin composition (convergence plan §4.5, D-203, D-204). Each project keeps its toolkit:

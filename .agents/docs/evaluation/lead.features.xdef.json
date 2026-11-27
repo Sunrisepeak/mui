@@ -319,6 +319,32 @@
       ]
     },
     {
+      "id": "oweb.one-content",
+      "project": "oweb",
+      "line": "build-reliably",
+      "title": "一份内容三种读法：画布、HTML、Markdown 是同一棵语义树的三种写法，互不丢失",
+      "status": "evidence",
+      "scene": "modules/projects/oweb/tests/site/site_test.cpp",
+      "competitors": [
+        "vitepress",
+        "astro-starlight",
+        "mdbook"
+      ],
+      "doc": "--- oweb -------------------------------------------------------------------"
+    },
+    {
+      "id": "oweb.agent-door",
+      "project": "oweb",
+      "line": "use-safely",
+      "title": "Agent 与人走同一个地址：读 llms.txt 与每页的 Markdown，查同一份搜索索引，或连到页面",
+      "status": "planned",
+      "competitors": [
+        "vitepress",
+        "astro-starlight",
+        "mdbook"
+      ]
+    },
+    {
       "id": "spec.model",
       "project": "spec",
       "line": "use-safely",

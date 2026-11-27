@@ -63,6 +63,11 @@ struct HeadlessOptions {
     mlibs::pipeline::Tier          tier = mlibs::pipeline::Tier::t3;
 };
 
+// The default fonts as a host brings them — its text measure installed where the program installed none, the
+// default faces loaded — as one collection several hosts share (`HeadlessOptions::fonts`): a program that evaluates
+// many pages describes and reads each face once, not once a host.
+[[nodiscard]] std::unique_ptr<mlibs::text::FontCollection> headless_fonts();
+
 class Headless {
 public:
     explicit Headless(HeadlessOptions options = {});

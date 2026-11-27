@@ -16,6 +16,7 @@ omui-devtools bench competitors --ledger --rounds 15   # the lead ledger: 15 rou
 | [py](py) | their side, pinned in `requirements.txt`: ThorVG and rlottie, Lottie's native players (their C libraries through ctypes) |
 | [apps](apps) | whole applications, both sides (`omui-devtools bench apps`): omui in each world beside Slint, Flutter and NSH — size, start, memory, rest, a click, a live board and a scrolled list, each in a real window and measured from outside the process (C1, N2) |
 | [terminal](terminal) | the smallest terminal application, both sides: the same counter with ratatui, FTXUI and Ink beside omui's `tests/size/terminal` — the program and what it needs at run time (CF1's F4; taken by hand, 2026-11-26) |
+| [sites](sites) | sites of documents, both sides (`omui-devtools bench sites`): the minimal documents built by oweb beside VitePress, Astro Starlight and mdBook — the build, what is written, each route visited cold in headless Chromium on Lighthouse's mobile profile, with scripts on and off (ST7) |
 
 ## Whole applications: omui beside Slint, Flutter and NSH
 

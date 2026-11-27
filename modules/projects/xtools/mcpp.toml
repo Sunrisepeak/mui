@@ -47,7 +47,7 @@ meng.video          = { path = "../meng/kernel/video" }
 mcpplibs.os           = "0.4.4"
 
 [test]
-programs = "directory"  # tests/xtools/: one program, each file run and filtered as before
+programs = "directory"  # tests/tool/: one program, each file run and filtered as before (not named as the program `xtools`: mcpp#1028)
 
 [dev-dependencies]
 mcpplibs.mtest = "0.8.4"

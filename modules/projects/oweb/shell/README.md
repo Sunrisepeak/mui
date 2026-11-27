@@ -30,4 +30,4 @@ None of its own: a site is read and built through the tool `oweb`; a page that r
 
 ## Tests
 
-`oweb`'s `tests/oweb/template_test.cpp`: every page of the minimal documents, read back from its own HTML (with and without its look) and written again, is the HTML that was written; with a navigation of its own (the pages at the side, the contents under them, no turn) every route says the same document — its Markdown the same bytes, its HTML the same but for where it stands — reads back to the same parts and is written again as it was, and the site builds.
+`oweb`'s `tests/site/template_test.cpp`: every page of the minimal documents, read back from its own HTML (with and without its look) and written again, is the HTML that was written; with a navigation of its own (the pages at the side, the contents under them, no turn) every route says the same document — its Markdown the same bytes, its HTML the same but for where it stands — reads back to the same parts and is written again as it was, and the site builds.

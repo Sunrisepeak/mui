@@ -90,6 +90,15 @@ std::expected<mlibs::image::View, ViewFailure> view_of(const mrender::raster::Su
 }
 std::expected<std::vector<std::uint8_t>, ViewFailure> encoded(std::expected<std::vector<std::uint8_t>, std::string> bytes);
 
+std::unique_ptr<mlibs::text::FontCollection> headless_fonts() {
+    // The host brings its text measure (terminal design §9): HarfBuzz, unless the program installed a shaper.
+    if (!mlibs::compose::process().get(mlibs::text::shaper_slot))
+        if (auto installed = mlibs::text::harfbuzz::install(); !installed) warn("the text shaper: {}", installed.error().message);
+    auto fonts = std::make_unique<mlibs::text::FontCollection>();
+    if (auto loaded = fonts->add_defaults(); !loaded) warn("the default fonts did not load: {}", loaded.error());
+    return fonts;
+}
+
 Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
@@ -104,11 +113,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     register_primitives();  // the primitives by name, for the documents and agents a headless program serves
     mlibs::text::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
-        // The host brings its text measure (terminal design §9): HarfBuzz, unless the program installed a shaper.
-        if (!mlibs::compose::process().get(mlibs::text::shaper_slot))
-            if (auto installed = mlibs::text::harfbuzz::install(); !installed) warn("the text shaper: {}", installed.error().message);
-        d.own_fonts = std::make_unique<mlibs::text::FontCollection>();
-        if (auto r = d.own_fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
+        d.own_fonts = headless_fonts();
         fonts = d.own_fonts.get();
     }
     RuntimeOptions ro;

@@ -247,6 +247,8 @@ int player_main(int argc, char** argv, void (*components)()) {
         .option(Option("film-branch").takes_value().value_name("NAME").help("design-film: whose commits (the one designed on)"))
         .option(Option("film-fps").value_type<int>().help("design-film: frames a second (30)"))
         .option(Option("film-seconds").value_type<double>().help("design-film: each step's time on screen (1.5)"))
+        .option(Option("design-verb").takes_value().value_name("VERB").help("a design verb asked of the application started headless in development mode, its answer printed, then end (design.show …; needs the designer)"))
+        .option(Option("design-args").takes_value().value_name("JSON").help("design-verb: its arguments, one JSON object"))
         .option(Option("runtime").help("say what this player is as a runtime (E3b): its version, the openmui specification it implements, the capabilities it carries, where it runs from; then end"));
     auto command = command_line(std::move(line), argc, argv);
     if (!command) return command.error();
@@ -326,30 +328,45 @@ int player_main(int argc, char** argv, void (*components)()) {
             for (const auto& file : *files) std::println("{}", utf8(file));
             return 0;
         }
-        if (auto film = parsed.value("design-film")) {
-            // The design's history as a film (design.film, the designer's): the application started
-            // headless in development mode, the verb asked, its answer printed.
+        // A design verb asked of the application started headless in development mode, its answer printed (the
+        // designer's: design.film for `omui design film`, design.show …).
+        const auto design = [&](std::string_view verb, Value args) -> int {
             register_window_components();
             Headless headless(HeadlessOptions{.size = m->size, .app = m->id});
             player::Player designing(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()}, {.design = true, .twin = twins(*m)});
             if (auto r = designing.start(); !r) {
                 std::print(std::cerr, "{}", r.error());
-                if (!headless.runtime().verbs().find("design.film")) return 2;  // no designer linked: nothing to film with
+                if (!headless.runtime().verbs().find(verb)) return 2;  // no designer linked: nothing to ask
             }
             for (int frame = 0; frame < 600 && !designing.idle(); ++frame) (void)headless.step();
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"person", "developer", {}};
+            const Envelope answer = headless.runtime().verbs().invoke(verb, call);
+            std::print("{}", answer.ndjson());
+            return answer.exit_code().value_or(1) == 0 ? 0 : 1;
+        };
+        if (auto film = parsed.value("design-film")) {
             Value args = Value{}.set("out", *film);
             if (auto branch = parsed.value("film-branch")) args.set("branch", *branch);
             if (auto fps = parsed.value_as<int>("film-fps")) args.set("fps", *fps);
             if (auto each = parsed.value_as<double>("film-seconds")) args.set("seconds", *each);
-            Invocation call;
-            call.args = std::move(args);
-            call.actor = {"person", "developer", {}};
-            const Envelope answer = headless.runtime().verbs().invoke("design.film", call);
-            std::print("{}", answer.ndjson());
-            return answer.exit_code().value_or(1) == 0 ? 0 : 1;
+            return design("design.film", std::move(args));
         }
-    } else if (types || parsed.value("design-film")) {
-        std::println(std::cerr, "--types and --design-film run where the player runs on its own (omui check, omui design film), not in a page");
+        if (auto verb = parsed.value("design-verb")) {
+            Value args(Value::Map{});
+            if (auto given = parsed.value("design-args")) {
+                auto read = parse_json(*given);
+                if (!read || !read->map()) {
+                    std::println(std::cerr, "--design-args is one JSON object{}", read ? std::string() : std::format(": {}", read.error().text()));
+                    return 2;
+                }
+                args = std::move(*read);
+            }
+            return design(*verb, std::move(args));
+        }
+    } else if (types || parsed.value("design-film") || parsed.value("design-verb")) {
+        std::println(std::cerr, "--types, --design-film and --design-verb run where the player runs on its own (omui check, omui design film), not in a page");
         return 2;
     }
     std::optional<player::Player> p;

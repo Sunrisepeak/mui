@@ -200,10 +200,11 @@ export default defineOps({
         { name: "direction", type: "path", doc: "the director's rules, direction@1 (<branch>.direction.xdef.json beside the steps when there is one)", optional: true },
         { name: "script", type: "path", doc: "the film's script, edited (.omui/design/film/<branch>.film.xdef.json)", optional: true },
         { name: "replay", type: "path", doc: "measure a replay's steps instead (replay@1, as a release ships it); the timeline is written beside it", optional: true },
+        { name: "pace", type: "bool", doc: "with `replay`: each step's time on screen made its beat's length, written back into the replay (what a page playing it goes by)", optional: true },
       ],
       result: "json",
       cost: "heavy",
-      undo: "delete the file it names",
+      undo: "delete the file it names; a paced replay: export it again (design.history.export)",
     },
     {
       name: "design.timeline",

@@ -745,6 +745,19 @@ static UTest cases{"designer", [] {
         const auto [replayed, from_replay] = invoke("design.show", Value{}.set("replay", generic_utf8(replay_file)));
         expect(eq(replayed, 0) && from_replay.get("beats")->as_int() == 3 && from_replay.get("rules")->as_string() == "defaults") << from_replay.json();
         expect(std::filesystem::exists(dir / ".omui" / "design" / "main.show.timeline.xdef.json")) << "beside the replay";
+        // Paced: each step's time on screen its beat's length, written into the replay a page plays.
+        const auto unpaced_replay = mlibs::agent::read_replay(file_text(replay_file), "main.replay.xdef.json");
+        expect(fatal(unpaced_replay.has_value()));
+        const auto [paced, paced_answer] = invoke("design.show", Value{}.set("replay", generic_utf8(replay_file)).set("pace", true));
+        expect(eq(paced, 0) && paced_answer.get("paced")->as_bool(false)) << paced_answer.json();
+        const auto paced_replay = mlibs::agent::read_replay(file_text(replay_file), "main.replay.xdef.json");
+        expect(fatal(paced_replay.has_value() && paced_replay->steps.size() == 3));
+        const Value::List& lengths = *paced_answer.get("lengths")->list();
+        for (std::size_t index = 0; index < 3; ++index)
+            expect(std::abs(paced_replay->steps[index].seconds - lengths[index].as_double()) < 0.001) << std::format("step {}: {}", index + 1, paced_replay->steps[index].seconds);
+        expect(paced_replay->steps[0].texts == unpaced_replay->steps[0].texts && paced_replay->steps[2].caption == unpaced_replay->steps[2].caption) << "only the times change";
+        const auto [unpaced, why_not] = invoke("design.show", Value{}.set("pace", true));
+        expect(unpaced != 0 && why_not.json().contains("replay")) << "pacing names a replay";
     };
 
     "a motion expected and measured in a twin: how long it took, how far it sprang past — a fact against the person's words; fixed, it holds"_test = [] {

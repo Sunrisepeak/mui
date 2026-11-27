@@ -710,6 +710,9 @@ private:
     // whole picture. hanim::timeline::direct makes the show of them under the design's rules (`<branch>.direction
     // .xdef.json` beside the film's script, when there is one; every default otherwise), written as a timeline.
     std::expected<Value, std::string> show(const Value& args) {
+        const bool pace = args.get("pace") && args.get("pace")->as_bool(false);
+        if (pace && !(args.get("replay") && !args.get("replay")->as_string().empty()))
+            return std::unexpected("`pace` writes a replay's steps: name the replay (`replay`)");
         // The steps: the film's script over the branch's commits, or a replay as a release ships it (`replay`: its
         // steps' texts and captions, every one kept; what a page plays in place).
         struct Step {
@@ -719,6 +722,8 @@ private:
             bool                               keep = true;
         };
         std::vector<Step> steps;
+        std::optional<mlibs::agent::Replay> replay_read;  // the replay measured, when it is one (paced back into it)
+        std::filesystem::path replay_file;
         std::string branch;
         std::filesystem::path beside;  // where the rules and the timeline go by default
         std::string script_named;      // what answers name as the steps' source
@@ -733,7 +738,9 @@ private:
             beside = file.parent_path();
             script_named = generic_utf8(file);
             for (std::size_t index = 0; index < replay->steps.size(); ++index)
-                steps.push_back({std::format("step {}", index + 1), std::move(replay->steps[index].texts), std::move(replay->steps[index].caption)});
+                steps.push_back({std::format("step {}", index + 1), replay->steps[index].texts, replay->steps[index].caption});
+            replay_read = std::move(*replay);
+            replay_file = file;
         } else {
             auto script = script_of(args);
             if (!script) return std::unexpected(script.error());
@@ -818,6 +825,14 @@ private:
         if (out.has_parent_path()) std::filesystem::create_directories(out.parent_path(), error);
         std::ofstream(out, std::ios::binary) << hanim::timeline::write_timeline(timeline);
         if (!std::filesystem::exists(out)) return std::unexpected(std::format("{}: not written", generic_utf8(out)));
+        // Paced (`pace`, a replay's): each step's time on screen is its beat's length — what a page that plays the
+        // replay in place (generate.replay) goes by.
+        if (pace) {
+            const auto& clips = timeline.tracks.front().clips;
+            for (std::size_t index = 0; index < replay_read->steps.size() && index < clips.size(); ++index)
+                replay_read->steps[index].seconds = std::round(mlibs::time::to_seconds(clips[index].length) * 1000) / 1000;
+            std::ofstream(replay_file, std::ios::binary) << mlibs::agent::write_replay(*replay_read);
+        }
         // What the show is: its beats, how long, how much of it shows a change, how often the camera moves.
         std::size_t still = 0;
         for (const auto& beat : beats) still += beat.regions.empty() ? 1 : 0;
@@ -825,6 +840,22 @@ private:
         const std::size_t moves = camera.clips.empty() ? 0 : (camera.clips.front().properties.front().keys.keys().size() - 1) / 2;
         Value::List lengths;
         for (const auto& clip : timeline.tracks.front().clips) lengths.push_back(Value(mlibs::time::to_seconds(clip.length)));
+        // What the director was given, a beat each: the share of the picture its regions cover, their bounds, its nodes.
+        Value::List seen;
+        for (const auto& beat : beats) {
+            double area = 0, left = window.width, top = window.height, right = 0, bottom = 0;
+            for (const auto& region : beat.regions) {
+                area += region.width * region.height;
+                left = std::min(left, region.x), top = std::min(top, region.y);
+                right = std::max(right, region.x + region.width), bottom = std::max(bottom, region.y + region.height);
+            }
+            Value one = Value{}
+                            .set("share", std::round(std::min(1.0, area / (window.width * window.height)) * 10000) / 10000)
+                            .set("regions", static_cast<std::int64_t>(beat.regions.size()))
+                            .set("nodes", Value{}.set("appeared", beat.appeared).set("removed", beat.removed).set("words", beat.retexted).set("moved", beat.moved).set("other", beat.restyled));
+            if (!beat.regions.empty()) one.set("bounds", Value(Value::List{Value(left), Value(top), Value(right - left), Value(bottom - top)}));
+            seen.push_back(std::move(one));
+        }
         return Value{}
             .set("timeline", generic_utf8(out))
             .set("branch", branch)
@@ -832,9 +863,11 @@ private:
             .set("still", static_cast<std::int64_t>(still))
             .set("seconds", mlibs::time::to_seconds(timeline.duration()))
             .set("lengths", Value(std::move(lengths)))
+            .set("seen", Value(std::move(seen)))
             .set("moves", static_cast<std::int64_t>(moves))
             .set("rules", std::filesystem::exists(rules_file) ? Value(generic_utf8(rules_file)) : Value("defaults"))
-            .set("steps_from", script_named);
+            .set("steps_from", script_named)
+            .set("paced", pace);
     }
 
     // A motion measured (design.expect's `motion`, §2.12.4): the action done

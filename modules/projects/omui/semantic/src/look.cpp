@@ -161,7 +161,8 @@ std::string colour(const Color& color) {
 }
 
 // A run of glyphs a node drew itself: its face, size and colour, the bytes of the node's text its glyphs set
-// (the first byte of the first cluster to that of the last), how many glyphs, and the first byte of each one's cluster.
+// (the first byte of the first cluster to that of the last), how many glyphs, the first byte of each one's cluster,
+// each one's id, and where the first stands on its baseline in the node's box (none: under a transform of its own).
 struct Run {
     mlibs::text::FontRef       font;
     float                      size = 0;
@@ -169,6 +170,8 @@ struct Run {
     std::uint32_t              begin = 0, last = 0;
     std::size_t                glyphs = 0;
     std::vector<std::uint32_t> clusters;
+    std::vector<std::uint32_t> ids;
+    std::optional<Point>       at;
     [[nodiscard]] bool same_colour(const Run& other) const { return color.r == other.color.r && color.g == other.color.g && color.b == other.color.b && color.a == other.color.a; }
     [[nodiscard]] bool same_as(const Run& other) const { return font.id == other.font.id && size == other.size && same_colour(other); }
 };
@@ -374,6 +377,20 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
     // The text each node drew itself: the display list brackets what a node drew (by the node's marker).
     std::unordered_map<std::uint32_t, std::vector<Run>> drawn;  // by the node's handle index
     std::unordered_map<std::uint32_t, std::string>      painted;  // its own box's drawing, by the same
+    // The solid shapes a node drew over a part of its box (in its box's space): where it drew text, the ground of a
+    // part of it (inline code's tinted rectangle), which the page's element for that part draws as its own.
+    struct Ground {
+        Rect        rect;
+        CornerRadii radii;
+        Color       color;
+    };
+    std::unordered_map<std::uint32_t, std::vector<Ground>> grounds;
+    const auto ground = [&](std::uint32_t index, const Own& own, const Rect& rect, const CornerRadii& radii, const mrender::Paint& paint) {
+        if (paint.kind != mrender::Paint::Kind::solid || !(paint.color.a > 0) || same_box(rect, *own.frame)) return;
+        const NodeId node = runtime.node_at_index(index);
+        if (!node.valid()) return;
+        grounds[node.index].push_back({Rect{rect.x - own.frame->x, rect.y - own.frame->y, rect.width, rect.height}, radii, paint.color});
+    };
     {
         std::vector<std::pair<std::uint32_t, Own>> open;
         for (const auto& command : runtime.display_list().commands()) {
@@ -404,19 +421,27 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
                 const NodeId node = runtime.node_at_index(open.back().first);
                 if (!node.valid()) continue;
                 own.parts_apart = true;
-                Run run{mlibs::text::FontRef{glyphs->font.id}, glyphs->size, glyphs->paint.color, glyphs->glyphs.front().cluster, glyphs->glyphs.front().cluster, glyphs->glyphs.size(), {}};
+                Run run{mlibs::text::FontRef{glyphs->font.id}, glyphs->size, glyphs->paint.color, glyphs->glyphs.front().cluster, glyphs->glyphs.front().cluster, glyphs->glyphs.size(), {}, {}, {}};
                 run.clusters.reserve(glyphs->glyphs.size());
+                run.ids.reserve(glyphs->glyphs.size());
                 for (const mrender::Glyph& glyph : glyphs->glyphs) {
                     run.begin = std::min(run.begin, glyph.cluster);
                     run.last = std::max(run.last, glyph.cluster);
                     run.clusters.push_back(glyph.cluster);
+                    run.ids.push_back(glyph.id);
                 }
-                drawn[node.index].push_back(run);
+                if (own.frame && own.moved == 0)
+                    run.at = Point{glyphs->origin.x + glyphs->glyphs.front().position.x - own.frame->x, glyphs->origin.y + glyphs->glyphs.front().position.y - own.frame->y};
+                drawn[node.index].push_back(std::move(run));
             } else if (!own.frame || own.moved != 0) {
                 // Before its box is said, or under a transform of its own: not its own box's drawing.
-            } else if (const auto* rect = std::get_if<mrender::FillRect>(&command)) fills(own, rect->rect, nullptr, rect->paint);
-            else if (const auto* round = std::get_if<mrender::FillRoundRect>(&command)) fills(own, round->rect, &round->radii, round->paint);
-            else if (const auto* stroke = std::get_if<mrender::StrokeRoundRect>(&command)) {
+            } else if (const auto* rect = std::get_if<mrender::FillRect>(&command)) {
+                fills(own, rect->rect, nullptr, rect->paint);
+                ground(open.back().first, own, rect->rect, {}, rect->paint);
+            } else if (const auto* round = std::get_if<mrender::FillRoundRect>(&command)) {
+                fills(own, round->rect, &round->radii, round->paint);
+                ground(open.back().first, own, round->rect, round->radii, round->paint);
+            } else if (const auto* stroke = std::get_if<mrender::StrokeRoundRect>(&command)) {
                 // A border: a stroke centred half its width inside the box's edge is a ring along the inside.
                 const float half = stroke->width / 2;
                 const Rect outer{stroke->rect.x - half, stroke->rect.y - half, stroke->rect.width + stroke->width, stroke->rect.height + stroke->width};
@@ -460,6 +485,26 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
         Look::Font font{face.family, static_cast<int>(std::lround(fonts.weight_of(run.font))), fonts.slant_of(run.font) != mlibs::text::Slant::normal};
         if (!std::ranges::contains(look.fonts, font)) look.fonts.push_back(font);
         return font;
+    };
+    // An item's number in an ordered list: the list's start, and one more for each item before it.
+    std::unordered_map<std::string_view, const spec::SemanticNode*> by_id, parent_of;
+    for (const spec::SemanticNode& one : snapshot.nodes) {
+        by_id.emplace(one.id, &one);
+        for (const std::string& child : one.children) parent_of.emplace(child, &one);
+    }
+    const auto ordinal = [&](const spec::SemanticNode& item) -> std::optional<std::int64_t> {
+        const auto up = parent_of.find(item.id);
+        if (up == parent_of.end()) return std::nullopt;
+        const spec::SemanticNode& list = *up->second;
+        const Value* ordered = list.properties.get("ordered");
+        if (list.role != Role::list || !ordered || !ordered->as_bool()) return std::nullopt;
+        const Value* start = list.properties.get("start");
+        std::int64_t number = start && start->is_number() ? start->as_int() : 1;
+        for (const std::string& child : list.children) {
+            if (child == item.id) return number;
+            if (const auto found = by_id.find(child); found != by_id.end() && found->second->role == Role::list_item) ++number;
+        }
+        return std::nullopt;
     };
     for (const auto& [n, node] : nodes) {
         std::string css;
@@ -596,6 +641,33 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
                     }
                 }
             }
+            // The run each ground lies under: of the runs whose first glyph stands in it, the one nearest its left edge
+            // (the text after inline code begins inside the code's ground too, where the ground runs on past the code).
+            // Shapes of one ground that overlap along a line (the frame drew the code's ground in two pieces, each a
+            // little wider than its glyphs) are one.
+            std::vector<const Ground*> grounded(runs.size(), nullptr);
+            if (auto found = grounds.find(node.index); found != grounds.end()) {
+                std::vector<Ground>& all = found->second;
+                std::ranges::sort(all, [](const Ground& one, const Ground& other) { return std::pair{one.rect.y, one.rect.x} < std::pair{other.rect.y, other.rect.x}; });
+                std::vector<Ground> merged;
+                for (const Ground& one : all) {
+                    Ground* last = merged.empty() ? nullptr : &merged.back();
+                    if (last && about(last->rect.y, one.rect.y) && about(last->rect.height, one.rect.height) && one.rect.x <= last->rect.x + last->rect.width &&
+                        last->color.r == one.color.r && last->color.g == one.color.g && last->color.b == one.color.b && last->color.a == one.color.a)
+                        last->rect.width = std::max(last->rect.x + last->rect.width, one.rect.x + one.rect.width) - last->rect.x;
+                    else merged.push_back(one);
+                }
+                all = std::move(merged);
+                for (const Ground& one : all) {
+                    std::optional<std::size_t> nearest;
+                    for (std::size_t at = 0; at < runs.size(); ++at) {
+                        const std::optional<Point>& start = runs[at].at;
+                        if (!start || start->x < one.rect.x || start->x > one.rect.x + one.rect.width || start->y < one.rect.y || start->y > one.rect.y + one.rect.height) continue;
+                        if (!nearest || start->x < runs[*nearest].at->x) nearest = at;
+                    }
+                    if (nearest && !grounded[*nearest]) grounded[*nearest] = &one;
+                }
+            }
             std::vector<Look::Span> parts, apart;
             for (const Run& run : runs) {
                 const Look::Font other = font_of(run);  // a face the page declares, the node's own faces' too
@@ -617,8 +689,24 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
                     if (!apart.empty() && apart.back().end == cluster && apart.back().style == style) apart.back().end += character->length;
                     else apart.push_back({cluster, cluster + character->length, std::move(style)});
                 }
-                if (among_own && run.same_colour(*own)) continue;
+                // The ground the node drew under the run (inline code's tinted, rounded rectangle, from a line's top to its
+                // bottom less a pixel, a little wider than the glyphs): the part's element's own background, as wide by
+                // a padding its negative margin takes back and as tall by a padding above and below its face's ascent
+                // and descent — a ground that moves no word. Each line's piece of it is one (`box-decoration-break`).
+                const Ground* under = grounded[static_cast<std::size_t>(&run - runs.data())];
+                if (among_own && run.same_colour(*own) && !under) continue;
                 std::string differs;
+                if (under) {
+                    const mlibs::text::Metrics metrics = fonts.metrics(run.font, run.size);
+                    const float side = std::max(0.0f, run.at->x - under->rect.x);
+                    const float above = std::max(0.0f, run.at->y - under->rect.y - metrics.ascent), below = std::max(0.0f, under->rect.y + under->rect.height - run.at->y - metrics.descent);
+                    put(differs, "background-color", colour(under->color));
+                    if (!under->radii.zero()) put(differs, "border-radius", radii_css(under->radii));
+                    put(differs, "padding", std::format("{} {} {} {}", px(above), px(side), px(below), px(side)));
+                    if (side > 0) put(differs, "margin", std::format("0 {}", px(-side)));
+                    put(differs, "-webkit-box-decoration-break", "clone");
+                    put(differs, "box-decoration-break", "clone");
+                }
                 if (faces != own_faces) put(differs, "font-family", families(faces));
                 if (run.size != own->size) put(differs, "font-size", px(run.size));
                 // A part in another face or size stands on the line its node set: in CSS its own ascent and descent
@@ -634,6 +722,46 @@ Look html_look(const Runtime& runtime, const Snapshot& snapshot) {
                 std::ranges::sort(apart, {}, &Look::Span::begin);
                 look.apart.emplace(n->id, std::move(apart));
             }
+            // An item of an ordered list draws its number beside what it holds; no element of the page holds that
+            // number (a browser's own markers are its own, and the look's sheet sets them none). The page draws the
+            // same number in the same face where the frame drew it: a box generated before the item (the sheet's
+            // `li::before`), said by custom properties — no word is added to the document, so finding, selecting and
+            // reading it back stay as they were. Said only where the glyphs drawn are that number's, glyph for glyph.
+            if (n->role == Role::list_item && runs.size() == 1 && own->at)
+                if (const auto number = ordinal(*n)) {
+                    // The number's text and figures as drawn: each way it may be written, set in the run's face, and
+                    // kept where its glyphs are the run's.
+                    const auto drawn_as = [&](std::string said, bool tabular) -> std::optional<std::pair<std::string, bool>> {
+                        mlibs::text::ParagraphStyle plain;
+                        plain.style.families = {fonts.face(fonts.face_of(own->font)).family};
+                        plain.style.size = own->size;
+                        plain.style.weight = fonts.weight_of(own->font);
+                        plain.style.slant = fonts.slant_of(own->font);
+                        if (tabular) plain.style.features.push_back(mlibs::text::Feature::on("tnum"));
+                        plain.wrap = false;
+                        mlibs::text::Paragraph set(fonts, said, plain);
+                        set.layout(std::numeric_limits<float>::infinity());
+                        std::vector<std::uint32_t> ids;
+                        for (const mlibs::text::Line& line : set.lines())
+                            for (const mlibs::text::GlyphRun& glyphs : line.runs)
+                                for (const mlibs::text::Glyph& glyph : glyphs.glyphs) ids.push_back(glyph.id);
+                        if (ids != own->ids) return std::nullopt;
+                        return std::pair{std::move(said), tabular};
+                    };
+                    std::optional<std::pair<std::string, bool>> marker;
+                    for (const char delimiter : {'.', ')'})
+                        for (const bool tabular : {true, false})
+                            if (!marker) marker = drawn_as(std::format("{}{}", *number, delimiter), tabular);
+                    if (marker) {
+                        const mlibs::text::Metrics metrics = fonts.metrics(own->font, own->size);
+                        put(css, "--omui-marker", std::format("\"{}\"", marker->first));
+                        put(css, "--omui-marker-left", px(own->at->x));
+                        put(css, "--omui-marker-top", px(own->at->y - metrics.ascent));
+                        put(css, "--omui-marker-font", std::format("{} {}/{} {}", font.weight, px(own->size), px(metrics.ascent + metrics.descent), families(own_faces)));
+                        put(css, "--omui-marker-color", colour(own->color));
+                        if (marker->second) put(css, "--omui-marker-numeric", "tabular-nums");
+                    }
+                }
         }
         // A field holds no words a page sets — what it shows (its value, its placeholder) is drawn in it — so a
         // block of its style alone would be as short as its least height: it is as tall as the frame set it.
@@ -669,6 +797,12 @@ std::string look_sheet(const Look& look) {
         "[data-omui-look] strong,[data-omui-look] b{font-weight:700}[data-omui-look] em,[data-omui-look] i{font-style:italic}"
         // A table's heading stands where its column does: at the left unless the column says (a browser's own sheet centres it).
         "[data-omui-look] th:not([align]){text-align:left}"
+        // Struck text as the frame strikes it (the rule above takes every element's decoration away).
+        "[data-omui-look] del,[data-omui-look] s{text-decoration:line-through}"
+        // An ordered list's item's number, where the frame drew it and as (its declarations: `html_look`) — only on the
+        // item that says it: an item inside it inherits the declarations, not the number.
+        "[data-omui-look] li[style*='--omui-marker:']::before{content:var(--omui-marker);position:absolute;left:var(--omui-marker-left);top:var(--omui-marker-top);"
+        "font:var(--omui-marker-font);color:var(--omui-marker-color);font-variant-numeric:var(--omui-marker-numeric,normal);white-space:pre}"
         // On paper the document is whole: nothing of it stays inside a view that scrolls or a box of the window's size.
         "@media print{[data-omui-look],[data-omui-look] *{overflow:visible!important;height:auto!important;max-height:none!important}}";
     if (!look.dark.empty()) {

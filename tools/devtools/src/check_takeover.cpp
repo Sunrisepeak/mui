@@ -5,8 +5,9 @@
 //           document sets it; the program is let through, and when it has presented, the same word is
 //           placed where the document layer sets it over the canvas. The bound: a word moves at most
 //           2 px, half of them at most 1 px, and none goes to another line — at each width, at the top
-//           of the document and with the reader scrolled down it. The report:
-//           target/takeover.report.xdef.json.
+//           of the document and with the reader scrolled down it. And the page is still a text: phrases
+//           of the document, on one line and across a line's end, are found by the browser's own find
+//           once the program has the page (red 167). The report: target/takeover.report.xdef.json.
 module omui.devtools.check;
 
 import std;
@@ -68,7 +69,7 @@ const words = (root, attribute) => {
         // A word's place: its left edge and the middle of the line it stands on. Not the middle of its own letters'
         // box: that is its face's (a word of code in a line of prose, a character another face drew, stand on the
         // same line 2–4 px apart by their faces' heights), and the layer sets every word in one face.
-        if (r.width > 0) all.push({ id, index: index++, word: m[0], x: r.left, y: line(node, r), h: r.height });
+        if (r.width > 0) all.push({ id, index: index++, word: m[0], x: r.left, y: line(node, r), h: r.height, node, from: m.index, to: m.index + m[0].length });
       }
     }
   }
@@ -81,6 +82,33 @@ if ('@STEP@' === 'before') {
     if (el.scrollHeight > el.clientHeight + 4 && flow !== 'visible' && flow !== 'hidden') { el.scrollTop = by; break; }
   }
   window.omuiTakeoverBefore = words('[data-omui=static]', 'data-omui-target');
+  // Phrases a reader would search for: two words that follow one another in one run of the document's text with
+  // only spaces between them — on one line, and where the line ends between them (the browser's find takes both
+  // in the page's own document; not asked here, a find moves the page). Some of each, from all down the page.
+  const along = [], across = [], seen = window.omuiTakeoverBefore;
+  for (let i = 0; i + 1 < seen.length; ++i) {
+    const a = seen[i], b = seen[i + 1];
+    if (a.node !== b.node || !/^ +$/.test(a.node.data.slice(a.to, b.from))) continue;
+    (Math.abs(a.y - b.y) < 1 ? along : across).push(a.word + ' ' + b.word);
+  }
+  // A script written without spaces (Chinese, Japanese) has no two words to ask for: where a run of it goes on
+  // into the next line, the two characters before the line's end and the two after it.
+  for (const w of seen) {
+    if (w.to - w.from < 4) continue;
+    const range = document.createRange();
+    range.setStart(w.node, w.from);
+    range.setEnd(w.node, w.to);
+    if (range.getClientRects().length < 2) continue;
+    const top = (at) => { range.setStart(w.node, at); range.setEnd(w.node, at + 1); return range.getBoundingClientRect().top; };
+    const first = top(w.from);
+    for (let at = w.from + 1; at < w.to; ++at) {
+      if (Math.abs(top(at) - first) < 2) continue;
+      if (at - w.from >= 2 && w.to - at >= 2) across.push(w.node.data.slice(at - 2, at + 2));
+      break;
+    }
+  }
+  const some = (list, count) => list.filter((_, i) => i % Math.max(1, Math.ceil(list.length / count)) === 0).slice(0, count);
+  window.omuiTakeoverPhrases = { along: some(along, 8), across: some(across, 8) };
   return { words: window.omuiTakeoverBefore.length, look: !!document.querySelector('[data-omui=static] [data-omui-look]'),
            faces: [...document.fonts].filter((face) => face.status === 'loaded').map((face) => face.family) };
 }
@@ -98,7 +126,17 @@ for (const w of window.omuiTakeoverBefore || []) {
 }
 moved.sort((a, b) => a.d - b.d);
 const part = (q) => (moved.length ? +moved[Math.min(moved.length - 1, Math.floor(q * moved.length))].d.toFixed(2) : null);
-return { compared: moved.length, unmatched, median: part(0.5), p95: part(0.95), most: part(1), lines, furthest: moved.slice(-2).map((m) => m.where) };
+// The phrases, asked of the browser's find now the words are placed (a find brings its match into view).
+const phrases = window.omuiTakeoverPhrases || { along: [], across: [] }, lost = [];
+const reached = (list) => list.filter((phrase) => {
+  getSelection().removeAllRanges();
+  const found = typeof window.find === 'function' && window.find(phrase, true, false, true);
+  if (!found) lost.push(phrase);
+  return found;
+}).length;
+const found = { along: [reached(phrases.along), phrases.along.length], across: [reached(phrases.across), phrases.across.length], lost };
+getSelection().removeAllRanges();
+return { compared: moved.length, unmatched, median: part(0.5), p95: part(0.95), most: part(1), lines, furthest: moved.slice(-2).map((m) => m.where), phrases: found };
 })())js";
 
 std::string scripted(std::string_view step, int scroll) {
@@ -172,7 +210,7 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
     address += route;
     json rows = json::array();
     std::string problem;
-    bool within = true;
+    bool within = true, read = true;
     for (const int width : widths) {
         for (const int scroll : {0, 700}) {
             if (!problem.empty()) break;
@@ -228,6 +266,7 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
             const bool ok = number(at(row, "compared")) >= words_at_least && number(at(row, "median")) <= median_bound && number(at(row, "most")) <= most_bound && number(at(row, "lines")) == 0;
             row["ok"] = ok;
             within = within && ok;
+            read = read && at(row, "phrases").at("lost").empty();
             rows.push_back(std::move(row));
         }
     }
@@ -297,19 +336,24 @@ int takeover(const fs::path& root, const fs::path& directory, std::string_view p
                          {"rows", rows},
                          {"examples", {{"found", examples}, {"operated", operated}, {"answered", answered}}},
                          {"links", {{"pressed", links}, {"followed", followed}, {"to", led_to}}},
-                         {"ok", within && operated == answered && links == followed}};
+                         {"ok", within && read && operated == answered && links == followed}};
     std::error_code made;
     fs::create_directories(root / "target", made);
     std::ofstream(root / "target/takeover.report.xdef.json", std::ios::binary) << cdp::pretty(report, 2) << '\n';
     std::cout << std::format("the takeover of a page with a look ({}): a word moves at most {} px, half of them at most {} px, none to another line\n", version, most_bound, median_bound);
-    for (const auto& row : rows)
-        std::cout << std::format("  {} {:>4} wide, scrolled {:>3}: {} words seen, median {} px, most {} px, {} to another line\n", truthy(at(row, "ok")) ? "ok  " : "FAIL", number(at(row, "width")),
-                                 number(at(row, "scrolled")), number(at(row, "compared")), number(at(row, "median")), number(at(row, "most")), number(at(row, "lines")));
+    for (const auto& row : rows) {
+        const json& phrases = at(row, "phrases");
+        std::cout << std::format("  {} {:>4} wide, scrolled {:>3}: {} words seen, median {} px, most {} px, {} to another line; phrases found: {} of {} on a line, {} of {} across a line's end\n",
+                                 truthy(at(row, "ok")) && phrases.at("lost").empty() ? "ok  " : "FAIL", number(at(row, "width")), number(at(row, "scrolled")), number(at(row, "compared")),
+                                 number(at(row, "median")), number(at(row, "most")), number(at(row, "lines")), number(phrases.at("along").at(0)), number(phrases.at("along").at(1)),
+                                 number(phrases.at("across").at(0)), number(phrases.at("across").at(1)));
+    }
     if (examples > 0)
         std::cout << std::format("  {} {} live example{}: {} operated (its first button pressed on the canvas), {} answered\n", operated == answered ? "ok  " : "FAIL", examples, examples == 1 ? "" : "s", operated,
                                  answered);
     if (links > 0) std::cout << std::format("  {} a link to another page of the site, pressed on the canvas: {} {}\n", followed == links ? "ok  " : "FAIL", followed == links ? "led to" : "did not lead to", led_to);
     if (!within) return failed("a word moved past the bound when the program took the page over (target/takeover.report.xdef.json)");
+    if (!read) return failed("a phrase of the page's document is not found by the browser's find once the program has the page (target/takeover.report.xdef.json: `phrases.lost`)");
     if (operated != answered) return failed("a live example did not answer when its button was pressed (target/takeover.report.xdef.json)");
     if (links != followed) return failed("a link to another page of the site led nowhere when pressed (target/takeover.report.xdef.json)");
     return 0;

@@ -224,6 +224,8 @@ static UTest cases{"oweb.layer", [] {
             const Value* lines = one.get("lines");
             if (!lines) continue;
             expect(lines->list()->size() >= 3u) << "wrapped: " << one.json();
+            // A sentence that wraps has no line's end of its own: its lines are one text on the page.
+            for (const Value& line : *lines->list()) expect(!line.get("br")) << line.json();
             for (const Value& line : *lines->list())
                 for (const Value& piece : *line.get("c")->list()) {
                     if (piece.type() == Value::Type::text || piece.get("t")) {
@@ -255,9 +257,17 @@ static UTest cases{"oweb.layer", [] {
         DomMirror code_layer(coded.runtime());
         const auto code_batch = code_layer.sync();
         std::size_t code_lines = 0;
+        bool first_ends = false;
         if (code_batch && code_batch->get("nodes"))
             for (const Value& one : *code_batch->get("nodes")->list())
-                if (one.get("tag") && one.get("tag")->as_string() == "pre" && one.get("lines")) code_lines = one.get("lines")->list()->size();
+                if (one.get("tag") && one.get("tag")->as_string() == "pre" && one.get("lines")) {
+                    code_lines = one.get("lines")->list()->size();
+                    const Value* ends = one.get("lines")->list()->front().get("br");
+                    first_ends = ends && ends->as_bool();
+                }
         expect(code_lines >= 2u) << "code with an empty line, by its lines: " << code_lines;
+        // A line of code ends where the text breaks, and says so: the page sets the lines as one text, and a
+        // phrase does not run from one line of code into the next.
+        expect(first_ends) << "a line of code ends with its break";
     };
 }};

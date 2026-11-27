@@ -207,12 +207,13 @@ addToLibrary({
         '[data-omui=mirror] [data-omui-scroll]{overflow:auto;scrollbar-width:none}' +
         '[data-omui=mirror] [data-omui-scroll]::-webkit-scrollbar{display:none}' +
         '[data-omui=mirror] pre,[data-omui=mirror] pre code{white-space:pre}' +
-        // A line is as wide as its words at least: the space it broke at hangs past its end, and a word that did
-        // not fit the line's own width went below it (seen where the last word follows a link).
-        // A word begins at the left of its place: where its line is set (a cell to the right, a centred title) is in the
-        // line's and the words' own places, not said again inside each (a word 3 px off where its box is wider than it).
-        '[data-omui=mirror] [data-omui-line]{position:absolute;display:block;white-space:pre;min-width:max-content;text-align:left}' +
-        '[data-omui=mirror] [data-omui-word]{display:inline-block;vertical-align:top;white-space:pre;transform-origin:0 0}' +
+        // An element's lines are one text: each line a span in the element's flow, moved to where the canvas draws
+        // it, and each word a span in its line, spaced to where the canvas draws it — nothing between two words of a
+        // text but the text. A phrase is then found whole by the browser's find, on one line or across a line's end
+        // (a box around a word, a line set as a block or placed by itself ends the text for it: red 167), and a
+        // selection copies a paragraph as the one line of text it is.
+        '[data-omui=mirror] [data-omui-line]{position:relative;display:inline;white-space:pre;text-align:left}' +
+        '[data-omui=mirror] [data-omui-word]{display:inline;white-space:pre}' +
         // Selected, the layer's text stays unseen and the canvas's words show through the highlight.
         '[data-omui=mirror] ::selection{color:transparent;background:color-mix(in srgb,Highlight 40%,transparent)}' +
         // Printed, the page is its document: the canvas steps aside and the layer's elements flow as the document
@@ -225,9 +226,8 @@ addToLibrary({
         'color:#000;font:11pt/1.5 system-ui,sans-serif}' +
         '[data-omui=mirror] *{color:inherit}' +
         '[data-omui=mirror] [data-omui-id]{position:static!important;width:auto!important;height:auto!important;overflow:visible!important}' +
-        '[data-omui=mirror] [data-omui-line]{position:static!important;display:inline;width:auto!important;height:auto!important;' +
-        'font-size:inherit!important;line-height:inherit!important;white-space:inherit}' +
-        '[data-omui=mirror] [data-omui-word]{display:inline;width:auto!important;margin:0!important;transform:none!important;white-space:inherit}' +
+        '[data-omui=mirror] [data-omui-line]{position:static!important;font-size:inherit!important;line-height:inherit!important;white-space:inherit}' +
+        '[data-omui=mirror] [data-omui-word]{margin:0!important;white-space:inherit}' +
         '[data-omui=mirror] [data-omui-extent]{display:none}' +
         '[data-omui=mirror] h1,[data-omui=mirror] h2,[data-omui=mirror] h3,[data-omui=mirror] h4,[data-omui=mirror] h5,[data-omui=mirror] h6' +
         '{font-weight:700;margin:1.2em 0 .5em;break-after:avoid}' +
@@ -239,7 +239,6 @@ addToLibrary({
         '[data-omui=mirror] li p{margin:0}' +
         '[data-omui=mirror] pre,[data-omui=mirror] code{font-family:ui-monospace,monospace;font-size:.92em}' +
         '[data-omui=mirror] pre{white-space:pre-wrap;border:1px solid #ccc;padding:.6em;break-inside:avoid}' +
-        '[data-omui=mirror] pre [data-omui-line]{display:block}' +
         '[data-omui=mirror] a[href]{text-decoration:underline}' +
         '[data-omui=mirror] strong,[data-omui=mirror] b,[data-omui=mirror] th{font-weight:700}[data-omui=mirror] em,[data-omui=mirror] i{font-style:italic}' +
         '[data-omui=mirror] blockquote{border-left:3px solid #ccc;padding-left:1em}' +
@@ -751,35 +750,31 @@ addToLibrary({
       el.omuiContent.push(el.insertBefore(document.createElement('br'), before));
     },
 
-    // An element's own text as the canvas draws it, line by line: a line is a span at the line's box, and in it each
-    // word ({t, x, w}) is a span as wide as the way to the next word — so what the browser finds and what a person
-    // selects is on the word seen. The words' letters are fitted with the batch's others (fit).
+    // An element's own text as the canvas draws it, line by line: a line ({box, c, br}) is a span of the element's
+    // text, and in it each word ({t, x, w}) is a span — so what the browser finds and what a person selects is on the
+    // word seen, and a phrase is one text across its words and its lines. A line that ends where the text breaks
+    // (`br`: a line of code, a break written in a paragraph) ends with the break. Where each line and each word
+    // stands is set with the batch's others, from what the page measures of them (fit).
     setLines: function (el, lines) {
       var P = omuiPage;
       el.omuiContent.forEach(function (n) { if (n.parentNode === el) el.removeChild(n); });
       var before = el.firstChild;
-      el.omuiContent = lines.map(function (line) {
+      el.omuiContent = [];
+      lines.forEach(function (line) {
         var span = document.createElement('span'), s = span.style, b = line.box;
         span.setAttribute('data-omui-line', '');
-        s.left = b[0] + 'px';
-        s.top = b[1] + 'px';
-        s.width = b[2] + 'px';
-        s.height = b[3] + 'px';
+        span.omuiBox = b;
+        span.omuiIn = el;
         s.lineHeight = b[3] + 'px';
         s.fontSize = Math.max(4, b[3] * 0.72) + 'px';
         span.omuiWords = [];
         P.lining = span;
         line.c.map(P.piece).forEach(function (n) { span.appendChild(n); });
         P.lining = null;
-        // Each word goes on to where the next begins: the words stay in the line's flow (a selection reads them as
-        // one line of text) and each stands where the canvas draws it.
-        span.omuiWords.forEach(function (w, i, all) {
-          var next = i + 1 < all.length ? all[i + 1].omuiX : w.omuiX + w.omuiWidth;
-          w.style.width = Math.max(0, next - w.omuiX) + 'px';
-          if (i === 0 && w.omuiX) w.style.marginLeft = w.omuiX + 'px';
-        });
-        if (span.omuiWords.length) P.fitting.push(span);
-        return el.insertBefore(span, before);
+        P.fitting.push(span);
+        el.omuiContent.push(el.insertBefore(span, before));
+        // The break after the line, not in it: the line's span is one piece, as high as its letters.
+        if (line.br) el.omuiContent.push(el.insertBefore(document.createTextNode('\n'), before));
       });
       P.ended(el, before);
     },
@@ -795,34 +790,48 @@ addToLibrary({
       return span;
     },
 
-    // The lines a batch made, fitted to what the canvas drew: measured together, then set together (two layouts of
-    // the page for a batch, not two a word). First a line's letters take the size at which its words are as wide as
-    // drawn, taken together — so the letters' shapes stay their own; then each word takes the stretch along the line
-    // that is left to it.
+    // The lines a batch made, set where the canvas drew them: measured together, then set together (three layouts
+    // of the page for a batch, not three a word). First a line's letters take the size at which its words are as
+    // wide as drawn, taken together — so the letters' shapes stay their own. Then each word is spaced from the next
+    // by what is left of the way to it (a margin: the words stay one text). Last each line, a span in its element's
+    // flow, is moved from where the flow put it to its box.
     fit: function () {
       var P = omuiPage, lines = P.fitting;
       if (!lines.length) return;
       P.fitting = [];
-      // A word's letters as wide as the page's font makes them (the word's own box is as wide as the canvas's).
-      var letters = function (w) {
-        if (!document.createRange) return w.getBoundingClientRect().width;
-        var range = document.createRange();
-        range.selectNodeContents(w);
-        return range.getBoundingClientRect().width;
-      };
+      // A word's letters, and the white space after them, as wide as the page's font makes them.
+      var letters = function (w) { return w.getBoundingClientRect().width; };
       var measure = function () { return lines.map(function (line) { return line.omuiWords.map(letters); }); };
       var wide = measure();
       lines.forEach(function (line, i) {
         var drawn = 0, natural = 0;
         line.omuiWords.forEach(function (w, j) { if (wide[i][j] > 0 && w.omuiWidth > 0) { drawn += w.omuiWidth; natural += wide[i][j]; } });
-        if (natural > 0) line.style.fontSize = Math.min(parseFloat(line.style.fontSize) * drawn / natural, parseFloat(line.style.height)) + 'px';
+        if (natural > 0) line.style.fontSize = Math.min(parseFloat(line.style.fontSize) * drawn / natural, line.omuiBox[3]) + 'px';
       });
       wide = measure();
       lines.forEach(function (line, i) {
-        line.omuiWords.forEach(function (w, j) {
-          if (!(wide[i][j] > 0) || !(w.omuiWidth > 0)) return;
-          w.style.transform = Math.abs(wide[i][j] - w.omuiWidth) > 0.25 ? 'scaleX(' + (w.omuiWidth / wide[i][j]) + ')' : '';
+        line.omuiWords.forEach(function (w, j, all) {
+          // The first word begins where it is drawn in its line; each goes on to where the next begins.
+          if (j === 0 && w.omuiX) w.style.marginLeft = w.omuiX + 'px';
+          if (j + 1 === all.length || !(wide[i][j] > 0)) return;
+          var left = all[j + 1].omuiX - w.omuiX - wide[i][j];
+          if (Math.abs(left) > 0.05) w.style.marginRight = left + 'px';
         });
+      });
+      // Where the flow put each line (its first piece: a line that ends with a break goes on below), in its element.
+      var boxes = new Map();
+      var placed = lines.map(function (line) {
+        var el = line.omuiIn;
+        if (!boxes.has(el)) boxes.set(el, el.getBoundingClientRect());
+        var pieces = line.getClientRects ? line.getClientRects() : null;
+        return [boxes.get(el), pieces && pieces.length ? pieces[0] : line.getBoundingClientRect()];
+      });
+      lines.forEach(function (line, i) {
+        var el = placed[i][0], at = placed[i][1], b = line.omuiBox;
+        // The line's left edge at its box's; its letters' middle at the middle of the box (a line's box stands
+        // evenly about its letters).
+        line.style.left = (b[0] - (at.left - el.left)) + 'px';
+        line.style.top = (b[1] + b[3] / 2 - (at.top + at.height / 2 - el.top)) + 'px';
       });
     },
 

@@ -233,6 +233,10 @@ std::optional<Value> DomMirror::sync() {
                                     .set("box", Value(Value::List{Value(quarter(line.bounds.x - n.bounds->x)), Value(quarter(line.bounds.y - n.bounds->y)),
                                                                   Value(quarter(line.bounds.width)), Value(quarter(line.bounds.height))}))
                                     .set("c", Value(std::move(held))));
+                // A line that ends where the text breaks (a line of code, a break written in a paragraph) says so:
+                // the page's lines are one text, and this is where that text has a line's end of its own.
+                const std::string_view text = n.name;
+                if (line.end > line.begin && line.end <= text.size() && text[line.end - 1] == '\n' && &line != &drawn.back()) lines.back().set("br", true);
             }
             if (lines.empty())
                 for (const semantic::Inline& from : made.content) pieces.push_back(piece(from));

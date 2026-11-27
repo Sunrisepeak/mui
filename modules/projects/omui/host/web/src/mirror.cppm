@@ -29,8 +29,10 @@
 // element's text is `lines` instead: each `{"box":[x,y,w,h],"c":[pieces]}`, the line's box relative to the
 // element's, and in its pieces each word (with the white space after it) where the canvas draws it —
 // `{"t":"word ","x":left,"w":width}` from the line's left edge, to a quarter of a pixel — so what the browser finds
-// or a person selects is on the word the canvas shows. A link that goes on into the next line is itself on its first line and an element like it
-// (`data-omui-part` naming the node) on the next.
+// or a person selects is on the word the canvas shows. A line that ends where the text itself breaks (a line of
+// code, a break written in a paragraph) says `"br":true`: the page sets an element's lines as one text, and that is
+// where the text has a line's end of its own. A link that goes on into the next line is itself on its first line
+// and an element like it (`data-omui-part` naming the node) on the next.
 //
 // A view that scrolls says `"scroll":[x,y,max_x,max_y]`: its element scrolls on the page too, to the same place, and
 // its children's boxes are places in what it scrolls (they do not change as it scrolls). So the browser's

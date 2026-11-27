@@ -295,7 +295,7 @@ test('the document layer: each node the element it is, its text with the element
   const print = sheet.textContent.slice(sheet.textContent.indexOf('@media print{'));
   assert.ok(print.includes('#canvas,#status,') && print.includes('{display:none!important}'), 'the canvas is not what is printed');
   assert.ok(print.includes('[data-omui=mirror]{position:static!important;') && print.includes('color:#000'), 'the layer is: in the page\'s flow, its text seen');
-  assert.ok(print.includes('[data-omui=mirror] [data-omui-line]{position:static!important;display:inline;'), 'a paragraph\'s lines are one paragraph again');
+  assert.ok(print.includes('[data-omui=mirror] [data-omui-line]{position:static!important;') && print.includes('[data-omui=mirror] [data-omui-word]{margin:0!important;'), 'a paragraph\'s lines are one paragraph again');
   const layer = document.querySelector('[data-omui="mirror"]');
   assert.notEqual(layer.style.opacity, '0', 'the layer is there to be found in');
   const h = P.nodes.get('doc/h'), p = P.nodes.get('doc/p'), link = P.nodes.get('doc/p/link0');
@@ -338,17 +338,26 @@ test('the document layer: each node the element it is, its text with the element
   assert.deepEqual(P.nodes.get('app').children.map((c) => c.getAttribute('data-omui-id')), ['doc/h', 'doc/p', 'doc/list']);
 });
 
-test('a text the canvas draws line by line: each line at its box, each word where the canvas draws it, fitted to the width drawn', () => {
+test('a text the canvas draws line by line: its lines and words one text, each line moved to its box, each word spaced to where the canvas draws it', () => {
   const { P, document, context } = page();
-  // No layout here: a word's letters are as wide as their count at the line's size, half an em each (what a browser
-  // would measure of them).
+  // No layout here. What a browser would measure: a word's letters are as wide as their count at the line's size,
+  // half an em each, and its margins beside them; an element's lines stand one after another in its flow, on one
+  // line, each as high as its letters (1.2 em).
   const measured = Element.prototype.getBoundingClientRect;
+  const lineOf = (el) => { while (!el.hasAttribute('data-omui-line')) el = el.parentNode; return el; };
+  const wide = (word) => word.textContent.length * parseFloat(lineOf(word).style.fontSize) * 0.5;
+  const along = (line) => line.omuiWords.reduce((sum, w) => sum + wide(w) + (parseFloat(w.style.marginLeft) || 0) + (parseFloat(w.style.marginRight) || 0), 0);
   Element.prototype.getBoundingClientRect = function () {
-    if (!this.hasAttribute('data-omui-word')) return measured.call(this);
-    let line = this.parentNode;
-    while (!line.hasAttribute('data-omui-line')) line = line.parentNode;
-    return { left: 0, top: 0, width: this.textContent.length * parseFloat(line.style.fontSize) * 0.5, height: parseFloat(line.style.height) };
+    if (this.hasAttribute('data-omui-word')) return { left: 0, top: 0, width: wide(this), height: 0 };
+    if (this.hasAttribute('data-omui-line')) {
+      const before = this.omuiIn.children.filter((c) => c.hasAttribute && c.hasAttribute('data-omui-line'));
+      const from = before.slice(0, before.indexOf(this)).reduce((sum, line) => sum + along(line), 0);
+      return { left: 8 + from, top: 8, width: along(this), height: parseFloat(this.style.fontSize) * 1.2 };
+    }
+    if (this.getAttribute('data-omui-id') === 'doc/p') return { left: 8, top: 8, width: 184, height: 48 };
+    return measured.call(this);
   };
+  const near = (said, wanted) => Math.abs(parseFloat(said) - wanted) < 1e-9;
   try {
     context.omui_web_mirror(JSON.stringify({ root: 'app', nodes: [
       { id: 'app', tag: 'div', box: [0, 0, 200, 160], children: ['doc/p'] },
@@ -362,27 +371,40 @@ test('a text the canvas draws line by line: each line at its box, each word wher
     const [first, second, ended] = p.children;
     assert.ok(first.hasAttribute('data-omui-line') && second.hasAttribute('data-omui-line'));
     assert.equal(ended.tagName, 'BR', 'the text ends with a break: read apart from the next element\'s');
-    assert.deepEqual([first.style.left, first.style.top, first.style.width, first.style.height, first.style.lineHeight], ['0px', '0px', '180px', '24px', '24px']);
-    assert.equal(second.style.top, '24px');
-    assert.equal(p.textContent, 'Read the longguide first.', 'the text\'s words, line after line');
+    assert.equal(p.textContent, 'Read the longguide first.', 'the text\'s words, line after line, nothing between them but the text');
     assert.equal(link.parentNode, first, 'the link itself on its first line');
     const part = second.children[0];
     assert.deepEqual([part.tagName, part.getAttribute('href'), part.getAttribute('data-omui-part'), part.textContent], ['A', 'guide/', 'doc/p/link0', 'guide '], 'and an element like it where it goes on');
-    // Each word a span at its place on the line: in the sentence, in the link.
+    // A line is a span of the element's text and a word a span of its line: no box of its own, no size of its own —
+    // what the browser's find takes for one text.
     const read = first.children[0], the = link.children[0], long = link.children[1];
     assert.ok(read.hasAttribute('data-omui-word') && the.hasAttribute('data-omui-word'));
-    assert.deepEqual([read.style.width, the.style.width, long.style.width], ['60px', '48px', '72px'], 'each as wide as the way to the next word: in the line\'s flow, at its place');
-    assert.equal(read.style.marginLeft || '', '', 'the first word begins where the line begins');
+    assert.deepEqual([first.style.width, first.style.height, first.style.position, read.style.width, read.style.display, long.style.transform].map((v) => v || ''), ['', '', '', '', '', '']);
+    assert.equal(first.style.lineHeight, '24px');
     // Fitted. First line: 13 letters, 180 px drawn; at half an em a letter the size at which they are 180 px wide is
-    // 27.7 px — over the line's 24, so 24 it is, and each word is stretched to its own width.
+    // 27.7 px — over the line's 24, so 24 it is. "Read " is then 60 px and "the " 48: each ends where the next is
+    // drawn, and nothing is left between them.
     assert.equal(first.style.fontSize, '24px');
-    assert.equal(read.style.transform, '', 'five letters at 12 px each are the 60 px drawn: as it is');
-    assert.equal(long.style.transform, 'scaleX(' + (72 / (4 * 24 * 0.5)) + ')');
-    // Second line: 12 letters, 96.5 px drawn: 16.08 px; "guide " is 48 px drawn and 48.25 natural, within a quarter
-    // of a pixel: left as it is; "first." the same.
-    assert.ok(Math.abs(parseFloat(second.style.fontSize) - 96.5 / (12 * 0.5)) < 1e-9, second.style.fontSize);
-    assert.equal(part.children[0].style.transform, '');
+    assert.deepEqual([read.style.marginLeft, read.style.marginRight, the.style.marginRight, long.style.marginRight].map((v) => v || ''), ['', '', '', ''], 'the first word begins where the line begins');
+    // Second line: 12 letters, 96.5 px drawn: 16.08 px. "guide " is then 48.25 px and the next word is drawn at 48:
+    // a quarter of a pixel taken back.
+    assert.ok(near(second.style.fontSize, 96.5 / (12 * 0.5)), second.style.fontSize);
+    assert.ok(near(part.children[0].style.marginRight, 48 - 6 * (96.5 / 12)), part.children[0].style.marginRight);
+    // Moved from where the flow put it to its box: the first line stands where the element begins, its letters'
+    // middle (14.4 px down) brought to the middle of its 24 px; the second followed the first along the same line
+    // (156 px on: its 13 letters at 24 px) and goes to the left edge, a line down.
+    assert.ok(near(first.style.left, 0) && near(first.style.top, 12 - 24 * 1.2 / 2), first.style.left + ' ' + first.style.top);
+    assert.ok(near(second.style.left, -156) && near(second.style.top, 24 + 10 - (96.5 / 6) * 1.2 / 2), second.style.left + ' ' + second.style.top);
     assert.equal(P.fitting.length, 0);
+
+    // A line that ends where the text breaks ends with the break, after its span: lines of code are lines when they
+    // are copied, and a phrase does not run across them.
+    context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'doc/p', lines: [
+      { box: [0, 0, 60, 24], br: true, c: [{ t: 'one', x: 0, w: 36 }] },
+      { box: [0, 24, 60, 24], c: [{ t: 'two', x: 0, w: 36 }] },
+    ] }] }));
+    assert.deepEqual(p.childNodes.map((c) => c.nodeType === 3 ? JSON.stringify(c.data) : c.tagName), ['SPAN', '"\\n"', 'SPAN', 'BR']);
+    assert.equal(p.textContent, 'one\ntwo');
 
     // The text set again as it flows (its lines unknown): the lines go.
     context.omui_web_mirror(JSON.stringify({ nodes: [{ id: 'doc/p', content: ['Read ', { tag: 'a', node: 'doc/p/link0', c: ['the long guide'] }, ' first.'] }] }));

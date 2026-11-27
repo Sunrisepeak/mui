@@ -157,3 +157,13 @@
 **红 148，官网**（`site/` 里 `omui build --web`，复制打包出的页面与符号表，`omui-devtools site split`（D5），`check site delivery` 与 `check site path`，Chromium 159 无头，各跑一次；之前是主会话在 `ed1db276` 上量的，同一台机器、同一组步骤）：首帧之前 1,446,961 → 1,386,630（−60,331），合计 2,866,601 → 2,809,521，首帧 957 → 860 ms；`check site path` 27/27。无头的 Chromium 用 SwiftShader，CPU 画，两套都不取。官网离 1.2 MB 还差 186,630 B。
 
 **Wasm 原生异常（§2 ②、§5）。** 归约成三个文件的复现（一个调用 `setjmp` 的 C 单元、一个 `try` 的 C++ 单元、`[target.'cfg(os = "emscripten")'.abi] exceptions = "wasm"`）：C++ 单元与链接有 `-fwasm-exceptions`，C 单元两样都没有，链接报 `emscripten_longjmp` 未定义；给 C 单元加 `-sSUPPORT_LONGJMP=wasm` 就链接、在 node 里运行输出 `ok`。已报上游：[mcpp#1029](https://github.com/mcpp-community/mcpp/issues/1029)（2026-11-27）。本仓库不绕开；等它修好再决定 Web 的 ABI 是否整体换（浏览器测试的 Asyncify 与 Wasm 异常的取舍仍在 §5）。
+
+## 8. 解析器：i18n 改用 mlibs.json（第二轮）
+
+**事实。** 阅读器链接了 nlohmann 的两个实例：`ordered_json`（mlibs.json 的 `Document`，程序本来就用它读 JSON）与 `json`（`std::map` 的树，只有 mlibs.i18n 读 CLDR 的语言包时用；omui.core 另用 `json` 的 SAX 解析器建 `Value`）。i18n 的读法换成 mlibs.json 的 `Node`，第二棵树就不在程序里了。
+
+**三级次序。** ① 程序里已有一个读 JSON 文档的属主（mlibs.json：带位置的问题，D-139），i18n 是第二个读法，按单一归属就该用它——问题的路径不变，解析失败时多了行与列。② 把 CLDR 在打包时生成成代码（不解析）：`LocaleData` 满是 `std::string` 与 `std::vector`，生成出的构造代码不会比 42 KB 的 JSON 小，且 CLDR 的数据仍在；未取，见下面的提议。③ 业界的 i18n 库多自带数据格式与读法（ICU 的 `.res`），即再多一个读法；不取。
+
+**结果**（同 §7 的量法；之前是 §7 之后的世界）：第一部分 1,625,233 → 1,621,613（−3,620），launcher 54,299 → 54,268，示例的部分 345,361 → 345,466；一个没有示例、CPU 画的页面 1,679,532 → 1,675,881（−3,651）；`the program` 2,082,339 → 2,078,794。比 §5 估的少：`json` 的词法与 SAX 解析仍随 omui.core 的 `Value` 读法留在程序里（nlohmann 的代码 49.2 KiB 原样，`omui-gen size`），只少了 i18n 那一棵树与它的访问。验证：`mcpp test -p mlibs.i18n -p mlibs.i18n.cldr`（三个语言包与 likely 读出、问题仍按路径报）；`check takeover` `/start/` 7/7。
+
+**提议（未做）。** omui.core 的 `Value` 也用 mlibs.json 读（或 mlibs.json 只留一个解析器实例），nlohmann 的 `json` 才整个离开；属主是 omui.core，改动面在它的读法与问题的位置上，单独一步。

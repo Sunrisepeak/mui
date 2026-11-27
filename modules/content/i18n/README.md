@@ -1,6 +1,6 @@
 # mlibs.i18n
 
-Internationalisation as an engine without data (D-74). Nothing here knows a language: the languages are data packs, generated from CLDR (`modules/content/i18n/cldr`, `omui-gen cldr`), and an application's catalogs. It depends on the standard library, nlohmann/json and mlibs.json, knows nothing of openmui, and can be released as a library of its own.
+Internationalisation as an engine without data (D-74). Nothing here knows a language: the languages are data packs, generated from CLDR (`modules/content/i18n/cldr`, `omui-gen cldr`), and an application's catalogs. It depends on the standard library and mlibs.json (its reader of JSON: locale packs and catalogs alike), knows nothing of openmui, and can be released as a library of its own.
 
 ```cpp
 import mlibs.i18n;

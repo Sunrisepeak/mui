@@ -136,6 +136,9 @@ static UTest cases{"site.show", [] {
             return seen;
         };
 
+        // What the page carries draws a change of words as a morph (omui.view.morphs; in every world that draws pixels):
+        // the test program measures with it too, else a change of words would show at once here and not there.
+        if (!omui::morphs_installed()) expect(fatal(omui::install_morphs().has_value())) << "the morphs' provider";
         const Seen unpaced = played(false), shown = played(true);
         std::println("    the site's replay before its show: {:.1f} s, still {:.0f}% of the frames, longest still {:.2f} s", unpaced.seconds,
                      unpaced.still_share * 100, unpaced.longest_still);

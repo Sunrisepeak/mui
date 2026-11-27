@@ -523,8 +523,10 @@ mount("main", column({}, [text({ id: "count", text: fmt("plan {}", plan) })]));
         r.settle(js.host);
         std::string next(counter_js);
         next.replace(next.find("{} clicks"), 9, "{} taps");
+        // A hundred rounds: the 95th percentile is then the 95th of them, which one stall of a shared machine does not
+        // decide (of twenty, it was the second slowest: red 176).
         std::vector<double> took;
-        for (int round = 0; round < 20; ++round) {
+        for (int round = 0; round < 100; ++round) {
             const auto start = std::chrono::steady_clock::now();
             auto reloaded = js.script.reload_now(round % 2 ? std::string(counter_js) : next);
             took.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());

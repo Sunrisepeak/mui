@@ -163,6 +163,7 @@ Kind: R regression, E environment, F flaky or time, T test expectation.
 | 173 | the framework and engine splits: oweb's long-page case reads the repository's guides (`docs/en/guide`), which no tier carries | P0's round, run 45956715231; 2026-11-27 | T | fixed here, to confirm: the case says it is not supported where the guides are not in the tree; every whole-repository row runs it as before |
 | 174 | Web: `omui.lang.js`'s declare cases call the TypeScript language's `declare`, empty on the Web since red 148's step 1 (`std::bad_function_call` in the page) | P0's round, run 45956715231; 2026-11-27 | T | fixed here, to confirm: the three cases are not supported where the language declares nothing (skipped on wasm32, 3 of 3) |
 | 175 | Windows: oweb's `config_test`, a configuration that stands elsewhere: the paths it states beside the pages came back in the system's spelling (`…\\config-elsewhere-product\\world`), the case and the rest of a site's data in the generic one (`/`) | P0's round, run 45956715231 (Windows 467 of 468 programs) | T | fixed here, to confirm: `oweb::configured` writes them with `generic_utf8` |
+| 176 | Web: lang.js's reload waited for on the runtime's thread (a Live Design edit within a frame) measured p95 21.00 ms against 16 — its median 1.90 ms as in round 1 (p95 4.60 there): of 20 rounds the p95 is the second slowest, so one stall of the shared runner decided it | P0's round 2, run 45980610489 | F | fixed here, to confirm: 100 rounds, the bound unchanged (p95 < 16 ms); here (native) p95 0.43 ms |
 
 ### Upstream issues
 

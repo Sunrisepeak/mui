@@ -41,7 +41,7 @@ kind = "bin"
 main = { from = "omui.entry.player/closure" }  # the components its scripts name (build.mcpp: closure(), B7b)
 
 [dependencies]
-omui.entry.player = { path = "../modules/projects/omui/entry/player" }
+omui.entry.player = { path = "../modules/projects/omui/entry/player", features = ["no-aat-text"] }  # its faces are packed with it: OpenType layout, set horizontally
 
 # Its build program (build.mcpp): the page on the Web (omui build --web).
 [build-dependencies]

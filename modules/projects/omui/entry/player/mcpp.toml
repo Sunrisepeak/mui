@@ -80,6 +80,8 @@ marzer.tomlplusplus = "3.4.0"  # an application's mcpp.toml, written as JSON for
 [features]
 default = []
 design  = { sources = [] }
+# A reduction, named by the application whose faces carry OpenType layout (the site's): omui.sdk's `no-aat-text`.
+no-aat-text = { forward = ["omui.sdk/no-aat-text"] }
 
 [feature-deps.design]
 omui.designer = { path = "../../designer" }

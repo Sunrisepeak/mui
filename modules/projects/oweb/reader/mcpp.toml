@@ -39,7 +39,7 @@ main = "src/reading/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 
 [dependencies]
-omui.sdk   = { path = "../../omui/sdk", default-features = false, features = ["app"] }  # no runtime generation: it draws documents
+omui.sdk   = { path = "../../omui/sdk", default-features = false, features = ["app", "no-aat-text"] }  # no runtime generation: it draws documents; its three faces carry OpenType layout
 omui.core  = { path = "../../omui/core" }
 omui.view  = { path = "../../omui/view" }
 oweb.shell = { path = "../shell" }

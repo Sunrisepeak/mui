@@ -298,7 +298,9 @@ trim_paths = true
 # (2026-11-21, split by its first screen): before the first frame 1.57 MB to
 # 1.35, in all 3.51 to 2.38; first frame and frames the same (Chromium). The
 # native release profile stays the one for performance.
-# Linked with LTO: the site's first half sends 25,415 B less, its second half 132,890 B less (§14).
+# Linked with LTO: the site's first half sends 25,415 B less, its second half 132,890 B less (§14). The documents reader
+# states its own web profile without it (modules/projects/oweb/reader/mcpp.toml: its parts' cut does not follow
+# indirect calls yet, §14.8).
 [workspace.profile.web]
 opt        = "z"
 lto        = true

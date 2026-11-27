@@ -332,3 +332,112 @@
 6. **脚本的类型在打包时擦掉**（官网约 12 KB，§11）：先定带设计器的发布页面是不是两样都带。
 7. **`omui.native.store` 的 `json` 实例**（阅读器 16,738 B 代码原样，§13.3）：归属 omui.native。
 8. 量过、不取：Web 上不解析命令行（约 10 KB）、CLDR（§11）。
+
+## 14. 第四轮（2026-11-27，分支 `p0-size4`，起点 `1a030e10`，主分支的头）
+
+量法同 §7（官网：`omui build --web`、复制页面与符号表、`omui-devtools site split`、`check site delivery`、`check site path`；阅读器：`mcpp pack --profile web`、`site.build --engine`、各文件 gzip -9、`check takeover` 四条路由）；本机 Linux x64，Chromium 159 无头，各跑一次，本机的另一会话同时在构建（负载 5–18）。
+
+**起点。** 主分支自 §13.6 起加了 AG3 的几步（演示放进页面）：同样的步骤在 `1a030e10` 上，官网首帧之前 **1,374,144**（§13.6 是 1,352,824，多出的 21,320 是主分支的），合计 2,801,345，首帧 881 ms；离 1,200,000 差 174,144。
+
+### 14.1 HarfBuzz 的开关（§13.6 第 2 项）
+
+索引的 mcpplibs/mcpp-index#929 已合入（2026-11-27，`compat.harfbuzz` 14.3.0 修订 3）；`mcpp index update` 之后 mcpp 看到它。`mlibs.text.harfbuzz` 的依赖写 `features = ["no-freetype", "no-unused-api"]`。原生：`mcpp test -p mlibs.text.harfbuzz` 21 例过（HarfBuzz 以新开关重编）。官网：首帧之前 1,374,144 → 1,367,516（**−6,628**），合计 −10,290；前一半代码 1726.4 → 1721.1 KiB，数据 1076.1 → 1065.2 KiB，`harfbuzz` 一项 93.5 → 88.9 KiB。
+
+**`no-aat-vertical`（决定：不是默认；一个减项，由名字取它的程序自己写）。** 另开量过：首帧之前再 −4,617（1,367,516 → 1,362,899），合计 −22,796，前一半代码 −9.9 KiB。它去掉的是桌面应用可能载入的东西——只有 AAT 表（`morx`、`kerx`）而没有 OpenType 表的字体、竖排——所以不默认，也不悄悄去掉桌面程序的能力。做法同 omui.sdk 已有的减项（`no-gamepad-hidapi`、`software-present`）：`mlibs.text.harfbuzz` 的 feature `no-aat-vertical` 转发到索引的开关；omui.sdk 的 `no-aat-text` 转发到它（不被任何世界包含，`minimal` 包含）；`omui.entry.player` 的同名 feature 再转发到 sdk。取它的程序是自己打包字体、字体都带 OpenType 表、横排的 Web 程序：**官网**（`site/mcpp.toml` 的播放器依赖一行）与**文档阅读器**（`oweb/reader/mcpp.toml` 的 sdk 一行）。落地后在整棵树上重量的数比上面的探针大：官网首帧之前 1,202,933 → 1,189,322（**−13,611**；sdk 与依赖它的包在 LTO 下重新编过，探针只量了 HarfBuzz 一个翻译单元的差）。
+
+### 14.2 Web 不带 RTTI（§13.6 第 5 项）
+
+先查：仓库里没有 `dynamic_cast`、`typeid`、`std::any`、`std::type_index`（`grep -rIn`）；mtest 与 `~/.mcpp` 里的依赖源码也没有。mcpp 的 `[workspace.target.'cfg(os = "emscripten")'.build] dialect_cxxflags = ["-fno-rtti"]`（方言旗：`import std` 的 BMI 也带它；mcpp 文档 04 §2.1）。官网：首帧之前 1,367,516 → 1,342,129（**−25,387**，估计的两倍：不只是类型名字符串，还有每个多态类与类模板实例的 `type_info` 对象），合计 −31,352；数据 1065.2 → 933.1 KiB（−132 KiB 原样）；`check site path` 27/27。
+
+### 14.3 web profile 用 LTO（官网用；阅读器不用，见 14.8）
+
+`[workspace.profile.web] lto = true`（mcpp：`-flto`，wasm-ld 链接时优化）。官网：首帧之前 1,311,173 → 1,287,082（**−24,091**，另一步的字体在这之前）；前一半 wasm gzip 1,048,259 → 1,022,844（−25,415），后一半 1,408,691 → 1,275,801（**−132,890**），合计 2,728,866 → 2,570,383；整个程序 6.45 → 6.04 MiB。首帧 854 ms（之前 843）。`check site path` 27/27。阅读器带 LTO 量到第一部分 1,578,079 → 1,492,071（−86,008），但它的切分不跟（14.8），所以阅读器在自己的清单里关掉 LTO。
+
+### 14.4 字体：GPOS 随字形一起裁（官网首帧之前最大的一块不在程序里）
+
+**事实。** 官网首帧之前的 1.37 MB 里，两个初始字体 217 KB（发出）：Inter 的切片 381,768 B（发出 172,261），JetBrains Mono 的 97,160 B（44,869）。`mlibs.text.subset` 保留所有字形编号、只清空没被保留的字形的轮廓，所以按字形编号索引的表整张留着：Inter 的 GPOS（字距）154 KB 原样、发出 49 KB，几百个字形用不到。
+**设计（三级次序）。** ① 本体系：切片知道保留哪些字形（文本的字符加 GSUB 的闭包），GPOS 的 PairPos（字对）、SinglePos、标记定位只需要保留字形涉及的条目——字对集合里删去没保留的对、类矩阵里删去没有保留字形的类、没有保留字形能到达的 lookup 整个不要；脚本表与特性表原样复制；不懂的结构（光标连写、连字标记、上下文定位、特性变体、偏移装不进 16 位）整张表保持原样，所以一次切片不会比之前更差；切片再切一次，字节相同。② 前沿：用 HarfBuzz 的 `hb-subset` 做（要在索引加一个 feature、mwrap 加导出、三个仓库各一个版本；输出与现有“字形编号不变、轮廓清空、cmap 只含请求的字符”的约定也要对齐）；用 fontTools 量过上界（Inter 切片 172,261 → 100,475 发出，含 GSUB 闭包按全部特性）；没取：本包的约定与测试是自己的，GPOS 一张表的改写是一个函数，不需要带整个子集器。③ 业界：整张表带着。
+**结果。** Inter 的切片 GPOS 49,012 → 18,730（发出），整张切片 172,261 → 141,296；JetBrains Mono 44,869 → 44,603。官网首帧之前 1,342,129 → **1,311,173（−30,956）**。`mcpp test -p mlibs.text.subset`（新例：手搭的 PairPos 表按保留字形裁、没有保留字形的 lookup 不留 subtable、上下文定位整张表保持原样、截短的 GPOS 不失败；整形例加了字距对 AVATAR、Today、Pa. 等，字形编号与位置与整张字体逐一相同）。
+
+### 14.5 字体：第一帧的面只带整形特性的字形
+
+**事实。** 切片里还剩 826 个字形带变化数据（`gvar` 66 KB 发出、`glyf` 18 KB）：文本只有约 144 个字符，其余是 GSUB 闭包——闭包按“所有 lookup，不论哪个特性开着”算，Inter 的 `ss01`–`ss08`、`cv01`–`cv14`、`zero`、`case`、`dlig`、`aalt` 为每个字符造出几个备选。
+**设计。** ① 本体系：omui 的文本只开两类特性——HarfBuzz 自己为一行文字开的（`ccmp locl mark mkmk rlig calt clig curs dist kern liga rclt`、方向的 `ltra ltrm rtla rtlm`、变体字体的 `rvrn`，复杂文字的 `abvm blwm`）和框架要的 `tnum`（等宽数字：markdown 的表、语义的 `tabular`）；样式没有 OpenType 特性的属性（`grep`：只有框架自己的两处 `Feature::on("tnum")`）。第一帧的面只需要这些特性的字形：`subset_font(…, features)` 只让这些特性的 lookup（连同它们调用的 lookup）参与闭包，其余特性的 FeatureList 记录在原处改成零个 lookup（原地，什么都不移动），所以一个样式要 `ss01` 时，切片上它什么都不做——画普通字形，不是画一个被清空的字形。整张字体（按需取、或原样发的）有全部特性。有特性变体（FeatureVariations）的 GSUB 回到“所有 lookup”。② 前沿：无。③ 业界：按文本与特性切（pyftsubset 的 `--layout-features`，Google Fonts 的子集）：同一做法。
+**范围与留下的。** 只用于第一帧的面（`omui-gen dist-toy --font-initial` 与 oweb 的页面字体）；一个程序若要第一帧的面带别的特性，把它们加进传给 `subset_font` 的列表（omui 的样式现在没有这样的属性，加属性时一并加包的选项）。
+**结果。** Inter 的切片 141,296 → **89,757** 发出（GPOS 9.6 KB、gvar 34 KB、glyf 9.7 KB），JetBrains Mono 44,603 → 41,617；官网首帧之前 1,287,082 → **1,232,126（−54,956）**；`check site path` 27/27。`mcpp test -p mlibs.text.subset -p omui.gen`（含 `font_delivery_test`，它的期望按包装器现在的切法写：初始面 = `subset_font(…, shaping_features())`）。
+
+### 14.6 Agent 面作为一个部分：量过、契约、为什么这一轮不做（§13.6 第 1 项）
+
+**量。** 官网：**没有**。`site split --names` 的前一半里没有 `omui.agent`、`mlibs.agent`、`omui::agent` 一项（首屏的剖面里没有 Agent 来过：`Web::Impl::agents()` 第一次请求时才造 `ProcessSession`，D5 的切分已经把它放在后一半），所以这一项对红 148 是 0 字节；官网还差的字节不在它里。阅读器：有。`omui-gen size`（`oweb-reader-reading`，web profile，名字保留）：`omui.agent` 165.1 KiB、`mlibs.agent` 88.5、`omui::agent` 38.3，共 291.9 KiB 代码，约占 6.9%；按本程序代码的压缩比估计发出约 95 KB（没有量）。阅读器的世界是按“同包里少一个能力的程序”切的（§2 ①），没有 profile，所以 Agent 面整个在第一部分里。
+
+**契约（要做时按它做）。**
+- *什么在部分里。* 阅读器的第一个程序（`oweb-reader-reading`）也不装 Agent 面：Web 宿主经 `omui.agent` 的槽（`omui.agent.endpoint`，现在 README 写“Still by name: the Web's host”）取 `ProcessSession`，程序的根不调 `omui::agent::install()` 就不链接它；第二部分是“示例 ∪ Agent 面”，一个文件，同一个 `deferred.wasm`。
+- *什么时候取。* ① 带示例的页面：与示例同一次，main 之前（已有：`needs = "code.language-view"`）。② 其他页面：第一次有 Agent 来时——`window.omui` 的任一方法、已连接的 Agent（`omui connect`）的第一行、WebMCP 在页面空闲后登记工具；取由页面一侧发起（加载器里 `omuiFetchDeferred()`，`window.omuiDeferredState`），请求在 JS 里排队（`P.request` 本来返回 Promise），部分实例化后按序交给程序。③ 后备：程序里的占位函数同步取（正确性不依赖这一层，同示例）。一页没有 Agent 来，一个字节都不取。
+- *等多久。* 一次请求最多等取与实例化：上限 10 s（网络断或服务端失败时），之内请求不失败、只是慢（120 KB 量级在 20 Mbit/s、40 ms 下约 100 ms）；到了上限，答 `{"kind":"error","code":"agent-surface-unavailable","text":"the page's agent surface is part of its program and could not be fetched","hint":"read the page (its document is complete) or send the request again in a moment"}`，退出码 1。
+- *期间告诉它什么。* `window.omuiDeferredState`（`waiting` → `fetching` → `instantiated`）可读；`omui connect` 的桥在握手的 hello 里带 `"surface":"fetching"`，之后才是第一行的答复。不另发进度记录：比一次往返长不了多少。
+- *不变量。* 部分取回之后，答复与不分部分时的字节相同（同一份契约套件，`check doors`、冷启动 Agent 任务在分部分的页面上过）；分部分不改变任何一个操作的效果、权限或记录。
+
+**三级次序。** ① 本体系：Agent 的入口本来全在页面一侧（`window.omui`、WebMCP、桥），都是异步的，等一个部分不需要新的机制；② 前沿：把 Agent 面做成第二个 wasm 模块（动态链接的 side module）——要 Emscripten 的 `MAIN_MODULE`，整个程序变大且慢，不取；用 wasm-split 的多模块（`--multi-split`）把示例与 Agent 面各成一个文件——加载器要管两个部分与它们各自的触发，省的是“只要 Agent 的页面不取示例的 345 KB”，这一项等有这样的页面再做；③ 业界：把工具清单放在服务端或编进程序；没有取。
+
+**为什么这一轮不做。** 对官网是 0，对阅读器约 −95 KB 发出（红 166 离 D-247 的约 1.1 MB 还差约 0.45 MB），是跨 `omui.sdk`（安装）、`omui.agent`（槽）、`omui.host.web`（经槽取会话）、`oweb.reader`（第一个程序）、`omui-gen`（`needs` 之外的触发）五处的改动，要自己的一步与自己的验证（浏览器里的 Agent 门：`check doors`）。契约在上；未做。
+
+### 14.7 字体：没有字形用得到的度量与 lookup 清空（原地）
+
+字体里按字形编号索引的几张表，没保留的字形不需要，清空而不移动（零不占发出的字节）：`hmtx` 的条目、HVAR 的前进宽度映射（每表最后一项代表它之后的所有字形，留着）——Inter 的初始面 89,757 → 84,181，JetBrains Mono 41,617 → 40,991，官网首帧之前 1,232,126 → **1,226,254（−5,872）**；GSUB：只带整形特性时，没有保留特性到达的 lookup（自己的，与只有它们调用的）的子表数记 0、过滤集记 0，只有它们到达的结构（coverage、集合、规则；扫描时记下每个结构由哪些 lookup 到达，一个结构的范围到下一个起点为止，布局表头、脚本表、特性表与 lookup 表本身从不清空）清零，两个 lookup 共有的结构在其中一个被到达时保留——Inter 84,181 → 79,345，JetBrains Mono 40,991 → 39,975，官网首帧之前 1,226,254 → **1,220,928（−5,326）**。（GSUB 的零比预估少：留下的 `calt`、`ccmp`、`locl` 的上下文链本来就占大头。）
+
+### 14.8 LTO 与阅读器的切分：量到的、改了的、没做的
+
+**量到。** 阅读器带 LTO（14.3）：没有示例、CPU 画的页面取的程序 1,632,936 → 1,547,388（−85,548），`check takeover` 四条路由 29/29；但 `site drive`（`/start/` 空闲 4 s）里 `omuiDeferredState` 是 `instantiated`、`omuiDeferredSync` 是 `true`：第二部分在每个页面上都被**同步**取了（占位函数一调用就阻塞地取 345 KB）。不带 LTO 的对照（同一份源）是 `waiting`、`false`。结论：LTO 破坏了“没有示例的页面从不取第二部分”（§3 的不变量；takeover 的检查不测它）。
+
+**为什么。** 第一部分是“兄弟程序有的（按名字或按函数体）与它们的直接调用”（§2 ①）。找到的第一个缺口：try 块里的调用走 `invoke_*`（`invoke_v(槽, …)`，槽是常量）——表里那一槽的函数被调用，调用图（`wasm-opt --print-call-graph`）却没有这条边；不带 LTO 时这类被调函数多半按名字就在兄弟程序里，LTO 把它们克隆、内联得与兄弟程序不同（量到的那个占位函数的函数体是一个函数局部静态的初始化，带守卫字节）。**改了：** `omui.gen.part` 的 `invoke_edges`：从 `wasm-opt --print` 的文字读出对 `invoke_*` 导入（按符号表的名字认）的、槽为常量的调用，和表的元素段（有 `func` 与没有的两种打印）给的槽→函数，补成边，进 `first_part` 的闭包；`mcpp test -p omui.gen`（`part_test`：两种操作数的写法、导入的槽与算出来的槽不是边、闭包跟着走）；不带 LTO 的阅读器第一部分 1,556,013 → 1,557,036（+1,023，多留下了几个被 `invoke` 调用的函数）。带 LTO 后下一个缺口出现在别处（`invoke_vii` 里非常量的槽：一次虚调用或函数指针调用，被调函数是某个类的虚函数，按名字与函数体都对不上兄弟程序的）；调用图看不到间接调用，闭包要跟着走需要按“地址被取的函数”分类，或者给阅读器的切分加一份剖面做并集（§2 ② 说的，只剖一页，作为安全网而不是作为切分）。**没做。**
+
+**现在的做法。** 阅读器的清单里自己写 `[profile.web]`（工作区的同一组、`lto = false`），原因写在清单里；官网照旧（D5 按首屏剖面切，不依赖兄弟程序，LTO 下 27/27）。阅读器因此没有 LTO 的 −86 KB；下一步（按间接调用切、或加剖面）做完后去掉这几行。`/start/ /agent/ /ui/` 的 `omuiDeferredState` 是 `waiting`、`/live/` 是 `instantiated`（异步，`sync` 为 `false`）；`check takeover` 29/29。
+
+**另一个发现（没做）。** 不带 LTO 的阅读器里，Agent 目录的清单（§13.2 的 `data.json`，23.5 KB 与 3.1 KB 两份）不再被打包器放在旁边：它的 `\0omui.apart\0data\0` 标记在未打包的 wasm 的数据里没有（带 LTO 时有），清单照原样在第一部分里，多约 5.3 KB 发出；标记被丢掉的原因没查：§13.2 的数字是起点那棵树（不带 `-fno-rtti`、不带 `no-unused-api`，不带 LTO）上量的，两个对照（带 LTO 有，不带没有）说明与链接的方式有关；是否与 `-fno-rtti` 有关没有隔离（要再编一次不带它的阅读器）。归属 `mlibs.apart` 与 ops-gen（标记要在编译器看得见的地方被读到）。
+
+### 14.9 字体：变体字体里没人拨的轴
+
+omui 的文本只设一个轴（字重，`hb_variation_t` 里只有 `wght`）；Inter 还有 `opsz`，它的 `gvar` 一个字形几个区域，有 `opsz` 峰值的区域在 `opsz` 取默认值（坐标 0）时一律算 0——除非区域跨过 0——是死数据。`subset_font` 的 `move_axes`（`shaping_axes()`）把其它轴的这类区域从 `gvar` 去掉（每个字形的区域头、共享的点号——按打包的格式读出长度——与保留区域的数据重写，一个区域都不剩的字形没有数据）：Inter 的初始面 79,345 → **61,396**（−17,949），官网首帧之前 1,220,928 → **1,202,933（−17,995）**。检验：`mcpp test -p mlibs.text.subset` 里按字重 100、300、400、650、800、900 取样例字形的轮廓，与整张字体的逐点相同（同一份轮廓，不止是整形的字形编号），`gvar` 小了三分之一以上，再切一次字节相同；`-p omui.gen`（`font_delivery_test` 的期望按包装器的切法）。首帧的面与 oweb 的页面字体这样切；按需取、原样发的整张字体有全部的轴。
+
+### 14.10 量过、没取
+
+| 做法 | 量到 | 为什么没取 |
+|---|---|---|
+| 链接后再跑 `wasm-opt -Oz --converge`（整个官网程序） | 6,764,897 → 6,568,724 B，发出 −13.6 KB（0.57%） | 太小（§2 ② 对 release 量过 1.5%，对已是 `-Oz` 的更少） |
+| `-fno-threadsafe-statics`（方言旗）加 `-sENVIRONMENT=web` | 程序字节不变（mcpp 复用了对象，没有重编；没有查是不是缓存键漏了方言旗，没有最小复现，没报上游）；启动器 −840 B 发出 | 符号表里根本没有 `__cxa_guard_acquire`（LTO 下内联了），前一项无从得益；后一项把 webview 排除在外，840 B 不值 |
+| `hb-subset` 做字体切片（§14.4 ②） | fontTools 量到上界：初始面 172,261 → 100,475 | 要三个仓库各一个版本；本包的“字形编号不变”约定与测试是自己的，GPOS、特性闭包、`gvar` 各是一个函数 |
+| Agent 面放进一个部分（§14.6） | 官网 0 B，阅读器约 −95 KB | 契约在 §14.6；五处的改动，自己的一步 |
+| 脚本的类型在打包时擦掉（§11） | 约 −9 KB 净（`mlibs::ts` 约 12 KB 移出前一半，页面多带擦过的 JS 约 3 KB） | 带设计器的页面两样都带，先要定下来：归播放器与打包器 |
+| 设计回放（54 KB 原样，发出约 5.6 KB）按需取 | 官网首帧之前约 −5.6 KB | 它在 `site/design/*`，属主会话的演示（AG3） |
+
+### 14.11 结果（本机 Linux x64，`1a030e10` 起；官网的每一步按先后叠加）
+
+| 官网，首帧之前 | B | 差 |
+|---|---:|---:|
+| 起点（`1a030e10`） | 1,374,144 | |
+| HarfBuzz `no-unused-api`（14.1） | 1,367,516 | −6,628 |
+| Web 不带 RTTI（14.2） | 1,342,129 | −25,387 |
+| GPOS 随字形裁（14.4） | 1,311,173 | −30,956 |
+| web profile 用 LTO（14.3） | 1,287,082 | −24,091 |
+| 第一帧的面只带整形特性的字形（14.5） | 1,232,126 | −54,956 |
+| hmtx 与 HVAR 清空（14.7） | 1,226,254 | −5,872 |
+| GSUB 未到达的 lookup 清空（14.7） | 1,220,928 | −5,326 |
+| 没人拨的轴（14.9） | 1,202,933 | −17,995 |
+| `no-aat-text` 减项（14.1） | **1,189,322** | −13,611 |
+
+合计 −184,822；预算 1,200,000，余 10,678。合计（所有传输）2,801,345 → 2,460,004，首帧 881 → 789 ms，`check site path` 27/27（每一步之后）。`check site delivery` 里 `transfer.total`（预算 1,800,000，“首帧 1.2 MB 与演示的至多 0.6 MB”）仍超 660,004：后一半 wasm 1.2 MB（gzip）与按需取的整张字体；这一项不在红 148 的行里。
+
+| 阅读器：没有示例、CPU 画、没人问 Agent 的页面取的程序 | B（launcher + 第一部分） |
+|---|---:|
+| 起点（§13.6，`325f5936`） | 1,647,792（54,661 + 1,593,131） |
+| HarfBuzz `no-unused-api`、Web 不带 RTTI | 1,632,936（54,857 + 1,578,079） |
+| 加 LTO（不用：14.8） | 1,547,388 |
+| 不用 LTO，加 `no-aat-text`、`invoke` 边（最终） | **1,611,888**（54,852 + 1,557,036） |
+
+最终的阅读器：第二部分（示例）344,680，WGSL 30,432，ESSL 26,921；`the program`（`engine/*` 之和，不含页面字体）2,013,921（§13.6 是 2,055,782；清单不在旁边，见 14.8 的另一个发现）；`check takeover` `/start/ /agent/ /ui/` 7/7、`/live/` 8/8；`/start/ /agent/ /ui/` 空闲后 `omuiDeferredState` 为 `waiting`，`/live/` 为 `instantiated`（异步）。离 D-247 的约 1.1 MB 还差约 0.51 MB。
+
+### 14.12 剩下的与归属
+
+- **红 148：** 首帧之前已在预算内（余 10.7 KB，不是余量：主会话每往页面加一点都会吃它）。`transfer.total` 的 1.8 MB 预算仍超（上）；D-247 的 1.1 MB 目标还差约 89 KB。还能拿的：Wasm 原生异常（mcpp-community/mcpp#1029，约 45 KB）、脚本类型在打包时擦掉（约 −9 KB，要先定）、设计回放按需取（约 −5.6 KB，主会话）、目录里其余的 Agent 文字（§13.6 第 4 项，没动）。
+- **红 166：** 阅读器 1,611,888，离 1.1 MB 差约 0.51 MB。最大的两项：阅读器的切分跟着 LTO（−86 KB，14.8，归 omui-gen 的 part 与阅读器）、Agent 面做成部分（约 −95 KB，14.6）；其后 Wasm 原生异常（约 −93 KB）、`mlibs.apart` 的清单标记在非 LTO 下丢了（约 −5 KB，14.8）。
+- 没动属主会话的文件（`omui.view` 的 motion、`DesignPresentation`、`Replayer`、`hanim.timeline`、`site/tests`、`site/design/*`、演示的文档）；改了的在别处不属在途：`mlibs.text.subset`、`omui.gen`（`part`、`dist_toy` 的两行）、`oweb/src/site.cpp` 的一行、`oweb/reader` 与 `site` 的清单、`omui.sdk`/`omui.entry.player` 的清单、工作区清单。

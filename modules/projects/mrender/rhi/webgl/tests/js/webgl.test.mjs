@@ -198,6 +198,41 @@ test('a pipeline: its program, the samplers on their units, the blocks at their 
   void c;
 });
 
+test('a page that carries the shaders apart: ESSL wanted as the program loads where WebGL2 is the GPU, a text read by its address', async () => {
+  const wanted = [], deps = [];
+  const texts = {};
+  const started = (navigator, search = '') => {
+    const l = opened();
+    wanted.length = 0, deps.length = 0;
+    Object.assign(l.c, {
+      Module: { omuiApart: { want: (kind) => { wanted.push(kind); return Promise.resolve(texts); }, texts: (kind) => (kind === 'essl' ? texts : null) } },
+      navigator, location: { search }, URLSearchParams,
+      addRunDependency: (id) => deps.push(['add', id]), removeRunDependency: (id) => deps.push(['remove', id]),
+    });
+    l.G.start();
+    return l;
+  };
+  const l = started({});
+  await Promise.resolve();
+  same(wanted, ['essl'], 'a page with no WebGPU: WebGL2 is its GPU, its ESSL fetched while the program loads');
+  same(deps, [['add', 'omui-webgl'], ['remove', 'omui-webgl']], 'main waits for it');
+  const vs = l.heap.bytes(new Uint8Array(16)), fs = l.heap.text('#version 300 es\nvoid main() {}');  // the vertex text carried apart
+  texts[vs] = '#version 300 es\nvoid main() { gl_Position = vec4(0.0); }';
+  const words = quadWords();
+  assert.equal(l.c.omui_webgl_graphics(0, l.heap.words(words), words.length, vs, 16, fs, 30, 'quad'), 1);
+  same(l.gl.calls('shaderSource').map((x) => x[2]), [texts[vs], '#version 300 es\nvoid main() {}'], 'the page\'s text by its address; one in place, in place');
+  const lost = l.heap.bytes(new Uint8Array(8));
+  assert.equal(l.c.omui_webgl_graphics(1, l.heap.words(words), words.length, lost, 8, fs, 30, 'lost'), 0);
+  assert.match(l.c.omui_webgl_error(), /no ESSL at/);
+  // WebGPU draws where the page has it, or the page asks for the CPU or WebGPU: nothing fetched here.
+  for (const [navigator, search] of [[{ gpu: {} }, ''], [{}, '?renderer=cpu'], [{}, '?renderer=webgpu']]) {
+    started(navigator, search);
+    same(wanted, [], `nothing wanted (${search || 'WebGPU'})`);
+  }
+  started({ gpu: {} }, '?renderer=webgl');
+  same(wanted, ['essl'], 'WebGL2 asked for where WebGPU is too');
+});
+
 test('a submission in its order: uploads, a cleared pass on its framebuffer, the pipeline\'s state, the draw\'s bindings', () => {
   const l = opened();
   const { c, G, gl, heap } = l;

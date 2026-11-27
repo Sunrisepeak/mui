@@ -6,6 +6,7 @@
 import std;
 import mlibs.rhi;
 import mlibs.shader;
+import mlibs.apart;
 import mlibs.testing;
 import mcpplibs.mtest;
 import mcpplibs.os;
@@ -188,6 +189,22 @@ UTest cases{"shader", [] {
         expect(cpp.contains("inline constexpr std::array<const mlibs::rhi::ShaderDesc*, 2> entries{&quad_vs, &quad_fs};"));
         auto again = mlibs::shader::compile(data("quad.slang"));
         expect(again && mlibs::shader::emit_cpp(*again, o) == cpp) << "deterministic";
+        expect(!cpp.contains(".data() + ")) << "SPIR-V carries no mark";
+    };
+
+    "a page's text formats stand after the mark its packer finds; the code is the text alone"_test = [] {
+        auto p = mlibs::shader::compile(data("quad.slang"), {.formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::wgsl})});
+        expect(p.has_value()) << (p ? "" : p.error());
+        if (!p) return;
+        const mlibs::shader::EmitOptions o{.module = "acme.render", .partition = "quad_shaders", .ns = "acme::render::shaders::quad"};
+        const std::string cpp = mlibs::shader::emit_cpp(*p, o);
+        const auto* wgsl = p->entry("quad_vs")->code_for(mlibs::rhi::ShaderFormat::wgsl);
+        expect(wgsl != nullptr);
+        if (!wgsl) return;
+        const std::size_t mark = mlibs::apart::mark("wgsl", wgsl->bytes.size()).size();
+        expect(cpp.contains(std::format("inline constexpr std::array<std::byte, {}> quad_vs_wgsl{{", mark + wgsl->bytes.size()))) << cpp.substr(0, 400);
+        expect(cpp.contains(std::format("{{mlibs::rhi::ShaderFormat::wgsl, std::span<const std::byte>(code::quad_vs_wgsl.data() + {}, {})}}", mark, wgsl->bytes.size())));
+        expect(cpp.contains("{mlibs::rhi::ShaderFormat::spirv, code::quad_vs_spirv}")) << "SPIR-V as it was";
     };
 
     "a depfile's prerequisites: escapes, Windows paths, continued lines"_test = [] {

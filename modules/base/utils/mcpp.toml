@@ -1,6 +1,7 @@
 # mlibs.utils — small domain-agnostic tools that are not libraries of their own
 # yet, one directory each (convergence plan §9.3): hash (FNV-1a), base64, names
-# (the nearest name for a typo), message (a message's words and values without a
+# (the nearest name for a typo), apart (data a program carries apart: a mark a
+# packer finds), message (a message's words and values without a
 # locale), log
 # (categories, sinks, invariants), trace (spans, counters, Chrome trace),
 # error and time (the global contracts' shapes, §5.2) and testing (the checks

@@ -146,6 +146,8 @@ struct ToyReport {
     std::vector<ToyFile> files;
     std::uintmax_t       total = 0;
     std::uintmax_t       index = 0;  // index.html's size
+    std::string          program;    // the program's file in the package (<target>-<hash>.wasm), as packed
+    std::uintmax_t       apart = 0;  // the bytes the program carries apart (carry_apart), beside it
 };
 
 inline constexpr std::uintmax_t toy_index_limit = 1024 * 1024;  // Toy: the entry index.html, unpacked

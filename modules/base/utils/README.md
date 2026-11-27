@@ -8,6 +8,7 @@ Small domain-agnostic tools that are not libraries of their own yet, one directo
 | [base64](src/base64/README.md) | `mlibs.base64` | RFC 4648 base64: pictures in JSON and SVG, read back by the command line — the one implementation |
 | [http](src/http/README.md) | `mlibs.http` | HTTP/1.1's framing for a program's own loopback server (omui's bridge, the test page servers): a request's head, a response — the one implementation |
 | [names](src/names/README.md) | `mlibs.names` | The nearest name for a typo ("did you mean `x`?") — the one implementation, for every reader of names a person or an agent wrote |
+| [apart](src/apart/README.md) | `mlibs.apart` | Data a program carries apart: the mark a generator writes before a region the program never reads itself (a shader's text), which the packer finds, takes out and writes beside the program — the one mark |
 | [message](src/message/README.md) | `mlibs.message` | A message's words and values (`{}` each) without a locale: what libraries a Web page links say their errors with, where `std::format` would bring `std::locale` (≈ 368 KB of a page) |
 | [log](src/log/README.md) | `mlibs.log` | Categories, filters, sinks, record history and invariants |
 | [trace](src/trace/README.md) | `mlibs.trace` | Spans, counters and marks; Chrome trace JSON; per-span statistics; near-free while off |

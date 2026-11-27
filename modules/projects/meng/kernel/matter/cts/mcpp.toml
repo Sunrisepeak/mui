@@ -37,7 +37,7 @@ mlibs.math     = { path = "../../../../../base/math" }
 programs = "directory"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 # tests/lattice_test.cpp: the lattice as a carrier (meng.cellular's feature `matter`) — through the suite,
 # then with cells that move.
 # tests/agent_test.cpp: a field of matter as an agent's subject (the feature `matter-agent`, which implies the

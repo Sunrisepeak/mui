@@ -55,7 +55,7 @@ omui.host.headless = { path = "../omui/host/headless" }
 omui.ui.base       = { path = "../omui/components/base" }
 omui.ui.markdown   = { path = "../omui/components/markdown" }
 openlifa.openas = "0.2.1"
-mcpplibs.os     = "0.4.4"
+mcpplibs.os     = "0.4.8"
 
 # Its build program (build.mcpp): the catalog's reference page carried in the library.
 [build-dependencies]
@@ -65,5 +65,5 @@ omui.build = { path = "../../../mcpp/build", host-module = true }
 programs = "directory"  # tests/site/: one program, each file run and filtered on its own (not named as the program `oweb`: mcpp#1028)
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 omui.host.web = { path = "../omui/host/web" }  # the layer over the canvas, held to the page before the program (layer_test)

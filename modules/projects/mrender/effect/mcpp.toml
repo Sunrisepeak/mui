@@ -34,8 +34,8 @@ mlibs.json   = { path = "../../../base/json" }
 mlibs.xdef = { path = "../../../base/xdef" }  # a snapshot's format checked first (D-209)
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mrender.raster  = { path = "../raster" }
 mlibs.geom    = { path = "../../../base/geom" }
 mrender.rhi.sdl = { path = "../rhi/sdl" }
-mcpplibs.os     = "0.4.4"
+mcpplibs.os     = "0.4.8"

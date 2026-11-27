@@ -49,4 +49,4 @@ mrender.vector = { path = "../../../mrender/vector" }
 mrender.frame = { path = "../../../mrender/frame" }
 mrender.text   = { path = "../../../mrender/text" }
 mlibs.text     = { path = "../../../../content/text" }
-mcpplibs.os    = "0.4.4"
+mcpplibs.os    = "0.4.8"

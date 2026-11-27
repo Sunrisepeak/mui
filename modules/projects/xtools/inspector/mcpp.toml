@@ -41,10 +41,10 @@ meng.cellular = { path = "../../../projects/meng/kernel/cellular" }
 "meng.cellular.present" = { path = "../../../projects/meng/kernel/cellular/present" }
 # The motion workbench reads, draws and tunes hanim's animation documents.
 hanim.studio = { path = "../../../projects/hanim/studio" }
-mcpplibs.os = "0.4.4"
+mcpplibs.os = "0.4.8"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major

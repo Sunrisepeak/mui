@@ -43,10 +43,10 @@ meng.audio.device = { path = "../../../modules/projects/meng/kernel/audio/device
 mrender.raster   = { path = "../../../modules/projects/mrender/raster" }
 mrender.vector   = { path = "../../../modules/projects/mrender/vector" }
 mcpplibs.cmdline = "0.0.3"
-mcpplibs.os      = "0.4.4"
+mcpplibs.os      = "0.4.8"
 
 [dev-dependencies]
 mlibs.text.harfbuzz = { path = "../../../modules/content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 omui.host.headless = { path = "../../../modules/projects/omui/host/headless" }
 mlibs.json     = { path = "../../../modules/base/json" }

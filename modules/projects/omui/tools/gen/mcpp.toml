@@ -37,14 +37,14 @@ mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked f
 nlohmann.json       = "3.12.0"
 marzer.tomlplusplus = "3.4.0"  # a page carries an application's mcpp.toml as its JSON snapshot (dist-toy)
 mcpplibs.cmdline    = "0.0.3"
-mcpplibs.os         = "0.4.4"  # the packer runs Binaryen's wasm-opt and wasm-split (a world in parts)
+mcpplibs.os         = "0.4.8"  # the packer runs Binaryen's wasm-opt and wasm-split (a world in parts)
 
 [test]
 programs = "directory"  # tests/gen/: one program, each file run and filtered as before
 
 [dev-dependencies]
 "mlibs.text.harfbuzz" = { path = "../../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mrender.text = { path = "../../../mrender/text" }
 mlibs.text    = { path = "../../../../content/text" }
 

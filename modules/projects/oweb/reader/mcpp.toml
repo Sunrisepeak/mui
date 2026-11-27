@@ -49,7 +49,7 @@ mlibs.json    = { path = "../../../base/json" }
 openlifa.openas = "0.2.1"
 
 [dev-dependencies]
-mcpplibs.mtest     = "0.8.4"
+mcpplibs.mtest     = "0.11.3"
 omui.host.headless = { path = "../../omui/host/headless" }
 omui.semantic      = { path = "../../omui/semantic" }
 oweb               = { path = ".." }  # the command, asked of the same built site as the page's subject (doors_test)

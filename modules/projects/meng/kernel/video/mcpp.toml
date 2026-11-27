@@ -43,4 +43,4 @@ mlibs.json          = { path = "../../../../base/json" }
 mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked first (D-209)
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"

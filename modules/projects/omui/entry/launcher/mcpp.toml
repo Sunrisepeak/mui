@@ -43,13 +43,13 @@ cxx_runtime = "toolchain-coupled"
 cxx_runtime = "toolchain-coupled"
 
 [dependencies]
-mcpplibs.os = "0.4.4"
+mcpplibs.os = "0.4.8"
 mcpplibs.cmdline = "0.0.3"
 marzer.tomlplusplus = "3.4.0"  # the application's mcpp.toml: 76,998 B of the program (red 145: its reader is a decision)
 mlibs.json = { path = "../../../../base/json" }  # runtime.json read in place by its own scanner, --which quoted by it: no parser linked
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 
 # Small (E3b: ≤ 200 KB): built for the fewest bytes when it is the build's root
 # (`mcpp pack omui-launch -p …`), -Oz as the workspace's `small` profile its

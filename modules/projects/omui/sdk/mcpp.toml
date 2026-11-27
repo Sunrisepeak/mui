@@ -114,7 +114,7 @@ omui.ui.base       = { path = "../components/base" }
 omui.host.headless = { path = "../host/headless" }
 mlibs.i18n        = { path = "../../../content/i18n" }
 "mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
-mcpplibs.os           = "0.4.4"
+mcpplibs.os           = "0.4.8"
 # The development host (:devhost) draws the application's frames itself, glyphs too.
 mrender.vector        = { path = "../../mrender/vector" }
 mrender.frame         = { path = "../../mrender/frame" }
@@ -152,7 +152,7 @@ mlibs.build = { path = "../../../base/build", host-module = true }  # compose: t
 # SDK startup CTS exercise the actual generated profile and AppSpec run path.
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 omui.theme     = { path = "../theme" }  # quality_lab_test: the controls in the theme's style packs
 
 [test]

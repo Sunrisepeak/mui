@@ -55,7 +55,7 @@ mlibs.rhi      = { path = "../../../gfx/rhi" }
 mlibs.agent    = { path = "../../../base/agent" }
 mlibs.i18n     = { path = "../../../content/i18n" }
 mlibs.compose  = { path = "../../../base/compose" }  # the morphs' slot (and mrender's effects and mlibs.image's decoder, read at theirs)
-mcpplibs.os      = "0.4.4"
+mcpplibs.os      = "0.4.8"
 
 # The files of tests/view/ are one program, run a file at a time: one link of the closure for all of them.
 [test]
@@ -64,7 +64,7 @@ programs = "directory"
 [dev-dependencies]
 mlibs.text.harfbuzz = { path = "../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.cts = { path = "../../../base/cts" }
 
 # Optional native adapter. Ordinary views do not force the full Hanim player.

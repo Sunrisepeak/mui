@@ -110,7 +110,7 @@ meng.matter   = { path = "../matter" }
 features = ["agent", "matter", "rigid", "rigid3", "rigid3-agent", "rigid3-matter", "rigid3-scene", "cts"]
 
 [dev-dependencies]
-mcpplibs.mtest   = "0.8.4"
+mcpplibs.mtest   = "0.11.3"
 # tests/agent_test.cpp: the agent contract's suite on a body (mlibs.agent.cts), then kicks, seeks and branches.
 mlibs.agent.cts  = { path = "../../../../base/agent/cts" }
 mlibs.json       = { path = "../../../../base/json" }

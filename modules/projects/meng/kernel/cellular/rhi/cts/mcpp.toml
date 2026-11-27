@@ -36,9 +36,9 @@ meng.matter = { path = "../../../matter" }
 # Its run on SDL_GPU, and the field on screen from the device's own cells (tests/native/), are native only:
 # selected by target (mcpp 2026.11.16.1, #942), with what they import.
 [dev-dependencies]
-mcpplibs.mtest     = "0.8.4"
+mcpplibs.mtest     = "0.11.3"
 mrender.rhi.webgpu = { path = "../../../../../mrender/rhi/webgpu" }
-mcpplibs.os        = "0.4.4"
+mcpplibs.os        = "0.4.8"
 
 [test]
 discover = ["tests/*.cpp", "tests/native/*.cpp"]

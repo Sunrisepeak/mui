@@ -40,4 +40,4 @@ mlibs.utils     = { path = "../../../base/utils" }
 mrender.vector = { path = "../../mrender/vector" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"

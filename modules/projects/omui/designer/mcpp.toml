@@ -38,7 +38,7 @@ omui.agent    = { path = "../agent" }
 mlibs.agent   = { path = "../../../base/agent" }
 # View documents as a design's sources (:view_sources): read and put in canonical form by their owner.
 omui.viewdoc  = { path = "../viewdoc" }
-mcpplibs.os   = "0.4.4"
+mcpplibs.os   = "0.4.8"
 mlibs.json    = { path = "../../../base/json" }
 mlibs.utils   = { path = "../../../base/utils" }
 
@@ -47,7 +47,7 @@ programs = "directory"  # tests/designer/: one program, each file run and filter
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest     = "0.8.4"
+mcpplibs.mtest     = "0.11.3"
 # view_sources_test: the design adapter's contract on the view documents' sources.
 mlibs.agent.cts    = { path = "../../../base/agent/cts" }
 mlibs.image        = { path = "../../../base/image" }

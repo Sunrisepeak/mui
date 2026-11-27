@@ -46,7 +46,7 @@ nlohmann.json    = "3.12.0"
 mlibs.image      = { path = "../../../base/image" }  # the PNG reader it installs where none is
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 # The test is the program here: it installs the shaper its frames' words are drawn with (terminal design §9 — the
 # library installs none: a program's root chooses its text measure).
 mlibs.text.harfbuzz = { path = "../../../content/text/harfbuzz" }

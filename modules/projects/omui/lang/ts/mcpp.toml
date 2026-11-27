@@ -30,11 +30,11 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 mlibs.ts    = { path = "../../../../base/ts" }  # the tool kernel's TypeScript: blanking, evaluation
 mlibs.utils = { path = "../../../../base/utils" }  # mlibs.error: why a call cannot be edited
-mcpplibs.os = "0.4.4"  # a data file read as every platform reads one
+mcpplibs.os = "0.4.8"  # a data file read as every platform reads one
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.cts = { path = "../../../../base/cts" }
 mlibs.xdef.tool = { path = "../../../../base/xdef/tool" }  # registry_test: the manifest registers what the define modules define
 

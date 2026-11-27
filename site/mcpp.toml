@@ -50,8 +50,8 @@ omui.build = { path = "../mcpp/build", host-module = true }
 # Its tests drive the page without a window, as an agent does (omui doctor's app.headless-test), and design it
 # from what omui new writes through the designer's verbs (tests/design_test.cpp).
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
-mcpplibs.os    = "0.4.4"
+mcpplibs.mtest = "0.11.3"
+mcpplibs.os    = "0.4.8"
 mlibs.utils    = { path = "../modules/base/utils" }
 mlibs.agent    = { path = "../modules/base/agent" }
 omui.player    = { path = "../modules/projects/omui/player" }

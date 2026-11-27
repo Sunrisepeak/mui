@@ -62,7 +62,7 @@ omui.build = { path = "../../mcpp/build", host-module = true }
 programs = "directory"  # tests/kiln/: one program, each file run and filtered as before
 
 [dev-dependencies]
-mcpplibs.mtest   = "0.8.4"
+mcpplibs.mtest   = "0.11.3"
 mlibs.image      = { path = "../../modules/base/image" }
 # tests/picture_test.cpp: the picture under the presentation contract.
 mlibs.cts        = { path = "../../modules/base/cts" }

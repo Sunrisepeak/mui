@@ -43,10 +43,10 @@ mlibs.agent   = { path = "../../../../base/agent" }
 mlibs.control = { path = "../../../../base/control" }
 mlibs.utils   = { path = "../../../../base/utils" }
 openlifa.openas = "0.2.1"
-mcpplibs.os   = "0.4.4"  # raw keys, the terminal's size, the standard streams
+mcpplibs.os   = "0.4.8"  # raw keys, the terminal's size, the standard streams
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.agent.cts = { path = "../../../../base/agent/cts" }  # the agent contract's suite on the terminal's subject
 omui.ui.base  = { path = "../../components/base" }         # the components a window shows, in cells
 mlibs.image   = { path = "../../../../base/image" }         # its decoder's slot, absent here as in a terminal's program

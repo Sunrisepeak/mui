@@ -32,8 +32,8 @@ mlibs.xdef  = { path = ".." }
 mlibs.ts    = { path = "../../ts" }  # a data module evaluated
 mlibs.json  = { path = "../../json" }  # a committed snapshot's format read
 marzer.tomlplusplus = "3.4.0"        # the manifests' registries
-mcpplibs.os = "0.4.4"
+mcpplibs.os = "0.4.8"
 mcpplibs.cmdline = "0.0.3"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"

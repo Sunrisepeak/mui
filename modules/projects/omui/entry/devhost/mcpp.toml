@@ -31,12 +31,12 @@ omui.designer = { path = "../../designer" }
 # The design's history store, held here as builds come and go: the agent kernel's.
 mlibs.agent   = { path = "../../../../base/agent" }
 omui.agent = { path = "../../agent" }
-mcpplibs.os = "0.4.4"
+mcpplibs.os = "0.4.8"
 mcpplibs.cmdline = "0.0.3"
 
 [dev-dependencies]
 # Tests are mtest's (D-147); the end-to-end case reads the host as an agent does.
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 
 # The end-to-end case runs `mcpp build` in this workspace several times (`mcpp test` lets go of the build
 # directory before its tests run, mcpp#915): `mcpp test -p omui.entry.devhost`; CI's workspace run leaves it

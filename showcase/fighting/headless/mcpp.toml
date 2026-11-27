@@ -34,7 +34,7 @@ mlibs.utils     = { path = "../../../modules/base/utils" }
 gongfu.rules = { path = "../../../modules/projects/gongfu/rules", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest  = "0.8.4"
+mcpplibs.mtest  = "0.11.3"
 mlibs.agent     = { path = "../../../modules/base/agent" }
 "mlibs.agent.cts" = { path = "../../../modules/base/agent/cts" }
 mlibs.json      = { path = "../../../modules/base/json" }

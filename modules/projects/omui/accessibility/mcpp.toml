@@ -41,5 +41,5 @@ mlibs.compose   = { path = "../../../base/compose" }  # the slot a platform's se
 
 [dev-dependencies]
 mlibs.text.harfbuzz = { path = "../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.cts = { path = "../../../base/cts" }  # the slot contract (slot_test)

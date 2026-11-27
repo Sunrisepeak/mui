@@ -60,10 +60,10 @@ mrender.rhi.webgl   = { path = "../../../mrender/rhi/webgl" }
 mlibs.text     = { path = "../../../../content/text" }
 mlibs.utils    = { path = "../../../../base/utils" }
 mlibs.image    = { path = "../../../../base/image" }
-mcpplibs.os      = "0.4.4"
+mcpplibs.os      = "0.4.8"
 openlifa.openas  = "0.2.1"  # src/toy: Toy's errors in openas's words
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.agent   = { path = "../../../../base/agent" }    # a subject beside the interface, asked through the page (web_test)
 mlibs.control = { path = "../../../../base/control" }

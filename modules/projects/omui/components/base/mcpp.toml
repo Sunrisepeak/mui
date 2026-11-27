@@ -54,7 +54,7 @@ programs = "directory"
 
 [dev-dependencies]
 mlibs.text.harfbuzz = { path = "../../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mrender.text = { path = "../../../mrender/text" }
 omui.host.headless = { path = "../../host/headless" }
 # platform_styles_test: the platform packs (fluent, cupertino, material) over the components.

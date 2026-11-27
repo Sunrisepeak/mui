@@ -43,6 +43,6 @@ omui.build = { path = "../../../../mcpp/build", host-module = true }  # the styl
 programs = "directory"  # tests/theme/: one program, each file run and filtered as before
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 omui.lang.ts = { path = "../lang/ts" }  # the theme packages' modules, evaluated as the build does
 mlibs.cts = { path = "../../../base/cts" }

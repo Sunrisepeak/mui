@@ -42,7 +42,7 @@ mlibs.text.fonts = { path = "../../modules/content/text/fonts" }  # every script
 omui.entry.player = { path = "../../modules/projects/omui/entry/player" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.utils      = { path = "../../modules/base/utils" }
 omui.player       = { path = "../../modules/projects/omui/player" }
 omui.lang.js      = { path = "../../modules/projects/omui/lang/js" }

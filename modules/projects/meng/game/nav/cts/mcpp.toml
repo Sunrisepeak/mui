@@ -32,6 +32,6 @@ mlibs.cts   = { path = "../../../../../base/cts" }
 mlibs.utils = { path = "../../../../../base/utils" }
 
 [dev-dependencies]
-mcpplibs.mtest  = "0.8.4"
+mcpplibs.mtest  = "0.11.3"
 mlibs.agent.cts = { path = "../../../../../base/agent/cts" }
 mlibs.json      = { path = "../../../../../base/json" }

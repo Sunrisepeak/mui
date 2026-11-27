@@ -68,7 +68,7 @@ omui.ui.markdown   = { path = "../../components/markdown", reexport = true }  # 
 omui.native = { path = "../../native", reexport = true }  # with its modules (fuzzy, store); a derived registry may name them
 omui.theme = { path = "../../theme" }  # with its packs
 mlibs.json = { path = "../../../../base/json" }  # the manifest's declaration, read as JSON
-mcpplibs.os = "0.4.4"
+mcpplibs.os = "0.4.8"
 mcpplibs.cmdline = "0.0.3"
 
 [target.'cfg(not(os = "emscripten"))'.dependencies]

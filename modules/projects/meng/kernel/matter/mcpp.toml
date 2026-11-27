@@ -51,5 +51,5 @@ mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked f
 mlibs.math = { path = "../../../../base/math" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.cts      = { path = "../../../../base/cts" }

@@ -29,4 +29,4 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mlibs.utils = { path = "../utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"

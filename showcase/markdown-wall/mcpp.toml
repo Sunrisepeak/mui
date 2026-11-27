@@ -51,11 +51,11 @@ omui.ui.markdown   = { path = "../../modules/projects/omui/components/markdown" 
 omui.build = { path = "../../mcpp/build", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 omui.abi      = { path = "../../modules/projects/omui/abi" }
 omui.agent    = { path = "../../modules/projects/omui/agent" }
 omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
-mcpplibs.os      = "0.4.4"
+mcpplibs.os      = "0.4.8"
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from (none: only tools write it).

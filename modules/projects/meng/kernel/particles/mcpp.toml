@@ -45,5 +45,5 @@ mlibs.geom     = { path = "../../../../base/geom" }
 mlibs.utils    = { path = "../../../../base/utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 meng.matter = { path = "../matter" }  # with its default features: the standard definition (json)

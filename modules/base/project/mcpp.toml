@@ -27,10 +27,10 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 mlibs.xdef = { path = "../xdef" }  # a data file's name, a snapshot's format
 mlibs.json = { path = "../json" }  # the profiles owners declare, as data
 marzer.tomlplusplus = "3.4.0"      # the manifests
-mcpplibs.os = "0.4.4"
+mcpplibs.os = "0.4.8"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from.

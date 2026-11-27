@@ -48,7 +48,7 @@ mlibs.pipeline = { path = "../../../base/pipeline" }
 # islands' pixels encoded as PNG.
 mrender.vector = { path = "../../mrender/vector" }
 mlibs.image    = { path = "../../../base/image" }
-mcpplibs.os      = "0.4.4"
+mcpplibs.os      = "0.4.8"
 
 # The files of tests/agent/ are one program, run a file at a time: one link of the closure for all of them.
 [test]
@@ -57,7 +57,7 @@ programs = "directory"
 [dev-dependencies]
 mlibs.text.harfbuzz = { path = "../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 # contract_test: the agent contract's suite on the interface as a subject (D-174).
 mlibs.agent.cts = { path = "../../../base/agent/cts" }
 # state_test, contract_test: pages of the official components (text_box, toggle, slider).

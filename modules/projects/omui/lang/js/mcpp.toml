@@ -39,7 +39,7 @@ mlibs.ts = { path = "../../../../base/ts" }  # TypeScript blanked (re-exported: 
 omui.abi    = { path = "../../abi" }
 omui.player = { path = "../../player" }
 openlifa.openmui = { path = "../../../../../spec" }
-mcpplibs.os       = "0.4.4"
+mcpplibs.os       = "0.4.8"
 nlohmann.json     = "3.12.0"
 
 [target.'cfg(not(os = "emscripten"))'.dependencies]
@@ -50,7 +50,7 @@ programs = "directory"  # tests/js/: one program, each file run and filtered as 
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest     = "0.8.4"
+mcpplibs.mtest     = "0.11.3"
 mlibs.utils       = { path = "../../../../base/utils" }
 omui.cts           = { path = "../../cts" }
 omui.native = { path = "../../native" }  # with its modules (fuzzy, store)

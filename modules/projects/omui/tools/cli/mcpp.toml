@@ -41,7 +41,7 @@ mlibs.ts         = { path = "../../../../base/ts" }  # strip_types: a data modul
 omui.ui.base     = { path = "../../components/base" }
 omui.ui.markdown = { path = "../../components/markdown" }
 omui.host.headless = { path = "../../host/headless" }
-mcpplibs.os      = "0.4.4"
+mcpplibs.os      = "0.4.8"
 mlibs.project = { path = "../../../../base/project" }  # omui doctor: the project's health (general rules, omui's profiles)
 omui.entry.launcher = { path = "../../entry/launcher" }  # omui doctor: a declared runtime read as omui-launch reads it, and the one it takes
 marzer.tomlplusplus = "3.4.0"
@@ -51,5 +51,5 @@ programs = "directory"  # tests/cli/: one program, each file run and filtered as
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.utils       = { path = "../../../../base/utils" }

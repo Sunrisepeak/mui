@@ -25,7 +25,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.utils = { path = "../../../base/utils" }  # mlibs.testing: the repository's root, a scratch directory
 mlibs.text    = { path = ".." }                  # the cut face read back: coverage, fallback, metrics, shaping
 "mlibs.text.harfbuzz" = { path = "../harfbuzz" }

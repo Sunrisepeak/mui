@@ -80,6 +80,6 @@ meng.dynamics = { path = "../dynamics", features = ["rigid"] }
 mlibs.simulation = { path = "../../../../base/simulation" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.simulation   = { path = "../../../../base/simulation" }
 mlibs.cts          = { path = "../../../../base/cts" }

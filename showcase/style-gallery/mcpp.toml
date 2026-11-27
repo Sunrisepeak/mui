@@ -38,8 +38,8 @@ mcpplibs.cmdline = "0.0.3"
 omui.sdk          = { path = "../../modules/projects/omui/sdk" }
 omui.theme      = { path = "../../modules/projects/omui/theme" }
 mlibs.math         = { path = "../../modules/base/math" }
-mcpplibs.os          = "0.4.4"
+mcpplibs.os          = "0.4.8"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.utils = { path = "../../modules/base/utils" }

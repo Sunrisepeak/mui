@@ -57,7 +57,7 @@ omui.build = { path = "../../../../../mcpp/build", host-module = true }
 openlifa.openmui = { path = "../../../../../spec" }  # its registry/: what the contracts are generated against
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 omui.semantic = { path = "../../semantic" }   # markdown_live_test: the document's HTML, read back
 omui.ui.base = { path = "../base" }           # markdown_live_test: the stand-in example's button
 omui.host.headless = { path = "../../host/headless" }

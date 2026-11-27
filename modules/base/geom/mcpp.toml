@@ -40,5 +40,5 @@ mlibs.utils = { path = "../utils" }
 mlibs.math  = { path = "../math" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.cts = { path = "../cts" }

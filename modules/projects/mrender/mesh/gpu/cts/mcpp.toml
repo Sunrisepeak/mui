@@ -38,8 +38,8 @@ mlibs.image      = { path = "../../../../../base/image", features = ["ktx2"] }
 mrender.asset    = { path = "../../../asset" }
 
 [dev-dependencies]
-mcpplibs.mtest     = "0.8.4"
-mcpplibs.os        = "0.4.4"
+mcpplibs.mtest     = "0.11.3"
+mcpplibs.os        = "0.4.8"
 # The page's backends: the suite on WebGPU and on WebGL2 (tests/, run in a browser by omui-devtools check browser).
 mrender.rhi.webgpu = { path = "../../../rhi/webgpu" }
 mrender.rhi.webgl  = { path = "../../../rhi/webgl" }

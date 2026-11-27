@@ -34,7 +34,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mlibs.utils    = { path = "../utils" }
 mlibs.compose  = { path = "../compose" }  # :slots, the slot contract
 # A suite's cases are mtest's conformance cases: the library, not only its tests.
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
 # version, and the define module a data module imports each from (none: only tools write it).

@@ -58,10 +58,10 @@ omui.showcase.style_gallery      = { path = "../style-gallery" }
 omui.showcase.widget_breakout  = { path = "../widget-breakout" }
 "omui.showcase.widget_breakout.headless" = { path = "../widget-breakout/headless" }  # its simulation (src/sim)
 mcpplibs.cmdline                    = "0.0.3"
-mcpplibs.os                         = "0.4.4"
+mcpplibs.os                         = "0.4.8"
 
 [build-dependencies]
 omui.build = { path = "../../mcpp/build", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"

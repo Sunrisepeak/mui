@@ -57,5 +57,5 @@ mcpplibs.mwrap.libjpeg_turbo = "3.2.1"
 mcpplibs.mwrap.libwebp = { version = "1.5.0", features = ["demux", "mux"] }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.utils = { path = "../utils" }

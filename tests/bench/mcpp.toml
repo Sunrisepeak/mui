@@ -24,7 +24,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 # The measuring is mtest's (bench::laps): the scenes' loop is its, in the library and in its tests.
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mrender.text = { path = "../../modules/projects/mrender/text" }
 mrender.scene = { path = "../../modules/projects/mrender/scene" }
 "mrender.mesh"  = { path = "../../modules/projects/mrender/mesh" }
@@ -73,7 +73,7 @@ meng.world = { path = "../../modules/projects/meng/game/world" }
 omui.theme = { path = "../../modules/projects/omui/theme" }  # with its packs
 mlibs.rhi           = { path = "../../modules/gfx/rhi" }
 mrender.rhi.sdl       = { path = "../../modules/projects/mrender/rhi/sdl" }
-mcpplibs.os           = "0.4.4"
+mcpplibs.os           = "0.4.8"
 
 
 

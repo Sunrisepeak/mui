@@ -31,6 +31,6 @@ mlibs.agent = { path = "../../../../base/agent" }
 mlibs.json  = { path = "../../../../base/json" }
 
 [dev-dependencies]
-mcpplibs.mtest  = "0.8.4"
+mcpplibs.mtest  = "0.11.3"
 meng.runtime = { path = "../runtime" }
 meng.input   = { path = "../input" }

@@ -44,13 +44,13 @@ meng.video          = { path = "../meng/kernel/video" }
 "omui.lang.ts"         = { path = "../omui/lang/ts" }
 "omui.ui.base"         = { path = "../omui/components/base" }
 "omui.ui.markdown"     = { path = "../omui/components/markdown" }
-mcpplibs.os           = "0.4.4"
+mcpplibs.os           = "0.4.8"
 
 [test]
 programs = "directory"  # tests/tool/: one program, each file run and filtered as before (not named as the program `xtools`: mcpp#1028)
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 # workspace_test: the interface's and hanim's design adapters in one workspace (RC3.10's bar).
 mlibs.agent.cts = { path = "../../base/agent/cts" }
 mlibs.json      = { path = "../../base/json" }

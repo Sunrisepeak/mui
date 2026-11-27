@@ -37,6 +37,6 @@ mcpplibs.mwrap.harfbuzz = "14.3.0"
 compat.harfbuzz = { version = "14.3.0", features = ["no-freetype"] }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.utils = { path = "../../../base/utils" }
 mlibs.text.fonts = { path = "../fonts" }  # the fixed set the tests draw with (D-214)

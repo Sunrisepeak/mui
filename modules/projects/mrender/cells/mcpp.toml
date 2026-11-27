@@ -31,4 +31,4 @@ mlibs.geom      = { path = "../../../base/geom" }
 mlibs.unicode   = { path = "../../../base/unicode" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"

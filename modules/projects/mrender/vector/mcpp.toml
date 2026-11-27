@@ -60,6 +60,6 @@ programs = "directory"
 features = ["sprite"]  # tests/vector/sprite_test.cpp
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.image   = { path = "../../../base/image" }
-mcpplibs.os     = "0.4.4"
+mcpplibs.os     = "0.4.8"

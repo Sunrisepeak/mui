@@ -42,8 +42,8 @@ omui.lang.ts            = { path = "../../omui/lang/ts" }
 omui.host.headless      = { path = "../../omui/host/headless" }
 omui.ui.base            = { path = "../../omui/components/base" }
 mrender.vector          = { path = "../../mrender/vector" }
-mcpplibs.os             = "0.4.4"
+mcpplibs.os             = "0.4.8"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 mlibs.utils    = { path = "../../../base/utils" }  # mlibs.testing's scratch directories

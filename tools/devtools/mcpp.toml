@@ -37,14 +37,14 @@ mlibs.image      = { path = "../../modules/base/image" }  # eval compare's sheet
 mlibs.delivery   = { path = "../../modules/base/delivery" }  # gzip and the kinds a host compresses: the site served as Pages serves it
 omui.entry.launcher = { path = "../../modules/projects/omui/entry/launcher" }  # release runtime: versions compared as the launcher does
 mcpplibs.cmdline = "0.0.3"
-mcpplibs.os      = "0.4.4"
+mcpplibs.os      = "0.4.8"
 mcpplibs.mpal    = { path = "../../modules/base/mpal" }  # its D-Bus: atspi speaks AT-SPI with it
 
 [test]
 programs = "directory"  # tests/devtools/: one program, each file run and filtered as before
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"
 
 
 # The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major

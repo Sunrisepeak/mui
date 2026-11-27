@@ -26,7 +26,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
 mcpplibs.mwrap.zlib = "1.3.2"
-mcpplibs.os         = "0.4.4"
+mcpplibs.os         = "0.4.8"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.8.4"
+mcpplibs.mtest = "0.11.3"

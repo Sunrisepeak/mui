@@ -129,6 +129,8 @@ private:
         bool          item = false;    // an item no node stands for, as its holder stated it
         bool          told = false;    // `changes` has answered it
         bool          touched = false; // changed since
+        NodeId        node{};          // the runtime's node it was read from (none: an item)
+        bool          own_place = false;  // its component states where it is (not the runtime's geometry): read whole
     };
     // A virtualising node's items as last read, kept while their revision says they are the same.
     struct Items {
@@ -139,6 +141,10 @@ private:
     };
 
     void refresh();
+    // Only where nodes are has changed since the last refresh (the runtime's content revision is the same): the
+    // views that scroll read again whole, every other node's place and whether it is in sight. False where it cannot
+    // tell (items its holders state, a node animating, one gone): refresh reads all.
+    bool moved();
     // `expect` read after a still frame (the state the steps made): the first that does not hold, its index and why.
     std::optional<std::pair<std::size_t, std::string>> unmet(std::span<const Condition> expect);
     // Marks a node changed since the last `changes`.
@@ -147,6 +153,8 @@ private:
     Runtime&                                     runtime_;
     TreeOptions                                  options_;
     std::uint64_t                                read_ = 0;   // the runtime revision the cache is of
+    std::uint64_t                                content_read_ = 0;  // and its content revision
+    bool                                         items_held_ = false;  // some holder stated items no node stands for
     bool                                         fresh_ = false;
     std::uint64_t                                pass_ = 0;   // refreshes made
     std::vector<spec::SemanticNode>              nodes_;

@@ -55,7 +55,11 @@ The retained and immediate view runtime (plan §3–§5):
   on the injected clock, incremental layout, painting into a display list with
   node markers, hit testing through transforms, pointer capture, hover,
   focus and Tab order, contract key bindings, actions under S-1/S-2 with an
-  audit journal, and each node's semantics;
+  audit journal, and each node's semantics — with two revisions: `semantic_revision`
+  moves with any change, `semantic_content_revision` not when only places moved
+  (a frame placed again, a view's offset: a scroll view moves through `scrolled`,
+  which writes its `x` and `y` back and makes only its own node new), so a
+  reader re-reads the views that scroll and each node's `semantic_geometry`;
 - **what is drawn is what can be seen** (N5): the bounds pass gives each node
   its reach (its box, what it draws past it — focus ring, shadow, an effect's
   declared reach — and its children's unless it clips; none while its drawing

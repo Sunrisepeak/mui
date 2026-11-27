@@ -97,6 +97,29 @@ bool Runtime::Impl::has_handler(NodeId id, std::string_view event) const {
     return false;
 }
 
+Runtime::SemanticGeometry Runtime::Impl::semantic_geometry(NodeId id) const {
+    const Node& n = at(id);
+    Runtime::SemanticGeometry g;
+    // Without layout (H0) a node has no place: neither bounds nor offscreen.
+    if (!placed) return g;  // the pipeline computes bounds
+    // Off screen: outside the window, or outside what an ancestor clips to (a scroll view's viewport): drawn nowhere.
+    if (id != root) {
+        if (presentation_epoch != 0) {
+            g.offscreen = n.presented_epoch != presentation_epoch || n.presented_visible.empty();
+        } else {
+            Rect seen{0, 0, size.width, size.height};
+            for (NodeId c = n.parent; alive(c) && c != root; c = at(c).parent)
+                if (const Node& a = at(c); a.visual.clip || a.type->scroll_offset) seen = seen.intersection(a.screen);
+            g.offscreen = !n.screen.intersects(seen);
+        }
+    }
+    // Keep the full current border, including coordinates outside a viewport:
+    // readers need those to reveal a clipped node. Offscreen and hit clipping
+    // use presented_visible; the geometry agrees with drawn_bounds.
+    g.bounds = to_spec(presentation_epoch != 0 ? (n.presented_epoch == presentation_epoch ? n.presented_bounds : Rect{}) : n.screen);
+    return g;
+}
+
 spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
     const Node& n = at(id);
     spec::SemanticNode s;
@@ -131,19 +154,8 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         .set(State::animating, n.state.animating || (id == root && fading.has_value()) || std::ranges::find(moving_flagged, id) != moving_flagged.end() ||
                                    motion_moving(id))  // seekable handles report their own clock, including pause and direction
         .set(State::hidden, !displayed(id));
-    // Without layout (H0) a node has no place: neither bounds nor offscreen.
-    const bool placed = this->placed;  // the pipeline computes bounds
-    // Off screen: outside the window, or outside what an ancestor clips to (a scroll view's viewport): drawn nowhere.
-    if (placed && id != root) {
-        if (presentation_epoch != 0) {
-            if (n.presented_epoch != presentation_epoch || n.presented_visible.empty()) s.states.set(State::offscreen);
-        } else {
-            Rect seen{0, 0, size.width, size.height};
-            for (NodeId c = n.parent; alive(c) && c != root; c = at(c).parent)
-                if (const Node& a = at(c); a.visual.clip || a.type->scroll_offset) seen = seen.intersection(a.screen);
-            if (!n.screen.intersects(seen)) s.states.set(State::offscreen);
-        }
-    }
+    const Runtime::SemanticGeometry geometry = semantic_geometry(id);
+    if (geometry.offscreen) s.states.set(State::offscreen);
 
     // Actions: the contract's, then the verb's classification of activate.
     auto add = [&](std::string_view name, Effect effect, std::span<const spec::ArgInfo> args = {}) -> spec::ActionDesc& {
@@ -201,10 +213,7 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
             break;
         }
 
-    // Keep the full current border, including coordinates outside a viewport:
-    // readers need those to reveal a clipped node. Offscreen and hit clipping
-    // use presented_visible; the geometry agrees with drawn_bounds.
-    if (placed) s.bounds = to_spec(presentation_epoch != 0 ? (n.presented_epoch == presentation_epoch ? n.presented_bounds : Rect{}) : n.screen);
+    s.bounds = geometry.bounds;
     for (NodeId c : n.children) s.children.push_back(self.path(c));
     if (n.type->semantics) {
         SemanticsContext ctx{self, id, n.state};
@@ -558,6 +567,12 @@ spec::SemanticNode Runtime::semantic_node(NodeId node) const {
     return impl_->semantics(node);
 }
 
+Runtime::SemanticGeometry Runtime::semantic_geometry(NodeId node) const {
+    if (!valid(node)) return {};
+    return impl_->semantic_geometry(node);
+}
+
 std::uint64_t Runtime::semantic_revision() const noexcept { return impl_->semantic_revision; }
+std::uint64_t Runtime::semantic_content_revision() const noexcept { return impl_->semantic_content_revision; }
 
 }  // namespace omui

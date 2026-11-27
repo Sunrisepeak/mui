@@ -930,6 +930,30 @@ void Runtime::write_back(NodeId node, std::string_view property, const Value& va
     }
 }
 
+void Runtime::scrolled(NodeId node, Point to) {
+    Impl& d = *impl_;
+    if (!d.alive(node)) return;
+    // Their sources learn the offset (two-way binding); what they do then is theirs, and says so itself.
+    for (const auto& [property, value] : {std::pair{std::string_view("x"), static_cast<double>(to.x)}, std::pair{std::string_view("y"), static_cast<double>(to.y)}})
+        if (auto it = d.at(node).sources.find(property); it != d.at(node).sources.end() && it->second.write) {
+            auto write = it->second.write;
+            write(Value(value));
+            if (!d.alive(node)) return;
+        }
+    // The view's own value: new to readers, and nothing else is — what it moves is where things are.
+    Node& m = d.at(node);
+    bool changed = false;
+    for (const auto& [property, value] : {std::pair{std::string_view("x"), static_cast<double>(to.x)}, std::pair{std::string_view("y"), static_cast<double>(to.y)}})
+        if (auto cur = m.props.find(property); cur == m.props.end() || !(cur->second == Value(value))) {
+            m.props.insert_or_assign(std::string(property), Value(value));
+            changed = true;
+        }
+    if (changed) ++m.changes;
+    d.dirty |= dirty_paint | dirty_semantics;
+    d.frame_requested = true;
+    ++d.semantic_revision;
+}
+
 void Runtime::invalidate_paint(NodeId) { impl_->touch(dirty_paint); }
 
 void Runtime::invalidate_layout(NodeId node) {

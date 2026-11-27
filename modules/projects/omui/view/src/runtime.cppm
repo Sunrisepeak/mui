@@ -619,6 +619,19 @@ public:
     [[nodiscard]] std::vector<TextLineBox> text_lines(NodeId node) const;
     // Bumped whenever a node's semantics may have changed.
     [[nodiscard]] std::uint64_t semantic_revision() const noexcept;
+    // Bumped whenever a node's semantics may have changed in more than where it is: not when only geometry moved
+    // (a layout's frame placed again, a view's offset, what that brings into or out of sight) and the views that
+    // scroll took their own new offsets (a scroll: the view's node says where it is now). A reader whose last read
+    // is of this revision re-reads the views that scroll and only where every other node is (semantic_geometry).
+    [[nodiscard]] std::uint64_t semantic_content_revision() const noexcept;
+    // Where a node is for its readers, as semantic_node states it before its component speaks: its border in the
+    // window (none without layout) and whether it is drawn nowhere — outside the window or what an ancestor clips to.
+    struct SemanticGeometry {
+        std::optional<spec::Rect> bounds;
+        bool                      offscreen = false;
+        friend bool operator==(const SemanticGeometry&, const SemanticGeometry&) = default;
+    };
+    [[nodiscard]] SemanticGeometry semantic_geometry(NodeId node) const;
 
     // ── theme ──
     void set_theme(Theme theme);
@@ -790,6 +803,7 @@ public:
     void invalidate_paint(NodeId node) override;
     void invalidate_layout(NodeId node) override;
     void invalidate_semantics(NodeId node) override;
+    void scrolled(NodeId node, Point to) override;
     void restyle(NodeId node) override;
     void recompose(NodeId node) override;
     Model& model(std::string_view name) override;

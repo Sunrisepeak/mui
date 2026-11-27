@@ -16,7 +16,15 @@ technology read it (spec §3 and §9, `openmui.tree@0.1`):
   list's change with its rows or its selection, not with its scrolling — its
   ten thousand items are carried as they were), and marks what differs; a
   call answers what was marked (`core/list-scroll/reading`: 10,000 rows
-  scrolled, each frame's changes told to the accessibility mirror);
+  scrolled, each frame's changes told to the accessibility mirror). Where
+  only places moved since the last read — a view scrolled, a frame placed
+  again: the runtime's `semantic_content_revision` is the same — the refresh
+  reads the views that scroll whole and every other node's place and whether
+  it is in sight (`semantic_geometry`), not the node: a long document's
+  scrolled frame 1.9 ms → its places only (red 164). A node whose component
+  states its own place, items a holder states, or a node animating, and the
+  whole is read as before; what it answers is what a reading of it all gives
+  (`semantic_test`);
 - **queries** — by id or subtree, role, name glob (`Delete*`), states present
   or absent, value, and place (`within`, `at`);
 - **transactions** — steps all taken or none, held to one rule in the preview

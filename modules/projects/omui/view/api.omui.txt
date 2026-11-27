@@ -290,6 +290,7 @@ namespace omui {
     virtual void invalidate_paint(NodeId node) = 0;
     virtual void invalidate_layout(NodeId node) = 0;
     virtual void invalidate_semantics(NodeId node) = 0;
+    virtual void scrolled(NodeId node, Point to);
     virtual void request_frame() = 0;
     virtual void moving(NodeId);
     [[nodiscard]] virtual bool focusable(NodeId node) const;
@@ -1191,6 +1192,13 @@ namespace omui {
     [[nodiscard]] std::optional<TextLayout> text_layout(NodeId node) const;
     [[nodiscard]] std::vector<TextLineBox> text_lines(NodeId node) const;
     [[nodiscard]] std::uint64_t semantic_revision() const noexcept;
+    [[nodiscard]] std::uint64_t semantic_content_revision() const noexcept;
+    struct SemanticGeometry {
+      std::optional<spec::Rect> bounds;
+      bool offscreen = false;
+      friend bool operator==(const SemanticGeometry&, const SemanticGeometry&) = default;
+    };
+    [[nodiscard]] SemanticGeometry semantic_geometry(NodeId node) const;
     void set_theme(Theme theme);
     void set_dark_preferred(bool dark);
     [[nodiscard]] bool dark_preferred() const noexcept;
@@ -1282,6 +1290,7 @@ namespace omui {
     void invalidate_paint(NodeId node) override;
     void invalidate_layout(NodeId node) override;
     void invalidate_semantics(NodeId node) override;
+    void scrolled(NodeId node, Point to) override;
     void restyle(NodeId node) override;
     void recompose(NodeId node) override;
     Model& model(std::string_view name) override;

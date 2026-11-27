@@ -51,8 +51,44 @@ void Tree::touch(const std::string& id, Entry& entry) {
     touched_.push_back(id);
 }
 
+bool Tree::moved() {
+    mlibs::trace::Span span("semantic.moved", "semantic");
+    // What it cannot tell from places alone: items their holders state (their places are the holders' to say), a
+    // node animating (its state is its clock's), a node gone.
+    if (items_held_) return false;
+    for (const auto& [id, entry] : index_) {
+        if (entry.item || !runtime_.valid(entry.node)) return false;
+        const spec::SemanticNode& n = nodes_[entry.at];
+        if (n.states.has(State::animating) && n.role != Role::scroll_view) return false;
+    }
+    for (auto& [id, entry] : index_) {
+        spec::SemanticNode& n = nodes_[entry.at];
+        if (n.role == Role::scroll_view || entry.own_place) {
+            // A view that scrolls says where it is now; a node whose component places it says where: read whole,
+            // its children as this tree has them (what it lifts stays lifted).
+            spec::SemanticNode now = runtime_.semantic_node(entry.node);
+            now.children = n.children;
+            if (now == n) continue;
+            n = std::move(now);
+            touch(id, entry);
+            continue;
+        }
+        const Runtime::SemanticGeometry at = runtime_.semantic_geometry(entry.node);
+        if (at.bounds == n.bounds && at.offscreen == n.states.has(State::offscreen)) continue;
+        n.bounds = at.bounds;
+        n.states.set(State::offscreen, at.offscreen);
+        touch(id, entry);
+    }
+    return true;
+}
+
 void Tree::refresh() {
     if (fresh_ && read_ == runtime_.semantic_revision()) return;
+    // Only places moved (a view scrolled, a frame placed again): those, not every node read again.
+    if (fresh_ && content_read_ == runtime_.semantic_content_revision() && moved()) {
+        read_ = runtime_.semantic_revision();
+        return;
+    }
     mlibs::trace::Span span("semantic.refresh", "semantic");
     const std::uint64_t pass = ++pass_;
     // Two buffers taking turns: the last refresh's nodes, and the room for this one's (no new array each time).
@@ -65,6 +101,7 @@ void Tree::refresh() {
     // Holders whose list of children was carried over from the last time (the same by construction).
     std::vector<std::size_t> carried_children;
     std::size_t placed = 0;  // entries of this pass
+    bool items_held = false;  // some holder states items
     // A node at the end of `nodes_`; its entry, and where it was the last time.
     auto place = [&](spec::SemanticNode&& n, bool item) -> std::pair<Entry*, std::optional<std::size_t>> {
         auto [at, added] = index_.try_emplace(n.id);
@@ -78,6 +115,8 @@ void Tree::refresh() {
         entry.at = nodes_.size();
         entry.pass = pass;
         entry.item = item;
+        entry.node = NodeId{};  // a node read says which (below); an item has none
+        entry.own_place = false;
         ++placed;
         nodes_.push_back(std::move(n));
         return {&entry, before};
@@ -93,8 +132,15 @@ void Tree::refresh() {
             n.children.clear();
             const std::size_t i = nodes_.size();
             if (parent) nodes_[*parent].children.push_back(n.id);
+            // Where its component places it, if not where the runtime's geometry does: read whole when places move.
+            const Runtime::SemanticGeometry at = runtime_.semantic_geometry(id);
+            const bool own_place = at.bounds != n.bounds || at.offscreen != n.states.has(State::offscreen);
             const auto [entry, before] = place(std::move(n), false);
-            if (entry) read.emplace_back(i, before);
+            if (entry) {
+                read.emplace_back(i, before);
+                entry->node = id;
+                entry->own_place = own_place;
+            }
             here = i;
             was = before;
         }
@@ -124,6 +170,7 @@ void Tree::refresh() {
             fresh_items = runtime_.virtual_items(id);
         }
         if (items->empty()) return;
+        items_held = true;
         // Items a live node under a box this tree lifted stands for (a canvas's live switch in its placing box): the
         // item's id, then the rest of the live node's.
         std::unordered_set<std::string> lifted;
@@ -240,6 +287,8 @@ void Tree::refresh() {
     previous.clear();
     spare_ = std::move(previous);
     read_ = runtime_.semantic_revision();
+    content_read_ = runtime_.semantic_content_revision();
+    items_held_ = items_held;
     fresh_ = true;
 }
 

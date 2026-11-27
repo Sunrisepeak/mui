@@ -1,0 +1,39 @@
+# mlibs.xdef.tool — declared data's tool kernel (D-209, stage 0 of D-205): the
+# registry of kinds that each owner keeps in its manifest, a data module's
+# snapshot in its one canonical form, the checker, and the migration from the
+# earlier suffix. It knows no kind's fields: a kind is its owner's. `xdef` is
+# its thin program, the reference evaluator and checker.
+[package]
+namespace   = "mlibs.xdef"
+name        = "tool"
+version     = "0.1.0"
+description = "Declared data's tools: the kinds' registry, snapshots, the checker, the migration; xdef"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "build-stage: stage 0's xdef — the kinds' registry, snapshots, the checker and the migration"
+reexports = ["mlibs.ts"]  # its interface's (lint module-closure)
+kind = "module"
+
+[targets.mlibs-xdef-tool]
+kind = "lib"
+
+[targets.xdef]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+mlibs.xdef  = { path = ".." }
+mlibs.ts    = { path = "../../ts" }  # a data module evaluated
+mlibs.json  = { path = "../../json" }  # a committed snapshot's format read
+marzer.tomlplusplus = "3.4.0"        # the manifests' registries
+mcpplibs.os = "0.4.8"
+mcpplibs.cmdline = "0.0.3"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"

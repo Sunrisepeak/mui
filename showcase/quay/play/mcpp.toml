@@ -1,0 +1,40 @@
+# Quay on this machine's device (the FPS slice design, F3): the game drawn by mrender.mesh.gpu through SDL_GPU —
+# a signature shot played by the guide and written frame by frame, the same every run (`quay-play shot`); a window's
+# recording replayed (`quay-play replay`); the device held to the reference, and the window (`window`) on a real
+# SDL3 window's device. SDL_GPU is the native systems' device here, so this member is the desktop's.
+[package]
+namespace   = "omui.showcase.quay"
+name        = "play"
+version     = "0.1.0"
+description = "quay-play: the signature shot on this machine's device, a window's recording replayed; the device held to the reference"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: Quay played on SDL's device, native only"
+
+[targets.quay-play]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.text.fonts = { path = "../../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
+omui.showcase.quay.window = { path = "../window" }
+omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
+mrender.rhi.sdl  = { path = "../../../modules/projects/mrender/rhi/sdl" }
+mlibs.rhi        = { path = "../../../modules/gfx/rhi" }
+mlibs.image      = { path = "../../../modules/base/image" }
+mcpplibs.cmdline = "0.0.3"
+mcpplibs.os      = "0.4.8"
+
+[dev-dependencies]
+mlibs.text.harfbuzz = { path = "../../../modules/content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
+mcpplibs.mtest = "0.11.3"
+omui.host.sdl3     = { path = "../../../modules/projects/omui/host/sdl3" }
+"omui.host.sdl3.gpu" = { path = "../../../modules/projects/omui/host/sdl3/gpu" }  # the GPU path, installed by the test as the SDK installs it

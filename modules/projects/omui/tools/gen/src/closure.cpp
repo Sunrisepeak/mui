@@ -1,0 +1,138 @@
+module omui.gen.closure;
+
+import std;
+import mlibs.ts;
+import nlohmann.json;
+
+namespace omui::gen {
+
+namespace {
+
+bool script(std::string_view path) { return path.ends_with(".ts") || path.ends_with(".js") || path.ends_with(".mts") || path.ends_with(".mjs"); }
+
+}  // namespace
+
+std::string contract_name(std::string_view builder) {
+    std::string out;
+    for (const char c : builder) {
+        if (c >= 'A' && c <= 'Z') {
+            if (!out.empty()) out += '_';
+            out += static_cast<char>(c - 'A' + 'a');
+        } else {
+            out += c;
+        }
+    }
+    return out;
+}
+
+std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource> scripts, std::string_view full_because,
+                                                   std::span<const ClosureTaken> kept) {
+    Closure closure;
+    if (!full_because.empty()) {
+        closure.full = true;
+        closure.why = std::string(full_because);
+    }
+    std::set<std::string> names, natives;
+    constexpr std::string_view native_prefix = "openmui:native/";
+    for (const ClosureSource& source : scripts) {
+        auto read = mlibs::ts::imports(source.text);
+        if (!read) return std::unexpected(std::format("{}: {}", source.name, mlibs::ts::to_text(read.error())));
+        for (const mlibs::ts::Import& one : *read) {
+            if (one.from.starts_with(native_prefix)) natives.insert(one.from.substr(native_prefix.size()));
+            if (one.from != "openmui" && !one.from.empty()) continue;
+            if (one.everything && !closure.full) {
+                closure.full = true;
+                closure.why = std::format("{}:{} takes everything of {} (name what it uses: import {{ … }} from \"openmui\")", source.name, one.line,
+                                          one.from.empty() ? std::string("a module it computes") : std::format("\"{}\"", one.from));
+            }
+            if (one.names.empty()) continue;
+            closure.taken.push_back({.file = source.name, .line = one.line, .names = one.names});
+            for (const std::string& name : one.names) names.insert(contract_name(name));
+        }
+    }
+    for (const ClosureTaken& listed : kept) {
+        closure.taken.push_back(listed);
+        for (const std::string& name : listed.names) names.insert(contract_name(name));
+    }
+    closure.components.assign(names.begin(), names.end());
+    closure.natives.assign(natives.begin(), natives.end());
+    return closure;
+}
+
+ClosureConfig closure_config(std::string_view config, std::string_view file) {
+    ClosureConfig out;
+    const auto value = nlohmann::json::parse(config, nullptr, false);
+    const auto generation = value.is_object() ? value.value("generation", nlohmann::json::object()) : nlohmann::json::object();
+    if (!generation.is_object()) return out;
+    const auto listed = generation.value("components", nlohmann::json::array());
+    if (listed.is_array() && !listed.empty()) {
+        ClosureTaken kept{.file = std::format("{}#generation.components", file)};
+        for (const auto& name : listed)
+            if (name.is_string()) kept.names.push_back(name.get<std::string>());
+        out.kept.push_back(std::move(kept));
+    } else if (generation.contains("surfaces") && !generation["surfaces"].empty()) {
+        out.full_because = std::format("{}: generation.surfaces lets interface of any component be made while it runs (D-144; "
+                                       "generation.components names the ones it may use)",
+                                       file);
+    }
+    return out;
+}
+
+std::expected<std::vector<ClosureSource>, std::string> replay_scripts(std::string_view replay, std::string_view name) {
+    // replay@1: {"replay": {"steps": [{"files": {path: hash}}], "texts": {hash: text}}}
+    const auto document = nlohmann::json::parse(replay, nullptr, false);
+    const auto body = document.is_object() ? document.value("replay", nlohmann::json()) : nlohmann::json();
+    if (!body.is_object() || !body.contains("steps") || !body["steps"].is_array() || !body.contains("texts") || !body["texts"].is_object())
+        return std::unexpected(std::format("{}: not a replay (replay@1: replay.steps and replay.texts)", name));
+    const auto& texts = body["texts"];
+    std::vector<ClosureSource> out;
+    for (std::size_t index = 0; index < body["steps"].size(); ++index) {
+        const auto& step = body["steps"][index];
+        if (!step.is_object() || !step.contains("files") || !step["files"].is_object()) continue;
+        for (auto file = step["files"].begin(); file != step["files"].end(); ++file) {
+            if (!script(file.key()) || !file.value().is_string()) continue;
+            const auto text = texts.find(file.value().get<std::string>());
+            if (text == texts.end() || !text->is_string())
+                return std::unexpected(std::format("{}: step {} names text {} for {}, which it does not hold", name, index + 1, file.value().get<std::string>(), file.key()));
+            out.push_back({.name = std::format("{}#{}:{}", name, index + 1, file.key()), .text = text->get<std::string>()});
+        }
+    }
+    return out;
+}
+
+std::string closure_unit(const Closure& closure) {
+    const bool markdown = std::ranges::contains(closure.components, std::string("markdown"));
+    const bool fuzzy = std::ranges::contains(closure.natives, std::string("fuzzy"));
+    std::string out =
+        "// Generated by omui-gen closure (omui.build's closure(), B7b): the components and native modules this\n"
+        "// application's scripts name, registered by the player's `closure` entry. Do not edit; its build writes it again.\n"
+        "import std;\n";
+    if (closure.full) {
+        return out + std::format("import omui.entry.player;\n\nvoid omui_application_components() {{\n"
+                                 "    // Everything official: {}.\n    omui::register_official();\n}}\n",
+                                 closure.why);
+    }
+    out += "import omui.ui.base;\n";
+    if (markdown) out += "import omui.ui.markdown;\n";
+    if (fuzzy) out += "import omui.native.fuzzy;\n";
+    std::string listed;
+    for (const std::string& name : closure.components) listed += std::format("{}\"{}\"", listed.empty() ? "" : ", ", name);
+    out += std::format("\nvoid omui_application_components() {{\n    omui::register_base_named<{}>();\n", listed);
+    if (markdown) out += "    omui::register_markdown_component();\n";
+    if (fuzzy) out += "    (void)omui::natives::fuzzy::define();\n";
+    return out + "}\n";
+}
+
+std::string closure_report(const Closure& closure) {
+    nlohmann::json taken = nlohmann::json::array();
+    for (const ClosureTaken& one : closure.taken) taken.push_back({{"file", one.file}, {"line", one.line}, {"names", one.names}});
+    const nlohmann::json report = {{"$format", "closure@1"},
+                                   {"full", closure.full},
+                                   {"why", closure.why},
+                                   {"names", closure.components},
+                                   {"natives", closure.natives},
+                                   {"taken", taken}};
+    return report.dump(2) + "\n";
+}
+
+}  // namespace omui::gen

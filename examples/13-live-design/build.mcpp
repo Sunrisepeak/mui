@@ -1,0 +1,19 @@
+// The example on the Web, a static page (`omui build --web`, D-236): the
+// player, its font, the application's own files (its manifest, its config,
+// app/ and the design's replay) in the player's file system before it starts,
+// and its first screen as a document a reader and a search engine read before
+// it runs — the file below, which `omui build --web` writes first by running
+// it natively.
+import mcpp;
+import omui.build.toy;
+import omui.build.closure;
+
+int main() {
+    // The components it carries: those its scripts name (B7b).
+    const bool components = omui::build::closure({.files = {"app", "design/main.replay.xdef.json"}});
+    const bool page = omui::build::dist_toy({.target = "subscription", .title = "Subscription", .fonts = {"Inter"}, .background = "#f8fafc",
+                                             .sdk = false, .static_html = "target/web/subscription.static.html",
+                                             .description = "A subscription settings page an agent designed live: its design plays in place, and a user's agent may restyle it",
+                                             .files = {"mcpp.toml", "omui.config.ts", "app", "design/main.replay.xdef.json"}});
+    return components && page ? 0 : 1;
+}

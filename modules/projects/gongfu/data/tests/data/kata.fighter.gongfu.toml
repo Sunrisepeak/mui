@@ -1,0 +1,142 @@
+# Kata: the training fighter of gongfu's tests — a jab that cancels, a
+# crouching low, an overhead, a heavy, a fireball, an invulnerable uppercut,
+# a throw and a jumping kick. Units are pixels and frames (1/60 s).
+gongfu = "0.1"
+name = "Kata"
+health = 10000
+walk = { forward = 4, back = 3 }
+jump = { prejump = 4, up = 20, forward = 5, gravity = 1, landing = 3 }
+push = [-30, 0, 60, 160]
+hurt = { standing = [-35, 0, 70, 180], crouching = [-35, 0, 70, 110], air = [-30, 40, 60, 130] }
+
+[[move]]
+name = "5LP"
+input = "LP"
+total = 12
+[[move.hit]]
+active = [4, 5]
+boxes = [[20, 110, 70, 30]]
+damage = 300
+hitstun = 15
+blockstun = 11
+hitstop = 6
+pushback = 2
+impact = "light"
+[[move.cancel]]
+frames = [4, 8]
+into = ["236P"]
+
+[[move]]
+name = "2LK"
+input = "2LK"
+stance = "crouching"
+total = 14
+priority = 1
+[[move.hit]]
+active = [5, 6]
+boxes = [[10, 0, 90, 30]]
+damage = 200
+hitstun = 12
+blockstun = 10
+hitstop = 5
+pushback = 2
+level = "low"
+impact = "low"
+
+[[move]]
+name = "6HP"
+input = "6HP"
+total = 26
+priority = 1
+[[move.hit]]
+active = [16, 17]
+boxes = [[10, 60, 80, 70]]
+damage = 600
+hitstun = 16
+blockstun = 12
+hitstop = 9
+pushback = 3
+level = "overhead"
+impact = "overhead"
+
+[[move]]
+name = "5HP"
+input = "HP"
+total = 24
+[[move.hit]]
+active = [7, 9]
+boxes = [[20, 100, 90, 40]]
+damage = 800
+hitstun = 20
+blockstun = 16
+hitstop = 10
+pushback = 3
+impact = "heavy"
+
+[[move]]
+name = "236P"
+input = "236P"
+total = 40
+priority = 10
+[move.projectile]
+spawn = 8
+offset = [50, 100]
+speed = 8
+life = 150
+[move.projectile.hit]
+active = [1, 150]
+boxes = [[-20, -20, 40, 40]]
+damage = 600
+chip = 60
+hitstun = 18
+blockstun = 14
+hitstop = 7
+pushback = 3
+impact = "fireball"
+
+[[move]]
+name = "623P"
+input = "623P"
+total = 48
+priority = 11
+invulnerable = [[1, 6]]
+[[move.step]]
+frame = 4
+velocity = [2, 16]
+[[move.step]]
+frame = 14
+velocity = [0, -16]
+[[move.hit]]
+active = [4, 8]
+boxes = [[0, 80, 70, 120]]
+damage = 1200
+hitstun = 30
+blockstun = 20
+hitstop = 12
+pushback = 2
+knockdown = true
+launch = [3, 14]
+impact = "rising"
+
+[[move]]
+name = "throw"
+input = "LP+LK"
+total = 30
+priority = 20
+throw = { active = [3, 4], range = [0, 0, 80, 150], damage = 1200, tech = 7 }
+
+[[move]]
+name = "j.HK"
+input = "HK"
+stance = "air"
+total = 20
+[[move.hit]]
+active = [6, 12]
+boxes = [[10, -20, 70, 50]]
+damage = 700
+hitstun = 18
+blockstun = 14
+hitstop = 8
+pushback = 2
+level = "overhead"
+impact = "air"

@@ -1,0 +1,45 @@
+# S2 — the style workshop (implementation plan §13): a real settings panel
+# and dashboard shown in each of the style packs — glass, neon, retro CRT,
+# ink on paper, liquid — switched with a cross-fade; the pack's tokens and
+# its effects' parameters edited live, and exported as a *.style.xdef.json a
+# real program loads. The semantic tree is the same under every style: only
+# pixels change, and agents act the same.
+#
+#   mcpp run -p omui.showcase.style_gallery
+#   mcpp run -p omui.showcase.style_gallery -- --style neon --headless --png neon.png
+[package]
+namespace   = "omui.showcase"
+name        = "style_gallery"
+version     = "0.1.0"
+description = "S2, the style workshop: one interface in eight style packs, edited live and exported"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the style gallery showcase"
+kind = "showcase"
+profile = "app"  # its profile (D-207): what omui doctor holds it to
+id = "org.openmui.style-gallery"
+title = "Style gallery"
+
+[targets.openmui-showcase-style-gallery]
+kind = "lib"
+
+[targets.omui-styles]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.text.fonts = { path = "../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
+mcpplibs.cmdline = "0.0.3"
+omui.sdk          = { path = "../../modules/projects/omui/sdk" }
+omui.theme      = { path = "../../modules/projects/omui/theme" }
+mlibs.math         = { path = "../../modules/base/math" }
+mcpplibs.os          = "0.4.8"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils = { path = "../../modules/base/utils" }

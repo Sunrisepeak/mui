@@ -1,0 +1,54 @@
+[package]
+name    = "{{project.name}}"
+version = "0.1.0"
+
+# The player reads this: the application's id, title and size, and its
+# scripts (run in their names' order; the language is the extension's).
+[package.metadata.openmui]
+kind  = "app"
+id    = "org.example.{{project.name}}"
+title = "{{project.name}}"
+size  = "480x320"
+
+[package.metadata.openmui.scripts]
+main = "app/main.ts"
+
+# The runtime it runs on when it ships as data, nothing built (omui-launch):
+# the openmui specification its scripts are written against, and the
+# capabilities it uses (needs = ["agent", "generate", "gpu",
+# "accessibility-bridge"]). The newest installed runtime that satisfies it
+# starts it; with none, omui-launch says the command that installs one.
+[package.metadata.openmui.runtime]
+openmui = "0.4"
+
+# No C++ to write: the program's main is the player's (an entry target of
+# omui.entry.player); the application is app/. The `closure` entry carries the
+# components app/ takes by name from openmui, no others (build.mcpp: closure()).
+[targets.{{project.name}}]
+kind = "bin"
+main = { from = "omui.entry.player/closure" }
+
+[dependencies]
+omui.entry.player = "{{self.version}}"
+
+[dev-dependencies]
+omui.player  = "{{self.version}}"
+omui.lang.js = "{{self.version}}"
+
+# Its build program (build.mcpp): the page on the Web (omui build --web).
+[build-dependencies]
+omui.build = { version = "{{self.version}}", host-module = true }
+
+# On the Web (wasm32-emscripten), as omui is built there: exceptions (the
+# libraries that throw), memory that grows, a 1 MiB stack, one thread (a
+# static page has no SharedArrayBuffer).
+[target.'cfg(os = "emscripten")'.abi]
+exceptions = true
+
+[target.'cfg(os = "emscripten")'.build]
+ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0"]
+
+# `omui check` type-checks app/ with tsc (TypeScript 7, native): installed
+# from xlings for this project.
+[xlings.workspace]
+"xim:typescript" = { version = "7.0.2", when = "dev" }

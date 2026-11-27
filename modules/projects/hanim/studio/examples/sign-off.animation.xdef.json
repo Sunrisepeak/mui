@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "size": [360, 200],
+  "background": "#fffbeb",
+  "objects": [
+    { "id": "underline", "shape": { "rect": [220, 4] }, "stroke": { "color": "#b45309", "width": 3 }, "at": [180, 130] },
+    { "id": "seal", "shape": { "star": { "points": 12, "outer": 26, "inner": 20 } }, "fill": "#dc2626", "at": [300, 70] },
+    { "id": "name", "shape": { "rect": { "size": [180, 24], "radius": 4 } }, "fill": "#78350f", "at": [160, 100] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "rise_in", "object": "name", "distance": 12 },
+      { "do": "write_in", "object": "underline", "duration": 0.6 },
+      { "do": "drop_in", "object": "seal", "height": 60, "duration": 0.7 },
+      { "do": "marker", "name": "signed" },
+      { "do": "unwrite", "object": "underline", "duration": 0.5 }
+    ]
+  }
+}

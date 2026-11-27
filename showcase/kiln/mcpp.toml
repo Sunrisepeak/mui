@@ -1,0 +1,69 @@
+# Kiln, the game on its own (M6.2's slice; D-162): Mui the pixel cat in caverns of living matter, with no window.
+#   src/sim       the simulation (T2.6–T2.7): a world of the standard matter with rigid bodies and cells in flight
+#                 (meng.cellular.rigid), a character that reads the field (walks, steps up a cell, jumps, swims, is
+#                 burnt), a wand of fire, water and bombs. Every puzzle is what the laws already do: no scripted
+#                 interaction. A pure function of the state and the frame's actions; its state is a value (a copy is
+#                 a branch), so a timeline rewinds and replays it bit for bit. Its levels (levels/*.world.xdef.ts)
+#                 are carried in the program (build.mcpp).
+#   src/headless  the simulation as meng.runtime plays it: stepped without omui, its whole world sought back and
+#                 branched ahead, played by an agent through the agent kernel as a person plays; the world's matter
+#                 as a subject beside the game (kiln::Causes).
+#   src/picture   a state as a display list (T2.5, T2.10b): the world by a presentation's ladders (the light: a glow,
+#                 frames of a flame baked once from it, none; the scenery: simulated beside the world, or as placed),
+#                 what flies, the wand's bolts, the exit, Mui. It reads the state and changes nothing of it.
+#   src/sound     what the world's laws did each frame, heard (§6.15, T2.14f, D-183): the events are the world's own,
+#                 each material's sound of an event made from what the material is (meng.audio.matter).
+# Each keeps its module (import omui.showcase.kiln.sim; …). Everything here builds for the Web; the window and the
+# program played over lines are showcase/kiln/window, for the native systems only (D-99).
+[package]
+namespace   = "omui.showcase"
+name        = "kiln"
+version     = "0.1.0"
+description = "Kiln on its own: the deterministic simulation (Mui, a wand, a world of matter with rigid bodies), the game the runtime steps and an agent plays, its picture and its sound"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+profile = "game"  # its profile (D-207): what omui doctor holds it to
+separate = "product: the kiln showcase"
+
+[targets.omui-showcase-kiln]
+kind = "lib"
+
+[build]
+sources  = ["src/*/*.cppm", "src/*/*.cpp"]
+# The simulation and the game are the same bits everywhere; the picture and the sound are built the same way.
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+meng.input    = { path = "../../modules/projects/meng/game/input" }
+meng.runtime  = { path = "../../modules/projects/meng/game/runtime" }
+# rigid, verbs: the simulation's; world-agent: the matter as a subject beside the game; decor: the picture's scenery.
+meng.cellular = { path = "../../modules/projects/meng/kernel/cellular", features = ["rigid", "verbs", "world-agent", "decor"] }
+"meng.cellular.present" = { path = "../../modules/projects/meng/kernel/cellular/present", features = ["world"] }
+meng.matter   = { path = "../../modules/projects/meng/kernel/matter", features = ["appearance"] }
+meng.audio    = { path = "../../modules/projects/meng/kernel/audio" }
+mrender.vector   = { path = "../../modules/projects/mrender/vector" }
+mrender.raster   = { path = "../../modules/projects/mrender/raster" }
+mlibs.pipeline   = { path = "../../modules/base/pipeline" }
+mlibs.geom       = { path = "../../modules/base/geom" }
+mlibs.agent      = { path = "../../modules/base/agent" }
+mlibs.utils      = { path = "../../modules/base/utils" }
+mlibs.json       = { path = "../../modules/base/json" }
+mlibs.xdef = { path = "../../modules/base/xdef" }  # a snapshot's format checked first (D-209)
+openlifa.openas  = "0.2.1"
+
+[build-dependencies]
+omui.build = { path = "../../mcpp/build", host-module = true }
+
+[test]
+programs = "directory"  # tests/kiln/: one program, each file run and filtered as before
+
+[dev-dependencies]
+mcpplibs.mtest   = "0.11.3"
+mlibs.image      = { path = "../../modules/base/image" }
+# tests/picture_test.cpp: the picture under the presentation contract.
+mlibs.cts        = { path = "../../modules/base/cts" }
+meng.playtest = { path = "../../modules/projects/meng/game/playtest" }

@@ -1,0 +1,201 @@
+// A site's configuration (oweb.config.ts, kind site@1): read to its options; stated routes are the site's, in their
+// order; what is not a configuration says where and what a configuration has; a link that leads nowhere is not built.
+import std;
+import oweb;
+import mcpplibs.mtest;
+
+using namespace mcpplibs::mtest;
+
+namespace {
+
+std::filesystem::path data() { return std::filesystem::path(std::source_location::current().file_name()).parent_path() / "data"; }
+
+std::filesystem::path scratch(std::string_view name) {
+    const auto directory = std::filesystem::temp_directory_path() / "openmui-tests" / "oweb" / name;
+    std::error_code error;
+    std::filesystem::remove_all(directory, error);
+    std::filesystem::create_directories(directory, error);
+    return directory;
+}
+
+std::string read(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    return {std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+}
+
+void write(const std::filesystem::path& file, std::string_view text) {
+    std::error_code error;
+    std::filesystem::create_directories(file.parent_path(), error);
+    std::ofstream(file, std::ios::binary) << text;
+}
+
+}  // namespace
+
+static UTest cases{"oweb.config", [] {
+    "oweb.config.ts: a site's title, address, languages, stated routes and budget, read from its evaluated snapshot"_test = [] {
+        const auto options = oweb::configured(data() / "stated");
+        expect(options.has_value()) << (options ? "" : options.error());
+        if (!options) return;
+        expect(options->title == "Stated" && options->url == "https://example.org/stated/" && options->languages == std::vector<std::string>{"en"} && options->readable == 50'000u);
+        expect(options->routes.size() == 3u && options->routes[1].path == "/start/" && options->routes[1].source == "pages/guide/start.md" && options->routes[1].title == "Start here");
+        // A site without the file is the defaults.
+        const auto plain = oweb::configured(data() / "docs");
+        expect(plain.has_value() && plain->title.empty() && plain->routes.empty() && plain->readable == 100'000u && plain->languages == std::vector<std::string>{"en"});
+    };
+
+    "stated routes: these pages and no others, in their order — the navigation's, the tables'; a picture found from where the route is served"_test = [] {
+        const auto site = data() / "stated";
+        const auto options = oweb::configured(site);
+        expect(options.has_value());
+        if (!options) return;
+        const auto out = scratch("stated");
+        const auto built = oweb::build(site, out, *options);
+        expect(built.has_value()) << (built ? "" : built.error());
+        if (!built) return;
+        expect(built->routes.size() == 3u && built->routes[0].path == "/" && built->routes[1].path == "/start/" && built->routes[2].path == "/about/") << "as stated, not by address";
+        expect(built->routes[1].title == "Start here" && built->routes[1].headings.front().text == "First steps") << "the navigation's name is the stated one; the page keeps its heading";
+        expect(std::filesystem::exists(out / "start" / "index.html") && !std::filesystem::exists(out / "guide") && !std::filesystem::exists(out / "draft")) << "a page is served where it is stated";
+        const std::string home = read(out / "index.html"), start = read(out / "start/index.html");
+        const std::size_t first = home.find(">Start here</a>"), second = home.find(">About</a>");
+        expect(first != std::string::npos && second != std::string::npos && first < second) << "the navigation in the stated order";
+        expect(home.contains("href=\"start/#the-second-step\">the first steps</a>") && read(out / "index.md").contains("(start/index.md#the-second-step)")) << "a link follows the page to its stated address";
+        expect(start.contains("src=\"../media/mark.svg\"") && std::filesystem::exists(out / "media" / "mark.svg")) << "a picture stands where it stands in pages/, found from the route";
+        expect(start.contains("href=\"../\">the beginning</a>"));
+        expect(home.contains("href=\"about/\">about</a>") && home.contains("src=\"media/mark.svg\"") && read(out / "index.md").contains("[about](about/index.md)")) << "by the site's own address";
+        const std::string routes = read(out / "site.routes.xdef.json"), sitemap = read(out / "sitemap.xml"), agents = read(out / "llms.txt");
+        expect(routes.find("\"/start/\"") < routes.find("\"/about/\"") && !routes.contains("draft") && sitemap.contains("<loc>https://example.org/stated/start/</loc>") &&
+               agents.find("Start here") < agents.find("About"))
+            << routes;
+        expect(built->delivery.verdicts.size() == 1u && built->delivery.verdicts.front().budget.most == 50'000u) << "the budget is the configuration's";
+        // A lost address under a site served below its host's top: the links are from the site's own address.
+        const std::string lost = read(out / "404.html");
+        expect(lost.contains("<base href=\"/stated/\">") && lost.contains("href=\"start/\">Start here</a>") && lost.contains("href=\"./\">Stated</a>") && !lost.contains("<nav data-omui-target=\"page/turn\"") &&
+               !routes.contains("404") && !sitemap.contains("404") && !agents.contains("404"))
+            << "no table lists it: " << lost;
+
+        // The command reads the same configuration; what the request states stands over it.
+        oweb::Sites sites;
+        mlibs::agent::SubjectSession session({&sites});
+        std::ostringstream listed, tight, errors;
+        expect(mlibs::agent::command_line(session, std::vector<std::string_view>{"routes.list", "--site", site.generic_string()}, listed, errors) == 0) << errors.str();
+        expect(listed.str().find("\"/start/\"") < listed.str().find("\"/about/\"") && listed.str().contains("\"title\":\"Start here\"")) << listed.str();
+        expect(mlibs::agent::command_line(session, std::vector<std::string_view>{"site.build", "--site", site.generic_string(), "--out", scratch("stated-tight").generic_string(), "--readable", "100"},
+                                          tight, errors) == 1);
+        expect(tight.str().contains("over the budget of 100")) << tight.str();
+    };
+
+    "what is no configuration says where, and what a configuration has"_test = [] {
+        const auto of = [](std::string_view site) { return oweb::options_from(std::format("{{\"$format\":\"site@1\",\"site\":{}}}\n", site), "oweb.config.ts"); };
+        const auto says = [&](std::string_view site, std::string_view first, std::string_view second = {}) {
+            const auto options = of(site);
+            const bool said = !options && options.error().contains(first) && options.error().contains(second);
+            if (!said) std::println("    {} → {}", site, options ? "read" : options.error());
+            return said;
+        };
+        expect(of(R"({"title":"A","languages":["zh","en"]})").has_value());
+        expect(says(R"({"titel":"A"})", "/site/titel", "did you mean `title`?")) << "a field mistyped is said, with the one meant";
+        expect(says(R"({"navigation":[]})", "/site/navigation", "`title`, `url`, `languages`, `routes`, `budgets`")) << "one that is near none is said with the kind's fields";
+        expect(says(R"({"url":"example.org"})", "/site/url", "https://"));
+        expect(says(R"({"languages":[]})", "/site/languages"));
+        expect(says(R"({"languages":["en","en"]})", "/site/languages/1", "twice"));
+        expect(says(R"({"routes":[{"path":"start","source":"pages/start.md"}]})", "/site/routes/0/path", "begins and ends with `/`"));
+        expect(says(R"({"routes":[{"path":"/a/","source":"../outside.md"}]})", "/site/routes/0/source", "inside the site's directory"));
+        expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md"},{"path":"/a/","source":"pages/b.md"}]})", "/site/routes/1/path", "stated twice"));
+        expect(says(R"({"routes":[{"path":"/a/","source":"pages/a.md","nav":true}]})", "/site/routes/0/nav", "`path`"));
+        expect(says(R"({"budgets":{"readable":-1}})", "/site/budgets/readable", "number of bytes"));
+        expect(of(R"({"budgets":{"program":1200000}})").has_value() && of(R"({"budgets":{"program":1200000}})")->program == 1'200'000u) << "the program's budget, stated";
+        expect(says(R"({"budgets":{"program":"small"}})", "/site/budgets/program", "number of bytes"));
+        expect(of(R"({"routes":[{"path":"/ops/","reference":"../tool/tool.ops.xdef.ts"}]})").has_value()) << "a route that is a catalog's reference";
+        expect(says(R"({"routes":[{"path":"/ops/","source":"pages/ops.md","reference":"tool.ops.xdef.ts"}]})", "/site/routes/0/reference", "one of them"));
+        // A route that is an application's built page: its directory, which may stand outside the site's.
+        const auto adopted = of(R"({"routes":[{"path":"/","page":"../app/web"},{"path":"/start/","source":"pages/start.md"}]})");
+        expect(adopted.has_value() && adopted->routes.front().page == "../app/web" && adopted->routes.front().source.empty() && adopted->routes.back().page.empty());
+        expect(says(R"({"routes":[{"path":"/","source":"pages/index.md","page":"../app/web"}]})", "/site/routes/0/page", "one of them"));
+        expect(says(R"({"routes":[{"path":"/","page":""}]})", "/site/routes/0/page", "omui build --web"));
+        expect(says(R"({"routes":[{"path":"/ops/","reference":"tool.md"}]})", "/site/routes/0/reference", "an operation catalog"));
+        const auto other = oweb::options_from("{\"$format\":\"routes@1\",\"routes\":[]}\n", "oweb.config.ts");
+        expect(!other.has_value() && other.error().contains("a routes snapshot, not a site one")) << (other ? "" : other.error());
+
+        // The file itself: TypeScript that does not evaluate, a default export of another kind, a stated page that is not there.
+        const auto site = scratch("config-wrong");
+        write(site / "pages/index.md", "# Home\n");
+        write(site / "oweb.config.ts", "import { defineSite } from \"oweb/define\";\nexport default defineSite({ title: missing });\n");
+        const auto unevaluated = oweb::configured(site);
+        expect(!unevaluated.has_value() && unevaluated.error().contains("oweb.config.ts") && unevaluated.error().contains("missing")) << (unevaluated ? "" : unevaluated.error());
+        write(site / "oweb.config.ts", "import { defineSite } from \"oweb/define\";\nexport default defineSite({ routes: [{ path: \"/\", source: \"pages/index.md\" }, { path: \"/gone/\", source: \"pages/gone.md\" }] });\n");
+        const auto stated = oweb::configured(site);
+        expect(stated.has_value());
+        if (stated) {
+            const auto routes = oweb::collect(site, *stated);
+            expect(!routes.has_value() && routes.error().contains("`/gone/`") && routes.error().contains("pages/gone.md") && routes.error().contains("oweb.config.ts")) << (routes ? "" : routes.error());
+        }
+    };
+
+    "a configuration that stands elsewhere: the site's pages, and what it states beside them from its own directory"_test = [] {
+        const auto site = scratch("config-elsewhere-site"), product = scratch("config-elsewhere-product");
+        write(site / "pages/index.md", "# Notes\n\nTo [the start](start.md).\n");
+        write(site / "pages/start.md", "# Start\n");
+        write(site / "oweb.config.ts", "import { defineSite } from \"oweb/define\";\nexport default defineSite({ title: \"The pages' own\" });\n");
+        write(product / "oweb.config.ts",
+              "import { defineSite } from \"oweb/define\";\nexport default defineSite({ title: \"The product\", engine: \"world\", routes: [\n"
+              "  { path: \"/\", page: \"web\" }, { path: \"/notes/\", source: \"pages/index.md\" }, { path: \"/start/\", source: \"pages/start.md\" },\n"
+              "  { path: \"/ops/\", reference: \"tool/tool.ops.xdef.ts\" }, { path: \"/built/\", reference: \"oweb\" }] });\n");
+        const auto options = oweb::configured(site, product / "oweb.config.ts");
+        expect(fatal(options.has_value())) << (options ? "" : options.error());
+        const auto from_product = [&](std::string_view inner) { return (product / inner).generic_string(); };
+        expect(options->title == "The product" && options->engine == from_product("world")) << options->engine;
+        expect(options->routes[0].page == from_product("web") && options->routes[3].reference == from_product("tool/tool.ops.xdef.ts")) << options->routes[0].page;
+        expect(options->routes[1].source == "pages/index.md" && options->routes[4].reference == "oweb") << "its pages are the site's; the builder's own catalog is no file";
+        // The site's own is read where none is named; one named that is not there is said, not passed over.
+        expect(oweb::configured(site).value_or(oweb::SiteOptions{}).title == "The pages' own");
+        const auto none = oweb::configured(site, product / "other.config.ts");
+        expect(!none.has_value() && none.error().contains("no such configuration")) << (none ? "" : none.error());
+
+        // The command: the same pages built as the product's site.
+        write(product / "web/index.html",
+              "<!doctype html>\n<html lang=\"en\">\n<head>\n<title>The product</title>\n</head>\n<body>\n<div data-omui=\"static\">\n<h1>One line.</h1>\n</div>\n"
+              "<script>window.addEventListener('omui-load', function (e) {});</script>\n</body>\n</html>\n");
+        write(product / "oweb.config.ts",
+              "import { defineSite } from \"oweb/define\";\nexport default defineSite({ routes: [\n"
+              "  { path: \"/\", page: \"web\" }, { path: \"/notes/\", source: \"pages/index.md\" }, { path: \"/start/\", source: \"pages/start.md\" }] });\n");
+        oweb::Sites sites;
+        mlibs::agent::SubjectSession session({&sites});
+        const auto out = scratch("config-elsewhere-out");
+        std::ostringstream made, errors;
+        expect(mlibs::agent::command_line(session,
+                                          std::vector<std::string_view>{"site.build", "--site", site.generic_string(), "--config", (product / "oweb.config.ts").generic_string(), "--out",
+                                                                        out.generic_string()},
+                                          made, errors) == 0)
+            << made.str() << errors.str();
+        const std::string table = read(out / "site.routes.xdef.json");
+        expect(table.contains("\"source\":\"web/index.html\"") && table.contains("\"path\":\"/notes/\"") && !table.contains(product.generic_string())) << table;
+        expect(read(out / "index.html").contains("<h1>One line.</h1>") && read(out / "notes" / "index.html").contains("href=\"../start/\"") && read(out / "notes" / "index.html").contains(">The product</a>"));
+    };
+
+    "a link inside the site that leads nowhere: the page, the link and why, each said; nothing is written"_test = [] {
+        const auto site = scratch("links-wrong");
+        write(site / "pages/index.md", "# Home\n\nSee [the guide](guide.md#setup), [a draft](draft.md), [a place](guide.md#nowhere), [marked](guide.md#marked) and ![a picture](media/none.png).\n\n"
+                                       "By address: [the guide](/guide/#setup), [no route](/nowhere/), ![no file](/media/none.svg).\n\n"
+                                       "Out of the site: [elsewhere](https://example.org/x.md), [mail](mailto:a@example.org), [here](#home).\n");
+        write(site / "pages/guide.md", "# Guide\n\n## Setup\n\n<a id=\"marked\"></a>\n\nBack [home](index.md).\n");
+        const auto out = scratch("links-wrong-out");
+        const auto built = oweb::build(site, out);
+        expect(!built.has_value());
+        if (built) return;
+        const std::string& why = built.error();
+        expect(why.contains("5 links inside the site lead nowhere") && why.contains("nothing was written")) << why;
+        expect(why.contains("links to /nowhere/, which is no route of the site") && why.contains("names /media/none.svg, which is not there") && !why.contains("/guide/#setup")) << why;
+        expect(why.contains("pages/index.md links to draft.md, which is no page of the site") && why.contains("guide.md#nowhere: pages/guide.md has no heading of the anchor `nowhere`") &&
+               why.contains("pages/index.md names media/none.png, which is not there"))
+            << why;
+        expect(!why.contains("#setup") && !why.contains("#marked") && !why.contains("example.org")) << "a heading's anchor, a place the page's markup names, and what is out of the site are no problems: " << why;
+        expect(std::filesystem::is_empty(out)) << "nothing was written";
+        // One page read alone says the same of itself.
+        const auto routes = oweb::collect(site);
+        expect(routes.has_value());
+        if (routes) {
+            const auto home = oweb::evaluate(site, *routes, routes->back().path == "/" ? routes->back() : routes->front());
+            expect(home.has_value() && home->problems.size() == 5u);
+        }
+    };
+}};

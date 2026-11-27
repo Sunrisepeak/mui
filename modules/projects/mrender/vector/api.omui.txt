@@ -1,0 +1,349 @@
+== mrender.sprite
+export import mlibs.geom;
+namespace mrender::sprite {
+  using mlibs::geom::Point;
+  using mlibs::geom::Rect;
+  struct Bone {
+    Point joint;
+    double angle = 0;
+  };
+  struct Posed {
+    Bone rest, now;
+  };
+  struct Region {
+    Rect source;
+    Point anchor, tip;
+  };
+  struct Grid {
+    std::int32_t columns = 1, rows = 1;
+    float blend = 16;
+    bool mirror = false;
+    double facing = 1;
+    double scale = 0;
+    double length = 0;
+  };
+  struct Mesh {
+    std::vector<Point> at, uv;
+    std::vector<std::uint16_t> index;
+    void clear() noexcept;
+  };
+  void skinned(const Region& region, const Grid& grid, const Posed& own, std::span<const Posed> bends, Mesh& out);
+  void cornered(const Rect& source, std::span<const Point, 4> placed, Mesh& out);
+}
+== mrender.vector
+export import mrender.vector.api;
+== mrender.vector.api
+export import mrender.graph;
+export import mrender.display;
+export import :paint_mix;
+export import :resources;
+export import :damage;
+export import :cpu;
+export import :gpu;
+export import :effects;
+export import :wire;
+== mrender.vector.api:cpu
+namespace mrender {
+  struct RenderReport {
+    std::size_t commands = 0;
+    std::size_t effects_skipped = 0;
+    std::size_t uploaded = 0;
+    std::size_t external_skipped = 0;
+    std::size_t missing_images = 0;
+    std::size_t invalid_paints = 0;
+    std::size_t missing_glyphs = 0;
+    std::size_t rows = 0;
+    std::size_t skipped = 0;
+    std::size_t bands = 0;
+    std::uint64_t work = 0;
+    std::size_t masks_made = 0;
+    std::size_t masks_reused = 0;
+    bool atlas_emptied = false;
+    std::size_t glyphs_outlined = 0;
+    std::size_t clips_outlined = 0;
+    std::size_t glyphs_kept = 0;
+    std::size_t glyphs_kept_made = 0;
+    std::size_t glyphs_framed = 0;
+    std::size_t layers_folded = 0;
+    std::size_t instances = 0;
+    std::size_t outline_points = 0;
+    bool outlines_restarted = false;
+    std::size_t gpu_passes = 0;
+    std::size_t gpu_passes_culled = 0;
+    struct Kind {
+      std::size_t count = 0;
+      double ms = 0;
+    };
+    std::array<Kind, std::variant_size_v<Command>> kinds{…};
+  };
+  [[nodiscard]] std::string_view command_kind_name(std::size_t index) noexcept;
+  class Parallel {
+    virtual void run(std::size_t count, mlibs::memory::FunctionRef<void(std::size_t)> body) = 0;
+  };
+  inline constexpr std::uint64_t default_band_work = 1u << 20;
+  inline constexpr std::uint64_t command_work = 256;
+  struct CpuOptions {
+    float scale = 1.0f;
+    bool object_ids = false;
+    bool clear = true;
+    Color background = Color::transparent();
+    std::span<const RowSpan> rows;
+    Parallel* parallel = nullptr;
+    std::int32_t rows_per_task = 0;
+    std::uint64_t band_work = default_band_work;
+    bool measure = false;
+    std::optional<Affine> transform;
+    std::optional<float> effect_scale;
+    std::function<std::optional<mrender::raster::ImageView>(std::uint64_t id)> external;
+  };
+  class CpuRenderer {
+    CpuRenderer();
+    RenderReport render(const DisplayList& list, mrender::raster::Surface& target, const Resources& resources, const CpuOptions& options = {…});
+    CpuRenderer(CpuRenderer&&) noexcept;
+    CpuRenderer& operator=(CpuRenderer&&) noexcept;
+    ~CpuRenderer();
+    [[nodiscard]] std::span<const std::uint32_t> object_ids() const noexcept;
+    [[nodiscard]] std::uint32_t object_at(int x, int y, int width) const noexcept;
+  };
+}
+== mrender.vector.api:damage
+namespace mrender {
+  struct RowSpan {
+    std::int32_t top = 0;
+    std::int32_t bottom = 0;
+    friend constexpr bool operator==(RowSpan a, RowSpan b) noexcept;
+  };
+  [[nodiscard]] std::optional<Rect> device_bounds(const Command& command, const Affine& m, GlyphSource* glyphs = nullptr);
+  struct LayerExtent {
+    std::size_t begin=0, end=0;
+    Rect content, area, output;
+  };
+  class LayerBoundsMap {
+    [[nodiscard]] bool measure(const DisplayList&,const Affine& initial,float effect_scale,const Resources& = {…});
+    [[nodiscard]] const LayerExtent* at(std::size_t push_command) const noexcept;
+    [[nodiscard]] std::span<const LayerExtent> entries() const & noexcept;
+    std::span<const LayerExtent> entries() const && = delete;
+  };
+  class DamageTracker {
+    std::span<const RowSpan> update(const DisplayList& list, std::int32_t width, std::int32_t height, float scale, const Resources& resources = {…});
+    void invalidate() noexcept;
+    [[nodiscard]] bool full() const noexcept;
+    [[nodiscard]] std::span<const Rect> rects() const noexcept;
+    std::int32_t merge_gap = 16;
+  };
+}
+== mrender.vector.api:effect_template
+namespace mrender {
+  inline constexpr std::string_view effect_template = R"…";
+}
+== mrender.vector.api:effects
+export import :quad_shaders;
+export import :dissolve_shaders;
+export import :wipe_shaders;
+export import :reveal_shaders;
+export import :displace_shaders;
+export import :noise_shaders;
+export import :chromatic_shaders;
+export import :blur_shaders;
+export import :pixelate_shaders;
+export import :particles_shaders;
+export import :liquid_glass_shaders;
+export import :neon_shaders;
+export import :crt_shaders;
+export import :paper_shaders;
+export import :wobble_shaders;
+export import :metaball_shaders;
+export import :tone_shaders;
+export import :opacity_shaders;
+export import :effect_template;
+namespace mrender {
+  struct EffectParam {
+    std::string_view name;
+    float value = 0;
+    float min = 0, max = 1;
+    std::string_view doc;
+  };
+  struct EffectInput {
+    const mrender::raster::Surface& source;
+    mrender::raster::Surface& target;
+    std::span<const float> params;
+    float scale = 1;
+    mlibs::geom::Rect layer;
+    const mrender::raster::Surface* backdrop = nullptr;
+    std::span<const EffectShape> shapes;
+    int row_begin = 0, row_end = -1;
+    [[nodiscard]] int last_row() const noexcept;
+  };
+  [[nodiscard]] float shape_distance(const EffectShape& shape, mlibs::geom::Point p) noexcept;
+  [[nodiscard]] float smooth_min(float a, float b, float k) noexcept;
+  void box_blur(mrender::raster::Surface& surface, int radius, class Parallel* parallel = nullptr);
+  [[nodiscard]] int box_radius(float logical, float scale) noexcept;
+  enum class EffectPass : std::uint8_t { none, pixel, blur, pixelate, particles, };
+  struct EffectFrame {
+    std::array<float, 8> derived{…};
+  };
+  struct EffectGpu {
+    EffectPass pass = EffectPass::none;
+    const mlibs::rhi::ShaderDesc* fragment = nullptr;
+    void (*derive)(std::span<const float> params, float scale, mlibs::geom::Rect layer, EffectFrame& out) = nullptr;
+    void (*rows)(std::span<const float> params, float scale, std::span<float> out) = nullptr;
+  };
+  struct EffectInfo {
+    std::string_view name;
+    std::string_view doc;
+    std::vector<EffectParam> params;
+    std::function<float(std::span<const float> params)> reach;
+    void (*cpu)(const EffectInput& in) = nullptr;
+    EffectGpu gpu;
+    bool backdrop = false;
+    std::function<float(std::span<const float> params)> backdrop_blur;
+    std::string_view source;
+    std::shared_ptr<const void> storage;
+    bool row_local = false;
+    std::function<mlibs::geom::Point(mlibs::geom::Point p, mlibs::geom::Rect layer, std::span<const float> params)> source_of;
+    std::uint8_t tiers = 0x1f;
+    std::string_view degrade;
+    std::function<float(std::span<const float> params)> output_reach;
+    bool (*identity)(std::span<const float> params) = nullptr;
+    float (*input_radius)(std::span<const float> params, float scale) = nullptr;
+    bool preserves_hit_geometry = false;
+  };
+  void run_cpu_effect(const EffectInfo& info, const EffectInput& in, class Parallel* parallel);
+  class EffectRegistry {
+    EffectRegistry();
+    EffectRegistry(const EffectRegistry&) = delete;
+    EffectRegistry& operator=(const EffectRegistry&) = delete;
+    EffectRef add(EffectInfo info);
+    bool replace(EffectRef ref, EffectInfo info);
+    [[nodiscard]] std::uint64_t generation(EffectRef ref) const;
+    [[nodiscard]] std::optional<EffectRef> find(std::string_view name) const;
+    [[nodiscard]] const EffectInfo* info(EffectRef ref) const;
+    [[nodiscard]] std::vector<std::string_view> names() const;
+    [[nodiscard]] std::vector<float> params(EffectRef ref, std::span<const std::pair<std::string_view, float>> values) const;
+    [[nodiscard]] float reach(EffectRef ref, std::span<const float> params) const;
+    [[nodiscard]] std::optional<float> output_reach(EffectRef ref, std::span<const float> params) const;
+  };
+  [[nodiscard]] EffectRegistry& effects();
+  struct EffectsService {
+    EffectRegistry& (*registry)() = nullptr;
+  };
+  inline constexpr mlibs::compose::Slot<EffectsService> effects_slot{…};
+  [[nodiscard]] EffectRegistry* installed_effects() noexcept;
+  std::expected<void, mlibs::compose::Error> install_effects();
+}
+== mrender.vector.api:gpu
+export import :ui_shaders;
+export import :material_shaders;
+export import :blend_shaders;
+namespace mrender {
+  inline constexpr std::size_t glyph_masks_a_live_frame = 0;
+  struct GpuOptions {
+    float scale = 1.0f;
+    bool clear = true;
+    Color background = Color::transparent();
+    std::function<std::optional<mlibs::rhi::Texture>(std::uint64_t id)> external;
+    std::size_t glyph_masks = std::numeric_limits<std::size_t>::max();
+    bool fold_layers = true;
+    bool frame_glyphs = true;
+  };
+  class GpuRenderer {
+    [[nodiscard]] static mlibs::rhi::Result<GpuRenderer> create(mlibs::rhi::Device& device);
+    [[nodiscard]] mlibs::rhi::Result<RenderReport> render(const DisplayList& list, mlibs::rhi::Texture target, const Resources& resources, const GpuOptions& options = {…});
+    [[nodiscard]] mlibs::rhi::Device& device() const noexcept;
+    GpuRenderer(GpuRenderer&&) noexcept;
+    GpuRenderer& operator=(GpuRenderer&&) noexcept;
+    ~GpuRenderer();
+  };
+  [[nodiscard]] mlibs::rhi::ShaderFormats gpu_shader_formats() noexcept;
+}
+== mrender.vector.api:paint_mix
+namespace mrender {
+  struct PaintMixOptions {
+    std::size_t max_terms = max_paint_mix_terms;
+  };
+  class PreparedPaintMix {
+    PreparedPaintMix() = default;
+    PreparedPaintMix(PreparedPaintMix&&) noexcept = default;
+    PreparedPaintMix& operator=(PreparedPaintMix&&) noexcept = default;
+    PreparedPaintMix(const PreparedPaintMix&) = delete;
+    PreparedPaintMix& operator=(const PreparedPaintMix&) = delete;
+    [[nodiscard]] static std::expected<PreparedPaintMix, PaintMixError> prepare(const Paint& from, const Paint& to, PaintMixOptions options = {…});
+    [[nodiscard]] std::size_t term_count() const noexcept;
+    [[nodiscard]] std::expected<std::size_t, PaintMixError> sample(double progress, std::span<WeightedPaint> output) const noexcept;
+    [[nodiscard]] std::expected<Paint, PaintMixError> record(double progress, DisplayList& output, float opacity = 1) const;
+  };
+}
+== mrender.vector.api:resources
+namespace mrender {
+  class ImageStore {
+    ImageRef add(int width, int height, std::vector<mrender::raster::Rgba8> pixels);
+    ImageRef add(std::shared_ptr<const mrender::raster::Surface> surface);
+    void remove(ImageRef image);
+    [[nodiscard]] const mrender::raster::Surface* get(ImageRef image) const noexcept;
+    [[nodiscard]] std::shared_ptr<const mrender::raster::Surface> shared(ImageRef image) const;
+    void put(ImageRef image, std::shared_ptr<const mrender::raster::Surface> surface, std::uint64_t revision = 0);
+    [[nodiscard]] std::size_t size() const noexcept;
+    bool update(ImageRef image, std::shared_ptr<const mrender::raster::Surface> surface, std::span<const mlibs::geom::PixelRect> changed = {…});
+    [[nodiscard]] std::uint64_t revision(ImageRef image) const noexcept;
+    static constexpr std::size_t remembered = 8;
+    [[nodiscard]] bool changed_since(ImageRef image, std::uint64_t revision, std::vector<mlibs::geom::PixelRect>& out) const;
+  };
+  struct GlyphMask {
+    const mrender::raster::Coverage* coverage = nullptr;
+    const mrender::raster::Surface* color = nullptr;
+    mlibs::geom::PixelRect color_bounds;
+  };
+  class GlyphSource {
+    virtual ~GlyphSource() = default;
+    [[nodiscard]] virtual GlyphMask mask(FontRef font, std::uint32_t glyph, float size, Point fraction) = 0;
+    [[nodiscard]] virtual mrender::raster::PathData outline(FontRef font, std::uint32_t glyph) = 0;
+    [[nodiscard]] virtual int mask_phases() const noexcept;
+  };
+  [[nodiscard]] inline int phase_of(float fraction, int phases) noexcept;
+  struct Resources {
+    const ImageStore* images = nullptr;
+    GlyphSource* glyphs = nullptr;
+  };
+}
+== mrender.vector.api:wire
+namespace mrender {
+  [[nodiscard]] std::string encode(const DisplayList& list);
+  struct Remap {
+    std::function<std::uint32_t(std::uint32_t)> font, image;
+  };
+  [[nodiscard]] std::expected<void, std::string> decode(std::string_view bytes, DisplayList& into, const Remap& remap = {…});
+}
+== mrender.vector.svg
+namespace mrender::svg {
+  struct Options {
+    Rect view;
+    float island_scale = 2;
+    std::optional<Color> background;
+    std::function<std::string(std::uint32_t node)> node_name;
+    std::function<std::expected<std::vector<std::uint8_t>, std::string>(std::span<const std::uint8_t> rgba, int width, int height)> encode_png;
+  };
+  enum class Why : std::uint8_t { effect, backdrop_effect, paint, blend, inset_shadow, trimmed_stroke, colour_glyph, };
+  [[nodiscard]] std::string_view describe(Why why) noexcept;
+  struct Island {
+    std::size_t command = 0;
+    Why why = Why::effect;
+    Rect bounds;
+    std::string effect;
+  };
+  struct Report {
+    std::size_t commands = 0;
+    std::size_t shapes = 0;
+    std::size_t glyphs = 0;
+    std::size_t images = 0;
+    std::vector<Island> islands;
+    std::size_t external = 0;
+    std::size_t missing_images = 0;
+    std::size_t missing_glyphs = 0;
+    std::size_t unencoded = 0;
+  };
+  struct Picture {
+    std::string text;
+    Report report;
+  };
+  [[nodiscard]] std::expected<Picture, std::string> write(const DisplayList& list, const Resources& resources, const Options& options);
+}

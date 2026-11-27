@@ -1,0 +1,122 @@
+// openmui.raster:surface — pixels and coverage masks.
+//
+// A Surface is premultiplied RGBA, 8 bits per channel, rows top to bottom
+// (the render interface's format, spec §7 R-1; a host that wants BGRA swaps
+// at presentation). A Mask is 8-bit coverage. Both own their memory; views
+// borrow it.
+export module mrender.raster.api:surface;
+
+import std;
+import mlibs.geom;
+
+export namespace mrender::raster {
+
+using mlibs::geom::Affine;
+using mlibs::geom::Color;
+using mlibs::geom::PixelRect;
+using mlibs::geom::Point;
+using mlibs::geom::Rect;
+
+// One premultiplied pixel.
+struct Rgba8 {  // four bytes, R G B A: a surface row is a byte row
+    std::uint8_t r = 0, g = 0, b = 0, a = 0;
+    friend constexpr bool operator==(Rgba8 x, Rgba8 y) noexcept { return x.r == y.r && x.g == y.g && x.b == y.b && x.a == y.a; }
+};
+
+[[nodiscard]] constexpr Rgba8 premultiply(const Color& c) noexcept {
+    auto p = c.premultiplied8();
+    return {p[0], p[1], p[2], p[3]};
+}
+
+// x·y/255 rounded to nearest, exactly, for 8-bit values.
+[[nodiscard]] constexpr std::uint32_t mul255(std::uint32_t x, std::uint32_t y) noexcept {
+    std::uint32_t t = x * y + 128;
+    return (t + (t >> 8)) >> 8;
+}
+
+struct ImageView {
+    const Rgba8* pixels = nullptr;
+    int          width = 0;
+    int          height = 0;
+    int          stride = 0;  // in pixels
+
+    [[nodiscard]] inline const Rgba8& at(int x, int y) const noexcept { return pixels[static_cast<std::size_t>(y) * stride + x]; }
+};
+
+class Surface {
+public:
+    Surface() = default;
+    Surface(int width, int height);
+
+    [[nodiscard]] inline int width() const noexcept { return width_; }
+    [[nodiscard]] inline int height() const noexcept { return height_; }
+    [[nodiscard]] inline Rgba8* row(int y) noexcept { return pixels_.data() + static_cast<std::size_t>(y) * width_; }
+    [[nodiscard]] inline const Rgba8* row(int y) const noexcept { return pixels_.data() + static_cast<std::size_t>(y) * width_; }
+    [[nodiscard]] inline Rgba8& at(int x, int y) noexcept { return row(y)[x]; }
+    [[nodiscard]] inline const Rgba8& at(int x, int y) const noexcept { return row(y)[x]; }
+    [[nodiscard]] inline std::span<Rgba8> pixels() noexcept { return pixels_; }
+    [[nodiscard]] inline std::span<const Rgba8> pixels() const noexcept { return pixels_; }
+    // The pixels as bytes, R G B A in order.
+    [[nodiscard]] std::span<const std::uint8_t> bytes() const noexcept {
+        return {reinterpret_cast<const std::uint8_t*>(pixels_.data()), pixels_.size() * 4};
+    }
+    [[nodiscard]] inline ImageView view() const noexcept { return {pixels_.data(), width_, height_, width_}; }
+
+    void clear(Rgba8 value = {});
+    void resize(int width, int height);
+    // A hash of the pixels (FNV-1a), for golden tests.
+    [[nodiscard]] std::uint64_t hash() const noexcept;
+
+private:
+    int                width_ = 0;
+    int                height_ = 0;
+    std::vector<Rgba8> pixels_;
+};
+
+// Where two pictures differ (a step's beat, D-282: what a design step changed on screen): the tiles of `tile` pixels
+// in which any pixel differs, a run of them across a row of tiles one region and a region carried down while the next
+// row's run spans the same tiles, each region with how many of its pixels differ; ordered top to bottom, left to right.
+// Pictures of different sizes differ everywhere: one region, the later picture whole. A pure function.
+struct ChangedRegion {
+    int           x = 0, y = 0, width = 0, height = 0;
+    std::uint64_t pixels = 0;
+    friend constexpr bool operator==(const ChangedRegion& a, const ChangedRegion& b) noexcept {
+        return a.x == b.x && a.y == b.y && a.width == b.width && a.height == b.height && a.pixels == b.pixels;
+    }
+};
+[[nodiscard]] std::vector<ChangedRegion> changed_regions(const Surface& before, const Surface& after, int tile = 16);
+
+class Mask {
+public:
+    Mask() = default;
+    Mask(int width, int height, std::uint8_t fill = 0);
+
+    [[nodiscard]] inline int width() const noexcept { return width_; }
+    [[nodiscard]] inline int height() const noexcept { return height_; }
+    [[nodiscard]] inline std::uint8_t* row(int y) noexcept { return data_.data() + static_cast<std::size_t>(y) * width_; }
+    [[nodiscard]] inline const std::uint8_t* row(int y) const noexcept { return data_.data() + static_cast<std::size_t>(y) * width_; }
+    [[nodiscard]] inline std::uint8_t at(int x, int y) const noexcept { return row(y)[x]; }
+    [[nodiscard]] inline std::span<std::uint8_t> data() noexcept { return data_; }
+    [[nodiscard]] inline std::span<const std::uint8_t> data() const noexcept { return data_; }
+    void fill(std::uint8_t v);
+    void resize(int width, int height, std::uint8_t fill = 0);
+
+private:
+    int                       width_ = 0;
+    int                       height_ = 0;
+    std::vector<std::uint8_t> data_;
+};
+
+// Coverage of a shape, in a rectangle of a surface (a mask with an origin):
+// what rasterising produces and what compositing consumes.
+struct Coverage {
+    PixelRect                 bounds;   // where `values` lies on the target
+    std::vector<std::uint8_t> values;   // bounds.width × bounds.height
+
+    [[nodiscard]] std::uint8_t at(int x, int y) const noexcept {
+        return values[static_cast<std::size_t>(y - bounds.y) * bounds.width + (x - bounds.x)];
+    }
+    [[nodiscard]] inline bool empty() const noexcept { return bounds.empty(); }
+};
+
+}  // namespace mrender::raster

@@ -1,0 +1,52 @@
+# Kiln in a window (the release plan's RC2.5): Mui's cavern played with keys, the mouse or a gamepad, drawn each
+# frame (the picture's display list on the CPU), heard through the system's output; every frame's input recorded,
+# so the window's game and the headless game are the same bits. And kiln-play (D-186): the game with no window as a
+# program an agent talks to with a pipe — a JSON request a line, the records of its answer. Both are the native
+# systems' only (a window, a command line and standard input); the game itself, which also builds for the Web, is
+# showcase/kiln (D-99).
+[package]
+namespace   = "omui.showcase.kiln"
+name        = "window"
+version     = "0.1.0"
+description = "Kiln in a window (keys, mouse, gamepad; drawn and heard; its recording the headless game) and kiln-play, the game over lines"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: Kiln's window program, native only (the game itself runs on the Web)"
+
+[targets.omui-showcase-kiln-window]
+kind = "lib"
+
+[targets.kiln]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[targets.kiln-play]
+kind = "bin"
+main = "src/entry/play.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.text.fonts = { path = "../../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
+omui.showcase.kiln = { path = ".." }
+meng.runtime  = { path = "../../../modules/projects/meng/game/runtime", features = ["lines"] }  # kiln-play's
+mlibs.agent      = { path = "../../../modules/base/agent" }
+omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
+meng.ui       = { path = "../../../modules/projects/meng/game/ui" }
+meng.input    = { path = "../../../modules/projects/meng/game/input" }
+meng.audio.device = { path = "../../../modules/projects/meng/kernel/audio/device" }
+mrender.raster   = { path = "../../../modules/projects/mrender/raster" }
+mrender.vector   = { path = "../../../modules/projects/mrender/vector" }
+mcpplibs.cmdline = "0.0.3"
+mcpplibs.os      = "0.4.8"
+
+[dev-dependencies]
+mlibs.text.harfbuzz = { path = "../../../modules/content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
+mcpplibs.mtest = "0.11.3"
+omui.host.headless = { path = "../../../modules/projects/omui/host/headless" }
+mlibs.json     = { path = "../../../modules/base/json" }

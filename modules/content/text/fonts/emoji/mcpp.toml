@@ -1,0 +1,21 @@
+# mlibs.text.fonts.emoji — a default font's pack (D-214): Twemoji Mozilla: colour emoji.
+# An application that shows it depends on this package and carries the file
+# in its `fonts/` (FontCollection::default_file); one that does not, does not.
+[package]
+namespace   = "mlibs.text.fonts"
+name        = "emoji"
+version     = "0.1.0"
+description = "A default font for mlibs.text: Twemoji Mozilla: colour emoji"
+license     = "Apache-2.0 AND CC-BY-4.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "dependency: a distribution carries the font only when it depends on this (deploy is per package, not per feature)"
+kind = "runtime"
+
+[runtime]
+deploy = [
+    { from = "TwemojiMozilla.ttf", to = "fonts" },
+    { from = "LICENSE-TwemojiMozilla.md", to = "licenses/fonts" },
+]

@@ -1,0 +1,52 @@
+# omui.devtools — the contributors' tool (release design §6.6): `ci` reads a
+# CI run row by row and sets each failure against STATUS's red list (R12).
+# The workspace's checks that grow past a script land here as subcommands:
+# govern (the 90% cap, AGENTS §5), incremental (an unchanged rebuild compiles nothing),
+# atspi (examples read and operated as a screen reader does).
+[package]
+namespace   = "omui"
+name        = "devtools"
+version     = "0.1.0"
+description = "The contributors' tool: CI runs against the red list, the machine cap, the incremental build check, CI's LLVM before a push"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the contributors' tool"
+lower = ["mcpplibs.mpal", "mlibs.delivery", "mlibs.xdef.tool"]  # lower-labelled parts it uses, each marked in its README
+kind = "tool"
+
+[targets.omui-devtools]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+# Optimised in every profile: the lint's rules are regular expressions over every source, 57 s of CPU
+# unoptimised against 9 optimised — its test (lint_test) ran past 300 s on CI's 4-core runners (red 109).
+cxxflags = ["-O2"]
+
+[dependencies]
+nlohmann.json    = "3.12.0"
+marzer.tomlplusplus = "3.4.0"  # the lint reads every manifest
+mlibs.json       = { path = "../../modules/base/json" }  # the lint holds documents to their schemas
+"mlibs.xdef.tool" = { path = "../../modules/base/xdef/tool" }  # data-format: the container's checker
+mlibs.xdef       = { path = "../../modules/base/xdef" }  # a snapshot's format checked first (the projects' identities)
+mlibs.utils      = { path = "../../modules/base/utils" }  # mlibs.http: the test page's server; mlibs.hash: bench apps' pictures
+mlibs.image      = { path = "../../modules/base/image" }  # eval compare's sheets
+mlibs.delivery   = { path = "../../modules/base/delivery" }  # gzip and the kinds a host compresses: the site served as Pages serves it
+mcpplibs.cmdline = "0.0.3"
+mcpplibs.os      = "0.4.8"
+mcpplibs.mpal    = { path = "../../modules/base/mpal" }  # its D-Bus: atspi speaks AT-SPI with it
+
+[test]
+programs = "directory"  # tests/devtools/: one program, each file run and filtered as before
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { report = 1, eval = 1, tasks = 1, compare = 1, budget = 1, features = 1, ledger = 1, metrics = 1, owners = 1, coldstart = 1, allow = 1, log = 1, events = 1, sweep = 1, provenance = 1, claims = 1, platforms = 1, briefs = 1, lanes = 1 }

@@ -1,0 +1,8 @@
+{"$format": "contract@1", "contract": {"lens": {
+  "role": "canvas",
+  "spec": "0.1",
+  "doc": "A property of any type (a test's own: the shape of the site's lens).",
+  "props": {
+    "nodes": {"type": "any", "doc": "Data as it is: read and handed back whole."}
+  }
+}}}

@@ -1,0 +1,93 @@
+== omui.host.terminal
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
+export import mrender.cells;
+export import :input;
+namespace omui {
+  struct TerminalOptions {
+    mrender::cells::Grid grid;
+    int columns = 80;
+    int rows = 24;
+    Theme theme = Theme::light();
+    mrender::cells::Colors colors = mrender::cells::Colors::truecolor;
+    std::string app = "openmui-app";
+    bool agent = true;
+    std::filesystem::path endpoint_directory;
+    std::string endpoint_name;
+    bool agent_input = true;
+    seconds frame_period = seconds(1.0 / 60);
+  };
+  class Terminal {
+    explicit Terminal(TerminalOptions options = {…});
+    ~Terminal();
+    Terminal(const Terminal&) = delete;
+    Terminal& operator=(const Terminal&) = delete;
+    [[nodiscard]] Runtime& runtime() noexcept;
+    [[nodiscard]] semantic::Tree& tree() noexcept;
+    [[nodiscard]] const TerminalOptions& options() const noexcept;
+    NodeId mount(std::string_view slot, View view);
+    const mrender::cells::Frame& step(std::string_view input = {…}, std::optional<seconds> at = std::nullopt);
+    std::size_t settle(seconds limit = seconds(10));
+    [[nodiscard]] const mrender::cells::Frame& frame() const noexcept;
+    void resize(int columns, int rows);
+    [[nodiscard]] Point point_of(int column, int row) const noexcept;
+    [[nodiscard]] std::optional<std::pair<int, int>> cell_of(std::string_view id) const;
+    int run();
+    void quit() noexcept;
+    [[nodiscard]] agent::Endpoint* endpoint() noexcept;
+    struct Impl;
+  };
+  namespace terminal {
+    struct ShowService {
+      int (*run)(TerminalOptions options, const std::function<std::shared_ptr<void>(Runtime&)>& prepare) = nullptr;
+    };
+    inline constexpr mlibs::compose::Slot<ShowService> show_slot{…};
+    struct AgentService {
+      void (*attach)(Terminal& host, Terminal::Impl& impl, const agent::EndpointService& surface) = nullptr;
+    };
+    inline constexpr mlibs::compose::Slot<AgentService> agent_slot{…};
+    void install_agent();
+    void install();
+    class Subject final : public mlibs::agent::Subject {
+      explicit Subject(Terminal& host) noexcept : host_(host);
+      [[nodiscard]] std::string_view name() const noexcept override;
+      [[nodiscard]] std::string_view interface_name() const noexcept override;
+      [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override;
+      [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override;
+      [[nodiscard]] std::string_view listing() const noexcept override;
+      [[nodiscard]] mlibs::control::Guide guide() const noexcept override;
+      [[nodiscard]] std::uint64_t state_hash() const override;
+      void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
+    };
+  }
+}
+== omui.host.terminal:catalog
+namespace omui::terminal {
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_terminal_frame{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_terminal_at{…};
+  inline constexpr std::array<std::string_view, 1> examples_terminal_frame{…};
+  inline constexpr std::array<std::string_view, 1> examples_terminal_at{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 2> catalog{…};
+  inline constexpr std::array<std::string_view, 1> steps_read_the_screen{…};
+  inline constexpr std::array<std::string_view, 1> steps_ask_what_drew_a_cell{…};
+  inline constexpr std::array<mlibs::control::Task, 2> guide_tasks{…};
+  inline constexpr mlibs::control::Guide guide{…};
+}
+namespace omui::terminal {
+  inline constexpr std::string_view listing{…};
+}
+== omui.host.terminal:input
+namespace omui::terminal {
+  struct CellSize {
+    float column = 8;
+    float row = 16;
+  };
+  class Input {
+    explicit Input(CellSize cell = {…}) : cell_(cell);
+    [[nodiscard]] std::vector<InputEvent> feed(std::string_view bytes);
+    [[nodiscard]] std::vector<InputEvent> flush();
+    [[nodiscard]] bool pending() const noexcept;
+    [[nodiscard]] bool interrupted() const noexcept;
+  };
+}

@@ -1,0 +1,65 @@
+== mlibs.json
+namespace mlibs::json {
+  struct Place {
+    std::size_t line = 0;
+    std::size_t column = 0;
+    std::size_t offset = 0;
+  };
+  [[nodiscard]] std::optional<Place> locate(std::string_view text, std::string_view pointer);
+  [[nodiscard]] std::string escape(std::string_view key);
+  [[nodiscard]] std::string quote(std::string_view text);
+  struct Problem {
+    std::string file;
+    std::size_t line = 0;
+    std::size_t column = 0;
+    std::string at;
+    std::string message;
+    std::string hint;
+    [[nodiscard]] std::string text() const;
+  };
+  class Scan {
+    [[nodiscard]] static std::expected<Scan, Problem> read(std::string_view text, std::string file);
+    [[nodiscard]] std::optional<std::string> text(std::string_view pointer) const;
+    [[nodiscard]] std::optional<std::vector<std::string>> texts(std::string_view pointer) const;
+    [[nodiscard]] Problem problem(std::string_view pointer, std::string message, std::string hint = {…}) const;
+    [[nodiscard]] const std::string& file() const noexcept;
+  };
+  class Document;
+  class Node {
+    Node() = default;
+    explicit operator bool() const noexcept;
+    [[nodiscard]] Node operator[](std::string_view key) const;
+    [[nodiscard]] Node operator[](std::size_t index) const;
+    [[nodiscard]] Node at(std::string_view pointer) const;
+    [[nodiscard]] bool is_object() const noexcept;
+    [[nodiscard]] bool is_array() const noexcept;
+    [[nodiscard]] bool is_string() const noexcept;
+    [[nodiscard]] bool is_number() const noexcept;
+    [[nodiscard]] bool is_integer() const noexcept;
+    [[nodiscard]] bool is_boolean() const noexcept;
+    [[nodiscard]] bool is_null() const noexcept;
+    [[nodiscard]] std::optional<std::string> text() const;
+    [[nodiscard]] std::optional<double> number() const;
+    [[nodiscard]] std::optional<std::int64_t> integer() const;
+    [[nodiscard]] std::optional<bool> boolean() const;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] std::vector<std::pair<std::string, Node>> members() const;
+    [[nodiscard]] std::vector<std::pair<std::string, Node>> members_by_key() const;
+    [[nodiscard]] std::vector<Node> items() const;
+    [[nodiscard]] const std::string& pointer() const noexcept;
+    [[nodiscard]] std::string dump() const;
+  };
+  class Document {
+    ~Document();
+    Document(Document&& other) noexcept;
+    Document& operator=(Document&& other) noexcept;
+    Document(const Document&) = delete;
+    Document& operator=(const Document&) = delete;
+    [[nodiscard]] static std::expected<Document, Problem> parse(std::string_view text, std::string file);
+    [[nodiscard]] Node root() const;
+    [[nodiscard]] const std::string& file() const noexcept;
+    [[nodiscard]] std::string_view text() const noexcept;
+    [[nodiscard]] Problem problem(const Node& at, std::string message, std::string hint = {…}) const;
+  };
+  [[nodiscard]] std::vector<Problem> validate(const Document& schema, const Document& instance);
+}

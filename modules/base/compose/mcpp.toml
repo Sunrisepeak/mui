@@ -1,0 +1,33 @@
+# mlibs.compose — what a program is made of, chosen at its root (D-238): a
+# slot is a typed, versioned contract its one owner declares; a provider is an
+# implementation of it, in any package; a composition is the value saying
+# which providers a program installed, and for a slot left empty, why and what
+# to do about it. Leaving a capability out of a program is not installing its
+# provider, and reads as a platform that has none: one state, one path.
+# An independent component (D-55): the standard library and mlibs.error.
+[package]
+namespace   = "mlibs"
+name        = "compose"
+version     = "0.1.0"
+description = "Slots, providers and compositions: what a program installs at its root, and for what it leaves out, why and the way out"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: the one mechanism of composition, extension and trimming every project uses (D-238)"
+kind = "module"
+agent = { library = "a composition says what is installed and what is absent with its way out (describe); the catalogs that serve it to an agent are its users'" }
+
+[targets.mlibs-compose]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.utils = { path = "../utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"

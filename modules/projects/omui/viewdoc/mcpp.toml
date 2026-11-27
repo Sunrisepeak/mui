@@ -1,0 +1,45 @@
+# omui.viewdoc — view documents (`*.view.xdef.json`, view-data-files §3):
+# an interface as data, checked against the registered components with
+# located diagnostics, turned into the same Elements a builder makes, bound
+# to signals and models by omui.expr expressions, reloaded in place with
+# its state kept; a document with an interface is a component every language
+# can use. Also the documents' JSON Schema and canonical format.
+[package]
+namespace   = "omui"
+name        = "viewdoc"
+version     = "0.1.0"
+description = "openmui view documents: checking, loading, reloading, component documents, JSON Schema, canonical format"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: view documents read and written for tools and hosts"
+reexports = ["omui.expr", "omui.view"]  # what its interface re-exports (lint module-closure)
+kind = "runtime"
+agent = { part = "omui.agent" }
+
+[targets.openmui-viewdoc]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.core  = { path = "../core" }
+omui.view  = { path = "../view" }
+omui.expr  = { path = "../expr" }
+mlibs.utils = { path = "../../../base/utils" }
+
+[dev-dependencies]
+mlibs.text.harfbuzz = { path = "../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
+mcpplibs.mtest = "0.11.3"
+mlibs.math = { path = "../../../base/math" }
+omui.ui.base       = { path = "../components/base" }
+# A host of the tests' own (tests/viewdoc_test.cpp): omui.host.headless depends on
+# omui.agent, which depends on this package. The component sweep, which needs the
+# headless host, is that host's test.
+omui.semantic = { path = "../semantic" }
+mrender.vector = { path = "../../mrender/vector" }
+mrender.raster = { path = "../../mrender/raster" }
+mrender.text = { path = "../../mrender/text" }

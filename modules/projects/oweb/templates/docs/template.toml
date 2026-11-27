@@ -1,0 +1,8 @@
+[template]
+description  = "A site of documents: pages written in Markdown, each a route read by people, search engines and agents"
+post_message = "cd into the project, then `mcpp build` (or `omui build`): the site is in target/site — every route's index.html and index.md, the routes table, the search index, llms.txt. Its pages are pages/, its title, address and routes oweb.config.ts."
+
+# The project names what it uses (the site's build plugin), at this package's version: nothing more is added for
+# the package the template comes from.
+[template.inject]
+self = false

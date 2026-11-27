@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "size": [320, 160],
+  "background": "#ffffff",
+  "objects": [
+    { "id": "field", "shape": { "rect": { "size": [240, 44], "radius": 10 } }, "fill": "#f9fafb", "stroke": { "color": "#d1d5db", "width": 2 }, "at": [160, 70] },
+    { "id": "caret", "shape": { "rect": [2, 22] }, "fill": "#111827", "at": [56, 70] },
+    { "id": "hint", "shape": { "rect": { "size": [140, 8], "radius": 4 } }, "fill": "#ef4444", "at": [110, 112] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "parallel", "items": [
+        { "do": "shake", "object": "field", "amplitude": [10, 0], "duration": 0.45 },
+        { "do": "shake", "object": "caret", "amplitude": [10, 0], "duration": 0.45 },
+        { "do": "fill_to", "object": "field", "color": "#fef2f2", "duration": 0.2 }
+      ] },
+      { "do": "slide_in", "object": "hint", "from": [0, -8], "duration": 0.3 },
+      { "do": "marker", "name": "explained" },
+      { "do": "blink", "object": "caret", "period": 1, "count": 2 }
+    ]
+  }
+}

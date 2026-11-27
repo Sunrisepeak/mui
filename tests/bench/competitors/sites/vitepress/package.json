@@ -1,0 +1,7 @@
+{
+  "name": "omui-bench-sites-vitepress",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "vitepress build docs" },
+  "devDependencies": { "vitepress": "1.6.4" }
+}

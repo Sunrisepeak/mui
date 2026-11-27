@@ -1,0 +1,50 @@
+{
+  "set": "site-address",
+  "doc": "A site's cold start by its address (0.1.0 plan AG6; oweb's design §4.10, the first door): a fresh agent session with no skill and no files, which can only fetch — ./fetch PATH prints what the site's static host sends for a path — the minimal documents (oweb's template: seven pages in two languages and the generated reference), built as a site in the trial's directory. The questions are answered by the documents' own words; each is checked on the agent's last message, which the task asks to end with one line.",
+  "package": "oweb",
+  "program": "oweb",
+  "setup": [
+    [
+      "site.build",
+      "--site",
+      "{root}/modules/projects/oweb/templates/docs",
+      "--out",
+      "{dir}"
+    ]
+  ],
+  "wrapper": {
+    "name": "fetch",
+    "host": "{dir}",
+    "base": "https://example.org/docs"
+  },
+  "check_args": [],
+  "intro": "A site of documents is served at https://example.org/docs/. You cannot reach the network; ./fetch stands for it: ./fetch PATH prints what the site's host sends for a path of the site (./fetch / is its first page; a whole address of the site works too; several paths may be given at once).",
+  "max_turns": 30,
+  "timeout": 900,
+  "tasks": [
+    {
+      "id": "headless",
+      "goal": "The site's documents say how to run an application in development mode without opening a window. Find the command and its flag. End your last message with COMMAND: and the command with its flag.",
+      "answer": "omui dev --headless",
+      "checks": []
+    },
+    {
+      "id": "effect",
+      "goal": "The site documents the operations of the command that builds it. Find the operation that writes a site's files: what is its effect, as the documents name it, and how is it undone? End your last message with EFFECT: and the effect's one word.",
+      "answer": "EFFECT: reversible",
+      "checks": []
+    },
+    {
+      "id": "identity",
+      "goal": "The site's documents show one small interface written three ways. What are the three ways, and what is the id of its button — the id that stays the same when the button's label is translated? End your last message with ID: and the id.",
+      "answer": "ID: undo",
+      "checks": []
+    },
+    {
+      "id": "zh-file",
+      "goal": "这个站点有中文的文档。按中文文档的说法，窗口开着的时候改哪个文件并保存，界面会随之改变、计数保留？最后一行写 FILE: 加上这个文件的路径。",
+      "answer": "app/main.ts",
+      "checks": []
+    }
+  ]
+}

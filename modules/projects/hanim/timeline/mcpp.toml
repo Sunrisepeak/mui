@@ -1,0 +1,46 @@
+# hanim.timeline — the timeline every editor shares (D-86): tracks of clips
+# (a video, a view, a sound, an animation) placed in exact time, each with
+# where in its source it begins, its speed, its level and fades, and
+# properties keyed with hanim's curves; markers; what plays at any moment;
+# edits (insert, remove, move, trim, split, ripple) that each give back their
+# inverse, so undo is exact; and the readable file, *.timeline.xdef.ts (read
+# as the JSON it evaluates to). An independent component (D-55): the standard
+# library, hanim.core (its eases and keyed tracks), mlibs.time (flicks and
+# rates) and mlibs.json.
+[package]
+namespace   = "hanim"
+name        = "timeline"
+version     = "0.1.0"
+description = "Tracks of clips in exact time, keyed properties, edits that undo exactly, and a readable file"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: timelines of clips for films, studios and interfaces"
+reexports = ["mlibs.utils"]  # what its interface re-exports (lint module-closure)
+kind = "runtime"
+agent = { part = "sunrisepeak.hanim" }
+
+[targets.hanim-timeline]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim.core          = { path = "../core" }
+mlibs.utils         = { path = "../../../base/utils" }
+mlibs.json          = { path = "../../../base/json" }
+mlibs.xdef = { path = "../../../base/xdef" }  # a snapshot's format checked first (D-209)
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): a show's rules (`direction@1`, read by
+# read_direction), written as JSON (no define module).
+[package.metadata.openmui.xdef]
+kinds = { direction = 1 }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.cts = { path = "../../../base/cts" }

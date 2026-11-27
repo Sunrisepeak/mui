@@ -1,0 +1,253 @@
+// oweb:tool — the subject `oweb`: a site built, its routes listed, one page read, each answered as data.
+module oweb;
+
+import std;
+import mcpplibs.os;
+import mlibs.delivery;
+import mlibs.agent;
+import openas;
+import omui.core;
+import :site;
+import :config;
+import :tool;
+
+namespace oweb {
+
+namespace {
+
+using Reply = mlibs::agent::Answer;
+using omui::Value;
+
+void done(Reply& reply, const Value& data) { reply.data(data.json()); }
+void wrong(Reply& reply, std::string_view why) {
+    reply.data(Value{}.set("ok", false).set("error", why).json());
+    reply.fail(openas::error_code::invalid_argument, why);
+}
+void failed(Reply& reply, std::string_view why) {
+    reply.data(Value{}.set("ok", false).set("error", why).json());
+    reply.fail("failed", why);
+}
+
+inline constexpr std::uintmax_t not_a_number = std::numeric_limits<std::uintmax_t>::max();
+
+// A site's options: its configuration's (oweb.config.ts, or the one the request names), and what the request states over them ("en,zh": its
+// languages, the default first). Nothing where the configuration cannot be read: the reply says why.
+std::optional<SiteOptions> options_of(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
+    auto stated = configured(mcpplibs::os::fs::from_utf8(args.value("site").value_or("")), mcpplibs::os::fs::from_utf8(args.value("config").value_or("")));
+    if (!stated) {
+        failed(reply, stated.error());
+        return std::nullopt;
+    }
+    SiteOptions options = std::move(*stated);
+    options.view = view;
+    if (const auto title = args.value("title")) options.title = *title;
+    if (const auto url = args.value("url")) options.url = *url;
+    // A request's engine is from where the request is made, not from the site's directory.
+    if (const auto engine = args.value("engine"); engine && !engine->empty())
+        options.engine = mcpplibs::os::fs::utf8(std::filesystem::absolute(mcpplibs::os::fs::from_utf8(*engine)));
+    if (const auto load = args.value("load"); load && !load->empty()) options.load = *load;
+    if (const auto readable = args.value("readable")) {
+        // Not a number of bytes: marked, and refused where the build is asked for (site_build).
+        const auto read = std::from_chars(readable->data(), readable->data() + readable->size(), options.readable);
+        if (read.ec != std::errc{} || read.ptr != readable->data() + readable->size()) options.readable = not_a_number;
+    }
+    if (const auto languages = args.value("languages"); languages && !languages->empty()) {
+        options.languages.clear();
+        for (const auto part : std::views::split(*languages, ','))
+            if (!std::ranges::empty(part)) options.languages.emplace_back(part.begin(), part.end());
+    }
+    return options;
+}
+
+Value described(const Route& route) {
+    Value::List headings;
+    for (const Heading& heading : route.headings)
+        headings.push_back(Value{}.set("level", Value(static_cast<std::int64_t>(heading.level))).set("text", heading.text).set("anchor", heading.anchor));
+    return Value{}.set("path", route.path).set("source", route.source).set("title", route.title).set("language", route.language).set("headings", Value(std::move(headings)));
+}
+
+void site_build(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
+    const auto site = args.value("site"), out = args.value("out");
+    if (!site || !out) return wrong(reply, "site.build takes --site, the site's directory, and --out, the directory written");
+    const auto stated = options_of(reply, args, view);
+    if (!stated) return;
+    const SiteOptions& options = *stated;
+    if (options.readable == not_a_number) return wrong(reply, std::format("--readable is a number of bytes (0 holds no budget), not `{}`", *args.value("readable")));
+    const auto built = build(mcpplibs::os::fs::from_utf8(*site), mcpplibs::os::fs::from_utf8(*out), options);
+    if (!built) return failed(reply, built.error());
+    const auto number = [](std::uintmax_t value) { return Value(static_cast<std::int64_t>(value)); };
+    Value::List routes, files, budgets;
+    for (const Route& route : built->routes) routes.push_back(described(route));
+    const mlibs::delivery::Manifest& delivery = built->delivery;
+    for (const mlibs::delivery::File& file : delivery.files)
+        files.push_back(Value{}.set("path", file.path).set("bytes", number(file.bytes)).set("sent", number(file.sent())));
+    std::string over;
+    for (const mlibs::delivery::Verdict& verdict : delivery.verdicts) {
+        budgets.push_back(Value{}
+                              .set("name", verdict.budget.name)
+                              .set("pattern", verdict.budget.pattern)
+                              .set("most", number(verdict.budget.most))
+                              .set("found", number(verdict.found))
+                              .set("where", verdict.where)
+                              .set("files", number(verdict.files))
+                              .set("within", verdict.within));
+        if (!verdict.within && over.empty())
+            over = verdict.budget.over == mlibs::delivery::Over::each
+                       ? std::format("{}: {} sends {} bytes, over the budget of {} — shorten the page, or state the budget it is held to with --readable", verdict.budget.name,
+                                     verdict.where, verdict.found, verdict.budget.most)
+                       : std::format("{}: {} send {} bytes in all, over the budget of {} the site states (oweb.config.ts, budgets) — a smaller program, or the budget it is held to",
+                                     verdict.budget.name, verdict.budget.pattern, verdict.found, verdict.budget.most);
+    }
+    Value data = Value{}
+                     .set("ok", over.empty())
+                     .set("out", *out)
+                     .set("routes", Value(std::move(routes)))
+                     .set("files", Value(std::move(files)))
+                     .set("bytes", number(delivery.bytes))
+                     .set("sent", number(delivery.sent))
+                     .set("budgets", Value(std::move(budgets)));
+    if (over.empty()) return done(reply, data);
+    // Written all the same (the manifest says where it is over); the build did not pass.
+    reply.data(data.set("error", over).json());
+    reply.fail("failed", over);
+}
+
+// The site a request reads (0.1.0 plan AG5): its source — pages/, each answer evaluated now as a build would write
+// it — or a site as built: the directory a build wrote, or a copy of what a host serves, its tables and pages read
+// as they were published. The same operations, the same answers.
+struct Reading {
+    std::filesystem::path site;
+    bool                  built = false;
+    SiteOptions           options;  // a source's, as configured and asked
+    std::vector<Route>    routes;   // a source's
+    Table                 table;    // what the routes table says: read (built), or as it would be written (source)
+};
+
+std::optional<std::string> file_of(const std::filesystem::path& file) {
+    auto text = mcpplibs::os::fs::read(file);
+    if (!text) return std::nullopt;
+    return std::move(*text);
+}
+
+std::optional<Reading> reading_of(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
+    Reading reading{.site = mcpplibs::os::fs::from_utf8(args.value("site").value_or(""))};
+    if (is_built(reading.site)) {
+        // A built site states itself: there is no configuration to read and nothing to state over it.
+        if (const auto config = args.value("config"); config && !config->empty()) {
+            wrong(reply, std::format("`{}` is a site as built (it holds site.routes.xdef.json): it is read as it was written — --config is for a site's source",
+                                     mcpplibs::os::fs::utf8(reading.site)));
+            return std::nullopt;
+        }
+        const auto text = file_of(reading.site / "site.routes.xdef.json");
+        std::expected<Table, std::string> table = std::unexpected(std::string("its routes table cannot be read"));
+        if (text) table = shell::table_from(*text);
+        if (!table) {
+            failed(reply, std::format("{}: {} — build the site again (oweb site.build)", mcpplibs::os::fs::utf8(reading.site / "site.routes.xdef.json"), table.error()));
+            return std::nullopt;
+        }
+        reading.built = true;
+        reading.table = std::move(*table);
+        return reading;
+    }
+    auto options = options_of(reply, args, view);
+    if (!options) return std::nullopt;
+    reading.options = std::move(*options);
+    auto routes = collect(reading.site, reading.options);
+    if (!routes) {
+        failed(reply, routes.error());
+        return std::nullopt;
+    }
+    reading.routes = std::move(*routes);
+    reading.table = table_of(reading.routes, reading.options);
+    return reading;
+}
+
+
+void routes_list(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
+    if (!args.value("site")) return wrong(reply, "routes.list takes --site, the site's directory: its source (it holds pages/) or the site as built");
+    const auto reading = reading_of(reply, args, view);
+    if (!reading) return;
+    reply.data(shell::routes_answer(reading->table));
+}
+
+// What a site is, as it says it at every door: the table's facts, and the text a build writes as llms.txt.
+void site_describe(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
+    if (!args.value("site")) return wrong(reply, "site.describe takes --site, the site's directory: its source (it holds pages/) or the site as built");
+    const auto reading = reading_of(reply, args, view);
+    if (!reading) return;
+    const Table& table = reading->table;
+    // The ways in, each a request that can be sent as it stands: read a page, ask the pages a question.
+    const std::string site = args.value("site").value_or("");
+    const std::string first = table.routes.empty() ? std::string("/") : table.routes.front().path;
+    const Value next(Value::List{Value{}.set("op", "page.read").set("site", site).set("route", first), Value{}.set("op", "docs.search").set("site", site).set("query", table.title)});
+    reply.data(shell::describe_answer(table, reading->built, next.json()));
+}
+
+void page_read(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
+    const auto site = args.value("site"), address = args.value("route");
+    if (!site || !address) return wrong(reply, "page.read takes --site, the site's directory, and --route, the page's address (/guide/start/)");
+    const std::string as = args.value("as").value_or("markdown");
+    if (as != "markdown" && as != "html") return wrong(reply, std::format("--as is markdown or html, not `{}`", as));
+    const auto reading = reading_of(reply, args, view);
+    if (!reading) return;
+    const auto listed_route = std::ranges::find(reading->table.routes, *address, &shell::Entry::path);
+    if (listed_route == reading->table.routes.end()) {
+        std::string known;
+        for (const shell::Entry& one : reading->table.routes) known += std::format("{}{}", known.empty() ? "" : ", ", one.path);
+        return failed(reply, std::format("no route `{}`: the site's are {}", *address, known));
+    }
+    if (reading->built) {
+        // As it was written: the route's own file, the one a reader or an agent that only fetches is sent.
+        const std::filesystem::path file = reading->site / mcpplibs::os::fs::from_utf8(address->substr(1)) / (as == "html" ? "index.html" : "index.md");
+        const auto text = file_of(file);
+        if (!text) return failed(reply, std::format("{}: the site's table lists `{}` and its {} is not there — build the site again (oweb site.build)", mcpplibs::os::fs::utf8(file), *address, as == "html" ? "page" : "Markdown"));
+        return reply.data(shell::page_answer(*listed_route, as, *text));
+    }
+    const auto route = std::ranges::find(reading->routes, *address, &Route::path);
+    const auto page = evaluate(reading->site, reading->routes, *route, reading->options);
+    if (!page) return failed(reply, page.error());
+    done(reply, Value{}.set("ok", true).set("route", described(page->route)).set("as", as).set("text", as == "html" ? page->html : page->markdown).set("nodes", Value(static_cast<std::int64_t>(page->nodes))));
+}
+
+void docs_search(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
+    const auto site = args.value("site"), query = args.value("query");
+    if (!site || !query || query->empty()) return wrong(reply, "docs.search takes --site, the site's directory, and --query, the words to find");
+    std::size_t limit = 8;
+    if (const auto given = args.value("limit")) {
+        const auto read = std::from_chars(given->data(), given->data() + given->size(), limit);
+        if (read.ec != std::errc{} || limit == 0) return wrong(reply, std::format("--limit is a number above 0, not `{}`", *given));
+    }
+    const auto reading = reading_of(reply, args, view);
+    if (!reading) return;
+    std::expected<std::vector<Section>, std::string> sections = std::unexpected(std::string("the site's index (site.search.xdef.json) is not there — build the site again (oweb site.build)"));
+    if (reading->built) {
+        // The index the site serves: what a page's own search box asks.
+        if (const auto index = file_of(reading->site / "site.search.xdef.json")) sections = shell::sections_from(*index);
+    } else {
+        sections = sections_of(reading->site, reading->options);
+    }
+    if (!sections) return failed(reply, sections.error());
+    reply.data(shell::search_answer(*sections, *query, limit));
+}
+
+}  // namespace
+
+mlibs::control::Guide Sites::guide() const noexcept {
+    static constexpr std::array<std::string_view, 3> read{R"({"op":"site.describe","site":"docs"})", R"({"op":"docs.search","site":"docs","query":"install"})",
+                                                           R"({"op":"page.read","site":"docs","route":"/"})"};
+    static constexpr std::array<std::string_view, 1> made{R"({"op":"site.build","site":"docs","out":"dist"})"};
+    static constexpr std::array<mlibs::control::Task, 2> tasks{{{"read-a-site", "What a site is and holds, the sections that answer a question, then the page as Markdown — its source, or the site as built", read},
+                                                               {"build-a-site", "Every route written as HTML and as Markdown, with the site's tables", made}}};
+    return {"A site on omui without opening a page: its pages built into routes, each its semantic tree written as HTML and as Markdown.", tasks};
+}
+
+void Sites::operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& reply) {
+    const mlibs::agent::Arguments args(request);
+    if (operation == "site.build") site_build(reply, args, view_);
+    else if (operation == "routes.list") routes_list(reply, args, view_);
+    else if (operation == "site.describe") site_describe(reply, args, view_);
+    else if (operation == "page.read") page_read(reply, args, view_);
+    else if (operation == "docs.search") docs_search(reply, args, view_);
+}
+
+}  // namespace oweb

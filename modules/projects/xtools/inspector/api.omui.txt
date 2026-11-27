@@ -1,0 +1,139 @@
+== xtools.inspector
+export import :connection;
+export import :cellular;
+export import :motion;
+export import :catalog;
+namespace xtools::inspector {
+  using namespace omui;
+  struct Options {
+    std::string app;
+    std::filesystem::path directory = agent::default_directory();
+    seconds poll{…};
+    std::string self = "org.openmui.inspector";
+  };
+  class Inspector {
+    Inspector(Runtime& ui, Options options);
+    ~Inspector();
+    Inspector(const Inspector&) = delete;
+    Inspector& operator=(const Inspector&) = delete;
+    [[nodiscard]] View view();
+    void choose(std::string app);
+    void refresh();
+    void select(std::string node);
+    void toggle_pause();
+    void step(double seconds);
+    void set_rate(double rate);
+    void release_time();
+    void set_overlay(std::string_view overlay, bool on);
+    Signal<std::vector<std::string>> applications = signal(std::vector<std::string>{…});
+    Signal<std::string> app = signal(std::string());
+    Signal<std::string> status = signal(std::string("looking for applications"));
+    Signal<std::string> selected = signal(std::string());
+    Signal<std::string> tab = signal(std::string("properties"));
+    Signal<Value> details = signal(Value{…});
+    Signal<Value> stats = signal(Value{…});
+    Signal<Value> pipeline = signal(Value{…});
+    Signal<Value> clock = signal(Value{…});
+    Signal<std::size_t> tree_size = signal(std::size_t{…});
+    static constexpr std::string_view tree_model = "inspector.tree";
+    [[nodiscard]] std::string key_of_node(std::string_view node) const;
+    [[nodiscard]] std::string node_of_key(std::string_view key) const;
+  };
+  [[nodiscard]] AppSpec app(Options options);
+}
+== xtools.inspector:catalog
+namespace xtools::inspector {
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_cellular_inspect{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_cellular_load{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_cellular_configure{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_cellular_paint{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_cellular_advance{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_cellular_seek{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_cellular_reset{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_cellular_play{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_motion_open{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_motion_seek{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_motion_at{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_motion_knobs{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_motion_set{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_motion_save{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{…};
+  inline constexpr mlibs::control::Guide guide{…};
+}
+namespace xtools::inspector {
+  inline constexpr std::string_view listing{…};
+}
+== xtools.inspector:cellular
+namespace xtools::inspector::cellular {
+  using namespace omui;
+  class Session : public std::enable_shared_from_this<Session> {
+    Session();
+    ~Session();
+    Session(const Session&) = delete;
+    Session& operator=(const Session&) = delete;
+    Runtime* runtime = nullptr;
+    Signal<std::int64_t> changed = signal(std::int64_t{…});
+    Signal<std::string> problem = signal(std::string()), draft = signal(std::string());
+    Signal<std::string> brush = signal(std::string("spark"));
+    Signal<bool> details = signal(false);
+    Signal<std::int64_t> cursor_x = signal(std::int64_t{…}), cursor_y = signal(std::int64_t{…});
+    [[nodiscard]] VerbResult perform(std::string_view operation, const Value& args = {…});
+    [[nodiscard]] Value snapshot();
+    [[nodiscard]] Value project();
+    [[nodiscard]] std::string state_hash();
+    [[nodiscard]] Size shape();
+    [[nodiscard]] Color color(std::uint32_t x, std::uint32_t y);
+    void draw_field(mrender::DisplayList& list, mrender::ImageStore& store, Rect dest);
+    void pause();
+  };
+  [[nodiscard]] Value example_project();
+  void add_verbs(AppSpec&, const std::shared_ptr<Session>&);
+  [[nodiscard]] Element view(const std::shared_ptr<Session>&, float width, bool chinese = false);
+  [[nodiscard]] AppSpec app(const std::shared_ptr<Session>&, bool chinese = false);
+  int batch(const std::filesystem::path& input, const std::filesystem::path& prefix, std::ostream&);
+}
+== xtools.inspector:connection
+namespace xtools::inspector {
+  using namespace omui;
+  class Connection {
+    using Reply = std::function<void(std::vector<Value> records)>;
+    Connection(Runtime& ui, std::filesystem::path directory);
+    ~Connection();
+    Connection(const Connection&) = delete;
+    Connection& operator=(const Connection&) = delete;
+    [[nodiscard]] std::vector<agent::EndpointInfo> applications() const;
+    [[nodiscard]] const std::filesystem::path& directory() const noexcept;
+    std::expected<void, std::string> open(std::string_view app);
+    void close();
+    [[nodiscard]] bool connected() const noexcept;
+    [[nodiscard]] std::string app() const;
+    void call(Value request, Reply reply, std::chrono::milliseconds timeout = std::chrono::seconds(5));
+    [[nodiscard]] std::size_t in_flight() const noexcept;
+  };
+  [[nodiscard]] const Value* data_of(const std::vector<Value>& records) noexcept;
+  [[nodiscard]] bool succeeded(const std::vector<Value>& records) noexcept;
+  [[nodiscard]] std::string error_of(const std::vector<Value>& records);
+}
+== xtools.inspector:motion
+namespace xtools::inspector::motion {
+  using namespace omui;
+  class Session {
+    Session();
+    ~Session();
+    Session(const Session&) = delete;
+    Session& operator=(const Session&) = delete;
+    Runtime* runtime = nullptr;
+    Signal<std::int64_t> changed = signal(std::int64_t{…});
+    Signal<double> time = signal(0.0);
+    Signal<std::string> selected = signal(std::string());
+    Signal<std::string> problem = signal(std::string());
+    [[nodiscard]] VerbResult perform(std::string_view operation, const Value& args = {…});
+    void draw(mrender::DisplayList& list, Rect dest);
+    [[nodiscard]] std::string object_at(Point at, Rect dest);
+    [[nodiscard]] double duration() const;
+    [[nodiscard]] Size stage() const;
+  };
+  void add_verbs(AppSpec&, const std::shared_ptr<Session>&);
+  [[nodiscard]] Element view(const std::shared_ptr<Session>&, float width);
+  [[nodiscard]] AppSpec app(const std::shared_ptr<Session>&, std::filesystem::path file);
+}

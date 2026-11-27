@@ -1,0 +1,75 @@
+// `omui::run` on the Web: the page's canvas (omui.host.web). The page's
+// loop takes over and main does not return; the host lives as long as the page.
+module omui;
+
+import std;
+import mlibs.error;
+import mlibs.apart;
+import omui.core;
+import omui.view;
+import omui.host.web;
+import :app;
+import :shown;
+
+extern "C" int omui_apart_bring(const char* kind, std::size_t length);  // src/js/omui_apart.js
+
+namespace omui::hosting {
+
+namespace {
+// What the page's packer carried apart that the program reads (mlibs.apart's `data`: a catalog's listing), put back by
+// the page the first time it is read.
+bool bring_from_page(std::string_view kind) noexcept { return omui_apart_bring(kind.data(), kind.size()) == 1; }
+}  // namespace
+
+int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
+    mlibs::apart::bring_with(&bring_from_page);
+    WebOptions w;
+    w.title = app.title;
+    w.app = app.id;
+    w.agent_link = o.agent;
+    w.agent_input = o.agent_input.value_or(app.agent_input);
+    w.size = o.size.value_or(app.size);
+    w.theme = app.theme;  // --dark is already in it (omui::run)
+    // What the options ask for; the person's settings are the host's to read from the page, now and as they change.
+    w.reduce_transparency = o.reduce_transparency;
+    // The page's ?renderer= (the person's choice: choose_renderer), else the options, else the application's.
+    const std::string asked = page_query("renderer");
+    if (asked == "cpu") w.renderer = Renderer::cpu;
+    else if (asked == "gpu") w.renderer = Renderer::gpu;
+    else if (asked == "webgpu") w.renderer = Renderer::webgpu;
+    else if (asked == "webgl") w.renderer = Renderer::webgl;
+    else if (asked == "automatic") w.renderer = Renderer::automatic;
+    else if (o.gpu) w.renderer = *o.gpu ? Renderer::gpu : Renderer::cpu;
+    else if (app.renderer == "cpu") w.renderer = Renderer::cpu;
+    else if (app.renderer == "gpu") w.renderer = Renderer::gpu;
+    static Web* page = nullptr;            // the page's: never destroyed
+    static std::shared_ptr<void> kept;     // what the application keeps while it is shown
+    page = new Web(std::move(w));
+    page->runtime().set_debug(o.debug);
+    kept = prepare(page->runtime());
+    return page->run();
+}
+
+std::vector<std::string> host_locales() { return browser_locales(); }
+std::string host_document() { return page_projection(); }
+std::string host_document(std::string_view id) { return page_projected(id); }
+std::string host_link(std::string_view relation) { return page_link(relation); }
+void host_file(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done) { page_file(address, std::move(done)); }
+
+int terminal(const AppSpec&, const RunOptions&, const Prepare&) {
+    std::println(std::cerr, "--terminal: this platform has no terminal host (omui.host.terminal runs on Linux, macOS and Windows)");
+    return 2;
+}
+
+}  // namespace omui::hosting
+
+namespace omui {
+
+std::expected<void, Failure> choose_renderer(std::string_view name) {
+    if (name != "automatic" && name != "gpu" && name != "cpu" && name != "webgpu" && name != "webgl")
+        return std::unexpected(Failure{mlibs::error::Kind::invalid_argument, std::format("`{}` is not a renderer (automatic, gpu, cpu, webgpu, webgl)", name)});
+    if (!reload_page_with("renderer", name == "automatic" ? std::string_view{} : name)) return std::unexpected("no page to load again");
+    return {};
+}
+
+}  // namespace omui

@@ -1,0 +1,51 @@
+# mlibs.ts — TypeScript with no tool, below every project (the tool kernel's
+# stage 0, D-205, D-209): its types blanked to the JavaScript under them
+# (strip_types, here and on the Web), and a declared data module evaluated in
+# a QuickJS of its own, deterministic and bounded, to the JSON it stands for.
+# What a data module may import by name (a kind's define module) is its
+# owner's, given with the options: this package knows no kind.
+[package]
+namespace   = "mlibs"
+name        = "ts"
+version     = "0.1.0"
+description = "TypeScript with no tool: types blanked to JavaScript, declared data modules evaluated to JSON"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: TypeScript stripped and evaluated as data (QuickJS) for every declared-data reader"
+kind = "module"
+agent = { library = "TypeScript erased to JavaScript and data evaluated to JSON: functions of the source" }
+
+[targets.mlibs-ts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# Data modules are evaluated by QuickJS-ng where its wrap builds; a page
+# (wasm32) reads TypeScript, it does not evaluate data (src/native/web).
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/quickjs/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/web/*.cpp"]
+
+[dependencies]
+mcpplibs.os = "0.4.8"
+mlibs.utils = { path = "../utils" }  # mlibs.error: why a source cannot be read or run
+
+[target.'cfg(not(os = "emscripten"))'.dependencies]
+mcpplibs.mwrap.quickjs_ng = "0.17.0"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.11.3"
+mlibs.cts = { path = "../cts" }
+
+# esbuild is the oracle of the stripper's tests (strip_test), nothing else:
+# installed from xlings while this package is developed on its own (`dev`
+# reaches no consumer); in the workspace the root declares it for test runs.
+[xlings.workspace]
+"xim:esbuild" = { version = "0.25.12", when = "dev" }

@@ -1,0 +1,21 @@
+== mlibs.xdef
+namespace mlibs::xdef {
+  inline constexpr std::string_view container = "xdef";
+  inline constexpr std::string_view earlier_container = "omui";
+  struct FileName {
+    std::string name;
+    std::string kind;
+    std::string container;
+    std::string extension;
+  };
+  [[nodiscard]] std::optional<FileName> parse_name(std::string_view file_name);
+  struct Format {
+    std::string kind;
+    int major = 1;
+    [[nodiscard]] bool same(const Format& other) const noexcept;
+  };
+  [[nodiscard]] std::optional<Format> parse_format(std::string_view text);
+  [[nodiscard]] std::string format_id(const Format& format);
+  inline constexpr std::string_view format_key = "$format";
+  [[nodiscard]] std::optional<std::string> format_problem(std::optional<std::string_view> found, std::string_view kind, int major);
+}

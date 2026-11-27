@@ -1,0 +1,63 @@
+# omui.ui.markdown — the Markdown component (canvas-markdown §2): a
+# document of semantic nodes over openmui.markdown's model, with block nodes
+# keyed by content so streaming re-lays out only the tail. Contract-first:
+# contract/markdown.contract.xdef.ts becomes the base class, the builder,
+# the stubs and the schema when it builds (omui.build.contracts). An official
+# component package, not in the umbrella's defaults.
+[package]
+namespace   = "omui.ui"
+name        = "markdown"
+version     = "0.1.0"
+description = "The Markdown component: CommonMark + GFM rendered as semantic nodes, links with external effects, tasks, code, tables, streaming"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: Markdown views for applications and the site"
+reexports = ["mlibs.markdown", "omui.core", "omui.view"]  # what its interface re-exports (lint module-closure)
+kind = "component"
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+agent = { part = "omui.agent" }
+
+[targets.openmui-ui-markdown]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# What reads Markdown source when no program installed a parser (omui.ui.markdown:parser): md4c off the Web; nothing on
+# the Web, where a page that shows its documents as HTML alone links no Markdown parser.
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/web/*.cpp"]
+
+# View documents run where a document shows them (```view: a live example above its source): omui.viewdoc at this
+# package's slot `omui.ui.markdown.live` (src/views/, `import omui.ui.markdown.views;`, omui::install_markdown_views).
+# A feature, so a program that only shows documents carries no view documents and no expressions (D-99).
+[features]
+views = { sources = ["src/views/*.cppm", "src/views/*.cpp"] }
+
+[feature-deps.views]
+omui.viewdoc = { path = "../../viewdoc" }
+
+[dependencies]
+mlibs.compose = { path = "../../../../base/compose" }  # the slot of who runs a block of code
+mrender.text = { path = "../../../mrender/text" }
+mlibs.utils = { path = "../../../../base/utils" }
+omui.core     = { path = "../../core" }
+omui.view     = { path = "../../view" }
+mlibs.markdown = { path = "../../../../content/markdown" }
+
+[build-dependencies]
+omui.build = { path = "../../../../../mcpp/build", host-module = true }
+openlifa.openmui = { path = "../../../../../spec" }  # its registry/: what the contracts are generated against
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+omui.semantic = { path = "../../semantic" }   # markdown_live_test: the document's HTML, read back
+omui.ui.base = { path = "../base" }           # markdown_live_test: the stand-in example's button
+omui.host.headless = { path = "../../host/headless" }

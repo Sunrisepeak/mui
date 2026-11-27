@@ -1,0 +1,53 @@
+== omui.cli
+export import :catalog;
+export import :omui_profile;
+export import mlibs.agent;
+namespace omui::cli {
+  inline constexpr std::string_view release_version = "0.1.0";
+  [[nodiscard]] bool names_shipped_player(std::string_view manifest);
+  [[nodiscard]] bool declares_runtime(std::string_view manifest);
+  int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err);
+  using Transport = std::function<std::vector<Value>(const Value& request, std::chrono::milliseconds limit)>;
+  int operate_running(std::vector<std::string> words, const Transport& send, std::ostream& out, std::ostream& err);
+  [[nodiscard]] std::expected<Value, std::string> raw_request(std::span<const std::string> words);
+  int print_records(std::vector<Value> records, std::ostream& out);
+  struct BridgeStart {
+    std::string code, name, origin;
+    std::uint16_t port = 0;
+    bool any_port = false;
+    std::optional<std::filesystem::path> dir;
+    std::function<void(std::string_view page, std::string_view app)> paired;
+  };
+  std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, std::stop_token stop, const std::function<void(std::uint16_t)>& ready);
+  [[nodiscard]] Value run_for_agent(std::string_view command, const Value& args);
+}
+== omui.cli:catalog
+namespace omui::cli::ops {
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_doctor{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_new{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_omui_build{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_test{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_dev{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_run{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_omui_connect{…};
+  inline constexpr std::array<mlibs::control::Parameter, 6> parameters_omui_mcp{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_replay{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_check{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_describe{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_omui_fmt{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_schema{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_add{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_remove{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_package{…};
+  inline constexpr std::array<mlibs::control::Parameter, 1> parameters_omui_design_sync{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design_film{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 23> catalog{…};
+  inline constexpr mlibs::control::Guide guide{…};
+}
+namespace omui::cli::ops {
+  inline constexpr std::string_view listing{…};
+}
+== omui.cli:omui_profile
+namespace omui::cli {
+  inline constexpr std::string_view omui_profile = R"…";
+}

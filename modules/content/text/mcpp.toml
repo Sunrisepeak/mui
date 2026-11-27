@@ -1,0 +1,57 @@
+# mlibs.text — fonts and their fallback, bidi, line breaking, paragraphs, carets,
+# glyphs as geometry (outlines, colour layers) and the editing model, over
+# SheenBidi (a C++ module, mcpp-index's mwrap) and mlibs.unicode. How a face is
+# read and its text shaped is the slot `mlibs.text.shaper`'s (D-238; terminal
+# design §9): HarfBuzz's provider is its own package (mlibs.text.harfbuzz), the
+# cell measure of a terminal is here. It knows no renderer: mrender.text
+# rasterises and draws its glyphs (plan §5.3).
+[package]
+namespace   = "mlibs"
+name        = "text"
+version     = "0.1.0"
+description = "Text engine: font fallback, shaping through a slot (HarfBuzz, or a terminal's cells), bidi, UAX #14 line breaking, paragraphs, carets, glyph outlines, editing"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+separate = "library: text editing and its model for every input"
+kind = "runtime"
+
+# The shaper is a slot (terminal design §9): HarfBuzz is installed where pixels are drawn (mlibs.text.harfbuzz),
+# the cell measure (src/cells.cpp, no dependency to keep apart) in a terminal.
+[package.metadata.openmui.compose]
+slots = ["mlibs.text.shaper"]
+provides = ["mlibs.text.shaper"]  # its own: the cell measure
+
+[targets.mlibs-text]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# The default UI font goes with a packed application: `fonts/` beside the
+# program (default_directory's second place), and an APK's assets/fonts, which
+# the Android host unpacks into the application's own directory — with its
+# licence. Every other default font is a pack of its own (fonts/<pack>,
+# D-214): an application carries the scripts it depends on. (It belongs with
+# the HarfBuzz shaper — a terminal draws no font — which a deploy cannot reach
+# from its package: mcpp takes no `..` in `from`.)
+[runtime]
+deploy = [
+    { from = "fonts/Inter.ttf", to = "fonts" },
+    { from = "fonts/OFL-inter.txt", to = "licenses/fonts" },
+]
+
+[dependencies]
+mlibs.geom    = { path = "../../base/geom" }
+mlibs.unicode = { path = "../../base/unicode" }
+mlibs.compose = { path = "../../base/compose" }  # the shaper's slot
+mcpplibs.os     = "0.4.8"
+mcpplibs.mwrap.sheenbidi = "3.0.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils = { path = "../../base/utils" }

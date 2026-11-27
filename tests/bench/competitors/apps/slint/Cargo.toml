@@ -1,0 +1,18 @@
+# Slint's side of the application comparisons (C1, N2): the same two apps as
+# omui's (apps/), Flutter's (apps/flutter) and NSH's — a title and a button,
+# and a counter. Slint's own defaults (winit, the FemtoVG renderer over OpenGL,
+# the fluent style); built as NSH builds its published hello worlds:
+# link-time optimisation, one code unit, stripped (omui-devtools bench apps).
+[package]
+name = "bench-apps"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+slint = "=1.19.0"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true

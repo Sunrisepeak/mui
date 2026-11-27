@@ -1,0 +1,36 @@
+{
+  "set": "matter-lab",
+  "doc": "The material lab's cold start (RC2.18, D-186): a fresh agent session with no skill and no files, told only that the program reads a JSON request a line. The tasks are the foundation design's first two trials (2026-11-14), made repeatable; each is checked through the lab afterwards — its history's actor, a material's row, the scene — and the agent's last message only for what the task asks it to say.",
+  "package": "meng.matter.lab",
+  "program": "matter-lab",
+  "setup": [["new", "{dir}", "--shape", "48x24"]],
+  "wrapper": {"name": "lab", "args": ["run", "{dir}", "--actor", "agent:coldstart"]},
+  "check_args": ["run", "{dir}", "--actor", "service:coldstart-check"],
+  "intro": "./lab is a program that reads one JSON request a line on its standard input and answers in JSON records, a line each — for example {\"op\":\"subjects\"}. Each argument of ./lab is one request, in single quotes: ./lab '{\"op\":\"subjects\"}' '{\"op\":\"describe\"}'. Each run of ./lab is the same material lab, kept between runs.",
+  "max_turns": 40,
+  "timeout": 1200,
+  "tasks": [
+    {
+      "id": "unlightable-wood",
+      "goal": "In the material lab, build a scene: a floor of stone, a strip of wood on it, and light one end of the wood. Confirm from the program's answers that the wood burns, and say which law made it burn. Then change the definition so that the same fire cannot light wood: see what the change would do before making it, make it, and keep it as a commit. End your last message with LAW: and the law's name.",
+      "answer": "LAW: burns",
+      "checks": [
+        {"request": {"op": "lab.read", "path": "scene.json"}, "at": "/data/text", "contains": "stone"},
+        {"request": {"op": "lab.read", "path": "scene.json"}, "at": "/data/text", "contains": "wood"},
+        {"request": {"op": "lab.read", "path": "materials/wood.json"}, "at": "/data/text", "parse": true, "then": "/ignition", "above": 570},
+        {"request": {"op": "lab.history"}, "at": "/data/log/0/actor", "equals": "agent:coldstart"}
+      ]
+    },
+    {
+      "id": "resin",
+      "goal": "Invent a material, resin, that lights more easily than wood and burns hotter, and keep it as a commit. Then build a scene: a floor of stone, a strip of resin and a strip of wood with two cells of air between them, and light the far end of the resin. Using the program's explanation of a wood cell, say whether the fire crossed to the wood. End your last message with CROSSED: yes or CROSSED: no.",
+      "answer": "CROSSED:",
+      "checks": [
+        {"request": {"op": "lab.read", "path": "materials/resin.json"}, "at": "/data/text", "parse": true, "then": "/ignition", "below": 570},
+        {"request": {"op": "lab.read", "path": "materials/resin.json"}, "at": "/data/text", "parse": true, "then": "/heat", "above": 80},
+        {"request": {"op": "lab.read", "path": "scene.json"}, "at": "/data/text", "contains": "resin"},
+        {"request": {"op": "lab.history"}, "at": "/data/log/0/actor", "equals": "agent:coldstart"}
+      ]
+    }
+  ]
+}

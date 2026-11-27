@@ -1,0 +1,4 @@
+== omui.host.sdl3.gpu
+namespace omui::host::sdl3::gpu {
+  void install();
+}

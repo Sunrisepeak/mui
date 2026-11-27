@@ -1,0 +1,43 @@
+# gongfu.studio — making fighters (D-85 §8.5, D-61): the library, and the command `gongfu-studio` — its subject
+# `gongfu` behind the tool kernel (T0), the operations gongfu.ops.xdef.ts lists. `fighter.bake` writes each
+# fighter's hurtboxes from its look's animation (`<name>.boxes.gongfu.toml`, G-5); `fighter.check` says whether
+# those files are what the looks and moves make now; `fighter.embed` gives a program its fighters as a module
+# partition, refusing stale hurtboxes (what gongfu.rules runs in a build).
+[package]
+namespace   = "gongfu"
+name        = "studio"
+version     = "0.1.0"
+description = "Making gongfu fighters: hurtboxes baked from the animation, checked in the build; the command line (JSON and exit codes) for people, agents and CI"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the gongfu-studio command"
+reexports = ["gongfu.data", "gongfu.present2d", "mlibs.agent"]  # what its interface re-exports (lint module-closure)
+agent = "tool"
+
+[targets.gongfu-studio-core]
+kind = "lib"
+
+[targets.gongfu-studio]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.agent      = { path = "../../../base/agent" }  # the command is the subject `gongfu` behind the tool kernel (T0)
+gongfu           = { path = ".." }  # with its computer opponent (gongfu.ai)
+"gongfu.data"      = { path = "../data" }
+"gongfu.present2d" = { path = "../present2d" }
+nlohmann.json    = "3.12.0"
+mrender.raster   = { path = "../../mrender/raster" }
+mlibs.image    = { path = "../../../base/image" }
+mlibs.utils     = { path = "../../../base/utils" }
+mrender.vector = { path = "../../mrender/vector" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"

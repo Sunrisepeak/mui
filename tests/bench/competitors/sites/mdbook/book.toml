@@ -1,0 +1,7 @@
+# mdBook's side of `bench sites`: its default theme and search. The pages are put in src/ by the harness, as
+# they are; SUMMARY.md states them in the corpus's order.
+[book]
+title = "The minimal documents"
+language = "en"
+
+[output.html]

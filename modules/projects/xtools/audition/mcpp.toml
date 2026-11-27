@@ -1,0 +1,49 @@
+# xtools.audition — a timeline's gain automation heard and seen, offline (convergence plan RC3.3, D-204): a
+# hanim timeline clip's keyed gain drives a real meng.audio bus under a 220 Hz reference tone, and a headless
+# omui view draws the curve, the playhead and the level frame by frame — a WAV, a PNG contact sheet, an animated
+# WebP and a report. A composition of three projects' parts, so it is the toolchain whole's (xtools), moved here
+# from omui's command line. Reached as `xtools audition.automation …` (the subject `audition`).
+[package]
+namespace   = "xtools"
+name        = "audition"
+version     = "0.1.0"
+description = "A timeline's gain automation heard on a real audio bus and seen in a headless omui view, offline"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+platforms   = ["linux", "macos", "windows"]
+
+[package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "dependency: it joins hanim.timeline, meng.audio and omui's view, which no one of them may depend on all of (D-204)"
+kind = "tool"
+reexports = ["mlibs.agent"]  # what its interface re-exports (lint module-closure)
+agent = "tool"
+
+# It makes its own headless host (a composition root: the host brings its text measure, terminal design §9); it has
+# no worlds of its own to bring back into a graph.
+[package.metadata.openmui.compose]
+root = true
+
+[targets.xtools-audition]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+
+[dependencies]
+mlibs.agent             = { path = "../../../base/agent" }
+mlibs.image             = { path = "../../../base/image" }
+openlifa.openas         = "0.2.1"
+hanim.timeline          = { path = "../../hanim/timeline" }
+meng.audio           = { path = "../../meng/kernel/audio" }
+"meng.audio.timeline" = { path = "../../meng/kernel/audio/timeline" }
+omui.core               = { path = "../../omui/core" }
+omui.lang.ts            = { path = "../../omui/lang/ts" }
+omui.host.headless      = { path = "../../omui/host/headless" }
+omui.ui.base            = { path = "../../omui/components/base" }
+mrender.vector          = { path = "../../mrender/vector" }
+mcpplibs.os             = "0.4.8"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils    = { path = "../../../base/utils" }  # mlibs.testing's scratch directories

@@ -1,0 +1,842 @@
+== omui.devtools.api
+namespace omui::devtools::api {
+  [[nodiscard]] std::vector<std::string> exported(std::string_view unit);
+  [[nodiscard]] std::string surface(const std::filesystem::path& member, std::span<const std::string> sources);
+  [[nodiscard]] std::vector<std::string> interface_globs(std::string_view manifest);
+}
+== omui.devtools.atspi
+namespace omui::devtools::atspi {
+  [[nodiscard]] std::string role_name(std::uint32_t role);
+  struct Check {
+    bool ok = false;
+    std::string what;
+  };
+  struct Node {
+    std::string name, role;
+    std::int32_t depth = 0;
+  };
+  struct Report {
+    std::vector<Check> checks;
+    std::map<std::string, std::vector<Node>> trees;
+    std::vector<std::string> actions;
+    std::optional<double> goal_value;
+    std::string word_at_5;
+    std::string display;
+    [[nodiscard]] bool ok() const noexcept;
+    [[nodiscard]] std::string json() const;
+  };
+  struct Options {
+    std::string screen;
+    bool compose = false;
+    std::filesystem::path shots;
+  };
+  [[nodiscard]] Report check(const std::filesystem::path& tally, const std::filesystem::path& notes, const Options& options = {…});
+}
+== omui.devtools.bench
+namespace omui::devtools::bench {
+  struct Options {
+    int rounds = 0;
+    bool dry_run = false;
+  };
+  [[nodiscard]] std::expected<int, std::string> competitors(const std::filesystem::path& root, const Options& options);
+  [[nodiscard]] std::expected<int, std::string> material3(const std::filesystem::path& root, const std::filesystem::path& out);
+  [[nodiscard]] std::string corpus(const std::filesystem::path& root, std::size_t size = std::size_t{…} << 20);
+  [[nodiscard]] mcpplibs::cmdline::App apps_command_line();
+  [[nodiscard]] int apps(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
+  [[nodiscard]] mcpplibs::cmdline::App windows_command_line();
+  [[nodiscard]] int windows(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
+  [[nodiscard]] mcpplibs::cmdline::App sites_command_line();
+  [[nodiscard]] int sites(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
+  struct Memory {
+    std::uint64_t rss = 0, pss = 0, uss = 0, private_dirty = 0, swap = 0;
+  };
+  [[nodiscard]] std::optional<Memory> memory_of(std::string_view pmap_output);
+  [[nodiscard]] std::optional<double> switches_of(std::string_view pidstat_output);
+  [[nodiscard]] std::map<std::string, double> waking_of(std::string_view pidstat_output);
+  [[nodiscard]] std::map<std::string, double> cpu_by_thread(const std::vector<mcpplibs::os::process::thread_info>& before, const std::vector<mcpplibs::os::process::thread_info>& after, std::uint64_t pid, double seconds);
+}
+== omui.devtools.browser
+namespace omui::devtools::browser {
+  struct Options {
+    std::filesystem::path chrome;
+    std::chrono::seconds timeout{…};
+    std::vector<std::string> flags;
+    std::vector<std::pair<std::filesystem::path, std::string>> preloads;
+    std::filesystem::path program;
+    std::vector<std::string> arguments;
+    bool headed = false;
+  };
+  [[nodiscard]] std::expected<int, std::string> run(const Options& options);
+  [[nodiscard]] std::optional<std::filesystem::path> chromium();
+  [[nodiscard]] std::optional<int> summary_failures(std::string_view line);
+}
+== omui.devtools.cdp
+namespace omui::devtools::cdp {
+  using json = nlohmann::json;
+  [[nodiscard]] bool accepts_gzip(std::string_view accept_encoding);
+  [[nodiscard]] std::string_view pages_type(std::string_view extension);
+  [[nodiscard]] std::string resolved_path(std::string_view target);
+  namespace websocket {
+    enum class Opcode : std::uint8_t { continuation = 0, text = 1, binary = 2, close = 8, ping = 9, pong = 10 };
+    struct Frame {
+      bool fin = true;
+      Opcode opcode = Opcode::text;
+      std::string payload;
+      std::size_t size = 0;
+    };
+    [[nodiscard]] std::string frame(Opcode opcode, std::string_view payload, std::array<std::uint8_t, 4> mask, bool fin = true);
+    [[nodiscard]] std::expected<std::optional<Frame>, std::string> parse(std::string_view arrived, std::size_t most = std::size_t{…} << 20);
+    [[nodiscard]] std::string accept(std::string_view key);
+    class Assembler {
+      [[nodiscard]] std::expected<std::optional<std::pair<Opcode, std::string>>, std::string> add(Frame frame);
+    };
+  }
+  [[nodiscard]] std::expected<std::string, std::string> get(std::uint16_t port, std::string_view target, std::chrono::milliseconds timeout = std::chrono::seconds(10));
+  [[nodiscard]] std::expected<std::string, std::string> get(std::string_view url, std::chrono::milliseconds timeout = std::chrono::seconds(10));
+  struct Reply {
+    int status = 200;
+    std::string body;
+    std::string type = "application/octet-stream";
+    std::vector<std::pair<std::string, std::string>> headers;
+  };
+  struct Arrived {
+    std::string method, path, query;
+    std::vector<std::pair<std::string, std::string>> headers;
+    std::string body;
+    [[nodiscard]] std::string_view header(std::string_view name) const;
+  };
+  using Handler = std::function<Reply(const Arrived&)>;
+  [[nodiscard]] Handler pages(std::filesystem::path directory);
+  class Server {
+    [[nodiscard]] static std::expected<std::unique_ptr<Server>, std::string> start(Handler handler);
+    ~Server();
+    Server(const Server&) = delete;
+    Server& operator=(const Server&) = delete;
+    [[nodiscard]] std::string url() const;
+    [[nodiscard]] std::uint16_t port() const;
+    void close();
+    struct State;
+    explicit Server(std::unique_ptr<State> state);
+  };
+  struct Launch {
+    int width = 1280, height = 800;
+    std::vector<std::string> flags;
+    bool headed = false;
+  };
+  using Listener = std::function<void(const std::string& method, const json& params)>;
+  class Browser {
+    [[nodiscard]] static std::expected<std::unique_ptr<Browser>, std::string> launch(const std::filesystem::path& chrome, const Launch& launch = {…});
+    ~Browser();
+    Browser(const Browser&) = delete;
+    Browser& operator=(const Browser&) = delete;
+    [[nodiscard]] std::expected<json, std::string> call(std::string_view method, json params = json::object());
+    void post(std::string_view method, json params = json::object());
+    [[nodiscard]] std::expected<json, std::string> value(std::string_view expression);
+    void on(Listener listener);
+    void pump(std::chrono::milliseconds duration);
+    [[nodiscard]] const std::string& version() const;
+    void close();
+    struct State;
+    explicit Browser(std::unique_ptr<State> state);
+  };
+  [[nodiscard]] const json& at(const json& value, std::string_view key);
+  [[nodiscard]] const json& at(const json& value, std::size_t index);
+  template <class... Keys> [[nodiscard]] const json& dig(const json& value, Keys&&... keys);
+  [[nodiscard]] bool truthy(const json& value);
+  [[nodiscard]] double number(const json& value);
+  [[nodiscard]] std::string text(const json& value);
+  [[nodiscard]] bool includes(const json& value, std::string_view item);
+  [[nodiscard]] std::string q(std::string_view text);
+  [[nodiscard]] std::string stringify(const json& value);
+  [[nodiscard]] std::string pretty(const json& value, int indent = 2);
+  [[nodiscard]] const json& find_id(const json& nodes, std::string_view id);
+  [[nodiscard]] std::optional<std::array<double, 4>> box(const json& value);
+  [[nodiscard]] std::string js_number(double value);
+  bool write_base64(const std::filesystem::path& path, std::string_view base64);
+  [[nodiscard]] std::string from_base64(std::string_view base64);
+  [[nodiscard]] std::chrono::milliseconds deadline();
+  class Script {
+    explicit Script(bool detail_when_falsy = false);
+    json report = {…};
+    Browser* page = nullptr;
+    bool check(bool ok, std::string_view what, std::optional<json> detail = std::nullopt);
+    void record(json row);
+    void raise(std::string message);
+    [[nodiscard]] bool thrown() const;
+    [[nodiscard]] std::optional<std::string> take();
+    bool guard(std::string_view failed, const std::function<void()>& body);
+    bool attempt(const std::function<void()>& body, const std::function<void(const std::string&)>& handler);
+    void finally(const std::function<void()>& body);
+    json call(std::string_view method, json params = json::object());
+    json dispatch(std::string_view method, json params = json::object());
+    json value(std::string_view expression);
+    void post(std::string_view method, json params = json::object());
+    void sleep(int milliseconds);
+    bool until_count(std::string_view expression, int count, int step_ms);
+    bool until_count(const std::function<bool()>& predicate, int count, int step_ms);
+    bool until_time(const std::function<bool()>& predicate, int timeout_ms, int step_ms);
+    bool until_time(std::string_view expression, int timeout_ms, int step_ms);
+    std::string screenshot(const std::filesystem::path& path, json params = {…}, bool required = true);
+    [[nodiscard]] bool all_ok(bool at_least_one = false) const;
+  };
+  [[nodiscard]] std::string error_text(std::string_view message);
+}
+== omui.devtools.check
+namespace omui::devtools::check {
+  struct Size {
+    std::string package;
+    std::filesystem::path json;
+    std::filesystem::path markdown;
+    std::filesystem::path budget;
+    bool native = false;
+  };
+  [[nodiscard]] int features(const std::filesystem::path& root);
+  [[nodiscard]] int size(const std::filesystem::path& root, const Size& asked);
+  [[nodiscard]] int templates(const std::filesystem::path& root, std::string_view only = {…});
+  [[nodiscard]] int reflect(const std::filesystem::path& root, std::string_view profile);
+  [[nodiscard]] int sweep(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+  [[nodiscard]] int toy(const std::filesystem::path& root, std::vector<std::string> packages);
+  [[nodiscard]] int tools_e2e(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+  [[nodiscard]] int agent_e2e(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+  [[nodiscard]] int media(const std::filesystem::path& root, std::vector<std::string> shows, bool check_only);
+  [[nodiscard]] int android(const std::filesystem::path& root, const std::filesystem::path& out);
+  [[nodiscard]] int distribution(const std::filesystem::path& root, const std::vector<std::string>& profile_args);
+  [[nodiscard]] int web(const std::filesystem::path& root, std::string_view profile);
+  [[nodiscard]] int browser_checks(const std::filesystem::path& root);
+  [[nodiscard]] std::expected<std::string, std::string> shader_check_script(std::span<const std::filesystem::path> partitions);
+  [[nodiscard]] int matrix(const std::filesystem::path& root, const std::vector<std::string>& members);
+  [[nodiscard]] int atspi(const std::filesystem::path& root, const std::vector<std::string>& profile_args, std::string_view screen = {…}, bool compose = false);
+  [[nodiscard]] int live_page(const std::filesystem::path& root, const std::filesystem::path& built);
+  [[nodiscard]] int site(const std::filesystem::path& root, const std::filesystem::path& built, const std::filesystem::path& omui, std::vector<std::string> parts);
+  [[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);
+  [[nodiscard]] int takeover(const std::filesystem::path& root, const std::filesystem::path& page, std::string_view path, std::span<const int> widths);
+  [[nodiscard]] int doors(const std::filesystem::path& root, const std::filesystem::path& site, std::string_view path, const std::filesystem::path& oweb, const std::filesystem::path& omui);
+  struct Scroll {
+    std::filesystem::path page;
+    std::vector<std::string> paths;
+    int rounds = 2;
+    std::string screen;
+    int width = 1280, height = 900;
+    double speed = 3000;
+    std::string query;
+    std::vector<std::string> flags;
+    bool headless = false;
+    bool keep_trace = false;
+    bool spans = false;
+    bool gl_calls = false;
+    bool ways = false;
+  };
+  [[nodiscard]] int scroll(const std::filesystem::path& root, const Scroll& asked);
+  [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);
+  [[nodiscard]] std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>& measured, std::string_view budget_text, std::string_view profile = {…}, std::string_view fallback = {…});
+  [[nodiscard]] std::vector<std::string> budget_profiles(std::string_view budget_text, std::string_view fallback);
+}
+== omui.devtools.ci
+namespace omui::devtools::ci {
+  struct Failure {
+    std::string program;
+    std::string why;
+    std::vector<std::string> cases;
+    std::vector<std::string> head;
+    std::string last_passed;
+  };
+  struct Member {
+    std::string path;
+    std::vector<Failure> failures;
+  };
+  struct Row {
+    std::string name;
+    std::string conclusion;
+    std::vector<Member> members;
+    std::vector<std::string> build_errors;
+    std::string summary;
+  };
+  std::vector<Row> read_log(std::string_view log);
+  struct Red {
+    int number = 0;
+    std::string failure;
+    std::string state;
+  };
+  std::vector<Red> read_red_list(std::string_view status);
+  struct Names {
+    std::vector<std::string> own;
+    std::vector<std::string> package;
+  };
+  Names names_of(const Member& member, const Failure& failure, std::string_view package);
+  struct Known {
+    std::vector<int> rows;
+    std::vector<int> package_rows;
+  };
+  Known known_in(const Names& names, std::span<const Red> reds);
+  std::string package_of(std::string_view manifest);
+}
+== omui.devtools.closure
+namespace omui::devtools::closure {
+  enum class Mark : std::uint8_t { pass, owed, exempt, not_required };
+  struct Cell {
+    Mark mark = Mark::owed;
+    std::string note;
+  };
+  inline constexpr std::size_t item_count = 10;
+  inline constexpr std::array<std::string_view, item_count> item_names{…};
+  inline constexpr std::array<bool, item_count> starred{…};
+  struct Project {
+    std::string name;
+    std::string readme;
+    std::string label;
+    std::array<Cell, item_count> items;
+    [[nodiscard]] std::size_t passed() const;
+    [[nodiscard]] std::size_t owed() const;
+  };
+  struct Report {
+    std::vector<Project> projects;
+    [[nodiscard]] std::size_t passed() const;
+    [[nodiscard]] std::size_t owed() const;
+  };
+  std::expected<Report, std::string> check(const std::filesystem::path& root);
+  std::string page(const Report& report, std::string_view language);
+  std::optional<std::string> definition(std::string_view readme);
+  std::optional<std::vector<std::string>> features_owed(std::string_view readme);
+  std::optional<std::vector<std::string>> limitations_owed(std::string_view readme);
+  std::map<std::size_t, std::string> exceptions(std::string_view readme);
+}
+== omui.devtools.consumer
+namespace omui::devtools::consumer {
+  struct Options {
+    std::filesystem::path output;
+    bool keep_project = false;
+    bool web = false;
+    std::filesystem::path openas;
+  };
+  [[nodiscard]] int probe(const std::filesystem::path& root, std::string_view name, const Options& options);
+  [[nodiscard]] std::span<const std::string_view> names();
+  [[nodiscard]] std::optional<std::pair<std::uint32_t, std::uint32_t>> png_size(std::string_view bytes);
+  [[nodiscard]] std::set<std::string> ninja_outputs(std::string_view text);
+}
+== omui.devtools.docs
+namespace omui::devtools::docs {
+  struct Package {
+    std::string path;
+    std::string name;
+    std::string label;
+  };
+  struct Section {
+    std::string readme;
+    std::string title;
+    std::vector<std::pair<std::string, std::string>> items;
+    std::vector<std::string> packages;
+  };
+  struct Inventory {
+    std::vector<Package> packages;
+    std::vector<Section> experimental;
+  };
+  std::string project_of(std::string_view path);
+  std::optional<Section> section_of(std::string_view readme);
+  std::expected<Inventory, std::string> read(const std::filesystem::path& root);
+  struct Catalog {
+    std::string file;
+    std::string product;
+    std::string doc;
+    std::size_t operations = 0;
+    std::string reference;
+  };
+  struct Component {
+    std::string file;
+    std::string name, role, doc;
+    std::vector<std::string> props, actions, events;
+  };
+  struct Reference {
+    std::vector<Catalog> catalogs;
+    std::vector<Component> components;
+  };
+  std::expected<Reference, std::string> reference_of(const std::filesystem::path& root);
+  std::string maturity_page(const Inventory& inventory, std::string_view language);
+  std::string experimental_page(const Inventory& inventory, std::string_view language);
+  std::string reference_page(const Reference& reference, std::string_view language);
+}
+== omui.devtools.eval
+namespace omui::devtools::eval {
+  [[nodiscard]] mcpplibs::cmdline::App command();
+  [[nodiscard]] int run(const mcpplibs::cmdline::ParsedArgs& options, const std::filesystem::path& root);
+  [[nodiscard]] std::expected<void, std::string> append(const std::filesystem::path& ledger, const nlohmann::ordered_json& record);
+  [[nodiscard]] std::string ledger_line(const nlohmann::ordered_json& record);
+  struct Session {
+    std::string agent = "claude";
+    std::filesystem::path directory;
+    std::vector<std::string> tools;
+    std::vector<std::string> extra;
+    std::chrono::seconds timeout{…};
+  };
+  struct Reply {
+    std::string text;
+    std::vector<std::string> tools;
+    std::vector<std::string> commands;
+    int turns = 0;
+    nlohmann::json usage;
+    nlohmann::json raw;
+  };
+  [[nodiscard]] std::expected<Reply, std::string> ask(const Session& session, std::string_view prompt);
+  struct Tokens {
+    std::int64_t input = 0, cache_write = 0, cache_read = 0, output = 0;
+    [[nodiscard]] std::int64_t fresh() const noexcept;
+  };
+  [[nodiscard]] Tokens tokens_of(const nlohmann::json& usage);
+  [[nodiscard]] std::optional<nlohmann::json> first_object(std::string_view text);
+  inline constexpr std::array<std::string_view, 3> verdicts{…};
+  [[nodiscard]] std::string unblind(std::string_view winner, std::string_view ours);
+  [[nodiscard]] std::string majority(std::span<const std::string> votes);
+  [[nodiscard]] std::string weakest(std::span<const std::string> pair_verdicts);
+  [[nodiscard]] mlibs::image::Image sheet(const mlibs::image::Image& left, const mlibs::image::Image& right);
+  [[nodiscard]] mlibs::image::Image row(std::span<const mlibs::image::Image> pictures, int gap = 0);
+  struct Judging {
+    std::string agent = "claude";
+    int samples = 3;
+    bool dry_run = false;
+  };
+  [[nodiscard]] int compare_sheets(const std::filesystem::path& root, std::string_view subject);
+  [[nodiscard]] int compare_judge(const std::filesystem::path& root, std::string_view subject, const Judging& judging);
+  [[nodiscard]] int compare_record(const std::filesystem::path& root, std::string_view subject, std::string_view dimension, std::string_view verdict, std::string_view by, std::string_view note);
+  struct Tasks {
+    std::vector<std::string> only;
+    std::string via = "semantic";
+    std::string agent = "claude";
+    int trials = 1;
+    bool dry_run = false;
+  };
+  [[nodiscard]] int tasks_run(const std::filesystem::path& root, std::string_view set, const Tasks& options);
+  [[nodiscard]] int tasks_baseline(const std::filesystem::path& root, std::string_view set, const Tasks& options);
+  [[nodiscard]] int tasks_summary(const std::filesystem::path& root, std::string_view set, bool split_only);
+  struct Animate {
+    std::vector<std::string> only;
+    int trials = 1;
+    int parallel = 3;
+    std::string agent = "claude";
+    std::string model;
+    std::string effort = "medium";
+    std::chrono::seconds timeout{…};
+    std::filesystem::path keep;
+    std::filesystem::path grade;
+    bool no_ledger = false;
+  };
+  [[nodiscard]] int animate(const std::filesystem::path& root, const Animate& options);
+  struct Duel {
+    std::filesystem::path root;
+    std::string p1 = "kata", p2 = "mo";
+    int frames = 10;
+    int turns = 150;
+    std::chrono::seconds timeout{…};
+    std::filesystem::path analyse;
+    std::string date;
+  };
+  [[nodiscard]] int duel(const Duel& duel);
+  [[nodiscard]] int materials_controls(const std::filesystem::path& root);
+  struct ColdStart {
+    std::vector<std::string> only;
+    std::string agent = "claude";
+    int trials = 1;
+    bool dry_run = false;
+    bool keep = false;
+  };
+  [[nodiscard]] int cold_start(const std::filesystem::path& root, std::string_view set, const ColdStart& options);
+  struct HotReload {
+    std::filesystem::path omui;
+    std::filesystem::path program;
+    std::filesystem::path app_dir;
+    int rounds = 20;
+  };
+  [[nodiscard]] int hot_reload(const HotReload& options);
+}
+== omui.devtools.govern
+namespace omui::devtools::govern {
+  struct Process {
+    std::uint64_t seen = 0;
+    std::int64_t pid = 0, parent = 0;
+    std::string name;
+    bool ended = false;
+    bool paused = false;
+  };
+  [[nodiscard]] bool heavy(std::string_view name) noexcept;
+  [[nodiscard]] std::vector<Process> read_table(std::string_view table);
+  [[nodiscard]] std::vector<Process> processes();
+  [[nodiscard]] std::vector<Process> heavy_under(std::span<const Process> all, std::int64_t root);
+  [[nodiscard]] std::int32_t next_allowed(std::int32_t allowed, std::int32_t jobs, std::uint64_t total, std::uint64_t available, double memory_floor) noexcept;
+  struct Change {
+    std::vector<std::int64_t> pause, resume;
+  };
+  [[nodiscard]] Change decide(std::span<const Process> oldest_first, std::set<std::int64_t>& paused, std::int32_t allowed);
+  struct Options {
+    std::int32_t jobs = 1;
+    double memory_floor = 0.10;
+    std::chrono::milliseconds interval{…};
+    std::vector<std::string> command;
+    std::filesystem::path cwd;
+    bool low_priority = true;
+  };
+  [[nodiscard]] std::expected<int, std::string> run(const Options& options);
+}
+== omui.devtools.gpu
+namespace omui::devtools::gpu {
+  enum class Device { software, real };
+  struct Environment {
+    std::vector<std::pair<std::string, std::string>> variables;
+    std::vector<std::string> said;
+  };
+  [[nodiscard]] std::expected<Environment, std::string> prepare(Device device);
+  [[nodiscard]] std::optional<std::string> elf_machine(const std::filesystem::path& file);
+  [[nodiscard]] bool version_less(std::string_view a, std::string_view b);
+}
+== omui.devtools.incremental
+namespace omui::devtools::incremental {
+  struct Options {
+    std::vector<std::string> packages;
+    bool workspace = false;
+    std::vector<std::string> excluded;
+    std::string profile = "dev";
+    std::string toolchain;
+    bool locked = false;
+    std::filesystem::path report = "target/incremental.report.xdef.json";
+    std::filesystem::path mcpp = "mcpp";
+  };
+  [[nodiscard]] std::vector<std::string> arguments(const Options& options);
+  [[nodiscard]] std::set<std::filesystem::path> configurations(std::string_view events);
+  struct Stamp {
+    std::int64_t modified = 0;
+    std::uintmax_t size = 0;
+    friend bool operator==(const Stamp&, const Stamp&) = default;
+  };
+  struct Outputs {
+    std::map<std::string, Stamp> found;
+    std::set<std::string> missing;
+  };
+  [[nodiscard]] std::expected<Outputs, std::string> outputs(const std::set<std::filesystem::path>& directories);
+  [[nodiscard]] std::vector<std::string> changed(const Outputs& before, const Outputs& after);
+  [[nodiscard]] bool check(const Options& options, std::ostream& said, std::ostream& errors);
+}
+== omui.devtools.lanes
+namespace omui::devtools::lanes {
+  struct Row {
+    std::string os;
+    std::string toolchain;
+    std::string profile;
+  };
+  struct Lane {
+    std::string name;
+    std::vector<Row> rows;
+    std::string job;
+    std::string workflow;
+    std::string what;
+    int minutes = 0;
+    bool in_ci() const;
+  };
+  struct Group {
+    std::string name;
+    std::vector<std::string> lanes;
+    std::string what;
+  };
+  struct Catalogue {
+    std::vector<Lane> lanes;
+    std::vector<Group> groups;
+    std::map<std::string, std::string, std::less<>> events;
+    const Lane* lane(std::string_view name) const;
+  };
+  std::expected<Catalogue, std::string> read(std::string_view text);
+  std::expected<std::vector<std::string>, std::string> select(const Catalogue& catalogue, std::string_view selection);
+  std::optional<std::string> trailer(std::string_view message);
+  struct Plan {
+    std::string event;
+    std::string selection;
+    std::string source;
+    std::vector<std::string> lanes;
+    std::vector<Row> rows;
+    std::vector<std::string> jobs;
+    std::vector<std::string> requested;
+    std::vector<std::string> workflows;
+    int minutes = 0;
+  };
+  std::expected<Plan, std::string> plan(const Catalogue& catalogue, std::string_view event, std::string_view given, std::string_view message);
+  std::string matrix_json(const Plan& plan);
+  std::string outputs(const Catalogue& catalogue, const Plan& plan);
+  std::string describe(const Catalogue& catalogue, const Plan& plan);
+}
+== omui.devtools.lead
+namespace omui::devtools::lead {
+  inline constexpr std::string_view features_path = ".agents/docs/evaluation/lead.features.xdef.json";
+  inline constexpr std::string_view ledger_path = ".agents/docs/evaluation/lead.ledger.xdef.jsonl";
+  inline constexpr std::string_view metrics_path = "tests/bench/competitors/lead.metrics.xdef.json";
+  inline constexpr double behind = 0.95, ahead = 1.2, far = 10.0;
+  [[nodiscard]] std::string_view tier(double ratio);
+  [[nodiscard]] double median(std::vector<double> values);
+  [[nodiscard]] std::pair<double, double> interval(std::span<const double> values, std::uint64_t seed = 20261108, int resamples = 4000);
+  [[nodiscard]] std::vector<std::string> samples(std::string_view output, std::string_view series, std::string_view series_field, std::string_view key, int round);
+  struct Context {
+    std::string date;
+    std::string machine;
+    std::string commit;
+    std::string display, conditions;
+  };
+  struct Verdict {
+    std::string record;
+    std::string said;
+  };
+  [[nodiscard]] std::expected<std::vector<Verdict>, std::string> verdicts(std::string_view metrics, std::string_view samples_text, std::string_view ledger, const Context& context, std::vector<std::string>& skipped);
+  inline constexpr std::array supports{…};
+  [[nodiscard]] std::string_view capability_verdict(std::span<const std::string> support);
+  [[nodiscard]] std::expected<std::map<std::string, std::string>, std::string> pages(std::string_view metrics, std::string_view features, std::string_view ledger);
+  [[nodiscard]] Context context_here(const std::filesystem::path& root);
+  [[nodiscard]] bool append(const std::filesystem::path& path, std::span<const std::string> lines);
+  [[nodiscard]] std::expected<std::vector<std::string>, std::string> write_pages(const std::filesystem::path& root);
+  [[nodiscard]] std::vector<std::pair<std::string, std::string>> problems(const std::filesystem::path& root);
+}
+== omui.devtools.lint
+export import :problem;
+namespace omui::devtools::lint {
+  [[nodiscard]] std::span<const Rule> rules() noexcept;
+  [[nodiscard]] std::vector<Problem> run(const std::filesystem::path& root, std::span<const std::string> only = {…});
+  [[nodiscard]] std::vector<Problem> select(std::vector<Problem> problems, std::span<const std::string> only);
+  [[nodiscard]] std::string strip_comments(std::string_view text);
+  int self_test(const std::filesystem::path& root, const std::filesystem::path& scratch, std::ostream& out);
+}
+== omui.devtools.lint:problem
+namespace omui::devtools::lint {
+  struct Problem {
+    std::string rule;
+    std::string where;
+    std::string message;
+    [[nodiscard]] std::string text() const;
+    bool operator==(const Problem&) const = default;
+  };
+  struct Rule {
+    std::string_view name;
+    std::string_view summary;
+  };
+}
+== omui.devtools.members
+namespace omui::devtools::members {
+  struct Member {
+    std::string path;
+    std::vector<std::string> uses;
+  };
+  std::vector<std::string> listed(std::string_view root_manifest);
+  std::vector<std::string> uses_of(std::string_view member, std::string_view manifest, std::span<const std::string> all);
+  std::string owner_of(std::string_view file, std::span<const Member> all);
+  std::vector<std::string> with_consumers(std::span<const std::string> chosen, std::span<const Member> all);
+  std::vector<std::vector<std::string>> blocks(std::span<const std::string> members, std::size_t count);
+  std::string cover_problem(std::span<const std::string> members, std::span<const std::vector<std::string>> blocks);
+}
+== omui.devtools.platforms
+namespace omui::devtools::platforms {
+  std::expected<std::string, std::string> page(std::string_view table, std::string_view language);
+}
+== omui.devtools.release
+namespace omui::devtools::release {
+  inline constexpr std::string_view templates_directory = "modules/projects/omui/sdk/templates";
+  inline constexpr std::string_view template_package = "omui.sdk";
+  struct Package {
+    std::string name;
+    std::string path;
+    std::string version;
+    std::string maturity;
+    std::string description, license, repo;
+    bool built = false;
+    std::vector<std::string> outside;
+    std::vector<std::string> external;
+  };
+  struct Closure {
+    std::vector<std::string> roots;
+    std::vector<Package> packages;
+    std::vector<std::string> external;
+    std::vector<std::string> problems;
+  };
+  [[nodiscard]] std::expected<Closure, std::string> closure(const std::filesystem::path& root);
+  [[nodiscard]] std::string descriptor_name(std::string_view full_name);
+  [[nodiscard]] std::string descriptor_path(const Package& package);
+  [[nodiscard]] std::vector<std::string> missing_from(const std::filesystem::path& index, std::span<const std::string> external);
+  [[nodiscard]] std::map<std::string, std::string> member_paths(const std::filesystem::path& root);
+  [[nodiscard]] std::string pointed_at(std::string_view manifest, const std::map<std::string, std::string>& members, std::string_view checkout);
+  [[nodiscard]] std::pair<std::string, std::string> identity_of(std::string_view descriptor);
+  [[nodiscard]] std::filesystem::path store_path(std::string_view namespace_, std::string_view name, std::string_view version);
+  [[nodiscard]] std::string with_default_index(std::string_view config, std::string_view url);
+  [[nodiscard]] std::expected<std::string, std::string> pinned(std::string_view manifest, std::string_view directory, const std::map<std::string, std::string>& versions);
+  [[nodiscard]] std::string toml_problem(std::string_view manifest);
+  inline constexpr std::array<std::string_view, 5> template_names{…};
+  [[nodiscard]] std::expected<std::filesystem::path, std::string> pack_program(const std::filesystem::path& root, std::string_view program, std::string_view member, std::string_view features = {…});
+  struct Wants {
+    std::string glibc;
+    std::vector<std::string> packages;
+    bool graphics = false;
+  };
+  [[nodiscard]] Wants wants_of(const std::filesystem::path& directory);
+  struct XlingsVersion {
+    std::string version, url, sha256;
+  };
+  struct XlingsRelease {
+    std::string name, description, about;
+    std::vector<std::string> programs, categories, keywords;
+    std::vector<XlingsVersion> versions;
+    Wants wants;
+    std::vector<std::string> starts;
+  };
+  [[nodiscard]] std::string xlings_descriptor(const XlingsRelease& release);
+  [[nodiscard]] std::expected<std::vector<std::string>, std::string> xlings_loader(const std::filesystem::path& package);
+  [[nodiscard]] std::string release_url(std::string_view version, std::string_view archive);
+  struct XlingsHome {
+    std::vector<std::pair<std::string, std::string>> variables;
+    std::vector<std::string> unset;
+    std::filesystem::path shims;
+  };
+  [[nodiscard]] std::expected<XlingsHome, std::string> xlings_home(const std::filesystem::path& root, const std::filesystem::path& home, const std::filesystem::path& descriptor);
+  struct RuntimeRelease {
+    std::filesystem::path out;
+    std::string version;
+    bool pack = true;
+    bool check = false;
+    std::filesystem::path home;
+    std::filesystem::path omui;
+  };
+  [[nodiscard]] int runtime(const std::filesystem::path& root, const RuntimeRelease& options);
+  struct Ink {
+    std::size_t dark = 0;
+    int width = 0, height = 0;
+  };
+  [[nodiscard]] std::expected<Ink, std::string> ink(const std::filesystem::path& png);
+}
+== omui.devtools.rename
+namespace omui::devtools::rename {
+  struct Plan {
+    std::vector<std::pair<std::string, std::size_t>> edits;
+    std::vector<std::pair<std::string, std::string>> moves;
+    std::vector<std::string> kept_names;
+  };
+  [[nodiscard]] std::expected<Plan, std::string> plan(const std::filesystem::path& root, std::string_view from, std::string_view to);
+  [[nodiscard]] std::expected<void, std::string> apply(const std::filesystem::path& root, const Plan& plan, std::string_view from, std::string_view to);
+  [[nodiscard]] std::string renamed(std::string_view text, std::string_view from, std::string_view to, std::size_t* count = nullptr, std::span<const std::string> kept_names = {…});
+}
+== omui.devtools.run
+namespace omui::devtools::run {
+  struct Ran {
+    int status = 0;
+    std::string out;
+    bool timed_out = false;
+  };
+  struct How {
+    std::filesystem::path cwd;
+    bool shown = false;
+    bool merged = false;
+    std::vector<std::pair<std::string, std::string>> variables;
+    std::vector<std::string> unset;
+    std::string input;
+    std::chrono::seconds timeout{…};
+  };
+  [[nodiscard]] std::expected<Ran, std::string> program(const std::filesystem::path& root, std::string name, std::vector<std::string> args, const How& how = {…});
+  [[nodiscard]] std::expected<std::string, std::string> output(const std::filesystem::path& root, std::string name, std::vector<std::string> args, const How& how = {…});
+  struct Artifact {
+    std::string name, kind;
+    std::filesystem::path path;
+  };
+  [[nodiscard]] std::expected<std::vector<Artifact>, std::string> build(const std::filesystem::path& root, std::vector<std::string> args);
+  [[nodiscard]] std::optional<std::filesystem::path> packed(const std::filesystem::path& root, std::vector<std::string> args, std::string_view suffix);
+  [[nodiscard]] std::expected<std::map<std::string, std::filesystem::path>, std::string> tests(const std::filesystem::path& root, std::vector<std::string> args);
+  [[nodiscard]] std::string commit(const std::filesystem::path& root);
+  [[nodiscard]] std::string today();
+  [[nodiscard]] int share_of_machine();
+}
+== omui.devtools.site
+namespace omui::devtools::site {
+  [[nodiscard]] int split(const std::filesystem::path& root, const std::filesystem::path& site, const std::vector<std::string>& routes = {…}, const std::filesystem::path& names = {…});
+  struct Profile {
+    std::filesystem::path site, out;
+    std::string route;
+    int idle_ms = 4000;
+  };
+  [[nodiscard]] int profile(const Profile& asked);
+  struct Drive {
+    std::string url;
+    std::filesystem::path out;
+    double seconds = 6;
+    int width = 1280, height = 800;
+    std::string script;
+    std::vector<std::string> flags;
+    std::optional<std::pair<double, double>> click;
+    bool no_script = false;
+  };
+  [[nodiscard]] int drive(const Drive& asked);
+  [[nodiscard]] std::expected<std::string, std::string> with_decoded_size(std::string_view page, std::string_view wasm, std::uint64_t size);
+  [[nodiscard]] std::optional<std::filesystem::path> newest(std::vector<std::filesystem::path> paths);
+}
+== omui.devtools.split
+namespace omui::devtools::split {
+  struct Plan {
+    std::vector<std::string> members;
+    std::vector<std::string> files;
+  };
+  inline constexpr std::array<std::string_view, 3> tiers{…};
+  [[nodiscard]] std::expected<Plan, std::string> plan(const std::filesystem::path& root, std::string_view project);
+  [[nodiscard]] std::expected<void, std::string> write(const std::filesystem::path& root, const Plan& plan, const std::filesystem::path& out);
+}
+== omui.devtools.x11
+namespace omui::devtools::x11 {
+  using Clock = std::chrono::steady_clock;
+  struct Rect {
+    std::int32_t x = 0, y = 0, width = 0, height = 0;
+  };
+  struct Event {
+    enum class Kind { created, mapped, unmapped, configured, destroyed, damaged, other };
+    Kind kind = Kind::other;
+    std::uint32_t window = 0;
+    std::uint32_t parent = 0;
+    Rect area;
+    Clock::time_point at;
+  };
+  struct Monitor {
+    std::string name;
+    Rect area;
+    double hertz = 0;
+    bool primary = false;
+  };
+  [[nodiscard]] std::optional<std::string> cookie(std::string_view xauthority, int number, std::string_view hostname);
+  class Display {
+    [[nodiscard]] static std::expected<Display, std::string> open(int number);
+    Display(Display&&) noexcept;
+    Display& operator=(Display&&) noexcept;
+    Display(const Display&) = delete;
+    Display& operator=(const Display&) = delete;
+    ~Display();
+    [[nodiscard]] std::uint32_t root() const noexcept;
+    [[nodiscard]] Rect screen() const noexcept;
+    [[nodiscard]] std::expected<void, std::string> watch(bool screen = true);
+    [[nodiscard]] std::expected<void, std::string> follow(std::uint32_t window);
+    [[nodiscard]] std::expected<void, std::string> damage(std::uint32_t window);
+    [[nodiscard]] std::expected<std::optional<Event>, std::string> next(std::chrono::milliseconds wait);
+    struct Image {
+      std::vector<std::uint32_t> pixels;
+      Clock::time_point at;
+    };
+    [[nodiscard]] std::expected<Image, std::string> image(Rect area, std::uint32_t drawable = 0);
+    [[nodiscard]] std::expected<Rect, std::string> geometry(std::uint32_t window);
+    [[nodiscard]] std::expected<std::array<std::int32_t, 2>, std::string> origin(std::uint32_t window);
+    [[nodiscard]] std::expected<std::uint32_t, std::string> top_level(std::uint32_t window);
+    [[nodiscard]] std::expected<std::vector<std::uint32_t>, std::string> children(std::uint32_t window);
+    [[nodiscard]] std::expected<std::uint32_t, std::string> window_of(std::uint64_t process);
+    struct Pointer {
+      std::int32_t x = 0, y = 0;
+      std::uint32_t over = 0;
+    };
+    [[nodiscard]] std::expected<Pointer, std::string> where_pointer();
+    [[nodiscard]] std::expected<std::string, std::string> resources();
+    [[nodiscard]] std::expected<std::vector<Monitor>, std::string> monitors();
+    [[nodiscard]] std::expected<void, std::string> activate(std::uint32_t window);
+    [[nodiscard]] std::expected<std::uint32_t, std::string> input_focus();
+    [[nodiscard]] std::expected<std::uint8_t, std::string> keycode(std::uint32_t keysym);
+    [[nodiscard]] std::expected<void, std::string> key(std::uint8_t keycode, bool down);
+    [[nodiscard]] std::expected<void, std::string> keep_above(std::uint32_t window);
+    [[nodiscard]] std::expected<void, std::string> move(std::uint32_t window, std::int32_t x, std::int32_t y);
+    [[nodiscard]] std::expected<std::uint64_t, std::string> process_of(std::uint32_t window);
+    [[nodiscard]] std::expected<void, std::string> resize(std::uint32_t window, std::int32_t width, std::int32_t height);
+    [[nodiscard]] std::expected<void, std::string> pointer(std::int32_t x, std::int32_t y);
+    [[nodiscard]] std::expected<void, std::string> button(bool down);
+    [[nodiscard]] std::expected<void, std::string> wheel(bool down);
+    [[nodiscard]] std::expected<void, std::string> sync();
+  };
+  [[nodiscard]] std::uint64_t hash(std::span<const std::uint32_t> pixels) noexcept;
+  [[nodiscard]] bool uniform(std::span<const std::uint32_t> pixels) noexcept;
+}

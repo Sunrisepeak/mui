@@ -1,0 +1,275 @@
+// The generator: the committed outputs under spec/ are what the registry
+// produces now, and a broken contract is reported line by line.
+import std;
+import omui.gen.model;
+import omui.gen.read;
+import omui.gen.emit;
+import omui.gen.data;
+import mlibs.xdef.tool;
+import mcpplibs.mtest;
+
+using namespace mcpplibs::mtest;
+namespace gen = omui::gen;
+
+namespace {
+
+// The repository: the nearest directory above this file with the workspace's `.xlings.json` and `modules/`.
+std::filesystem::path repository() {
+    auto at = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path();
+    while (at.has_parent_path() && at != at.parent_path() && !(std::filesystem::exists(at / ".xlings.json") && std::filesystem::exists(at / "modules")))
+        at = at.parent_path();
+    return at;
+}
+std::filesystem::path here() { return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path(); }
+std::filesystem::path spec_dir() { return repository() / "spec"; }
+
+std::string read(const std::filesystem::path& p) {
+    std::ifstream in(p, std::ios::binary);
+    return {std::istreambuf_iterator<char>(in), {}};
+}
+
+}  // namespace
+
+static UTest cases{"gen", [] {
+
+    "committed outputs are current"_test = [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        expect(!diags.has_errors()) << diags.text();
+        auto same = [](const std::filesystem::path& p, const std::string& now) {
+            expect(read(p) == now) << std::format("{} is out of date: run omui-gen registry spec/registry --out spec", p.generic_string());
+        };
+        same(spec_dir() / "include" / "openmui.h", gen::emit_c_header(reg));
+        same(spec_dir() / "src" / "generated" / "registry.cppm", gen::emit_spec_registry(reg));
+        same(spec_dir() / "src" / "generated" / "catalog.cppm", gen::emit_spec_catalog(reg));
+        same(spec_dir() / "docs" / "registry.md", gen::emit_docs(reg));
+        same(spec_dir() / "stubs" / "core.d.ts", gen::emit_dts(reg.contracts, "the Core profile", true));
+        // The scripts' declarations, written by hand, carried in code.
+        for (const auto& [file, name] : {std::pair{"openmui.d.ts", "binding_api"}, std::pair{"define.d.ts", "define_api"}})
+            same(spec_dir() / "src" / "generated" / std::format("{}.cppm", name),
+                 mlibs::xdef::emit_embed(read(spec_dir() / "stubs" / file), std::format("spec/stubs/{}", file), "openmui.spec", "omui::spec::stubs", name, gen::embedded_by));
+        same(spec_dir() / "schema" / "core.components.json", gen::emit_view_schema(reg.contracts, "the Core profile"));
+        // modules/projects/omui/abi's view of the same ABI.
+        const auto abi = spec_dir().parent_path() / "modules" / "projects" / "omui" / "abi" / "src";
+        auto current = [](const std::filesystem::path& p, const std::string& now) {
+            expect(read(p) == now) << std::format("{} is out of date: run omui-gen abi spec/registry --out modules/projects/omui/abi/src", p.generic_string());
+        };
+        current(abi / "generated" / "c.cppm", gen::emit_abi_types(reg));
+        current(abi / "generated" / "api.cppm", gen::emit_abi_functions(reg));
+        current(abi / "native" / "layout.cpp", gen::emit_abi_layout(reg));
+    };
+
+    "the base components' C++ is current"_test = [] {
+        // modules/projects/omui/components/base/src/generated holds `omui-gen cpp` of the Core contracts it implements.
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        const auto dir = spec_dir().parent_path() / "modules" / "projects" / "omui" / "components" / "base" / "src" / "generated";
+        const gen::CppOptions o{"omui.ui.base", "omui", true};
+        int seen = 0;
+        for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+            const std::string file = entry.path().filename().string();
+            if (!file.ends_with("_contract.cppm")) continue;
+            const std::string name = file.substr(0, file.size() - std::string_view("_contract.cppm").size());
+            // A contract file may hold several contracts (tabs and tab): look it up by name.
+            const auto it = std::ranges::find(reg.contracts, name, &gen::Contract::name);
+            expect(it != reg.contracts.end()) << name;
+            if (it == reg.contracts.end()) continue;
+            std::vector<gen::Contract> contracts{*it};
+            const std::string hint = std::format(
+                "out of date: run omui-gen cpp spec/registry/components/*.contract.xdef.json for {} --registry spec/registry "
+                "--module omui.ui.base --namespace omui --out modules/projects/omui/components/base/src/generated --catalog",
+                name);
+            expect(read(entry.path()) == gen::emit_cpp_contract(contracts[0], reg, o)) << hint;
+            expect(read(dir / (name + "_builder.cpp")) == gen::emit_cpp_builder(contracts[0], reg, o)) << hint;
+            ++seen;
+        }
+        expect(seen >= 5) << std::format("{} component partitions", seen);
+    };
+
+    "a contract's C++ base refuses a missing action"_test = [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        auto slider = gen::read_contracts(spec_dir() / "registry" / "components" / "slider.contract.xdef.json", reg, diags);
+        const std::string cpp = gen::emit_cpp_contract(slider.at(0), reg, {"x.ui", "x::ui", false});
+        for (auto wanted : {"export module x.ui:slider_contract;", "struct SliderProps", "double step = 1.0;",
+                            "struct SliderOptions", "std::function<void(double)> on_committed;", "class SliderContract",
+                            "needs `ActResult set_value(ActContext&, const Value& value)`", "void write_value(double value)",
+                            "namespace x::ui::slider_contract_tables", "inline constexpr ContractInfo info"})
+            expect(cpp.find(wanted) != std::string::npos) << wanted;
+    };
+
+    "alternatives typed in TypeScript (`f64 | min | max`)"_test = [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        auto slider = gen::read_contracts(spec_dir() / "registry" / "components" / "slider.contract.xdef.json", reg, diags);
+        expect(!slider.empty() && !slider.at(0).props.empty());
+        if (slider.empty() || slider.at(0).props.empty()) return;
+        slider.at(0).props.at(0).type = "f64 | min | max";
+        const std::string ts = gen::emit_dts(slider, "x");
+        expect(ts.find("number | \"min\" | \"max\"") != std::string::npos) << "TypeScript";
+    };
+
+    "a property of any type is data as it is: a Value, read and handed back whole"_test = [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        auto lens = gen::read_contracts(here() / "data" / "lens.contract.xdef.json", reg, diags);  // its own: omui does not read a work above it
+        expect(!diags.has_errors()) << diags.text();
+        if (!(expect(!lens.empty()) << "the fixture read")) return;
+        const std::string cpp = gen::emit_cpp_contract(lens.at(0), reg, {"x.site", "x::site", false});
+        for (auto wanted : {"::omui::Value nodes;", "::omui::Prop<::omui::Value> nodes;", "props.nodes = v.is_null() ? LensProps{}.nodes : v;"})
+            expect(cpp.find(wanted) != std::string::npos) << wanted;
+    };
+
+    "a broken contract is reported line by line"_test = [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        auto contracts = gen::read_contracts(here() / "data" / "bad.contract.xdef.json", reg, diags);
+        auto text = diags.text();
+        for (auto wanted : {"unknown role `spaceship`", "unknown type `huge`", "default of `mode`", "default of `count`",
+                            "weaker than its default", "unknown effect `orbital`", "names `fly`",
+                            "unknown token `motion.warp`", "action `aim` argument `at` has unknown type `f64 | Up | | down`"})
+            expect(text.find(wanted) != std::string::npos) << wanted;
+        expect(text.find("bad.contract.xdef.json:3:") != std::string::npos) << "diagnostics carry line numbers";
+        auto json = diags.json();
+        expect(json.starts_with("[{\"severity\":\"error\"")) << json.substr(0, 60);
+    };
+
+    "names follow each language"_test = [] {
+        expect(eq(gen::pascal("text_box"), std::string("TextBox")));
+        expect(eq(gen::camel("text_box"), std::string("textBox")));
+        expect(eq(gen::upper("motion.fast"), std::string("MOTION_FAST")));
+        expect(eq(gen::ident("switch"), std::string("switch_")));
+        expect(eq(gen::format_double(100), std::string("100.0")));
+    };
+
+    "a broken native contract is reported line by line"_test = [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        auto modules = gen::read_natives(here() / "data" / "bad.native.xdef.json", reg, diags);
+        auto text = diags.text();
+        for (auto wanted : {"native module name `Bad` is not lower_snake_case", "type name `point` is not PascalCase",
+                            "Node.next holds a Node in itself", "Node.weight: unknown type `decimal`",
+                            "`irreversible`, which needs an answer (S-1)", "find(query) follows the optional `limit`",
+                            "find returns: unknown type `Hit`"})
+            expect(text.find(wanted) != std::string::npos) << wanted;
+        expect(text.find("bad.native.xdef.json:10:") != std::string::npos) << "diagnostics carry line numbers";
+    };
+
+    "the official native modules' generated code and stubs are current (modules/projects/omui/native/modules/*)"_test = [] {
+        gen::Diagnostics diags;
+        auto reg = gen::read_registry(spec_dir() / "registry", diags);
+        const auto root = spec_dir().parent_path() / "modules" / "projects" / "omui" / "native" / "modules";
+        std::error_code ec;
+        int seen = 0;
+        for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
+            for (const auto& f : std::filesystem::directory_iterator(pkg.path() / "native", ec)) {
+                const std::string file = gen::generic_utf8(f.path().filename());
+                if (!file.ends_with(".native.omui.toml") && !file.ends_with(".native.xdef.ts")) continue;
+                const std::string module = "omui.native." + gen::generic_utf8(pkg.path().filename());
+                auto modules = gen::read_natives(f.path(), reg, diags);
+                expect(!diags.has_errors()) << diags.text();
+                auto read = [](const std::filesystem::path& p) {
+                    std::ifstream in(p, std::ios::binary);
+                    return std::string(std::istreambuf_iterator<char>(in), {});
+                };
+                for (const auto& m : modules) {
+                    ++seen;
+                    const gen::CppOptions o{module, "omui::natives", false};
+                    expect(read(pkg.path() / "src" / "generated" / (m.name + "_native.cppm")) == gen::emit_cpp_native(m, o, file)) << std::format("{}: run omui-gen native {} --registry spec/registry --module {} --namespace omui::natives --out {}/src/generated --part cpp",
+                                      m.name, gen::generic_utf8(f.path()), module, gen::generic_utf8(pkg.path()));
+                }
+                expect(read(pkg.path() / "stubs" / (module + ".natives.d.ts")) == gen::emit_native_dts(modules, module)) << module + ".natives.d.ts";
+            }
+        }
+        expect(seen >= 1) << "modules/projects/omui/native/modules/fuzzy at least";
+    };
+
+    "the theme packs' embedded files are current (modules/projects/omui/theme/packs/*)"_test = [] {
+        const auto root = spec_dir().parent_path() / "modules" / "projects" / "omui" / "theme" / "packs";
+        std::error_code ec;
+        int seen = 0;
+        for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
+            const std::string name = gen::generic_utf8(pkg.path().filename());
+            const auto file = pkg.path() / (name + ".theme.xdef.ts");
+            if (!std::filesystem::exists(file)) continue;
+            ++seen;
+            // What the module evaluates to, as the package carries it.
+            const auto snapshot = gen::snapshot(file);
+            expect(snapshot.has_value()) << (snapshot ? "" : snapshot.error());
+            if (!snapshot) continue;
+            // A module name is identifiers: `default` (a keyword) is `default_theme`.
+            const std::string module = name == "default" ? "omui.theme.default_theme" : "omui.theme." + name;
+            const std::string want = mlibs::xdef::emit_embed(snapshot->json, snapshot->name, module, "omui::themes", name + "_theme", gen::embedded_by);
+            expect(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want) << std::format("modules/projects/omui/theme/packs/{0}: run omui-gen embed modules/projects/omui/theme/packs/{0}/{0}.theme.xdef.ts --module {1} --namespace omui::themes "
+                              "--name {0}_theme --out modules/projects/omui/theme/packs/{0}/src/generated",
+                              name, module);
+            // Its staged overlays (staged/*.theme.xdef.ts), carried beside it as text, never in its library.
+            for (const auto& staged : std::filesystem::directory_iterator(pkg.path() / "staged", ec)) {
+                const std::string file_name = gen::generic_utf8(staged.path().filename());
+                if (!file_name.ends_with(".theme.xdef.ts")) continue;
+                const std::string stage = file_name.substr(0, file_name.size() - std::string_view(".theme.xdef.ts").size());
+                const auto staged_snapshot = gen::snapshot(staged.path());
+                expect(staged_snapshot.has_value()) << (staged_snapshot ? "" : staged_snapshot.error());
+                if (!staged_snapshot) continue;
+                expect(read(pkg.path() / "src" / "generated" / (stage + "_theme.cppm")) ==
+                       mlibs::xdef::emit_embed(staged_snapshot->json, staged_snapshot->name, module, "omui::themes", stage + "_theme", gen::embedded_by))
+                    << std::format("modules/projects/omui/theme/packs/{0}: run omui-gen embed modules/projects/omui/theme/packs/{0}/staged/{2}.theme.xdef.ts --module {1} "
+                                   "--namespace omui::themes --name {2}_theme --out modules/projects/omui/theme/packs/{0}/src/generated",
+                                   name, module, stage);
+            }
+        }
+        expect(seen >= 2) << "default and compact at least";
+    };
+
+    "the effect template the renderer carries is current (modules/projects/mrender/vector)"_test = [] {
+        const auto render = spec_dir().parent_path() / "modules" / "projects" / "mrender" / "vector";
+        std::ifstream in(render / "effects" / "lib" / "openmui_effect.slang", std::ios::binary);
+        const std::string text{std::istreambuf_iterator<char>(in), {}};
+        expect(!text.empty()) << "effects/lib/openmui_effect.slang";
+        expect(read(render / "src" / "generated" / "effect_template.cppm") ==
+                  mlibs::xdef::emit_embed(text, "openmui_effect.slang", "mrender.vector.api", "mrender", "effect_template")) << "modules/projects/mrender/vector: run xdef embed modules/projects/mrender/vector/effects/lib/openmui_effect.slang --module mrender.vector.api "
+              "--name effect_template --namespace mrender --out modules/projects/mrender/vector/src/generated";
+    };
+
+    "every matter definition's and appearance's committed snapshot is what its data module stands for (D-139)"_test = [] {
+        // The kernel reads the JSON (meng.matter is below the scripts): the two must not part.
+        const auto repo = spec_dir().parent_path();
+        // Where a module carries a standard snapshot, that too: the file, its place, its module and name.
+        struct Carried {
+            std::string_view suffix, standard, place, module, name;
+        };
+        static constexpr std::array<Carried, 2> kinds{{
+            {".matter.xdef.ts", "standard.matter.xdef.ts", "src/json/generated/standard_snapshot.cppm", "meng.matter.json", "standard_snapshot"},
+            {".appearance.xdef.ts", "standard.appearance.xdef.ts", "src/appearance/generated/standard_appearance_snapshot.cppm", "meng.matter.appearance",
+             "standard_appearance_snapshot"},
+        }};
+        std::array<std::size_t, 2> found{};
+        std::vector<std::filesystem::path> files;
+        for (const auto* place : {"modules", "showcase", "examples"})
+            if (std::filesystem::exists(repo / place))
+                for (const auto& entry : std::filesystem::recursive_directory_iterator(repo / place)) files.push_back(entry.path());
+        for (const auto& path : files) {
+            const auto name = path.filename().generic_string();
+            if (path.generic_string().find("/target/") != std::string::npos) continue;
+            for (std::size_t kind = 0; kind < kinds.size(); ++kind) {
+                if (!name.ends_with(kinds[kind].suffix)) continue;
+                ++found[kind];
+                const auto made = gen::snapshot(path);
+                expect(made.has_value()) << (made ? std::string() : made.error());
+                if (!made) continue;
+                const auto committed = path.parent_path() / made->name;
+                expect(read(committed) == made->json) << std::format("{} is out of date: run xdef snapshot {} --write", committed.generic_string(),
+                                                                     path.generic_string());
+                const auto carried = path.parent_path() / kinds[kind].place;
+                if (name == kinds[kind].standard && std::filesystem::exists(carried))
+                    expect(read(carried) == mlibs::xdef::emit_embed(made->json, made->name, kinds[kind].module, "meng::matter", kinds[kind].name, gen::embedded_by))
+                        << std::format("{} is out of date: run omui-gen embed {} --module {} --name {} --namespace meng::matter --out {}", carried.generic_string(),
+                                       committed.generic_string(), kinds[kind].module, kinds[kind].name, carried.parent_path().generic_string());
+            }
+        }
+        // The framework's tier alone (omui-devtools split framework) has no engine and so no matter.
+        if (std::filesystem::exists(repo / "modules" / "projects" / "meng"))
+            expect(found[0] >= 1 && found[1] >= 1) << "the standard definition and the standard appearance at least";
+    };
+
+}};

@@ -1,0 +1,28 @@
+# mlibs.xdef — declared data's container, what a reader takes (D-209): a data
+# file's name (<name>.<kind>.xdef.{ts,json,jsonl}) and its format identifier
+# ("$format": "<kind>@<major>"), checked before a reader reads a snapshot.
+# The registry, snapshots, the checker and the migration are the tool's
+# (mlibs.xdef.tool, `xdef`), so a runtime reader carries no evaluator. The
+# standard library alone: a reader passes the text whatever JSON it reads.
+[package]
+namespace   = "mlibs"
+name        = "xdef"
+version     = "0.1.0"
+description = "Declared data's container for readers: file names and format identifiers"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: declared data's names and formats for every reader, the standard library alone"
+kind = "module"
+
+[targets.mlibs-xdef]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"

@@ -1,0 +1,1560 @@
+== omui.hanim
+export import :binding;
+export import :playback;
+export import :drawing;
+== omui.hanim:binding
+export import hanim;
+export import hanim.render.vector;
+export import omui.view;
+namespace omui::animation {
+  struct Target {
+    std::string part;
+    NodeId node;
+    PresentationChannel channels=PresentationChannel::transform;
+    mlibs::geom::Point anchor{…};
+  };
+  enum class BindingError : std::uint8_t { ui,object,invalid_selection,foreign_frame,unsupported_frame,invalid_pose,unprepared,rendering,capacity };
+  struct BindingFailure {
+    BindingError code;
+    std::size_t target=0;
+    std::optional<PresentationFailure> ui;
+    std::optional<hanim::ObjectError> object;
+    std::optional<hanim::vector_render::VectorFailure> rendering;
+  };
+  class Binding {
+    Binding() noexcept = default;
+    Binding(Binding&&) noexcept = default;
+    Binding& operator=(Binding&&) noexcept = default;
+    Binding(const Binding&)=delete;
+    Binding& operator=(const Binding&)=delete;
+    [[nodiscard]] static std::expected<Binding,BindingFailure> attach(Runtime&,std::span<const Target>,hanim::Engine&);
+    [[nodiscard]] hanim::ObjectRef object() const noexcept;
+    [[nodiscard]] bool attached() const noexcept;
+    [[nodiscard]] std::span<const Target> targets() const & noexcept;
+    std::span<const Target> targets() const && = delete;
+    [[nodiscard]] std::expected<void,BindingFailure> present(const hanim::EngineFrame&);
+    [[nodiscard]] std::expected<void,BindingFailure> prepare(const hanim::PreparedProgram&, hanim::vector_render::ProgramVectorLimits = {…});
+    [[nodiscard]] std::expected<void,BindingFailure> present(const hanim::EngineProgramFrame&);
+    void detach() noexcept;
+  };
+}
+== omui.hanim:drawing
+export import hanim;
+export import hanim.render.vector;
+export import omui.view;
+namespace omui::animation {
+  class Drawing {
+    bool record(PaintContext& ctx, hanim::Engine& engine, hanim::PlaybackRef playback, std::string_view role = "figure", std::optional<std::size_t> track = std::nullopt);
+    void reset() noexcept;
+  };
+}
+== omui.hanim:playback
+export import :binding;
+namespace omui::animation {
+  enum class PlaybackError : std::uint8_t { binding, engine, stale, no_program, occupied, invalid_time };
+  struct PlaybackFailure {
+    PlaybackError code;
+    std::optional<BindingFailure> binding;
+    std::optional<hanim::EngineFailure> engine;
+  };
+  enum class Suspension : std::uint8_t { none, hidden, background, interaction, motion_preference };
+  struct PlaybackGate {
+    bool visible = true;
+    bool foreground = true;
+    bool interacting = false;
+  };
+  struct PlaybackOptions {
+    bool alternate = false;
+    double rate = 1;
+  };
+  struct PlaybackStatus {
+    std::optional<hanim::PlaybackInfo> native;
+    Suspension suspended = Suspension::none;
+    bool requested = false;
+    bool demanding_frames = false;
+    bool clock_paused = false;
+  };
+  class Playback {
+    Playback() noexcept = default;
+    ~Playback();
+    Playback(Playback&& other) noexcept;
+    Playback& operator=(Playback&& other) noexcept;
+    Playback(const Playback&)=delete;
+    Playback& operator=(const Playback&)=delete;
+    [[nodiscard]] static std::expected<Playback,PlaybackFailure> attach(Runtime&,std::span<const Target>);
+    [[nodiscard]] hanim::ObjectRef object() const noexcept;
+    [[nodiscard]] bool attached() const noexcept;
+    [[nodiscard]] std::span<const Target> targets() const & noexcept;
+    std::span<const Target> targets() const && = delete;
+    [[nodiscard]] std::expected<void,PlaybackFailure> play(const hanim::Program&,PlaybackOptions = {…});
+    [[nodiscard]] std::expected<void,PlaybackFailure> pause();
+    [[nodiscard]] std::expected<void,PlaybackFailure> resume();
+    [[nodiscard]] std::expected<void,PlaybackFailure> reverse();
+    [[nodiscard]] std::expected<void,PlaybackFailure> rate(double);
+    [[nodiscard]] std::expected<void,PlaybackFailure> seek(hanim::seconds);
+    [[nodiscard]] std::expected<void,PlaybackFailure> seek_progress(double);
+    [[nodiscard]] std::expected<void,PlaybackFailure> rebind();
+    [[nodiscard]] std::expected<void,PlaybackFailure> stop(hanim::CancelMode = hanim::CancelMode::restore);
+    [[nodiscard]] std::expected<void,PlaybackFailure> update(PlaybackGate = {…});
+    [[nodiscard]] PlaybackStatus status() const noexcept;
+    [[nodiscard]] std::expected<hanim::PreparedProgram,PlaybackFailure> plan() const;
+  };
+}
+== omui.view
+export import omui.core;
+export import mlibs.layout;
+export import mrender.vector;
+export import mlibs.pipeline;
+export import mlibs.text;
+export import mlibs.i18n;
+export import :element;
+export import :error;
+export import :model;
+export import :theme;
+export import :component;
+export import :runtime;
+export import :primitives;
+export import :immediate;
+export import :glyphs;
+export import :i18n;
+export import :window;
+== omui.view:component
+namespace omui {
+  struct NodeTag;
+  using NodeId = Handle<NodeTag>;
+  struct NodeState {
+    bool hovered = false;
+    bool pressed = false;
+    bool focused = false;
+    bool focus_visible = false;
+    bool disabled = false;
+    bool removing = false;
+    bool animating = false;
+  };
+  struct Placement {
+    enum class Side : std::uint8_t { below, above, start, end, center, top, bottom, top_start, top_end, bottom_start, bottom_end, left, right };
+    enum class Anchor : std::uint8_t { parent, previous };
+    Side side = Side::below;
+    Anchor anchor = Anchor::parent;
+    float offset = 4;
+    bool modal = false;
+    bool scrim = false;
+    bool light_dismiss = true;
+    bool match_width = false;
+    std::optional<Point> point;
+  };
+  struct FrameDemand {
+    double min_hz = 0;
+    double max_hz = 0;
+    double preferred_hz = 0;
+    std::string reason;
+    [[nodiscard]] static FrameDemand fastest(std::string why);
+    [[nodiscard]] bool idle() const noexcept;
+    [[nodiscard]] double wanted() const noexcept;
+  };
+  [[nodiscard]] FrameDemand merge(const FrameDemand& a, const FrameDemand& b);
+  [[nodiscard]] double frame_interval(const FrameDemand& d, double display_hz) noexcept;
+  struct ShownFrame {
+    hanim::seconds at{…};
+    double cost_ms = -1;
+  };
+  struct ShownFrames {
+    static constexpr std::size_t capacity = 120;
+    std::array<ShownFrame, capacity> items{…};
+    std::size_t head = 0;
+    std::size_t count = 0;
+    std::uint64_t total = 0;
+    hanim::seconds now{…};
+    void push(const ShownFrame& f) noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] const ShownFrame& operator[](std::size_t i) const noexcept;
+    [[nodiscard]] const ShownFrame& back() const noexcept;
+  };
+  struct Inverse {
+    std::string action;
+    Value args;
+    std::function<void()> run, again;
+  };
+  struct Picture {
+    int width = 0, height = 0;
+    std::vector<std::uint8_t> rgba;
+    bool premultiplied = false;
+  };
+  using PictureReader = std::function<std::optional<std::expected<Picture, std::string>>(std::string_view source)>;
+  class Services;
+  struct ActionEntry {
+    std::string path;
+    std::string action;
+    std::string actor;
+    int exit_code = 0;
+    Value args;
+    std::uint64_t id = 0;
+    double at = 0;
+    std::uint64_t cause = 0;
+  };
+  enum class RecordLevel : std::uint8_t { off, errors, actions, interactions, full, };
+  struct InteractionRecord {
+    std::uint64_t cause = 0;
+    double at = 0;
+    std::string kind;
+    std::string node;
+    std::string text;
+    std::string actor;
+    std::optional<Point> position;
+  };
+  struct AgentNote {
+    std::string actor;
+    std::string text;
+    std::string node;
+    bool hands_back = false;
+    double at = 0;
+  };
+  struct WebPage {
+    std::string url, title;
+    bool loading = false;
+    bool can_go_back = false, can_go_forward = false;
+  };
+  struct AgentLink {
+    std::string state = "unavailable";
+    std::string code;
+    std::string agent;
+    std::string error;
+    int port = 0;
+    std::string guide;
+    std::string version, platform;
+  };
+  class FrameDemandLease {
+    FrameDemandLease() = default;
+    FrameDemandLease(Services* s, std::uint64_t token, std::weak_ptr<const void> life) noexcept : services_(s), token_(token), life_(std::move(life));
+    FrameDemandLease(FrameDemandLease&& o) noexcept : services_(std::exchange(o.services_, nullptr)), token_(std::exchange(o.token_, 0)), life_(std::move(o.life_));
+    FrameDemandLease& operator=(FrameDemandLease&& o) noexcept;
+    FrameDemandLease(const FrameDemandLease&) = delete;
+    FrameDemandLease& operator=(const FrameDemandLease&) = delete;
+    ~FrameDemandLease();
+    void release() noexcept;
+    [[nodiscard]] explicit operator bool() const noexcept;
+  };
+  class Services {
+    virtual ~Services() = default;
+    [[nodiscard]] virtual NodeId parent(NodeId node) const = 0;
+    [[nodiscard]] virtual std::vector<NodeId> children(NodeId node) const = 0;
+    [[nodiscard]] virtual Value get(NodeId node, std::string_view property) const = 0;
+    virtual void set(NodeId node, std::string_view property, const Value& value) = 0;
+    virtual std::uint64_t on(NodeId node, std::string event, Handler handler) = 0;
+    virtual void off(std::uint64_t token) = 0;
+    [[nodiscard]] virtual std::string path(NodeId node) const = 0;
+    [[nodiscard]] virtual NodeId find(std::string_view path) const;
+    virtual void restyle(NodeId node) = 0;
+    virtual void recompose(NodeId node) = 0;
+    virtual Model& model(std::string_view name) = 0;
+    [[nodiscard]] virtual Signal<std::optional<Element>> outlet(std::string_view name) = 0;
+    [[nodiscard]] virtual Verbs& verbs() noexcept = 0;
+    virtual NodeId reveal(std::string_view path) = 0;
+    [[nodiscard]] virtual const Theme& theme() const = 0;
+    [[nodiscard]] virtual bool reduce_transparency() const;
+    [[nodiscard]] virtual bool motion_reduced() const;
+    [[nodiscard]] virtual bool agent_players() const;
+    virtual void add_subject(mlibs::agent::Subject&);
+    virtual void remove_subject(mlibs::agent::Subject&);
+    virtual std::uint64_t add_picture(std::function<std::optional<mrender::raster::ImageView>()>);
+    virtual std::uint64_t add_device_picture(std::function<std::optional<mlibs::rhi::Texture>()>);
+    virtual void remove_picture(std::uint64_t);
+    [[nodiscard]] virtual mlibs::rhi::Device* device() const;
+    [[nodiscard]] static constexpr std::uint64_t picture_changed(std::uint64_t number) noexcept;
+    [[nodiscard]] virtual float pixel_scale() const;
+    [[nodiscard]] virtual bool deterministic() const;
+    [[nodiscard]] virtual bool complete_frames() const;
+    [[nodiscard]] virtual bool on_device() const;
+    [[nodiscard]] virtual FrameDemandLease demand_frames(FrameDemand d);
+    virtual void release_frames(std::uint64_t token) noexcept;
+    [[nodiscard]] virtual mlibs::text::FontCollection& fonts() = 0;
+    [[nodiscard]] virtual mrender::ImageStore& images() = 0;
+    [[nodiscard]] virtual std::optional<std::expected<Picture, std::string>> read_picture(std::string_view source);
+    [[nodiscard]] virtual hanim::seconds now() const = 0;
+    [[nodiscard]] virtual const ShownFrames& shown_frames() const = 0;
+    [[nodiscard]] virtual std::string_view renderer() const;
+    [[nodiscard]] virtual bool time_paused() const;
+    [[nodiscard]] virtual Rect bounds(NodeId node) const = 0;
+    [[nodiscard]] virtual Rect drawn_bounds(NodeId node) const = 0;
+    [[nodiscard]] virtual std::optional<Point> pointer() const;
+    virtual void watch_pointer(NodeId);
+    [[nodiscard]] virtual std::optional<std::pair<std::size_t, std::size_t>> text_selection(NodeId) const;
+    virtual void select_text(NodeId, std::size_t, std::size_t);
+    [[nodiscard]] virtual NodeId control_at(Point window) const = 0;
+    [[nodiscard]] virtual Size content_size(NodeId node) const = 0;
+    [[nodiscard]] virtual Insets content_insets(NodeId node) const = 0;
+    [[nodiscard]] virtual NodeState state(NodeId node) const = 0;
+    virtual void emit(NodeId node, std::string_view event, const Value& args) = 0;
+    virtual void write_back(NodeId node, std::string_view property, const Value& value) = 0;
+    virtual void invalidate_paint(NodeId node) = 0;
+    virtual void invalidate_layout(NodeId node) = 0;
+    virtual void invalidate_semantics(NodeId node) = 0;
+    virtual void scrolled(NodeId node, Point to);
+    virtual void request_frame() = 0;
+    virtual void moving(NodeId);
+    [[nodiscard]] virtual bool focusable(NodeId node) const;
+    virtual bool open_url(std::string_view url);
+    virtual std::uint64_t open_web(std::string_view url, std::function<void(const WebPage&)> changed);
+    virtual void place_web(std::uint64_t page, Rect bounds, bool shown);
+    virtual bool command_web(std::uint64_t page, std::string_view command, std::string_view argument);
+    virtual void close_web(std::uint64_t page);
+    virtual void scroll_into_view(NodeId node) = 0;
+    virtual void scroll_to_start(NodeId node);
+    virtual void focus(NodeId node) = 0;
+    virtual void capture_pointer(NodeId node) = 0;
+    virtual void release_pointer() = 0;
+    virtual bool lock_pointer(NodeId node);
+    virtual void unlock_pointer();
+    [[nodiscard]] virtual NodeId pointer_locked_to() const;
+    virtual bool perform(NodeId node, std::string_view action, const Value& args) = 0;
+    virtual void performed(NodeId node, std::string_view action, const Value& args, std::vector<Inverse> inverse) = 0;
+    virtual void changed_outside_history(NodeId);
+    virtual void text_input(NodeId node, std::optional<Rect> caret) = 0;
+    [[nodiscard]] virtual std::string clipboard_text() = 0;
+    virtual void set_clipboard_text(std::string_view text) = 0;
+    [[nodiscard]] virtual std::span<const ActionEntry> action_journal() const noexcept;
+    [[nodiscard]] virtual NodeId undoes(std::uint64_t entry) const;
+    virtual bool undo_entry(std::uint64_t entry, const Actor* actor);
+    [[nodiscard]] virtual const AgentLink& agent_link() const noexcept;
+    virtual std::string link_agent();
+    virtual void unlink_agent();
+    [[nodiscard]] virtual bool taken_over() const;
+    [[nodiscard]] virtual std::span<const AgentNote> agent_notes() const noexcept;
+    [[nodiscard]] virtual std::vector<mlibs::agent::Claim> claims() const;
+    virtual void follow_actions(NodeId node, bool follow);
+    virtual void point_out(NodeId by, std::string_view path);
+    virtual hanim::Engine& engine() = 0;
+    virtual std::uint64_t after(seconds delay, std::function<void()> fn) = 0;
+    virtual std::uint64_t ambient_after(seconds delay, std::function<void()> fn);
+    virtual void cancel(std::uint64_t timer) = 0;
+  };
+  struct PaintPart {
+    std::string_view role, id, reference;
+    Rect allocation;
+    Point anchor{…};
+    mrender::PartKind kind = mrender::PartKind::content;
+  };
+  struct PaintContext {
+    Services& services;
+    mrender::DisplayList& list;
+    NodeId node;
+    Size size;
+    Rect content;
+    NodeState state;
+    const Theme& theme;
+    template <class Draw> requires std::invocable<Draw&> void part(const PaintPart& part, Draw&& draw);
+  };
+  struct MeasureContext {
+    Services& services;
+    NodeId node;
+  };
+  struct EventContext {
+    Services& services;
+    NodeId node;
+    Point local;
+    bool handled = false;
+    bool stopped = false;
+    void stop() noexcept;
+    void emit(std::string_view event, const Value& args = {…});
+    void repaint();
+    void relayout();
+  };
+  struct TextLine {
+    std::size_t begin = 0, end = 0;
+    Rect bounds;
+    bool rtl = false;
+    std::vector<std::uint8_t> lengths;
+    std::vector<float> positions, widths;
+    std::vector<std::uint8_t> word_starts;
+    bool continues = false;
+  };
+  struct TextLayout {
+    std::string text;
+    std::vector<TextLine> lines;
+    std::size_t anchor = 0, focus = 0;
+  };
+  struct TextLineBox {
+    std::size_t begin = 0, end = 0;
+    Rect bounds;
+    struct Stop {
+      std::size_t begin = 0, end = 0;
+      float left = 0, right = 0;
+    };
+    std::vector<Stop> stops;
+  };
+  [[nodiscard]] std::vector<TextLineBox> text_line_boxes(const mlibs::text::Paragraph& paragraph, Point origin);
+  struct ActResult {
+    bool ok = true;
+    Value data;
+    std::string error;
+    std::vector<Inverse> undo;
+    [[nodiscard]] static ActResult done(Value v = {…});
+    [[nodiscard]] static ActResult fail(std::string why);
+    [[nodiscard]] ActResult&& undo_by(std::string action, Value args = {…}) &&;
+    ActResult& undo_by(std::string action, Value args = {…}) &;
+  };
+  struct ActContext {
+    Services& services;
+    NodeId node;
+    const Value& args;
+    const Actor* actor = nullptr;
+    bool restoring = false;
+  };
+  struct SemanticsContext {
+    Services& services;
+    NodeId node;
+    NodeState state;
+  };
+  enum class WindowArea : std::uint8_t { client, drag, resize_top_left, resize_top, resize_top_right, resize_right, resize_bottom_right, resize_bottom, resize_bottom_left, resize_left, };
+  struct ComponentType {
+    std::string_view name;
+    const spec::ContractInfo* contract = nullptr;
+    Role role = Role::generic;
+    bool focusable = false;
+    bool clips = false;
+    bool overlay = false;
+    bool draws_disabled = false;
+    bool gamepads = false;
+    std::string_view cursor;
+    void* (*create)() = nullptr;
+    void (*destroy)(void*) = nullptr;
+    void (*mount)(void*, Services&, NodeId) = nullptr;
+    bool (*set_prop)(void*, std::string_view, const Value&) = nullptr;
+    Value (*get_prop)(const void*, std::string_view) = nullptr;
+    void (*style)(const void*, const Theme&, mlibs::layout::Style&) = nullptr;
+    Size (*measure)(void*, MeasureContext&, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) = nullptr;
+    float (*baseline)(void*, MeasureContext&, Size) = nullptr;
+    void (*paint)(const void*, PaintContext&) = nullptr;
+    void (*paint_over)(const void*, PaintContext&) = nullptr;
+    std::size_t (*effect_shapes)(const void*, Size, Rect content, std::span<mrender::EffectShape> out) = nullptr;
+    std::optional<WindowArea> (*window_area)(const void*, Point local, Size) = nullptr;
+    bool (*hits)(const void*, Point local, Size) = nullptr;
+    Value (*shown_at)(const void*, Point local, Size) = nullptr;
+    std::optional<std::size_t> (*text_offset)(const void*, Point local) = nullptr;
+    std::string_view (*text_of)(const void*) = nullptr;
+    bool (*event)(void*, EventContext&, const InputEvent&) = nullptr;
+    ActResult (*act)(void*, ActContext&, std::string_view) = nullptr;
+    ActResult (*preview)(const void*, ActContext&, std::string_view) = nullptr;
+    void (*semantics)(const void*, SemanticsContext&, spec::SemanticNode&) = nullptr;
+    Point (*scroll_offset)(const void*) = nullptr;
+    std::optional<TextLayout> (*text_layout)(const void*) = nullptr;
+    std::vector<TextLineBox> (*text_lines)(const void*) = nullptr;
+    void (*restyle)(void*) = nullptr;
+    Placement (*placement)(const void*) = nullptr;
+    std::vector<Element> (*compose)(void*) = nullptr;
+    std::vector<spec::SemanticNode> (*virtual_items)(const void*, std::string_view path) = nullptr;
+    std::uint64_t (*items_revision)(const void*) = nullptr;
+    bool (*reveal)(void*, std::string_view key) = nullptr;
+    std::optional<spec::SemanticNode> (*virtual_item)(const void*, std::string_view path, std::string_view key) = nullptr;
+    ActResult (*act_item)(void*, ActContext&, std::string_view key, std::string_view action) = nullptr;
+    void (*laid_out)(void*) = nullptr;
+    void (*retimed)(void*, hanim::seconds) = nullptr;
+    void (*set_item)(void*, std::function<Element(const Row&, std::size_t)>) = nullptr;
+    const void* context = nullptr;
+    void* (*create_in)(const void* context) = nullptr;
+  };
+  template <class C> [[nodiscard]] const ComponentType& component_type();
+}
+== omui.view:element
+namespace omui {
+  struct ComponentType;
+  template <class T> struct ValueOf;
+  template <> struct ValueOf<Value> {
+    static Value to(const Value& v);
+    static Value from(const Value& v);
+  };
+  template <> struct ValueOf<bool> {
+    static Value to(bool v);
+    static bool from(const Value& v);
+  };
+  template <std::integral T> requires(!std::same_as<T, bool>) struct ValueOf<T>;
+  template <std::floating_point T> struct ValueOf<T> {
+    static Value to(T v);
+    static T from(const Value& v);
+  };
+  template <> struct ValueOf<std::string> {
+    static Value to(const std::string& v);
+    static std::string from(const Value& v);
+  };
+  template <> struct ValueOf<Color> {
+    static Value to(const Color& c);
+    static Color from(const Value& v);
+  };
+  template <> struct ValueOf<std::vector<std::string>> {
+    static Value to(const std::vector<std::string>& v);
+    static std::vector<std::string> from(const Value& v);
+  };
+  template <class T> concept PropertyType = requires(const T& t, const Value& v) {…};
+  struct Source {
+    std::optional<Value> constant;
+    std::function<Value()> read;
+    std::function<void(const Value&)> write;
+    [[nodiscard]] bool reactive() const noexcept;
+    [[nodiscard]] Value current() const;
+  };
+  template <PropertyType T> class Prop {
+    Prop() = default;
+    Prop(T value) : source_;
+    , set_(true);
+    template <class U> requires std::constructible_from<T, const U&> && (!std::same_as<std::remove_cvref_t<U>, T>) && (!std::same_as<std::remove_cvref_t<U>, Prop>) && (!std::same_as<std::remove_cvref_t<U>, Source>) && (!requires {…}) Prop(const U& value) : Prop(T(value));
+    template <PropertyType U> requires std::convertible_to<U, T> || std::constructible_from<T, const U&> Prop(Signal<U> s) : source_;
+    , set_(true);
+    template <PropertyType U> requires std::convertible_to<U, T> || std::constructible_from<T, const U&> Prop(Computed<U> c) : source_;
+    , set_(true);
+    Prop(Source s) : source_(std::move(s)), set_(true);
+    [[nodiscard]] bool is_set() const noexcept;
+    [[nodiscard]] const Source& source() const noexcept;
+  };
+  struct Transition {
+    enum class Kind : std::uint8_t { tween, spring };
+    Kind kind = Kind::tween;
+    hanim::seconds duration{…};
+    hanim::Ease ease = hanim::ease::standard;
+    hanim::SpringParams spring = hanim::springs::standard;
+    hanim::seconds delay{…};
+    friend constexpr bool operator==(const Transition& a, const Transition& b) noexcept;
+    [[nodiscard]] static Transition tween(hanim::seconds d, hanim::Ease e = hanim::ease::standard);
+    [[nodiscard]] static Transition spring_with(hanim::SpringParams p = hanim::springs::standard);
+    [[nodiscard]] static std::optional<Transition> token(std::string_view name);
+  };
+  using Handler = std::function<void(const Value& args)>;
+  struct Element;
+  struct Region {
+    std::function<std::vector<Element>()> build;
+  };
+  struct Element {
+    const ComponentType* type = nullptr;
+    std::string id;
+    bool generated_id = false;
+    std::string key;
+    std::vector<std::pair<std::string, Source>> props;
+    std::vector<std::pair<std::string, Handler>> handlers;
+    std::vector<std::pair<std::string, Transition>> transitions;
+    std::vector<Element> children;
+    std::shared_ptr<Region> region;
+    std::function<void(void* instance)> configure;
+    std::source_location where = std::source_location::current();
+    std::string built_at;
+    std::function<Element()> kept;
+    Element& prop(std::string name, Source s);
+    template <PropertyType T> Element& prop(std::string name, const Prop<T>& p);
+    Element& on(std::string event, Handler h);
+    Element& animate(std::string property, Transition t);
+    Element& child(Element e);
+  };
+  using View = Element;
+  template <class A> struct Read {
+    using type = A;
+    static const A& get(const A& a);
+  };
+  template <class T> struct Read<Signal<T>> {
+    using type = T;
+    static const T& get(const Signal<T>& s);
+  };
+  template <class T> struct Read<Computed<T>> {
+    using type = T;
+    static const T& get(const Computed<T>& c);
+  };
+  template <class... A> [[nodiscard]] Source fmt(std::format_string<const typename Read<A>::type&...> format, A... args);
+  template <class F> requires std::invocable<F&> [[nodiscard]] Source derive(F f);
+  [[nodiscard]] Element dynamic(std::function<std::vector<Element>()> build, std::source_location where = std::source_location::current());
+  [[nodiscard]] Element when(std::function<bool()> cond, std::function<View()> then, std::function<View()> otherwise = {…}, std::source_location where = std::source_location::current());
+  template <class T, class KeyFn, class ItemFn> [[nodiscard]] Element each(Signal<std::vector<T>> items, KeyFn key, ItemFn item, std::source_location where = std::source_location::current());
+}
+== omui.view:error
+namespace omui {
+  enum class ViewError : std::uint8_t { bad_key, duplicate_key, key_taken, past_end, empty_range, range_past_input, unordered_ranges, no_vector_capture, no_pixel_capture, capture_failed, no_reloader, reload_failed, empty_region, nothing_shown, below_level, window_failed, device_failed, not_open, write_failed, nothing_recorded };
+  [[nodiscard]] constexpr mlibs::error::Description describe(ViewError error) noexcept;
+  using ViewFailure = mlibs::error::Error<ViewError>;
+}
+== omui.view:glyphs
+namespace omui {
+  enum class GlyphDomain : std::uint8_t { glyph, grapheme, word, line };
+  struct GlyphPose {
+    float x = 0, y = 0;
+    float scale = 1;
+    float rotate = 0;
+    float opacity = 1;
+    Color tint{…};
+    friend bool operator==(const GlyphPose&, const GlyphPose&) = default;
+  };
+  struct GlyphMotion {
+    GlyphDomain domain = GlyphDomain::grapheme;
+    std::size_t begin = 0;
+    std::size_t end = std::numeric_limits<std::size_t>::max();
+    GlyphPose from{…};
+    GlyphPose to{…};
+    GlyphPose jitter{…};
+    bool jitter_to = false;
+    Transition transition = Transition::tween(hanim::seconds(0.45), hanim::ease::out_cubic);
+    hanim::seconds stagger{…};
+    hanim::StaggerOrder order = hanim::StaggerOrder::forward;
+    std::uint64_t seed = 0;
+    int repeat = 1;
+    bool alternate = false;
+    [[nodiscard]] static GlyphMotion typewriter(hanim::seconds per_letter = hanim::seconds(0.035));
+    [[nodiscard]] static GlyphMotion rise(hanim::seconds stagger = hanim::seconds(0.06));
+    [[nodiscard]] static GlyphMotion gather(std::uint64_t seed = 1);
+    [[nodiscard]] static GlyphMotion scatter(std::uint64_t seed = 1);
+    [[nodiscard]] static GlyphMotion wave(float height = 4);
+    friend bool operator==(const GlyphMotion& a, const GlyphMotion& b) noexcept;
+  };
+  [[nodiscard]] Value to_value(const GlyphMotion& m);
+  [[nodiscard]] std::optional<GlyphMotion> glyph_motion_from(const Value& v);
+  [[nodiscard]] Element animate_glyphs(Element e, const GlyphMotion& m);
+  struct GlyphFrame {
+    std::vector<std::vector<mrender::GlyphStyle>> styles;
+    hanim::seconds ends{…};
+    bool moving = false;
+  };
+  [[nodiscard]] GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<const std::span<const mrender::Glyph>> commands, bool reduce_motion = false, std::span<const std::uint32_t> paragraphs = {…});
+}
+== omui.view:i18n
+namespace omui {
+  struct TrArg {
+    std::string name;
+    std::variant<mlibs::i18n::Arg, Source> value;
+    TrArg(std::string_view n, Source s) : name(n), value(std::move(s));
+    template <class T> TrArg(std::string_view n, Signal<T> s) : name(n), value(Source{…});
+    template <class T> TrArg(std::string_view n, Computed<T> c) : name(n), value(Source{…});
+    TrArg(std::string_view n, mlibs::i18n::CivilTime t) : name(n), value(mlibs::i18n::Arg(t));
+    TrArg(std::string_view n, std::vector<std::string> list) : name(n), value(mlibs::i18n::Arg(std::move(list)));
+    TrArg(std::string_view n, std::string s) : name(n), value(mlibs::i18n::Arg(std::move(s)));
+    TrArg(std::string_view n, const char* s) : name(n), value(mlibs::i18n::Arg(std::string(s)));
+    TrArg(std::string_view n, bool b) : name(n), value(mlibs::i18n::Arg(b));
+    TrArg(std::string_view n, double d) : name(n), value(mlibs::i18n::Arg(d));
+    template <std::integral I> requires(!std::same_as<I, bool>) TrArg(std::string_view n, I i) : name(n), value(mlibs::i18n::Arg(static_cast<std::int64_t>(i)));
+  };
+  class Languages {
+    Languages();
+    ~Languages();
+    Languages(const Languages&) = delete;
+    Languages& operator=(const Languages&) = delete;
+    void edit(const std::function<void(mlibs::i18n::Library&)>& change);
+    std::expected<void, std::vector<mlibs::i18n::Diagnostic>> add_messages(const mlibs::i18n::Locale& locale, std::string_view json, std::string_view file);
+    void request(std::vector<mlibs::i18n::Locale> requested);
+    void set_fallback(mlibs::i18n::Locale source);
+    [[nodiscard]] std::vector<mlibs::i18n::Locale> requested() const;
+    [[nodiscard]] std::vector<mlibs::i18n::Locale> chain() const;
+    [[nodiscard]] mlibs::i18n::Translator::Result translate(std::string_view key, const mlibs::i18n::Args& args = {…}) const;
+    [[nodiscard]] std::string number(double value, const mlibs::i18n::NumberOptions& options = {…}) const;
+    [[nodiscard]] std::string date(const mlibs::i18n::CivilTime& t, mlibs::i18n::DateStyle style = mlibs::i18n::DateStyle::medium) const;
+    [[nodiscard]] std::string tag() const;
+    void track() const;
+    [[nodiscard]] std::uint64_t generation() const noexcept;
+    struct Impl;
+  };
+  [[nodiscard]] Languages& languages();
+  [[nodiscard]] std::string translate(std::string_view key, const Value& args);
+  [[nodiscard]] Source tr(std::string key, std::vector<TrArg> args = {…});
+  [[nodiscard]] std::vector<mlibs::i18n::Locale> system_locales();
+}
+== omui.view:immediate
+namespace omui {
+  namespace im {
+    struct ButtonOptions {
+      std::string id;
+      std::string variant;
+      std::string icon;
+      std::string verb;
+      bool disabled = false;
+    };
+    struct ToggleOptions {
+      std::string id;
+      bool disabled = false;
+      bool indeterminate = false;
+    };
+    struct SliderOptions {
+      std::string id;
+      double min = 0, max = 100, step = 1;
+      bool disabled = false;
+    };
+    struct TextBoxOptions {
+      std::string id;
+      std::string placeholder;
+      bool multiline = false;
+      bool password = false;
+      int max_length = 0;
+      bool disabled = false;
+    };
+  }
+  struct ImState;
+  class Ui {
+    void column(BoxOptions o, FunctionRef<void()> body, std::source_location at = std::source_location::current());
+    void row(BoxOptions o, FunctionRef<void()> body, std::source_location at = std::source_location::current());
+    void stack(BoxOptions o, FunctionRef<void()> body, std::source_location at = std::source_location::current());
+    void box(BoxOptions o, FunctionRef<void()> body, std::source_location at = std::source_location::current());
+    void grid(BoxOptions o, std::string columns, FunctionRef<void()> body, std::source_location at = std::source_location::current());
+    void scroll(ScrollOptions o, FunctionRef<void()> body, std::source_location at = std::source_location::current());
+    void text(std::string_view text, TextOptions o = {…}, std::source_location at = std::source_location::current());
+    void image(ImageOptions o, std::source_location at = std::source_location::current());
+    void spacer(float grow = 1, std::source_location at = std::source_location::current());
+    bool button(std::string_view label, im::ButtonOptions o = {…}, std::source_location at = std::source_location::current());
+    bool checkbox(std::string_view label, bool& value, im::ToggleOptions o = {…}, std::source_location at = std::source_location::current());
+    bool toggle(std::string_view label, bool& value, im::ToggleOptions o = {…}, std::source_location at = std::source_location::current());
+    bool slider(std::string_view label, double& value, im::SliderOptions o = {…}, std::source_location at = std::source_location::current());
+    bool text_box(std::string_view label, std::string& value, im::TextBoxOptions o = {…}, std::source_location at = std::source_location::current());
+    void add(Element e, std::source_location at = std::source_location::current());
+    void push_id(std::string_view part);
+    void push_id(std::int64_t part);
+    void pop_id();
+    struct Scope {
+      explicit Scope(Ui* u) noexcept : ui(u);
+      ~Scope();
+      Scope(const Scope&) = delete;
+      Scope& operator=(const Scope&) = delete;
+    };
+    [[nodiscard]] Scope scope(std::string_view part);
+    [[nodiscard]] Scope scope(std::int64_t part);
+    [[nodiscard]] seconds now() const;
+    void rebuild_after(seconds delay);
+    void rebuild_next_frame();
+    [[nodiscard]] std::optional<Value> event(std::string_view id, std::string_view name) const;
+    explicit Ui(ImState& state);
+  };
+  [[nodiscard]] Element immediate(std::function<void(Ui&)> build, BoxOptions options = {…}, std::source_location where = std::source_location::current());
+}
+== omui.view:model
+namespace omui {
+  struct Row {
+    std::string key;
+    Value fields;
+  };
+  class Model {
+    explicit Model(std::string name);
+    [[nodiscard]] const std::string& name() const noexcept;
+    [[nodiscard]] std::uint64_t revision() const;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] const Row& at(std::size_t i) const;
+    [[nodiscard]] std::span<const Row> rows() const noexcept;
+    [[nodiscard]] std::optional<std::size_t> find(std::string_view key) const;
+    std::expected<void, ViewFailure> push(std::vector<Row> rows);
+    std::expected<void, ViewFailure> insert(std::size_t at, std::vector<Row> rows);
+    std::expected<void, ViewFailure> patch(std::size_t from, std::vector<Row> rows);
+    void remove(std::size_t from, std::size_t count);
+    void clear();
+    [[nodiscard]] Value to_value(std::size_t from = 0, std::size_t count = std::numeric_limits<std::size_t>::max()) const;
+    [[nodiscard]] static std::string label_of(const Row& row);
+  };
+}
+== omui.view:primitives
+namespace omui {
+  struct Dim {
+    mlibs::layout::Length length;
+    Dim() = default;
+    Dim(float points) : length(mlibs::layout::Length::points(points));
+    Dim(int points) : length(mlibs::layout::Length::points(static_cast<float>(points)));
+    Dim(double points) : length(mlibs::layout::Length::points(static_cast<float>(points)));
+    Dim(mlibs::layout::Length l) : length(l);
+  };
+  template <> struct ValueOf<Dim> {
+    static Value to(const Dim& d);
+    static Dim from(const Value& v);
+  };
+  struct Fill {
+    std::string text;
+    Fill() = default;
+    Fill(const char* token) : text(token);
+    Fill(std::string token) : text(std::move(token));
+    Fill(Color c);
+  };
+  template <> struct ValueOf<Fill> {
+    static Value to(const Fill& f);
+    static Fill from(const Value& v);
+  };
+  struct Edges {
+    Insets insets;
+    Edges() = default;
+    Edges(float all) : insets(Insets::all(all));
+    Edges(int all) : insets(Insets::all(static_cast<float>(all)));
+    Edges(float vertical, float horizontal) : insets(Insets::symmetric(vertical, horizontal));
+    Edges(Insets i) : insets(i);
+  };
+  template <> struct ValueOf<Edges> {
+    static Value to(const Edges& e);
+    static Edges from(const Value& v);
+  };
+  struct BoxOptions {
+    std::string id;
+    Prop<Dim> width, height, min_width, min_height, max_width, max_height;
+    Prop<Edges> padding, margin;
+    Prop<float> gap;
+    std::string justify;
+    std::string align;
+    std::string align_self;
+    std::string wrap;
+    Prop<float> grow, shrink;
+    Prop<Fill> background, border_color;
+    Prop<float> border_width, radius;
+    std::string shadow;
+    Prop<float> opacity, translate_x, translate_y, scale, rotation;
+    bool clip = false;
+    Prop<bool> visible, disabled;
+    std::string label;
+    std::string description;
+    std::vector<std::pair<std::string, Handler>> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element box(BoxOptions options = {…}, std::vector<Element> children = {…}, std::source_location where = std::source_location::current());
+  [[nodiscard]] Element column(BoxOptions options = {…}, std::vector<Element> children = {…}, std::source_location where = std::source_location::current());
+  [[nodiscard]] Element row(BoxOptions options = {…}, std::vector<Element> children = {…}, std::source_location where = std::source_location::current());
+  [[nodiscard]] Element stack(BoxOptions options = {…}, std::vector<Element> children = {…}, std::source_location where = std::source_location::current());
+  [[nodiscard]] Element grid(BoxOptions options, std::string columns, std::vector<Element> children = {…}, std::source_location where = std::source_location::current());
+  [[nodiscard]] Element spacer(float grow = 1, std::source_location where = std::source_location::current());
+  struct TextOptions {
+    std::string id;
+    Prop<std::string> text;
+    std::string style = "body";
+    int heading = 0;
+    Prop<Fill> color;
+    std::string align;
+    bool wrap = true;
+    int max_lines = 0;
+    std::optional<bool> selectable;
+    std::string origin;
+    Prop<float> size, weight;
+    Prop<Dim> width, max_width;
+    Prop<float> grow, opacity;
+    std::vector<std::pair<std::string, Transition>> animate;
+  };
+  [[nodiscard]] Element text(TextOptions options, std::source_location where = std::source_location::current());
+  struct ImageOptions {
+    std::string id;
+    std::string source;
+    std::string alt;
+    std::string fit = "contain";
+    Prop<Dim> width, height;
+    Prop<float> radius, opacity;
+  };
+  [[nodiscard]] Element image(ImageOptions options, std::source_location where = std::source_location::current());
+  struct ScrollOptions {
+    std::string id;
+    bool horizontal = false;
+    bool vertical = true;
+    Prop<float> x, y;
+    Prop<Dim> width, height, max_height;
+    Prop<float> grow, gap;
+    Prop<Edges> padding;
+    Prop<Fill> background;
+    std::string label;
+  };
+  [[nodiscard]] Element scroll(ScrollOptions options, std::vector<Element> children = {…}, std::source_location where = std::source_location::current());
+  struct PaintOptions {
+    std::string id;
+    Prop<Dim> width, height;
+    Prop<float> grow;
+    Role role = Role::canvas;
+    std::string label;
+    bool focusable = false;
+    std::function<void(PaintContext&)> paint;
+    std::function<bool(EventContext&, const InputEvent&)> on_event;
+    std::vector<std::pair<std::string, Handler>> on;
+  };
+  [[nodiscard]] Element painter(PaintOptions options, std::source_location where = std::source_location::current());
+  [[nodiscard]] const ComponentType& root_type();
+  [[nodiscard]] const ComponentType& box_type();
+  [[nodiscard]] const ComponentType* find_type(std::string_view name);
+  void register_type(const ComponentType& type);
+  template <std::size_t Size> struct ComponentName {
+    char text[Size]{…};
+    consteval ComponentName(const char (&name)[Size]);
+    [[nodiscard]] constexpr std::string_view view() const;
+  };
+  enum class Primitive : std::uint8_t { box, column, row, stack, grid, spacer, text, image, scroll_view, paint };
+  inline constexpr std::array<std::string_view, 10> primitive_type_names{…};
+  template <Primitive Kind> [[nodiscard]] const ComponentType& primitive_type();
+  void register_primitives();
+  void leave_out(std::string_view name);
+  [[nodiscard]] std::string left_out(std::string_view name);
+  [[nodiscard]] std::vector<const ComponentType*> registered_types();
+  [[nodiscard]] Value component_catalog();
+  [[nodiscard]] std::span<const std::string_view> runtime_properties() noexcept;
+  [[nodiscard]] bool is_runtime_property(std::string_view name) noexcept;
+  [[nodiscard]] std::span<const std::string_view> runtime_events() noexcept;
+  [[nodiscard]] std::vector<mlibs::layout::Track> parse_tracks(std::string_view text);
+}
+namespace omui {
+  template <ComponentName... Names> void register_primitives_named();
+}
+== omui.view:runtime
+namespace omui {
+  enum class MotionLevel : std::uint8_t { full, reduced, off };
+  struct Adaptation {
+    mlibs::pipeline::Tier tier = mlibs::pipeline::Tier::t3;
+    MotionLevel motion = MotionLevel::full;
+    mlibs::pipeline::Tier effects = mlibs::pipeline::Tier::t4;
+    std::string reason;
+    friend bool operator==(const Adaptation&, const Adaptation&) = default;
+  };
+  std::expected<void, mlibs::compose::Error> install_morphs();
+  [[nodiscard]] bool morphs_installed() noexcept;
+  struct MotionState {
+    NodeId node;
+    std::string path;
+    double progress = 0;
+    double start = 0, end = 0;
+    std::size_t matched = 0, from_only = 0, to_only = 0, glyphs_kept = 0;
+  };
+  struct DebugOptions {
+    bool bounds = false;
+    bool repaints = false;
+    bool inspector = false;
+    bool hud = false;
+    double slow_frame_ms = 0;
+  };
+  enum class Stages : std::uint8_t { semantics, layout, paint };
+  struct RuntimeOptions {
+    Theme theme = Theme::light();
+    mlibs::text::FontCollection* fonts = nullptr;
+    hanim::Clock clock = hanim::Clock::virtual_time();
+    Size size{…};
+    float scale = 1.0f;
+    bool reduce_motion = false;
+    bool reduce_transparency = false;
+    bool dark_preferred = false;
+    bool agent_players = false;
+    Stages stages = Stages::paint;
+    bool complete_frames = false;
+    DebugOptions debug;
+    std::optional<mlibs::pipeline::Description> pipeline;
+    std::function<void(mlibs::pipeline::Registry&)> plugins;
+    std::shared_ptr<AgentAccess> access;
+  };
+  struct FrameTree {
+    class Runtime* runtime = nullptr;
+  };
+  struct FrameLayout {
+    class Runtime* runtime = nullptr;
+  };
+  struct FrameBounds {
+    class Runtime* runtime = nullptr;
+  };
+  namespace frame_resource {
+    inline constexpr std::string_view input = "frame";
+    inline constexpr std::string_view tree = "tree";
+    inline constexpr std::string_view layout = "layout";
+    inline constexpr std::string_view bounds = "bounds";
+    inline constexpr std::string_view display = "display";
+  }
+  struct EffectRule {
+    std::string selector;
+    Value effect;
+  };
+  struct InputAttribution {
+    std::size_t begin = 0, end = 0;
+    Actor actor{…};
+    std::shared_ptr<const AgentSession> session;
+  };
+  struct FrameInput {
+    std::optional<hanim::seconds> time;
+    std::vector<InputEvent> events;
+    std::optional<std::chrono::steady_clock::time_point> present_at;
+    double display_hz = 0;
+    std::span<const InputAttribution> attribution;
+  };
+  [[nodiscard]] std::expected<void, ViewFailure> validate_input_attribution(const FrameInput& input);
+}
+namespace mlibs::pipeline {
+  template <> struct resource_type<omui::FrameInput> {
+    static constexpr std::string_view name = "omui.FrameInput";
+  };
+  template <> struct resource_type<omui::FrameTree> {
+    static constexpr std::string_view name = "omui.FrameTree";
+  };
+  template <> struct resource_type<omui::FrameLayout> {
+    static constexpr std::string_view name = "omui.FrameLayout";
+  };
+  template <> struct resource_type<omui::FrameBounds> {
+    static constexpr std::string_view name = "omui.FrameBounds";
+  };
+  template <> struct resource_type<mrender::DisplayList> {
+    static constexpr std::string_view name = "render.DisplayList";
+  };
+}
+namespace omui {
+  struct FrameTimings {
+    double timers = 0, input = 0, regions = 0, animations = 0, layout = 0, bounds = 0, paint = 0;
+    double other = 0;
+    double total = 0;
+  };
+  struct FrameStats {
+    std::size_t nodes = 0;
+    std::size_t laid_out = 0;
+    std::size_t painted = 0;
+    std::size_t bindings = 0;
+    std::size_t animating = 0;
+    FrameTimings timings;
+  };
+  struct FrameOutput {
+    const mrender::DisplayList* list = nullptr;
+    bool repainted = false;
+    bool animating = false;
+    std::uint64_t revision = 0;
+    FrameStats stats;
+    std::optional<seconds> next_timer;
+    std::optional<seconds> next_work;
+    FrameDemand demand;
+    std::string failure;
+  };
+  struct HistoryItem {
+    std::string label;
+    std::size_t steps = 1;
+    bool barrier = false;
+  };
+  struct History {
+    std::string scope;
+    std::vector<HistoryItem> undo, redo;
+  };
+  inline constexpr std::size_t history_limit = 200;
+  [[nodiscard]] mrender::Parallel& raster_parallel() noexcept;
+  [[nodiscard]] mlibs::pipeline::Description runtime_pipeline(Stages stages);
+  enum class PresentationChannel : std::uint8_t { none=0, translation=1, rotation=2, scale=4, shear=8, transform=15, image=16 };
+  [[nodiscard]] constexpr PresentationChannel operator|(PresentationChannel a,PresentationChannel b) noexcept;
+  struct PresentationTarget {
+    NodeId node;
+    PresentationChannel channels=PresentationChannel::transform;
+    mlibs::geom::Point anchor{…};
+  };
+  enum class PresentationError : std::uint8_t { invalid_node,invalid_configuration,occupied,busy,stale,invalid_pose,capacity,unsupported_frame,invalid_effect,stale_effect };
+  [[nodiscard]] constexpr std::string_view presentation_error_name(PresentationError error) noexcept;
+  struct PresentationFailure {
+    PresentationError code;
+    std::size_t target=0;
+  };
+  struct PresentationState {
+    NodeId node;
+    hanim::Transform2D pose;
+    mlibs::geom::Point anchor;
+    PresentationChannel channels=PresentationChannel::none;
+    bool has_frame=false, applied=false;
+    std::optional<PresentationError> error;
+    std::size_t image_effects=0,image_parameters=0;
+  };
+  struct PresentationImageLayer {
+    mrender::EffectRef effect;
+    std::uint64_t generation=0;
+    std::span<const float> parameters;
+  };
+  struct PresentationEffects {
+    std::span<const PresentationImageLayer> layers;
+  };
+  inline constexpr std::size_t presentation_max_image_layers=64,presentation_max_image_parameters=4096;
+  class PresentationLease {
+    PresentationLease() noexcept = default;
+    PresentationLease(PresentationLease&&) noexcept;
+    PresentationLease& operator=(PresentationLease&&) noexcept;
+    PresentationLease(const PresentationLease&)=delete;
+    PresentationLease& operator=(const PresentationLease&)=delete;
+    ~PresentationLease();
+    [[nodiscard]] bool attached() const noexcept;
+    [[nodiscard]] std::span<const PresentationTarget> targets() const & noexcept;
+    std::span<const PresentationTarget> targets() const && = delete;
+    [[nodiscard]] std::expected<void,PresentationFailure> reserve_effects(std::size_t target,std::size_t layers,std::size_t parameters);
+    void release_effects(std::size_t target) noexcept;
+    [[nodiscard]] std::expected<void,PresentationFailure> publish(std::span<const hanim::Transform2D>,std::span<const PresentationEffects> = {…});
+    void release() noexcept;
+  };
+  class Runtime final : public Services {
+    explicit Runtime(RuntimeOptions options = {…});
+    ~Runtime() override;
+    Runtime(const Runtime&) = delete;
+    Runtime& operator=(const Runtime&) = delete;
+    NodeId mount(std::string_view slot, View view);
+    NodeId mount_beneath(std::string_view slot, View view);
+    void unmount(std::string_view slot);
+    [[nodiscard]] bool claimed(std::string_view slot) const;
+    void set_slot_insets(std::string_view slot, Insets insets);
+    [[nodiscard]] Insets slot_insets(std::string_view slot) const;
+    [[nodiscard]] NodeId root() const noexcept;
+    [[nodiscard]] bool valid(NodeId node) const noexcept;
+    [[nodiscard]] NodeId find(std::string_view path) const override;
+    template <class C> [[nodiscard]] C* component(NodeId node) noexcept;
+    [[nodiscard]] void* instance_of(NodeId node, const ComponentType& type) noexcept;
+    [[nodiscard]] const void* instance_of(NodeId node, const ComponentType& type) const noexcept;
+    [[nodiscard]] std::string path(NodeId node) const override;
+    [[nodiscard]] NodeId parent(NodeId node) const override;
+    [[nodiscard]] std::vector<NodeId> children(NodeId node) const override;
+    [[nodiscard]] const ComponentType& type(NodeId node) const;
+    [[nodiscard]] std::source_location origin(NodeId node) const;
+    [[nodiscard]] std::string_view built_at(NodeId node) const;
+    [[nodiscard]] Value shown_at(NodeId node, Point window) const;
+    [[nodiscard]] std::vector<NodeId> built_on(std::string_view file, std::uint32_t line) const;
+    [[nodiscard]] Value get(NodeId node, std::string_view property) const override;
+    void set(NodeId node, std::string_view property, const Value& value) override;
+    void bind(NodeId node, std::string property, Source source);
+    std::uint64_t on(NodeId node, std::string event, Handler handler) override;
+    void off(std::uint64_t token) override;
+    void walk(FunctionRef<void(NodeId, int depth)> visit) const;
+    [[nodiscard]] std::size_t node_count() const noexcept;
+    [[nodiscard]] NodeId node_at_index(std::uint32_t index) const;
+    FrameOutput frame(const FrameInput& input = {…});
+    [[nodiscard]] const mrender::DisplayList& display_list() const noexcept;
+    [[nodiscard]] const mlibs::layout::Style* layout_style(NodeId node) const;
+    [[nodiscard]] std::expected<PresentationLease,PresentationFailure> acquire_presentation(std::span<const PresentationTarget>);
+    [[nodiscard]] std::optional<PresentationState> presentation(NodeId) const noexcept;
+    void resize(Size size, float scale);
+    void constraints_changed(NodeId boundary);
+    [[nodiscard]] Size size() const noexcept;
+    [[nodiscard]] float scale() const noexcept;
+    [[nodiscard]] hanim::Clock& clock() noexcept;
+    struct TimeState {
+      hanim::seconds host{…};
+      hanim::seconds shown{…};
+      bool controlled = false;
+      bool paused = false;
+      double rate = 1;
+    };
+    void pause_time(bool paused);
+    void set_time_rate(double rate);
+    void step_time(hanim::seconds dt);
+    void seek_time(hanim::seconds t);
+    void release_time();
+    [[nodiscard]] TimeState time_state() const noexcept;
+    [[nodiscard]] double frame_rate() const noexcept;
+    [[nodiscard]] std::vector<FrameStats> frame_history() const;
+    void frame_shown(ShownFrame f) noexcept;
+    [[nodiscard]] const ShownFrames& shown_frames() const noexcept override;
+    void set_renderer(std::string name);
+    void set_input_actor(std::optional<Actor> actor, std::shared_ptr<const AgentSession> session = {…});
+    void set_agent_access(std::shared_ptr<AgentAccess> access);
+    [[nodiscard]] AgentAccess& agent_access() noexcept;
+    [[nodiscard]] const AgentAccess& agent_access() const noexcept;
+    [[nodiscard]] std::shared_ptr<AgentAccess> agent_access_binding() const noexcept;
+    [[nodiscard]] std::string_view renderer() const noexcept override;
+    [[nodiscard]] mlibs::pipeline::Pipeline& frame_pipeline() noexcept;
+    [[nodiscard]] mlibs::pipeline::Registry& stage_plugins() noexcept;
+    void set_debug(DebugOptions debug);
+    [[nodiscard]] const DebugOptions& debug() const noexcept;
+    [[nodiscard]] Value inspect(NodeId node) const;
+    [[nodiscard]] std::optional<seconds> next_timer() const noexcept;
+    [[nodiscard]] std::optional<seconds> next_work() const noexcept;
+    [[nodiscard]] NodeId hit_test(Point window) const;
+    [[nodiscard]] NodeId control_at(Point window) const override;
+    Envelope act(NodeId node, std::string_view action, const Invocation& call = {…});
+    Envelope act_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call = {…});
+    [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(NodeId holder, std::string_view key) const;
+    [[nodiscard]] bool acts_on_items(NodeId holder) const;
+    [[nodiscard]] std::span<const ActionEntry> action_journal() const noexcept override;
+    void present_design(seconds duration = seconds(0.9));
+    struct DesignPresentation {
+      enum class Kind : std::uint8_t { edit, undo, switch_to };
+      Kind kind = Kind::edit;
+      double pace = 1;
+      bool changes = false;
+    };
+    void set_design_presentation(DesignPresentation presentation);
+    [[nodiscard]] DesignPresentation design_presentation() const noexcept;
+    void set_slot_presented(std::string_view slot, bool presented);
+    [[nodiscard]] bool slot_presented(std::string_view slot) const;
+    void set_record_level(RecordLevel level);
+    [[nodiscard]] RecordLevel record_level() const noexcept;
+    [[nodiscard]] std::vector<InteractionRecord> interactions(std::uint64_t since = 0) const;
+    [[nodiscard]] Value input_scenario() const;
+    struct Explanation {
+      std::uint64_t cause = 0;
+      std::vector<InteractionRecord> records;
+      std::vector<ActionEntry> actions;
+      std::string summary;
+    };
+    [[nodiscard]] std::optional<Explanation> explain(std::optional<Point> at, std::uint64_t cause = 0) const;
+    [[nodiscard]] NodeId undoes(std::uint64_t entry) const override;
+    bool undo_entry(std::uint64_t entry, const Actor* actor) override;
+    [[nodiscard]] std::vector<spec::ActionDesc> actions(NodeId node) const;
+    Envelope invoke(std::string_view verb, const Invocation& call = {…});
+    void taken_back_by(std::function<void()> undo, std::function<void()> redo);
+    void take_over();
+    void hand_back();
+    [[nodiscard]] bool taken_over() const override;
+    void note(AgentNote note);
+    [[nodiscard]] std::span<const AgentNote> agent_notes() const noexcept override;
+    std::expected<mlibs::agent::Claim, mlibs::agent::Claim> claim(const mlibs::agent::ClaimRequest& request, const Actor& by);
+    bool release_claim(std::string_view node, std::string_view property, const Actor& by);
+    [[nodiscard]] std::vector<mlibs::agent::Claim> claims() const override;
+    [[nodiscard]] std::optional<mlibs::agent::Claim> claim_over(NodeId node, std::string_view actor) const;
+    [[nodiscard]] std::optional<Actor> acting() const;
+    [[nodiscard]] std::optional<Invocation> current_invocation() const;
+    [[nodiscard]] std::optional<std::uint64_t> pointer_gesture() const;
+    [[nodiscard]] NodeId undo_scope(NodeId node) const;
+    [[nodiscard]] History history(NodeId scope) const;
+    void clear_history(NodeId scope);
+    Envelope undo(NodeId scope, const Invocation& call = {…});
+    Envelope redo(NodeId scope, const Invocation& call = {…});
+    void begin_transaction(std::string label);
+    void begin_preview();
+    void end_preview();
+    [[nodiscard]] bool previewing() const noexcept;
+    Envelope commit_transaction();
+    Envelope rollback_transaction(const Invocation& call = {…});
+    [[nodiscard]] bool in_transaction() const noexcept;
+    [[nodiscard]] NodeId focused() const noexcept;
+    void focus_next(bool backward = false);
+    [[nodiscard]] Verbs& verbs() noexcept override;
+    [[nodiscard]] UiQueue& queue() noexcept;
+    [[nodiscard]] spec::SemanticNode semantic_node(NodeId node) const;
+    [[nodiscard]] std::optional<TextLayout> text_layout(NodeId node) const;
+    [[nodiscard]] std::vector<TextLineBox> text_lines(NodeId node) const;
+    [[nodiscard]] std::uint64_t semantic_revision() const noexcept;
+    [[nodiscard]] std::uint64_t semantic_content_revision() const noexcept;
+    struct SemanticGeometry {
+      std::optional<spec::Rect> bounds;
+      bool offscreen = false;
+      friend bool operator==(const SemanticGeometry&, const SemanticGeometry&) = default;
+    };
+    [[nodiscard]] SemanticGeometry semantic_geometry(NodeId node) const;
+    void set_theme(Theme theme);
+    void set_dark_preferred(bool dark);
+    [[nodiscard]] bool dark_preferred() const noexcept;
+    void set_theme_by_preference(std::function<Theme(bool dark)> chosen);
+    [[nodiscard]] bool theme_follows_preference() const noexcept;
+    void fonts_changed();
+    void want_fonts() noexcept;
+    [[nodiscard]] bool take_font_request() noexcept;
+    void set_scope(std::string_view name, Theme theme, std::vector<EffectRule> rules = {…});
+    void remove_scope(std::string_view name);
+    [[nodiscard]] const Theme* scope_theme(std::string_view name) const;
+    [[nodiscard]] const std::vector<EffectRule>* scope_rules(std::string_view name) const;
+    [[nodiscard]] const Theme& theme_of(NodeId node) const;
+    void set_reduce_motion(bool reduce);
+    [[nodiscard]] bool reduce_motion() const noexcept;
+    void set_motion_level(MotionLevel level);
+    [[nodiscard]] MotionLevel motion_level() const noexcept;
+    void set_route(std::string route);
+    [[nodiscard]] const std::string& route() const noexcept;
+    [[nodiscard]] std::uint64_t route_revision() const noexcept;
+    void set_motion_choice(std::string name);
+    [[nodiscard]] const std::string& motion_choice() const noexcept;
+    [[nodiscard]] std::vector<MotionState> motions() const;
+    bool hold_motion(NodeId node);
+    void release_motion(NodeId node);
+    void pause_motion(NodeId node);
+    void play_motion(NodeId node);
+    void seek_motion(NodeId node, double seconds);
+    void set_motion_rate(NodeId node, double rate);
+    [[nodiscard]] std::optional<std::pair<double, double>> motion_time(NodeId node) const;
+    void set_device_tier(mlibs::pipeline::Tier tier, std::string reason);
+    [[nodiscard]] const Adaptation& adaptation() const noexcept;
+    void set_adaptation(const Adaptation& a);
+    void set_governor(bool on);
+    void report_frame_cost(double ms);
+    void set_reduce_transparency(bool reduce);
+    void set_draws_unseen(bool whole);
+    [[nodiscard]] bool draws_unseen() const noexcept;
+    [[nodiscard]] const Theme& theme() const override;
+    [[nodiscard]] bool reduce_transparency() const override;
+    [[nodiscard]] bool gamepads_wanted() const noexcept;
+    void want_gamepads() noexcept;
+    void set_agent_players(bool allowed);
+    [[nodiscard]] bool agent_players() const override;
+    void add_subject(mlibs::agent::Subject& subject) override;
+    void remove_subject(mlibs::agent::Subject& subject) override;
+    [[nodiscard]] std::span<mlibs::agent::Subject* const> subjects() const noexcept;
+    std::uint64_t add_picture(std::function<std::optional<mrender::raster::ImageView>()> pixels) override;
+    std::uint64_t add_device_picture(std::function<std::optional<mlibs::rhi::Texture>()> texture) override;
+    void remove_picture(std::uint64_t number) override;
+    [[nodiscard]] std::optional<mrender::raster::ImageView> picture(std::uint64_t number) const;
+    [[nodiscard]] std::optional<mlibs::rhi::Texture> device_picture(std::uint64_t number) const;
+    void set_device(mlibs::rhi::Device* device) noexcept;
+    [[nodiscard]] mlibs::rhi::Device* device() const override;
+    [[nodiscard]] bool motion_reduced() const override;
+    [[nodiscard]] float pixel_scale() const override;
+    [[nodiscard]] bool deterministic() const override;
+    [[nodiscard]] bool complete_frames() const override;
+    void set_on_device(bool on);
+    void set_picture_reader(PictureReader reader);
+    [[nodiscard]] std::optional<std::expected<Picture, std::string>> read_picture(std::string_view source) override;
+    [[nodiscard]] bool on_device() const override;
+    [[nodiscard]] FrameDemandLease demand_frames(FrameDemand d) override;
+    void release_frames(std::uint64_t token) noexcept override;
+    void set_effect_rules(std::vector<EffectRule> rules);
+    [[nodiscard]] const std::vector<EffectRule>& effect_rules() const noexcept;
+    void crossfade(seconds length);
+    void crossfade(seconds length, std::string_view scope);
+    [[nodiscard]] const FrameDemand& frame_demand() const noexcept;
+    [[nodiscard]] double display_hz() const noexcept;
+    [[nodiscard]] mlibs::text::FontCollection& fonts() override;
+    [[nodiscard]] mrender::ImageStore& images() override;
+    [[nodiscard]] hanim::seconds now() const override;
+    [[nodiscard]] bool time_paused() const override;
+    [[nodiscard]] Rect bounds(NodeId node) const override;
+    [[nodiscard]] Rect drawn_bounds(NodeId node) const override;
+    [[nodiscard]] std::optional<Point> pointer() const override;
+    void watch_pointer(NodeId node) override;
+    [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> text_selection(NodeId node) const override;
+    void select_text(NodeId node, std::size_t anchor, std::size_t focus) override;
+    [[nodiscard]] std::string selected_text() const;
+    void clear_text_selection();
+    [[nodiscard]] Rect screen_bounds(NodeId node) const;
+    [[nodiscard]] Size content_size(NodeId node) const override;
+    [[nodiscard]] Insets content_insets(NodeId node) const override;
+    [[nodiscard]] NodeState state(NodeId node) const override;
+    void emit(NodeId node, std::string_view event, const Value& args) override;
+    void write_back(NodeId node, std::string_view property, const Value& value) override;
+    void invalidate_paint(NodeId node) override;
+    void invalidate_layout(NodeId node) override;
+    void invalidate_semantics(NodeId node) override;
+    void scrolled(NodeId node, Point to) override;
+    void restyle(NodeId node) override;
+    void recompose(NodeId node) override;
+    Model& model(std::string_view name) override;
+    [[nodiscard]] Signal<std::optional<Element>> outlet(std::string_view name) override;
+    NodeId reveal(std::string_view path) override;
+    [[nodiscard]] std::vector<spec::SemanticNode> virtual_items(NodeId node) const;
+    [[nodiscard]] std::optional<std::uint64_t> items_revision(NodeId node) const;
+    [[nodiscard]] std::optional<Point> scroll_offset(NodeId node) const;
+    void request_frame() override;
+    void moving(NodeId node) override;
+    void scroll_into_view(NodeId node) override;
+    void scroll_to_start(NodeId node) override;
+    void focus(NodeId node) override;
+    void focus_visibly(NodeId node);
+    void capture_pointer(NodeId node) override;
+    void release_pointer() override;
+    bool perform(NodeId node, std::string_view action, const Value& args) override;
+    void performed(NodeId node, std::string_view action, const Value& args, std::vector<Inverse> inverse) override;
+    void changed_outside_history(NodeId node) override;
+    void text_input(NodeId node, std::optional<Rect> caret) override;
+    [[nodiscard]] std::string clipboard_text() override;
+    void set_clipboard_text(std::string_view text) override;
+    hanim::Engine& engine() override;
+    std::uint64_t after(seconds delay, std::function<void()> fn) override;
+    std::uint64_t ambient_after(seconds delay, std::function<void()> fn) override;
+    void cancel(std::uint64_t timer) override;
+    [[nodiscard]] std::optional<Rect> text_input_rect() const noexcept;
+    [[nodiscard]] std::string_view cursor() const;
+    void set_clipboard(std::function<std::string()> read, std::function<void(std::string_view)> write);
+    void set_pointer_lock(std::function<bool(bool held)> host);
+    bool lock_pointer(NodeId node) override;
+    void unlock_pointer() override;
+    [[nodiscard]] NodeId pointer_locked_to() const override;
+    bool open_url(std::string_view url) override;
+    std::uint64_t open_web(std::string_view url, std::function<void(const WebPage&)> changed) override;
+    void place_web(std::uint64_t page, Rect bounds, bool shown) override;
+    bool command_web(std::uint64_t page, std::string_view command, std::string_view argument) override;
+    void close_web(std::uint64_t page) override;
+    [[nodiscard]] bool focusable(NodeId node) const override;
+    void set_url_opener(std::function<bool(std::string_view)> open, bool relative = false);
+    [[nodiscard]] const std::vector<std::string>& opened() const noexcept;
+    struct OfferedFile {
+      std::string name, type, bytes;
+    };
+    static constexpr std::size_t offered_kept = 16;
+    bool offer_file(OfferedFile file);
+    void set_file_offer(std::function<bool(const OfferedFile&)> offer);
+    [[nodiscard]] const std::deque<OfferedFile>& offered_files() const noexcept;
+    struct FileFilter {
+      std::string name;
+      std::string pattern;
+    };
+    struct FileChoice {
+      enum class Kind : std::uint8_t { open, save, folder };
+      Kind kind = Kind::open;
+      std::string title;
+      std::vector<FileFilter> filters;
+      bool many = false;
+      std::filesystem::path start;
+      std::string name;
+    };
+    using FilesChosen = std::function<void(std::vector<std::filesystem::path>)>;
+    struct Notice {
+      std::string title, body;
+      std::string verb;
+    };
+    struct MenuEntry {
+      std::string label;
+      std::string verb;
+      bool checked = false;
+    };
+    struct NativeSurfaces {
+      std::function<bool(const FileChoice&, FilesChosen chosen)> choose_files;
+      std::function<bool(const Notice&, std::function<void()> pressed)> notify;
+      std::function<bool(const std::vector<MenuEntry>&, std::string_view tooltip, std::function<void(std::string_view verb)> chosen)> tray;
+      std::function<std::uint64_t(std::string_view url, std::function<void(const WebPage&)> changed)> web_open;
+      std::function<void(std::uint64_t page, Rect bounds, bool shown)> web_place;
+      std::function<bool(std::uint64_t page, std::string_view command, std::string_view argument)> web_command;
+      std::function<void(std::uint64_t page)> web_close;
+    };
+    void set_native_surfaces(NativeSurfaces surfaces);
+    [[nodiscard]] const NativeSurfaces& native_surfaces() const noexcept;
+    [[nodiscard]] std::expected<std::string, ViewFailure> capture_svg(std::optional<Rect> region = {…});
+    void set_svg_capture(std::function<std::expected<std::string, ViewFailure>(Rect)> capture);
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, ViewFailure> capture_png(std::optional<Rect> region = {…});
+    void set_png_capture(std::function<std::expected<std::vector<std::uint8_t>, ViewFailure>(Rect)> capture);
+    [[nodiscard]] std::expected<Value, ViewFailure> reload_sources(const Value& request);
+    void set_source_reloader(std::function<std::expected<Value, ViewFailure>(const Value&)> reloader);
+    std::string link_agent() override;
+    void unlink_agent() override;
+    [[nodiscard]] const AgentLink& agent_link() const noexcept override;
+    [[nodiscard]] std::uint64_t agent_link_revision() const noexcept;
+    [[nodiscard]] Signal<Value> agent_link_signal() const;
+    struct AgentLinker {
+      std::function<std::string()> link;
+      std::function<void()> unlink;
+    };
+    void set_agent_linker(AgentLinker linker);
+    void agent_link_changed(AgentLink link);
+    void follow_actions(NodeId node, bool follow) override;
+    void point_out(NodeId by, std::string_view path) override;
+    [[nodiscard]] const std::string& pointed_out() const noexcept;
+    struct Impl;
+  };
+  class ShownPictures {
+    [[nodiscard]] std::optional<mlibs::rhi::Texture> texture(const Runtime& runtime, mlibs::rhi::Device& device, std::uint64_t number);
+    void release(mlibs::rhi::Device& device) noexcept;
+    [[nodiscard]] const std::string& failed() const noexcept;
+  };
+}
+== omui.view:theme
+namespace omui {
+  struct TextToken {
+    float size = 14;
+    float weight = 400;
+    float line_height = 1.4f;
+    float letter_spacing = 0;
+    std::vector<std::string> families{…};
+  };
+  struct ShadowLayer {
+    Point offset{…};
+    float blur = 8;
+    float spread = 0;
+    Color color{…};
+  };
+  struct ShadowToken {
+    Point offset{…};
+    float blur = 8;
+    float spread = 0;
+    Color color{…};
+    std::optional<ShadowLayer> ambient;
+    float tint = 0;
+  };
+  enum class MotionPrimitive : std::uint32_t { match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16, grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512, readable_text = 1024, write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768, arrivals = 65536, breathe = 131072, gather = 262144 };
+  struct MotionSpec {
+    enum class Kind : std::uint8_t { none, morph };
+    enum class Order : std::uint8_t { together, document, distance, reverse };
+    enum class TextTransition : std::uint8_t { glyphs, replace, automatic };
+    enum class PlacementPolicy : std::uint8_t { automatic, animate, follow_layout };
+    Kind kind = Kind::morph;
+    Transition curve = Transition::spring_with();
+    Order order = Order::together;
+    double stagger = 0;
+    bool arrivals = false;
+    bool glyphs = true;
+    TextTransition text = TextTransition::glyphs;
+    float text_rise = 0.35f;
+    float glyph_roll = 0;
+    double minimum_text_contrast = 4.5;
+    bool meaning = true;
+    hanim::Presence appear = *hanim::presence("fade_in", {…});
+    hanim::Presence vanish = *hanim::presence("fade_out", {…});
+    float stretch = 0;
+    PlacementPolicy placement = PlacementPolicy::automatic;
+    bool local_presence = false;
+    std::uint32_t primitives = 0;
+    struct Travel {
+      std::string effect;
+      std::vector<std::pair<std::string, float>> params;
+      std::string param;
+      float peak = 0;
+      std::string color;
+      bool rises = false;
+      friend bool operator==(const Travel&, const Travel&) = default;
+    };
+    std::optional<Travel> travel;
+    std::string name;
+    hanim::PointPath vertex_path;
+    hanim::PointPath translation_path;
+    bool reshape = false;
+    float press = 0;
+    double press_length = 0;
+    bool breathe = false;
+    bool gather = false;
+    friend bool operator==(const MotionSpec&, const MotionSpec&);
+  };
+  [[nodiscard]] MotionSpec compose_motion(std::initializer_list<MotionPrimitive> parts, Transition timing = Transition::spring_with());
+  [[nodiscard]] std::optional<MotionPrimitive> motion_primitive(std::string_view name);
+  [[nodiscard]] std::string_view motion_primitive_name(MotionPrimitive primitive);
+  struct ComponentMotionRecipe {
+    std::string_view component, update, state, enter, exit;
+  };
+  [[nodiscard]] std::span<const ComponentMotionRecipe> default_component_motion_recipes();
+  struct MotionRule {
+    enum class Layer : std::uint8_t { framework, style, style_targeted, application };
+    std::string target;
+    std::string slot = "update";
+    MotionSpec spec;
+    std::vector<MotionSpec> instead;
+    Layer layer = Layer::application;
+  };
+  inline constexpr auto motion_slots = [] {…}();
+  inline constexpr std::size_t ambient_slot = 6;
+  [[nodiscard]] std::vector<MotionRule> default_motion_rules();
+  [[nodiscard]] std::map<std::string, MotionSpec, std::less<>> default_motion_library();
+  class Theme {
+    std::string name = "light";
+    bool dark = false;
+    float density = 1;
+    float corner_smoothing = 0;
+    float disabled_opacity = 0.45f;
+    [[nodiscard]] CornerRadii radii(float radius) const noexcept;
+    std::map<std::string, Color, std::less<>> colors;
+    std::map<std::string, TextToken, std::less<>> text;
+    std::map<std::string, float, std::less<>> spacing;
+    std::map<std::string, float, std::less<>> radius;
+    std::map<std::string, ShadowToken, std::less<>> shadows;
+    std::map<std::string, Transition, std::less<>> motion;
+    std::vector<MotionRule> motion_rules = default_motion_rules();
+    std::map<std::string, MotionSpec, std::less<>> motion_library = default_motion_library();
+    [[nodiscard]] Color color(std::string_view token_or_hex, Color fallback = Color::black()) const;
+    [[nodiscard]] const TextToken& text_style(std::string_view token) const;
+    [[nodiscard]] float space(std::string_view token, float fallback = 0) const;
+    [[nodiscard]] float corner(std::string_view token, float fallback = 0) const;
+    [[nodiscard]] Transition transition(std::string_view token) const;
+    [[nodiscard]] float scaled(float v) const noexcept;
+    [[nodiscard]] Value describe() const;
+    [[nodiscard]] static Theme light();
+    [[nodiscard]] static Theme dark_theme();
+  };
+  [[nodiscard]] std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme);
+  [[nodiscard]] std::optional<std::vector<MotionSpec>> parse_motions(const Value& v, const Theme& theme);
+  void paint_shadow(mrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity = 1, Color object = Color::transparent());
+}
+== omui.view:window
+namespace omui {
+  enum class WindowState : std::uint8_t { normal, maximized, minimized, fullscreen };
+  [[nodiscard]] std::string_view name(WindowState s) noexcept;
+  class WindowHost {
+    virtual ~WindowHost() = default;
+    [[nodiscard]] virtual bool framework_drawn() const noexcept = 0;
+    virtual void minimize() = 0;
+    virtual void toggle_maximize() = 0;
+    virtual void set_fullscreen(bool on) = 0;
+    virtual void request_close() = 0;
+    virtual bool pass_through(bool on) = 0;
+    virtual bool set_framework_drawn(bool);
+  };
+  class Window {
+    Window();
+    void attach(WindowHost* host, Verbs& verbs);
+    void detach() noexcept;
+    [[nodiscard]] WindowHost* host() const noexcept;
+    void set_state(WindowState s);
+    void set_active(bool active);
+    void set_closing(bool closing);
+    void set_transparent(bool transparent);
+    void set_shown(bool shown);
+    [[nodiscard]] WindowState state() const;
+    [[nodiscard]] bool active() const;
+    [[nodiscard]] bool closing() const;
+    [[nodiscard]] bool framework_drawn() const;
+    [[nodiscard]] bool transparent() const;
+    [[nodiscard]] bool shown() const;
+    Signal<std::string> state_name;
+    Signal<bool> is_active;
+    Signal<bool> is_closing;
+    Signal<bool> is_framework;
+    Signal<bool> is_transparent;
+    Signal<bool> is_shown;
+  };
+  [[nodiscard]] Window& window();
+  [[nodiscard]] WindowArea window_area_at(const Runtime& rt, Point p, Size size, float margin = 6);
+}

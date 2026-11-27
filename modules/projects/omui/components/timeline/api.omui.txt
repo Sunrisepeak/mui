@@ -1,0 +1,26 @@
+== omui.ui.timeline
+export import :timeline_editor_contract;
+export import :view;
+== omui.ui.timeline:view
+namespace omui {
+  class TimelineEditor : public TimelineEditorContract<TimelineEditor> {
+    static constexpr bool focusable = true;
+    void mounted();
+    void prop_changed(TimelineEditorProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    ActResult seek(ActContext& ctx, const Value& frame);
+    ActResult select(ActContext& ctx, const SelectArgs& args);
+    ActResult move(ActContext& ctx, const MoveArgs& args);
+    ActResult trim(ActContext& ctx, const TrimArgs& args);
+    ActResult split(ActContext& ctx);
+    ActResult remove(ActContext& ctx, const Value& ripple);
+    ActResult revert(ActContext& ctx, const Value& change);
+    [[nodiscard]] const hanim::timeline::Timeline& model() const noexcept;
+    [[nodiscard]] const std::vector<std::string>& problems() const noexcept;
+    [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> selection() const noexcept;
+    static constexpr float ruler = 26, track_height = 46, header = 112;
+  };
+}

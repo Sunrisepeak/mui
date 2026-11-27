@@ -1,0 +1,67 @@
+# hanim.studio — animation as a document an Agent or a person writes
+# (`<name>.animation.xdef.json`), and the `hanim` command that checks,
+# samples and renders it without a GUI. Its own package: the CLI's
+# dependencies (JSON, image encoding, the CPU raster) stay out of hanim's.
+[package]
+namespace   = "hanim"
+name        = "studio"
+version     = "0.1.0"
+description = "hanim's animation tool: animation documents checked, sampled and rendered headless (the hanim command)"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the hanim command and its studio"
+reexports = ["mlibs.agent", "mlibs.control", "mrender.raster"]  # what its interface re-exports (lint module-closure)
+kind = "tool"
+agent = "tool"
+
+[targets.hanim-studio]
+kind = "lib"
+
+[targets.hanim]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+# `agent`: the stage as an agent's subject — this package's tests hold it to the agent contract (stage_test).
+sunrisepeak.hanim = { path = "..", features = ["render-vector", "control", "agent"] }
+# The hanim command writes frames as SVG (mrender.vector.svg).
+mrender.vector = { path = "../../mrender/vector" }
+mrender.raster = { path = "../../mrender/raster" }
+mlibs.control  = { path = "../../../base/control" }
+# The command is the subject `document` behind the tool kernel's entries (mlibs.agent:host, T0).
+mlibs.agent    = { path = "../../../base/agent" }
+mlibs.json     = { path = "../../../base/json" }
+mlibs.image    = { path = "../../../base/image" }
+mlibs.utils    = { path = "../../../base/utils" }
+openlifa.openas = "0.2.1"
+mcpplibs.os    = "0.4.8"
+nlohmann.json  = "3.12.0"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.11.3"
+# stage_test: the agent contract's suite on hanim's stage.
+mlibs.agent.cts = { path = "../../../base/agent/cts" }
+mlibs.json      = { path = "../../../base/json" }
+mlibs.utils = { path = "../../../base/utils" }
+mlibs.rhi = { path = "../../../gfx/rhi" }
+mrender.rhi.sdl = { path = "../../mrender/rhi/sdl" }
+# rhi_sdl_test: hanim.rhi's suite on SDL_GPU. The owner runs its suite against a backend (D-161);
+# here, because hanim.rhi runs on the Web too and this backend does not.
+hanim.rhi = { path = "../rhi" }
+mlibs.cts = { path = "../../../base/cts" }
+mcpplibs.os = "0.4.8"
+
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { animation = 1, variants = 1 }

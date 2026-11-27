@@ -1,0 +1,32 @@
+# mlibs.text.subset — a TrueType face cut down to the characters a product shows:
+# glyph ids, metrics and layout tables kept, the outlines no kept character
+# reaches emptied, the Unicode cmap only what was asked for; a face's stored
+# glyph names removed for delivery; the blocks a face covers. Bytes in, bytes
+# out, the standard library alone — a package of its own so that a build-stage
+# tool (omui-gen's packer) and a site's builder (oweb) cut faces without the
+# text engine in their closure.
+[package]
+namespace   = "mlibs.text"
+name        = "subset"
+version     = "0.1.0"
+description = "A TrueType face cut to the characters a product shows: glyph ids, metrics and layout kept; delivery without glyph names; a face's coverage by blocks"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: the capability's label (D-189) — omui-gen's subsetter, moved as it was with its tests
+separate = "dependency: bytes in and out on the standard library alone, for build-stage tools and site builders that carry no text engine"
+kind = "tool"
+
+[targets.mlibs-text-subset]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils = { path = "../../../base/utils" }  # mlibs.testing: the repository's root, a scratch directory
+mlibs.text    = { path = ".." }                  # the cut face read back: coverage, fallback, metrics, shaping
+"mlibs.text.harfbuzz" = { path = "../harfbuzz" }
+"mlibs.text.fonts" = { path = "../fonts" }         # the faces cut in the tests

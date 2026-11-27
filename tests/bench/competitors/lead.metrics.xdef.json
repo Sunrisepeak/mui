@@ -1,0 +1,1090 @@
+{
+  "doc": "The metrics each project is judged by (Part 2 plan §2, §4; D-135): fixed and reviewed before they are measured, never dropped for a bad result. status = \"measured\"           bench competitors --ledger measures it (series in key/field) \"planned\"            on the list, its harness not written yet (LD1) \"unverified\"   needs a device neither this machine nor CI has better = \"lower\" | \"higher\"   for our value core   = false                reported, not counted in \"no core metric behind\" A measured metric pairs `ours` with each of `competitors` round by round (series names as run.sh tags them: tools/eval/lead.py sample), on `key`'s `field`; tools/eval/lead.py verdict writes the ledger line.",
+  "metric": [
+    {
+      "project": "hanim",
+      "id": "motion.drive-1000.web.mean_ms",
+      "about": "1000 values retargeted every 30 frames, a 60 Hz frame at a time: mean frame (wasm in node vs GSAP in the same node)",
+      "better": "lower",
+      "key": "drive-1000",
+      "field": "mean_ms",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "gsap"
+      ],
+      "status": "measured",
+      "doc": "--- hanim: interactive motion, the Web (the same V8) -----------------------"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.drive-1000.web.p95_ms",
+      "about": "the same work: the 95th percentile frame",
+      "better": "lower",
+      "key": "drive-1000",
+      "field": "p95_ms",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "gsap"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.drive-1000.web.max_ms",
+      "about": "the same work: the worst frame (the one that retargets all 1000)",
+      "better": "lower",
+      "key": "drive-1000",
+      "field": "max_ms",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "gsap"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.drive-10k.web.mean_ms",
+      "about": "10,000 values, otherwise as drive-1000; also against Motion (motion.dev)",
+      "better": "lower",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "gsap",
+        "motion"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.document.bytes",
+      "about": "the same 10 s brand animation: document size (gzip)",
+      "better": "lower",
+      "ours": "hanim",
+      "competitors": [
+        "lottie",
+        "rive"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.playback.ms",
+      "about": "the same 10 s brand animation: playback frame time",
+      "better": "lower",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "rive",
+        "lottie-web"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.gpu.morph-1m.ms",
+      "about": "a morph of 1,000,000 control points on a real GPU",
+      "better": "lower",
+      "ours": "hanim-gpu",
+      "competitors": [
+        "hanim-cpu"
+      ],
+      "status": "unverified",
+      "needs": "a physical GPU SDL_GPU can open: this machine's RTX 4080 has no VK_EXT_headless_surface, so SDL's offscreen driver cannot use it (needs an X/Wayland display)"
+    },
+    {
+      "project": "hanim",
+      "id": "playback.lottie-200.median_ms",
+      "about": "a Lottie animation of 200 rounded rectangles (move, turn, scale, fade on cubic-bezier eases), every frame sought and drawn on one CPU thread at 512²: hanim's engine and mrender against ThorVG playing the Lottie file (the same picture: 0.002 % of pixels apart); rlottie draws it differently (no turn or scale) and is not compared",
+      "better": "lower",
+      "key": "lottie-200",
+      "field": "median_ms",
+      "ours": "hanim",
+      "competitors": [
+        "thorvg"
+      ],
+      "status": "measured",
+      "doc": "--- hanim: Lottie-like playback, native CPU ----------------------------------"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.fills-1000.median_ms",
+      "about": "1000 translucent blobs of six cubics",
+      "better": "lower",
+      "key": "fills-1000",
+      "field": "median_ms",
+      "ours": "mrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured",
+      "doc": "--- mrender: the CPU raster, five seeded scenes at 1024², one thread -------"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.gradients-200.median_ms",
+      "about": "200 blobs with two-stop linear gradients",
+      "better": "lower",
+      "key": "gradients-200",
+      "field": "median_ms",
+      "ours": "mrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.small-5000.median_ms",
+      "about": "5000 opaque triangles of 2–8 px",
+      "better": "lower",
+      "key": "small-5000",
+      "field": "median_ms",
+      "ours": "mrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.strokes-500.median_ms",
+      "about": "open cubics 1–12 px wide, round caps and joins",
+      "better": "lower",
+      "key": "strokes-500",
+      "field": "median_ms",
+      "ours": "mrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.joins-300.median_ms",
+      "about": "polylines with sharp corners, every join and cap",
+      "better": "lower",
+      "key": "joins-300",
+      "field": "median_ms",
+      "ours": "mrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.fills-1000.error",
+      "about": "quality: mean channel difference from Skia's picture (resvg's the competitor; Skia is the reference)",
+      "better": "lower",
+      "key": "fills-1000",
+      "field": "error_vs_skia",
+      "ours": "mrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.gradients-200.error",
+      "about": "quality, as fills-1000.error",
+      "better": "lower",
+      "key": "gradients-200",
+      "field": "error_vs_skia",
+      "ours": "mrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.small-5000.error",
+      "about": "quality, as fills-1000.error",
+      "better": "lower",
+      "key": "small-5000",
+      "field": "error_vs_skia",
+      "ours": "mrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.strokes-500.error",
+      "about": "quality, as fills-1000.error",
+      "better": "lower",
+      "key": "strokes-500",
+      "field": "error_vs_skia",
+      "ours": "mrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.joins-300.error",
+      "about": "quality, as fills-1000.error",
+      "better": "lower",
+      "key": "joins-300",
+      "field": "error_vs_skia",
+      "ours": "mrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.small-5000.exact_error",
+      "about": "quality: mean channel difference from the picture itself (Skia's and resvg's drawings at 8×, box-filtered, averaged; vector.mjs prints how far the two are apart, and a scene where that exceeds the renderers' margin is not a metric: fills, gradients and joins)",
+      "better": "lower",
+      "key": "small-5000",
+      "field": "error_vs_exact",
+      "ours": "mrender",
+      "competitors": [
+        "resvg",
+        "skia"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.strokes-500.exact_error",
+      "about": "quality, as small-5000.exact_error",
+      "better": "lower",
+      "key": "strokes-500",
+      "field": "error_vs_exact",
+      "ours": "mrender",
+      "competitors": [
+        "resvg",
+        "skia"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.cjk-5000.median_ms",
+      "about": "5000 CJK glyphs",
+      "better": "lower",
+      "ours": "mrender",
+      "competitors": [
+        "skia"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.web.submit-5000.ms",
+      "about": "5000 draws a frame from WebAssembly: boundary crossings and JavaScript time",
+      "better": "lower",
+      "ours": "mrender-wasm",
+      "competitors": [
+        "canvaskit"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "mrender",
+      "id": "raster.wasm.bytes",
+      "about": "the raster core as WebAssembly (gzip)",
+      "better": "lower",
+      "ours": "mrender-wasm",
+      "competitors": [
+        "thorvg"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "mrender",
+      "id": "gpu.fills-1000.ms",
+      "about": "the five scenes on a real GPU",
+      "better": "lower",
+      "ours": "mrender-gpu",
+      "competitors": [
+        "vello",
+        "graphite"
+      ],
+      "status": "unverified",
+      "needs": "a physical GPU SDL_GPU can open: this machine's RTX 4080 has no VK_EXT_headless_surface, so SDL's offscreen driver cannot use it (needs an X/Wayland display)"
+    },
+    {
+      "project": "omui",
+      "id": "ui.cold-start.ms",
+      "about": "a settings page of 40 controls: start to first frame (desktop)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh"
+      ],
+      "status": "planned",
+      "doc": "--- omui -------------------------------------------------------------------"
+    },
+    {
+      "project": "omui",
+      "id": "web.first-paint.mobile.ms",
+      "about": "the site's home under Lighthouse mobile (1.6 Mbps, 150 ms RTT, 4× CPU)",
+      "better": "lower",
+      "ours": "omui-site",
+      "competitors": [
+        "flutter-web",
+        "react-ssr"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "web.interactive.mobile.ms",
+      "about": "the same page: interactive",
+      "better": "lower",
+      "ours": "omui-site",
+      "competitors": [
+        "flutter-web"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "web.first-load.bytes",
+      "about": "the home page's first load (compressed, with its font subset)",
+      "better": "lower",
+      "ours": "omui-site",
+      "competitors": [
+        "flutter-web",
+        "react-ssr",
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "ui.list-10k.p99_ms",
+      "about": "a 10,000-row virtual list scrolling with 200 animations running: p99 frame",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "flutter",
+        "compose"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "ui.memory-10k.bytes",
+      "about": "an application of 10,000 nodes: resident memory",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "flutter"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "ui.input-latency.frames",
+      "about": "press to changed pixels at 120 Hz",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "flutter",
+        "slint",
+        "nsh"
+      ],
+      "status": "unverified",
+      "needs": "a 120 Hz display and a latency probe"
+    },
+    {
+      "project": "omui",
+      "id": "ui.hot-reload.ms",
+      "about": "a view file or script changed to the frame updated, state kept",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "flutter",
+        "react-vite",
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "agent.ui-tasks.success",
+      "about": "100 UI tasks: success rate through the semantic interface",
+      "better": "higher",
+      "ours": "omui-semantic",
+      "competitors": [
+        "a11y-tree-agent",
+        "screenshot-agent"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "agent.ui-tasks.tokens",
+      "about": "the same tasks: tokens a task",
+      "better": "lower",
+      "ours": "omui-semantic",
+      "competitors": [
+        "a11y-tree-agent",
+        "screenshot-agent"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "agent.connect.lines",
+      "about": "lines an application adds to give agents every operation",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "webmcp"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "agent.build-ui.success",
+      "about": "a coding agent building or fixing an interface: success rate (B)",
+      "better": "higher",
+      "ours": "omui",
+      "competitors": [
+        "react-vite-playwright",
+        "flutter"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.live-dashboard.frame.p95_ms",
+      "about": "a live dashboard (22 sparklines, an order book and a tape updating together) at 120 Hz: the main thread's time a drawn frame, p95 (NSH's Stocks; its floor: Linux 5-6 ms, macOS 2.7-3.7, Windows 3.7-4.3)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned",
+      "doc": "--- omui: the core standard metrics, NSH the floor (D-247) ------------------"
+    },
+    {
+      "project": "omui",
+      "id": "core.list-scroll.frame.p95_ms",
+      "about": "a list scrolling at the display's rate: frame p95 (floor: Linux 1.7 ms, macOS 1.6, Windows 2.0)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.rest.cpu_percent",
+      "about": "the smallest application at rest: its processor time over 5 s, as a percent of one core (NSH's floor: no frame drawn, 0-5 %); a round where ours is 0 gives no ratio",
+      "better": "lower",
+      "key": "hello",
+      "field": "idle_cpu_percent",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.start.hello.cold.ms",
+      "about": "the smallest application: start to its first presented frame equal to the settled picture, cold (its files and the libraries it maps dropped from the page cache) — the consensus start metric (§2a.1: TTID, Flutter's time to first frame), the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window, measured from outside the process on an X server — the harness's own (Xvfb) or, with --screen, this machine's display; each record's `display` says which and what each side drew with",
+      "better": "lower",
+      "key": "hello",
+      "field": "start_cold_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.start.hello.warm.ms",
+      "about": "the same start, warm: launched again at once",
+      "better": "lower",
+      "key": "hello",
+      "field": "start_warm_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.click-to-frame.counter.ms",
+      "about": "a counter: the button let go (XTEST) to the first presented frame whose count changed — input to the next frame (§2a.1: INP, typometer), the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window, measured from outside the process on an X server — the harness's own (Xvfb) or, with --screen, this machine's display; each record's `display` says which and what each side drew with",
+      "better": "lower",
+      "key": "counter",
+      "field": "click_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.memory.hello.uss.bytes",
+      "about": "the smallest application at rest: USS (private clean and dirty: its own code mapped, and what it wrote)",
+      "better": "lower",
+      "core": false,
+      "key": "hello",
+      "field": "uss_bytes",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.memory.hello.pss.bytes",
+      "about": "the smallest application at rest: PSS (its share of the shared libraries' pages added)",
+      "better": "lower",
+      "core": false,
+      "key": "hello",
+      "field": "pss_bytes",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.rest.wakeups_per_s",
+      "about": "the smallest application at rest: its threads' context switches a second (pidstat -w -t over 5 s) — the idle wakeups (§2a.1)",
+      "better": "lower",
+      "core": false,
+      "key": "hello",
+      "field": "idle_wakeups_per_s",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.live-board.present.p95_ms",
+      "about": "a live market board at 1896 × 1030 — omui: the board of tests/bench's core/live-dashboard (22 sparklines, a 40-level book, a 30-row tape, a tick every 1/120 s); NSH: its gallery's Stocks — the interval between presented frames, p95 (§2a.1: frame time by presentation), measured from outside the process on the display each record's `display` names (the harness's Xvfb, where every GL side draws on the CPU, or this machine's own)",
+      "better": "lower",
+      "key": "market",
+      "field": "present_p95_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.live-board.cpu-per-frame.ms",
+      "about": "the same board: the processor (all threads) per presented frame",
+      "better": "lower",
+      "key": "market",
+      "field": "cpu_ms_per_frame",
+      "ours": "omui-app",
+      "competitors": [
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.list-10k.scroll.present.p95_ms",
+      "about": "10,000 rows of three parts (a title, a state, a button), virtual, at 1896 × 1030, the wheel turned every 1/120 s: the interval between presented frames, p95, measured from outside the process on the display each record's `display` names (the harness's Xvfb, where every GL side draws on the CPU, or this machine's own)",
+      "better": "lower",
+      "key": "list",
+      "field": "present_p95_ms",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "ui.list-10k.scroll.cpu-per-frame.ms",
+      "about": "the same scroll: the processor (all threads) per presented frame",
+      "better": "lower",
+      "key": "list",
+      "field": "cpu_ms_per_frame",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.engine-start.us",
+      "about": "the engine started, without a window (floor: 75-155 us)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.first-frame.counter.ms",
+      "about": "a counter application's first frame, the engine's time for it, release (floor: 1.05-1.15 ms)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.tap-to-commit.ms",
+      "about": "one tap, from the event to the commit (floor: 0.12 ms)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "core.memory.hello.private-dirty.bytes",
+      "about": "the smallest windowed application at rest (5 s after its first frame): private dirty memory, read with pmap from outside (the application comparisons (omui-devtools bench apps; tests/bench/competitors/apps): the same app in an 800 × 600 window, measured from outside the process on an X server — the harness's own (Xvfb) or, with --screen, this machine's display; each record's `display` says which and what each side drew with); NSH's published floor on Linux with GL: 41.6 MiB native, 45.4 scripted",
+      "better": "lower",
+      "key": "hello",
+      "field": "private_dirty_bytes",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.size.hello.executable.bytes",
+      "about": "the smallest application's programs and libraries as shipped, each stripped (NSH's published floor: Linux 21.5 MB native, 25.7 scripted; macOS 12.4, 19.8; Windows 25.3, 28.6)",
+      "better": "lower",
+      "key": "hello",
+      "field": "executable_bytes",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.size.hello.package.bytes",
+      "about": "the smallest application's package, its directory as tar.gz (gzip's default level), the same archiver for every side (NSH's published floor: Linux 9.7 MB native, 11.6 scripted; macOS 6.0, 9.5; Windows 10.7, 12.4)",
+      "better": "lower",
+      "key": "hello",
+      "field": "package_bytes",
+      "ours": "omui-app",
+      "competitors": [
+        "slint",
+        "flutter",
+        "nsh-rust",
+        "nsh-ts"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "omui",
+      "id": "core.size.hello.app-code.bytes",
+      "about": "a scripted hello's own code, its run time shared (floor: under 1 KB)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "nsh"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "terminal.size.counter.program.bytes",
+      "about": "the smallest terminal application (a count and two buttons, tests/bench/competitors/terminal): its own files as each ecosystem's release builds them — a native program stripped, Ink's minified bundle (terminal design §5: 1 MB, the first tier); planned: taken by hand until bench apps builds the sides",
+      "better": "lower",
+      "ours": "omui-terminal",
+      "competitors": [
+        "ftxui",
+        "ratatui",
+        "ink"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "terminal.size.counter.runtime.bytes",
+      "about": "the same counter with what it needs at run time that a Linux system does not have: Ink's Node counted, the system's C and C++ libraries not",
+      "better": "lower",
+      "core": false,
+      "ours": "omui-terminal",
+      "competitors": [
+        "ftxui",
+        "ratatui",
+        "ink"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui.components",
+      "id": "components.canvas-1000.frame_ms",
+      "about": "1000 live components on a canvas: frame time",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "figma-like-dom"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "meng",
+      "id": "physics.pyramid.step_ms",
+      "about": "Box2D v3's benchmark scenes (pyramid, tumbler, chains): step time",
+      "better": "lower",
+      "ours": "meng.dynamics",
+      "competitors": [
+        "box2d-v3",
+        "rapier"
+      ],
+      "status": "planned",
+      "doc": "--- meng ----------------------------------------------------------------"
+    },
+    {
+      "project": "meng",
+      "id": "world.iterate-100k.ms",
+      "about": "100,000 entities iterated",
+      "better": "lower",
+      "ours": "meng",
+      "competitors": [
+        "bevy"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "meng",
+      "id": "cellular.4096.fps",
+      "about": "a 4096² cellular field on a GPU",
+      "better": "higher",
+      "ours": "meng.cellular",
+      "competitors": [
+        "noita-like"
+      ],
+      "status": "unverified",
+      "needs": "a physical GPU"
+    },
+    {
+      "project": "meng",
+      "id": "agent.game-tasks.success",
+      "about": "game development tasks: native (meng) against an adapter (Godot 4 + MCP plug-in)",
+      "better": "higher",
+      "ours": "meng",
+      "competitors": [
+        "godot-mcp"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "gongfu",
+      "id": "rollback.8-frames.ms",
+      "about": "roll back 8 frames and resimulate (desktop)",
+      "better": "lower",
+      "ours": "gongfu",
+      "competitors": [
+        "ggrs"
+      ],
+      "status": "planned",
+      "doc": "--- gongfu -----------------------------------------------------------------"
+    },
+    {
+      "project": "mlibs",
+      "id": "text.paragraph.ms",
+      "about": "paragraph layout (shaping is HarfBuzz on both sides)",
+      "better": "lower",
+      "ours": "mlibs.text",
+      "competitors": [
+        "skparagraph"
+      ],
+      "status": "planned",
+      "doc": "--- mlibs ------------------------------------------------------------------"
+    },
+    {
+      "project": "mlibs",
+      "id": "layout.flex-grid-5000.ms",
+      "about": "5000 nodes of nested flex and grid, a full layout",
+      "better": "lower",
+      "ours": "mlibs.layout",
+      "competitors": [
+        "taffy",
+        "yoga"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "mlibs",
+      "id": "markdown.html.web.median_ms",
+      "about": "Markdown to HTML, the whole way, on 1 MiB of the repository's own docs, in one V8: mlibs.markdown (md4c's parse, the document, its HTML) against md4c's own HTML writer (md4w) and markdown-it",
+      "better": "lower",
+      "key": "markdown",
+      "field": "median_ms",
+      "ours": "mlibs.markdown-wasm",
+      "competitors": [
+        "md4w",
+        "markdown-it"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mlibs",
+      "id": "markdown.commonmark.pass",
+      "about": "CommonMark and GFM spec examples passed",
+      "better": "higher",
+      "ours": "mlibs.markdown",
+      "competitors": [
+        "md4c",
+        "cmark-gfm"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "mlibs",
+      "id": "i18n.data.bytes",
+      "about": "locale data for the same coverage",
+      "better": "lower",
+      "ours": "mlibs.i18n",
+      "competitors": [
+        "icu4x"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "oweb",
+      "id": "site.build.ms",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the build's wall time, nothing written before it",
+      "better": "lower",
+      "key": "docs",
+      "field": "build_ms",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured",
+      "doc": "--- oweb: a site of documents (documents alone; then with the program that draws them) ---"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.transfer.bytes",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): what a route transfers on a cold visit, scripts on (the median route)",
+      "better": "lower",
+      "key": "docs",
+      "field": "route_transfer_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.blocking.bytes",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): what a route's first paint waits for: the document and what the browser marks as blocking the rendering",
+      "better": "lower",
+      "key": "docs",
+      "field": "route_blocking_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.requests",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the requests of a cold visit of a route",
+      "better": "lower",
+      "key": "docs",
+      "field": "route_requests",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.fcp.mobile.ms",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): a route's first contentful paint under Lighthouse's mobile profile (1.6 Mbps, 150 ms, 4× CPU)",
+      "better": "lower",
+      "key": "docs",
+      "field": "fcp_ms",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.route.lcp.mobile.ms",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): a route's largest contentful paint under the same profile",
+      "better": "lower",
+      "key": "docs",
+      "field": "lcp_ms",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.written.bytes",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the whole site as stored",
+      "better": "lower",
+      "core": false,
+      "key": "docs",
+      "field": "written_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.engine.route.transfer.bytes",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the same route once its page has taken the program that draws and operates it (oweb.reader), against their pages with their scripts",
+      "better": "lower",
+      "key": "docs",
+      "field": "route_transfer_bytes",
+      "ours": "oweb-engine",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.engine.build.ms",
+      "about": "the minimal documents (eight routes) built by each side at its pin (omui-devtools bench sites): the build with every page written as its frame looks, for the program to take over",
+      "better": "lower",
+      "core": false,
+      "key": "docs",
+      "field": "build_ms",
+      "ours": "oweb-engine",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.scale.build.ms",
+      "about": "a site of 1,001 pages in directories of 50, made from the minimal documents' pages and built by each side at its pin with the navigation its starter states for that shape (omui-devtools bench sites --scale 1000): the build's wall time, nothing written before it",
+      "better": "lower",
+      "key": "scale-1000",
+      "field": "build_ms",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.scale.page.sent.bytes",
+      "about": "a site of 1,001 pages in directories of 50, made from the minimal documents' pages and built by each side at its pin with the navigation its starter states for that shape (omui-devtools bench sites --scale 1000): one page deep in the site, its HTML as a static host sends it (gzip)",
+      "better": "lower",
+      "key": "scale-1000",
+      "field": "page_sent_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.scale.written.bytes",
+      "about": "a site of 1,001 pages in directories of 50, made from the minimal documents' pages and built by each side at its pin with the navigation its starter states for that shape (omui-devtools bench sites --scale 1000): everything the build wrote, as stored",
+      "better": "lower",
+      "key": "scale-1000",
+      "field": "written_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    }
+  ]
+}

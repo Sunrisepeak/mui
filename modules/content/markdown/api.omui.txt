@@ -1,0 +1,101 @@
+== mlibs.markdown
+export import mlibs.markdown.api;
+== mlibs.markdown.api
+namespace mlibs::markdown {
+  enum class Extension : std::uint32_t { none = 0, tables = 1u << 0, strikethrough = 1u << 1, tasklists = 1u << 2, url_autolinks = 1u << 3, www_autolinks = 1u << 4, email_autolinks = 1u << 5, underline = 1u << 6, math = 1u << 7, wikilinks = 1u << 8, hard_breaks = 1u << 9, no_html_blocks = 1u << 10, no_html_spans = 1u << 11, no_indented_code = 1u << 12, permissive_atx_headers = 1u << 13, collapse_whitespace = 1u << 14, };
+  [[nodiscard]] constexpr Extension operator|(Extension a, Extension b) noexcept;
+  [[nodiscard]] constexpr Extension operator&(Extension a, Extension b) noexcept;
+  [[nodiscard]] constexpr bool has(Extension set, Extension e) noexcept;
+  inline constexpr Extension commonmark = Extension::none;
+  inline constexpr Extension autolinks = Extension::url_autolinks | Extension::www_autolinks | Extension::email_autolinks;
+  inline constexpr Extension no_html = Extension::no_html_blocks | Extension::no_html_spans;
+  inline constexpr Extension gfm = Extension::tables | Extension::strikethrough | Extension::tasklists | autolinks;
+  [[nodiscard]] std::optional<Extension> extension(std::string_view name) noexcept;
+  [[nodiscard]] Extension extensions(std::span<const std::string> names) noexcept;
+  enum class Kind : std::uint8_t { document, quote, bullet_list, ordered_list, item, rule, heading, code, html, paragraph, table, table_head, table_body, table_row, table_cell, };
+  [[nodiscard]] std::string_view name(Kind k) noexcept;
+  enum class Align : std::uint8_t { none, left, center, right };
+  enum class Task : std::uint8_t { none, open, done };
+  enum class Span : std::uint8_t { emphasis, strong, code, strikethrough, underline, link, image, html, math, display_math, wikilink, };
+  inline constexpr std::size_t span_count = 11;
+  [[nodiscard]] constexpr std::uint16_t bit(Span s) noexcept;
+  enum class Op : std::uint8_t { open, close, soft_break, hard_break };
+  inline constexpr std::uint32_t no_ref = 0xffffffffu;
+  struct Mark {
+    std::uint32_t at = 0;
+    Op op = Op::open;
+    Span span = Span::emphasis;
+    std::uint32_t ref = no_ref;
+  };
+  struct Inline {
+    std::string text;
+    std::vector<Mark> marks;
+  };
+  struct Link {
+    std::string href;
+    std::string title;
+    bool autolink = false;
+  };
+  struct Block {
+    Kind kind = Kind::paragraph;
+    std::uint8_t level = 0;
+    bool tight = false;
+    char mark = 0;
+    std::uint32_t start = 1;
+    Task task = Task::none;
+    std::size_t task_offset = 0;
+    Align align = Align::none;
+    bool header = false;
+    char fence = 0;
+    std::string info;
+    std::string language;
+    std::string anchor;
+    Inline content;
+    std::vector<Block> children;
+    std::uint64_t hash = 0;
+  };
+  struct Document {
+    Block root{…};
+    std::vector<Link> links;
+    Extension extensions = gfm;
+    bool complete = true;
+  };
+  [[nodiscard]] Document parse(std::string_view source, Extension extensions = gfm);
+  [[nodiscard]] std::string to_html(const Document& doc);
+  [[nodiscard]] std::string to_html(std::string_view source, Extension extensions = gfm);
+  struct Parser {
+    bool (*into)(Document& doc, std::string_view source, std::size_t base, bool hashes) = nullptr;
+    bool (*named)(std::string_view reference, std::string& out) = nullptr;
+  };
+  [[nodiscard]] Parser md4c() noexcept;
+  [[nodiscard]] std::string to_markdown(const Document& doc);
+  [[nodiscard]] Document from_html(std::string_view html, Extension extensions = gfm, Parser parser = md4c());
+  [[nodiscard]] std::string plain_text(const Block& block);
+  [[nodiscard]] std::string slug(std::string_view text);
+  template <class F> void walk(const Block& b, F&& f);
+  struct Run {
+    std::uint32_t begin = 0, end = 0;
+    std::uint16_t spans = 0;
+    std::uint32_t link = no_ref;
+  };
+  [[nodiscard]] std::vector<Run> runs(const Inline& in);
+  [[nodiscard]] bool operator==(const Mark& a, const Mark& b) noexcept;
+  [[nodiscard]] bool operator==(const Inline& a, const Inline& b) noexcept;
+  [[nodiscard]] bool operator==(const Link& a, const Link& b) noexcept;
+  [[nodiscard]] bool operator==(const Block& a, const Block& b) noexcept;
+  [[nodiscard]] bool operator==(const Document& a, const Document& b) noexcept;
+  [[nodiscard]] bool operator==(const Run& a, const Run& b) noexcept;
+  class Stream {
+    explicit Stream(Extension extensions = gfm, Parser parser = md4c());
+    void assign(std::string_view source);
+    void append(std::string_view chunk);
+    void clear();
+    [[nodiscard]] const Document& document() const noexcept;
+    [[nodiscard]] std::string_view source() const noexcept;
+    [[nodiscard]] std::uint64_t revision() const noexcept;
+    [[nodiscard]] std::size_t frozen() const noexcept;
+    [[nodiscard]] std::size_t stable_blocks() const noexcept;
+    [[nodiscard]] std::size_t last_parsed() const noexcept;
+    [[nodiscard]] bool whole() const noexcept;
+  };
+}

@@ -1,0 +1,85 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "rigid3",
+  "doc": "Read a 3D rigid world's bodies, joints, characters and what touched what, cast a ray or a shape into it, push a body, drive a joint's motor, walk and jump a character, step it, return to a frame, and ask what would be.",
+  "tools": [
+    {"name": "rigid3.observe", "description": "The frame, the state's hash, how many bodies (and how many awake), joints and characters, and what began and ended touching in the last step (a sensor's overlaps marked `sensor`)", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.observe"}],
+     "inputSchema": {"type": "object", "properties": {"budget": {"type": "integer", "description": "the most bytes of answer: contacts are left out from the last, and `more` says how many"}}, "required": []}},
+    {"name": "rigid3.bodies", "description": "Each body's id, kind, place, turn, velocity and whether it is awake, in the order made", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.bodies"}],
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "rigid3.ray", "description": "The first body a segment meets: which, how far along, where and the surface's normal there", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.ray","from":[0,20,0],"to":[0,-20,0]}],
+     "inputSchema": {"type": "object", "properties": {"from": {"description": "[x, y, z]"}, "to": {"description": "[x, y, z]"}}, "required": ["from", "to"]}},
+    {"name": "rigid3.cast", "description": "The first body a shape swept along a segment meets: which, how far along, where and the surface's normal there", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.cast","shape":"sphere","radius":0.5,"from":[0,20,0],"to":[0,-20,0]}],
+     "inputSchema": {"type": "object", "properties": {"shape": {"type": "string", "description": "sphere (the default), box or capsule"}, "radius": {"type": "number", "description": "sphere, capsule: m (0.5 when none is given)"}, "half": {"description": "box: [x, y, z], its half extents"}, "half_height": {"type": "number", "description": "capsule: half the length of its middle, along y (0.5 when none is given)"}, "from": {"description": "[x, y, z], where the shape's centre starts"}, "to": {"description": "[x, y, z], where it would end"}}, "required": ["from", "to"]}},
+    {"name": "rigid3.joints", "description": "Each joint's id, form, bodies (0: the world), value (a hinge's angle, a slider's place, a distance joint's length) and motor, in the order made", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.joints"}],
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "rigid3.drive", "description": "A hinge's or a slider's motor, from the next step: off, toward a speed, or toward an angle or a place", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "rigid3.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the world: the motor drives from the next step", "request": {"op":"rigid3.step"}}],
+     "examples": [{"op":"rigid3.drive","joint":1,"mode":"velocity","target":2}],
+     "inputSchema": {"type": "object", "properties": {"joint": {"type": "integer", "description": "the joint's id"}, "mode": {"type": "string", "description": "off, velocity (the default) or position"}, "target": {"type": "number", "description": "rad/s or m/s (velocity), rad or m (position)"}}, "required": ["joint"]}},
+    {"name": "rigid3.move", "description": "A character's walk, from the next step until told otherwise: up steps and the slopes it can climb, stuck to the floor going down", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "rigid3.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the world: the character walks from the next step", "request": {"op":"rigid3.step"}}],
+     "examples": [{"op":"rigid3.move","character":1,"velocity":[2,0,0]}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer", "description": "the character's id"}, "velocity": {"description": "[x, y, z] in m/s; y is left to gravity and jumps"}}, "required": ["character", "velocity"]}},
+    {"name": "rigid3.jump", "description": "A character's jump on the next step, when it stands on the ground (the answer says whether it does now)", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "rigid3.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the world and see where it lands", "request": {"op":"rigid3.step","steps":60}}],
+     "examples": [{"op":"rigid3.jump","character":1,"speed":5}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer", "description": "the character's id"}, "speed": {"type": "number", "description": "m/s upward (5 when none is given)"}}, "required": ["character"]}},
+    {"name": "rigid3.where", "description": "Where a character is (or every one): its feet, its velocity and walk, and what it stands on", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.where","character":1}],
+     "inputSchema": {"type": "object", "properties": {"character": {"type": "integer", "description": "the character's id (every one when none is given)"}}, "required": []}},
+    {"name": "rigid3.ground", "description": "What each character stood on after the last step, in the order of their ids: on the ground, on steep ground, not supported or in the air, and which body", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.ground"}],
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "rigid3.push", "description": "An impulse on a body, given on the next step: through its centre of mass, or at a point in the world", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "rigid3.seek to the frame before it took effect", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "step the world: the push acts on the next step", "request": {"op":"rigid3.step"}}],
+     "examples": [{"op":"rigid3.push","body":1,"impulse":[0,400,0]}],
+     "inputSchema": {"type": "object", "properties": {"body": {"type": "integer", "description": "the body's id"}, "impulse": {"description": "[x, y, z], in newton seconds"}, "at": {"description": "[x, y, z], where in the world it is given (its centre of mass when none is given)"}}, "required": ["body", "impulse"]}},
+    {"name": "rigid3.step", "description": "Steps the world", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "rigid3.seek to the frame it began at", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read what happened", "request": {"op":"rigid3.observe"}}],
+     "examples": [{"op":"rigid3.step","steps":30}],
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how many (1 when none is given)"}}, "required": []}},
+    {"name": "rigid3.seek", "description": "Returns to a frame within the history kept, bit for bit (a checkpoint and the pushes since, played again); what is stepped from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none within the world: what came after the frame is another branch's", "undoable": false, "cancellable": false, "result": "json",
+     "then": [{"why": "read the world at the frame returned to", "request": {"op":"rigid3.observe"}}],
+     "examples": [{"op":"rigid3.seek","frame":120}],
+     "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "the frame to return to"}}, "required": ["frame"]}},
+    {"name": "rigid3.branch", "description": "What would be: the world some steps ahead, a body pushed first if one is given, observed as rigid3.observe does; the world itself untouched", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"rigid3.branch","steps":30,"body":1,"impulse":[0,400,0]}],
+     "inputSchema": {"type": "object", "properties": {"steps": {"type": "integer", "description": "how far ahead (1 when none is given)"}, "body": {"type": "integer"}, "impulse": {}}, "required": []}}
+  ],
+  "tiers": [],
+  "tasks": [
+    {"name": "see-what-is-there", "summary": "Read the bodies, then what lies straight down from above", "steps": [
+      {"op":"rigid3.observe"},
+      {"op":"rigid3.bodies"},
+      {"op":"rigid3.ray","from":[0,20,0],"to":[0,-20,0]}
+    ]},
+    {"name": "push-and-watch", "summary": "Push a body, step the world, and read what it struck", "steps": [
+      {"op":"rigid3.push","body":1,"impulse":[0,400,0]},
+      {"op":"rigid3.step","steps":30},
+      {"op":"rigid3.observe"}
+    ]},
+    {"name": "walk-a-character", "summary": "Walk a character, step, and read where it stands", "steps": [
+      {"op":"rigid3.where"},
+      {"op":"rigid3.move","character":1,"velocity":[2,0,0]},
+      {"op":"rigid3.step","steps":60},
+      {"op":"rigid3.ground"}
+    ]},
+    {"name": "turn-a-motor", "summary": "Read the joints, drive a hinge's motor, step, and read its angle", "steps": [
+      {"op":"rigid3.joints"},
+      {"op":"rigid3.drive","joint":1,"mode":"velocity","target":2},
+      {"op":"rigid3.step","steps":60},
+      {"op":"rigid3.joints"}
+    ]},
+    {"name": "ask-before-pushing", "summary": "See what a push would do some steps ahead, the world itself untouched", "steps": [
+      {"op":"rigid3.branch","steps":30,"body":1,"impulse":[0,400,0]},
+      {"op":"rigid3.observe"}
+    ]}
+  ]
+}

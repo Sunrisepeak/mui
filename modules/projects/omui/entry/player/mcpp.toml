@@ -1,0 +1,96 @@
+# omui.entry.player — the player's main (component-binding §10.2): what a
+# script-first application's one-line src/main.cpp calls. It reads the
+# application's [package.metadata.openmui], registers the official components
+# and the script languages (TypeScript, and JavaScript), and runs
+# the player with openmui's options; saved files reload in place.
+#
+# A package of its own rather than a feature of the umbrella: a workspace
+# builds each package once, so a feature one member enables would reach every
+# member that depends on the umbrella, without the feature's dependencies.
+[package]
+namespace   = "omui.entry"
+name        = "player"
+version     = "0.1.0"
+description = "The player's main for script-first openmui applications (entry-player)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the player program"
+kind = "entry"
+agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
+
+[targets.openmui-entry-player]
+kind = "lib"
+
+# The program's main for a TypeScript application (D-156: it writes no C++):
+# `main = { from = "omui.entry.player/player" }` in its manifest.
+[targets.player]
+kind = "entry"
+main = "src/entry/main.cpp"
+
+# The same main for an application whose build program derives the components it carries from its scripts'
+# imports (B7b: `main = { from = "omui.entry.player/closure" }` and omui.build's closure() in its build.mcpp, which
+# writes the registry this main calls); the components it does not name are not in the program.
+[targets.closure]
+kind = "entry"
+main = "src/entry/closure.cpp"
+
+# The player as a program of its own (E2): the omui tool ships it, built with the
+# designer, and `omui dev` and `omui run` run a TypeScript application of the same
+# version through it (`omui-player --manifest DIR`), with nothing built.
+[targets.omui-player]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The manifest: off the Web its mcpp.toml (toml++), on the Web the JSON snapshot the page carries (no TOML parser in a
+# Web program); both read by the one reader of the declaration (src/manifest.cpp).
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/web/*.cpp"]
+
+[dependencies]
+omui.sdk           = { path = "../../sdk" }
+omui.ui.base       = { path = "../../components/base", reexport = true }  # what a derived registry names (closure, B7b)
+omui.player        = { path = "../../player" }
+omui.abi           = { path = "../../abi" }  # the specification's version a runtime says it implements (--runtime)
+omui.lang.js       = { path = "../../lang/js" }
+omui.ui.markdown   = { path = "../../components/markdown", reexport = true }  # a derived registry may name it (B7b)
+omui.native = { path = "../../native", reexport = true }  # with its modules (fuzzy, store); a derived registry may name them
+omui.theme = { path = "../../theme" }  # with its packs
+omui.host.headless = { path = "../../host/headless" }  # a show's film is drawn on it (film_show)
+hanim.timeline = { path = "../../../hanim/timeline" }  # a show's rate and length (film_show)
+mlibs.json = { path = "../../../../base/json" }  # the manifest's declaration, read as JSON
+mcpplibs.os = "0.4.8"
+mcpplibs.cmdline = "0.0.3"
+
+# Tests are mtest's (D-147): the application as it ships, headless (ship_headless), asked as a user's agent asks.
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils    = { path = "../../../../base/utils" }  # scratch directories (mlibs.testing)
+
+[target.'cfg(not(os = "emscripten"))'.dependencies]
+marzer.tomlplusplus = "3.4.0"  # an application's mcpp.toml, written as JSON for the reader
+
+# Live Design's designer (D-149): linked by `omui dev`
+# (`mcpp run --features omui.entry.player/design -- --dev`), left out of a
+# release. It says it is there as the program starts; nothing here names it.
+[features]
+default = []
+design  = { sources = [] }
+# A reduction, named by the application whose faces carry OpenType layout (the site's): omui.sdk's `no-aat-text`.
+no-aat-text = { forward = ["omui.sdk/no-aat-text"] }
+
+[feature-deps.design]
+omui.designer = { path = "../../designer" }
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): what a player says it is as a runtime
+# (`--runtime`, runtime@1, E3b), which a launcher reads; only the player writes it (no define module).
+[package.metadata.openmui.xdef]
+kinds = { runtime = 1 }

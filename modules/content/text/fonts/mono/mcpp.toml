@@ -1,0 +1,21 @@
+# mlibs.text.fonts.mono — a default font's pack (D-214): JetBrains Mono: code.
+# An application that shows it depends on this package and carries the file
+# in its `fonts/` (FontCollection::default_file); one that does not, does not.
+[package]
+namespace   = "mlibs.text.fonts"
+name        = "mono"
+version     = "0.1.0"
+description = "A default font for mlibs.text: JetBrains Mono: code"
+license     = "OFL-1.1"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "dependency: a distribution carries the font only when it depends on this (deploy is per package, not per feature)"
+kind = "runtime"
+
+[runtime]
+deploy = [
+    { from = "JetBrainsMono.ttf", to = "fonts" },
+    { from = "OFL-jetbrainsmono.txt", to = "licenses/fonts" },
+]

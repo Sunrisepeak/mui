@@ -1,0 +1,111 @@
+== oweb
+export import :site;
+export import :config;
+export import :tool;
+export import :catalog;
+export import :oweb_reference;
+== oweb:catalog
+namespace oweb {
+  inline constexpr std::array<mlibs::control::Parameter, 9> parameters_site_build{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_site_describe{…};
+  inline constexpr std::array<mlibs::control::Parameter, 3> parameters_routes_list{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_page_read{…};
+  inline constexpr std::array<mlibs::control::Parameter, 5> parameters_docs_search{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 5> catalog{…};
+  inline constexpr mlibs::control::Guide guide{…};
+}
+namespace oweb {
+  inline constexpr std::string_view listing{…};
+}
+== oweb:config
+namespace oweb {
+  inline constexpr std::string_view define_name = "oweb/define";
+  [[nodiscard]] std::string define_module();
+  [[nodiscard]] std::expected<SiteOptions, std::string> configured(const std::filesystem::path& site, const std::filesystem::path& stated = {…});
+  [[nodiscard]] std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, std::string file);
+}
+== oweb:site
+export import mlibs.delivery;
+export import oweb.shell;
+namespace oweb {
+  using shell::Heading;
+  using shell::Table;
+  inline constexpr std::string_view own_catalog = "oweb";
+  struct Route {
+    std::string path;
+    std::string source;
+    std::string reference;
+    std::string page;
+    std::string title;
+    std::string language;
+    std::vector<Heading> headings;
+    std::string load;
+  };
+  struct Declared {
+    std::string path;
+    std::string source;
+    std::string title;
+    std::string reference;
+    std::string page;
+    std::string load;
+  };
+  struct SiteOptions {
+    std::string title;
+    std::vector<std::string> languages{…};
+    std::string url;
+    std::uintmax_t readable = 100'000; // The most the site's program weighs as it is sent — its launcher and its code, fetched once for every page std::uintmax_t program = 0;
+    std::vector<Declared> routes;
+    bool look = false;
+    std::string engine;
+    std::string load = "eager";
+    shell::View view;
+  };
+  using shell::Hit;
+  using shell::Section;
+  struct Page {
+    Route route;
+    std::string html;
+    std::string markdown;
+    std::size_t nodes = 0;
+    std::vector<Section> sections;
+    std::vector<std::string> problems;
+    std::vector<std::string> examples;
+    std::vector<std::string> faces;
+    std::set<char32_t> characters;
+  };
+  struct Built {
+    std::vector<Route> routes;
+    mlibs::delivery::Manifest delivery;
+  };
+  [[nodiscard]] std::expected<std::vector<Route>, std::string> collect(const std::filesystem::path& site, const SiteOptions& options = {…});
+  [[nodiscard]] std::expected<std::string, std::string> source_text(const std::filesystem::path& site, const Route& route);
+  [[nodiscard]] std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options = {…});
+  [[nodiscard]] std::expected<Page, std::string> lost_page(const std::filesystem::path& site, std::span<const Route> routes, const SiteOptions& options = {…});
+  [[nodiscard]] std::expected<Built, std::string> build(const std::filesystem::path& site, const std::filesystem::path& out, const SiteOptions& options = {…});
+  [[nodiscard]] std::string routes_json(std::span<const Route> routes, const SiteOptions& options);
+  [[nodiscard]] std::string llms_txt(std::span<const Route> routes, const SiteOptions& options);
+  [[nodiscard]] Table table_of(std::span<const Route> routes, const SiteOptions& options);
+  [[nodiscard]] bool is_built(const std::filesystem::path& site);
+  [[nodiscard]] std::string sitemap_xml(std::span<const Route> routes, const SiteOptions& options);
+  using shell::search;
+  using shell::search_json;
+  [[nodiscard]] std::expected<std::vector<Section>, std::string> sections_of(const std::filesystem::path& site, const SiteOptions& options = {…});
+  [[nodiscard]] std::string relative(std::string_view from, std::string_view to);
+}
+== oweb:tool
+export import mlibs.agent;
+export import oweb.shell;
+namespace oweb {
+  class Sites final : public mlibs::agent::Subject {
+    Sites() = default;
+    explicit Sites(shell::View view) : view_(std::move(view));
+    [[nodiscard]] std::string_view name() const noexcept override;
+    [[nodiscard]] std::string_view interface_name() const noexcept override;
+    [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override;
+    [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override;
+    [[nodiscard]] mlibs::control::Guide guide() const noexcept override;
+    [[nodiscard]] std::string_view listing() const noexcept override;
+    [[nodiscard]] std::uint64_t state_hash() const override;
+    void operate(std::string_view operation, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override;
+  };
+}

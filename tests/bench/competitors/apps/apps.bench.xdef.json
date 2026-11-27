@@ -1,0 +1,46 @@
+{
+  "format": "omui.bench.apps@0.1",
+  "about": "The application comparisons (C1, N2; lead design §2a.1), run by `omui-devtools bench apps`: every side built at its pin, launched in an 800 × 600 window of an X server the harness starts (1920 × 1080, no window manager), measured from outside its process — start to the first presented frame equal to the settled picture (cold: its files dropped from the page cache; warm: at once again), memory at rest (pmap: private dirty, USS, PSS, RSS) `rest_ms` after that frame, the processor (mcpplibs.os), context switches (pidstat) and frames drawn over `idle_ms` at rest, and `clicks` clicks (XTEST) from letting go to the first frame that changes `label`. A side in `motion` is measured over the same span while it moves — `live` by itself (the market board: omui's tests/bench core/live-dashboard, NSH's Stocks), `scroll` with the wheel turned every 1/120 s (10,000 rows): the frames presented a second, the interval between them (p50, p95, p99), the processor per frame. `click` is the button's centre in the window, `label` the part of it the click changes (x, y, width, height). Their builds use the system's compilers; NSH's as its report builds its hello worlds (LTO fat, one unit, stripped), Slint's the same (slint/Cargo.toml).",
+  "window": {"width": 800, "height": 600},
+  "rest_ms": 5000,
+  "idle_ms": 5000,
+  "quiet_ms": 600,
+  "timeout_ms": 30000,
+  "clicks": 5,
+  "pins": {
+    "flutter": {
+      "version": "3.50.0",
+      "archive": "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.50.0-stable.tar.xz",
+      "sha256": "6ea2d806fd57269ae783e6788e2a81fc26eaad782f1e0d0ff38623bb765ff9f5"
+    },
+    "nsh": {"repository": "https://github.com/longbridge/nsh", "commit": "83d5c4a51f29f9a57ee55c172b0b2799a4a4d587", "version": "0.6.0"},
+    "slint": {"version": "1.19.0", "manifest": "slint/Cargo.toml"}
+  },
+  "sides": [
+    {"series": "omui-full", "app": "hello", "build": "omui", "world": "full", "program": "omui-bench-hello"},
+    {"series": "omui-app", "app": "hello", "build": "omui", "world": "app", "program": "omui-bench-hello"},
+    {"series": "omui-app-cpu", "app": "hello", "build": "omui", "world": "app", "program": "omui-bench-hello", "args": ["--cpu"]},
+    {"series": "omui-lean", "app": "hello", "build": "omui", "world": "lean", "program": "omui-bench-hello"},
+    {"series": "omui-minimal", "app": "hello", "build": "omui", "world": "minimal", "program": "omui-bench-hello"},
+    {"series": "omui-app", "app": "counter", "build": "omui", "world": "app", "program": "omui-bench-counter", "click": [400, 109], "label": [20, 20, 220, 42]},
+    {"series": "omui-minimal", "app": "counter", "build": "omui", "world": "minimal", "program": "omui-bench-counter", "click": [400, 109], "label": [20, 20, 220, 42]},
+    {"series": "omui-app", "app": "market", "build": "omui", "world": "app", "program": "omui-bench-market", "window": [1896, 1030], "motion": "live"},
+    {"series": "omui-app", "app": "list", "build": "omui", "world": "app", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
+    {"series": "omui-app-cpu", "app": "list", "build": "omui", "world": "app", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll", "args": ["--cpu"]},
+    {"series": "omui-lean", "app": "list", "build": "omui", "world": "lean", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
+    {"series": "omui-lean-bridge", "app": "list", "build": "omui", "world": "lean-bridge", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
+    {"series": "omui-lean-agent", "app": "list", "build": "omui", "world": "lean-agent", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
+    {"series": "omui-minimal", "app": "list", "build": "omui", "world": "minimal", "program": "omui-bench-list", "window": [1896, 1030], "motion": "scroll"},
+    {"series": "slint", "app": "hello", "build": "cargo", "program": "hello"},
+    {"series": "slint", "app": "counter", "build": "cargo", "program": "counter", "click": [65, 87], "label": [20, 24, 220, 40]},
+    {"series": "slint", "app": "list", "build": "cargo", "program": "list", "window": [1896, 1030], "motion": "scroll"},
+    {"series": "flutter", "app": "hello", "build": "flutter", "program": "lib/hello.dart"},
+    {"series": "flutter", "app": "counter", "build": "flutter", "program": "lib/counter.dart", "click": [64, 84], "label": [20, 20, 220, 40]},
+    {"series": "flutter", "app": "list", "build": "flutter", "program": "lib/list.dart", "window": [1896, 1030], "motion": "scroll"},
+    {"series": "nsh-rust", "app": "hello", "build": "nsh", "program": "template:rust", "click": [400, 322], "label": [280, 250, 240, 45]},
+    {"series": "nsh-ts", "app": "hello", "build": "nsh", "program": "template:ts", "click": [400, 322], "label": [280, 250, 240, 45]},
+    {"series": "nsh-ts", "app": "counter", "build": "nsh", "program": "example:counter", "click": [440, 319], "label": [250, 150, 300, 110], "desktop": {"click": [443, 352], "label": [250, 180, 300, 100]}},
+    {"series": "nsh-ts", "app": "market", "build": "nsh", "program": "example:gallery", "env": {"NSH_GALLERY_DEMO": "Stocks"}, "window": [1896, 1030], "motion": "live"},
+    {"series": "nsh-ts", "app": "list", "build": "nsh", "program": "source:list", "window": [1896, 1030], "motion": "scroll"}
+  ]
+}

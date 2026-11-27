@@ -1,0 +1,44 @@
+# mlibs.control.gen — an operation catalog (`<product>.ops.xdef.ts`, the kind
+# `ops` of mlibs.control's entries) to its generated code and listings: the
+# C++ partition of mlibs::control::CatalogEntry rows a subject serves, the
+# tools' listing (JSON) and the reference (Markdown). The tool kernel's
+# (stage 0, D-205): a project below omui makes its catalog without omui.
+# `ops-gen` is its thin program.
+[package]
+namespace   = "mlibs.control"
+name        = "gen"
+version     = "0.1.0"
+description = "An operation catalog to its C++ table, its tools' listing and its reference"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "build-stage: stage 0's ops-gen, an operation catalogue to its C++ table, listing and reference"
+kind = "module"
+lower = ["mlibs.xdef.tool"]  # lower-labelled parts it uses, each marked in its README
+
+# The declared data kind this package owns (mlibs.xdef registry, D-209): an operation catalog, read here.
+[package.metadata.openmui.xdef]
+kinds = { ops = 1 }
+modules = { "mlibs/define" = ["ops"] }
+
+[targets.mlibs-control-gen]
+kind = "lib"
+
+[targets.ops-gen]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.json = { path = "../../json" }
+mlibs.utils = { path = "../../utils" }  # mlibs.apart: the mark before a listing (data a page carries apart until it is read)
+mlibs.xdef.tool = { path = "../../xdef/tool" }  # a catalog module evaluated with its workspace's define modules
+mcpplibs.os = "0.4.8"
+mcpplibs.cmdline = "0.0.3"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"

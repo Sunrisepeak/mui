@@ -1,0 +1,34 @@
+# meng.audio.device — a mixer heard (D-86): the system's default output
+# (or miniaudio's null backend: the clock runs, nothing sounds — headless
+# programs and tests) pulling blocks from an meng.audio Mixer on its own
+# audio thread. A plugin: the mixer does not know of it. miniaudio comes
+# through mcpplibs.mwrap.miniaudio, in its native unit only (D-83); on the Web
+# it is miniaudio's Web Audio backend.
+[package]
+namespace   = "meng.audio"
+name        = "device"
+version     = "0.1.0"
+description = "A Mixer heard: the system's default output through miniaudio, or its null backend for headless runs"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: the sound card through SDL, native only"
+kind = "runtime"
+agent = { part = "meng.audio" }
+
+[targets.openmui-audio-device]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[dependencies]
+meng.audio            = { path = ".." }
+mcpplibs.mwrap.miniaudio = "0.11.25"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils = { path = "../../../../../base/utils" }

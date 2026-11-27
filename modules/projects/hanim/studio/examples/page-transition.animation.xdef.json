@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "size": [480, 300],
+  "background": "#f8fafc",
+  "objects": [
+    { "id": "old", "shape": { "rect": { "size": [360, 220], "radius": 18 } }, "fill": "#cbd5e1", "at": [240, 150] },
+    { "id": "new", "shape": { "rect": { "size": [360, 220], "radius": 18 } }, "fill": "#6366f1", "at": [240, 150], "hidden": false },
+    { "id": "title", "shape": { "rect": { "size": [200, 22], "radius": 6 } }, "fill": "#eef2ff", "at": [200, 100] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "parallel", "items": [
+        { "do": "slide_out", "object": "old", "to": [-80, 0], "duration": 0.45 },
+        { "do": "slide_in", "object": "new", "from": [120, 0], "duration": 0.45 }
+      ] },
+      { "do": "rise_in", "object": "title", "distance": 14, "duration": 0.35 },
+      { "do": "marker", "name": "arrived" }
+    ]
+  }
+}

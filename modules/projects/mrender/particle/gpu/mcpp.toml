@@ -1,0 +1,45 @@
+# mrender.particle.gpu — particles drawn on a device (the foundation plan's §5.1, M6.4): the same batches as
+# mrender.particle's CPU reference, drawn through mlibs.rhi alone over the light a mesh pass drew and held to the
+# reference. A package of its own: its build program compiles a Slang shader (D-99's build-stage isolation).
+[package]
+namespace   = "mrender.particle"
+name        = "gpu"
+version     = "0.1.0"
+description = "Particles drawn on a device through mlibs.rhi: one Slang shader, held to the CPU reference"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "build-stage: its shaders compiled to each device's language at build time"
+reexports = ["mlibs.rhi", "mrender.mesh.gpu"]  # what its interface re-exports (lint module-closure)
+kind  = "module"
+agent = { part = "mrender.frame" }
+
+[targets.mrender-particle-gpu]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# The particles' conformance suite (src/cts/, module mrender.particle.gpu.cts; mlibs.cts): what any backend of
+# mlibs.rhi must draw of the same batches, held to the CPU reference. A feature of its owner (release plan
+# §4.2 rule 2): a backend's tests take it (mrender.rhi.sdl's), as another backend's will.
+[features]
+cts = { sources = ["src/cts/*.cppm", "src/cts/*.cpp"] }
+
+[feature-deps.cts]
+mlibs.cts  = { path = "../../../../base/cts" }
+mlibs.geom = { path = "../../../../base/geom" }
+
+[build-dependencies]
+mlibs.shader.rules = { path = "../../../../gfx/shader/rules", host-module = true }
+
+[dependencies]
+mrender.particle = { path = ".." }
+# A batch's picture on the device: the one way pictures are put there (`picture_on`, `sampler_of`).
+mrender.mesh.gpu = { path = "../../mesh/gpu" }
+mlibs.rhi          = { path = "../../../../gfx/rhi" }
+mlibs.math         = { path = "../../../../base/math" }

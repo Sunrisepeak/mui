@@ -1,0 +1,829 @@
+{
+ "format": "openmui.locale@0.1",
+ "locale": "zh",
+ "cldr": "49.0.0",
+ "plural": {
+  "cardinal": {},
+  "ordinal": {}
+ },
+ "number": {
+  "symbols": {
+   "decimal": ".",
+   "group": ",",
+   "minus": "-",
+   "plus": "+",
+   "percent": "%",
+   "exponential": "E",
+   "infinity": "∞",
+   "nan": "NaN"
+  },
+  "decimal": "#,##0.###",
+  "percent": "#,##0%",
+  "minimumGrouping": 1,
+  "compactShort": [
+   {
+    "magnitude": 3,
+    "count": "other",
+    "pattern": "0"
+   },
+   {
+    "magnitude": 4,
+    "count": "other",
+    "pattern": "0万"
+   },
+   {
+    "magnitude": 5,
+    "count": "other",
+    "pattern": "00万"
+   },
+   {
+    "magnitude": 6,
+    "count": "other",
+    "pattern": "000万"
+   },
+   {
+    "magnitude": 7,
+    "count": "other",
+    "pattern": "0000万"
+   },
+   {
+    "magnitude": 8,
+    "count": "other",
+    "pattern": "0亿"
+   },
+   {
+    "magnitude": 9,
+    "count": "other",
+    "pattern": "00亿"
+   },
+   {
+    "magnitude": 10,
+    "count": "other",
+    "pattern": "000亿"
+   },
+   {
+    "magnitude": 11,
+    "count": "other",
+    "pattern": "0000亿"
+   },
+   {
+    "magnitude": 12,
+    "count": "other",
+    "pattern": "0万亿"
+   },
+   {
+    "magnitude": 13,
+    "count": "other",
+    "pattern": "00万亿"
+   },
+   {
+    "magnitude": 14,
+    "count": "other",
+    "pattern": "000万亿"
+   }
+  ],
+  "compactLong": [
+   {
+    "magnitude": 3,
+    "count": "other",
+    "pattern": "0"
+   },
+   {
+    "magnitude": 4,
+    "count": "other",
+    "pattern": "0万"
+   },
+   {
+    "magnitude": 5,
+    "count": "other",
+    "pattern": "00万"
+   },
+   {
+    "magnitude": 6,
+    "count": "other",
+    "pattern": "000万"
+   },
+   {
+    "magnitude": 7,
+    "count": "other",
+    "pattern": "0000万"
+   },
+   {
+    "magnitude": 8,
+    "count": "other",
+    "pattern": "0亿"
+   },
+   {
+    "magnitude": 9,
+    "count": "other",
+    "pattern": "00亿"
+   },
+   {
+    "magnitude": 10,
+    "count": "other",
+    "pattern": "000亿"
+   },
+   {
+    "magnitude": 11,
+    "count": "other",
+    "pattern": "0000亿"
+   },
+   {
+    "magnitude": 12,
+    "count": "other",
+    "pattern": "0万亿"
+   },
+   {
+    "magnitude": 13,
+    "count": "other",
+    "pattern": "00万亿"
+   },
+   {
+    "magnitude": 14,
+    "count": "other",
+    "pattern": "000万亿"
+   }
+  ]
+ },
+ "calendar": {
+  "months": {
+   "wide": [
+    "一月",
+    "二月",
+    "三月",
+    "四月",
+    "五月",
+    "六月",
+    "七月",
+    "八月",
+    "九月",
+    "十月",
+    "十一月",
+    "十二月"
+   ],
+   "abbreviated": [
+    "1月",
+    "2月",
+    "3月",
+    "4月",
+    "5月",
+    "6月",
+    "7月",
+    "8月",
+    "9月",
+    "10月",
+    "11月",
+    "12月"
+   ],
+   "narrow": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12"
+   ]
+  },
+  "monthsStandalone": {
+   "wide": [
+    "一月",
+    "二月",
+    "三月",
+    "四月",
+    "五月",
+    "六月",
+    "七月",
+    "八月",
+    "九月",
+    "十月",
+    "十一月",
+    "十二月"
+   ],
+   "abbreviated": [
+    "1月",
+    "2月",
+    "3月",
+    "4月",
+    "5月",
+    "6月",
+    "7月",
+    "8月",
+    "9月",
+    "10月",
+    "11月",
+    "12月"
+   ],
+   "narrow": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12"
+   ]
+  },
+  "days": {
+   "wide": [
+    "星期日",
+    "星期一",
+    "星期二",
+    "星期三",
+    "星期四",
+    "星期五",
+    "星期六"
+   ],
+   "abbreviated": [
+    "周日",
+    "周一",
+    "周二",
+    "周三",
+    "周四",
+    "周五",
+    "周六"
+   ],
+   "narrow": [
+    "日",
+    "一",
+    "二",
+    "三",
+    "四",
+    "五",
+    "六"
+   ]
+  },
+  "daysStandalone": {
+   "wide": [
+    "星期日",
+    "星期一",
+    "星期二",
+    "星期三",
+    "星期四",
+    "星期五",
+    "星期六"
+   ],
+   "abbreviated": [
+    "周日",
+    "周一",
+    "周二",
+    "周三",
+    "周四",
+    "周五",
+    "周六"
+   ],
+   "narrow": [
+    "日",
+    "一",
+    "二",
+    "三",
+    "四",
+    "五",
+    "六"
+   ]
+  },
+  "daysShort": [
+   "周日",
+   "周一",
+   "周二",
+   "周三",
+   "周四",
+   "周五",
+   "周六"
+  ],
+  "am": {
+   "wide": "上午",
+   "abbreviated": "上午",
+   "narrow": "上午"
+  },
+  "pm": {
+   "wide": "下午",
+   "abbreviated": "下午",
+   "narrow": "下午"
+  },
+  "eras": [
+   "公元前",
+   "公元"
+  ],
+  "dateFormats": {
+   "full": "y年M月d日EEEE",
+   "long": "y年M月d日",
+   "medium": "y年M月d日",
+   "short": "y/M/d"
+  },
+  "timeFormats": {
+   "full": "zzzz HH:mm:ss",
+   "long": "z HH:mm:ss",
+   "medium": "HH:mm:ss",
+   "short": "HH:mm"
+  },
+  "dateTimeFormats": {
+   "full": "{1} {0}",
+   "long": "{1} {0}",
+   "medium": "{1} {0}",
+   "short": "{1} {0}"
+  },
+  "skeletons": {
+   "Bh": "Bh时",
+   "Bhm": "Bh:mm",
+   "Bhms": "Bh:mm:ss",
+   "E": "ccc",
+   "EBh": "EBh时",
+   "EBhm": "EBh:mm",
+   "EBhms": "EBh:mm:ss",
+   "EHm": "EHH:mm",
+   "EHms": "EHH:mm:ss",
+   "Ed": "d日E",
+   "Eh": "Eah时",
+   "Ehm": "Eah:mm",
+   "Ehms": "Eah:mm:ss",
+   "Gy": "Gy年",
+   "GyM": "Gy年M月",
+   "GyMEd": "Gy-MM-ddE",
+   "GyMMM": "Gy年M月",
+   "GyMMMEd": "Gy年M月d日E",
+   "GyMMMM": "Gy年M月",
+   "GyMMMMEd": "Gy年M月d日E",
+   "GyMMMMd": "Gy年M月d日",
+   "GyMMMd": "Gy年M月d日",
+   "GyMd": "Gy-MM-dd",
+   "H": "H时",
+   "Hm": "HH:mm",
+   "Hms": "HH:mm:ss",
+   "Hmsv": "vHH:mm:ss",
+   "Hmv": "v HH:mm",
+   "Hv": "vH时",
+   "M": "M月",
+   "MEd": "M/dE",
+   "MMM": "LLL",
+   "MMMEd": "M月d日E",
+   "MMMMEd": "M月d日E",
+   "MMMMd": "M月d日",
+   "MMMd": "M月d日",
+   "MMdd": "MM/dd",
+   "Md": "M/d",
+   "d": "d日",
+   "h": "ah时",
+   "hm": "ah:mm",
+   "hms": "ah:mm:ss",
+   "hmsv": "vah:mm:ss",
+   "hmv": "vah:mm",
+   "hv": "vah时",
+   "ms": "mm:ss",
+   "y": "y年",
+   "yM": "y/M",
+   "yMEEEEd": "y年M月d日EEEE",
+   "yMEd": "y/M/dE",
+   "yMM": "y年M月",
+   "yMMM": "y年M月",
+   "yMMMEd": "y年M月d日E",
+   "yMMMM": "y年M月",
+   "yMMMMEd": "y年M月d日E",
+   "yMMMMd": "y年M月d日",
+   "yMMMd": "y年M月d日",
+   "yMd": "y/M/d",
+   "yQQQ": "y年第Q季度",
+   "yQQQQ": "y年第Q季度"
+  },
+  "dayPeriods": {
+   "rules": [
+    {
+     "name": "afternoon1",
+     "from": "12:00",
+     "before": "13:00"
+    },
+    {
+     "name": "afternoon2",
+     "from": "13:00",
+     "before": "19:00"
+    },
+    {
+     "name": "evening1",
+     "from": "19:00",
+     "before": "24:00"
+    },
+    {
+     "name": "midnight",
+     "at": "00:00"
+    },
+    {
+     "name": "morning1",
+     "from": "05:00",
+     "before": "08:00"
+    },
+    {
+     "name": "morning2",
+     "from": "08:00",
+     "before": "12:00"
+    },
+    {
+     "name": "night1",
+     "from": "00:00",
+     "before": "05:00"
+    }
+   ],
+   "names": {
+    "afternoon1": "中午",
+    "afternoon2": "下午",
+    "evening1": "晚上",
+    "midnight": "午夜",
+    "morning1": "早上",
+    "morning2": "上午",
+    "night1": "凌晨"
+   }
+  },
+  "gmtFormat": "GMT{0}",
+  "gmtZeroFormat": "GMT",
+  "hourFormat": "+HH:mm;-HH:mm"
+ },
+ "relative": {
+  "year": {
+   "wide": {
+    "named": {
+     "-1": "去年",
+     "0": "今年",
+     "1": "明年"
+    },
+    "future": {
+     "other": "{0}年后"
+    },
+    "past": {
+     "other": "{0}年前"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "去年",
+     "0": "今年",
+     "1": "明年"
+    },
+    "future": {
+     "other": "{0}年后"
+    },
+    "past": {
+     "other": "{0}年前"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "去年",
+     "0": "今年",
+     "1": "明年"
+    },
+    "future": {
+     "other": "{0}年后"
+    },
+    "past": {
+     "other": "{0}年前"
+    }
+   }
+  },
+  "quarter": {
+   "wide": {
+    "named": {
+     "-1": "上季度",
+     "0": "本季度",
+     "1": "下季度"
+    },
+    "future": {
+     "other": "{0}个季度后"
+    },
+    "past": {
+     "other": "{0}个季度前"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "上季度",
+     "0": "本季度",
+     "1": "下季度"
+    },
+    "future": {
+     "other": "{0}个季度后"
+    },
+    "past": {
+     "other": "{0}个季度前"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "上季度",
+     "0": "本季度",
+     "1": "下季度"
+    },
+    "future": {
+     "other": "{0}个季度后"
+    },
+    "past": {
+     "other": "{0}个季度前"
+    }
+   }
+  },
+  "month": {
+   "wide": {
+    "named": {
+     "-1": "上个月",
+     "0": "本月",
+     "1": "下个月"
+    },
+    "future": {
+     "other": "{0}个月后"
+    },
+    "past": {
+     "other": "{0}个月前"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "上个月",
+     "0": "本月",
+     "1": "下个月"
+    },
+    "future": {
+     "other": "{0}个月后"
+    },
+    "past": {
+     "other": "{0}个月前"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "上个月",
+     "0": "本月",
+     "1": "下个月"
+    },
+    "future": {
+     "other": "{0}个月后"
+    },
+    "past": {
+     "other": "{0}个月前"
+    }
+   }
+  },
+  "week": {
+   "wide": {
+    "named": {
+     "-1": "上周",
+     "0": "本周",
+     "1": "下周"
+    },
+    "future": {
+     "other": "{0}周后"
+    },
+    "past": {
+     "other": "{0}周前"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "上周",
+     "0": "本周",
+     "1": "下周"
+    },
+    "future": {
+     "other": "{0}周后"
+    },
+    "past": {
+     "other": "{0}周前"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "上周",
+     "0": "本周",
+     "1": "下周"
+    },
+    "future": {
+     "other": "{0}周后"
+    },
+    "past": {
+     "other": "{0}周前"
+    }
+   }
+  },
+  "day": {
+   "wide": {
+    "named": {
+     "-1": "昨天",
+     "-2": "前天",
+     "0": "今天",
+     "1": "明天",
+     "2": "后天"
+    },
+    "future": {
+     "other": "{0}天后"
+    },
+    "past": {
+     "other": "{0}天前"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "-1": "昨天",
+     "-2": "前天",
+     "0": "今天",
+     "1": "明天",
+     "2": "后天"
+    },
+    "future": {
+     "other": "{0}天后"
+    },
+    "past": {
+     "other": "{0}天前"
+    }
+   },
+   "narrow": {
+    "named": {
+     "-1": "昨天",
+     "-2": "前天",
+     "0": "今天",
+     "1": "明天",
+     "2": "后天"
+    },
+    "future": {
+     "other": "{0}天后"
+    },
+    "past": {
+     "other": "{0}天前"
+    }
+   }
+  },
+  "hour": {
+   "wide": {
+    "named": {
+     "0": "这一时间 / 此时"
+    },
+    "future": {
+     "other": "{0}小时后"
+    },
+    "past": {
+     "other": "{0}小时前"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "0": "这一时间 / 此时"
+    },
+    "future": {
+     "other": "{0}小时后"
+    },
+    "past": {
+     "other": "{0}小时前"
+    }
+   },
+   "narrow": {
+    "named": {
+     "0": "这一时间 / 此时"
+    },
+    "future": {
+     "other": "{0}小时后"
+    },
+    "past": {
+     "other": "{0}小时前"
+    }
+   }
+  },
+  "minute": {
+   "wide": {
+    "named": {
+     "0": "此刻"
+    },
+    "future": {
+     "other": "{0}分钟后"
+    },
+    "past": {
+     "other": "{0}分钟前"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "0": "此刻"
+    },
+    "future": {
+     "other": "{0}分钟后"
+    },
+    "past": {
+     "other": "{0}分钟前"
+    }
+   },
+   "narrow": {
+    "named": {
+     "0": "此刻"
+    },
+    "future": {
+     "other": "{0}分钟后"
+    },
+    "past": {
+     "other": "{0}分钟前"
+    }
+   }
+  },
+  "second": {
+   "wide": {
+    "named": {
+     "0": "现在"
+    },
+    "future": {
+     "other": "{0}秒钟后"
+    },
+    "past": {
+     "other": "{0}秒钟前"
+    }
+   },
+   "abbreviated": {
+    "named": {
+     "0": "现在"
+    },
+    "future": {
+     "other": "{0}秒后"
+    },
+    "past": {
+     "other": "{0}秒前"
+    }
+   },
+   "narrow": {
+    "named": {
+     "0": "现在"
+    },
+    "future": {
+     "other": "{0}秒后"
+    },
+    "past": {
+     "other": "{0}秒前"
+    }
+   }
+  }
+ },
+ "lists": {
+  "conjunction": {
+   "wide": {
+    "start": "{0}、{1}",
+    "middle": "{0}、{1}",
+    "end": "{0}和{1}",
+    "two": "{0}和{1}"
+   },
+   "abbreviated": {
+    "start": "{0}、{1}",
+    "middle": "{0}、{1}",
+    "end": "{0}和{1}",
+    "two": "{0}和{1}"
+   },
+   "narrow": {
+    "start": "{0}、{1}",
+    "middle": "{0}、{1}",
+    "end": "{0}、{1}",
+    "two": "{0}、{1}"
+   }
+  },
+  "disjunction": {
+   "wide": {
+    "start": "{0}、{1}",
+    "middle": "{0}、{1}",
+    "end": "{0}或{1}",
+    "two": "{0}或{1}"
+   },
+   "abbreviated": {
+    "start": "{0}、{1}",
+    "middle": "{0}、{1}",
+    "end": "{0}或{1}",
+    "two": "{0}或{1}"
+   },
+   "narrow": {
+    "start": "{0}、{1}",
+    "middle": "{0}、{1}",
+    "end": "{0}或{1}",
+    "two": "{0}或{1}"
+   }
+  },
+  "unit": {
+   "wide": {
+    "start": "{0}{1}",
+    "middle": "{0}{1}",
+    "end": "{0}{1}",
+    "two": "{0}{1}"
+   },
+   "abbreviated": {
+    "start": "{0}{1}",
+    "middle": "{0}{1}",
+    "end": "{0}{1}",
+    "two": "{0}{1}"
+   },
+   "narrow": {
+    "start": "{0}{1}",
+    "middle": "{0}{1}",
+    "end": "{0}{1}",
+    "two": "{0}{1}"
+   }
+  }
+ }
+}

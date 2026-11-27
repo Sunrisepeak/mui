@@ -1,0 +1,34 @@
+== omui.mcp
+namespace omui::mcp {
+  inline constexpr std::array<std::string_view, 3> protocol_versions{…};
+  enum class Way : std::uint8_t { semantic, accessibility_tree, screenshot };
+  [[nodiscard]] std::optional<Way> way_named(std::string_view name);
+  struct ServerOptions {
+    Way way = Way::semantic;
+    std::string app;
+    std::filesystem::path directory;
+    std::string actor;
+    std::chrono::milliseconds timeout{…};
+    [[nodiscard]] std::expected<Value, std::string> read_listing(const std::filesystem::path& file);
+    class Transport {
+      virtual ~Transport() = default;
+      [[nodiscard]] virtual std::optional<std::string> read() = 0;
+      virtual void write(std::string_view line) = 0;
+    };
+    class StdioTransport final : public Transport {
+      [[nodiscard]] std::optional<std::string> read() override;
+      void write(std::string_view line) override;
+    };
+    class Server {
+      explicit Server(ServerOptions options = {…});
+      ~Server();
+      Server(const Server&) = delete;
+      Server& operator=(const Server&) = delete;
+      void serve(Transport& transport);
+      void handle(std::string_view line, Transport& transport);
+      [[nodiscard]] Value::List tools() const;
+      [[nodiscard]] Value::List offered_tools() const;
+      struct Impl;
+    };
+    [[nodiscard]] std::string outline(const Value::List& nodes);
+}

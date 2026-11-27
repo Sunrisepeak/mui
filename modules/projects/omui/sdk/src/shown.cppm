@@ -1,0 +1,42 @@
+// openmui:shown — how `omui::run` shows an application where the program
+// runs: a desktop window (src/host/desktop), or the page's canvas
+// (src/host/web). The manifest chooses the unit by the target (D-84).
+module omui:shown;
+
+import std;
+import omui.core;
+import omui.view;
+import :app;
+
+// Not `detail`: omui.core exports a namespace of that name, and a partition's own declarations in it
+// are not found by every compiler (NDK clang 30) once the exported one is imported.
+namespace omui::hosting {
+
+// Mounts the application on the host's runtime; what it answers lives as
+// long as the application is shown (the framework's frame).
+using Prepare = std::function<std::shared_ptr<void>(Runtime&)>;
+
+// Shows the application until it ends; answers the exit code.
+int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare);
+
+// Shows it in this program's terminal, in character cells (omui.host.terminal), until a person ends it; where the
+// platform has no terminal host, says so and answers 2.
+int terminal(const AppSpec& app, const RunOptions& o, const Prepare& prepare);
+
+// Installs the services this program was built with: the platform's accessibility service, or nothing.
+// `omui::run` calls it first, before any host is made. Its unit is written by the build program (build.mcpp), by the manifest's
+// features and the target; what it does not name the program does not carry.
+void install_services();
+
+// The person's languages as the host states them.
+[[nodiscard]] std::vector<std::string> host_locales();
+
+// The document the host showed before the program (a Web page's own, read back): its nodes, and one node's markup.
+// Empty on a host that shows none.
+[[nodiscard]] std::string host_document();
+[[nodiscard]] std::string host_document(std::string_view id);
+// What that document says is at a relation to it, and a file of its own site fetched by the host that showed it.
+[[nodiscard]] std::string host_link(std::string_view relation);
+void host_file(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done);
+
+}  // namespace omui::hosting

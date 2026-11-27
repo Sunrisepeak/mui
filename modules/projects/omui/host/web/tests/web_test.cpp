@@ -1,0 +1,483 @@
+// The browser host's loop, off the Web (no page: stepped by hand): a frame
+// when something wants one and none while nothing moves; the frame drawn by
+// the CPU renderer; input — keys, the pointer, a gamepad — reaching the
+// focus as a page's would. The page's other halves as the C++ side makes
+// them: the semantic DOM mirror's batches (only what changed), window.omui's
+// requests decided as the bus's (never the person's), what assistive
+// technology does in the hidden DOM, the store. The page's own half
+// (src/js/omui_web.js) is tested under node with a fake DOM: tests/js.
+import std;
+import omui.host.web;
+import mlibs.agent;
+import mlibs.control;
+import openas;
+import mcpplibs.mtest;
+
+using namespace mcpplibs::mtest;
+using namespace omui;
+
+namespace {
+
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
+        (void)c.add_defaults();
+        return c;
+    }();
+    return f;
+}
+
+Source bound(std::function<Value()> fn) { return Source{std::nullopt, std::move(fn), {}}; }
+Source fixed(Value v) { return Source{std::move(v), {}, {}}; }
+
+// A page's worth of interface: a heading, a checkbox, a button the focus
+// can reach, a status, a toast that comes and goes.
+struct Page {
+    Signal<std::string> task{std::string("Buy milk")};
+    Signal<std::string> status{std::string("Ready")};
+    Signal<bool>        toast{false};
+    int                 saved = 0;
+
+    View view() {
+        return column({.padding = 10, .gap = 4}, {
+            text({.id = "title", .text = "Notes"}),
+            box({.id = "done", .width = 20, .height = 20})
+                .prop("role", fixed(Value("checkbox")))
+                .prop("label", bound([t = task] { return Value(t.get()); })),
+            box({.id = "save", .width = 60, .height = 24, .label = "Save", .on = {{"press", [this](const Value&) { ++saved; }}}})
+                .prop("focusable", fixed(Value(true))),
+            box({.id = "status", .width = 100, .height = 16})
+                .prop("role", fixed(Value("status")))
+                .prop("label", bound([s = status] { return Value(s.get()); })),
+            when([t = toast] { return t.get(); }, [] { return box({.id = "toast", .width = 80, .height = 20, .label = "Saved"}); }),
+        });
+    }
+};
+
+RuntimeOptions page_options() {
+    RuntimeOptions o;
+    o.fonts = &fonts();
+    o.size = {200, 160};
+    return o;
+}
+
+const Value* node_of(const Value& batch, std::string_view id) {
+    if (const Value* nodes = batch.get("nodes"); nodes && nodes->list())
+        for (const Value& n : *nodes->list())
+            if (n.get("id")->as_string() == id) return &n;
+    return nullptr;
+}
+
+std::string set_of(const Value* node, std::string_view key) {
+    if (!node) return "<no node>";
+    const Value* set = node->get("set");
+    const Value* v = set ? set->get(key) : nullptr;
+    return v ? std::string(v->as_string()) : "<unset>";
+}
+
+std::vector<Value> records(Web& w, std::string_view line) {
+    std::vector<Value> out;
+    w.request(line, [&](std::string_view l) { out.push_back(parse_json(l).value()); });
+    (void)w.step();
+    return out;
+}
+
+int exit_of(const std::vector<Value>& r) {
+    return r.empty() || !r.back().get("exitCode") ? -100 : static_cast<int>(r.back().get("exitCode")->as_int());
+}
+
+// A subject beside the interface (a site's pages, a game shown in a viewport): one operation that reads.
+struct Shelf final : mlibs::agent::Subject {
+    static constexpr std::array<mlibs::control::Parameter, 1> parameters{{{"title", "string", "the book's title", false}}};
+    static constexpr std::array<mlibs::control::CatalogEntry, 1> entries{
+        {{{"shelf.find", openas::Effect::read, false}, "Where a book stands", parameters, "json", mlibs::control::Cost::bounded, "", false, false, false, {}}}};
+    [[nodiscard]] std::string_view name() const noexcept override { return "shelf"; }
+    [[nodiscard]] std::string_view interface_name() const noexcept override { return "shelf@1"; }
+    [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override { return {.observation = true}; }
+    [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return entries; }
+    [[nodiscard]] std::string_view listing() const noexcept override {
+        return R"({"kind":"omui.ops","version":1,"product":"shelf","tools":[{"name":"shelf.find","description":"Where a book stands","effect":"read","inputSchema":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]}}],"tiers":[]})";
+    }
+    void operate(std::string_view, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override {
+        // The answer comes when the shelf has been looked through: kept, and ended then.
+        waiting.emplace_back(answer.later(), request["title"].text().value_or(""));
+    }
+    void found() {
+        for (auto& [answer, title] : std::exchange(waiting, {})) {
+            answer.data(std::format(R"({{"title":{},"row":3}})", mlibs::agent::json_text(title)));
+            answer.result();
+        }
+    }
+    std::vector<std::pair<mlibs::agent::Answer, std::string>> waiting;
+};
+
+}  // namespace
+
+UTest cases{"host.web", [] {
+
+    "no page (a native target, or node): the loop stepped by hand"_test = [] {
+        expect(!in_browser());
+        Web w({.size = {200, 100}, .fonts = &fonts()});
+        auto color = signal(std::string("#ff0000"));
+        w.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40,
+                                                      .background = Prop<Fill>(Source{std::nullopt, [color] { return Value(color.get()); }, {}})})}));
+        expect(w.step()) << "the first frame";
+        expect(eq(w.frames_shown(), std::size_t{1}));
+        const auto& px = w.pixels();
+        expect(px.width() == 200 && px.height() == 100) << std::format("{}x{}", px.width(), px.height());
+        expect(px.at(40, 40).r == 255 && px.at(40, 40).g == 0 && px.at(5, 5).g == 255) << "the CPU frame";
+        (void)w.step();
+        expect(w.frames_shown() == 1) << "nothing changed: nothing shown";
+        color.set("#0000ff");
+        (void)w.step();
+        expect(w.pixels().at(40, 40).b == 255 && w.frames_shown() == 2) << "a change: a frame";
+    };
+
+    "input as the page gives it: a key and a gamepad to the focus"_test = [] {
+        Web w({.size = {200, 100}, .fonts = &fonts()});
+        std::vector<std::string> seen;
+        w.mount("main", column({}, {painter({.id = "game", .width = 100, .height = 60, .focusable = true,
+                                             .on_event = [&](EventContext&, const InputEvent& e) {
+                                                 if (const auto* k = std::get_if<KeyEvent>(&e); k && k->kind == KeyKind::down)
+                                                     seen.push_back(std::string(name(k->key)));
+                                                 if (const auto* g = std::get_if<GamepadEvent>(&e); g && g->kind == GamepadKind::down)
+                                                     seen.push_back(std::string(name(g->button)));
+                                                 return true;
+                                             }})}));
+        (void)w.step();
+        w.runtime().focus(w.runtime().find("main/game"));
+        std::array<InputEvent, 3> events{KeyEvent{.kind = KeyKind::down, .key = Key::space},
+                                         GamepadEvent{.kind = GamepadKind::connected, .device = 1},
+                                         GamepadEvent{.kind = GamepadKind::down, .device = 1, .button = GamepadButton::south}};
+        w.synthesize(events);
+        expect(w.step()) << "input: a frame";
+        expect(seen == std::vector<std::string>{"Space", "south"}) << std::format("{}", seen);
+    };
+
+    "the semantic DOM mirror: everything first, then only what changed"_test = [] {
+        Runtime rt(page_options());
+        Page page;
+        rt.mount("main", page.view());
+        rt.frame();
+        DomMirror mirror(rt);
+        auto first = mirror.sync();
+        expect(first.has_value()) << "the first batch";
+        if (!first) return;
+        expect(first->get("root") && first->get("root")->as_string() == "app") << (first->json());
+        expect(!first->get("remove") && !first->get("live")) << "nothing removed, nothing said at the start";
+        // The registry's ARIA roles, the names and states as attributes.
+        expect(eq(set_of(node_of(*first, "main/done"), "role"), std::string("checkbox")));
+        expect(eq(set_of(node_of(*first, "main/done"), "aria-checked"), std::string("false")));
+        expect(eq(set_of(node_of(*first, "main/done"), "aria-label"), std::string("Buy milk")));
+        expect(eq(set_of(node_of(*first, "main/save"), "role"), std::string("button")));
+        expect(eq(set_of(node_of(*first, "main/save"), "tabindex"), std::string("-1")));
+        expect(set_of(node_of(*first, "main/status"), "aria-live") == "off") << "the live region speaks for a status";
+        expect(set_of(node_of(*first, "app"), "role") == "<unset>") << "the root is no application";
+        const Value* title = node_of(*first, "main/title");
+        // This collection has no shaper, so the title's words have no width and are not stood by lines: its text
+        // flows in its element (lines by a real shaping: oweb's layer_test).
+        expect(title && title->get("text") && title->get("text")->as_string() == "Notes" && !title->get("lines")) << "a text's name is its element's text";
+        expect(set_of(title, "aria-label") == "<unset>") << "ARIA names no text";
+        // Boxes over the canvas, each relative to its parent's (the column
+        // is lifted: a nameless wrapper; the root is the canvas's whole).
+        const Value* save = node_of(*first, "main/save");
+        const Value* main = node_of(*first, "app");
+        expect(save && save->get("box") && main && main->get("box")) << "boxes";
+        if (save && main && save->get("box") && main->get("box")) {
+            const auto& b = *save->get("box")->list();
+            const auto at = rt.bounds(rt.find("main/save"));
+            const auto& m = *main->get("box")->list();
+            expect(b[0].as_int() + m[0].as_int() == std::lround(at.x) && b[1].as_int() + m[1].as_int() == std::lround(at.y) &&
+                      b[2].as_int() == std::lround(at.width)) << (save->json());
+        }
+        expect(main && main->get("children") && main->get("children")->json() == R"(["main/title","main/done","main/save","main/status"])") << "children in order";
+        expect(!node_of(*first, "main/save")->get("children")) << "a leaf has none to send";
+        expect(!mirror.sync()) << "nothing changed: nothing sent";
+
+        // One name changed: one attribute.
+        page.task.set("Buy oat milk");
+        rt.frame();
+        auto checked = mirror.sync();
+        expect(checked.has_value());
+        if (checked) {
+            const Value* done = node_of(*checked, "main/done");
+            expect(done && done->map()->size() == 2 && set_of(done, "aria-label") == "Buy oat milk") << (checked->json());
+            expect(checked->get("nodes")->list()->size() == 1) << "nothing else";
+            expect(!checked->get("focus") && !checked->get("live")) << (checked->json());
+        }
+
+        // A status that changes is said; the focus moves; a node comes and goes.
+        page.status.set("Saved 3 notes");
+        page.toast.set(true);
+        rt.focus(rt.find("main/save"));
+        rt.frame();
+        auto said = mirror.sync();
+        expect(said.has_value());
+        if (said) {
+            expect(said->get("live") && said->get("live")->as_string() == "Saved 3 notes") << (said->json());
+            expect(said->get("focus") && said->get("focus")->as_string() == "main/save") << (said->json());
+            expect(node_of(*said, "main/toast") != nullptr) << "the toast made";
+            expect(mirror.focused() == "main/save" && mirror.focused_name() == "Save");
+        }
+        page.toast.set(false);
+        rt.focus(NodeId{});
+        rt.frame();
+        auto gone = mirror.sync();
+        expect(gone.has_value());
+        if (gone) {
+            const Value* removed = gone->get("remove");
+            expect(removed && removed->list() && removed->list()->size() == 1 && (*removed->list())[0].as_string() == "main/toast") << (gone->json());
+            expect(gone->get("focus") && gone->get("focus")->is_null()) << "the focus gone";
+        }
+        expect(mirror.focused().empty());
+    };
+
+    "ARIA from the registry: roles, states, ranges"_test = [] {
+        auto attrs = [](Role role, std::initializer_list<State> states, Value value = {}) {
+            spec::SemanticNode n;
+            n.id = "main/x";
+            n.role = role;
+            n.name = "X";
+            n.value = std::move(value);
+            for (State st : states) n.states.set(st);
+            std::string out;
+            for (const auto& [k, v] : semantic::aria_attributes(n)) out += std::format("{}={} ", k, v);
+            return out;
+        };
+        expect(eq(attrs(Role::checkbox, {State::mixed}), std::string("aria-checked=mixed aria-label=X role=checkbox ")));
+        expect(eq(attrs(Role::toggle_button, {State::checked}), std::string("aria-label=X aria-pressed=true role=button ")));
+        expect(eq(attrs(Role::tab, {}), std::string("aria-label=X aria-selected=false role=tab ")));
+        expect(eq(attrs(Role::disclosure, {State::collapsible}), std::string("aria-expanded=false aria-label=X role=button ")));
+        expect(eq(attrs(Role::slider, {State::focusable}, Value(0.5)), std::string("aria-label=X aria-valuenow=0.5 role=slider tabindex=-1 ")));
+        expect(eq(attrs(Role::progress, {}, Value("half")), std::string("aria-label=X aria-valuetext=half role=progressbar ")));
+        expect(eq(attrs(Role::text_box, {State::disabled, State::multiline, State::required, State::invalid}),
+                 std::string("aria-disabled=true aria-invalid=true aria-label=X aria-multiline=true aria-required=true role=textbox ")));
+        expect(eq(attrs(Role::dialog, {State::modal}), std::string("aria-label=X aria-modal=true role=dialog ")));
+        expect(attrs(Role::paragraph, {}) == "role=paragraph ") << "a paragraph's name is its text, not a label";
+        expect(attrs(Role::generic, {State::busy}) == "aria-busy=true ") << "a generic node is a plain element";
+        // A slider's value with its range: each its attribute; a heading's level.
+        expect(eq(attrs(Role::slider, {}, Value{}.set("value", 0.25).set("min", 0.0).set("max", 1.0).set("step", 0.05)),
+                 std::string("aria-label=X aria-valuemax=1 aria-valuemin=0 aria-valuenow=0.25 role=slider ")));
+        expect(eq(attrs(Role::progress, {}, Value(0.5)), std::string("aria-label=X aria-valuemax=1 aria-valuemin=0 aria-valuenow=0.5 role=progressbar ")));
+        expect(eq(attrs(Role::heading, {}, Value(std::int64_t{2})), std::string("aria-label=X aria-level=2 role=heading ")));
+    };
+
+    "the mirror's batches are the same each run (deterministic)"_test = [] {
+        auto run = [] {
+            Runtime rt(page_options());
+            Page page;
+            rt.mount("main", page.view());
+            rt.frame();
+            DomMirror m(rt);
+            std::string out = m.sync().value_or(Value{}).json();
+            page.toast.set(true);
+            page.task.set("Call home");
+            rt.frame();
+            out += m.sync().value_or(Value{}).json();
+            return out;
+        };
+        const std::string a = run();
+        expect(a == run() && !a.empty()) << "two runs agree";
+    };
+
+    "window.omui reaches the runtime's other subjects by their operations' whole names: listed, described with their schema, answered — later too"_test = [] {
+        Shelf shelf;
+        Web w({.app = "org.example.notes", .size = {200, 160}, .fonts = &fonts()});
+        Page page;
+        w.runtime().add_subject(shelf);
+        w.mount("main", page.view());
+        (void)w.step();
+        // The interface's own requests are answered as before.
+        expect(exit_of(records(w, R"({"op":"describe","re":1})")) == 0);
+        auto here = records(w, R"({"op":"subjects"})");
+        expect(exit_of(here) == 0 && here.front().json().contains(R"("name":"shelf")") && here.front().json().contains(R"("name":"ui")")) << (here.empty() ? "" : here.front().json());
+        auto listed = records(w, R"({"op":"describe","subject":"shelf","detail":"full"})");
+        expect(exit_of(listed) == 0 && listed.front().json().contains(R"("inputSchema")") && listed.front().json().contains("shelf.find")) << (listed.empty() ? "" : listed.front().json());
+        // Its operation: asked now, answered when the subject ends it.
+        std::vector<Value> answered;
+        w.request(R"({"op":"shelf.find","title":"Dune","re":9})", [&](std::string_view line) { answered.push_back(parse_json(line).value()); });
+        (void)w.step();
+        expect(answered.empty() && shelf.waiting.size() == 1u) << "kept until its file has come";
+        shelf.found();
+        expect(exit_of(answered) == 0 && answered.front().get("data")->get("title")->as_string() == "Dune" && answered.front().get("re")->as_int() == 9) << (answered.empty() ? "" : answered.front().json());
+        // What it requires is said by the session, with a request that is well formed.
+        auto refused = records(w, R"({"op":"shelf.find"})");
+        expect(exit_of(refused) != 0 && refused.front().json().contains("needs `title`")) << (refused.empty() ? "" : refused.front().json());
+        w.runtime().remove_subject(shelf);
+        expect(!records(w, R"({"op":"subjects"})").front().json().contains(R"("name":"shelf")"));
+    };
+
+    "window.omui: the agent protocol over the bus, decided as any agent's"_test = [] {
+        Web w({.app = "org.example.notes", .size = {200, 160}, .fonts = &fonts()});
+        Page page;
+        int allowed = 0;
+        VerbDesc allow{"notes.allow", "Allow what the agent asked", Effect::reversible, "", {}};
+        allow.person = true;
+        expect(w.runtime().verbs().add(allow, [&](const Value&) -> VerbResult {
+                     ++allowed;
+                     return Value{};
+                 }).has_value());
+        (void)w.runtime().verbs().add({"notes.clear", "Remove every note", Effect::irreversible, "yes", {}},
+                                       [](const Value&) -> VerbResult { return Value{}; });
+        w.mount("main", page.view());
+        (void)w.step();
+        auto described = records(w, R"({"op":"describe","re":7})");
+        expect(exit_of(described) == 0 && described.front().get("data")->get("app")->as_string() == "org.example.notes") << (described.empty() ? "" : described.front().json());
+        expect(described.front().get("re")->as_int() == 7) << "records carry the page's re";
+        auto found = records(w, R"({"op":"find","q":{"role":"button","name":"Save"}})");
+        expect(exit_of(found) == 0 && found.front().json().contains("main/save")) << (found.empty() ? "" : found.front().json());
+        // Acting: the press is done.
+        expect(exit_of(records(w, R"({"op":"act","node":"main/save","action":"activate"})")) == 0 && page.saved == 1);
+        // An irreversible verb asks; the person's own is refused whatever the actor claims.
+        expect(eq(exit_of(records(w, R"({"op":"invoke","verb":"notes.clear"})")), 2));
+        auto claimed = records(w, R"({"op":"invoke","verb":"notes.allow","actor":"person:user"})");
+        expect(exit_of(claimed) == 1 && claimed.front().json().contains("refused") && allowed == 0) << (claimed.empty() ? "" : claimed.front().json());
+        // A wait answers when its condition holds, after a frame.
+        std::vector<Value> waited;
+        w.request(R"({"op":"wait","q":{"id":"main/toast"},"timeout":5})", [&](std::string_view l) { waited.push_back(parse_json(l).value()); });
+        (void)w.step();
+        expect(waited.empty()) << "not yet";
+        page.toast.set(true);
+        (void)w.step();
+        expect(exit_of(waited) == 0) << (waited.empty() ? "no answer" : waited.back().json());
+        // The canvas, as PNG.
+        auto shot = records(w, R"({"op":"capture","node":"main/save"})");
+        expect(exit_of(shot) == 0 && shot.front().get("data")->get("format")->as_string() == "png") << (shot.empty() ? "" : shot.front().json());
+    };
+
+    "assistive technology in the hidden DOM: the focus moved, a node activated as a press"_test = [] {
+        Web w({.size = {200, 160}, .fonts = &fonts()});
+        Page page;
+        w.mount("main", page.view());
+        (void)w.step();
+        std::array<Web::PageAction, 1> focus{{{Web::PageAction::Kind::focus, "main/save"}}};
+        w.synthesize(focus);
+        (void)w.step();
+        expect(w.runtime().focused() == w.runtime().find("main/save")) << "the focus where the screen reader put it";
+        std::array<Web::PageAction, 2> press{{{Web::PageAction::Kind::activate, "main/save"}, {Web::PageAction::Kind::activate, "main/nothing"}}};
+        w.synthesize(press);
+        (void)w.step();
+        expect(eq(page.saved, 1));
+    };
+
+    "a view that scrolls scrolls on the page too: to the same place, and where the page scrolled it the view goes"_test = [] {
+        Web w({.size = {200, 160}, .fonts = &fonts()});
+        std::vector<Element> rows;
+        for (int row = 0; row < 12; ++row) rows.push_back(box({.id = std::format("row{}", row), .width = 200, .height = 40, .label = std::format("Row {}", row)}));
+        w.mount("main", column({}, {scroll({.id = "list", .width = 200, .height = 160}, {column({.id = "rows"}, std::move(rows))})}));
+        (void)w.step();
+        DomMirror mirror(w.runtime());
+        auto first = mirror.sync();
+        expect(first.has_value());
+        if (!first) return;
+        const Value* list = node_of(*first, "main/list");
+        expect(list && list->get("scroll")) << first->json();
+        if (!(list && list->get("scroll"))) return;
+        expect(list->get("scroll")->json() == "[0,0,0,320]") << list->get("scroll")->json();
+        const Value* row = node_of(*first, "main/list/rows/row5");
+        expect(row && row->get("box"));
+        if (!(row && row->get("box"))) return;
+        expect(row->get("box")->json() == "[0,200,200,40]") << "a place in what scrolls: " << row->get("box")->json();
+
+        // The page scrolled the element (the browser's find brought a match into view): the view is there, at once.
+        std::array<Web::PageAction, 1> found{{{Web::PageAction::Kind::scroll, "main/list", 0, 170}}};
+        w.synthesize(found);
+        (void)w.step();
+        expect(w.runtime().scroll_offset(w.runtime().find("main/list")).value_or(Point{}).y == 170.0f);
+        auto then = mirror.sync();
+        expect(then.has_value());
+        if (!then) return;
+        expect(node_of(*then, "main/list")->get("scroll")->json() == "[0,170,0,320]") << then->json();
+        for (const Value& n : *then->get("nodes")->list()) expect(!n.get("box")) << "what scrolls stays where it is in it: " << n.json();
+
+        // The view glides (its scroll_to): the page's element follows it frame by frame, and nothing else is said.
+        expect(eq(w.runtime().act(w.runtime().find("main/list"), "scroll_to", {Value{}.set("x", 0).set("y", 40)}).exit_code().value_or(-1), 0));
+        std::vector<std::string> said;
+        for (int turn = 0; turn < 400 && (said.empty() || said.back() != "[0,40,0,320]"); ++turn) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));  // the host's frames are the clock's
+            (void)w.step();
+            auto batch = mirror.sync();
+            if (!batch || !batch->get("nodes")) continue;
+            for (const Value& n : *batch->get("nodes")->list()) {
+                expect(!n.get("box")) << n.json();
+                if (n.get("scroll")) said.push_back(n.get("scroll")->json());
+            }
+        }
+        expect(!said.empty());
+        if (!(!said.empty())) return;
+        expect(said.back() == "[0,40,0,320]") << said.back();
+
+        // Past its end the view does not go: the page is told where it is.
+        std::array<Web::PageAction, 1> far{{{Web::PageAction::Kind::scroll, "main/list", 0, 900}}};
+        w.synthesize(far);
+        (void)w.step();
+        auto clamped = mirror.sync();
+        expect(clamped && node_of(*clamped, "main/list"));
+        if (!(clamped && node_of(*clamped, "main/list"))) return;
+        expect(node_of(*clamped, "main/list")->get("scroll")->json() == "[0,320,0,320]") << clamped->json();
+    };
+
+    "the person's settings as the page says them: a theme that follows turns dark, motion is reduced, while it runs"_test = [] {
+        Web w({.size = {200, 100}, .fonts = &fonts()});
+        w.mount("main", column({.id = "page", .padding = 20, .background = "background"}, {box({.id = "swatch", .width = 40, .height = 40, .background = "text"})}));
+        w.runtime().set_theme_by_preference([](bool dark) { return dark ? Theme::dark_theme() : Theme::light(); });
+        (void)w.step();
+        const auto light = w.pixels().at(5, 5);
+        expect(!w.runtime().dark_preferred() && !w.runtime().theme().dark && light.r > 200) << std::format("{} {} {}", light.r, light.g, light.b);
+        // The system turns dark while the page is open.
+        std::array<Web::PageAction, 1> dark{{{Web::PageAction::Kind::media, {}, 0, 1}}};
+        w.synthesize(dark);
+        (void)w.step();
+        const auto night = w.pixels().at(5, 5);
+        expect(w.runtime().dark_preferred() && w.runtime().theme().dark && night.r < 60) << std::format("{} {} {}", night.r, night.g, night.b);
+        expect(w.pixels().at(40, 40).r > 200) << "the text colour of the dark theme: light";
+        // Motion reduced, and allowed again; a dark appearance no longer preferred.
+        std::array<Web::PageAction, 2> more{{{Web::PageAction::Kind::media, {}, 1, 1}, {Web::PageAction::Kind::media, {}, 0, 0}}};
+        w.synthesize(more);
+        (void)w.step();
+        expect(w.runtime().reduce_motion() && !w.runtime().theme().dark && w.pixels().at(5, 5).r > 200);
+        std::array<Web::PageAction, 1> moving{{{Web::PageAction::Kind::media, {}, 1, 0}}};
+        w.synthesize(moving);
+        (void)w.step();
+        expect(!w.runtime().reduce_motion());
+    };
+
+    "the skip link: past the navigation to the main landmark's first focusable node"_test = [] {
+        Runtime rt(page_options());
+        Signal<bool> open{false};
+        rt.mount("main", [open] {
+            return column({}, {
+                column({.id = "nav", .label = "Places"}, {box({.id = "home", .width = 40, .height = 20, .label = "Home"}).prop("focusable", fixed(Value(true)))})
+                    .prop("role", fixed(Value("navigation"))),
+                column({.id = "view", .label = "The place"}, {
+                    text({.id = "intro", .text = "Hello"}),
+                    when([open] { return open.get(); },
+                         [] { return box({.id = "more", .width = 40, .height = 20, .label = "More"}).prop("focusable", fixed(Value(true))); }),
+                }).prop("role", fixed(Value("main"))),
+            });
+        }());
+        rt.frame();
+        DomMirror mirror(rt);
+        auto first = mirror.sync();
+        expect(first && !first->get("skip")) << "nothing in the main landmark to focus: no skip link";
+        open.set(true);
+        rt.frame();
+        auto then = mirror.sync();
+        const Value* skip = then ? then->get("skip") : nullptr;
+        expect(skip && skip->get("to") && skip->get("to")->as_string() == "main/view/more") << (then ? then->json() : "no batch");
+        expect(skip && skip->get("name") && skip->get("name")->as_string() == "The place") << "named as the landmark";
+        // Followed: the focus there, its ring drawn.
+        rt.focus_visibly(rt.find("main/view/more"));
+        rt.frame();
+        expect(rt.focused() == rt.find("main/view/more")) << "focused";
+        auto after = mirror.sync();
+        expect(!after || !after->get("skip")) << "the link unchanged is not sent again";
+    };
+
+    "the store: memory without a page, the contract's for scripts"_test = [] {
+        Web w({.size = {100, 100}, .fonts = &fonts()});
+        expect(w.store().kind() == "memory" && &w.store() == &omui::store());
+        expect(w.store().set("best", "1200").has_value() && w.store().get("best") == std::optional<std::string>("1200"));
+        expect(w.store().remove("best"));
+    };
+}};

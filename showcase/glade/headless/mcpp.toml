@@ -1,0 +1,46 @@
+# Glade (M6.5's sandbox), the game on its own:
+#   src/sim       the simulation (the M6.5 design's T5.8a): a pocket valley — a stream and a footbridge, grass on both
+#                 banks, a campfire, a crate, a block of ice — whose bodies, air and drops are matter's carriers in one
+#                 step (meng.dynamics' rigid3 and objects, meng.field, meng.particles, under rigid3::Scene).
+#                 Poked by a few verbs, it answers by the standard laws and Glade's own materials (glade.matter.xdef.ts:
+#                 a pack, data, no law). The state is a value: a copy is a branch.
+#   src/headless  the valley as meng.runtime plays it (D-162; T5.8b): stepped without omui, sought back and branched
+#                 ahead, poked by a hand a person or an agent holds over it, and asked why.
+# Each keeps its module (import omui.showcase.glade.sim; import omui.showcase.glade.headless;). The picture, the
+# sound and the window (T5.8c–e) are to come beside this package.
+[package]
+namespace   = "omui.showcase.glade"
+name        = "headless"
+version     = "0.1.0"
+description = "Glade on its own: a valley of matter poked by a few verbs and answering by the laws (rewindable, explained), the game an agent plays with a hand as a person does"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "experimental"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: Glade on its own, headless"
+
+[targets.glade-headless]
+kind = "lib"
+
+[build]
+sources  = ["src/*/*.cppm", "src/*/*.cpp", "src/sim/generated/*.cppm"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math", "-O2"]  # stepped many times a test, as the kernels it steps are
+
+[dependencies]
+meng.dynamics  = { path = "../../../modules/projects/meng/kernel/dynamics", features = ["rigid3-scene"] }
+meng.matter    = { path = "../../../modules/projects/meng/kernel/matter" }
+meng.field     = { path = "../../../modules/projects/meng/kernel/field" }
+meng.particles = { path = "../../../modules/projects/meng/kernel/particles" }
+meng.runtime   = { path = "../../../modules/projects/meng/game/runtime" }
+meng.input     = { path = "../../../modules/projects/meng/game/input" }
+mlibs.simulation  = { path = "../../../modules/base/simulation" }
+mlibs.math        = { path = "../../../modules/base/math" }
+mlibs.utils       = { path = "../../../modules/base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest  = "0.11.3"
+mlibs.agent     = { path = "../../../modules/base/agent" }
+mlibs.json      = { path = "../../../modules/base/json" }
+openlifa.openas = "0.2.1"

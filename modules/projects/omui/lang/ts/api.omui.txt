@@ -1,0 +1,89 @@
+== omui.lang.ts
+export import :error;
+export import :define;
+export import :declare;
+export import :edit;
+== omui.lang.ts:declare
+namespace omui::lang::ts {
+  struct PropShape {
+    std::string name, type;
+    std::vector<std::string> values;
+    bool bindable = false;
+    std::string doc;
+  };
+  struct FieldShape {
+    std::string name, type, doc;
+  };
+  struct EventShape {
+    std::string name;
+    std::vector<FieldShape> args;
+  };
+  struct ComponentShape {
+    std::string name, doc;
+    std::vector<PropShape> props;
+    std::vector<EventShape> events;
+    std::string origin;
+    bool spec = false;
+  };
+  struct RecordShape {
+    std::string name, doc;
+    std::vector<FieldShape> fields;
+  };
+  struct FunctionShape {
+    std::string name, doc, returns;
+    std::vector<FieldShape> params;
+    bool async = false;
+  };
+  struct NativeShape {
+    std::string name, doc;
+    std::vector<RecordShape> records;
+    std::vector<FunctionShape> functions;
+  };
+  struct DeclareOptions {
+    std::string header;
+    bool standalone = true;
+  };
+  [[nodiscard]] std::string declare_components(std::span<const ComponentShape> components, const DeclareOptions& options);
+  [[nodiscard]] std::string declare_natives(std::span<const NativeShape> natives, const DeclareOptions& options);
+  [[nodiscard]] std::string camel_case(std::string_view snake);
+  [[nodiscard]] std::string pascal_case(std::string_view snake);
+}
+== omui.lang.ts:define
+export import mlibs.ts;
+namespace omui::lang::ts {
+  inline constexpr std::array<std::string_view, 3> spec_kinds{…};
+  inline constexpr std::array<std::string_view, 15> omui_kinds{…};
+  inline constexpr std::array<std::string_view, 3> foundation_kinds{…};
+  inline constexpr std::array<std::string_view, 20> data_kinds{…};
+  [[nodiscard]] std::string define_module_source(bool spec);
+  [[nodiscard]] mlibs::ts::DataOptions data_options(mlibs::ts::DataOptions options = {…});
+  [[nodiscard]] std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate(const std::filesystem::path& file, mlibs::ts::DataOptions options = {…});
+  [[nodiscard]] std::expected<mlibs::ts::Data, mlibs::ts::TsFailure> evaluate_source(std::string_view source, std::string_view name, mlibs::ts::DataOptions options = {…});
+  [[nodiscard]] std::expected<std::string, std::string> data_text(const std::filesystem::path& file);
+  [[nodiscard]] std::string_view omui_define_types();
+  [[nodiscard]] std::string_view foundation_define_types();
+}
+== omui.lang.ts:edit
+namespace omui::lang::ts {
+  struct BuilderCall {
+    std::size_t start = 0, end = 0;
+    std::size_t open = 0;
+    std::string callee;
+    std::optional<std::pair<std::size_t, std::size_t>> properties, children;
+  };
+  [[nodiscard]] std::expected<BuilderCall, EditFailure> builder_call_at(std::string_view source, std::size_t line, std::size_t column);
+  [[nodiscard]] std::expected<std::string, EditFailure> set_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name, std::string_view value);
+  [[nodiscard]] std::expected<std::string, EditFailure> remove_property(std::string_view source, std::size_t line, std::size_t column, std::string_view name);
+  [[nodiscard]] std::expected<std::string, EditFailure> insert_child(std::string_view source, std::size_t line, std::size_t column, std::string_view code, std::optional<std::size_t> index = std::nullopt);
+  [[nodiscard]] std::expected<std::string, EditFailure> remove_call(std::string_view source, std::size_t line, std::size_t column);
+  class CallIndex {
+    [[nodiscard]] static std::expected<CallIndex, EditFailure> of(std::string_view source);
+    [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> enclosing(std::size_t line, std::size_t column, std::string_view callee, std::size_t skip = 0) const;
+  };
+}
+== omui.lang.ts:error
+namespace omui::lang::ts {
+  enum class EditError : std::uint8_t { syntax, no_place, no_call, no_property, not_in_children };
+  [[nodiscard]] constexpr mlibs::error::Description describe(EditError error) noexcept;
+  using EditFailure = mlibs::error::Error<EditError>;
+}

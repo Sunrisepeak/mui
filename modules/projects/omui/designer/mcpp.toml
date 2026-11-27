@@ -1,0 +1,64 @@
+# omui.designer — Live Design's designer (D-149, D-151): the design.* verbs,
+# the design's history, previews and variants in stand-ins and the timeline,
+# for a player in development mode.
+#
+# A package of its own rather than part of the player: a release must be built
+# without it (D-149), and a program has it by linking it — the entry player's
+# `design` feature (`omui dev`) — never by a switch at run time.
+[package]
+namespace   = "omui"
+name        = "designer"
+version     = "0.1.0"
+description = "Live Design's designer: the design verbs, history, previews, variants and timeline of an application in development mode"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: Live Design for applications, tools and tests"
+kind = "runtime"
+agent = { part = "omui.agent" }
+
+[targets.openmui-designer]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.core     = { path = "../core" }
+omui.view     = { path = "../view" }
+omui.abi      = { path = "../abi" }
+omui.semantic = { path = "../semantic" }
+omui.player   = { path = "../player" }
+# Live Design's catalog (design.ops.xdef.ts): the design.* verbs as declared.
+omui.agent    = { path = "../agent" }
+# The design's history — the store and its operations — is the agent kernel's (D-173: one for every domain);
+# the verbs' arguments go to it as JSON.
+mlibs.agent   = { path = "../../../base/agent" }
+# View documents as a design's sources (:view_sources): read and put in canonical form by their owner.
+omui.viewdoc  = { path = "../viewdoc" }
+mcpplibs.os   = "0.4.8"
+mlibs.json    = { path = "../../../base/json" }
+# The show (design.show, FE4): a step's changed regions read from two pictures, the timeline directed from them.
+mrender.raster = { path = "../../mrender/raster" }
+hanim.timeline = { path = "../../hanim/timeline" }
+mlibs.utils   = { path = "../../../base/utils" }
+
+[test]
+programs = "directory"  # tests/designer/: one program, each file run and filtered as before
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest     = "0.11.3"
+# view_sources_test: the design adapter's contract on the view documents' sources.
+mlibs.agent.cts    = { path = "../../../base/agent/cts" }
+mlibs.image        = { path = "../../../base/image" }
+omui.ui.base       = { path = "../components/base" }
+# Twins of the application, as the entry makes them, for the tests.
+omui.host.headless = { path = "../host/headless" }
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { film = 1 }

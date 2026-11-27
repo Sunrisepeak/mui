@@ -1,0 +1,12 @@
+{
+  "name": "ink-counter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ink's side of the terminal comparison (F4; ../README.md): the counter, on Node",
+  "type": "module",
+  "main": "counter.js",
+  "dependencies": {
+    "ink": "8.0.0",
+    "react": "19.3.1"
+  }
+}

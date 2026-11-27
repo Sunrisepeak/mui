@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "size": [240, 120],
+  "background": "#0f1724",
+  "objects": [
+    { "id": "dot1", "shape": { "circle": 9 }, "fill": "#7dd3fc", "at": [90, 60] },
+    { "id": "dot2", "shape": { "circle": 9 }, "fill": "#7dd3fc", "at": [120, 60] },
+    { "id": "dot3", "shape": { "circle": 9 }, "fill": "#7dd3fc", "at": [150, 60] }
+  ],
+  "program": {
+    "do": "stagger", "step": 0.15,
+    "items": [
+      { "do": "bob", "object": "dot1", "amplitude": 10, "period": 0.9, "count": 3 },
+      { "do": "bob", "object": "dot2", "amplitude": 10, "period": 0.9, "count": 3 },
+      { "do": "bob", "object": "dot3", "amplitude": 10, "period": 0.9, "count": 3 }
+    ]
+  }
+}

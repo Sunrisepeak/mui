@@ -1,0 +1,40 @@
+# omui.size.terminal-agent — the least application in a terminal with its agent endpoint (terminal design §5, the
+# second tier; CF1's F4): terminal's program, and the agent surface installed, so an agent reads its tree and its
+# picture and operates it at the endpoint as it does a window's. omui-devtools check size --native holds its bytes to
+# size.budget.xdef.json; what it weighs over terminal's is what the endpoint costs.
+[package]
+namespace   = "omui.size"
+name        = "terminal-agent"
+version     = "0.1.0"
+description = "The least application in a terminal with its agent endpoint: what it weighs is budgeted (the second tier)"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: the terminal host it measures is preview
+separate = "product: the terminal application with its agent endpoint, whose size is held to a budget"
+kind = "tool"
+
+# It installs the agent surface itself (omui::agent::install): it is its program's root (mlibs.compose, K6).
+[package.metadata.openmui.compose]
+root = true
+
+[targets.omui-size-terminal-agent]
+kind = "bin"
+main = "src/main.cpp"
+
+# The system's C++ runtime serves it where its budget is measured, as terminal's (D-221; terminal design §5), stated
+# per target as terminal's is: macOS keeps mcpp's default (red 161, mcpp#1025 item 4).
+[target.x86_64-linux-gnu]
+cxx_runtime = "host-coupled"
+
+[target.aarch64-linux-gnu]
+cxx_runtime = "host-coupled"
+
+[target.x86_64-windows-msvc]
+cxx_runtime = "host-coupled"
+
+[dependencies]
+omui.agent         = { path = "../../../modules/projects/omui/agent" }
+omui.host.terminal = { path = "../../../modules/projects/omui/host/terminal" }
+omui.ui.base       = { path = "../../../modules/projects/omui/components/base" }

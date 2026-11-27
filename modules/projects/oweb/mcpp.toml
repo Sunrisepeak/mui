@@ -1,0 +1,69 @@
+# oweb — a site framework on omui (0.1.0 plan §4.4, D-275; design 2026-11-26-oweb-site-framework-design.md): a
+# directory of pages built into a site in which every route is one semantic tree written three ways — the canvas
+# for people (the engine, by the page's load policy), `index.html` for a reader without scripts and for search
+# engines, `index.md` for an agent that only fetches — with the routes as the one table the navigation, the
+# sitemap and the site's description come from. One package: its duties are directories of src/ (D-99).
+[package]
+name        = "oweb"
+version     = "0.1.0"
+description = "A site framework on omui: pages built into routes, each written as HTML and as Markdown from its semantic tree; the routes table, the sitemap, the site's description for agents"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the oweb framework and command, a project of its own on omui (D-275)"
+kind = "tool"
+reexports = ["mlibs.agent", "mlibs.delivery", "oweb.shell"]  # what its interface re-exports (lint module-closure)
+agent = "tool"
+
+# Declared data this package owns (xdef, D-209): a site's configuration (oweb.config.ts, defineSite) and the two
+# tables a build writes.
+[package.metadata.openmui.xdef]
+kinds   = { site = 1, routes = 1, search = 1 }
+modules = { "oweb/define" = ["site"] }
+
+[targets.oweb-core]
+kind = "lib"
+
+[targets.oweb]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+
+[dependencies]
+# The command is the subject `oweb` behind the tool kernel's entries (mlibs.agent:host, T0).
+mlibs.agent    = { path = "../../base/agent" }
+mlibs.delivery = { path = "../../base/delivery" }  # the delivery manifest and its budgets (ST6)
+mlibs.control.gen = { path = "../../base/control/gen" }  # a catalog's reference page, generated at each build (ST3)
+mlibs.json     = { path = "../../base/json" }
+mlibs.image    = { path = "../../base/image" }  # a page's pictures read as its frame is drawn: their sizes are the page's
+mlibs.utils    = { path = "../../base/utils" }  # mlibs.names: the nearest field for a mistyped one
+mlibs.ts       = { path = "../../base/ts" }    # oweb.config.ts evaluated to its snapshot
+mlibs.xdef     = { path = "../../base/xdef" }  # a snapshot's format checked before it is read
+mlibs.markdown = { path = "../../content/markdown" }
+mlibs.text.fonts = { path = "../../content/text/fonts" }  # every script a page shows carried with it (D-214)
+mlibs.text.subset = { path = "../../content/text/subset" }  # a site's faces cut to the characters its pages show (UI5, CF3)
+oweb.shell         = { path = "shell" }  # a page's shell: one view for the builder and for the program a page loads
+omui.core          = { path = "../omui/core" }
+omui.view          = { path = "../omui/view" }
+omui.semantic      = { path = "../omui/semantic" }
+omui.host.headless = { path = "../omui/host/headless" }
+omui.ui.base       = { path = "../omui/components/base" }
+omui.ui.markdown   = { path = "../omui/components/markdown" }
+openlifa.openas = "0.2.1"
+mcpplibs.os     = "0.4.8"
+
+# Its build program (build.mcpp): the catalog's reference page carried in the library.
+[build-dependencies]
+omui.build = { path = "../../../mcpp/build", host-module = true }
+
+[test]
+programs = "directory"  # tests/site/: one program, each file run and filtered on its own (not named as the program `oweb`: mcpp#1028)
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+omui.host.web = { path = "../omui/host/web" }  # the layer over the canvas, held to the page before the program (layer_test)

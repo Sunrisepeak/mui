@@ -1,0 +1,143 @@
+== omui.viewdoc
+export import omui.view;
+export import omui.expr;
+export import :document;
+export import :instance;
+export import :schema;
+== omui.viewdoc:document
+namespace omui::viewdoc {
+  inline constexpr std::string_view format_version = "0.1";
+  struct Diagnostic {
+    enum class Level : std::uint8_t { error, warning };
+    Level level = Level::error;
+    std::string code;
+    std::string pointer;
+    std::uint32_t line = 0, column = 0;
+    std::string message;
+    std::string hint;
+    [[nodiscard]] std::string text(std::string_view file = {…}) const;
+    [[nodiscard]] Value to_value(std::string_view file = {…}) const;
+  };
+  struct Binding {
+    enum class Kind : std::uint8_t { constant, expr, bind, tr };
+    Kind kind = Kind::constant;
+    Value value;
+    expr::Expr expr;
+    std::string name;
+    std::string pointer;
+  };
+  struct Op {
+    enum class Kind : std::uint8_t { set, verb, emit };
+    Kind kind = Kind::set;
+    std::string target;
+    expr::Expr value;
+    std::vector<std::pair<std::string, expr::Expr>> args;
+    std::string pointer;
+  };
+  struct Reaction {
+    std::string event;
+    std::vector<Op> ops;
+  };
+  struct Node {
+    enum class Kind : std::uint8_t { element, when, each, slot };
+    Kind kind = Kind::element;
+    std::string type;
+    const ComponentType* component = nullptr;
+    std::string id;
+    std::vector<std::pair<std::string, Binding>> props;
+    std::vector<Reaction> on;
+    std::vector<std::pair<std::string, Transition>> animate;
+    std::vector<Node> children;
+    std::vector<Node> otherwise;
+    expr::Expr condition;
+    bool filtered = false;
+    std::string variable;
+    std::string model;
+    std::string slot;
+    std::string pointer;
+    std::string built_at;
+  };
+  struct SignalDecl {
+    std::string name;
+    std::string type;
+    Value value;
+    bool provided = false;
+    std::string pointer;
+  };
+  struct InterfaceProp {
+    std::string name;
+    std::string type;
+    std::vector<std::string> values;
+    Value default_value;
+    bool bindable = false;
+    std::string doc;
+  };
+  struct InterfaceEvent {
+    std::string name;
+    std::vector<std::pair<std::string, std::string>> args;
+    std::string doc;
+  };
+  struct Interface {
+    std::vector<InterfaceProp> props;
+    std::vector<InterfaceEvent> events;
+    Role role = Role::generic;
+    std::string doc;
+    [[nodiscard]] const InterfaceProp* prop(std::string_view name) const noexcept;
+    [[nodiscard]] const InterfaceEvent* event(std::string_view name) const noexcept;
+  };
+  struct Document {
+    std::string version;
+    std::vector<std::string> imports;
+    std::string name;
+    bool component = false;
+    Interface interface;
+    std::vector<SignalDecl> signals;
+    std::vector<std::pair<std::string, std::string>> models;
+    Node root;
+    std::string notes;
+    [[nodiscard]] const SignalDecl* signal(std::string_view name) const noexcept;
+  };
+  struct ReadOptions {
+    std::string file;
+    std::function<const ComponentType*(std::string_view)> types;
+    const Verbs* verbs = nullptr;
+  };
+  struct ReadResult {
+    std::optional<Document> document;
+    std::vector<Diagnostic> diagnostics;
+    [[nodiscard]] bool ok() const noexcept;
+    [[nodiscard]] std::size_t errors() const noexcept;
+  };
+  [[nodiscard]] ReadResult read(std::string_view json, const ReadOptions& options = {…});
+  [[nodiscard]] std::optional<Value> coerce(std::string_view type, const Value& v);
+}
+== omui.viewdoc:instance
+namespace omui::viewdoc {
+  struct LoadOptions {
+    std::string file;
+    std::function<std::optional<Signal<Value>>(std::string_view name)> provide;
+  };
+  class View {
+    [[nodiscard]] static std::expected<View, std::vector<Diagnostic>> load(Services& services, std::string_view json, LoadOptions options = {…});
+    [[nodiscard]] static std::expected<View, std::vector<Diagnostic>> load_file(Services& services, const std::filesystem::path& file, LoadOptions options = {…});
+    View& slot(std::string_view name, Element content);
+    View& on(std::string event, std::function<void(const Value& args)> handler);
+    View& on_any(std::function<void(std::string_view event, const Value& args)> handler);
+    [[nodiscard]] Element element() const;
+    NodeId mount(Runtime& runtime, std::string_view slot);
+    std::expected<void, std::vector<Diagnostic>> reload(std::string_view json);
+    std::expected<void, std::vector<Diagnostic>> reload_file(const std::filesystem::path& file);
+    [[nodiscard]] std::optional<Signal<Value>> signal(std::string_view name) const;
+    [[nodiscard]] const Document& document() const noexcept;
+    [[nodiscard]] std::span<const Diagnostic> warnings() const noexcept;
+    struct State;
+  };
+  [[nodiscard]] std::expected<const ComponentType*, std::vector<Diagnostic>> define_component(std::string_view json, LoadOptions options = {…});
+  [[nodiscard]] std::expected<const ComponentType*, std::vector<Diagnostic>> define_component_file(const std::filesystem::path& file, LoadOptions options = {…});
+  [[nodiscard]] Element make(std::string_view type, std::vector<std::pair<std::string, Source>> props = {…}, std::vector<std::pair<std::string, Handler>> handlers = {…}, std::string id = {…});
+}
+== omui.viewdoc:schema
+namespace omui::viewdoc {
+  [[nodiscard]] Value view_schema(bool with_document_components = true);
+  [[nodiscard]] std::expected<std::string, Diagnostic> format_document(std::string_view json);
+}

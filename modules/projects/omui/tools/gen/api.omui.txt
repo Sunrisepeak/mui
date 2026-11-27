@@ -1,0 +1,445 @@
+== omui.gen.cldr
+namespace omui::gen {
+  struct CldrPack {
+    std::string file;
+    std::string text;
+  };
+  [[nodiscard]] std::expected<std::vector<CldrPack>, std::string> emit_cldr_packs(const std::filesystem::path& cldr, std::span<const std::string> locales, std::string_view version);
+}
+== omui.gen.closure
+namespace omui::gen {
+  struct ClosureSource {
+    std::string name;
+    std::string text;
+  };
+  struct ClosureTaken {
+    std::string file;
+    std::size_t line = 0;
+    std::vector<std::string> names;
+  };
+  struct Closure {
+    bool full = false;
+    std::string why;
+    std::vector<std::string> components;
+    std::vector<std::string> natives;
+    std::vector<ClosureTaken> taken;
+  };
+  [[nodiscard]] std::string contract_name(std::string_view builder);
+  [[nodiscard]] std::expected<Closure, std::string> derive_closure(std::span<const ClosureSource> scripts, std::string_view full_because = {…}, std::span<const ClosureTaken> kept = {…});
+  struct ClosureConfig {
+    std::string full_because;
+    std::vector<ClosureTaken> kept;
+  };
+  [[nodiscard]] ClosureConfig closure_config(std::string_view config, std::string_view file);
+  [[nodiscard]] std::expected<std::vector<ClosureSource>, std::string> replay_scripts(std::string_view replay, std::string_view name);
+  [[nodiscard]] std::string closure_unit(const Closure& closure);
+  [[nodiscard]] std::string closure_report(const Closure& closure);
+}
+== omui.gen.data
+namespace omui::gen {
+  [[nodiscard]] bool is_data_module(const std::filesystem::path& file);
+  [[nodiscard]] std::expected<mlibs::json::Document, std::string> json_document(const std::filesystem::path& file);
+  [[nodiscard]] std::expected<mlibs::json::Document, std::string> data_document(const std::filesystem::path& file, std::string_view kind);
+  struct Snapshot {
+    std::string name;
+    std::string json;
+  };
+  [[nodiscard]] std::expected<Snapshot, std::string> snapshot(const std::filesystem::path& file);
+}
+== omui.gen.dist_toy
+namespace omui::gen {
+  struct ToyPackage {
+    std::filesystem::path stage;
+    std::string target;
+    std::filesystem::path out;
+    std::string title;
+    std::vector<std::string> fonts;
+    std::filesystem::path fonts_dir;
+    std::filesystem::path graph;
+    std::string background = "#000000";
+    std::string load = "eager";
+    std::string background_dark;
+    bool sdk = true;
+    bool world = false;
+    struct Later {
+      std::filesystem::path dir;
+      std::string suffix, mount;
+    };
+    std::vector<Later> later;
+    struct File {
+      std::string path;
+      std::filesystem::path source;
+      bool data = false;
+    };
+    std::vector<File> files;
+    struct Subset {
+      std::string font;
+      std::vector<std::filesystem::path> text;
+    };
+    std::vector<Subset> subsets;
+    std::vector<std::pair<std::string, std::vector<std::string>>> font_languages;
+    std::vector<std::pair<std::string, std::string>> font_initial;
+    std::vector<std::pair<std::string, std::vector<std::filesystem::path>>> font_initial_text;
+    std::vector<std::string> fonts_on_demand;
+  };
+  inline constexpr std::string_view world_head = "<!--omui:head-->";
+  inline constexpr std::string_view world_document = "<!--omui:document-->";
+  inline constexpr std::string_view world_root = "var omuiRoot = \"\";";
+  inline constexpr std::string_view world_takes = "var omuiTakes = \"eager\";";
+  inline constexpr std::string_view world_faces = "var omuiFaces = null;";
+  struct ToyFile {
+    std::string path;
+    std::uintmax_t size = 0;
+  };
+  struct ToyReport {
+    std::vector<ToyFile> files;
+    std::uintmax_t total = 0;
+    std::uintmax_t index = 0;
+    std::string program;
+    std::uintmax_t apart = 0;
+  };
+  inline constexpr std::uintmax_t toy_index_limit = 1024 * 1024;
+  [[nodiscard]] bool toy_keeps(std::string_view extension) noexcept;
+  [[nodiscard]] std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p);
+  int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args);
+  struct ToySplit {
+    std::filesystem::path dir;
+    std::filesystem::path primary;
+    std::filesystem::path deferred;
+    std::vector<std::string> lazy;
+    std::string needs;
+  };
+  [[nodiscard]] std::expected<ToyReport, std::string> adopt_split(const ToySplit& split);
+  [[nodiscard]] std::vector<std::string> lazy_routes(std::string_view list);
+  int dist_toy_split_main(const mcpplibs::cmdline::ParsedArgs& args);
+  struct ToyDocument {
+    std::filesystem::path dir;
+    std::filesystem::path static_html;
+    std::string lang;
+    std::string description;
+    std::string canonical;
+    std::string image;
+    std::vector<std::pair<std::string, std::string>> alternates;
+  };
+  [[nodiscard]] std::expected<ToyReport, std::string> adopt_document(const ToyDocument& document);
+  int dist_toy_document_main(const mcpplibs::cmdline::ParsedArgs& args);
+}
+== omui.gen.emit
+namespace omui::gen {
+  [[nodiscard]] std::string emit_c_header(const Registry& reg);
+  [[nodiscard]] std::string emit_abi_types(const Registry& reg);
+  [[nodiscard]] std::string emit_abi_functions(const Registry& reg);
+  [[nodiscard]] std::string emit_abi_layout(const Registry& reg);
+  [[nodiscard]] std::string emit_spec_registry(const Registry& reg);
+  [[nodiscard]] std::string emit_spec_catalog(const Registry& reg);
+  [[nodiscard]] std::string emit_contract_tables(const Contract& c, std::string_view id);
+  struct CppOptions {
+    std::string module;
+    std::string ns = "omui::ui";
+    bool catalog = false;
+  };
+  [[nodiscard]] std::string emit_cpp_contract(const Contract& c, const Registry& reg, const CppOptions& o);
+  [[nodiscard]] std::string emit_cpp_builder(const Contract& c, const Registry& reg, const CppOptions& o);
+  [[nodiscard]] std::string emit_docs(const Registry& reg);
+  [[nodiscard]] std::string emit_dts(const std::vector<Contract>& contracts, std::string_view module, bool spec = false);
+  [[nodiscard]] std::string emit_cpp_native(const NativeModule& m, const CppOptions& o, std::string_view source);
+  [[nodiscard]] std::string emit_native_dts(const std::vector<NativeModule>& modules, std::string_view module);
+  inline constexpr mlibs::xdef::Generator embedded_by{…};
+  [[nodiscard]] std::string emit_view_schema(const std::vector<Contract>& contracts, std::string_view module);
+}
+== omui.gen.model
+namespace omui::gen {
+  inline std::string utf8(const std::filesystem::path& p);
+  inline std::string generic_utf8(const std::filesystem::path& p);
+  struct Loc {
+    std::string file;
+    int line = 0;
+    int column = 0;
+  };
+  struct Diagnostic {
+    enum class Severity : std::uint8_t { error, warning };
+    Severity severity = Severity::error;
+    Loc loc;
+    std::string message;
+    std::string hint;
+  };
+  struct Named {
+    std::string name;
+    std::string doc;
+    Loc loc;
+  };
+  struct Arg {
+    std::string name;
+    std::string type;
+  };
+  struct Role : Named {
+    std::string aria;
+    std::string accesskit;
+    bool interactive = false;
+  };
+  struct State : Named {
+  };
+  struct Effect : Named {
+    int tier = 0;
+    bool answer = false;
+  };
+  struct Origin : Named {
+  };
+  struct NodeProperty : Named {
+    std::string type;
+    std::vector<std::string> values;
+    std::vector<std::string> roles;
+  };
+  struct MarkKind : Named {
+    std::string aria;
+    bool node = false;
+  };
+  struct Action : Named {
+    std::string effect;
+    std::vector<Arg> args;
+  };
+  struct Extension : Named {
+    int version = 1;
+    std::vector<std::string> requires_;
+  };
+  struct Profile : Named {
+    std::vector<std::string> scripts;
+    int min_scripts = 0;
+  };
+  struct MotionToken : Named {
+    std::optional<double> duration_ms;
+    std::string easing;
+    std::optional<double> stiffness, damping, mass;
+  };
+  struct MotionSlot : Named {
+  };
+  struct MotionRecipe : Named {
+    std::vector<std::string> primitives;
+    std::string timing;
+    std::string effect;
+  };
+  struct MotionPresence : Named {
+    std::string kind;
+    std::vector<std::string> options;
+  };
+  struct ExprOperator : Named {
+    std::string text;
+    int arity = 0;
+    std::map<std::string, std::string> combinators;
+  };
+  struct ExprFunction : Named {
+    std::string signature;
+    std::map<std::string, std::string> combinators;
+  };
+  struct AbiField {
+    std::string name;
+    std::string type;
+    std::string doc;
+    int array = 0;
+  };
+  struct AbiParam {
+    std::string name;
+    std::string type;
+  };
+  struct AbiHandle : Named {
+    std::string kind;
+  };
+  struct AbiResult : Named {
+    int value = 0;
+  };
+  struct AbiEnum : Named {
+    std::vector<std::string> values;
+  };
+  struct AbiStruct : Named {
+    bool extensible = false;
+    std::vector<AbiField> fields;
+  };
+  struct AbiCallback : Named {
+    std::string returns;
+    std::vector<AbiParam> params;
+  };
+  struct AbiFunction : Named {
+    std::vector<AbiParam> params;
+  };
+  struct Abi {
+    std::string prefix = "omui";
+    std::vector<AbiHandle> handles;
+    std::vector<AbiResult> results;
+    std::vector<AbiEnum> enums;
+    std::vector<AbiStruct> structs;
+    std::vector<AbiCallback> callbacks;
+    std::vector<AbiFunction> functions;
+  };
+  using Default = std::variant<std::monostate, bool, std::int64_t, double, std::string, std::vector<std::string>>;
+  struct Prop : Named {
+    std::string type;
+    std::vector<std::string> values;
+    Default default_value;
+    bool bindable = false;
+  };
+  struct Event : Named {
+    std::vector<Arg> args;
+    std::string coalesce;
+  };
+  struct ContractAction : Named {
+    std::string effect;
+    std::vector<Arg> args;
+    std::string answer;
+  };
+  struct Key {
+    std::string chord;
+    std::string target;
+    Loc loc;
+  };
+  struct Command : Named {
+  };
+  struct Part : Named {
+  };
+  struct Motion {
+    std::string part;
+    std::string token;
+    Loc loc;
+  };
+  struct Contract : Named {
+    std::string role;
+    std::string spec;
+    std::string children = "none";
+    std::vector<Prop> props;
+    std::vector<Event> events;
+    std::vector<ContractAction> actions;
+    std::vector<Key> keys;
+    std::vector<Command> commands;
+    std::vector<Part> parts;
+    std::vector<Motion> motion;
+  };
+  struct NativeParam {
+    std::string name;
+    std::string type;
+    std::string doc;
+    Loc loc;
+  };
+  struct NativeType : Named {
+    std::vector<NativeParam> fields;
+  };
+  struct NativeFunction : Named {
+    std::string effect = "read";
+    bool async = false;
+    std::vector<NativeParam> params;
+    std::string returns;
+  };
+  struct NativeModule : Named {
+    std::string spec;
+    std::vector<NativeType> types;
+    std::vector<NativeFunction> functions;
+  };
+  struct Registry {
+    std::string spec;
+    std::vector<Role> roles;
+    std::vector<State> states;
+    std::vector<Effect> effects;
+    std::vector<Origin> origins;
+    std::vector<NodeProperty> node_properties;
+    std::vector<MarkKind> marks;
+    std::vector<Action> actions;
+    std::vector<Extension> extensions;
+    std::vector<Profile> profiles;
+    std::vector<MotionToken> motion_tokens;
+    std::map<std::string, std::string> easing;
+    std::map<std::string, std::string> spring;
+    std::vector<MotionSlot> motion_slots;
+    std::vector<MotionRecipe> motion_recipes;
+    std::vector<MotionPresence> motion_presences;
+    std::vector<ExprOperator> operators;
+    std::vector<ExprFunction> functions;
+    std::vector<std::string> expr_types;
+    Abi abi;
+    std::vector<Contract> contracts;
+    template <class T> [[nodiscard]] static const T* find(const std::vector<T>& list, std::string_view name);
+  };
+  [[nodiscard]] std::string pascal(std::string_view snake);
+  [[nodiscard]] std::string camel(std::string_view snake);
+  [[nodiscard]] std::string upper(std::string_view s);
+  [[nodiscard]] std::string cpp_string(std::string_view s);
+  [[nodiscard]] std::string format_double(double v);
+  [[nodiscard]] std::string ident(std::string_view name);
+}
+== omui.gen.part
+namespace omui::gen {
+  [[nodiscard]] std::expected<std::size_t, std::string> function_imports(std::span<const std::uint8_t> wasm);
+  [[nodiscard]] std::vector<std::pair<std::size_t, std::size_t>> call_edges(std::string_view dot);
+  [[nodiscard]] std::vector<std::pair<std::size_t, std::size_t>> invoke_edges(std::string_view printed, const std::map<std::size_t, std::string>& names, std::size_t imports);
+  [[nodiscard]] std::string_view linked_name(std::string_view name) noexcept;
+  [[nodiscard]] std::map<std::size_t, std::uint64_t> body_hashes(std::string_view printed, const std::map<std::size_t, std::string>& names, std::size_t imports);
+  [[nodiscard]] std::set<std::size_t> first_part(const std::map<std::size_t, std::string>& whole, const std::set<std::string>& first, std::size_t imports, std::span<const std::pair<std::size_t, std::size_t>> edges, const std::map<std::size_t, std::uint64_t>& whole_bodies = {…}, const std::set<std::uint64_t>& first_bodies = {…});
+  struct PartCut {
+    std::filesystem::path whole;
+    std::filesystem::path whole_names;
+    std::filesystem::path first_names;
+    std::filesystem::path primary;
+    std::filesystem::path deferred;
+    std::filesystem::path binaryen;
+  };
+  struct PartReport {
+    std::size_t functions = 0;
+    std::size_t named = 0;
+    std::size_t bodies = 0;
+    std::size_t first = 0;
+  };
+  [[nodiscard]] std::expected<PartReport, std::string> cut_part(const PartCut& cut);
+  struct Apart {
+    std::map<std::string, std::map<std::uint32_t, std::string>> kinds;
+    std::size_t bytes = 0;
+  };
+  [[nodiscard]] std::expected<Apart, std::string> carry_apart(std::span<std::uint8_t> wasm);
+  [[nodiscard]] std::optional<std::filesystem::path> binaryen_directory();
+  [[nodiscard]] std::span<const std::string_view> emscripten_features() noexcept;
+}
+== omui.gen.read
+namespace omui::gen {
+  struct Diagnostics {
+    std::vector<Diagnostic> list;
+    void error(Loc loc, std::string message, std::string hint = {…});
+    void warning(Loc loc, std::string message, std::string hint = {…});
+    [[nodiscard]] bool has_errors() const noexcept;
+    [[nodiscard]] std::string text() const;
+    [[nodiscard]] std::string json() const;
+  };
+  [[nodiscard]] Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags);
+  [[nodiscard]] std::vector<Contract> read_contracts(const std::filesystem::path& file, const Registry& registry, Diagnostics& diags);
+  [[nodiscard]] std::vector<NativeModule> read_natives(const std::filesystem::path& file, const Registry& registry, Diagnostics& diags);
+}
+== omui.gen.size
+namespace omui::gen {
+  struct SizeEntry {
+    std::string name;
+    std::size_t bytes = 0;
+    std::size_t functions = 0;
+  };
+  struct SizeReport {
+    std::size_t total = 0;
+    std::size_t shipped = 0;
+    std::vector<SizeEntry> sections;
+    std::size_t code = 0, data = 0;
+    std::size_t functions = 0, named = 0;
+    std::vector<SizeEntry> owners;
+    std::vector<SizeEntry> largest;
+  };
+  [[nodiscard]] std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top = 40);
+  struct WasmSizeAsked {
+    std::size_t top = 40;
+    std::map<std::size_t, std::string> names;
+    std::optional<std::set<std::size_t>> only;
+  };
+  [[nodiscard]] std::expected<SizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, const WasmSizeAsked& asked);
+  [[nodiscard]] std::map<std::size_t, std::string> symbol_map(std::string_view text);
+  [[nodiscard]] std::expected<SizeReport, std::string> elf_size(std::span<const std::uint8_t> elf, std::size_t top = 40);
+  [[nodiscard]] std::expected<SizeReport, std::string> program_size(std::span<const std::uint8_t> program, std::size_t top = 40);
+  [[nodiscard]] std::string owner_of(std::string_view symbol, int depth = 2);
+  [[nodiscard]] std::string to_json(const SizeReport& report);
+  [[nodiscard]] std::string to_markdown(const SizeReport& report, std::size_t owners = 40);
+}
+== omui.gen.unicode
+namespace omui::gen {
+  [[nodiscard]] std::expected<std::string, std::string> emit_unicode_tables(const std::filesystem::path& ucd, std::string_view version);
+  [[nodiscard]] std::expected<std::string, std::string> unicode_test_subset(const std::filesystem::path& file, int step);
+}

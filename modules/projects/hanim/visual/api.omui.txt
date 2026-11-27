@@ -1,0 +1,207 @@
+== hanim.visual
+export import :matter;
+export import :morph;
+== hanim.visual:matter
+namespace hanim::visual {
+  using mlibs::geom::Affine;
+  using mlibs::geom::Color;
+  using mlibs::geom::CornerRadii;
+  using mlibs::geom::Point;
+  using mlibs::geom::Rect;
+  using mlibs::geom::Size;
+  enum class PieceClass : std::uint8_t { fill, stroke, shadow, path_fill, path_stroke, image, glyphs, texture, group, count_ };
+  struct Piece {
+    PieceClass cls = PieceClass::fill;
+    std::uint32_t node = 0;
+    std::uint32_t ordinal = 0;
+    std::size_t command = 0;
+    std::size_t end = 0;
+    Affine transform;
+    int clip = -1;
+    float opacity = 1;
+    Rect bounds;
+    std::uint32_t nested = 0;
+    bool nested_envelope = false;
+    Affine nested_inverse;
+    Affine nested_parent;
+    int part = -1;
+    std::uint32_t part_ordinal = 0;
+  };
+  struct Frame {
+    std::uint32_t node = 0;
+    Rect rect;
+    Affine transform;
+    int clip = -1;
+    float opacity = 1;
+    Rect placement;
+    Size constraint;
+    Affine visual;
+    Point sampled_placement_origin;
+  };
+  struct Reference {
+    std::uint32_t node = 0;
+    std::string key;
+    Rect allocation;
+  };
+  struct Part {
+    std::uint32_t node = 0;
+    std::string role, id;
+    Rect allocation;
+    Point anchor{…};
+    mrender::PartKind kind = mrender::PartKind::content;
+    std::vector<mrender::ReferenceWeight> lineage;
+    [[nodiscard]] mrender::PartFrame view(std::uint32_t owner) const;
+  };
+  struct ClipEntry {
+    int parent = -1;
+    Affine transform;
+    std::size_t command = 0;
+    bool transient = false;
+  };
+  struct NodeKeys {
+    std::uint32_t marker = 0;
+    std::string key;
+    std::string semantic;
+  };
+  struct Resolver {
+    std::function<void(std::uint32_t marker, std::string& key, std::string& semantic)> keys;
+    std::function<bool(std::uint32_t marker)> nested;
+    std::function<bool(std::uint32_t marker)> nested_placement;
+  };
+  struct Wrapper {
+    bool present = false;
+    std::size_t command = 0;
+    Affine transform;
+  };
+  class Matter {
+    Matter() = default;
+    Matter(Matter&&) noexcept = default;
+    Matter& operator=(Matter&&) noexcept = default;
+    Matter(const Matter&) = delete;
+    Matter& operator=(const Matter&) = delete;
+    [[nodiscard]] static Matter extract(const mrender::DisplayList& source, std::size_t begin, std::size_t end, const Resolver& resolver);
+    [[nodiscard]] static Matter extract(const mrender::DisplayList& source, const Resolver& resolver);
+    [[nodiscard]] const mrender::DisplayList& list() const noexcept;
+    [[nodiscard]] std::span<const Piece> pieces() const noexcept;
+    [[nodiscard]] std::span<const Frame> frames() const noexcept;
+    [[nodiscard]] std::span<const Reference> references() const noexcept;
+    [[nodiscard]] std::span<const Part> parts() const noexcept;
+    [[nodiscard]] std::span<const ClipEntry> clips() const noexcept;
+    [[nodiscard]] std::span<const NodeKeys> nodes() const noexcept;
+    [[nodiscard]] const Wrapper& wrapper() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    [[nodiscard]] std::uint64_t hash() const noexcept;
+    [[nodiscard]] Rect bounds() const noexcept;
+    void follow_layout(Matter& target, std::span<const std::string> scopes = {…});
+  };
+  [[nodiscard]] std::optional<std::size_t> wrapper_of(std::span<const mrender::Command> commands, std::size_t begin, std::size_t end);
+  [[nodiscard]] std::optional<PieceClass> class_of(const mrender::Command& c) noexcept;
+  [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const mrender::Command> commands, std::uint32_t marker, std::size_t from = 0);
+}
+== hanim.visual:morph
+namespace hanim::visual {
+  struct Curve {
+    enum class Kind : std::uint8_t { tween, spring };
+    Kind kind = Kind::spring;
+    double duration = 0.3;
+    hanim::Ease ease = hanim::ease::standard;
+    hanim::SpringParams spring = hanim::springs::standard;
+    double velocity = 0;
+    [[nodiscard]] double at(double t) const noexcept;
+    [[nodiscard]] double rate(double t) const noexcept;
+    [[nodiscard]] double length() const noexcept;
+  };
+  enum class Order : std::uint8_t { together, document, distance, reverse };
+  enum class TextTransition : std::uint8_t { glyphs, replace, automatic };
+  using GlyphBounds = std::function<std::optional<Rect>(const mrender::DrawGlyphs&, const Affine&)>;
+  [[nodiscard]] std::optional<Rect> glyph_ink_bounds(const mrender::DrawGlyphs& run, const Affine& transform, mrender::GlyphSource& source);
+  using GlyphOutline = std::function<std::optional<mrender::Path>(const mrender::DrawGlyphs&, std::size_t glyph)>;
+  [[nodiscard]] std::optional<mrender::Path> glyph_outline(const mrender::DrawGlyphs& run, std::size_t glyph, mrender::GlyphSource& source);
+  struct Options {
+    Curve curve;
+    Order order = Order::together;
+    double stagger = 0;
+    bool stagger_arrivals = false;
+    bool semantic = true;
+    bool glyphs = true;
+    TextTransition text = TextTransition::glyphs;
+    float text_rise = 0.35f;
+    float glyph_roll = 0;
+    double minimum_text_contrast = 0;
+    GlyphBounds glyph_bounds;
+    float proof_scale = 1;
+    std::function<float()> current_proof_scale;
+    hanim::Presence appear = *hanim::presence("fade_in", {…});
+    hanim::Presence vanish = *hanim::presence("fade_out", {…});
+    bool rebase_layout = false;
+    std::vector<std::string> layout_scopes;
+    bool local_presence = false;
+    float stretch = 0;
+    struct Travel {
+      mrender::EffectRef effect;
+      std::vector<float> params;
+      int param = -1;
+      float peak = 0;
+      bool rises = false;
+      friend bool operator==(const Travel&, const Travel&) = default;
+    };
+    std::optional<Travel> travel;
+    hanim::PointPath vertex_path;
+    hanim::PointPath translation_path;
+    hanim::Ease drop_curve = hanim::Ease::fall(0.45, 2);
+    float squash = 0.2f;
+    GlyphOutline glyph_outline;
+    std::optional<Point> pulse_at;
+    float pulse = 0;
+    double pulse_length = 0;
+    struct Gather {
+      float from_scale = 0.25f;
+      float spread = 0.55f;
+      friend bool operator==(const Gather&, const Gather&) = default;
+    };
+    std::optional<Gather> gather;
+  };
+  struct MorphStats {
+    std::size_t matched = 0, from_only = 0, to_only = 0;
+    std::size_t glyphs_kept = 0, glyphs_new = 0, glyphs_gone = 0;
+    std::size_t text_runs_replaced = 0;
+    std::size_t text_contrast_runs = 0;
+    std::size_t by_meaning = 0;
+    std::size_t paths_prepared = 0, paths_compatible = 0, paths_unsupported = 0;
+  };
+  enum class PathMorphMode : std::uint8_t { compatible, prepared, unsupported };
+  enum class PathMorphIssue : std::uint8_t { none, unsupported_contours, malformed_path, geometry };
+  enum class PathMaterialMode : std::uint8_t { interpolated, prepared_mix, unsupported };
+  struct PathMorphStatus {
+    std::size_t from_piece = 0, to_piece = 0;
+    PathMorphMode mode = PathMorphMode::unsupported;
+    PathMorphIssue issue = PathMorphIssue::none;
+    std::optional<hanim::ShapeMorphError> geometry_error;
+    PathMaterialMode material_mode = PathMaterialMode::interpolated;
+    std::optional<mrender::PaintMixError> material_error;
+  };
+  using NestedDraw = std::function<void(std::uint32_t marker, mrender::DisplayList& out)>;
+  struct SnapshotContext {
+    std::span<const mrender::Command> prefix;
+  };
+  class Morph {
+    Morph(Matter from, Matter to, Options options, double start);
+    Morph(Morph&&) noexcept = default;
+    Morph& operator=(Morph&&) noexcept = default;
+    void draw(double t, mrender::DisplayList& out, const NestedDraw& nested = {…}, const mrender::PushLayer* live = nullptr) const;
+    [[nodiscard]] Matter snapshot(double t, const NestedDraw& nested = {…}) const;
+    [[nodiscard]] Matter snapshot(double t, const NestedDraw& nested, const SnapshotContext& context) const;
+    [[nodiscard]] double start() const noexcept;
+    [[nodiscard]] double end() const noexcept;
+    [[nodiscard]] bool settled(double t) const noexcept;
+    [[nodiscard]] double progress(double t) const noexcept;
+    [[nodiscard]] double rate(double t) const noexcept;
+    [[nodiscard]] const Matter& from() const noexcept;
+    [[nodiscard]] const Matter& to() const noexcept;
+    [[nodiscard]] const Options& options() const noexcept;
+    [[nodiscard]] const MorphStats& stats() const noexcept;
+    [[nodiscard]] std::span<const PathMorphStatus> path_morphs() const noexcept;
+    [[nodiscard]] double travel(double t) const noexcept;
+  };
+  [[nodiscard]] Affine mix(const Affine& a, const Affine& b, double u) noexcept;
+}

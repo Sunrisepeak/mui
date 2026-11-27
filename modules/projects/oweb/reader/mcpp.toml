@@ -1,0 +1,72 @@
+# oweb.reader — the program a site's pages load in a browser: it draws the page it finds. One program for every
+# page of every site of oweb's own shell — it is built with no page: it reads the page's own HTML back (D-284) and
+# makes the view the builder made (oweb.shell), so the layer over the canvas takes the written elements over one
+# for one. Packed for the Web as a world (`omui build --web`: dist-toy's world), which `oweb site.build --engine`
+# gives a site's pages.
+[package]
+namespace   = "oweb"
+name        = "reader"
+version     = "0.1.0"
+description = "The program a site's pages load: it reads the page's own HTML back and draws it — one program for every page of a site"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the program a site's pages load, built for the Web and served by every site"
+kind = "app"
+id    = "org.openmui.oweb.reader"
+title = "oweb"
+reexports = ["oweb.shell", "mlibs.agent"]  # what its interface re-exports (lint module-closure)
+agent = { part = "omui.agent" }  # an application: its nodes are read and operated at omui.agent's endpoint (D-174)
+
+# The page as the program draws it and the site's search (oweb.reader): what its test drives without a window.
+[targets.oweb-reader-core]
+kind = "lib"
+
+[targets.oweb-reader]
+kind = "bin"
+main = "src/main.cpp"
+
+# The same program without what runs a page's live examples (the base components by name, view documents and their
+# expressions): what a page that holds none needs. Its functions are the world's first part (build.mcpp's `parts`):
+# the packed world is the program above cut in two, the second part fetched only by a page holding an example.
+[targets.oweb-reader-reading]
+kind = "bin"
+main = "src/reading/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
+
+# The world's web profile is the workspace's without LTO. The world is packed in two parts by what the program without
+# examples carries (build.mcpp's `parts`: the functions of the sibling program, by name and body, and what they call
+# directly); under LTO the whole program's functions are cloned and inlined differently from the sibling's, and
+# what a first-part function calls through a table slot (a virtual call, an exception invoker) is no edge of that
+# cut — a page without examples then fetches its second part synchronously at the first frame (measured: 4 of 4
+# routes, `omuiDeferredSync`). LTO gives the world 86 KB sent in its first part; the part's cut would have to follow
+# indirect calls first (the Web-program size design §14.8).
+[profile.web]
+opt        = "z"
+lto        = false
+debug      = false
+ndebug     = true
+trim_paths = true
+
+[dependencies]
+omui.sdk   = { path = "../../omui/sdk", default-features = false, features = ["app", "no-aat-text"] }  # no runtime generation: it draws documents; its three faces carry OpenType layout
+omui.core  = { path = "../../omui/core" }
+omui.view  = { path = "../../omui/view" }
+oweb.shell = { path = "../shell" }
+mlibs.agent   = { path = "../../../base/agent" }    # the site as a subject of the page's runtime (AG5)
+mlibs.control = { path = "../../../base/control" }  # its catalog
+mlibs.json    = { path = "../../../base/json" }
+openlifa.openas = "0.2.1"
+
+[dev-dependencies]
+mcpplibs.mtest     = "0.11.3"
+omui.host.headless = { path = "../../omui/host/headless" }
+omui.semantic      = { path = "../../omui/semantic" }
+oweb               = { path = ".." }  # the command, asked of the same built site as the page's subject (doors_test)
+
+[build-dependencies]
+omui.build = { path = "../../../../mcpp/build", host-module = true }

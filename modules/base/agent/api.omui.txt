@@ -1,0 +1,365 @@
+== mlibs.agent
+export import :claims;
+export import :endpoint;
+export import :envelope;
+export import :facts;
+export import :history;
+export import :replay;
+export import :host;
+export import :subject;
+== mlibs.agent:claims
+namespace mlibs::agent {
+  struct Claim {
+    std::string part;
+    std::string property;
+    bool subtree = false;
+    std::string actor;
+    std::string intent;
+    double since = 0, until = 0;
+  };
+  struct ClaimRequest {
+    std::string part;
+    std::string property;
+    bool subtree = false;
+    std::string intent;
+    double seconds = 30;
+  };
+  [[nodiscard]] bool within(std::string_view inner, std::string_view outer) noexcept;
+  class Claims {
+    std::expected<Claim, Claim> claim(const ClaimRequest& request, std::string_view actor, double now);
+    bool release(std::string_view part, std::string_view property, std::string_view actor, bool anyones = false);
+    void clear() noexcept;
+    [[nodiscard]] std::vector<Claim> held(double now) const;
+    [[nodiscard]] std::optional<Claim> over(std::string_view part, std::string_view actor, double now) const;
+    [[nodiscard]] bool empty() const noexcept;
+  };
+}
+== mlibs.agent:endpoint
+namespace mlibs::agent {
+  using Reply = std::function<void(std::string_view line)>;
+  class Session {
+    virtual ~Session() = default;
+    virtual void request(std::string_view line, const Reply& reply) = 0;
+    virtual void poll();
+  };
+  struct EndpointOptions {
+    std::string name;
+    std::filesystem::path directory;
+    std::string app;
+    std::string interface_name;
+    std::string spec;
+    std::function<std::unique_ptr<Session>()> session;
+    std::function<void()> wake;
+    std::optional<std::uint16_t> loopback;
+  };
+  [[nodiscard]] std::filesystem::path default_directory();
+  struct EndpointInfo {
+    std::string name;
+    std::string app;
+    std::string interface_name;
+    std::filesystem::path directory;
+  };
+  [[nodiscard]] std::vector<EndpointInfo> list(const std::filesystem::path& directory = default_directory());
+  class Endpoint {
+    explicit Endpoint(EndpointOptions options);
+    ~Endpoint();
+    Endpoint(const Endpoint&) = delete;
+    Endpoint& operator=(const Endpoint&) = delete;
+    std::expected<void, std::string> start();
+    void stop();
+    [[nodiscard]] bool listening() const noexcept;
+    [[nodiscard]] const std::string& name() const noexcept;
+    [[nodiscard]] const std::filesystem::path& directory() const noexcept;
+    [[nodiscard]] std::optional<std::uint16_t> loopback_port() const noexcept;
+    [[nodiscard]] const std::string& secret() const noexcept;
+    std::size_t pump();
+    [[nodiscard]] std::size_t connections() const;
+    void each_session(const std::function<void(Session&)>& visit);
+    struct Impl;
+  };
+  class Connection {
+    [[nodiscard]] static std::expected<Connection, std::string> connect(std::string_view name, const std::filesystem::path& directory = default_directory());
+    [[nodiscard]] static std::expected<Connection, std::string> connect_loopback(std::uint16_t port, std::string_view secret);
+    Connection(Connection&&) noexcept;
+    Connection& operator=(Connection&&) noexcept;
+    ~Connection();
+    std::expected<void, std::string> send(std::string_view line);
+    [[nodiscard]] std::expected<std::optional<std::string>, std::string> receive(std::chrono::milliseconds timeout);
+    struct Impl;
+  };
+}
+== mlibs.agent:envelope
+namespace mlibs::agent {
+  [[nodiscard]] std::string json_text(std::string_view text);
+  [[nodiscard]] std::string way_out(std::string_view why, std::string_view request);
+  struct Request {
+    std::string op;
+    std::string re;
+    std::string answer;
+    openas::Actor actor{…};
+    std::shared_ptr<const mlibs::json::Document> document;
+    [[nodiscard]] mlibs::json::Node operator[](std::string_view key) const;
+  };
+  [[nodiscard]] std::expected<Request, std::string> parse_request(std::string_view line);
+  class Answer {
+    Answer(Reply reply, std::string re);
+    void data(std::string_view json);
+    void notice(std::string_view text);
+    void error(std::string_view code, std::string_view text, std::string_view next = {…}, std::string_view way = {…});
+    void result(int exit_code = openas::exit_code::done);
+    void fail(std::string_view code, std::string_view text, int exit_code = openas::exit_code::failed, std::string_view next = {…});
+    template <mlibs::error::Code C, class Where> void fail(const mlibs::error::Error<C, Where>& failure, int exit_code = openas::exit_code::failed, std::string_view next = {…});
+    void otherwise(std::string next);
+    void then(std::string follows);
+    void fact(std::uint64_t number);
+    void ended(std::function<void(std::string_view code, std::string_view text)> told);
+    [[nodiscard]] bool finished() const noexcept;
+    void record(std::string_view kind, std::string_view members);
+    [[nodiscard]] Answer later();
+    [[nodiscard]] bool deferred() const noexcept;
+  };
+}
+== mlibs.agent:facts
+namespace mlibs::agent {
+  struct Fact {
+    std::uint64_t id = 0;
+    std::string subject;
+    std::string operation;
+    openas::Effect effect = openas::Effect::read;
+    openas::Actor actor{…};
+    std::string outcome;
+    std::string text;
+    std::string request;
+    std::string at;
+  };
+  [[nodiscard]] std::string line_of(const Fact& fact);
+  [[nodiscard]] std::string json_of(const Fact& fact);
+  class Facts {
+    explicit Facts(std::size_t capacity = 256) : capacity_(capacity);
+    [[nodiscard]] static std::shared_ptr<Facts> kept_in(std::filesystem::path file, std::size_t capacity = 256);
+    [[nodiscard]] std::uint64_t reserve() noexcept;
+    std::uint64_t record(Fact fact);
+    struct Asked {
+      std::uint64_t since = 0;
+      std::string_view subject;
+      bool failed = false;
+      std::size_t limit = 50;
+    };
+    [[nodiscard]] std::vector<Fact> read(const Asked& asked) const;
+    [[nodiscard]] std::uint64_t last() const noexcept;
+  };
+}
+== mlibs.agent:history
+namespace mlibs::agent {
+  struct Commit {
+    std::string id;
+    std::vector<std::string> parents;
+    std::string message, actor, branch;
+    double time = 0;
+    std::string state;
+    std::map<std::string, std::string> files;
+    std::string changes;
+  };
+  class History {
+    explicit History(std::filesystem::path directory);
+    [[nodiscard]] const std::filesystem::path& directory() const noexcept;
+    [[nodiscard]] std::string head_branch() const;
+    [[nodiscard]] std::expected<std::string, std::string> resolve(std::string_view name) const;
+    [[nodiscard]] std::expected<Commit, std::string> commit_of(std::string_view id) const;
+    [[nodiscard]] std::expected<std::map<std::string, std::string>, std::string> texts_of(std::string_view name) const;
+    std::expected<Commit, std::string> commit(const std::map<std::string, std::string>& texts, std::string message, std::string actor, std::string state, std::optional<std::vector<std::string>> parents = std::nullopt, std::string changes = {…});
+    std::expected<Commit, std::string> commit_on(std::string_view branch, const std::map<std::string, std::string>& texts, std::string message, std::string actor, std::string state);
+    std::expected<std::filesystem::path, std::string> keep_picture(std::span<const std::uint8_t> png);
+    [[nodiscard]] std::optional<std::filesystem::path> thumbnail(std::string_view commit) const;
+    std::expected<void, std::string> set_thumbnail(std::string_view commit, const std::filesystem::path& picture);
+    std::expected<std::string, std::string> branch(std::string_view name, std::optional<std::string_view> at = std::nullopt);
+    std::expected<std::string, std::string> switch_to(std::string_view branch);
+    std::expected<std::string, std::string> tag(std::string_view name, std::optional<std::string_view> at = std::nullopt);
+    [[nodiscard]] std::map<std::string, std::string> branches() const;
+    [[nodiscard]] std::map<std::string, std::string> tags() const;
+    [[nodiscard]] std::vector<Commit> log(std::string_view name, std::size_t limit = 100) const;
+    [[nodiscard]] std::optional<std::string> common_ancestor(std::string_view first, std::string_view second) const;
+  };
+  [[nodiscard]] bool valid_ref_name(std::string_view name);
+  struct TextMerge {
+    std::string text;
+    bool conflict = false;
+  };
+  [[nodiscard]] TextMerge merge_text(std::string_view base, std::string_view ours, std::string_view theirs);
+  struct LineChange {
+    std::size_t line = 1;
+    std::string before, after;
+  };
+  [[nodiscard]] LineChange changed_lines(std::string_view before, std::string_view after);
+  class Sources {
+    virtual ~Sources() = default;
+    [[nodiscard]] virtual std::map<std::string, std::string> texts() = 0;
+    enum class Reason : std::uint8_t { edit, switch_to, undo };
+    virtual std::expected<std::string, std::string> apply(const std::map<std::string, std::string>& texts, Reason reason) = 0;
+    [[nodiscard]] virtual std::string state() = 0;
+  };
+  class Workspace final : public Sources {
+    std::expected<void, std::string> mount(std::string name, Sources& sources);
+    [[nodiscard]] std::map<std::string, std::string> texts() override;
+    std::expected<std::string, std::string> apply(const std::map<std::string, std::string>& texts, Reason reason) override;
+    [[nodiscard]] std::string state() override;
+  };
+  [[nodiscard]] std::string commit_text(const Commit& commit, const Commit* against = nullptr);
+  struct HistoryNames {
+    std::string list = "history", commit = "commit", edit = "edit";
+  };
+  class HistoryOperations {
+    HistoryOperations(History& history, Sources& sources, HistoryNames names = {…}) : history_(history), sources_(sources), names_(std::move(names));
+    std::expected<std::string, std::string> run(std::string_view operation, mlibs::json::Node parameters, std::string_view actor);
+    std::string_view refused_as;
+    [[nodiscard]] std::string shown_now() const;
+    std::string shown_commit;
+    bool by_change = false;
+    [[nodiscard]] std::string said(const Commit& commit) const;
+  };
+}
+== mlibs.agent:host
+namespace mlibs::agent {
+  [[nodiscard]] std::expected<std::string, std::string> request_from(std::span<const std::string_view> arguments);
+  struct Answered {
+    std::vector<std::string> records;
+    int exit_code = 0;
+    bool finished = false;
+  };
+  [[nodiscard]] Answered answer_to(Session& session, std::string_view request, std::chrono::milliseconds wait = std::chrono::seconds(30));
+  struct CommandLine {
+    std::string product;
+  };
+  int command_line(Session& session, std::span<const std::string_view> arguments, std::ostream& out, std::ostream& errors, const CommandLine& how = {…});
+  class Arguments {
+    explicit Arguments(const Request& request, std::string_view row = {…});
+    [[nodiscard]] std::optional<std::string> value(std::string_view name) const;
+    [[nodiscard]] std::vector<std::string> values(std::string_view name) const;
+    [[nodiscard]] bool flag(std::string_view name) const;
+    [[nodiscard]] std::span<const std::string> positionals() const noexcept;
+    [[nodiscard]] std::string positional(std::size_t at) const;
+  };
+  struct McpServer {
+    std::string name = "mlibs-agent", version = "0.1.0";
+    std::string instructions;
+  };
+  [[nodiscard]] std::string tool_name(std::string_view operation);
+  [[nodiscard]] std::string mcp_reply(Session& session, std::string_view message, const McpServer& server = {…});
+  int serve_mcp(Session& session, std::istream& in, std::ostream& out, const McpServer& server = {…});
+}
+== mlibs.agent:replay
+namespace mlibs::agent {
+  struct ReplayStep {
+    std::string caption;
+    std::string actor;
+    double seconds = 1.5;
+    std::map<std::string, std::string> texts;
+    std::string node;
+  };
+  struct Replay {
+    std::string doc;
+    std::string subject;
+    std::string branch;
+    std::vector<ReplayStep> steps;
+  };
+  inline constexpr std::string_view replay_format = "replay@1";
+  [[nodiscard]] std::expected<Replay, std::string> read_replay(std::string_view text, std::string_view file = "replay");
+  [[nodiscard]] std::string write_replay(const Replay& replay);
+}
+== mlibs.agent:subject
+namespace mlibs::agent {
+  struct Capabilities {
+    bool observation = false;
+    bool budget = false;
+    bool control = false;
+    bool time = false;
+    bool causes = false;
+    bool provenance = false;
+    bool preview = false;
+    bool history = false;
+  };
+  struct Term {
+    std::string kind, name, text, request;
+  };
+  class Subject {
+    virtual ~Subject() = default;
+    [[nodiscard]] virtual std::string_view name() const noexcept = 0;
+    [[nodiscard]] virtual std::string_view interface_name() const noexcept = 0;
+    [[nodiscard]] virtual Capabilities capabilities() const noexcept = 0;
+    [[nodiscard]] virtual std::span<const mlibs::control::CatalogEntry> operations() const noexcept = 0;
+    [[nodiscard]] virtual std::string_view listing() const noexcept;
+    [[nodiscard]] virtual mlibs::control::Guide guide() const noexcept;
+    [[nodiscard]] virtual std::vector<Term> terms() const;
+    [[nodiscard]] virtual std::string recorded_at() const;
+    [[nodiscard]] virtual std::uint64_t state_hash() const;
+    virtual void operate(std::string_view operation, const Request& request, Answer& answer) = 0;
+    virtual void poll();
+  };
+  struct SessionOptions {
+    std::shared_ptr<const mlibs::control::Access> access;
+    std::shared_ptr<const mlibs::control::Session> session;
+    openas::Actor actor{…};
+    std::shared_ptr<Facts> facts;
+    std::shared_ptr<std::string> last;
+    bool command_line = false;
+  };
+  struct Found {
+    std::string kind, subject, name, text;
+    std::vector<std::string> requests;
+    std::uint64_t score = 0;
+  };
+  [[nodiscard]] std::vector<Found> find(std::span<Subject* const> subjects, std::string_view query, std::size_t limit = 5);
+  struct Candidate {
+    Found found;
+    std::string more;
+  };
+  [[nodiscard]] std::vector<Found> rank(std::vector<Candidate> candidates, std::string_view query, std::size_t limit = 5);
+  class SubjectSession final : public Session {
+    SubjectSession(std::vector<Subject*> subjects, SessionOptions options = {…});
+    void request(std::string_view line, const Reply& reply) override;
+    void poll() override;
+  };
+  struct Conversed {
+    bool done = true;
+    std::size_t again = 0;
+    std::size_t asked = 0;
+  };
+  [[nodiscard]] std::expected<Conversed, std::string> converse(Session& session, std::istream& in, std::ostream& out, const std::filesystem::path& kept = {…});
+}
+== mlibs.session
+export import mlibs.session.api;
+== mlibs.session.api
+namespace mlibs::session {
+  inline constexpr std::string_view format_name = "openmui.session@0.1";
+  struct Header {
+    std::string app;
+    std::string spec;
+    double width = 0, height = 0, scale = 1;
+    std::string clock = "virtual";
+    double fps = 0;
+    std::uint64_t seed = 0;
+    std::vector<std::pair<std::string, std::string>> meta;
+  };
+  struct Entry {
+    double time = 0;
+    std::string kind;
+    std::string body;
+  };
+  class Session {
+    Header header;
+    std::expected<void, std::string> add(double time, std::string_view kind, std::string_view body_json);
+    [[nodiscard]] std::span<const Entry> entries() const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+    [[nodiscard]] bool empty() const noexcept;
+    [[nodiscard]] double duration() const noexcept;
+    [[nodiscard]] std::size_t seek(double time) const noexcept;
+    [[nodiscard]] std::span<const Entry> between(double from, double to) const noexcept;
+    [[nodiscard]] std::vector<const Entry*> of(std::string_view kind) const;
+    void merge(const Session& other, double offset = 0);
+    [[nodiscard]] Session slice(double from, double to) const;
+    [[nodiscard]] std::string ndjson() const;
+    [[nodiscard]] static std::expected<Session, std::string> parse(std::string_view ndjson);
+    std::expected<void, std::string> save(const std::filesystem::path& file) const;
+    [[nodiscard]] static std::expected<Session, std::string> load(const std::filesystem::path& file);
+  };
+}

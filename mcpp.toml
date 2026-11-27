@@ -1,0 +1,332 @@
+# The workspace of every member. Each member has its own mcpp.toml and depends
+# on others only by `path`, so any of them can move to its own repository
+# (D-41). The umbrella package users name is modules/projects/omui/sdk; this
+# manifest declares no package (convergence plan §9.2).
+# The workspace's tools, from xlings, installed for the verbs that need them:
+# esbuild is the oracle of mlibs.ts's type stripper (its tests); tsc
+# (TypeScript 7, native, no node) is what `omui check` type-checks with and
+# what omui.lang.js's declaration tests run; the headless Chromium (Chrome for
+# Testing's headless shell, the build Playwright pins) is the browser the
+# site's and the Web host's checks drive (omui.devtools.browser finds its
+# command, `playwright-chromium-headless-shell`): `mcpp test` and `mcpp run`
+# install them and a plain build does not. The browsers with a window, for
+# checks on a real display, are xlings' too and installed by hand:
+# `xlings install xim:playwright-chromium xim:playwright-firefox xim:playwright-webkit`.
+[workspace.xlings.workspace]
+"xim:esbuild" = { version = "0.25.12", when = "run" }
+"xim:typescript" = { version = "7.0.2", when = "run" }
+"xim:playwright-chromium-headless-shell" = { version = "159.0.8154.6", when = "run" }
+
+[workspace]
+members = [
+    "spec",
+    "modules/base/control",
+    "modules/base/control/gen",
+    "modules/base/agent",
+    "modules/base/agent/cts",
+    "modules/base/build",
+    "modules/base/compose",
+    "modules/base/cts",
+    "modules/base/delivery",
+    "modules/base/dynamics",
+    "modules/base/geom",
+    "modules/projects/hanim/core",
+    "modules/base/image",
+    "modules/base/json",
+    "modules/base/project",
+    "modules/base/ts",
+    "modules/base/xdef",
+    "modules/base/xdef/tool",
+    "modules/base/math",
+    "modules/base/memory",
+    "modules/base/pipeline",
+    "modules/base/mpal",
+    "modules/base/simulation",
+    "modules/projects/meng/kernel/dynamics",
+    "modules/projects/meng/kernel/cellular",
+    "modules/projects/meng/kernel/matter",
+    "modules/projects/meng/kernel/particles",
+    "modules/projects/meng/kernel/field",
+    "modules/projects/meng/kernel/matter/cts",
+    "modules/projects/meng/kernel/matter/lab",
+    "modules/base/unicode",
+    "modules/base/utils",
+    "modules/projects/hanim",
+    "modules/projects/mrender/raster",
+    "modules/projects/mrender/text",
+    "modules/projects/mrender/graph",
+    "modules/projects/mrender/cts",
+    "modules/projects/mrender/cells",
+    "modules/projects/mrender/display",
+    "modules/projects/mrender/vector",
+    "modules/projects/mrender/frame",
+    "modules/projects/mrender/scene",
+    "modules/projects/mrender/mesh",
+    "modules/projects/mrender/particle",
+    "modules/projects/mrender/particle/gpu",
+    "modules/projects/mrender/mesh/gpu",
+    "modules/projects/mrender/mesh/gpu/cts",
+    "modules/projects/mrender/asset",
+    "modules/projects/mrender/effect",
+    "modules/gfx/rhi",
+    "modules/gfx/rhi/cts",
+    "modules/projects/mrender/rhi/sdl",
+    "modules/projects/mrender/tool",
+    "modules/projects/mrender/rhi/webgpu",
+    "modules/projects/mrender/rhi/webgl",
+    "modules/gfx/shader",
+    "modules/gfx/shader/rules",
+    "modules/projects/meng/kernel/cellular/present",
+    "modules/projects/meng/kernel/cellular/rhi",
+    "modules/projects/meng/kernel/cellular/rhi/cts",
+    "modules/content/i18n",
+    "modules/content/i18n/cldr",
+    "modules/content/layout",
+    "modules/content/markdown",
+    "modules/content/text",
+    "modules/content/text/harfbuzz",
+    "modules/content/text/subset",
+    "modules/content/text/fonts",
+    "modules/content/text/fonts/han",
+    "modules/content/text/fonts/arabic",
+    "modules/content/text/fonts/emoji",
+    "modules/content/text/fonts/mono",
+    "modules/projects/meng/kernel/audio",
+    "modules/projects/meng/kernel/audio/device",
+    "modules/projects/meng/kernel/video",
+    "modules/projects/meng/kernel/video/webm",
+    "modules/projects/meng/kernel/video/tool",
+    "modules/projects/hanim/timeline",
+    "modules/projects/hanim/timeline/tool",
+    "modules/projects/meng/kernel/audio/timeline",
+    "modules/projects/omui/abi",
+    "modules/projects/omui/accessibility",
+    "modules/projects/omui/accessibility/bridge",
+    "modules/projects/omui/agent",
+    "modules/projects/omui/core",
+    "modules/projects/omui/sdk",
+    "modules/projects/omui/expr",
+    "modules/projects/omui/host/headless",
+    "modules/projects/omui/host/terminal",
+    "modules/projects/omui/host/android",
+    "modules/projects/omui/host/sdl3",
+    "modules/projects/omui/host/sdl3/gpu",
+    "modules/projects/omui/host/web",
+    "modules/projects/omui/native",
+    "modules/projects/omui/player",
+    "modules/projects/omui/designer",
+    "modules/projects/omui/reflect",
+    "modules/projects/omui/semantic",
+    "modules/projects/hanim/visual",
+    "modules/projects/hanim/rhi",
+    "modules/projects/hanim/studio",
+    "modules/projects/hanim/skeleton",
+    "modules/projects/hanim/skeleton/cts",
+    "modules/projects/omui/theme",
+    "modules/projects/omui/view",
+    "modules/projects/omui/viewdoc",
+    "modules/projects/gongfu",
+    "modules/projects/gongfu/data",
+    "modules/projects/gongfu/present2d",
+    "modules/projects/gongfu/rules",
+    "modules/projects/gongfu/studio",
+    "modules/projects/oweb",
+    "modules/projects/oweb/shell",
+    "modules/projects/oweb/reader",
+    "modules/projects/oweb/rules",
+    "modules/projects/xtools",
+    "modules/projects/xtools/inspector",
+    "modules/projects/xtools/audition",
+    "modules/projects/meng/game/world",
+    "modules/projects/meng/game/runtime",
+    "modules/projects/meng/game/playtest",
+    "modules/projects/meng/game/input",
+    "modules/projects/meng/game/ui",
+    "modules/projects/meng/game/nav",
+    "modules/projects/meng/game/nav/cts",
+    "modules/projects/omui/components/base",
+    "modules/projects/omui/components/canvas",
+    "modules/projects/omui/components/markdown",
+    "modules/projects/omui/components/timeline",
+    "modules/projects/omui/lang",
+    "modules/projects/omui/lang/js",
+    "modules/projects/omui/lang/ts",
+    "modules/projects/omui/tools/cli",
+    "modules/projects/omui/tools/gen",
+    "modules/projects/omui/tools/mcp",
+    "tools/devtools",
+    "mcpp/build",
+    "modules/projects/omui/entry/player",
+    "modules/projects/omui/entry/devhost",
+    "modules/projects/omui/entry/launcher",
+    "tests/bench",
+    "tests/bench/competitors",
+    "tests/bench/competitors/apps",
+    "modules/projects/omui/cts",
+    "tests/size/terminal",
+    "tests/size/terminal-agent",
+    "tests/size/yard",
+    "tests/features",
+    "tests/plugins",
+    "examples/01-hello-im",
+    "examples/02-hello-ts",
+    "examples/03-counter",
+    "examples/04-rating",
+    "examples/05-contrast",
+    "examples/06-theming",
+    "examples/07-headless-and-agent",
+    "examples/08-markdown-viewer",
+    "examples/09-markdown-stream",
+    "examples/10-canvas-basics",
+    "examples/12-notes",
+    "examples/13-live-design",
+    "showcase/fighting",
+    "showcase/fighting/headless",
+    "showcase/markdown-wall",
+    "showcase/promo-video",
+    "showcase/style-gallery",
+    "showcase/widget-breakout",
+    "showcase/widget-breakout/headless",
+    "showcase/kiln",
+    "showcase/kiln/window",
+    "showcase/quay",
+    "showcase/quay/play",
+    "showcase/quay/window",
+    "showcase/glade/headless",
+    "showcase/swarm/headless",
+    "showcase/swarm/window",
+    "site",
+]
+
+# CI's rows and a whole-workspace run (mcpp's advice, 2026-11-13): the dev build without debug information and
+# with its symbols stripped. A test program links its whole closure, and unstripped that is most of a
+# configuration's bytes (15 of 22 GB measured: 349 programs, bench_test 129 MB of which 37 MB are code and data).
+# What a failure needs — the check's file and line, both sides — is mtest's own report, not the debugger's.
+# Day-to-day work keeps `dev`.
+[workspace.profile.ci]
+opt   = 0
+debug = false
+strip = true
+
+# Sanitizers (plan §19.1 "内存"): AddressSanitizer and UndefinedBehavior-
+# Sanitizer over every unit of the graph, the first finding fatal. CI runs
+# `mcpp test --workspace --profile sanitize` nightly on Linux.
+[workspace.profile.sanitize]
+opt      = 1
+debug    = true
+cflags   = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-fno-sanitize-recover=all"]
+cxxflags = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-fno-sanitize-recover=all"]
+ldflags  = ["-fsanitize=address,undefined"]
+
+# The Web (D-84): wasm32-emscripten. Exceptions, as the libraries that throw
+# need them (JSON, TOML; the native units that catch); memory that grows; a
+# stack of 1 MiB (Emscripten's default, 64 KiB, is one buffer of
+# mcpplibs.os's reads).
+[workspace.target.'cfg(os = "emscripten")'.abi]
+exceptions = true
+
+#
+# Single-threaded (D-84: no SharedArrayBuffer on Pages or Toy): some index
+# packages' `linux` link flags (taskflow's -pthread, harfbuzz's and libwebp's
+# -lpthread) reach the emscripten row too, and -pthread would make the
+# program's memory shared — which these objects, built without atomics,
+# cannot link into. USE_PTHREADS=0 (applied after the flags) undoes it.
+#
+# A symbol map beside each program (<program>.js.symbols: a function's index, its
+# name): a release's stack named, and a split page's first half said by owner
+# (omui-devtools site split --names). The program itself is unchanged.
+# No RTTI on the Web: the code uses none (no dynamic_cast, typeid or std::any anywhere; mtest and the libraries are
+# the same), and every polymorphic class and class template instance carried a type_info with its mangled name —
+# 132 KiB of the site's data, 25,387 B sent before its first frame (the Web-program size design §14). A dialect
+# flag: the `import std` BMI is built with it too.
+[workspace.target.'cfg(os = "emscripten")'.build]
+dialect_cxxflags = ["-fno-rtti"]
+ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0", "--emit-symbol-map"]
+
+# The test programs on the Web row run under node and read their fixtures
+# beside their sources, as on every other row: node's file system, not the
+# in-memory one a page has. CI's wasm row: `mcpp test --target
+# wasm32-emscripten --profile wasm-test`.
+[workspace.profile.wasm-test]
+opt     = 1
+debug   = false
+ldflags = ["-sNODERAWFS=1"]
+
+# The test programs that need a browser (omui-devtools check browser runs them in
+# headless Chromium): linked to suspend for the page's promises — what
+# waiting for WebGPU and reading its textures back take — and to say their
+# exit code to the page. Asyncify, not JSPI: JSPI makes the exceptions'
+# invoke_ imports suspending, and a static constructor that reaches a try
+# block then fails outside WebAssembly.promising.
+# Its stack for what is unwound while waiting: 64 KiB — mtest's runner sits
+# above a waiting case, more than the default 4 KiB holds (it trapped,
+# `unreachable`, red list 45).
+[workspace.profile.wasm-browser]
+opt     = 1
+debug   = false
+ldflags = ["-sASYNCIFY=1", "-sASYNCIFY_STACK_SIZE=65536", "-sEXIT_RUNTIME=1"]
+
+# The Web's bytes, looked into (W8; omui-devtools check size): the release
+# build's code (-O2) with its functions' names kept in a name section, for
+# `omui-gen wasm-size` to say where they go.
+[workspace.profile.wasm-size]
+opt     = 2
+debug   = false
+ldflags = ["--profiling-funcs"]
+
+# A program's bytes, looked into (B3; omui-devtools check size --native): dist's code (-O3, NDEBUG, trimmed paths)
+# with its symbol table kept, for `omui-gen size` to say which owner each byte is; dist strips it.
+[workspace.profile.size]
+opt        = 3
+debug      = false
+strip      = false
+ndebug     = true
+trim_paths = true
+
+# A program built for the fewest bytes, looked into (omui-devtools check size --native, for a budget whose rows say
+# `"profile": "small"`): the terminal's two tiers are compiled size-optimised (terminal design §5) — -Oz, NDEBUG, trimmed
+# paths, its symbol table kept for `omui-gen size` as the size profile's is.
+[workspace.profile.small]
+opt        = "z"
+debug      = false
+strip      = false
+ndebug     = true
+trim_paths = true
+
+# The Web's release (omui build --web uses it where it is defined): LLVM -Oz, the
+# smallest code, since a page is downloaded before it runs. Measured on the site
+# (2026-11-21, split by its first screen): before the first frame 1.57 MB to
+# 1.35, in all 3.51 to 2.38; first frame and frames the same (Chromium). The
+# native release profile stays the one for performance.
+# Linked with LTO: the site's first half sends 25,415 B less, its second half 132,890 B less (§14). The documents reader
+# states its own web profile without it (modules/projects/oweb/reader/mcpp.toml: its parts' cut does not follow
+# indirect calls yet, §14.8).
+[workspace.profile.web]
+opt        = "z"
+lto        = true
+debug      = false
+ndebug     = true
+trim_paths = true
+
+# What a program does not reach is not linked (implementation plan B1): mcpp compiles every unit one section per
+# function and per object, and links tests with the collection already; programs too, every profile, each platform's
+# way (wasm-ld collects by default). Measured: example 01 in dist, 26.7 MB to 18.5 MB on Linux x64, its pixels the same.
+[workspace.target.'cfg(os = "linux")'.build]
+ldflags = ["-Wl,--gc-sections", "-Wl,--as-needed"]
+
+[workspace.target.'cfg(os = "macos")'.build]
+ldflags = ["-Wl,-dead_strip"]
+
+[workspace.package]
+standard = "c++23"
+mcpp     = ">=2026.10.26.1"
+
+# MinGW GCC 16 emits the function-local statics of inline standard-library
+# functions instantiated in module units (std::variant's __reasons,
+# make_shared's type tag) as strong symbols, so two units of one program define
+# them twice. The definitions are identical; the linker keeps one.
+[workspace.target.x86_64-windows-gnu.build]
+ldflags = ["-Wl,--allow-multiple-definition", "-Wl,--gc-sections"]
+# HarfBuzz's amalgamated unit exceeds COFF's 2^15 sections under GCC; the big
+# object format lifts the limit. Graph-wide, so it reaches that dependency.
+dialect_cxxflags = ["-Wa,-mbig-obj"]

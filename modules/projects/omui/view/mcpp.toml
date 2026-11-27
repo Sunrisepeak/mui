@@ -1,0 +1,76 @@
+# omui.view — the retained view runtime: elements (contract ②), the
+# component function tables, design tokens, the runtime (tree, bindings,
+# regions, transitions, layout, paint, input, focus, actions, semantics) and
+# the primitives (box, column, row, stack, grid, spacer, text, image,
+# scroll view, painter).
+[package]
+namespace   = "omui"
+name        = "view"
+version     = "0.1.0"
+description = "openmui retained view runtime: elements, components, theme tokens, frames, input, actions and semantics"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: views and their frame for every host"
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+reexports = ["mlibs.i18n", "mlibs.layout", "mlibs.pipeline", "mlibs.text", "omui.core", "mrender.vector"]  # what its interface re-exports (lint module-closure)
+kind = "runtime"
+agent = { part = "omui.agent" }
+
+# Universal motion's morphs (hanim.visual, and mrender.text's glyph cache for their text), with the projection of a
+# presentation's pose onto what was drawn: its own slot and its own provider (install_morphs; no dependency to keep apart). A program's root installs them where it draws pixels; a
+# terminal does not, and carries none of them (terminal design §9 step ③).
+[package.metadata.openmui.compose]
+slots = ["omui.view.morphs"]
+provides = ["omui.view.morphs"]
+
+[targets.openmui-view]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mrender.text = { path = "../../mrender/text" }
+mlibs.math = { path = "../../../base/math" }
+mlibs.utils = { path = "../../../base/utils" }
+omui.core     = { path = "../core" }
+mlibs.geom     = { path = "../../../base/geom" }
+mlibs.memory   = { path = "../../../base/memory" }
+hanim.core            = { path = "../../hanim/core" }
+sunrisepeak.hanim     = { path = "../../hanim", default-features = false, features = ["engine"] }
+mlibs.layout   = { path = "../../../content/layout" }
+mrender.raster   = { path = "../../mrender/raster" }
+mrender.vector   = { path = "../../mrender/vector" }
+hanim.visual = { path = "../../hanim/visual" }
+mlibs.image    = { path = "../../../base/image" }
+mlibs.text     = { path = "../../../content/text" }
+mlibs.pipeline = { path = "../../../base/pipeline" }
+# A world drawn on the host's device and shown as it is (Services::device, add_device_picture).
+mlibs.rhi      = { path = "../../../gfx/rhi" }
+# What else a process holds for agents beside the interface (Services::add_subject): the kernel's Subject (D-173).
+mlibs.agent    = { path = "../../../base/agent" }
+mlibs.i18n     = { path = "../../../content/i18n" }
+mlibs.compose  = { path = "../../../base/compose" }  # the morphs' slot (and mrender's effects and mlibs.image's decoder, read at theirs)
+mcpplibs.os      = "0.4.8"
+
+# The files of tests/view/ are one program, run a file at a time: one link of the closure for all of them.
+[test]
+programs = "directory"
+
+[dev-dependencies]
+mlibs.text.harfbuzz = { path = "../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.11.3"
+mlibs.cts = { path = "../../../base/cts" }
+
+# Optional native adapter. Ordinary views do not force the full Hanim player.
+[features]
+default = []
+hanim = { sources = ["src/hanim/*.cppm", "src/hanim/*.cpp"] }
+
+[feature-deps.hanim]
+sunrisepeak.hanim = { path = "../../hanim", default-features = false, features = ["engine", "render-vector"] }

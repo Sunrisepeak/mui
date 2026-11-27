@@ -1,0 +1,112 @@
+== omui.host.web
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
+export import mrender.raster;
+export import omui.native.store;
+export import :mirror;
+namespace omui {
+  enum class Renderer : std::uint8_t { automatic, cpu, gpu, webgpu, webgl };
+  struct WebOptions {
+    std::string title = "openmui";
+    std::string app = "openmui-app";
+    std::string canvas = "#canvas";
+    Size size{…};
+    Theme theme = Theme::light();
+    mlibs::text::FontCollection* fonts = nullptr;
+    bool reduce_motion = false;
+    bool reduce_transparency = false;
+    Color background = Color::white();
+    Renderer renderer = Renderer::automatic;
+    bool present = true;
+    Runtime* runtime = nullptr;
+    bool agent_link = true;
+    bool agent_input = true;
+  };
+  class Web {
+    explicit Web(WebOptions options = {…});
+    ~Web();
+    Web(const Web&) = delete;
+    Web& operator=(const Web&) = delete;
+    [[nodiscard]] Runtime& runtime() noexcept;
+    [[nodiscard]] semantic::Tree& tree() noexcept;
+    NodeId mount(std::string_view slot, View view);
+    int run();
+    bool step();
+    void wake();
+    void quit(int code = 0);
+    void synthesize(std::span<const InputEvent> events);
+    struct PageAction {
+      enum class Kind : std::uint8_t { focus, activate, scroll, media };
+      Kind kind = Kind::activate;
+      std::string node;
+      int x = 0, y = 0;
+    };
+    void synthesize(std::span<const PageAction> actions);
+    void request(std::string_view line, std::function<void(std::string_view record)> reply);
+    [[nodiscard]] Store& store() noexcept;
+    std::string link_agent();
+    void unlink_agent();
+    [[nodiscard]] const AgentLink& agent_link() const noexcept;
+    void on_agent_link(std::function<void(const AgentLink&)> fn);
+    void on_visibility(std::function<void(bool hidden)> fn);
+    [[nodiscard]] const mrender::raster::Surface& pixels() const noexcept;
+    [[nodiscard]] std::string_view renderer() const noexcept;
+    [[nodiscard]] std::expected<mrender::raster::Surface, ViewFailure> read_frame();
+    [[nodiscard]] std::size_t frames_shown() const noexcept;
+    [[nodiscard]] bool hidden() const noexcept;
+    struct Impl;
+  };
+  [[nodiscard]] bool in_browser() noexcept;
+  [[nodiscard]] std::vector<std::string> browser_locales();
+  [[nodiscard]] std::string page_projection();
+  [[nodiscard]] std::string page_projected(std::string_view id);
+  [[nodiscard]] std::string page_link(std::string_view relation);
+  void page_file(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done);
+  [[nodiscard]] std::string page_query(std::string_view name);
+  [[nodiscard]] bool page_prefers(std::string_view media);
+  bool reload_page_with(std::string_view name, std::string_view value);
+}
+== omui.host.web.toy
+export import omui.core;
+export import omui.host.web;
+namespace omui::toy {
+  struct Error {
+    std::string type;
+    std::int64_t code = 0;
+    std::string message;
+    [[nodiscard]] std::string_view openas_code() const noexcept;
+    [[nodiscard]] int exit_code() const noexcept;
+  };
+  template <class T> using Done = std::function<void(std::expected<T, Error>)>;
+  [[nodiscard]] bool available() noexcept;
+  void supports(std::string_view ability, Done<bool> done);
+  class Store {
+    static constexpr std::size_t max_keys = 128, max_key_bytes = 128, max_value_bytes = 1024;
+    std::expected<void, Error> set(std::string_view key, std::string_view value);
+    [[nodiscard]] std::optional<std::string> get(std::string_view key) const;
+    [[nodiscard]] bool dirty() const noexcept;
+    void load(std::vector<std::string> keys, Done<void> done = {…});
+    void flush(Done<void> done = {…});
+  };
+  [[nodiscard]] bool valid_key(std::string_view key) noexcept;
+  struct Rank {
+    std::int64_t rank = 0, score = 0;
+    std::string nickname, avatar;
+  };
+  void submit_score(std::int64_t score, int board, Done<std::int64_t> done = {…});
+  void rank_list(int board, std::string_view period, int limit, Done<std::vector<Rank>> done);
+  void my_rank(int board, std::string_view period, Done<std::optional<Rank>> done);
+  void attach(Web& web, Store& store);
+  void call(std::string_view method, const Value& args, Done<Value> done);
+}
+== omui.host.web:mirror
+namespace omui {
+  class DomMirror {
+    explicit DomMirror(Runtime& runtime);
+    [[nodiscard]] std::optional<Value> sync();
+    [[nodiscard]] std::string_view focused() const noexcept;
+    [[nodiscard]] std::string_view focused_name() const noexcept;
+    [[nodiscard]] std::size_t size() const noexcept;
+  };
+}

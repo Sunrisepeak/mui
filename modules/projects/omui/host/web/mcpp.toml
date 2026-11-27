@@ -1,0 +1,70 @@
+# omui.host.web — openmui in the browser (D-84 §6.2): wasm32-emscripten,
+# single-threaded; a <canvas> sized by the page, at the device's pixel ratio;
+# the frame loop on requestAnimationFrame (emscripten's main loop), frames
+# only when something wants one; pointer, touch, wheel, keyboard and the
+# Gamepad API's standard pads as openmui's input; a hidden textarea at the
+# caret for input methods; the clipboard (Async Clipboard API); the semantic
+# tree as the page's document layer over the canvas (each node the HTML element it is, its
+# text found and selected, links, ARIA for what is operated, focus, a live region);
+# window.omui for the page's agents (openmui.tree@0.1, decided by openas);
+# the program's store on localStorage; frames drawn on the page's WebGPU or
+# WebGL2 (a hardware one), else by the CPU renderer; the page's visibility as the
+# window's focus. Off the Web it builds with no page: the same loop, stepped
+# by hand, for its tests. And src/toy (module omui.host.web.toy, D-84 §6.5):
+# Bilibili Toy's SDK, a thin optional layer — capabilities, cloud storage at
+# checkpoints, leaderboards, Toy's errors in openas's words; off a Toy page
+# every call is refused.
+[package]
+namespace   = "omui.host"
+name        = "web"
+version     = "0.1.0"
+description = "openmui in the browser: a canvas, requestAnimationFrame, pointer, touch, keys, gamepads, input methods, the clipboard, a semantic DOM mirror, window.omui, localStorage"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: the browser page as a host, Web only"
+reexports = ["omui.core", "omui.native", "omui.semantic", "omui.view", "mrender.raster"]  # what its interface re-exports (lint module-closure)
+kind = "host"
+agent = { part = "omui.agent" }
+
+[targets.openmui-host-web]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/toy/*.cppm", "src/toy/*.cpp"]
+
+# The page (emscripten's HTML5 API and src/js/omui_web.js, which build.mcpp
+# gives the link), or no page.
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/browser/*.cpp"]
+
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/elsewhere/*.cpp"]
+
+[dependencies]
+mrender.text = { path = "../../../mrender/text" }
+omui.core     = { path = "../../core" }
+omui.view     = { path = "../../view" }
+omui.semantic = { path = "../../semantic" }
+omui.agent    = { path = "../../agent" }
+omui.native       = { path = "../../native" }
+mrender.raster   = { path = "../../../mrender/raster" }
+mrender.vector = { path = "../../../mrender/vector" }
+# The frame's entry: the host hands its layers to the renderer, which composes (D-162).
+mrender.frame = { path = "../../../mrender/frame" }
+mlibs.rhi         = { path = "../../../../gfx/rhi" }
+mrender.rhi.webgpu  = { path = "../../../mrender/rhi/webgpu" }
+mrender.rhi.webgl   = { path = "../../../mrender/rhi/webgl" }
+mlibs.text     = { path = "../../../../content/text" }
+mlibs.utils    = { path = "../../../../base/utils" }
+mlibs.image    = { path = "../../../../base/image" }
+mcpplibs.os      = "0.4.8"
+openlifa.openas  = "0.2.1"  # src/toy: Toy's errors in openas's words
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.agent   = { path = "../../../../base/agent" }    # a subject beside the interface, asked through the page (web_test)
+mlibs.control = { path = "../../../../base/control" }
+mlibs.text.harfbuzz = { path = "../../../../content/text/harfbuzz" }  # the shaper drawing_test's words are drawn with (mlibs.text's slot: the program installs it)

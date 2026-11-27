@@ -1,0 +1,46 @@
+# Quay in a window (the FPS slice design, F5): the harbour played with keys and the mouse, the picture drawn on the
+# host's own device (the desktop's SDL_GPU, the page's WebGPU or WebGL2) and heard through the system's output.
+# A member of its own beside `play` (whose signature shot and device tests take SDL_GPU, the native systems' device
+# here): this one runs on the Web too, packed for a page with `dist-toy`.
+[package]
+namespace   = "omui.showcase.quay"
+name        = "window"
+version     = "0.1.0"
+description = "Quay in a window: the harbour played with keys and the mouse, drawn on the host's device, heard; on the desktop and the Web"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "platform: Quay's window program, native only (the game itself runs on the Web)"
+
+[targets.omui-showcase-quay-window]
+kind = "lib"
+
+[targets.quay]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.text.fonts = { path = "../../../modules/content/text/fonts" }  # every script it shows carried with it (D-214)
+omui.showcase.quay = { path = ".." }
+omui.sdk         = { path = "../../../modules/projects/omui/sdk" }
+meng.ui       = { path = "../../../modules/projects/meng/game/ui" }
+meng.input    = { path = "../../../modules/projects/meng/game/input" }
+meng.audio.device = { path = "../../../modules/projects/meng/kernel/audio/device" }
+mrender.raster   = { path = "../../../modules/projects/mrender/raster" }
+mlibs.rhi        = { path = "../../../modules/gfx/rhi" }
+mcpplibs.cmdline = "0.0.3"
+mcpplibs.os      = "0.4.8"
+
+[build-dependencies]
+omui.build = { path = "../../../mcpp/build", host-module = true }
+
+[dev-dependencies]
+mlibs.text.harfbuzz = { path = "../../../modules/content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)
+mcpplibs.mtest = "0.11.3"
+omui.host.headless = { path = "../../../modules/projects/omui/host/headless" }

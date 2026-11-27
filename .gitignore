@@ -1,6 +1,24 @@
 target/
 build/
+!modules/base/build/
+!mcpp/build/
 .cache/
 compile_commands.json
 *.swp
 .DS_Store
+.xlings/
+.template-check/
+__pycache__/
+*.pyc
+dist/
+python-probe.log
+.openmui/
+mcpp.lock
+
+# omui check and omui dev: the tools' local state (D-156)
+.omui/
+# a source directory named target (src/**/target/) is code, not a build
+!**/src/**/target/
+
+# Claude Code personal settings
+.claude/settings.local.json

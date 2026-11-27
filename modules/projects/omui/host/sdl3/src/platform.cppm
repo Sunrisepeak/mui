@@ -1,0 +1,142 @@
+// omui.host.sdl3:platform — the window, as the rest of the host sees it:
+// no SDL type crosses this line (SDL lives in native/sdl.cpp).
+module omui.host.sdl3:platform;
+
+import std;
+import omui.core;
+import mrender.raster;
+import mrender.vector;
+import omui.view;
+
+namespace omui::platform {
+
+struct WindowOptions {
+    std::string title;
+    Size        size;
+    std::optional<std::array<int, 2>> position;  // where it opens (none: where the system places it)
+    bool        resizable = true;
+    bool        vsync = true;
+    std::string video_driver;
+    std::string render_driver;
+    bool        gpu = false;  // a GPU device claims the window: no SDL renderer
+    // No system frame: the interface draws its own (D-75), over a window
+    // that shows what is behind where it draws nothing (its shadow).
+    bool        framework = false;
+    // Made hidden, shown by `show` (UI Automation's adapter is attached to
+    // a window before it is first shown).
+    bool        hidden = false;
+    // The CPU's frames copied into the window's own framebuffer (the video driver's: X11's shared memory, Windows',
+    // the offscreen driver's), with no renderer: no graphics library loaded for frames the CPU already drew — where
+    // there is no GPU, OpenGL would be a software one too (llvmpipe), slower to start and heavier to keep. Where the
+    // driver has no framebuffer of its own (Wayland, macOS), a renderer as asked. It shows a frame at once (no
+    // vsync): the host's loop holds itself to the rate (held_to_refresh).
+    bool        framebuffer = false;
+};
+
+struct Window;  // SDL_Window, SDL_Renderer, the frame's texture
+
+struct WindowDeleter {
+    void operator()(Window* w) const noexcept;
+};
+using WindowPtr = std::unique_ptr<Window, WindowDeleter>;
+
+// SDL brought up (video, events, gamepads) as a window's opening does, before any window: a GPU device can then be
+// made on a thread of its own while the window and the first frame are prepared. Idempotent; `open` calls it.
+std::expected<void, std::string> start(std::string_view video_driver);
+// A host that brought SDL up for a device being made off this thread holds it until it lets go: while one holds it,
+// neither another host's `stop` nor the last window closing quits SDL under that device's making.
+void hold();
+void release();  // its hold given back, then `stop`
+// SDL let go when `start` brought it up, no window is open and no host holds it; else nothing.
+void stop();
+
+std::expected<WindowPtr, std::string> open(const WindowOptions& options);
+// Whether a window of the video driver SDL is up with keeps a framebuffer of its own (X11, Windows, offscreen): the
+// CPU's frames shown there need no renderer, so a GPU device can claim the window later (UI9).
+[[nodiscard]] bool own_framebuffer();
+// The window's framebuffer let go, so that a GPU device claims the window: what it shows stays until the device
+// presents (no renderer was made for it).
+void release_framebuffer(Window& w);
+
+struct Polled {
+    std::vector<InputEvent>    events;
+    bool                       quit = false;
+    std::optional<WindowState> state;  // the system changed it
+    std::optional<bool>        shown;  // whether any of it can be seen: hidden, minimized or covered, and back
+    bool                       appearance = false;  // the system's light or dark appearance changed (system_dark)
+};
+
+// ── the window as a window (D-75) ──
+[[nodiscard]] WindowState state(Window& w);
+void show(Window& w);
+// The system's own window: the HWND on Windows, the NSWindow on macOS
+// (null elsewhere): what the accessibility adapter is attached to.
+[[nodiscard]] void* native_window(Window& w);
+void minimize(Window& w);
+void toggle_maximize(Window& w);
+void set_fullscreen(Window& w, bool on);
+// With the system's frame, or without it (the interface's own).
+void set_framed(Window& w, bool framed);
+// Whether what the interface leaves transparent shows what is behind.
+[[nodiscard]] bool transparent(Window& w);
+// What lies under a point (logical pixels), for the system's moving and
+// resizing of a frameless window; none: the system's own. False when the
+// system cannot ask.
+bool set_hit_test(Window& w, std::function<WindowArea(Point)> hit);
+// Input goes to what lies beneath the window (or back to it); false when
+// the system cannot (Wayland, offscreen).
+bool pass_through(Window& w, bool on);
+// The window's pending events, translated; with `wait`, sleeps up to
+// `timeout` (none: until an event) for the first one.
+Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeout);
+
+[[nodiscard]] Size  logical_size(Window& w);
+// The window's place on the screen in logical units: its frame (the system's decorations included) and its content —
+// where assistive technology says a node is on the screen (AT-SPI's screen coordinates); none where the system tells
+// no place (SDL cannot ask it).
+[[nodiscard]] std::optional<std::pair<Rect, Rect>> screen_bounds(Window& w);
+// What rhi::sdl::Options::window takes.
+[[nodiscard]] std::uint32_t window_id(Window& w);
+[[nodiscard]] float pixel_scale(Window& w);
+// The refresh rate of the display the window is on (Hz; 0 when it says none).
+[[nodiscard]] double refresh_hz(Window& w);
+// Whether a present waits for the display's refresh, as a renderer's and a GPU's do when vsync is asked: a window's
+// own framebuffer shows a frame at once, and the loop holds itself to the rate.
+[[nodiscard]] bool held_to_refresh(Window& w);
+// The frame shown. `rows`: only those bands changed since the frame shown last (a window's own framebuffer copies
+// and sends no more: what the CPU's frame costs is its change, not its size); none: the whole frame.
+void present(Window& w, const mrender::raster::Surface& frame, std::optional<std::span<const mrender::RowSpan>> rows = std::nullopt);
+void text_input(Window& w, std::optional<Rect> caret);
+void cursor(Window& w, std::string_view shape);
+[[nodiscard]] std::string clipboard();
+void set_clipboard(std::string_view text);
+// The pointer kept to the focused window and reporting only its movement, or let go; whether the system did.
+bool lock_pointer(bool held);
+// The system's handler of an address (the browser, the mail program).
+bool open_url(std::string_view url);
+// A file given to the person: written to their Downloads folder (else their
+// home), a number added to its name when one is there already.
+bool save_download(std::string_view name, std::string_view bytes);
+// The system's file chooser (SDL3's: the desktop portal, Win32's, Cocoa's) over
+// the window; `chosen` is called once, on any thread (none: cancelled, or it
+// could not be shown). False: no chooser here.
+bool choose_files(Window& w, const Runtime::FileChoice& choice, Runtime::FilesChosen chosen);
+// A tray icon with a menu, replacing the one before (none: removed); choosing
+// an entry calls `chosen` with its verb. False: no tray here.
+bool tray(const std::vector<Runtime::MenuEntry>& entries, std::string_view tooltip, std::function<void(std::string_view verb)> chosen);
+// Wakes a poll that sleeps (from any thread).
+void wake();
+// Starts gamepads (SDL's subsystem, hot-plugged through its mapping database), once: only when the application
+// takes gamepad input (Runtime::gamepads_wanted) — the subsystem watches for devices, and where the system gives it
+// no notice of them (no /dev/input) it wakes the loop every three seconds to look.
+void start_gamepads();
+// Whether the person prefers a dark appearance, as SDL reads the system's setting (Windows, macOS); none where it says
+// nothing (this build's Linux: SDL has no D-Bus here, and mpal reads the desktop portal instead).
+[[nodiscard]] std::optional<bool> system_dark();
+// The person's languages as the system states them, best first, as BCP 47
+// tags (SDL's preferred locales: the settings on Windows and macOS).
+[[nodiscard]] std::vector<std::string> preferred_locales();
+void synthesize(Window& w, std::span<const InputEvent> events);
+std::expected<mrender::raster::Surface, std::string> read_back(Window& w);
+
+}  // namespace omui::platform

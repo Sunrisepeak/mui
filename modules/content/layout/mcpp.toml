@@ -1,0 +1,30 @@
+# openmui.layout — a layout engine: flexbox, grid, z-stacks, absolute
+# positioning, aspect ratio, scroll containers; incremental with per-node
+# caches. Deterministic: compiled without floating-point contraction (A-level).
+[package]
+namespace   = "mlibs"
+name        = "layout"
+version     = "0.1.0"
+description = "Flexbox, grid, stack and absolute layout: incremental, cached and deterministic"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: text layout for interfaces and documents"
+kind = "runtime"
+
+[targets.mlibs-layout]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.geom = { path = "../../base/geom" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils = { path = "../../base/utils" }

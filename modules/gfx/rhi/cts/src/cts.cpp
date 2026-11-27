@@ -1,0 +1,838 @@
+module mlibs.rhi.cts.api;
+
+import std;
+import mlibs.rhi;
+
+namespace mlibs::rhi::cts {
+
+namespace {
+
+constexpr std::uint32_t W = 8, H = 8;
+
+using Rgba = std::array<int, 4>;
+
+struct V {  // fill's per-vertex data
+    float x, y, r, g, b, a;
+};
+struct I {  // fill's per-instance offset
+    float dx, dy;
+};
+struct Z {  // depth's vertex
+    float x, y, z, r, g, b, a;
+};
+struct T {  // textured's vertex
+    float x, y, u, v;
+};
+
+// The two triangles of an axis-aligned rectangle (NDC).
+std::array<V, 6> quad(float x0, float y0, float x1, float y1, Rgba c) {
+    const float r = c[0] / 255.0f, g = c[1] / 255.0f, b = c[2] / 255.0f, a = c[3] / 255.0f;
+    return {V{x0, y0, r, g, b, a}, V{x1, y0, r, g, b, a}, V{x0, y1, r, g, b, a},
+            V{x1, y0, r, g, b, a}, V{x1, y1, r, g, b, a}, V{x0, y1, r, g, b, a}};
+}
+
+std::array<float, 4> unit(Rgba c) { return {c[0] / 255.0f, c[1] / 255.0f, c[2] / 255.0f, c[3] / 255.0f}; }
+
+std::string show(Rgba c) { return std::format("({}, {}, {}, {})", c[0], c[1], c[2], c[3]); }
+
+// The device, the suite's pipelines, and an 8×8 colour target.
+struct Bench {
+    Device&          d;
+    Texture          target;
+    Buffer           one_instance;  // a single zero offset
+    Sampler          nearest;
+    GraphicsPipeline fill, fill_blend, textured, depth, depth_msaa_fill;
+    ComputePipeline  compute;
+    std::vector<std::function<void()>> release;
+    std::string      failure;  // the case's first problem ("" while it holds)
+    std::string      note;     // what a case that holds says of how (a device without what it checks)
+
+    [[nodiscard]] bool failed() const noexcept { return !failure.empty(); }
+    void fail(std::string why) {
+        if (failure.empty()) failure = std::move(why);
+    }
+    // A result's value, or (recording why) an empty one: what follows a
+    // failure runs on invalid handles, which validation refuses harmlessly.
+    template <class R>
+    R must(Result<R> r, std::string_view what) {
+        if (r) return std::move(*r);
+        fail(std::format("{}: {}", what, r.error().text()));
+        return R{};
+    }
+    void must(Result<void> r, std::string_view what) {
+        if (!r) fail(std::format("{}: {}", what, r.error().text()));
+    }
+
+    std::array<VertexAttribute, 2> fill_vertex{VertexAttribute{0, VertexFormat::float2, 0}, VertexAttribute{1, VertexFormat::float4, 8}};
+    std::array<VertexAttribute, 1> fill_instance{VertexAttribute{2, VertexFormat::float2, 0}};
+    std::array<VertexBufferLayout, 2> fill_layout{VertexBufferLayout{sizeof(V), false, fill_vertex},
+                                                  VertexBufferLayout{sizeof(I), true, fill_instance}};
+    std::array<VertexAttribute, 2> textured_vertex{VertexAttribute{0, VertexFormat::float2, 0}, VertexAttribute{1, VertexFormat::float2, 8}};
+    std::array<VertexBufferLayout, 1> textured_layout{VertexBufferLayout{sizeof(T), false, textured_vertex}};
+    std::array<VertexAttribute, 2> depth_vertex{VertexAttribute{0, VertexFormat::float3, 0}, VertexAttribute{1, VertexFormat::float4, 12}};
+    std::array<VertexBufferLayout, 1> depth_layout{VertexBufferLayout{sizeof(Z), false, depth_vertex}};
+
+    explicit Bench(Device& device) : d(device) {
+        target = texture(Format::rgba8_unorm, W, H, TextureUsage::color_target | TextureUsage::sampled, "cts.target");
+        one_instance = buffer(sizeof(I), BufferUsage::vertex, "cts.instance");
+        nearest = must(d.create(SamplerDesc{Filter::nearest, Filter::nearest}), "a nearest sampler");
+        release.push_back([this] { d.destroy(nearest); });
+        fill = pipeline({.vertex = &shaders::fill::fill_vs, .fragment = &shaders::fill::fill_fs, .vertex_buffers = fill_layout,
+                         .blend = Blend::replace(), .label = "cts.fill"});
+        fill_blend = pipeline({.vertex = &shaders::fill::fill_vs, .fragment = &shaders::fill::fill_fs, .vertex_buffers = fill_layout,
+                               .blend = Blend::premultiplied(), .label = "cts.fill_blend"});
+        textured = pipeline({.vertex = &shaders::textured::textured_vs, .fragment = &shaders::textured::textured_fs,
+                             .vertex_buffers = textured_layout, .blend = Blend::replace(), .label = "cts.textured"});
+        depth = pipeline({.vertex = &shaders::depth::depth_vs, .fragment = &shaders::depth::depth_fs, .vertex_buffers = depth_layout,
+                          .blend = Blend::replace(), .depth_target = Format::d32_float,
+                          .depth = {.test = true, .write = true, .compare = Compare::less}, .label = "cts.depth"});
+        depth_msaa_fill = pipeline({.vertex = &shaders::fill::fill_vs, .fragment = &shaders::fill::fill_fs, .vertex_buffers = fill_layout,
+                                    .blend = Blend::replace(), .samples = 4, .label = "cts.fill_msaa"});
+        if (d.caps().compute) {  // a device without (WebGL2) refuses it: the compute case checks that
+            compute = must(d.create(ComputePipelineDesc{&shaders::compute::pattern, "cts.compute"}), "the compute pipeline");
+            release.push_back([this] { d.destroy(compute); });
+        }
+        CommandList l;
+        const I zero{0, 0};
+        l.upload(one_instance, 0, std::span<const I>(&zero, 1));
+        submit(l);
+    }
+    ~Bench() {
+        static_cast<void>(d.wait_idle());
+        for (auto& r : std::views::reverse(release)) r();
+    }
+    Bench(const Bench&) = delete;
+    Bench& operator=(const Bench&) = delete;
+
+    Texture texture(Format f, std::uint32_t w, std::uint32_t h, TextureUsage u, std::string_view label) {
+        Texture t = must(d.create(TextureDesc{f, w, h, u, label}), std::format("a {}×{} {} texture", w, h, name(f)));
+        release.push_back([this, t] { d.destroy(t); });
+        return t;
+    }
+    Buffer buffer(std::uint32_t size, BufferUsage u, std::string_view label) {
+        Buffer b = must(d.create(BufferDesc{size, u, label}), std::format("a buffer of {} bytes", size));
+        release.push_back([this, b] { d.destroy(b); });
+        return b;
+    }
+    template <class Vertex, std::size_t N>
+    Buffer vertices(const std::array<Vertex, N>& v) {
+        Buffer b = buffer(static_cast<std::uint32_t>(sizeof(Vertex) * N), BufferUsage::vertex, "cts.vertices");
+        CommandList l;
+        l.upload(b, 0, std::span<const Vertex>(v));
+        submit(l);
+        return b;
+    }
+    GraphicsPipeline pipeline(const GraphicsPipelineDesc& desc) {
+        GraphicsPipeline p = must(d.create(desc), std::format("the pipeline {}", desc.label));
+        release.push_back([this, p] { d.destroy(p); });
+        return p;
+    }
+    void submit(const CommandList& l) { must(d.wait(must(d.submit(l), "submit")), "wait"); }
+
+    // A pass on the target: clear (or load), then whatever `draw` records.
+    void pass(LoadOp load, Rgba clear, std::function<void(CommandList&)> draw = {}) {
+        CommandList l;
+        l.begin_render({target, load, unit(clear)});
+        if (draw) draw(l);
+        l.end_render();
+        submit(l);
+    }
+    void fill_with(CommandList& l, Buffer quad_vertices, std::uint32_t count, std::uint32_t instances = 1, Buffer instance = {},
+                   bool blend = false, std::uint32_t first_vertex = 0, std::uint32_t first_instance = 0) {
+        l.set_pipeline(blend ? fill_blend : fill);
+        l.bind_vertex_buffer(0, quad_vertices);
+        l.bind_vertex_buffer(1, instance ? instance : one_instance);
+        l.draw(count, instances, first_vertex, first_instance);
+    }
+
+    std::vector<Rgba> pixels(Texture t = {}, std::uint32_t w = W, std::uint32_t h = H) {
+        const auto bytes = must(d.read(t ? t : target, Region{0, 0, w, h}), "read back");
+        if (bytes.empty()) return {};
+        std::vector<Rgba> out(std::size_t{w} * h);
+        for (std::size_t i = 0; i < out.size(); ++i)
+            for (int c = 0; c < 4; ++c) out[i][c] = std::to_integer<int>(bytes[i * 4 + c]);
+        return out;
+    }
+};
+
+// Every pixel against `want(x, y)`, within `tolerance`.
+void expect(Bench& b, const std::vector<Rgba>& px, std::uint32_t w, const std::function<Rgba(std::uint32_t, std::uint32_t)>& want,
+            int tolerance = 0) {
+    for (std::uint32_t i = 0; i < px.size() && !b.failed(); ++i) {
+        const std::uint32_t x = i % w, y = i / w;
+        const Rgba e = want(x, y);
+        for (int c = 0; c < 4; ++c)
+            if (std::abs(px[i][c] - e[c]) > tolerance) {
+                b.fail(std::format("pixel ({}, {}) is {}; it should be {}{}", x, y, show(px[i]), show(e),
+                                   tolerance ? std::format(" (±{})", tolerance) : ""));
+                return;
+            }
+    }
+}
+
+constexpr Rgba black{0, 0, 0, 255}, red{255, 0, 0, 255}, green{0, 255, 0, 255}, blue{0, 0, 255, 255}, white{255, 255, 255, 255};
+
+// ── the cases ────────────────────────────────────────────────────────────
+
+Texture must_msaa(Bench& b) {
+    return b.must(b.d.create(TextureDesc{Format::rgba8_unorm, W, H, TextureUsage::color_target, "cts.msaa", 4}), "a 4-sample target");
+}
+
+// The two triangles of a rectangle at depth z (NDC).
+std::array<Z, 6> zquad(float x0, float y0, float x1, float y1, float z, Rgba c) {
+    const float r = c[0] / 255.0f, g = c[1] / 255.0f, b = c[2] / 255.0f, a = c[3] / 255.0f;
+    return {Z{x0, y0, z, r, g, b, a}, Z{x1, y0, z, r, g, b, a}, Z{x0, y1, z, r, g, b, a},
+            Z{x1, y0, z, r, g, b, a}, Z{x1, y1, z, r, g, b, a}, Z{x0, y1, z, r, g, b, a}};
+}
+
+// The depth test, in the order drawn: what lies behind is not drawn, what
+// lies in front is, whatever the order.
+void depth_test(Bench& b) {
+    const Texture z = b.texture(Format::d32_float, W, H, TextureUsage::depth_target, "cts.depth");
+    const Buffer middle = b.vertices(zquad(-1, -1, 1, 1, 0.5f, red));
+    const Buffer behind = b.vertices(zquad(-1, -1, 0, 1, 0.75f, blue));  // the left half, behind
+    const Buffer front = b.vertices(zquad(-1, 0, 1, 1, 0.25f, green));   // the top half, in front
+    CommandList l;
+    l.begin_render({b.target, LoadOp::clear, unit(black)}, {z, LoadOp::clear, 1.0f});
+    l.set_pipeline(b.depth);
+    for (Buffer q : {middle, behind, front}) {
+        l.bind_vertex_buffer(0, q);
+        l.draw(6);
+    }
+    l.end_render();
+    b.submit(l);
+    expect(b, b.pixels(), W, [](auto, auto y) { return y < 4 ? green : red; });
+}
+
+// Depths kept by one pass (store) and tested by the next (load).
+void depth_kept(Bench& b) {
+    const Texture z = b.texture(Format::d32_float, W, H, TextureUsage::depth_target, "cts.depth_kept");
+    const Buffer first = b.vertices(zquad(-1, -1, 1, 1, 0.5f, red));
+    const Buffer behind = b.vertices(zquad(-1, -1, 1, 1, 0.6f, blue));
+    const Buffer front = b.vertices(zquad(-1, -1, 0, 1, 0.4f, green));  // the left half
+    CommandList l;
+    l.begin_render({b.target, LoadOp::clear, unit(black)}, {z, LoadOp::clear, 1.0f, 0, true});
+    l.set_pipeline(b.depth);
+    l.bind_vertex_buffer(0, first);
+    l.draw(6);
+    l.end_render();
+    l.begin_render({b.target, LoadOp::load}, {z, LoadOp::load, 1.0f, 0, true});
+    l.set_pipeline(b.depth);
+    l.bind_vertex_buffer(0, behind);
+    l.draw(6);
+    l.bind_vertex_buffer(0, front);
+    l.draw(6);
+    l.end_render();
+    b.submit(l);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? green : red; });
+}
+
+// Four samples a texel, resolved: a texel half inside an edge is half
+// covered — the standard 4× sample positions (the same on Vulkan, Metal and
+// Direct3D 12) put two of its samples left of the texel's middle.
+void multisample(Bench& b) {
+    if (b.d.caps().max_samples < 4) {
+        b.fail(std::format("the device multisamples to {}; every backend must take 4", b.d.caps().max_samples));
+        return;
+    }
+    const Texture msaa = must_msaa(b);
+    const Buffer q = b.vertices(quad(-1, -1, 0.125f, 1, red));  // to x = 4.5 texels
+    CommandList l;
+    l.begin_render({msaa, LoadOp::clear, unit(black), b.target});
+    l.set_pipeline(b.depth_msaa_fill);
+    l.bind_vertex_buffer(0, q);
+    l.bind_vertex_buffer(1, b.one_instance);
+    l.draw(6);
+    l.end_render();
+    b.submit(l);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? red : x == 4 ? Rgba{128, 0, 0, 255} : black; }, 1);
+}
+
+// Several colour targets a pass (Caps::max_color_targets): a fragment's outputs each in its own texture, of
+// its own format, cleared to its own colour; what one target's blending does is that target's. A device
+// that says it has one refuses a pipeline of more as unsupported, which is what holds for it.
+void several_targets(Bench& b) {
+    // Where every target blends as the first (Caps::independent_blend false), a target blending its own way
+    // is refused as unsupported, and the pass is checked with the three replacing what they had.
+    const bool own_way = b.d.caps().independent_blend;
+    const std::array<MoreTarget, 2> each_its_own{MoreTarget{Format::rgba8_unorm, Blend::premultiplied()}, MoreTarget{Format::r32_float, Blend::replace()}};
+    const std::array<MoreTarget, 2> alike{MoreTarget{Format::rgba8_unorm, Blend::replace()}, MoreTarget{Format::r32_float, Blend::replace()}};
+    if (!own_way && b.d.caps().max_color_targets >= 3) {
+        auto refused = b.d.create(GraphicsPipelineDesc{.vertex = &shaders::several::several_vs, .fragment = &shaders::several::several_fs, .vertex_buffers = b.fill_layout,
+                                                       .blend = Blend::replace(), .more_targets = each_its_own, .label = "cts.several.own"});
+        if (refused) {
+            b.d.destroy(*refused);
+            b.fail("the device says its targets all blend as the first (Caps::independent_blend), and made a pipeline whose second blends its own way");
+            return;
+        }
+        if (refused.error().code != Errc::unsupported) {
+            b.fail(std::format("a pipeline whose second target blends its own way is refused as {}, not rhi.unsupported", refused.error().text()));
+            return;
+        }
+    }
+    const std::span<const MoreTarget> more = own_way ? std::span<const MoreTarget>(each_its_own) : std::span<const MoreTarget>(alike);
+    auto made = b.d.create(GraphicsPipelineDesc{.vertex = &shaders::several::several_vs, .fragment = &shaders::several::several_fs, .vertex_buffers = b.fill_layout,
+                                                .blend = Blend::replace(), .more_targets = more, .label = "cts.several"});
+    if (b.d.caps().max_color_targets < 3) {
+        if (made) {
+            b.d.destroy(*made);
+            b.fail(std::format("the device says it has {} colour targets a pass (Caps::max_color_targets), and made a pipeline of three", b.d.caps().max_color_targets));
+        } else if (made.error().code != Errc::unsupported) {
+            b.fail(std::format("a pipeline of three colour targets is refused as {}, not rhi.unsupported", made.error().text()));
+        } else {
+            b.note = std::format("{} colour target a pass on this device (Caps::max_color_targets): a pipeline of three refused as unsupported", b.d.caps().max_color_targets);
+        }
+        return;
+    }
+    const GraphicsPipeline pipeline = b.must(std::move(made), "the pipeline of three colour targets");
+    if (b.failed()) return;
+    b.release.push_back([&b, pipeline] { b.d.destroy(pipeline); });
+    const Texture second = b.texture(Format::rgba8_unorm, W, H, TextureUsage::color_target | TextureUsage::sampled, "cts.several.second");
+    const Texture third = b.texture(Format::r32_float, W, H, TextureUsage::color_target | TextureUsage::sampled, "cts.several.third");
+    // The left half, half-transparent red (premultiplied): the first and third targets take it as it is,
+    // the second blends its turned-about colour over what it was cleared to.
+    const Rgba half_red{128, 0, 0, 128};
+    const Buffer q = b.vertices(quad(-1, -1, 0, 1, half_red));
+    const std::array<ColorTarget, 2> others{ColorTarget{second, LoadOp::clear, unit(green)}, ColorTarget{third, LoadOp::clear, {7.5f, 0, 0, 0}}};
+    CommandList l;
+    l.begin_render({b.target, LoadOp::clear, unit(black)}, {}, others);
+    l.set_pipeline(pipeline);
+    l.bind_vertex_buffer(0, q);
+    l.bind_vertex_buffer(1, b.one_instance);
+    l.draw(6);
+    l.end_render();
+    b.submit(l);
+    if (b.failed()) return;
+    expect(b, b.pixels(), W, [&](auto x, auto) { return x < 4 ? half_red : black; });
+    // Blue 128/255 at alpha 128/255 over opaque green: green's 255 × (1 − 128/255) = 127.
+    // Replacing, where the device blends them all alike: the turned-about colour as it is.
+    expect(b, b.pixels(second), W, [&](auto x, auto) { return x < 4 ? (own_way ? Rgba{0, 127, 128, 255} : Rgba{0, 0, 128, 128}) : green; }, 1);
+    const auto bytes = b.must(b.d.read(third, Region{0, 0, W, H}), "read the float target back");
+    if (b.failed()) return;
+    for (std::uint32_t at = 0; at < W * H && !b.failed(); ++at) {
+        float value = 0;
+        std::memcpy(&value, bytes.data() + at * 4, 4);
+        const float want = at % W < 4 ? 128.0f / 255.0f * 2.0f + 0.25f : 7.5f;
+        if (std::abs(value - want) > 1e-3f) b.fail(std::format("the float target at ({}, {}) is {}; it should be {}", at % W, at / W, value, want));
+    }
+}
+
+void clear(Bench& b) {
+    b.pass(LoadOp::clear, {51, 102, 153, 204});
+    expect(b, b.pixels(), W, [](auto, auto) { return Rgba{51, 102, 153, 204}; });
+}
+
+// NDC +y is the top row, x −1 the left column, on every backend.
+void orientation(Bench& b) {
+    const Buffer q = b.vertices(quad(-1, 0, 0, 1, red));
+    b.pass(LoadOp::clear, black, [&](CommandList& l) { b.fill_with(l, q, 6); });
+    expect(b, b.pixels(), W, [](auto x, auto y) { return x < 4 && y < 4 ? red : black; });
+}
+
+void instancing(Bench& b) {
+    const Buffer q = b.vertices(quad(-1, 0.5f, -0.5f, 1, green));  // the 2×2 block at the top left
+    const std::array<I, 4> offsets{I{0, 0}, I{1, 0}, I{0, -1}, I{1, -1}};
+    const Buffer inst = b.vertices(offsets);
+    b.pass(LoadOp::clear, black, [&](CommandList& l) { b.fill_with(l, q, 6, 4, inst); });
+    expect(b, b.pixels(), W, [](auto x, auto y) { return (x % 4) < 2 && (y % 4) < 2 ? green : black; });
+}
+
+// A draw from its first vertex and its first instance: the buffer's second
+// quad (green, the first red), moved by the second and third offsets (the
+// first would put it at the top right).
+void firsts(Bench& b) {
+    const auto skipped = quad(-1, 0.5f, -0.5f, 1, red), drawn = quad(-1, 0.5f, -0.5f, 1, green);  // the 2×2 block at the top left
+    std::array<V, 12> v{};
+    std::ranges::copy(skipped, v.begin());
+    std::ranges::copy(drawn, v.begin() + 6);
+    const Buffer vb = b.vertices(v);
+    const Buffer inst = b.vertices(std::array<I, 3>{I{1.5f, 0}, I{0, -1}, I{1, -1}});
+    b.pass(LoadOp::clear, black, [&](CommandList& l) { b.fill_with(l, vb, 6, 2, inst, false, 6, 1); });
+    expect(b, b.pixels(), W, [](auto x, auto y) { return (x < 2 || (x >= 4 && x < 6)) && y >= 4 && y < 6 ? green : black; });
+}
+
+// 16-bit indices on the left half; 32-bit ones, with a first index and a
+// vertex offset, on the right.
+void indexed(Bench& b) {
+    const std::array<V, 8> v{V{-1, -1, 1, 0, 0, 1}, V{0, -1, 1, 0, 0, 1}, V{0, 1, 1, 0, 0, 1}, V{-1, 1, 1, 0, 0, 1},
+                             V{0, -1, 0, 1, 0, 1}, V{1, -1, 0, 1, 0, 1},  V{1, 1, 0, 1, 0, 1}, V{0, 1, 0, 1, 0, 1}};
+    const Buffer vb = b.vertices(v);
+    const std::array<std::uint16_t, 6> i16{0, 1, 2, 0, 2, 3};
+    const std::array<std::uint32_t, 9> i32{9, 9, 9, 0, 1, 2, 0, 2, 3};  // the first three are skipped
+    const Buffer b16 = b.buffer(sizeof i16, BufferUsage::index, "cts.i16");
+    const Buffer b32 = b.buffer(sizeof i32, BufferUsage::index, "cts.i32");
+    CommandList up;
+    up.upload(b16, 0, std::span<const std::uint16_t>(i16));
+    up.upload(b32, 0, std::span<const std::uint32_t>(i32));
+    b.submit(up);
+    b.pass(LoadOp::clear, black, [&](CommandList& l) {
+        l.set_pipeline(b.fill);
+        l.bind_vertex_buffer(0, vb);
+        l.bind_vertex_buffer(1, b.one_instance);
+        l.bind_index_buffer(b16, false);
+        l.draw_indexed(6);
+        l.bind_index_buffer(b32, true);
+        l.draw_indexed(6, 1, 3, 4);
+    });
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? red : green; });
+}
+
+// Premultiplied source over: 0.4 red at 0.4 alpha over 0.8 blue.
+void blending(Bench& b) {
+    const Buffer q = b.vertices(quad(-1, -1, 1, 1, {102, 0, 0, 102}));
+    b.pass(LoadOp::clear, {0, 0, 204, 255}, [&](CommandList& l) { b.fill_with(l, q, 6, 1, {}, true); });
+    expect(b, b.pixels(), W, [](auto, auto) { return Rgba{102, 0, 122, 255}; }, 1);
+}
+
+void scissor(Bench& b) {
+    const Buffer q = b.vertices(quad(-1, -1, 1, 1, white));
+    b.pass(LoadOp::clear, black, [&](CommandList& l) {
+        l.set_scissor(Region{2, 2, 4, 3});
+        b.fill_with(l, q, 6);
+    });
+    expect(b, b.pixels(), W, [](auto x, auto y) { return x >= 2 && x < 6 && y >= 2 && y < 5 ? white : black; });
+}
+
+void viewport(Bench& b) {
+    const Buffer q = b.vertices(quad(-1, -1, 1, 1, red));
+    b.pass(LoadOp::clear, black, [&](CommandList& l) {
+        l.set_viewport(0, 4, 4, 4);  // the bottom-left quarter
+        b.fill_with(l, q, 6);
+    });
+    expect(b, b.pixels(), W, [](auto x, auto y) { return x < 4 && y >= 4 ? red : black; });
+}
+
+// A 2×2 texture over the target, nearest: uv (0, 0) is the top-left texel.
+void sampling(Bench& b, Rgba tint, const std::function<Rgba(Rgba)>& tinted) {
+    const Texture image = b.texture(Format::rgba8_unorm, 2, 2, TextureUsage::sampled, "cts.image");
+    const std::array<std::uint8_t, 16> texels{255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 255, 255, 255};
+    const std::array<T, 6> v{T{-1, 1, 0, 0}, T{1, 1, 1, 0}, T{-1, -1, 0, 1}, T{1, 1, 1, 0}, T{1, -1, 1, 1}, T{-1, -1, 0, 1}};
+    const Buffer vb = b.vertices(v);
+    CommandList up;
+    up.upload(image, Region{0, 0, 2, 2}, std::as_bytes(std::span(texels)));
+    b.submit(up);
+    b.pass(LoadOp::clear, black, [&](CommandList& l) {
+        l.set_pipeline(b.textured);
+        l.bind_vertex_buffer(0, vb);
+        l.bind_texture(Stage::fragment, 0, image, b.nearest);
+        l.push_uniforms(Stage::fragment, 0, unit(tint));
+        l.draw(6);
+    });
+    expect(b, b.pixels(), W, [&](auto x, auto y) {
+        const Rgba quadrant = y < 4 ? (x < 4 ? red : green) : (x < 4 ? blue : white);
+        return tinted(quadrant);
+    });
+}
+
+void texture_nearest(Bench& b) { sampling(b, white, [](Rgba c) { return c; }); }
+
+// Levels of a texture (TextureDesc::levels): each uploaded on its own, and read by how many texels a pixel
+// covers — one texel a pixel the first, two the second, four the third, eight the fourth — the nearer level
+// through a sampler that takes one, the two about the place mixed through one that mixes (√2 texels a pixel:
+// half the first and half the second).
+void levels(Bench& b) {
+    const std::uint32_t side = 32;
+    const std::array<Rgba, 6> colours{red, green, blue, white, Rgba{128, 128, 0, 255}, Rgba{0, 128, 128, 255}};
+    Texture image = b.must(b.d.create(TextureDesc{.format = Format::rgba8_unorm, .width = side, .height = side, .usage = TextureUsage::sampled, .label = "cts.levels", .levels = 6}),
+                           "a 32×32 texture of six levels");
+    if (b.failed()) return;
+    b.release.push_back([&b, image] { b.d.destroy(image); });
+    const Sampler one_level = b.must(b.d.create(SamplerDesc{Filter::nearest, Filter::nearest, AddressMode::clamp, AddressMode::clamp, Filter::nearest}), "a sampler taking the nearer level");
+    const Sampler two_levels = b.must(b.d.create(SamplerDesc{Filter::linear, Filter::linear, AddressMode::clamp, AddressMode::clamp, Filter::linear}), "a sampler mixing two levels");
+    if (b.failed()) return;
+    b.release.push_back([&b, one_level, two_levels] { b.d.destroy(one_level), b.d.destroy(two_levels); });
+    CommandList up;
+    std::vector<std::uint8_t> texels;
+    for (std::uint32_t level = 0; level < 6; ++level) {
+        const std::uint32_t across = level_extent(side, level);
+        texels.clear();
+        for (std::uint32_t texel = 0; texel < across * across; ++texel) texels.insert(texels.end(), colours[level].begin(), colours[level].end());
+        up.upload(image, Region{0, 0, across, across}, std::as_bytes(std::span(texels)), 0, level);
+    }
+    b.submit(up);
+    if (b.failed()) return;
+    // The target's left half and its right, each with so many texels a pixel both ways.
+    const auto halves = [&](float left_texels, float right_texels) {
+        const float wide = static_cast<float>(W) / 2, high = static_cast<float>(H);
+        const float lu = left_texels * wide / static_cast<float>(side), lv = left_texels * high / static_cast<float>(side);
+        const float ru = right_texels * wide / static_cast<float>(side), rv = right_texels * high / static_cast<float>(side);
+        return std::array<T, 12>{T{-1, 1, 0, 0}, T{0, 1, lu, 0}, T{-1, -1, 0, lv}, T{0, 1, lu, 0}, T{0, -1, lu, lv}, T{-1, -1, 0, lv},
+                                 T{0, 1, 0, 0},  T{1, 1, ru, 0}, T{0, -1, 0, rv},  T{1, 1, ru, 0}, T{1, -1, ru, rv}, T{0, -1, 0, rv}};
+    };
+    const auto drawn = [&](float left_texels, float right_texels, Sampler through) {
+        const Buffer vb = b.vertices(halves(left_texels, right_texels));
+        b.pass(LoadOp::clear, black, [&](CommandList& l) {
+            l.set_pipeline(b.textured);
+            l.bind_vertex_buffer(0, vb);
+            l.bind_texture(Stage::fragment, 0, image, through);
+            l.push_uniforms(Stage::fragment, 0, unit(white));
+            l.draw(12);
+        });
+    };
+    drawn(1, 2, one_level);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? red : green; });
+    if (b.failed()) return;
+    drawn(4, 8, one_level);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? blue : white; });
+    if (b.failed()) return;
+    // Between two levels: half of each, as near as the device counts the share (16 parts of a level at the coarsest).
+    drawn(std::numbers::sqrt2_v<float>, 2 * std::numbers::sqrt2_v<float>, two_levels);
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? Rgba{128, 128, 0, 255} : Rgba{0, 128, 128, 255}; }, 18);
+}
+
+// A 32-bit float texture read through a nearest sampler: a shadow map, an id kept as a float. Cleared to 1 it
+// is red over the whole target (its one channel; the others 0 and 1). The pipeline is the one `texture_nearest`
+// samples an rgba8 texture with: a backend that tells the two kinds of texture apart in a pipeline's layout
+// (WebGPU, where 32-bit floats are not filtered) has both. Through a sampler that filters it is not portable.
+void float_nearest(Bench& b) {
+    const Texture map = b.texture(Format::r32_float, 2, 2, TextureUsage::color_target | TextureUsage::sampled, "cts.r32f");
+    const std::array<T, 6> v{T{-1, 1, 0, 0}, T{1, 1, 1, 0}, T{-1, -1, 0, 1}, T{1, 1, 1, 0}, T{1, -1, 1, 1}, T{-1, -1, 0, 1}};
+    const Buffer vb = b.vertices(v);
+    CommandList filled;
+    filled.begin_render({map, LoadOp::clear, {1, 0, 0, 1}});
+    filled.end_render();
+    b.submit(filled);
+    b.pass(LoadOp::clear, black, [&](CommandList& l) {
+        l.set_pipeline(b.textured);
+        l.bind_vertex_buffer(0, vb);
+        l.bind_texture(Stage::fragment, 0, map, b.nearest);
+        l.push_uniforms(Stage::fragment, 0, unit(white));
+        l.draw(6);
+    });
+    expect(b, b.pixels(), W, [](auto, auto) { return red; });
+}
+
+// The uniform multiplies: white × (0.4, 0.6, 1, 1).
+void uniforms(Bench& b) {
+    sampling(b, {102, 153, 255, 255}, [](Rgba c) {
+        return Rgba{c[0] * 102 / 255, c[1] * 153 / 255, c[2], c[3]};
+    });
+}
+
+// A second pass that loads keeps the first's pixels.
+void load_keeps(Bench& b) {
+    b.pass(LoadOp::clear, red);
+    const Buffer q = b.vertices(quad(-1, -1, 0, 1, green));
+    b.pass(LoadOp::load, black, [&](CommandList& l) { b.fill_with(l, q, 6); });
+    expect(b, b.pixels(), W, [](auto x, auto) { return x < 4 ? green : red; });
+}
+
+void copy(Bench& b) {
+    const Texture src = b.texture(Format::rgba8_unorm, 4, 4, TextureUsage::sampled, "cts.copy_src");
+    std::array<std::uint8_t, 64> texels{};
+    for (std::uint32_t i = 0; i < 16; ++i) {
+        texels[i * 4] = static_cast<std::uint8_t>(i * 16);
+        texels[i * 4 + 1] = static_cast<std::uint8_t>(255 - i * 16);
+        texels[i * 4 + 3] = 255;
+    }
+    CommandList l;
+    l.upload(src, Region{0, 0, 4, 4}, std::as_bytes(std::span(texels)));
+    b.submit(l);
+    b.pass(LoadOp::clear, blue);
+    CommandList c;
+    c.copy(src, Region{1, 1, 2, 2}, b.target, 5, 5);
+    b.submit(c);
+    expect(b, b.pixels(), W, [](auto x, auto y) {
+        if (x >= 5 && x < 7 && y >= 5 && y < 7) {
+            const int i = static_cast<int>((y - 5 + 1) * 4 + (x - 5 + 1));
+            return Rgba{i * 16, 255 - i * 16, 0, 255};
+        }
+        return blue;
+    });
+}
+
+// A compute pass writes every texel and element; the uniforms say how many.
+// A device that says it has no compute (Caps::compute: WebGL2) refuses a
+// compute pipeline as unsupported, which is what holds for it.
+void compute(Bench& b) {
+    if (!b.d.caps().compute) {
+        auto p = b.d.create(ComputePipelineDesc{&shaders::compute::pattern, "cts.compute"});
+        if (p) {
+            b.d.destroy(*p);
+            b.fail("the device says it has no compute (Caps::compute), and made a compute pipeline");
+        } else if (p.error().code != Errc::unsupported) {
+            b.fail(std::format("no compute: the pipeline is refused as {}, not rhi.unsupported", p.error().text()));
+        } else {
+            b.note = "no compute on this device (Caps::compute): its pipeline refused as unsupported";
+        }
+        return;
+    }
+    const Texture out = b.texture(Format::rgba8_unorm, W, H, TextureUsage::compute_write | TextureUsage::sampled, "cts.compute_out");
+    const Buffer values = b.buffer(W * H * 4, BufferUsage::compute_write, "cts.compute_values");
+    const std::array<std::uint32_t, 4> params{W, H, 0, 0};
+    CommandList l;
+    const std::array<Texture, 1> textures{out};
+    const std::array<Buffer, 1> buffers{values};
+    l.begin_compute(textures, buffers);
+    l.set_pipeline(b.compute);
+    l.push_uniforms(Stage::compute, 0, params);
+    l.dispatch(1, 1);
+    l.end_compute();
+    b.submit(l);
+    expect(b, b.pixels(out), W, [](auto x, auto y) { return Rgba{static_cast<int>(x * 16), static_cast<int>(y * 16), 0, 255}; });
+    std::array<std::uint32_t, W * H> got{};
+    b.must(b.d.read(values, 0, std::as_writable_bytes(std::span(got))), "read the buffer");
+    for (std::uint32_t i = 0; i < got.size() && !b.failed(); ++i)
+        if (got[i] != i % W + i / W * 100) b.fail(std::format("element {} is {}; it should be {}", i, got[i], i % W + i / W * 100));
+}
+
+// r8_unorm and rgba16_float, uploaded or cleared, read back byte for byte.
+void formats(Bench& b) {
+    const Texture r8 = b.texture(Format::r8_unorm, 4, 2, TextureUsage::sampled, "cts.r8");
+    const std::array<std::uint8_t, 8> bytes{0, 51, 102, 153, 204, 255, 17, 34};
+    CommandList l;
+    l.upload(r8, Region{0, 0, 4, 2}, std::as_bytes(std::span(bytes)));
+    b.submit(l);
+    const auto back = b.must(b.d.read(r8, Region{0, 0, 4, 2}), "read r8");
+    if (b.failed()) return;
+    for (std::size_t i = 0; i < bytes.size(); ++i)
+        if (std::to_integer<int>(back[i]) != bytes[i]) {
+            b.fail(std::format("r8 texel {} is {}; it should be {}", i, std::to_integer<int>(back[i]), bytes[i]));
+            return;
+        }
+    const Texture half = b.texture(Format::rgba16_float, 2, 2, TextureUsage::color_target, "cts.rgba16f");
+    CommandList c;
+    c.begin_render({half, LoadOp::clear, {0.5f, 0.25f, 1.0f, 0.0f}});
+    c.end_render();
+    b.submit(c);
+    const auto h = b.must(b.d.read(half, Region{0, 0, 2, 2}), "read rgba16f");
+    if (b.failed()) return;
+    const std::array<std::uint16_t, 4> want{0x3800, 0x3400, 0x3c00, 0x0000};  // 0.5, 0.25, 1, 0 as halves
+    for (std::size_t p = 0; p < 4; ++p)
+        for (std::size_t c2 = 0; c2 < 4; ++c2) {
+            const auto lo = std::to_integer<std::uint16_t>(h[p * 8 + c2 * 2]), hi = std::to_integer<std::uint16_t>(h[p * 8 + c2 * 2 + 1]);
+            const std::uint16_t got = static_cast<std::uint16_t>(lo | hi << 8);
+            if (got != want[c2]) {
+                b.fail(std::format("rgba16f texel {} channel {} is {:#06x}; it should be {:#06x}", p, c2, got, want[c2]));
+                return;
+            }
+        }
+}
+
+// Submissions run in order: a copy submitted after a clear sees it, waited on alone.
+void ordering(Bench& b) {
+    const Texture other = b.texture(Format::rgba8_unorm, W, H, TextureUsage::color_target | TextureUsage::sampled, "cts.other");
+    CommandList first;
+    first.begin_render({b.target, LoadOp::clear, unit(red)});
+    first.end_render();
+    CommandList second;
+    second.copy(b.target, Region{0, 0, W, H}, other);
+    static_cast<void>(b.must(b.d.submit(first), "the first submission"));
+    b.must(b.d.wait(b.must(b.d.submit(second), "the second submission")), "wait for the second");
+    expect(b, b.pixels(other), W, [](auto, auto) { return red; });
+}
+
+void buffers(Bench& b) {
+    const Buffer buf = b.buffer(64, BufferUsage::vertex, "cts.buffer");
+    const std::array<std::uint32_t, 4> words{1, 2, 3, 0xdeadbeef};
+    CommandList l;
+    l.upload(buf, 16, std::span<const std::uint32_t>(words));
+    b.submit(l);
+    std::array<std::uint32_t, 4> back{};
+    b.must(b.d.read(buf, 16, std::as_writable_bytes(std::span(back))), "read the buffer");
+    if (!b.failed() && back != words) b.fail(std::format("read back {}; it should be {}", back, words));
+}
+
+// Pictures kept as blocks (Format::bc7_*, etc2_rgba8_*, astc_4x4_*; Caps::bc7, etc2, astc): a texture of 8 × 8
+// texels — four blocks — its second level of one block and its third of 2 × 2 texels (a block a level's edge
+// goes through), each block one colour, written here bit by bit as each kind's own rules say (no packer is asked), uploaded and
+// sampled; the `_srgb` coding is the same bytes read as a display's colours (their light, ±1). A kind the device
+// says it has not is refused as unsupported, which is what holds for it.
+struct Solid {
+    std::array<std::uint8_t, block_bytes> bytes{};
+    Rgba                                  shown{};  // what the block unpacks to: the nearest this kind says in one colour
+};
+// BC7's mode 6: one pair of ends, each part seven bits and a bit shared by the four parts; every texel the first end.
+Solid bc7_solid(Rgba wanted) {
+    Solid out;
+    std::uint32_t at = 0;
+    const auto put = [&](std::uint32_t value, std::uint32_t bits) {
+        for (std::uint32_t bit = 0; bit < bits; ++bit, ++at)
+            if ((value >> bit) & 1u) out.bytes[at / 8] |= static_cast<std::uint8_t>(1u << (at % 8));
+    };
+    put(1u << 6, 7);
+    for (int part = 0; part < 4; ++part) put(static_cast<std::uint32_t>(wanted[part]) >> 1, 7), put(static_cast<std::uint32_t>(wanted[part]) >> 1, 7);
+    put(1, 1), put(1, 1);
+    for (int part = 0; part < 4; ++part) out.shown[part] = wanted[part] | 1;
+    return out;
+}
+// ETC2 with EAC's cover: the cover 255 (its base, and a step up that stops there); the colour two halves of the
+// same four bits a part, each texel the first of the first table's steps (+2).
+Solid etc2_solid(Rgba wanted) {
+    Solid out;
+    out.bytes[0] = 255, out.bytes[1] = 0x10;
+    for (int byte = 2; byte < 8; ++byte) out.bytes[byte] = std::array<std::uint8_t, 3>{0x92, 0x49, 0x24}[(byte - 2) % 3];
+    for (int part = 0; part < 3; ++part) {
+        const int four = std::clamp((wanted[part] - 2 + 8) / 17, 0, 15);
+        out.bytes[8 + part] = static_cast<std::uint8_t>(four << 4 | four);
+        out.shown[part] = std::min(four * 17 + 2, 255);
+    }
+    out.shown[3] = 255;
+    return out;
+}
+// ASTC's block of one colour: its mark, then the four parts in sixteen bits each.
+Solid astc_solid(Rgba wanted) {
+    Solid out;
+    out.bytes = {0xFC, 0xFD, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    for (int part = 0; part < 4; ++part) out.bytes[8 + 2 * part] = out.bytes[9 + 2 * part] = static_cast<std::uint8_t>(wanted[part]);
+    out.shown = wanted;
+    return out;
+}
+int light_of(int byte) {
+    const double coded = byte / 255.0;
+    const double light = coded <= 0.04045 ? coded / 12.92 : std::pow((coded + 0.055) / 1.055, 2.4);
+    return static_cast<int>(std::lround(light * 255.0));
+}
+
+void blocks(Bench& b) {
+    struct Kind {
+        std::string_view name;
+        Format           plain, colours;
+        bool             here;
+        Solid (*solid)(Rgba);
+    };
+    const Caps& caps = b.d.caps();
+    const std::array<Kind, 3> kinds{Kind{"bc7", Format::bc7_unorm, Format::bc7_srgb, caps.bc7, bc7_solid},
+                                    Kind{"etc2", Format::etc2_rgba8_unorm, Format::etc2_rgba8_srgb, caps.etc2, etc2_solid},
+                                    Kind{"astc", Format::astc_4x4_unorm, Format::astc_4x4_srgb, caps.astc, astc_solid}};
+    const std::uint32_t side = 8;
+    const std::array<Rgba, 6> wanted{Rgba{201, 101, 51, 255}, Rgba{51, 201, 101, 255}, Rgba{101, 51, 201, 255},
+                                     Rgba{255, 255, 255, 255}, Rgba{151, 151, 51, 255}, Rgba{51, 151, 201, 255}};
+    const Sampler one_level = b.must(b.d.create(SamplerDesc{Filter::nearest, Filter::nearest, AddressMode::clamp, AddressMode::clamp, Filter::nearest}), "a sampler taking the nearer level");
+    if (b.failed()) return;
+    b.release.push_back([&b, one_level] { b.d.destroy(one_level); });
+    std::string drawn, absent;
+    for (const Kind& kind : kinds) {
+        for (const Format format : {kind.plain, kind.colours}) {
+            auto made = b.d.create(TextureDesc{.format = format, .width = side, .height = side, .usage = TextureUsage::sampled, .label = "cts.blocks", .levels = 3});
+            if (!kind.here) {
+                if (made) {
+                    b.d.destroy(*made);
+                    b.fail(std::format("a {} texture was made on a device that says it samples none (Caps::{})", name(format), kind.name));
+                } else if (made.error().code != Errc::unsupported) {
+                    b.fail(std::format("a {} texture is refused as {}, not rhi.unsupported", name(format), made.error().text()));
+                }
+                if (b.failed()) return;
+                continue;
+            }
+            const Texture image = b.must(std::move(made), std::format("a {} texture of 8×8 and three levels", name(format)));
+            if (b.failed()) return;
+            b.release.push_back([&b, image] { b.d.destroy(image); });
+            std::array<Solid, 6> solid;
+            for (std::size_t which = 0; which < solid.size(); ++which) solid[which] = kind.solid(wanted[which]);
+            std::vector<std::uint8_t> first, second(solid[4].bytes.begin(), solid[4].bytes.end()), third(solid[5].bytes.begin(), solid[5].bytes.end());
+            for (std::size_t which = 0; which < 4; ++which) first.insert(first.end(), solid[which].bytes.begin(), solid[which].bytes.end());
+            CommandList up;
+            up.upload(image, Region{0, 0, side, side}, std::as_bytes(std::span(first)));
+            up.upload(image, Region{0, 0, side / 2, side / 2}, std::as_bytes(std::span(second)), 0, 1);
+            up.upload(image, Region{0, 0, side / 4, side / 4}, std::as_bytes(std::span(third)), 0, 2);
+            b.submit(up);
+            if (b.failed()) return;
+            const bool colours = format == kind.colours;
+            const auto shown = [&](std::size_t which) {
+                Rgba out = solid[which].shown;
+                if (colours)
+                    for (int part = 0; part < 3; ++part) out[part] = light_of(out[part]);
+                return out;
+            };
+            // A texel a pixel (the whole picture over the whole target), then two (the second level) and four (the third).
+            for (const float texels : {1.0f, 2.0f, 4.0f}) {
+                const float across = texels * static_cast<float>(W) / static_cast<float>(side), down = texels * static_cast<float>(H) / static_cast<float>(side);
+                const std::array<T, 6> corners{T{-1, 1, 0, 0}, T{1, 1, across, 0}, T{-1, -1, 0, down}, T{1, 1, across, 0}, T{1, -1, across, down}, T{-1, -1, 0, down}};
+                const Buffer vb = b.vertices(corners);
+                b.pass(LoadOp::clear, black, [&](CommandList& l) {
+                    l.set_pipeline(b.textured);
+                    l.bind_vertex_buffer(0, vb);
+                    l.bind_texture(Stage::fragment, 0, image, one_level);
+                    l.push_uniforms(Stage::fragment, 0, unit(white));
+                    l.draw(6);
+                });
+                if (b.failed()) return;
+                if (texels < 1.5f)
+                    expect(b, b.pixels(), W, [&](auto x, auto y) { return shown((y < 4 ? 0u : 2u) + (x < 4 ? 0u : 1u)); }, colours ? 1 : 0);
+                else
+                    expect(b, b.pixels(), W, [&](auto, auto) { return shown(texels < 3 ? 4 : 5); }, colours ? 1 : 0);
+                if (b.failed()) {
+                    b.failure = std::format("{}: {}", name(format), b.failure);
+                    return;
+                }
+            }
+            // A region that is not whole blocks is a wrong list.
+            CommandList part;
+            part.upload(image, Region{0, 0, 2, 4}, std::as_bytes(std::span(second)));  // at the first level 2 × 4 is half a block
+            if (auto refused = b.d.submit(part); refused || refused.error().code != Errc::invalid) {
+                b.fail(std::format("{}: an upload of half a block is {}, not rhi.invalid", name(format), refused ? std::string("taken") : refused.error().text()));
+                return;
+            }
+        }
+        (kind.here ? drawn : absent) += std::format("{}{}", (kind.here ? drawn : absent).empty() ? "" : ", ", kind.name);
+    }
+    b.note = std::format("blocks sampled: {}; refused as unsupported: {}", drawn.empty() ? "none" : drawn, absent.empty() ? "none" : absent);
+}
+
+struct Case {
+    std::string_view          name;
+    void (*run)(Bench&);
+    mlibs::cts::Level         level = mlibs::cts::Level::exact;
+};
+constexpr auto within = mlibs::cts::Level::tolerance;  // blending and resolving round: ±1
+constexpr std::array<Case, 23> all{{
+    {"clear", clear},
+    {"orientation", orientation},
+    {"instancing", instancing},
+    {"firsts", firsts},
+    {"indexed", indexed},
+    {"blending", blending, within},
+    {"scissor", scissor},
+    {"viewport", viewport},
+    {"texture_nearest", texture_nearest},
+    {"float_nearest", float_nearest},
+    {"uniforms", uniforms},
+    {"load_keeps", load_keeps},
+    {"copy", copy},
+    {"compute", compute},
+    {"formats", formats},
+    {"ordering", ordering},
+    {"buffers", buffers},
+    {"depth_test", depth_test},
+    {"depth_kept", depth_kept},
+    {"multisample", multisample, within},
+    {"several_targets", several_targets, within},
+    {"levels", levels, within},
+    {"blocks", blocks, within},
+}};
+
+}  // namespace
+
+std::vector<std::string_view> cases() {
+    std::vector<std::string_view> out;
+    for (const Case& c : all) out.push_back(c.name);
+    return out;
+}
+
+ShaderFormats shader_formats() noexcept { return shaders::fill::fill_vs.formats(); }
+
+void declare(Device& device, mlibs::cts::Against who, std::source_location at) {
+    if (who.subject.empty()) who.subject = device.caps().device;
+    Bench bench(device);
+    // The suite's own resources, when they could not be made: every case fails with why.
+    const std::string broken = bench.failed() ? bench.failure : std::string();
+    mlibs::cts::against(
+        std::move(who),
+        [&bench, &broken, at] {
+            for (const Case& c : all)
+                mlibs::cts::declare({.id = std::format("rhi.{}", c.name), .contract = "mlibs.rhi@1", .level = c.level, .needs = {},
+                                     .body = [&bench, &broken, run = c.run](mlibs::cts::Check& check) {
+                                         if (!check.that(broken.empty(), "the suite's resources: " + broken)) return;
+                                         bench.failure.clear();
+                                         bench.note.clear();
+                                         run(bench);
+                                         check.that(!bench.failed(), bench.failure);
+                                         if (!bench.failed() && !bench.note.empty()) check.evidence("note", bench.note);
+                                     }},
+                                    at);
+        },
+        at);
+}
+
+}  // namespace mlibs::rhi::cts

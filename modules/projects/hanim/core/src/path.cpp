@@ -1,0 +1,161 @@
+module hanim.core;
+
+import std;
+
+namespace hanim {
+
+namespace {
+
+Vec2 cubic_point(const Vec2& p0, const Vec2& c1, const Vec2& c2, const Vec2& p1, double t) noexcept {
+    double u = 1.0 - t;
+    double a = u * u * u, b = 3.0 * u * u * t, c = 3.0 * u * t * t, d = t * t * t;
+    return {a * p0.x + b * c1.x + c * c2.x + d * p1.x, a * p0.y + b * c1.y + c * c2.y + d * p1.y};
+}
+
+Vec2 cubic_tangent(const Vec2& p0, const Vec2& c1, const Vec2& c2, const Vec2& p1, double t) noexcept {
+    double u = 1.0 - t;
+    double a = 3.0 * u * u, b = 6.0 * u * t, c = 3.0 * t * t;
+    return {a * (c1.x - p0.x) + b * (c2.x - c1.x) + c * (p1.x - c2.x),
+            a * (c1.y - p0.y) + b * (c2.y - c1.y) + c * (p1.y - c2.y)};
+}
+
+double distance(const Vec2& a, const Vec2& b) noexcept {
+    double dx = b.x - a.x, dy = b.y - a.y;
+    return dm::sqrt(dx * dx + dy * dy);
+}
+
+}  // namespace
+
+bool PointPath::valid() const noexcept {
+    for (double value : {control1.x, control1.y, control2.x, control2.y})
+        if (!std::isfinite(value) || std::abs(value) > 1e6) return false;
+    return std::isfinite(noise.amplitude) && noise.amplitude >= 0 && noise.amplitude <= 1e6 && std::isfinite(noise.scale) &&
+        noise.scale > 0 && noise.scale <= 1e12 && std::isfinite(noise.speed) && std::abs(noise.speed) <= 1e6 &&
+        noise.field <= PathNoise::Field::curl;
+}
+
+Vec2 PointPath::interpolate(Vec2 from, Vec2 to, double progress) const noexcept {
+    auto base = lerp(from, to, progress);
+    if (linear() || progress <= 0 || progress >= 1) return base;
+    if (noise.amplitude != 0) {
+        const double envelope = 16 * progress * progress * (1 - progress) * (1 - progress);
+        const double drift = noise.speed * progress;
+        const double x = from.x / noise.scale + drift, y = from.y / noise.scale + drift * 0.6180339887498949;
+        if (noise.field == PathNoise::Field::curl) {
+            // Curl noise reaches about ±2.5; halve it towards ±amplitude.
+            const auto flow = mlibs::math::curl_noise(x, y, noise.seed);
+            base.x += noise.amplitude * envelope * 0.5 * flow[0];
+            base.y += noise.amplitude * envelope * 0.5 * flow[1];
+        } else {
+            base.x += noise.amplitude * envelope * mlibs::math::gradient_noise(x, y, noise.seed).value;
+            base.y += noise.amplitude * envelope * mlibs::math::gradient_noise(x, y, noise.seed ^ mlibs::math::golden).value;
+        }
+    }
+    if (from == to || (control1 == Vec2{} && control2 == Vec2{})) return base;
+    const double a = 3 * (1 - progress) * (1 - progress) * progress;
+    const double b = 3 * (1 - progress) * progress * progress;
+    const double along = a * control1.x + b * control2.x;
+    const double normal = a * control1.y + b * control2.y;
+    const double dx = to.x - from.x, dy = to.y - from.y;
+    return {base.x + dx * along - dy * normal, base.y + dy * along + dx * normal};
+}
+
+MotionPath& MotionPath::move_to(Vec2 p) {
+    cursor_ = p;
+    subpath_start_ = p;
+    return *this;
+}
+
+MotionPath& MotionPath::line_to(Vec2 p) {
+    // A line as a cubic with controls at its thirds, so it is uniform in t.
+    Vec2 c1{cursor_.x + (p.x - cursor_.x) / 3.0, cursor_.y + (p.y - cursor_.y) / 3.0};
+    Vec2 c2{cursor_.x + 2.0 * (p.x - cursor_.x) / 3.0, cursor_.y + 2.0 * (p.y - cursor_.y) / 3.0};
+    append(c1, c2, p);
+    return *this;
+}
+
+MotionPath& MotionPath::quad_to(Vec2 q, Vec2 p) {
+    Vec2 c1{cursor_.x + 2.0 / 3.0 * (q.x - cursor_.x), cursor_.y + 2.0 / 3.0 * (q.y - cursor_.y)};
+    Vec2 c2{p.x + 2.0 / 3.0 * (q.x - p.x), p.y + 2.0 / 3.0 * (q.y - p.y)};
+    append(c1, c2, p);
+    return *this;
+}
+
+MotionPath& MotionPath::cubic_to(Vec2 c1, Vec2 c2, Vec2 p) {
+    append(c1, c2, p);
+    return *this;
+}
+
+MotionPath& MotionPath::close() {
+    if (cursor_ != subpath_start_) line_to(subpath_start_);
+    return *this;
+}
+
+void MotionPath::append(Vec2 c1, Vec2 c2, Vec2 p1) {
+    Segment s;
+    s.p0 = cursor_;
+    s.c1 = c1;
+    s.c2 = c2;
+    s.p1 = p1;
+    s.start = total_;
+    Vec2 prev = s.p0;
+    double acc = 0;
+    s.cumulative[0] = 0;
+    for (int i = 1; i <= samples; ++i) {
+        Vec2 q = cubic_point(s.p0, s.c1, s.c2, s.p1, static_cast<double>(i) / samples);
+        acc += distance(prev, q);
+        s.cumulative[i] = acc;
+        prev = q;
+    }
+    total_ += acc;
+    segments_.push_back(s);
+    cursor_ = p1;
+}
+
+std::pair<std::size_t,double> MotionPath::locate(double u) const noexcept {
+    double target = dm::clamp(u, 0.0, 1.0) * total_;
+    auto it = std::ranges::upper_bound(segments_, target, {}, &Segment::start);
+    const Segment& s = it == segments_.begin() ? segments_.front() : *(it - 1);
+    double local = target - s.start;
+    auto c = std::ranges::upper_bound(s.cumulative, local);
+    int i = static_cast<int>(c - s.cumulative.begin());
+    if (i < 1) i = 1;
+    if (i > samples) i = samples;
+    double l0 = s.cumulative[i - 1], l1 = s.cumulative[i];
+    double frac = l1 > l0 ? (local - l0) / (l1 - l0) : 0.0;
+    double t = (static_cast<double>(i - 1) + dm::clamp(frac, 0.0, 1.0)) / samples;
+    return {static_cast<std::size_t>(&s-segments_.data()),t};
+}
+
+MotionPath::Pose MotionPath::at(double u) const noexcept {
+    if(segments_.empty())return {cursor_,0};
+    const auto [index,t]=locate(u);const auto& s=segments_[index];
+    const auto tangent=cubic_tangent(s.p0,s.c1,s.c2,s.p1,t);
+    return {cubic_point(s.p0,s.c1,s.c2,s.p1,t),dm::atan2(tangent.y,tangent.x)};
+}
+Vec2 MotionPath::point(double u) const noexcept {
+    if(segments_.empty())return cursor_;
+    const auto [index,t]=locate(u);const auto& s=segments_[index];
+    return cubic_point(s.p0,s.c1,s.c2,s.p1,t);
+}
+bool MotionPath::valid() const noexcept {
+    auto finite=[](Vec2 p){return std::isfinite(p.x) && std::isfinite(p.y);};
+    if(!finite(cursor_) || !finite(subpath_start_) || !std::isfinite(total_) || total_<0)return false;
+    double end=0;
+    for(const auto& s:segments_) {
+        if(!finite(s.p0) || !finite(s.c1) || !finite(s.c2) || !finite(s.p1) || s.start!=end || s.cumulative[0]!=0)return false;
+        double previous=0;
+        for(double length:s.cumulative) {
+            if(!std::isfinite(length) || length<previous)return false;
+            previous=length;
+        }
+        end+=previous;if(!std::isfinite(end))return false;
+    }
+    return end==total_;
+}
+bool MotionPath::continuous() const noexcept {
+    for(std::size_t i=1;i<segments_.size();++i)if(segments_[i-1].p1!=segments_[i].p0)return false;
+    return true;
+}
+
+}  // namespace hanim

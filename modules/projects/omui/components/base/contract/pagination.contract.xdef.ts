@@ -1,0 +1,26 @@
+// Which page of many: the previous and next, the first and last, the pages
+// around the current one, and gaps (…) between. Each page a node an agent can
+// activate (`<id>/<page>`); the value the current page.
+import { defineContract } from "openmui/define";
+
+export default defineContract({
+  pagination: {
+    role: "navigation",
+    spec: "0.1",
+    doc: "Which page of many: previous, next, the pages around the current one, the first and the last.",
+    props: {
+      page: { type: "i64", default: 1, bindable: true, doc: "The current page, from 1." },
+      pages: { type: "i64", default: 1, doc: "How many pages there are." },
+      around: { type: "i64", default: 1, doc: "How many pages are shown on each side of the current one." },
+      label: { type: "string", default: "Pages", doc: "The accessible name of the navigation." },
+    },
+    events: { changed: { args: { page: "i64" } } },
+    actions: {
+      increment: { effect: "reversible", doc: "The next page." },
+      decrement: { effect: "reversible", doc: "The previous page." },
+      set_value: { effect: "reversible", args: { value: "i64 | first | last" }, doc: "A page by its number (or the first, the last)." },
+    },
+    keys: { Right: "increment", Left: "decrement", Home: "set_value(first)", End: "set_value(last)" },
+    parts: { page: {}, current: {}, previous: {}, next: {}, gap: {} },
+  },
+});

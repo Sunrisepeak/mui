@@ -1,0 +1,46 @@
+# omui.lang.ts — omui's TypeScript over the tool kernel's (mlibs.ts, D-209):
+# omui's data formats (the kinds and the define modules "openmui/define" and
+# "omui/define", with their declarations), the declarations of components and
+# native modules, and the edits of a view's builder calls (Live Design).
+#
+# A package of its own (D-99): the runtime (omui.lang.js) and the build-time
+# generator (omui-gen) both read omui's TypeScript, and the generator must not
+# depend on the runtime.
+[package]
+namespace   = "omui.lang"
+name        = "ts"
+version     = "0.1.0"
+description = "omui's TypeScript: its data formats, declarations, and edits of builder calls (over mlibs.ts)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: omui's TypeScript formats for tools and the player"
+reexports = ["mlibs.ts"]  # its failures are mlibs.ts's (lint module-closure)
+kind = "lang"
+agent = { library = "declarations and edits of TypeScript: functions of the source" }
+
+[targets.openmui-lang-ts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.ts    = { path = "../../../../base/ts" }  # the tool kernel's TypeScript: blanking, evaluation
+mlibs.utils = { path = "../../../../base/utils" }  # mlibs.error: why a call cannot be edited
+mcpplibs.os = "0.4.8"  # a data file read as every platform reads one
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.11.3"
+mlibs.cts = { path = "../../../../base/cts" }
+mlibs.xdef.tool = { path = "../../../../base/xdef/tool" }  # registry_test: the manifest registers what the define modules define
+
+
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): each kind and its major
+# version, and the define module a data module imports each from (none: only tools write it).
+[package.metadata.openmui.xdef]
+kinds = { contract = 1, native = 1, view = 1, config = 1, theme = 1, style = 1, motion = 1, sound = 1, music = 1, timeline = 1, subtitles = 1, video = 1, effect = 1, behavior = 1, messages = 1, matter = 1, appearance = 1, world = 1, scenario = 1 }
+modules = { "openmui/define" = ["contract", "native", "view"], "omui/define" = ["config", "theme", "style", "motion", "sound", "music", "timeline", "subtitles", "video", "effect", "behavior", "messages", "matter", "appearance", "world"] }

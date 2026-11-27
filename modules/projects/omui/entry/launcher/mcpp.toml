@@ -1,0 +1,62 @@
+# omui.entry.launcher — the launcher of the shared runtime (E3b, D-250): an
+# application is data; the launcher reads what it declares (the specification's
+# version, the capabilities it needs, or an exact runtime), finds the runtimes
+# installed side by side (xlings: one directory a version), starts the newest
+# that satisfies it, and when none does says the command that installs one.
+# A program of its own and small: it links no runtime.
+[package]
+namespace   = "omui.entry"
+name        = "launcher"
+version     = "0.1.0"
+description = "Starts an omui application with the newest installed runtime that satisfies what it declares"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the launcher program; links no runtime (≤ 200 KB, E3b)"
+kind = "entry"
+agent = { part = "omui.agent" }  # it becomes the player: the application it starts is the subject, at the endpoint omui.agent serves (D-174); `--which` answers runtime@1, a refusal its way out as a command
+
+[targets.omui-entry-launcher]
+kind = "lib"  # what the program runs, and its tests
+
+[targets.omui-launch]
+kind = "bin"
+main = "src/entry/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+# The C++ runtime shared (red 145): released through xlings, libstdc++ is xim:gcc-runtime, one copy a machine like
+# the C library; linked into each program it brought iostream, locale and the demangler with `import std;` (528 KB).
+# Stated per target, as the size tests state theirs (red 161): on macOS mcpp's LLVM compiles against its own libc++'s
+# headers and the runtime linked there lacks what they declare (`__atomic_wait_global_table` …; red 168), so there
+# the launcher keeps mcpp's default as every other member does.
+[target.x86_64-linux-gnu]
+cxx_runtime = "toolchain-coupled"
+
+[target.aarch64-linux-gnu]
+cxx_runtime = "toolchain-coupled"
+
+[target.x86_64-windows-msvc]
+cxx_runtime = "toolchain-coupled"
+
+[dependencies]
+mcpplibs.os = "0.4.8"
+mcpplibs.cmdline = "0.0.3"
+marzer.tomlplusplus = "3.4.0"  # the application's mcpp.toml: 76,998 B of the program (red 145: its reader is a decision)
+mlibs.json = { path = "../../../../base/json" }  # runtime.json read in place by its own scanner, --which quoted by it: no parser linked
+mlibs.utils = { path = "../../../../base/utils" }  # mlibs.version: the installed runtimes compared (the one implementation)
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+
+# Small (E3b: ≤ 200 KB): built for the fewest bytes when it is the build's root
+# (`mcpp pack omui-launch -p …`), -Oz as the workspace's `small` profile its
+# budget is measured at (size.budget.xdef.json; -Os was 4,096 B more stripped,
+# 2026-11-27): it starts one program and becomes it. No link-time optimisation:
+# the toolchain's GCC 16.1 is built without it.
+[profile.dist]
+opt   = "z"
+strip = true

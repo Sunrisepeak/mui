@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "size": [320, 200],
+  "background": "#bae6fd",
+  "objects": [
+    { "id": "cloud", "shape": { "ellipse": [70, 30] }, "fill": "#ffffff", "at": [160, 90] },
+    { "id": "puff", "shape": { "circle": 30 }, "fill": "#ffffff", "at": [140, 70] },
+    { "id": "sun", "shape": { "star": { "points": 10, "outer": 30, "inner": 22 } }, "fill": "#fde047", "at": [250, 50] }
+  ],
+  "program": {
+    "do": "parallel",
+    "items": [
+      { "do": "bob", "object": "cloud", "amplitude": 6, "period": 3, "count": 2 },
+      { "do": "bob", "object": "puff", "amplitude": 6, "period": 3, "count": 2 },
+      { "do": "spin", "object": "sun", "period": 6, "count": 1 }
+    ]
+  }
+}

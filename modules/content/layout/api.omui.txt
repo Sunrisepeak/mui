@@ -1,0 +1,131 @@
+== mlibs.layout
+export import mlibs.layout.api;
+== mlibs.layout.api
+export import :style;
+export import :engine;
+== mlibs.layout.api:engine
+namespace mlibs::layout {
+  using NodeId = std::uint32_t;
+  inline constexpr NodeId no_node = std::numeric_limits<NodeId>::max();
+  struct Available {
+    enum class Kind : std::uint8_t { definite, min_content, max_content };
+    Kind kind = Kind::max_content;
+    float value = 0;
+    [[nodiscard]] static constexpr Available definite(float v) noexcept;
+    [[nodiscard]] static constexpr Available min_content() noexcept;
+    [[nodiscard]] static constexpr Available max_content() noexcept;
+    [[nodiscard]] constexpr bool is_definite() const noexcept;
+    friend constexpr bool operator==(Available a, Available b) noexcept;
+  };
+  using MeasureFn = Size (*)(void* context, NodeId node, std::optional<float> width, std::optional<float> height, Available available_width, Available available_height);
+  using BaselineFn = float (*)(void* context, NodeId node, Size content);
+  class Engine {
+    Engine();
+    ~Engine();
+    Engine(const Engine&) = delete;
+    Engine& operator=(const Engine&) = delete;
+    [[nodiscard]] NodeId create(Style style = {…});
+    void destroy(NodeId node);
+    [[nodiscard]] bool valid(NodeId node) const noexcept;
+    void set_style(NodeId node, Style style);
+    [[nodiscard]] const Style& style(NodeId node) const;
+    void append(NodeId parent, NodeId child);
+    void insert(NodeId parent, std::size_t index, NodeId child);
+    void remove_child(NodeId parent, NodeId child);
+    void clear_children(NodeId parent);
+    [[nodiscard]] std::span<const NodeId> children(NodeId node) const;
+    [[nodiscard]] NodeId parent(NodeId node) const;
+    void set_measure(NodeId node, MeasureFn measure, void* context, BaselineFn baseline = nullptr);
+    void mark_dirty(NodeId node);
+    void compute(NodeId root, Size available);
+    [[nodiscard]] Rect frame(NodeId node) const;
+    [[nodiscard]] Size content_size(NodeId node) const;
+    [[nodiscard]] float baseline(NodeId node) const;
+    struct Stats {
+      std::size_t layouts = 0;
+      std::size_t cache_hits = 0;
+      std::size_t measures = 0;
+    };
+    [[nodiscard]] const Stats& stats() const noexcept;
+    void reset_stats() noexcept;
+  };
+}
+== mlibs.layout.api:style
+namespace mlibs::layout {
+  using geom::Insets;
+  using geom::Point;
+  using geom::Rect;
+  using geom::Size;
+  struct Length {
+    enum class Unit : std::uint8_t { auto_, points, percent };
+    Unit unit = Unit::auto_;
+    float value = 0;
+    [[nodiscard]] static constexpr Length automatic() noexcept;
+    [[nodiscard]] static constexpr Length points(float v) noexcept;
+    [[nodiscard]] static constexpr Length percent(float v) noexcept;
+    [[nodiscard]] constexpr bool is_auto() const noexcept;
+    [[nodiscard]] constexpr std::optional<float> resolve(std::optional<float> reference) const noexcept;
+    friend constexpr bool operator==(Length a, Length b) noexcept;
+  };
+  [[nodiscard]] constexpr Length pt(float v) noexcept;
+  [[nodiscard]] constexpr Length pct(float v) noexcept;
+  enum class Display : std::uint8_t { flex, grid, stack, none };
+  enum class Position : std::uint8_t { relative, absolute };
+  enum class Direction : std::uint8_t { row, column, row_reverse, column_reverse };
+  enum class Wrap : std::uint8_t { no_wrap, wrap, wrap_reverse };
+  enum class Justify : std::uint8_t { start, end, center, space_between, space_around, space_evenly };
+  enum class Align : std::uint8_t { auto_, start, end, center, stretch, baseline };
+  enum class Overflow : std::uint8_t { visible, clip, scroll };
+  struct Track {
+    enum class Kind : std::uint8_t { points, percent, fr, auto_, min_content, max_content, minmax };
+    Kind kind = Kind::auto_;
+    float value = 0;
+    Kind min_kind = Kind::auto_;
+    float min_value = 0;
+    Kind max_kind = Kind::auto_;
+    float max_value = 0;
+    [[nodiscard]] static constexpr Track points(float v) noexcept;
+    [[nodiscard]] static constexpr Track percent(float v) noexcept;
+    [[nodiscard]] static constexpr Track fr(float v = 1) noexcept;
+    [[nodiscard]] static constexpr Track automatic() noexcept;
+    [[nodiscard]] static constexpr Track min_content() noexcept;
+    [[nodiscard]] static constexpr Track max_content() noexcept;
+    [[nodiscard]] static constexpr Track minmax(Track lo, Track hi) noexcept;
+  };
+  struct GridLine {
+    std::int16_t line = 0;
+    std::int16_t span = 1;
+    [[nodiscard]] static constexpr GridLine at(std::int16_t l, std::int16_t s = 1) noexcept;
+    [[nodiscard]] static constexpr GridLine spanning(std::int16_t s) noexcept;
+  };
+  enum class GridFlow : std::uint8_t { row, column };
+  struct Style {
+    Display display = Display::flex;
+    Position position = Position::relative;
+    Overflow overflow_x = Overflow::visible;
+    Overflow overflow_y = Overflow::visible;
+    Length width, height, min_width, min_height, max_width, max_height;
+    float aspect_ratio = 0;
+    Insets margin, padding, border;
+    Length left, top, right, bottom;
+    Direction direction = Direction::row;
+    Wrap wrap = Wrap::no_wrap;
+    Justify justify = Justify::start;
+    Align align_items = Align::stretch;
+    Align align_content = Align::start;
+    float row_gap = 0;
+    float column_gap = 0;
+    float grow = 0;
+    float shrink = 1;
+    Length basis;
+    Align align_self = Align::auto_;
+    Align justify_self = Align::auto_;
+    std::vector<Track> columns;
+    std::vector<Track> rows;
+    Track auto_rows = Track::automatic();
+    Track auto_columns = Track::automatic();
+    GridFlow grid_flow = GridFlow::row;
+    GridLine column_start, row_start;
+    friend bool operator==(const Style&, const Style&) noexcept;
+  };
+}

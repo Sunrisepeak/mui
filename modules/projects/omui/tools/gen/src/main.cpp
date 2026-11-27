@@ -1,0 +1,704 @@
+// omui-gen — the registry and contracts, to every generated artifact.
+//
+//   omui-gen registry <spec/registry> --out <spec> [--check] [--json]
+//       openmui.h, the openmui.spec partitions, the reference tables, the Core
+//       TypeScript builders and the view-document schema
+//   omui-gen stubs <file.contract.xdef.ts>... --registry <dir> --module <m>
+//                  --out <dir> [--check] [--json]
+//       a component package's script builders and view-document schema
+//   omui-gen cpp <file.contract.xdef.ts>... --registry <dir> --module <m>
+//                --out <dir> [--namespace ns] [--catalog] [--contract name]
+//                [--part contract|builder] [--check]
+//       a component package's C++: the contract partitions (typed props,
+//       options, the CRTP base) and the builders
+//   omui-gen native <file.native.xdef.ts>... --registry <dir> --module <m>
+//                   --out <dir> [--namespace ns] [--native name] [--part cpp|stubs] [--check]
+//       a native module's C++ (records, the functions to implement, define())
+//       and its TypeScript stubs (component-binding §8)
+//   omui-gen embed <file> --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
+//       (a data module, <name>.<kind>.xdef.ts, is carried as its JSON, <name>.<kind>.xdef.json)
+//   omui-gen embed-index <file>=<partition>… --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
+//       a data file (a theme) as a partition holding its text
+//   omui-gen check <file.contract.xdef.ts or .native.xdef.ts>... --registry <dir> [--json]
+//       diagnostics only
+//   omui-gen abi <registry-dir> --out <modules/projects/omui/abi/src> [--check]
+//       openmui.h's types and functions for the C++ that implements them, and
+//       the check that their layouts agree with the header
+//   omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]
+//   omui-gen cldr <cldr-json-dir> --locales en,zh,zh-Hant --version <x.y.z> --out <dir> [--check]
+//   omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T] [--fonts a,b|all] …
+//       a wasm32-emscripten program packaged for Bilibili Toy (openmui.gen.dist_toy;
+//       what `mcpp pack --pkg-format dist-toy` runs); with --part-program <whole> --part-first <program>
+//       [--part-needs <selector>], in two parts: the functions the first program has, and the rest — fetched only
+//       by a page whose document holds what the selector matches (a world's live examples)
+//   omui-gen dist-toy-split <package dir> --primary <wasm> --deferred <wasm> [--lazy <route>,…]
+//       a packed page's program cut in two by wasm-split (omui-devtools site split):
+//       the first screen's half first, the rest compiled after it
+//   omui-gen dist-toy-document <package dir> --static-html <file> [--lang L] [--description T] [--canonical URL]
+//       [--image URL] [--alternate HREFLANG=URL …]
+//       a packed page as a document before its program runs (D-236): its first screen's semantic tree as HTML,
+//       hidden once the program presents; what a search engine and a share card read
+//   omui-gen closure <script or replay>… --out <unit.cpp> --report <closure.json> [--graph <file>] [--config <omui.config.ts>]
+//       what an application carries, derived from what it wrote (B7b): the base components its scripts and its replay's
+//       steps take by name from openmui, as the registry its program calls (omui.gen.closure; omui.build's closure())
+//   omui-gen size <program: .wasm or ELF> [--json <out.json>] [--markdown <out.md>] [--top N]
+//       where a program's bytes go (WebAssembly or ELF): its sections, its code
+//       by owner (module, namespace, C library) and its largest symbols (W8, B3;
+//       omui.gen.size — names from a name section or a symbol table)
+//       openmui.i18n's locale packs (*.locale.xdef.json) and likely subtags
+//       openmui.unicode's tables (and a subset of the UCD's conformance tests)
+//
+// --check writes nothing and fails (exit 1) when an output differs from what
+// is on disk: CI's proof that committed outputs are current. --json prints
+// diagnostics as JSON for tools and agents.
+import std;
+import mcpplibs.cmdline;
+import omui.gen.model;
+import omui.gen.read;
+import omui.gen.emit;
+import omui.gen.unicode;
+import omui.gen.cldr;
+import omui.gen.dist_toy;
+import omui.gen.size;
+import omui.gen.closure;
+import omui.lang.ts;
+import nlohmann.json;
+import omui.gen.data;
+import mlibs.xdef.tool;
+
+using namespace omui::gen;
+
+namespace {
+
+struct Options {
+    std::string                        command;
+    std::vector<std::filesystem::path> inputs;
+    std::filesystem::path              out;
+    std::filesystem::path              registry;
+    std::string                        module;
+    std::string                        ns = "omui::ui";
+    bool                               catalog = false;
+    std::string                        contract;  // cpp: only this contract of the files
+    std::string                        native;    // native: only this module of the files
+    std::string                        name;      // embed: the partition's and the constant's name
+    std::string                        part;      // cpp: `contract` or `builder`; native: `cpp` or `stubs`
+    std::string                        version;
+    std::filesystem::path              tests;
+    std::vector<std::string>           locales;  // cldr: the CLDR locale ids to pack
+    bool                               check = false;
+    bool                               json = false;
+};
+
+int usage() {
+    std::println(std::cerr, "usage: omui-gen registry <registry-dir> --out <spec-dir> [--check] [--json]\n"
+                            "       omui-gen stubs <contract>... --registry <dir> --module <name> --out <dir> [--check] [--json]\n"
+                            "       omui-gen cpp <contract>... --registry <dir> --module <name> --out <dir> [--namespace ns] [--catalog]\n"
+                            "                    [--contract name] [--part contract|builder] [--check]\n"
+                            "       omui-gen native <native>... --registry <dir> --module <name> --out <dir> [--namespace ns]\n"
+                            "                    [--native name] [--part cpp|stubs] [--check]\n"
+                            "       omui-gen embed <file> --module <name> --name <partition> --out <dir> [--namespace ns] [--check]\n"
+                            "       omui-gen embed-index <file>=<partition>... --module <name> --name <partition> --out <dir> [--namespace ns] [--check]\n"
+                            "       omui-gen check <contract or native>... --registry <dir> [--json]\n"
+                            "       omui-gen abi <registry-dir> --out <modules/projects/omui/abi/src> [--check]\n"
+                            "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]\n"
+                            "       omui-gen cldr <cldr-json-dir> --locales <id,…> --version <x.y.z> --out <dir> [--check]");
+    return 2;
+}
+
+// What a subcommand's options say, into the Options every run_* reads.
+std::optional<Options> options_of(std::string_view command, const mcpplibs::cmdline::ParsedArgs& args) {
+    Options o;
+    o.command = std::string(command);
+    for (const std::string& input : args.positionals) o.inputs.emplace_back(input);
+    o.check = args.is_flag_set("check");
+    o.json = args.is_flag_set("json");
+    o.catalog = args.is_flag_set("catalog");
+    if (auto value = args.value("out")) o.out = *value;
+    if (auto value = args.value("registry")) o.registry = *value;
+    if (auto value = args.value("module")) o.module = *value;
+    if (auto value = args.value("namespace")) o.ns = *value;
+    if (auto value = args.value("contract")) o.contract = *value;
+    if (auto value = args.value("native")) o.native = *value;
+    if (auto value = args.value("name")) o.name = *value;
+    if (auto value = args.value("version")) o.version = *value;
+    if (auto value = args.value("tests")) o.tests = *value;
+    if (auto value = args.value("part")) {
+        if (*value != "contract" && *value != "builder" && *value != "cpp" && *value != "stubs") return std::nullopt;
+        o.part = *value;
+    }
+    if (auto value = args.value("locales"))
+        for (auto part : *value | std::views::split(','))
+            if (!std::ranges::empty(part)) o.locales.emplace_back(part.begin(), part.end());
+    return o;
+}
+
+// Writes outputs, or under --check compares them; counts what differs.
+struct Writer {
+    bool check;
+    int  stale = 0;
+    int  written = 0;
+
+    void put(const std::filesystem::path& path, std::string_view content) {
+        std::string current;
+        if (std::ifstream in{path, std::ios::binary}) current.assign(std::istreambuf_iterator<char>(in), {});
+        if (current == content) return;
+        if (check) {
+            ++stale;
+            std::println(std::cerr, "out of date: {}", generic_utf8(path));
+            return;
+        }
+        std::filesystem::create_directories(path.parent_path());
+        std::ofstream(path, std::ios::binary) << content;
+        ++written;
+    }
+};
+
+int report(const Diagnostics& diags, bool json) {
+    if (json) std::println("{}", diags.json());
+    else if (!diags.list.empty()) std::print(std::cerr, "{}", diags.text());
+    return diags.has_errors() ? 1 : 0;
+}
+
+int run_registry(const Options& o) {
+    if (o.inputs.size() != 1 || o.out.empty()) return usage();
+    Diagnostics diags;
+    Registry reg = read_registry(o.inputs[0], diags);
+    if (report(diags, o.json) != 0) return 1;
+
+    Writer w{o.check};
+    w.put(o.out / "include" / "openmui.h", emit_c_header(reg));
+    w.put(o.out / "src" / "generated" / "registry.cppm", emit_spec_registry(reg));
+    w.put(o.out / "src" / "generated" / "catalog.cppm", emit_spec_catalog(reg));
+    w.put(o.out / "docs" / "registry.md", emit_docs(reg));
+    w.put(o.out / "stubs" / "core.d.ts", emit_dts(reg.contracts, "the Core profile", true));
+    // The binding API's declarations and the define functions' (written by hand, normative), carried in
+    // code: what a tool puts beside an application's builders when it type-checks it (omui check).
+    for (const auto& [file, name] : {std::pair{"openmui.d.ts", "binding_api"}, std::pair{"define.d.ts", "define_api"}}) {
+        std::ifstream in(o.out / "stubs" / file, std::ios::binary);
+        if (!in) {
+            std::println(std::cerr, "omui-gen: cannot read {}", generic_utf8(o.out / "stubs" / file));
+            return 1;
+        }
+        const std::string text(std::istreambuf_iterator<char>(in), {});
+        w.put(o.out / "src" / "generated" / std::format("{}.cppm", name), mlibs::xdef::emit_embed(text, std::format("spec/stubs/{}", file), "openmui.spec", "omui::spec::stubs", name, embedded_by));
+    }
+    w.put(o.out / "schema" / "core.components.json", emit_view_schema(reg.contracts, "the Core profile"));
+    if (o.check) {
+        if (w.stale) {
+            std::println(std::cerr, "{} generated file(s) are out of date; run: omui-gen registry {} --out {}", w.stale,
+                         generic_utf8(o.inputs[0]), generic_utf8(o.out));
+            return 1;
+        }
+        std::println("omui-gen: generated files are current");
+    } else {
+        std::println("omui-gen: {} file(s) written", w.written);
+    }
+    return 0;
+}
+
+int run_abi(const Options& o) {
+    if (o.inputs.size() != 1 || o.out.empty()) return usage();
+    Diagnostics diags;
+    Registry reg = read_registry(o.inputs[0], diags);
+    if (report(diags, o.json) != 0) return 1;
+    Writer w{o.check};
+    w.put(o.out / "generated" / "c.cppm", emit_abi_types(reg));
+    w.put(o.out / "generated" / "api.cppm", emit_abi_functions(reg));
+    w.put(o.out / "native" / "layout.cpp", emit_abi_layout(reg));
+    if (o.check && w.stale) {
+        std::println(std::cerr, "{} generated file(s) are out of date; run: omui-gen abi {} --out {}", w.stale, generic_utf8(o.inputs[0]),
+                     generic_utf8(o.out));
+        return 1;
+    }
+    std::println("omui-gen: {} file(s) written", w.written);
+    return 0;
+}
+
+// CLDR's JSON to openmui.i18n's locale packs (D-74).
+int run_cldr(const Options& o) {
+    if (o.inputs.size() != 1 || o.out.empty() || o.version.empty() || o.locales.empty()) return usage();
+    auto packs = emit_cldr_packs(o.inputs[0], o.locales, o.version);
+    if (!packs) {
+        std::println(std::cerr, "omui-gen: {}", packs.error());
+        return 1;
+    }
+    Writer w{o.check};
+    for (const CldrPack& p : *packs) w.put(o.out / p.file, p.text);
+    if (o.check && w.stale) return 1;
+    std::println("omui-gen: {} file(s) written", w.written);
+    return 0;
+}
+
+int run_unicode(const Options& o) {
+    if (o.inputs.size() != 1 || o.out.empty() || o.version.empty()) return usage();
+    auto tables = emit_unicode_tables(o.inputs[0], o.version);
+    if (!tables) {
+        std::println(std::cerr, "omui-gen: {}", tables.error());
+        return 1;
+    }
+    Writer w{o.check};
+    w.put(o.out / "tables.cppm", *tables);
+    if (!o.tests.empty()) {
+        for (auto [file, step] : {std::pair{"LineBreakTest.txt", 4}, std::pair{"GraphemeBreakTest.txt", 1},
+                                  std::pair{"WordBreakTest.txt", 1}}) {
+            auto subset = unicode_test_subset(o.inputs[0] / file, step);
+            if (!subset) {
+                std::println(std::cerr, "omui-gen: {}", subset.error());
+                return 1;
+            }
+            w.put(o.tests / file, *subset);
+        }
+    }
+    if (o.check && w.stale) return 1;
+    std::println("omui-gen: {} file(s) written", w.written);
+    return 0;
+}
+
+// C++ for a component package: per contract the partition <name>_contract.cppm
+// and the builder <name>_builder.cpp.
+int run_cpp(const Options& o) {
+    if (o.inputs.empty() || o.registry.empty() || o.module.empty() || o.out.empty()) return usage();
+    Diagnostics diags;
+    Registry reg = read_registry(o.registry, diags);
+    std::vector<Contract> contracts;
+    for (const auto& file : o.inputs)
+        for (Contract& c : read_contracts(file, reg, diags)) contracts.push_back(std::move(c));
+    if (report(diags, o.json) != 0) return 1;
+    const CppOptions cpp{o.module, o.ns, o.catalog};
+    Writer w{o.check};
+    int matched = 0;
+    for (const Contract& c : contracts) {
+        if (!o.contract.empty() && c.name != o.contract) continue;
+        ++matched;
+        if (o.part != "builder") w.put(o.out / (c.name + "_contract.cppm"), emit_cpp_contract(c, reg, cpp));
+        if (o.part != "contract") w.put(o.out / (c.name + "_builder.cpp"), emit_cpp_builder(c, reg, cpp));
+    }
+    if (!o.contract.empty() && matched == 0) {
+        std::println(std::cerr, "omui-gen: no contract `{}` in the files given", o.contract);
+        return 1;
+    }
+    if (o.check) {
+        if (w.stale) return 1;
+        std::println("omui-gen: generated files are current");
+    } else {
+        std::println("omui-gen: {} file(s) written", w.written);
+    }
+    return 0;
+}
+
+bool is_native(const std::filesystem::path& file) {
+    const auto name = generic_utf8(file);
+    return name.ends_with(".native.xdef.ts") || name.ends_with(".native.xdef.json");
+}
+
+// A native module's C++ (<name>_native.cppm) and the stubs of the files'
+// modules: <module>.natives.d.ts.
+int run_native(const Options& o) {
+    if (o.inputs.empty() || o.registry.empty() || o.module.empty() || o.out.empty()) return usage();
+    Diagnostics diags;
+    Registry reg = read_registry(o.registry, diags);
+    std::vector<std::pair<NativeModule, std::string>> modules;  // the module, the file it is from
+    for (const auto& file : o.inputs)
+        for (NativeModule& m : read_natives(file, reg, diags)) modules.emplace_back(std::move(m), generic_utf8(file.filename()));
+    if (report(diags, o.json) != 0) return 1;
+    // The package's namespace: --namespace, else its module's (acme.finder → acme::finder).
+    std::string ns = o.ns;
+    if (ns == "omui::ui") {
+        ns.clear();
+        for (char c : o.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    }
+    const CppOptions cpp{o.module, ns, false};
+    Writer w{o.check};
+    std::vector<NativeModule> selected;
+    for (auto& [m, source] : modules) {
+        if (!o.native.empty() && m.name != o.native) continue;
+        if (o.part != "stubs") w.put(o.out / (m.name + "_native.cppm"), emit_cpp_native(m, cpp, source));
+        selected.push_back(m);
+    }
+    if (!o.native.empty() && selected.empty()) {
+        std::println(std::cerr, "omui-gen: no native module `{}` in the files given", o.native);
+        return 1;
+    }
+    if (o.part != "cpp") w.put(o.out / (o.module + ".natives.d.ts"), emit_native_dts(selected, o.module));
+    if (o.check) {
+        if (w.stale) return 1;
+        std::println("omui-gen: generated files are current");
+    } else {
+        std::println("omui-gen: {} file(s) written", w.written);
+    }
+    return 0;
+}
+
+// The files embedded under a tag as one table, partition <module>:<name>;
+// each input `<file>=<partition>`.
+int run_embed_index(const Options& o) {
+    if (o.module.empty() || o.name.empty() || o.out.empty()) return usage();  // no files: an empty table (a feature left out)
+    std::vector<std::pair<std::string, std::string>> files;
+    for (const auto& in : o.inputs) {
+        const std::string pair = generic_utf8(in);
+        const auto eq = pair.find('=');
+        if (eq == std::string::npos) return usage();
+        files.emplace_back(pair.substr(0, eq), pair.substr(eq + 1));
+    }
+    std::string ns = o.ns;
+    if (ns == "omui::ui") {
+        ns.clear();
+        for (char c : o.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    }
+    Writer w{o.check};
+    w.put(o.out / (o.name + ".cppm"), mlibs::xdef::emit_embed_index(files, o.module, ns, o.name, embedded_by));
+    if (o.check) {
+        if (w.stale) return 1;
+        std::println("omui-gen: generated files are current");
+    } else {
+        std::println("omui-gen: {} file(s) written", w.written);
+    }
+    return 0;
+}
+
+// A data file as a partition <module>:<name> with its text (a theme a
+// package carries, a document).
+int run_embed(const Options& o) {
+    if (o.inputs.size() != 1 || o.module.empty() || o.name.empty() || o.out.empty()) return usage();
+    // A data module (a theme, a style) is carried as the JSON it evaluates to.
+    std::string text, source = generic_utf8(o.inputs[0].filename());
+    if (is_data_module(o.inputs[0])) {
+        auto evaluated = snapshot(o.inputs[0]);
+        if (!evaluated) {
+            std::println(std::cerr, "omui-gen: {}", evaluated.error());
+            return 1;
+        }
+        text = std::move(evaluated->json);
+        source = std::move(evaluated->name);
+    } else {
+        std::ifstream in(o.inputs[0], std::ios::binary);
+        if (!in) {
+            std::println(std::cerr, "omui-gen: cannot read {}", generic_utf8(o.inputs[0]));
+            return 1;
+        }
+        text.assign(std::istreambuf_iterator<char>(in), {});
+    }
+    std::string ns = o.ns;
+    if (ns == "omui::ui") {
+        ns.clear();
+        for (char c : o.module) ns += c == '.' ? std::string("::") : std::string(1, c);
+    }
+    Writer w{o.check};
+    w.put(o.out / (o.name + ".cppm"), mlibs::xdef::emit_embed(text, source, o.module, ns, o.name, embedded_by));
+    if (o.check) {
+        if (w.stale) return 1;
+        std::println("omui-gen: generated files are current");
+    } else {
+        std::println("omui-gen: {} file(s) written", w.written);
+    }
+    return 0;
+}
+
+int run_contracts(const Options& o, bool emit) {
+    if (o.inputs.empty() || o.registry.empty()) return usage();
+    if (emit && (o.module.empty() || o.out.empty())) return usage();
+    Diagnostics diags;
+    Registry reg = read_registry(o.registry, diags);
+    std::vector<Contract> contracts;
+    for (const auto& file : o.inputs) {
+        if (is_native(file)) {
+            (void)read_natives(file, reg, diags);  // checked: their code is `omui-gen native`'s
+            continue;
+        }
+        for (Contract& c : read_contracts(file, reg, diags)) contracts.push_back(std::move(c));
+    }
+    if (report(diags, o.json) != 0 || !emit) return diags.has_errors() ? 1 : 0;
+
+    Writer w{o.check};
+    w.put(o.out / (o.module + ".d.ts"), emit_dts(contracts, o.module));
+    w.put(o.out / (o.module + ".components.json"), emit_view_schema(contracts, o.module));
+    if (o.check && w.stale) return 1;
+    return 0;
+}
+
+}  // namespace
+
+// A file's bytes, or nothing when it cannot be read.
+std::optional<std::string> read(const std::filesystem::path& file) {
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return std::nullopt;
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
+// omui-gen closure: the registry unit and closure.json, written only when they change (an unchanged unit is not
+// compiled again).
+int closure_main(const mcpplibs::cmdline::ParsedArgs& args) {
+    std::vector<omui::gen::ClosureSource> scripts;
+    for (std::size_t index = 0; index < args.positional_count(); ++index) {
+        const std::string name = args.positional(index);
+        const auto text = read(std::filesystem::path(name));
+        if (!text) {
+            std::println(std::cerr, "omui-gen closure: cannot read {}", name);
+            return 1;
+        }
+        if (name.ends_with(".replay.xdef.json")) {
+            auto steps = omui::gen::replay_scripts(*text, name);
+            if (!steps) {
+                std::println(std::cerr, "omui-gen closure: {}", steps.error());
+                return 1;
+            }
+            for (auto& step : *steps) scripts.push_back(std::move(step));
+        } else {
+            scripts.push_back({.name = name, .text = *text});
+        }
+    }
+    // Every component where the program may make any: the designer linked (development, D-149: an agent uses
+    // what it likes), or the application's generation open to surfaces with any component (D-144); the ones its
+    // generation lists (generation.components) where it lists them.
+    std::string full_because;
+    std::vector<omui::gen::ClosureTaken> generation_kept;
+    if (const auto graph_file = args.value("graph")) {
+        const auto graph = nlohmann::json::parse(read(std::filesystem::path(*graph_file)).value_or(""), nullptr, false);
+        if (graph.is_object() && graph.contains("packages"))
+            for (const auto& package : graph["packages"]) {
+                const auto described = package.value("package", nlohmann::json::object());
+                const std::string name = described.value("namespace", std::string()) + "." + described.value("name", std::string());
+                const auto features = package.value("features", nlohmann::json::array());
+                if (name == "omui.entry.player" && std::ranges::contains(features, nlohmann::json("design")))
+                    full_because = "the designer is linked (omui.entry.player/design: development, where an agent may use any)";
+            }
+    }
+    if (const auto config_file = args.value("config"); config_file && full_because.empty()) {
+        auto config = omui::lang::ts::evaluate(std::filesystem::path(*config_file));
+        if (!config) {
+            std::println(std::cerr, "omui-gen closure: {}", config.error().text());
+            return 1;
+        }
+        if (config->kind != "config") {
+            std::println(std::cerr, "omui-gen closure: {}: its default export is defineConfig(…), not a {}", *config_file, config->kind);
+            return 1;
+        }
+        auto asked = omui::gen::closure_config(config->json, *config_file);  // the config itself (snapshot() wraps it: config@1)
+        full_because = std::move(asked.full_because);
+        generation_kept = std::move(asked.kept);
+    }
+    auto closure = omui::gen::derive_closure(scripts, full_because, generation_kept);
+    if (!closure) {
+        std::println(std::cerr, "omui-gen closure: {}", closure.error());
+        return 1;
+    }
+    const auto write = [&](const std::string& path, const std::string& text) {
+        if (read(std::filesystem::path(path)) == text) return true;
+        std::error_code error;
+        std::filesystem::create_directories(std::filesystem::path(path).parent_path(), error);
+        std::ofstream out(std::filesystem::path(path), std::ios::binary | std::ios::trunc);
+        out << text;
+        return static_cast<bool>(out);
+    };
+    const std::string unit = args.value("out").value_or(""), report = args.value("report").value_or("");
+    if (unit.empty() || !write(unit, omui::gen::closure_unit(*closure))) {
+        std::println(std::cerr, "omui-gen closure: cannot write the unit {}", unit);
+        return 1;
+    }
+    if (!report.empty() && !write(report, omui::gen::closure_report(*closure))) {
+        std::println(std::cerr, "omui-gen closure: cannot write {}", report);
+        return 1;
+    }
+    return 0;
+}
+
+// omui-gen size: the report on stdout (Markdown), and as files when asked.
+int size_main(const mcpplibs::cmdline::ParsedArgs& args) {
+    const std::string file = args.positional(0), json = args.value("json").value_or(""), markdown = args.value("markdown").value_or("");
+    const std::size_t top = args.value_as<std::size_t>("top").value_or(40);
+    std::ifstream in(std::filesystem::path(file), std::ios::binary);
+    if (!in) {
+        std::println(std::cerr, "omui-gen size: cannot read {}", file);
+        return 1;
+    }
+    const std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    // A release's functions named by its symbol map, and some of them only (a split program's first half).
+    omui::gen::WasmSizeAsked asked{.top = top};
+    if (const auto map = args.value("names")) {
+        const auto text = read(std::filesystem::path(*map));
+        if (!text) {
+            std::println(std::cerr, "omui-gen size: cannot read {}", *map);
+            return 1;
+        }
+        asked.names = omui::gen::symbol_map(*text);
+    }
+    if (const auto listed = args.value("only")) {
+        const auto text = read(std::filesystem::path(*listed));
+        if (!text) {
+            std::println(std::cerr, "omui-gen size: cannot read {}", *listed);
+            return 1;
+        }
+        asked.only.emplace();
+        for (const auto line : std::views::split(std::string_view(*text), '\n')) {
+            std::size_t index = 0;
+            const std::string_view entry(line.begin(), line.end());
+            if (std::from_chars(entry.data(), entry.data() + entry.size(), index).ec == std::errc{}) asked.only->insert(index);
+        }
+    }
+    auto r = asked.names.empty() && !asked.only ? omui::gen::program_size(bytes, top) : omui::gen::wasm_size(bytes, asked);
+    if (!r) {
+        std::println(std::cerr, "omui-gen size: {}: {}", file, r.error());
+        return 1;
+    }
+    auto write = [](const std::string& path, const std::string& text) {
+        std::ofstream o(std::filesystem::path(path), std::ios::binary);
+        o << text;
+        return static_cast<bool>(o);
+    };
+    if (!json.empty() && !write(json, omui::gen::to_json(*r))) return 1;
+    const std::string md = omui::gen::to_markdown(*r);
+    if (!markdown.empty() && !write(markdown, md)) return 1;
+    std::print("{}", md);
+    return 0;
+}
+
+namespace {
+
+// The command line (mcpplibs.cmdline): a subcommand each, its options.
+mcpplibs::cmdline::App command_line() {
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    const auto files = Arg("file").required().help("FILE…");
+    const auto check = Option("check").help("write nothing; exit 1 when an output differs from what is on disk (CI's proof)");
+    const auto json = Option("json").help("diagnostics as JSON, for tools and agents");
+    const auto out = Option("out").takes_value().value_name("DIR").help("where the outputs go");
+    // A packed page as a document before its program runs (D-236): dist-toy's and dist-toy-document's.
+    const auto static_html = Option("static-html").takes_value().value_name("FILE").help("the first screen's projection (<program> --static-html FILE)");
+    const auto lang = Option("lang").takes_value().value_name("LANG").help("the document's language (en, zh-CN)");
+    const auto description = Option("description").takes_value().value_name("TEXT").help("what a search result and a share card say");
+    const auto canonical = Option("canonical").takes_value().value_name("URL").help("the page's address");
+    const auto image = Option("image").takes_value().value_name("URL").help("a share card's picture");
+    const auto alternate = Option("alternate").takes_value().multiple().value_name("HREFLANG=URL").help("the page in another language");
+    const auto registry = Option("registry").takes_value().value_name("DIR").help("spec/registry");
+    const auto module = Option("module").takes_value().value_name("M").help("the package's module");
+    const auto space = Option("namespace").takes_value().value_name("NS").help("its C++ namespace");
+    const auto name = Option("name").takes_value().value_name("PARTITION").help("the partition's and the constant's name");
+    const auto version = Option("version").takes_value().value_name("X.Y.Z").help("the data's version");
+    return App("omui-gen")
+        .description("The registry and contracts, to every generated artifact")
+        .subcommand(App("registry")
+                        .description("openmui.h, the openmui.spec partitions, the reference tables, the Core TypeScript builders, the view schema")
+                        .arg(Arg("registry").required().help("spec/registry"))
+                        .option(out).option(check).option(json))
+        .subcommand(App("stubs")
+                        .description("a component package's TypeScript builders and view-document schema")
+                        .arg(files).option(registry).option(module).option(out).option(check).option(json))
+        .subcommand(App("cpp")
+                        .description("a component package's C++: the contract partitions and the builders")
+                        .arg(files).option(registry).option(module).option(out).option(space)
+                        .option(Option("catalog").help("also the catalogue partition"))
+                        .option(Option("contract").takes_value().value_name("NAME").help("only this contract of the files"))
+                        .option(Option("part").takes_value().value_name("contract|builder").help("only this part"))
+                        .option(check))
+        .subcommand(App("native")
+                        .description("a native module's C++ (records, the functions to implement, define()) and its TypeScript stubs")
+                        .arg(files).option(registry).option(module).option(out).option(space)
+                        .option(Option("native").takes_value().value_name("NAME").help("only this module of the files"))
+                        .option(Option("part").takes_value().value_name("cpp|stubs").help("only this part"))
+                        .option(check))
+        .subcommand(App("embed")
+                        .description("a data file as a partition holding its text")
+                        .arg(Arg("file").required()).option(module).option(name).option(out).option(space).option(check))
+        .subcommand(App("embed-index")
+                        .description("a table of embedded files, by name")
+                        .arg(Arg("file=partition").help("FILE=PARTITION… (none: an empty table)")).option(module).option(name).option(out).option(space).option(check))
+        .subcommand(App("check")
+                        .description("a contract's or native module's diagnostics only")
+                        .arg(files).option(registry).option(json))
+        .subcommand(App("abi")
+                        .description("openmui.h's types and functions for the C++ that implements them, and their layouts' check")
+                        .arg(Arg("registry").required()).option(out).option(check))
+        .subcommand(App("unicode")
+                        .description("openmui.unicode's tables (and a subset of the UCD's conformance tests)")
+                        .arg(Arg("ucd").required().help("the UCD's directory")).option(version).option(out)
+                        .option(Option("tests").takes_value().value_name("DIR").help("where the conformance subset goes"))
+                        .option(check))
+        .subcommand(App("cldr")
+                        .description("openmui.i18n's locale packs and likely subtags")
+                        .arg(Arg("cldr").required().help("CLDR's JSON directory"))
+                        .option(Option("locales").takes_value().value_name("ID,…").help("en,zh,zh-Hant …"))
+                        .option(version).option(out).option(check))
+        .subcommand(App("dist-toy")
+                        .description("a wasm32-emscripten program packaged for Bilibili Toy (what `mcpp pack --pkg-format dist-toy` runs)")
+                        .arg(Arg("stage").required().help("the staged tree"))
+                        .option(Option("target").takes_value().value_name("NAME").help("the program"))
+                        .option(out)
+                        .option(Option("title").takes_value().help("the page's title"))
+                        .option(Option("fonts").takes_value().value_name("A,B|all").help("the fonts it carries"))
+                        .option(Option("fonts-dir").takes_value().value_name("DIR").help("where they are"))
+                        .option(Option("graph").takes_value().value_name("FILE").help("the program's graph"))
+                        .option(Option("background").takes_value().value_name("#RRGGBB").help("the page's colour while it loads"))
+                        .option(Option("background-dark").takes_value().value_name("#RRGGBB").help("that colour where the person prefers a dark appearance"))
+                        .option(Option("load").takes_value().value_name("eager|idle|interaction").help("when the page takes its program (default eager)"))
+                        .option(Option("no-sdk").help("a program without the SDK"))
+                        .option(Option("world").help("a page waiting for its document: one program for every page of a site, each page made from this one by its builder"))
+                        .option(Option("later").takes_value().multiple().value_name("DIR|SUFFIX|MOUNT").help("files loaded after the first frame"))
+                        .option(Option("file").takes_value().multiple().value_name("PATH=FILE").help("a file in the program's file system before main (written into the page)"))
+                        .option(Option("data").takes_value().multiple().value_name("PATH=FILE").help("a TypeScript data module evaluated now, its JSON snapshot at PATH (a page does not evaluate data modules)"))
+                        .option(Option("subset").takes_value().multiple().value_name("FONT=PATH,…").help("a font cut to these files' text"))
+                        .option(Option("font-languages").takes_value().multiple().value_name("FONT=LANG,…").help("a font's languages"))
+                        .option(Option("font-initial").takes_value().multiple().value_name("FONT=TEXT").help("a font's first screen's text"))
+                        .option(Option("font-initial-text").takes_value().multiple().value_name("FONT=PATH,…").help("these files' characters added to a font's first screen's"))
+                        .option(Option("font-on-demand").takes_value().multiple().value_name("FONT").help("a font with an initial cut whose full face waits until text asks for it"))
+                        .option(Option("part-program").takes_value().value_name("FILE").help("the program as built (its symbol map beside it): with --part-first, cut in two"))
+                        .option(Option("part-first").takes_value().value_name("FILE").help("a program of the package without the part (its symbol map beside it): its functions are the first part"))
+                        .option(Option("part-needs").takes_value().value_name("SELECTOR").help("what in a page's document needs the second part (fetched only there)"))
+                        .option(static_html).option(lang).option(description).option(canonical).option(image).option(alternate))
+        .subcommand(App("dist-toy-split")
+                        .description("a packed page's program cut in two by wasm-split: the first screen's half first")
+                        .arg(Arg("dir").required().help("the package"))
+                        .option(Option("primary").takes_value().value_name("WASM").help("wasm-split's first half"))
+                        .option(Option("deferred").takes_value().value_name("WASM").help("its second"))
+                        .option(Option("lazy").takes_value().value_name("ROUTE,…").help("the routes whose first screen the first half covers")))
+        .subcommand(App("dist-toy-document")
+                        .description("a packed page as a document before its program runs: its first screen's static HTML, its description and addresses (D-236)")
+                        .arg(Arg("dir").required().help("the package"))
+                        .option(static_html).option(lang).option(description).option(canonical).option(image).option(alternate))
+        .subcommand(App("closure")
+                        .description("what an application carries, derived from what it wrote: the base components its scripts and replay take by name (B7b)")
+                        .arg(Arg("files").help("its scripts (.ts, .js) and its design's replay (*.replay.xdef.json)"))
+                        .option(Option("out").takes_value().value_name("FILE").help("the registry unit (C++)"))
+                        .option(Option("report").takes_value().value_name("FILE").help("closure.json"))
+                        .option(Option("graph").takes_value().value_name("FILE").help("the build's resolved graph (the designer linked: every component)"))
+                        .option(Option("config").takes_value().value_name("FILE").help("omui.config.ts (generation.components kept; surfaces open to any component: every one)")))
+        .subcommand(App("size")
+                        .description("where a program's bytes go (WebAssembly or ELF): its sections, its code by owner, its largest symbols")
+                        .arg(Arg("file").required().help("FILE: .wasm or an ELF program"))
+                        .option(Option("json").takes_value().value_name("FILE").help("also as JSON"))
+                        .option(Option("markdown").takes_value().value_name("FILE").help("also as Markdown"))
+                        .option(Option("names").takes_value().value_name("FILE").help("a WebAssembly release's symbol map (Emscripten's --emit-symbol-map): its functions named"))
+                        .option(Option("only").takes_value().value_name("FILE").help("the functions counted, an index a line among those it defines (wasm-split --print-profile's kept: a first half)"))
+                        .option(Option("top").value_type<std::size_t>().help("the largest N functions (default 40)")));
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+    const auto app = command_line();
+    auto parsed = app.parse(argc, argv);
+    if (!parsed) {
+        if (!parsed.error().is_error()) return 0;  // --help
+        std::println(std::cerr, "omui-gen: {}", parsed.error().message);
+        return 2;
+    }
+    if (!parsed->has_subcommand()) return usage();
+    const std::string command(parsed->subcommand_name());
+    const mcpplibs::cmdline::ParsedArgs& args = parsed->subcommand()->get();
+    if (command == "dist-toy") return dist_toy_main(args);
+    if (command == "dist-toy-split") return dist_toy_split_main(args);
+    if (command == "dist-toy-document") return dist_toy_document_main(args);
+    if (command == "size") return size_main(args);
+    if (command == "closure") return closure_main(args);
+    auto options = options_of(command, args);
+    if (!options) return usage();
+    if (options->command == "registry") return run_registry(*options);
+    if (options->command == "stubs") return run_contracts(*options, true);
+    if (options->command == "cpp") return run_cpp(*options);
+    if (options->command == "native") return run_native(*options);
+    if (options->command == "embed") return run_embed(*options);
+    if (options->command == "embed-index") return run_embed_index(*options);
+    if (options->command == "check") return run_contracts(*options, false);
+    if (options->command == "unicode") return run_unicode(*options);
+    if (options->command == "cldr") return run_cldr(*options);
+    if (options->command == "abi") return run_abi(*options);
+    return usage();
+}

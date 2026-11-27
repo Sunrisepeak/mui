@@ -1,0 +1,41 @@
+# The breakout as a game on its own (D-162):
+#   src/sim       its deterministic simulation: swept balls with spin, circuits, capacitors and beams, kickers, cores,
+#                 chains and sparks, gifts; a pure step over plain data, rewindable.
+#   src/headless  the simulation as meng.runtime plays it — stepped without omui, found and played by an agent
+#                 through the agent kernel.
+# Each keeps its module (import omui.showcase.widget_breakout.sim; …). The showcase (the package above) shows and
+# plays the same simulation in omui; nothing here knows it.
+[package]
+namespace   = "omui.showcase.widget_breakout"
+name        = "headless"
+version     = "0.1.0"
+description = "The breakout on its own: its deterministic simulation (spin, circuits, capacitors, beams, cores, chains, gifts; rewindable) and the game the runtime steps and an agent plays, no interface"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "preview"  # release plan §2.1: stable, preview or experimental (lint maturity)
+profile = "game"  # its profile (D-207): a game on its own, played by an agent in its tests
+separate = "product: Widget Breakout on its own, headless (the Web and tests run it)"
+
+[targets.widget-breakout-headless]
+kind = "lib"
+
+[build]
+sources  = ["src/*/*.cppm", "src/*/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+meng.runtime = { path = "../../../modules/projects/meng/game/runtime" }
+meng.input   = { path = "../../../modules/projects/meng/game/input" }
+meng.world   = { path = "../../../modules/projects/meng/game/world" }
+mlibs.dynamics   = { path = "../../../modules/base/dynamics" }
+mlibs.simulation = { path = "../../../modules/base/simulation" }
+mlibs.math      = { path = "../../../modules/base/math" }
+mlibs.utils     = { path = "../../../modules/base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.agent    = { path = "../../../modules/base/agent" }
+mlibs.json     = { path = "../../../modules/base/json" }

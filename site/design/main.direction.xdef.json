@@ -1,0 +1,8 @@
+{
+  "$format": "direction@1",
+  "direction": {
+    "doc": "The site's show: the default rules, and its sound — the score under the whole show, a chime on each beat that changes what is seen (both beside the show).",
+    "score": "main.music.xdef.ts",
+    "cue": "step"
+  }
+}

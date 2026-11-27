@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "size": [200, 200],
+  "background": "#111827",
+  "objects": [
+    { "id": "play", "shape": { "polygon": [[-22, -30], [30, 0], [-22, 30]] }, "fill": "#f9fafb", "at": [104, 100] },
+    { "id": "pause", "shape": { "polygon": [[-26, -30], [-6, -30], [-6, 30], [-26, 30]] }, "fill": "#f9fafb", "at": [100, 100], "hidden": true }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "pop_in", "object": "play", "duration": 0.3 },
+      { "do": "morph", "object": "play", "into": "pause", "duration": 0.45, "ease": "in_out_cubic" },
+      { "do": "marker", "name": "paused" },
+      { "do": "pulse", "object": "play", "scale": 1.1 }
+    ]
+  }
+}

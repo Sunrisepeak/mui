@@ -1,0 +1,51 @@
+# omui.bench.competitors — our side of the comparisons with the best of each
+# field, beside theirs (js/: pinned in package.json). Programs of their own,
+# apart from omui.bench, because omui.bench's dependencies do not all run on
+# the Web and these must: the Web's comparison runs in the same JavaScript
+# engine as the competitor.
+#
+#   omui-devtools bench competitors      everything, three runs each
+[package]
+namespace   = "omui"
+name        = "bench.competitors"
+version     = "0.1.0"
+description = "omui's side of the competitor benchmarks: hanim's motion and its Lottie-like playback, mrender's vector raster and mlibs.markdown, native and on the Web"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: the competitors' benchmarks, their libraries kept from ours"
+kind = "tool"
+
+[targets.omui-bench-motion]
+kind = "bin"
+main = "src/motion.cpp"
+
+[targets.omui-bench-vector]
+kind = "bin"
+main = "src/vector.cpp"
+
+[targets.omui-bench-lottie]
+kind = "bin"
+main = "src/lottie.cpp"
+
+[targets.omui-bench-markdown]
+kind = "bin"
+main = "src/markdown.cpp"
+
+[dependencies]
+mcpplibs.cmdline = "0.0.3"
+hanim.core = { path = "../../../modules/projects/hanim/core" }
+sunrisepeak.hanim = { path = "../../../modules/projects/hanim", features = ["render-vector"] }
+mrender.vector = { path = "../../../modules/projects/mrender/vector" }
+mrender.raster = { path = "../../../modules/projects/mrender/raster" }
+mlibs.geom = { path = "../../../modules/base/geom" }
+mlibs.utils = { path = "../../../modules/base/utils" }
+mlibs.math = { path = "../../../modules/base/math" }
+mlibs.image = { path = "../../../modules/base/image" }
+mlibs.markdown = { path = "../../../modules/content/markdown" }
+
+# The Web's programs read their input (the markdown corpus) from node's file system.
+[target.'cfg(os = "emscripten")'.build]
+ldflags = ["-sNODERAWFS=1"]

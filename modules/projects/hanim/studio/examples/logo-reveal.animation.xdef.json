@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "size": [480, 270],
+  "background": "#0a0a0a",
+  "objects": [
+    { "id": "mark", "shape": { "star": { "points": 6, "outer": 46, "inner": 22 } }, "fill": "#f59e0b", "at": [140, 135] },
+    { "id": "word1", "shape": { "rect": { "size": [180, 26], "radius": 6 } }, "fill": "#fafafa", "at": [300, 118] },
+    { "id": "word2", "shape": { "rect": { "size": [120, 12], "radius": 6 } }, "fill": "#a3a3a3", "at": [270, 154] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "spin_in", "object": "mark", "degrees": -120, "duration": 0.7 },
+      { "do": "stagger", "step": 0.12, "items": [
+        { "do": "slide_in", "object": "word1", "from": [-30, 0] },
+        { "do": "slide_in", "object": "word2", "from": [-30, 0] }
+      ] },
+      { "do": "marker", "name": "revealed" },
+      { "do": "breathe", "object": "mark", "scale": 1.05, "period": 1.6, "count": 1 }
+    ]
+  }
+}

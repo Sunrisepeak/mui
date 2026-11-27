@@ -1,0 +1,247 @@
+// omui.view:primitives — the runtime's own components and their builders.
+//
+// Boxes (with column / row / stack / grid presets), text, images, scroll
+// views and custom painters: what every component package composes. Builders
+// take option structs with designated initializers, so a call reads like the
+// view document it is equivalent to:
+//
+//     omui::column({.padding = 16, .gap = 8}, {
+//         omui::text({.text = omui::fmt("clicked {} times", count), .style = "title"}),
+//         omui::spacer(),
+//     });
+//
+// Every property accepts a value, a signal or a computed value (Prop<T>).
+export module omui.view:primitives;
+
+import std;
+import omui.core;
+import mlibs.layout;
+import mrender.vector;
+import mlibs.text;
+import :element;
+import :theme;
+import :model;
+import :component;
+
+export namespace omui {
+
+// A length: points (a number), a percentage, or automatic.
+struct Dim {
+    mlibs::layout::Length length;
+    Dim() = default;
+    Dim(float points) : length(mlibs::layout::Length::points(points)) {}            // NOLINT
+    Dim(int points) : length(mlibs::layout::Length::points(static_cast<float>(points))) {}  // NOLINT
+    Dim(double points) : length(mlibs::layout::Length::points(static_cast<float>(points))) {}  // NOLINT
+    Dim(mlibs::layout::Length l) : length(l) {}                                     // NOLINT
+};
+template <>
+struct ValueOf<Dim> {
+    static Value to(const Dim& d);
+    static Dim from(const Value& v);
+};
+
+// A colour: a theme token ("accent") or a literal colour.
+struct Fill {
+    std::string text;
+    Fill() = default;
+    Fill(const char* token) : text(token) {}             // NOLINT
+    Fill(std::string token) : text(std::move(token)) {}  // NOLINT
+    Fill(Color c);                                       // NOLINT
+};
+template <>
+struct ValueOf<Fill> {
+    static Value to(const Fill& f) { return Value(f.text); }
+    static Fill from(const Value& v) { return Fill(std::string(v.as_string())); }
+};
+
+// Insets: one value for all sides, (vertical, horizontal), or four.
+struct Edges {
+    Insets insets;
+    Edges() = default;
+    Edges(float all) : insets(Insets::all(all)) {}                          // NOLINT
+    Edges(int all) : insets(Insets::all(static_cast<float>(all))) {}        // NOLINT
+    Edges(float vertical, float horizontal) : insets(Insets::symmetric(vertical, horizontal)) {}
+    Edges(Insets i) : insets(i) {}                                          // NOLINT
+};
+template <>
+struct ValueOf<Edges> {
+    static Value to(const Edges& e);
+    static Edges from(const Value& v);
+};
+
+// Properties every box shares: layout, look, accessibility, handlers.
+struct BoxOptions {
+    std::string   id;
+    Prop<Dim>     width, height, min_width, min_height, max_width, max_height;
+    Prop<Edges>   padding, margin;
+    Prop<float>   gap;
+    std::string   justify;      // start end center space_between space_around space_evenly
+    std::string   align;        // start end center stretch baseline
+    std::string   align_self;
+    std::string   wrap;         // wrap, no_wrap
+    Prop<float>   grow, shrink;
+    Prop<Fill>    background, border_color;
+    Prop<float>   border_width, radius;
+    std::string   shadow;       // a theme shadow token: sm md lg
+    Prop<float>   opacity, translate_x, translate_y, scale, rotation;
+    bool          clip = false;
+    Prop<bool>    visible, disabled;
+    std::string   label;        // the accessible name (spec S-6)
+    std::string   description;
+    std::vector<std::pair<std::string, Handler>>    on;       // {"press", fn}, {"pointer_enter", fn} …
+    std::vector<std::pair<std::string, Transition>> animate;  // {"opacity", Transition::tween(…)}
+};
+
+[[nodiscard]] Element box(BoxOptions options = {}, std::vector<Element> children = {},
+                          std::source_location where = std::source_location::current());
+[[nodiscard]] Element column(BoxOptions options = {}, std::vector<Element> children = {},
+                             std::source_location where = std::source_location::current());
+[[nodiscard]] Element row(BoxOptions options = {}, std::vector<Element> children = {},
+                          std::source_location where = std::source_location::current());
+[[nodiscard]] Element stack(BoxOptions options = {}, std::vector<Element> children = {},
+                            std::source_location where = std::source_location::current());
+// columns: track list, e.g. "1fr 2fr 120" or "repeat(3, 1fr)"
+[[nodiscard]] Element grid(BoxOptions options, std::string columns, std::vector<Element> children = {},
+                           std::source_location where = std::source_location::current());
+[[nodiscard]] Element spacer(float grow = 1, std::source_location where = std::source_location::current());
+
+struct TextOptions {
+    std::string       id;
+    Prop<std::string> text;
+    std::string       style = "body";  // display title heading body label caption code
+    // A heading of this level (1–6) in what the page states — its outline, a reader's headings, the static HTML's
+    // h1–h6 (D-236); 0: none. The style is how it looks, this what it is.
+    int               heading = 0;
+    Prop<Fill>        color;
+    std::string       align;           // start center end justify
+    bool              wrap = true;
+    int               max_lines = 0;
+    // Its words a person selects and copies, as on any page (unset); true also
+    // offers agents its set_selection action; false: never (a label's).
+    std::optional<bool> selectable;
+    std::string       origin;          // app user_content remote (S-3)
+    Prop<float>       size, weight;
+    Prop<Dim>         width, max_width;
+    Prop<float>       grow, opacity;
+    std::vector<std::pair<std::string, Transition>> animate;
+};
+[[nodiscard]] Element text(TextOptions options, std::source_location where = std::source_location::current());
+
+struct ImageOptions {
+    std::string  id;
+    std::string  source;  // a PNG path, or "image:<n>" for a stored image
+    std::string  alt;     // the text alternative; empty marks it decorative
+    std::string  fit = "contain";  // contain cover fill none scale_down
+    Prop<Dim>    width, height;
+    Prop<float>  radius, opacity;
+};
+[[nodiscard]] Element image(ImageOptions options, std::source_location where = std::source_location::current());
+
+struct ScrollOptions {
+    std::string id;
+    bool        horizontal = false;
+    bool        vertical = true;
+    Prop<float> x, y;  // offsets (bindable)
+    Prop<Dim>   width, height, max_height;
+    Prop<float> grow, gap;
+    Prop<Edges> padding;
+    Prop<Fill>  background;
+    std::string label;
+};
+[[nodiscard]] Element scroll(ScrollOptions options, std::vector<Element> children = {},
+                             std::source_location where = std::source_location::current());
+
+// A node that paints itself with a function (charts, games, custom widgets).
+struct PaintOptions {
+    std::string id;
+    Prop<Dim>   width, height;
+    Prop<float> grow;
+    Role        role = Role::canvas;
+    std::string label;
+    bool        focusable = false;
+    std::function<void(PaintContext&)>                          paint;
+    std::function<bool(EventContext&, const InputEvent&)>       on_event;
+    std::vector<std::pair<std::string, Handler>>                on;
+};
+[[nodiscard]] Element painter(PaintOptions options, std::source_location where = std::source_location::current());
+
+// The component types of the primitives (view documents name them).
+[[nodiscard]] const ComponentType& root_type();
+// The plain box: what an element without a type is.
+[[nodiscard]] const ComponentType& box_type();
+[[nodiscard]] const ComponentType* find_type(std::string_view name);
+void register_type(const ComponentType& type);
+
+// A component's or a primitive's name as view documents have it (`column`, `text_box`), a template argument.
+template <std::size_t Size>
+struct ComponentName {
+    char text[Size]{};
+    consteval ComponentName(const char (&name)[Size]) { std::copy_n(name, Size, text); }
+    [[nodiscard]] constexpr std::string_view view() const { return {text, Size - 1}; }
+};
+
+// The primitives a view document names, in this order (the root is the runtime's own, named by none).
+enum class Primitive : std::uint8_t { box, column, row, stack, grid, spacer, text, image, scroll_view, paint };
+inline constexpr std::array<std::string_view, 10> primitive_type_names{"box", "column", "row", "stack", "grid",
+                                                                  "spacer", "text", "image", "scroll_view", "paint"};
+// One primitive's type by itself: referring to it does not carry the others (each kind defined in the runtime).
+template <Primitive Kind>
+[[nodiscard]] const ComponentType& primitive_type();
+
+// Registers every primitive by name, once (where the name is not taken): what a program that reads names calls — a
+// view document's reader (omui.viewdoc does, before it looks one up), register_base_components(), omui::run, the
+// headless host and the C ABI. A program that only calls the builders carries the primitives it builds and no other
+// (CF1: the registry holds none until asked).
+void register_primitives();
+// A component this program does not carry, by its contract's name: an application's closure leaves out the components
+// its scripts do not name (B7b, D-251). An unknown name among them says why and how to carry it.
+void leave_out(std::string_view name);
+// Why `name` is no component here, with the way out, when this program's closure left it out (empty when it did not).
+[[nodiscard]] std::string left_out(std::string_view name);
+// Every registered type (view documents and their schema, `omui check`), by name.
+[[nodiscard]] std::vector<const ComponentType*> registered_types();
+// Them as data (omuiCatalog, the agent protocol's `describe`, an application's
+// TypeScript declarations): each type's role, doc, contract properties, events
+// and actions, and whether its contract is the spec's registry's (`spec`,
+// portable: D-157); then the properties and events every node has.
+[[nodiscard]] Value component_catalog();
+
+// What the runtime itself gives every node, whatever its type: the layout,
+// look, motion and semantic properties, and the events of input and of the
+// action handlers (`press`, `activate`).
+[[nodiscard]] std::span<const std::string_view> runtime_properties() noexcept;
+[[nodiscard]] bool is_runtime_property(std::string_view name) noexcept;
+[[nodiscard]] std::span<const std::string_view> runtime_events() noexcept;
+
+// Track lists: "1fr 2fr 120 auto minmax(80, 1fr) repeat(3, 1fr)".
+[[nodiscard]] std::vector<mlibs::layout::Track> parse_tracks(std::string_view text);
+
+}  // namespace omui
+
+// The registry's helper, the module's own: reachable where register_primitives_named is instantiated, not named outside.
+namespace omui {
+
+template <std::size_t Index, ComponentName... Names>
+void register_primitive_if_named() {
+    // compare(), a member: found where this is instantiated (a unit of the application's that need not import std).
+    if constexpr (((primitive_type_names[Index].compare(Names.view()) == 0) || ...))
+        register_type(primitive_type<static_cast<Primitive>(Index)>());
+    else
+        leave_out(primitive_type_names[Index]);
+}
+
+}  // namespace omui
+
+export namespace omui {
+
+// Of the primitives, only those named (other names name none: a base component's, a function's): what the smallest
+// programs and an application's closure register (register_base_named passes its names here, B7b), so the agent's
+// catalog lists what they use. The others are not referred to, so not carried; asked for, one says how to carry it.
+template <ComponentName... Names>
+void register_primitives_named() {
+    []<std::size_t... Index>(std::index_sequence<Index...>) {
+        (register_primitive_if_named<Index, Names...>(), ...);
+    }(std::make_index_sequence<primitive_type_names.size()>{});
+}
+
+}  // namespace omui

@@ -1,0 +1,25 @@
+# mlibs.memory — the frame arena, generational handles and slot maps, and
+# FunctionRef. Standard library only.
+[package]
+namespace   = "mlibs"
+name        = "memory"
+version     = "0.1.0"
+description = "Frame arena, generational handles, slot maps and FunctionRef"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: arenas and pools for every hot path"
+kind = "runtime"
+
+[targets.mlibs-memory]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils = { path = "../utils" }

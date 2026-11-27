@@ -1,0 +1,165 @@
+== mlibs.math
+export import mlibs.math.api;
+== mlibs.math.api
+export import :det;
+export import :random;
+export import :noise;
+export import :color;
+export import :vector;
+export import :linear;
+== mlibs.math.api:color
+namespace mlibs::math::color {
+  [[nodiscard]] inline double relative_luminance(double r, double g, double b) noexcept;
+  [[nodiscard]] inline constexpr double contrast_ratio(double a, double b) noexcept;
+  struct Tint {
+    std::uint32_t channel = 0;
+    std::uint32_t from = 0, to = 0;
+    std::vector<std::uint32_t> to_by_row;
+    std::uint32_t color = 0;
+    bool emits = false;
+  };
+  struct Shade {
+    std::uint32_t key = 0;
+    std::vector<std::uint32_t> base;
+    std::vector<std::uint8_t> grain;
+    std::uint32_t fallback = 0;
+    std::vector<Tint> tints;
+  };
+  struct Shaded {
+    std::uint32_t pixel = 0, light = 0;
+    bool operator==(const Shaded&) const = default;
+  };
+  [[nodiscard]] std::expected<void, std::string> check(const Shade& shade, std::uint32_t channels);
+  [[nodiscard]] Shaded shade_of(const Shade& shade, std::span<const std::uint32_t> cells, std::size_t area, std::size_t index) noexcept;
+  void shade_run(const Shade& shade, std::span<const std::uint32_t> cells, std::size_t area, std::size_t first, std::span<std::uint32_t> pixels, std::span<std::uint32_t> light) noexcept;
+}
+== mlibs.math.api:det
+namespace mlibs::math::det {
+  inline constexpr double pi = 3.14159265358979311600e+00;
+  inline constexpr double two_pi = 6.28318530717958623200e+00;
+  inline constexpr double half_pi = 1.57079632679489655800e+00;
+  inline constexpr double ln2 = 6.93147180559945286227e-01;
+  [[nodiscard]] double exp(double x) noexcept;
+  [[nodiscard]] double log(double x) noexcept;
+  [[nodiscard]] double sin(double x) noexcept;
+  [[nodiscard]] double cos(double x) noexcept;
+  [[nodiscard]] double atan(double x) noexcept;
+  [[nodiscard]] double atan2(double y, double x) noexcept;
+  [[nodiscard]] double cbrt(double x) noexcept;
+  [[nodiscard]] double pow(double x, double y) noexcept;
+  [[nodiscard]] double fmod(double x, double y) noexcept;
+  [[nodiscard]] inline double sqrt(double x) noexcept;
+  [[nodiscard]] constexpr double abs(double x) noexcept;
+  [[nodiscard]] constexpr double clamp(double x, double lo, double hi) noexcept;
+  [[nodiscard]] constexpr double mix(double a, double b, double t) noexcept;
+}
+== mlibs.math.api:linear
+namespace mlibs::math {
+  struct Vec3 {
+    float x = 0, y = 0, z = 0;
+    friend constexpr bool operator==(const Vec3& one, const Vec3& other) noexcept;
+    friend constexpr Vec3 operator+(Vec3 one, Vec3 other) noexcept;
+    friend constexpr Vec3 operator-(Vec3 one, Vec3 other) noexcept;
+    friend constexpr Vec3 operator*(Vec3 vector, float scale) noexcept;
+    friend constexpr Vec3 operator-(Vec3 vector) noexcept;
+  };
+  [[nodiscard]] constexpr float dot(Vec3 one, Vec3 other) noexcept;
+  [[nodiscard]] constexpr Vec3 cross(Vec3 one, Vec3 other) noexcept;
+  [[nodiscard]] constexpr Vec3 scaled(Vec3 vector, Vec3 by) noexcept;
+  [[nodiscard]] inline float length(Vec3 vector) noexcept;
+  [[nodiscard]] inline Vec3 normalized(Vec3 vector) noexcept;
+  [[nodiscard]] constexpr Vec3 mix(Vec3 from, Vec3 to, float share) noexcept;
+  struct Vec4 {
+    float x = 0, y = 0, z = 0, w = 0;
+    constexpr Vec4() noexcept = default;
+    constexpr Vec4(float x_, float y_, float z_, float w_) noexcept : x(x_), y(y_), z(z_), w(w_);
+    constexpr Vec4(Vec3 xyz_, float w_) noexcept : x(xyz_.x), y(xyz_.y), z(xyz_.z), w(w_);
+    [[nodiscard]] constexpr Vec3 xyz() const noexcept;
+    friend constexpr bool operator==(const Vec4& one, const Vec4& other) noexcept;
+  };
+  struct Quat {
+    float x = 0, y = 0, z = 0, w = 1;
+    friend constexpr bool operator==(const Quat& one, const Quat& other) noexcept;
+    friend constexpr Quat operator*(const Quat& one, const Quat& other) noexcept;
+    [[nodiscard]] static Quat about(Vec3 axis, float radians) noexcept;
+  };
+  [[nodiscard]] constexpr Quat conjugate(const Quat& rotation) noexcept;
+  [[nodiscard]] constexpr float dot(const Quat& one, const Quat& other) noexcept;
+  [[nodiscard]] inline Quat normalized(const Quat& rotation) noexcept;
+  [[nodiscard]] constexpr Vec3 rotate(const Quat& rotation, Vec3 vector) noexcept;
+  [[nodiscard]] inline Quat mix(const Quat& from, const Quat& to, float share) noexcept;
+  struct Mat4 {
+    std::array<float, 16> values{…};
+    [[nodiscard]] constexpr float at(std::size_t column, std::size_t row) const noexcept;
+    constexpr float& at(std::size_t column, std::size_t row) noexcept;
+    friend constexpr bool operator==(const Mat4& one, const Mat4& other) noexcept;
+    friend constexpr Mat4 operator*(const Mat4& one, const Mat4& other) noexcept;
+    friend constexpr Vec4 operator*(const Mat4& matrix, Vec4 vector) noexcept;
+  };
+  [[nodiscard]] constexpr Mat4 transposed(const Mat4& matrix) noexcept;
+  [[nodiscard]] constexpr Mat4 translation(Vec3 by) noexcept;
+  [[nodiscard]] constexpr Mat4 scaling(Vec3 by) noexcept;
+  [[nodiscard]] constexpr Mat4 rotation(const Quat& turn) noexcept;
+  [[nodiscard]] constexpr Vec3 point(const Mat4& matrix, Vec3 at) noexcept;
+  [[nodiscard]] constexpr Vec3 direction(const Mat4& matrix, Vec3 along) noexcept;
+  [[nodiscard]] constexpr std::optional<Mat4> inverse(const Mat4& matrix) noexcept;
+  struct Transform {
+    Vec3 translation;
+    Quat rotation;
+    Vec3 scale{…};
+    [[nodiscard]] constexpr Mat4 matrix() const noexcept;
+    [[nodiscard]] constexpr Vec3 point(Vec3 at) const noexcept;
+  };
+  [[nodiscard]] inline Mat4 look_at(Vec3 eye, Vec3 target, Vec3 up) noexcept;
+  [[nodiscard]] inline Mat4 perspective(float vertical, float aspect, float nearest, float farthest) noexcept;
+  [[nodiscard]] inline Mat4 perspective_reversed(float vertical, float aspect, float nearest) noexcept;
+  [[nodiscard]] constexpr Mat4 orthographic(float left, float right, float bottom, float top, float nearest, float farthest) noexcept;
+}
+== mlibs.math.api:noise
+namespace mlibs::math {
+  struct NoiseSample {
+    double value = 0;
+    double dx = 0, dy = 0;
+  };
+  namespace detail {
+    inline constexpr std::array<std::array<double, 2>, 16> noise_directions{…};
+  }
+  [[nodiscard]] constexpr std::uint32_t noise_key(std::int64_t cell_x, std::int64_t cell_y, std::uint32_t seed) noexcept;
+  namespace detail {
+    inline const std::array<double, 2>& lattice_direction(std::int64_t cell_x, std::int64_t cell_y, std::uint64_t seed) noexcept;
+  }
+  [[nodiscard]] inline NoiseSample gradient_noise(double x, double y, std::uint64_t seed) noexcept;
+  [[nodiscard]] inline std::array<double, 2> curl_noise(double x, double y, std::uint64_t seed) noexcept;
+}
+== mlibs.math.api:random
+namespace mlibs::math {
+  inline constexpr std::uint64_t golden = 0x9e3779b97f4a7c15ull;
+  [[nodiscard]] constexpr std::uint64_t finalize(std::uint64_t z) noexcept;
+  [[nodiscard]] constexpr std::uint64_t mix64(std::uint64_t x) noexcept;
+  inline constexpr std::uint32_t golden32 = 0x9e3779b9u;
+  [[nodiscard]] constexpr std::uint32_t finalize32(std::uint32_t z) noexcept;
+  [[nodiscard]] constexpr std::uint32_t mix32(std::uint32_t x) noexcept;
+  [[nodiscard]] constexpr std::uint32_t fold32(std::uint64_t x) noexcept;
+  struct SplitMix64 {
+    std::uint64_t state = 0;
+    constexpr std::uint64_t next() noexcept;
+  };
+  [[nodiscard]] constexpr double unit24(std::uint64_t bits) noexcept;
+  [[nodiscard]] constexpr double unit53(std::uint64_t bits) noexcept;
+}
+== mlibs.math.api:vector
+namespace mlibs::math {
+  struct Vec2 {
+    float x = 0, y = 0;
+    static constexpr bool no_padding = true;
+    friend constexpr bool operator==(const Vec2& one, const Vec2& other) noexcept;
+    friend constexpr Vec2 operator+(Vec2 one, Vec2 other) noexcept;
+    friend constexpr Vec2 operator-(Vec2 one, Vec2 other) noexcept;
+    friend constexpr Vec2 operator*(Vec2 vector, float scale) noexcept;
+    friend constexpr Vec2 operator-(Vec2 vector) noexcept;
+  };
+  [[nodiscard]] constexpr float dot(Vec2 one, Vec2 other) noexcept;
+  [[nodiscard]] constexpr float cross(Vec2 one, Vec2 other) noexcept;
+  [[nodiscard]] inline float length(Vec2 vector) noexcept;
+  [[nodiscard]] inline Vec2 normalized(Vec2 vector) noexcept;
+}

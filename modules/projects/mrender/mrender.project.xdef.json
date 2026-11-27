@@ -1,0 +1,1 @@
+{"$format":"project@1","project":{"name":"mrender","display":"mrender","summary":"A CPU/GPU same-source, Web-first renderer whose pixels agents can review.","packages":"mrender","programs":["mrender"],"tier":"foundation","dependsOn":["mlibs"]}}

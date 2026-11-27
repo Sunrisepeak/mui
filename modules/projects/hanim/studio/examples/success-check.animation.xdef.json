@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "size": [240, 240],
+  "background": "#ecfdf5",
+  "objects": [
+    { "id": "disc", "shape": { "circle": 56 }, "fill": "#10b981", "at": [120, 120] },
+    { "id": "check", "shape": { "polygon": [[-30, 2], [-12, 20], [30, -22], [26, -26], [-12, 12], [-26, -2]] }, "stroke": { "color": "#ffffff", "width": 4 }, "at": [120, 122] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "pop_in", "object": "disc", "duration": 0.45 },
+      { "do": "write_in", "object": "check", "duration": 0.4 },
+      { "do": "marker", "name": "done" },
+      { "do": "pulse", "object": "disc", "scale": 1.06 }
+    ]
+  }
+}

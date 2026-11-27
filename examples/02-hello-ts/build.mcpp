@@ -1,0 +1,18 @@
+// The example on the Web, a static page (`omui build --web`, D-236): the
+// player, its font, the application's own files (its manifest and logic/) in
+// the player's file system before it starts, and its first screen as a
+// document a reader and a search engine read before it runs — the file below,
+// which `omui build --web` writes first by running it natively.
+import mcpp;
+import omui.build.toy;
+import omui.build.closure;
+
+int main() {
+    // The components it carries: those its scripts name (B7b).
+    const bool components = omui::build::closure({.files = {"logic"}});
+    const bool page = omui::build::dist_toy({.target = "text-stats", .title = "Text statistics", .fonts = {"Inter"}, .background = "#f8fafc",
+                                             .sdk = false, .static_html = "target/web/text-stats.static.html",
+                                             .description = "Statistics of a text as you type: characters, words, sentences and reading time",
+                                             .files = {"mcpp.toml", "logic"}});
+    return components && page ? 0 : 1;
+}

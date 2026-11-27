@@ -1,0 +1,52 @@
+# Example 05 — a native module (canvas-markdown §5; component-binding §8): a
+# WCAG 2.2 contrast checker. The interface is TypeScript (logic/main.ts),
+# run by the player; the colour science is the application's own native
+# module, native/contrast.native.xdef.ts, implemented in C++
+# (src/contrast.cpp). The bindings — the C++ partition and the TypeScript
+# stubs — are generated when the package builds; nothing is written by
+# hand between the two languages. The tool: the contrast of a text colour on
+# a background, the WCAG levels it meets, how the pair looks with each
+# colour-vision deficiency, and the nearest colour that passes.
+#
+#   mcpp run                       a window
+#   mcpp run -- --headless --png contrast.png
+[package]
+namespace   = "omui.example"
+name        = "contrast"
+version     = "0.1.0"
+description = "openmui example 05: a WCAG contrast checker, TypeScript over the application's own native module"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "product: example 05-contrast"
+kind    = "app"
+id      = "org.openmui.contrast"
+title   = "Contrast"
+size    = "560x480"
+
+[package.metadata.openmui.scripts]
+main = "logic/main.ts"
+
+[targets.contrast]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.entry.player = { path = "../../modules/projects/omui/entry/player" }
+omui.native       = { path = "../../modules/projects/omui/native" }
+hanim.core        = { path = "../../modules/projects/hanim/core" }
+nlohmann.json        = "3.12.0"
+
+[build-dependencies]
+omui.build = { path = "../../mcpp/build", host-module = true }
+openlifa.openmui = { path = "../../spec" }  # its registry/: what the contracts are generated against
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils = { path = "../../modules/base/utils" }
+omui.player  = { path = "../../modules/projects/omui/player" }
+omui.lang.js = { path = "../../modules/projects/omui/lang/js" }

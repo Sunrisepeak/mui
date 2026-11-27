@@ -1,0 +1,61 @@
+# mlibs.image — images in memory, PNG encoding and decoding (libpng's
+# simplified API, imported as the C++ module mcpplibs.mwrap.libpng over
+# compat.libpng and compat.zlib from mcpp-index) and WebP encoding and
+# decoding, still and animated (libwebp, imported as mcpplibs.mwrap.libwebp over
+# compat.libwebp; its demux and mux features for WebPAnimDecoder and
+# WebPAnimEncoder), and JPEG encoding and decoding (libjpeg-turbo's TurboJPEG
+# API, imported as mcpplibs.mwrap.libjpeg_turbo, which vendors the library and
+# builds its C code without the SIMD extensions). The feature `ktx2` adds KTX2
+# textures (src/ktx2/, `import mlibs.image.ktx2;`): Basis Universal's
+# transcoder (mcpplibs.mwrap.basis_universal) is several times the size of
+# the other readers together, so only what reads KTX2 asks for it (D-99:
+# dependency isolation, as a feature; RC1.5).
+# libpng 1.6.43: the version compat.freetype (under HarfBuzz) requires, so
+# one libpng serves the whole graph. libwebp 1.5.0 is built without threads:
+# the native unit makes its one-time setup safe (src/native/webp.cpp).
+[package]
+namespace   = "mlibs"
+name        = "image"
+version     = "0.1.0"
+description = "Image buffers, premultiplication, PNG, APNG, WebP (still and animated) and JPEG encode and decode"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+separate = "library: picture formats every renderer, tool and test reads"
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+kind = "runtime"
+
+# How a picture's file becomes pixels, for whoever shows a picture by its file (the view's `image`): its own slot and
+# its own provider (the formats are this package's). A program that shows no pictures (a terminal) installs none
+# and carries no PNG reader (terminal design §9 step ③).
+[package.metadata.openmui.compose]
+slots = ["mlibs.image.decoder"]
+provides = ["mlibs.image.decoder"]
+
+[targets.mlibs-image]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
+[features]
+ktx2 = { sources = ["src/ktx2/*.cppm", "src/ktx2/native/*.cpp"] }
+
+[feature-deps.ktx2]
+mcpplibs.mwrap.basis_universal = "2.50.1"
+
+[test]
+features = ["ktx2"]
+
+[dependencies]
+mlibs.compose = { path = "../compose" }  # the decoder's slot
+mcpplibs.mwrap.libpng = "1.6.43"
+mcpplibs.mwrap.libjpeg_turbo = "3.2.1"
+mcpplibs.mwrap.libwebp = { version = "1.5.0", features = ["demux", "mux"] }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils = { path = "../utils" }

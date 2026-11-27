@@ -1,0 +1,51 @@
+# mlibs.text.harfbuzz — the shaper over HarfBuzz (as a C++ module, mcpp-index's
+# mwrap): the provider of mlibs.text's slot `mlibs.text.shaper` where pixels are
+# drawn. A package of its own so that a program measuring text in a terminal's
+# cells links no HarfBuzz (terminal design §9).
+[package]
+namespace   = "mlibs.text"
+name        = "harfbuzz"
+version     = "0.1.0"
+description = "mlibs.text's shaper over HarfBuzz: fonts read and described, variable weights, metrics, shaping, glyph outlines and colour layers"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: the capability's label (D-189) — mlibs.text's shaping, moved as it was
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+separate = "dependency: HarfBuzz, kept from programs that measure text in a terminal's cells (terminal design §9)"
+kind = "runtime"
+
+[package.metadata.openmui.compose]
+provides = ["mlibs.text.shaper"]
+
+[targets.mlibs-text-harfbuzz]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/native/*.cppm", "src/native/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.text    = { path = ".." }
+mlibs.geom    = { path = "../../../base/geom" }
+mlibs.unicode = { path = "../../../base/unicode" }
+mlibs.compose = { path = "../../../base/compose" }
+mcpplibs.mwrap.harfbuzz = "14.3.0"
+# HarfBuzz without its FreeType backend (mcpp-index#860): shaping reads its fonts through HarfBuzz's own `ot`
+# functions, and with FreeType built in, every program that makes a font would link all of FreeType (red 149).
+# And without the APIs this shaper never calls (mcpp-index#929, revision 3: buffer serialisation, verification and
+# messages, the MATH and meta tables, the layout API no shaper uses, glyph names, style queries): its 57 `hb_*` calls
+# answer as before (the Web-program size design §14).
+compat.harfbuzz = { version = "14.3.0", features = ["no-freetype", "no-unused-api"] }
+
+[features]
+# A reduction (omui.sdk's `no-aat-text` forwards to it; mcpp-index#929's `no-aat-vertical`): HarfBuzz without Apple's AAT
+# shaping (`morx`, `kerx`, `trak`) and vertical layout. Faces with OpenType layout — every face this repository ships —
+# shape horizontally as before; a face that has only AAT tables would shape without them. Off unless a program says so.
+no-aat-vertical = { forward = ["compat.harfbuzz/no-aat-vertical"] }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils = { path = "../../../base/utils" }
+mlibs.text.fonts = { path = "../fonts" }  # the fixed set the tests draw with (D-214)

@@ -1,0 +1,222 @@
+name: Pages
+
+# omui's website (D-84 §6.6; G5): site/, one page in TypeScript made in Live
+# Design, built for the Web (`omui build --web`: its first screen a document
+# before the program) and published to GitHub Pages at
+# https://sunrisepeak.github.io/mui/. A pull request that touches the site
+# builds it (the built site kept as an artifact); a
+# push to main or a run by hand publishes it (the design branch by hand, at a
+# node or when the site changed: `gh workflow run Pages --ref openmui-design`;
+# D-248, each of its pushes cost about fifty minutes here) — where
+# the github-pages environment's deployment branches allow (§13.3 of the
+# structure design: main, and openmui-design once added); a branch it does
+# not allow leaves the run green and the site unpublished.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'mcpp/build/**'
+      - 'modules/projects/omui/tools/gen/src/dist_toy.*'
+      - 'modules/projects/omui/tools/gen/tests/gen/dist_toy_test.cpp'
+      - 'modules/content/text/subset/src/**'
+      - 'tools/devtools/src/site.*'
+      - 'modules/projects/omui/entry/player/**'
+      - 'tools/devtools/src/check*'
+      - 'tools/devtools/src/cdp.*'
+      - 'tools/devtools/src/native/gzip.cpp'
+      - 'tools/devtools/src/browser.*'
+      - 'modules/projects/omui/tools/cli/src/page.cpp'
+      - 'modules/projects/omui/host/web/src/**'
+      - 'modules/projects/omui/tools/gen/src/wasm_size.cpp'
+      - 'modules/base/utils/src/http/**'
+      - 'modules/projects/oweb/**'
+      - 'modules/projects/omui/semantic/src/look.*'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XLINGS_VERSION: v2026.10.26.1
+  XLINGS_NON_INTERACTIVE: '1'
+
+jobs:
+  build:
+    # The design branch's pull request is built when asked (D-248), not by each push.
+    if: github.event_name != 'pull_request' || github.head_ref != 'openmui-design'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+      - name: The native toolchain (the pre-renderer)
+        run: |
+          mcpp toolchain install gcc 16.1.0
+          mcpp toolchain default gcc@16.1.0
+      - name: The loader handles real streams, failures and retries
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check dist-toy-loading
+      - name: The site (G5), packed for the Web
+        # omui build --web in site/: its first screen a document, the player, its cut fonts and its files.
+        run: |
+          (cd site && mcpp run -p omui.cli -- build --web)
+          rm -rf target/site
+          cp -r "$(dirname "$(ls -t target/.build-mcpp/out/*/omui.site/toy/omui-site/index.html | head -1)")" target/site
+          cp "$(ls -t target/wasm32-emscripten/*/bin/*/omui-site.js.symbols | head -1)" target/site.symbols
+      - name: The site's program cut in two by what its first screen runs (D5), its first half by owner
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- site split target/site --names target/site.symbols
+        env:
+          OMUI_REQUIRE_BROWSER: '1'
+      - name: The visitor's path — Live Design, Copy, the visitor's agent connected through omui connect, the bridge gone
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site path --page target/site
+      - name: The site's delivery within its budget (red 148 until the TypeScript page's Web program is cut to it)
+        # site/delivery.budget.xdef.json (the site's design §6): 1.2 MB before the first frame, which comes within
+        # 1.5 s; 1.49 MB and 0.91 s at 2026-11-20. Reported, not yet gating the publish: the site is published so its
+        # interactions can be tried on the PR (the site's design, fifth version). Remove continue-on-error when red
+        # 148 closes.
+        continue-on-error: true
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check site delivery --page target/site
+      - name: A site of documents with its engine (ST2) — each page's words where its program draws them
+        # The documents template built with the program its pages load (oweb.reader, packed as a world): the page a
+        # browser reads before the program and the page the program draws, word by word (UI5's bound: no word to
+        # another line, at most 2 px for nearly all, 1 px for half), at three widths, at the top and scrolled.
+        # A phrase of the document is still found by the browser's find then (red 167). The world is packed as a
+        # page takes it: for size (the `web` profile), in two parts — a page's live examples fetched only by a page
+        # that holds one (red 166).
+        run: |
+          (cd modules/projects/oweb/reader && mcpp pack --target wasm32-emscripten --profile web --pkg-format dist-toy)
+          world="$PWD/$(dirname "$(ls -t target/.build-mcpp/out/*/oweb.reader/toy/oweb-reader/index.html | head -1)")"
+          mcpp run -p modules/projects/oweb --profile ci -- site.build --site modules/projects/oweb/templates/docs --out target/oweb-docs --engine "$world"
+          for route in /start/ /agent/ /ui/ /live/; do
+            mcpp run omui-devtools -p tools/devtools --profile ci -- check takeover --page target/oweb-docs --path "$route"
+          done
+      - name: A site's four doors (AG5) — fetched, by the command, by the page's tools, connected — one answer
+        # The same built site, a page of it in a real browser: what the site says of itself is its llms.txt at every
+        # door, a page read is its index.md, a search finds the same sections — through the files a host sends, the
+        # `oweb` command, the tools the page offers (each operation of its subject, from the listing; WebMCP) and an
+        # agent connected by `omui connect`. The words searched for through the page are in its own search box.
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check doors --page target/oweb-docs --path /start/
+      - name: One site (ST7) — the page first, the minimal documents behind it; the template beside, at templates/docs/
+        # site/oweb.config.ts: the route `/` is the page built above (an application's page, adopted as built), the
+        # other routes the documents template's pages — one routes table, one search, one llms.txt. The page's own
+        # checks above ran on it alone; the documents' takeover is checked again here, in the site as published.
+        # Then the template by itself, built for where it is served: a site of documents with its engine on a static
+        # host, under a path that is not the host's top (ST6).
+        run: |
+          world="$PWD/$(dirname "$(ls -t target/.build-mcpp/out/*/oweb.reader/toy/oweb-reader/index.html | head -1)")"
+          owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          served="https://$owner.github.io/${{ github.event.repository.name }}/"
+          mcpp run -p modules/projects/oweb --profile ci -- site.build --site modules/projects/oweb/templates/docs --config site/oweb.config.ts --out target/pages --engine "$world" \
+            --url "$served"
+          test -f target/pages/index.html && test -f target/pages/index.md && test -f target/pages/start/index.html
+          grep -q '"application":true' target/pages/site.routes.xdef.json && grep -q 'rel="search"' target/pages/index.html
+          mcpp run omui-devtools -p tools/devtools --profile ci -- check takeover --page target/pages --path /start/
+          mcpp run -p modules/projects/oweb --profile ci -- site.build --site modules/projects/oweb/templates/docs --out target/pages/templates/docs --engine "$world" \
+            --url "${served}templates/docs/"
+          test -f target/pages/templates/docs/start/index.html && test -f target/pages/templates/docs/site.delivery.xdef.json
+      - name: Keep the site's checks and pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-checks
+          path: |
+            target/site-perf.json
+            target/site.json
+            target/site-requests.report.xdef.json
+            target/site-split/first.owners.md
+            target/site-pictures/
+            target/dist-toy-loading.report.xdef.json
+            target/takeover.report.xdef.json
+          if-no-files-found: ignore
+      - name: Keep the site the checks ran on, when they failed — its split and profiles, to run here as it ran there
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-built
+          path: |
+            target/site/
+            target/pages/site.*.json
+            target/site-split/*.profile
+          if-no-files-found: ignore
+      - name: Where the site's WebAssembly bytes go (W8; Q-38)
+        # The release's code with its functions' names kept, by owner (module,
+        # namespace, library) and its largest functions.
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check size -p omui.site --json target/wasm-size.json --markdown target/wasm-size.md
+      - name: Keep the wasm's size report
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-size
+          path: |
+            target/wasm-size.json
+            target/wasm-size.md
+      - name: Keep the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: target/pages
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+      - name: The documents template is served (ST6) — its tables, a route's page and its Markdown, as published
+        # What a reader, a search engine and an agent each fetch, from the host itself (a deployment takes a moment
+        # to be served: asked again for a minute).
+        run: |
+          base="${{ steps.deployment.outputs.page_url }}templates/docs/"
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS "${base}site.routes.xdef.json" -o routes.json && grep -q '"\$format":"routes@1"' routes.json; then break; fi
+            sleep 10
+          done
+          grep -q '"\$format":"routes@1"' routes.json
+          curl -fsS "${base}start/index.md" | head -1 | grep -q '^# Start'
+          curl -fsS "${base}start/" | grep -q 'data-omui-target='
+          curl -fsS "${base}site.search.xdef.json" | grep -q '"\$format":"search@1"'
+          curl -fsS "${base}llms.txt" | grep -q 'site.routes.xdef.json'
+          program="$(curl -fsS "${base}start/" | sed -n 's/^var omuiWasm = "\(.*\)";$/\1/p' | head -1)"
+          test -n "$program" && curl -fsSI "${base}engine/${program}" | grep -qi '^content-type: application/wasm'
+          echo "served: ${base} (routes, a page, its Markdown, the search index, llms.txt, the program)"
+      - name: The site is one site (ST7) — its first page an application, in the same tables as its documents
+        run: |
+          root="${{ steps.deployment.outputs.page_url }}"
+          curl -fsS "${root}site.routes.xdef.json" -o site.json
+          grep -q '"application":true' site.json && grep -q '"path":"/start/"' site.json
+          curl -fsS "${root}" -o first.html
+          grep -q 'rel="alternate" type="text/markdown" href="index.md"' first.html && grep -q 'data-omui="static"' first.html
+          curl -fsS "${root}index.md" | grep -q '^# '
+          curl -fsS "${root}start/" | grep -q 'data-omui-target='
+          curl -fsS "${root}llms.txt" | grep -q "${root}index.md"
+          curl -fsS "${root}site.search.xdef.json" | grep -q '"route":"/"'
+          echo "served: ${root} (the first page and its Markdown, a documents page, the tables, the search index)"

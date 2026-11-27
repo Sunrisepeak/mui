@@ -1,0 +1,56 @@
+# omui.host.headless — openmui without a display: a virtual surface, a
+# clock stepped frame by frame, input injected by point or by id, pixels from
+# the CPU renderer as PNG, and the agent endpoint served between frames. The
+# four headless levels (H0 semantics, H1 layout, H2 pixels, H3 a session an
+# agent can drive). CI, agents and video rendering all run on it.
+[package]
+namespace   = "omui.host"
+name        = "headless"
+version     = "0.1.0"
+description = "openmui headless host: stepped virtual clock, injected input, CPU pixels and PNG, agent endpoint (H0-H3)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+maturity = "stable"  # release plan §2.1: stable, preview or experimental (lint maturity)
+lower = ["mlibs.compose"]  # lower-labelled parts it uses, each marked in its README
+separate = "library: the host without a window, for tests, agents and tools"
+reexports = ["mlibs.image", "omui.agent", "omui.core", "omui.semantic", "omui.view", "mrender.raster"]  # what its interface re-exports (lint module-closure)
+kind = "host"
+agent = { part = "omui.agent" }
+
+# A host chooses its text measure (terminal design §9): it installs HarfBuzz at mlibs.text's slot when the program
+# installed no shaper, so it depends on that provider as a root does. It has no worlds of its own.
+[package.metadata.openmui.compose]
+root = true
+
+[targets.openmui-host-headless]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mrender.text = { path = "../../../mrender/text" }
+omui.core     = { path = "../../core" }
+omui.view     = { path = "../../view" }
+omui.semantic = { path = "../../semantic" }
+omui.agent    = { path = "../../agent" }
+mlibs.compose = { path = "../../../../base/compose" }  # the agent surface's slot, read where a session opens
+mrender.raster   = { path = "../../../mrender/raster" }
+mrender.vector   = { path = "../../../mrender/vector" }
+# The frame's entry: the host hands its layers to the renderer, which composes, captures and traces (D-162).
+mrender.frame    = { path = "../../../mrender/frame" }
+mlibs.text     = { path = "../../../../content/text" }
+# The text measure it brings where a program installed none (terminal design §9: the host installs its shaper).
+"mlibs.text.harfbuzz" = { path = "../../../../content/text/harfbuzz" }
+mlibs.image    = { path = "../../../../base/image" }
+mlibs.utils    = { path = "../../../../base/utils" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+# headless_test: the agent contract's suite on the interface where a host draws (a pixel's source).
+mlibs.agent.cts = { path = "../../../../base/agent/cts" }
+# tests/component_motion_sweep_test.cpp: every component from a view document, swept through its motions here.
+omui.ui.base = { path = "../../components/base" }
+omui.viewdoc = { path = "../../viewdoc" }

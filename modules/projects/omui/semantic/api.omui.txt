@@ -1,0 +1,179 @@
+== omui.semantic
+export import omui.core;
+export import omui.view;
+export import mlibs.session;
+export import :query;
+export import :tree;
+export import :session;
+export import :look;
+export import :html;
+== omui.semantic:html
+namespace omui::semantic {
+  [[nodiscard]] std::vector<std::pair<std::string, std::string>> aria_attributes(const spec::SemanticNode& node);
+  [[nodiscard]] std::string element_text(const spec::SemanticNode& node);
+  struct Inline {
+    std::string tag;
+    std::string text;
+    std::string node;
+    std::vector<std::pair<std::string, std::string>> attributes;
+    std::vector<Inline> children;
+    std::size_t begin = 0, end = 0;
+    bool markup = false;
+    bool operator==(const Inline&) const = default;
+  };
+  enum class HtmlFor : std::uint8_t { document, live };
+  struct HtmlElement {
+    std::string tag;
+    std::vector<std::pair<std::string, std::string>> attributes;
+    std::vector<Inline> content;
+    std::vector<std::string> placed;
+    bool lines_kept = false;
+    bool empty = false;
+  };
+  using NodeLookup = std::function<const spec::SemanticNode*(std::string_view)>;
+  [[nodiscard]] HtmlElement html_element(const spec::SemanticNode& node, std::string_view inside, const NodeLookup& find, HtmlFor where = HtmlFor::document);
+  struct HtmlOptions {
+    std::string lang;
+    const Look* look = nullptr;
+  };
+  [[nodiscard]] std::string static_html(const Snapshot& snapshot, const HtmlOptions& options = {…});
+}
+== omui.semantic:look
+namespace omui::semantic {
+  struct Look {
+    struct Wrapper {
+      std::uint32_t node = 0;
+      std::string style;
+    };
+    struct Font {
+      std::string family;
+      int weight = 400;
+      bool italic = false;
+      friend bool operator==(const Font&, const Font&) = default;
+    };
+    struct Span {
+      std::uint32_t begin = 0, end = 0;
+      std::string style;
+    };
+    std::unordered_map<std::string, std::string> styles;
+    std::unordered_map<std::string, std::vector<Wrapper>> wrappers;
+    std::unordered_map<std::string, std::vector<Span>> spans;
+    std::unordered_map<std::string, std::vector<Span>> apart;
+    std::vector<Font> fonts;
+    std::string light, dark;
+    [[nodiscard]] std::string_view style(std::string_view id) const;
+    [[nodiscard]] std::span<const Wrapper> around(std::string_view id) const;
+    [[nodiscard]] std::string_view within(std::string_view id, std::size_t at) const;
+    [[nodiscard]] std::span<const Span> set_apart(std::string_view id) const;
+  };
+  [[nodiscard]] std::string font_key(std::string_view family);
+  [[nodiscard]] Look html_look(const Runtime& runtime, const Snapshot& snapshot);
+  [[nodiscard]] std::string look_sheet(const Look& look);
+  [[nodiscard]] Look by_schemes(Look light, const Look& dark);
+}
+== omui.semantic:query
+namespace omui::semantic {
+  enum class QueryError : std::uint8_t { not_an_object, unknown_field, unknown_role, unknown_state, not_a_list, bad_rect, bad_point, nothing_to_wait_for };
+  [[nodiscard]] constexpr mlibs::error::Description describe(QueryError error) noexcept;
+  using QueryFailure = mlibs::error::Error<QueryError>;
+  struct Query {
+    std::string id;
+    std::string under;
+    std::optional<Role> role;
+    std::string name;
+    std::vector<State> states;
+    std::vector<State> without;
+    std::optional<Value> value;
+    std::optional<Rect> within;
+    std::optional<Point> at;
+    bool interactive = false;
+    std::size_t limit = 0;
+    [[nodiscard]] bool matches(const spec::SemanticNode& node) const;
+    [[nodiscard]] static std::expected<Query, QueryFailure> parse(const Value& v);
+    [[nodiscard]] Value to_value() const;
+  };
+  struct Condition {
+    std::optional<Query> query;
+    bool absent = false;
+    bool settled = false;
+    [[nodiscard]] static std::expected<Condition, QueryFailure> parse(const Value& v);
+  };
+  [[nodiscard]] bool glob(std::string_view pattern, std::string_view text) noexcept;
+}
+== omui.semantic:session
+namespace omui::semantic {
+  class Recorder {
+    Recorder(Tree& tree, mlibs::session::Session& session);
+    FrameOutput frame(const FrameInput& input = {…});
+    Envelope act(std::string_view id, std::string_view action, const Invocation& call = {…});
+    void checkpoint(std::string_view label = {…});
+    void note(std::string_view text);
+  };
+  struct ReplayReport {
+    std::size_t frames = 0;
+    std::size_t actions = 0;
+    std::size_t checkpoints = 0;
+    std::vector<std::string> mismatches;
+    std::uint64_t digest = 0;
+    [[nodiscard]] bool ok() const noexcept;
+  };
+  class Player {
+    Player(Tree& tree, const mlibs::session::Session& session);
+    const ReplayReport& advance_to(double time);
+    const ReplayReport& finish();
+    [[nodiscard]] bool done() const noexcept;
+    [[nodiscard]] double position() const noexcept;
+    [[nodiscard]] const ReplayReport& report() const noexcept;
+  };
+  [[nodiscard]] ReplayReport replay(Tree& tree, const mlibs::session::Session& session, double until = std::numeric_limits<double>::infinity());
+}
+== omui.semantic:tree
+namespace omui::semantic {
+  struct TreeOptions {
+    bool compact = true;
+  };
+  struct SnapshotOptions {
+    std::string root;
+    int depth = -1;
+    bool interactive = false;
+    std::size_t offset = 0;
+    std::size_t limit = 0;
+    std::size_t children_limit = 0;
+  };
+  struct Snapshot {
+    std::uint64_t revision = 0;
+    std::vector<spec::SemanticNode> nodes;
+    std::size_t total = 0;
+    std::unordered_map<std::string, std::size_t> children_total;
+    [[nodiscard]] Value to_value() const;
+  };
+  struct Step {
+    std::string id;
+    std::string action;
+    Value args;
+    std::string answer;
+  };
+  struct WaitState {
+    bool satisfied = false;
+    std::string why;
+  };
+  [[nodiscard]] Value changes_between(const Snapshot& before, const Snapshot& after);
+  class Tree {
+    explicit Tree(Runtime& runtime, TreeOptions options = {…});
+    [[nodiscard]] Snapshot snapshot(const SnapshotOptions& options = {…});
+    [[nodiscard]] spec::SemanticDelta changes();
+    [[nodiscard]] std::vector<spec::SemanticNode> find(const Query& query);
+    [[nodiscard]] std::optional<spec::SemanticNode> node(std::string_view id);
+    Envelope act(std::string_view id, std::string_view action, const Invocation& call = {…});
+    Envelope transaction(std::span<const Step> steps, const Invocation& call = {…}, std::string label = {…}, std::span<const Condition> expect = {…});
+    Envelope sequence(std::span<const Step> steps, const Invocation& call = {…}, std::span<const Condition> expect = {…});
+    Envelope preview(std::span<const Step> steps, const Invocation& call = {…}, const std::function<Value()>& look = {…});
+    [[nodiscard]] Value state();
+    Value restore(const Value& state, const Invocation& call = {…});
+    [[nodiscard]] WaitState check(const Condition& condition);
+    [[nodiscard]] std::vector<spec::Violation> violations();
+    [[nodiscard]] std::uint64_t revision();
+    [[nodiscard]] std::uint64_t digest();
+    [[nodiscard]] Runtime& runtime() noexcept;
+  };
+}

@@ -727,8 +727,9 @@ std::expected<std::unique_ptr<Browser>, std::string> Browser::launch(const fs::p
     }
     os::process::spawn_options options;
     options.program = chrome;
-    options.args = {"--headless=new", "--no-sandbox", "--enable-unsafe-swiftshader",
-                    "--remote-debugging-port=0"};
+    options.args = {"--no-sandbox", "--remote-debugging-port=0"};
+    if (!launch.headed)
+        options.args.insert(options.args.begin(), {"--headless=new", "--enable-unsafe-swiftshader"});
     if (!given)
         options.args.push_back(std::format("--user-data-dir={}", os::fs::utf8(state->profile)));
     options.args.insert(options.args.end(),
@@ -836,14 +837,15 @@ std::expected<std::unique_ptr<Browser>, std::string> Browser::launch(const fs::p
         const auto parsed = json::parse(*version, nullptr, false);
         browser->state_->version = text(at(parsed, "Browser"));
     }
-    for (const auto& [method, params] :
-         std::vector<std::pair<std::string, json>>{{"Page.enable", json::object()},
-                                                   {"Runtime.enable", json::object()},
-                                                   {"Emulation.setDeviceMetricsOverride",
-                                                    {{"width", launch.width},
-                                                     {"height", launch.height},
-                                                     {"deviceScaleFactor", 1},
-                                                     {"mobile", false}}}})
+    std::vector<std::pair<std::string, json>> setup{{"Page.enable", json::object()},
+                                                    {"Runtime.enable", json::object()}};
+    if (!launch.headed)
+        setup.emplace_back("Emulation.setDeviceMetricsOverride",
+                           json{{"width", launch.width},
+                                {"height", launch.height},
+                                {"deviceScaleFactor", 1},
+                                {"mobile", false}});
+    for (const auto& [method, params] : setup)
         if (const auto answer = browser->call(method, params); !answer)
             return std::unexpected(answer.error());
     return browser;

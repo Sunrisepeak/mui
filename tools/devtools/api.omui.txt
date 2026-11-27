@@ -119,6 +119,7 @@ namespace omui::devtools::cdp {
   struct Launch {
     int width = 1280, height = 800;
     std::vector<std::string> flags;
+    bool headed = false;
   };
   using Listener = std::function<void(const std::string& method, const json& params)>;
   class Browser {
@@ -208,6 +209,20 @@ namespace omui::devtools::check {
   [[nodiscard]] int dist_toy_loading(const std::filesystem::path& root, const std::filesystem::path& fixture);
   [[nodiscard]] int takeover(const std::filesystem::path& root, const std::filesystem::path& page, std::string_view path, std::span<const int> widths);
   [[nodiscard]] int doors(const std::filesystem::path& root, const std::filesystem::path& site, std::string_view path, const std::filesystem::path& oweb, const std::filesystem::path& omui);
+  struct Scroll {
+    std::filesystem::path page;
+    std::vector<std::string> paths;
+    int rounds = 2;
+    std::string screen;
+    int width = 1280, height = 900;
+    double speed = 3000;
+    std::string query;
+    std::vector<std::string> flags;
+    bool headless = false;
+    bool keep_trace = false;
+    bool spans = false;
+  };
+  [[nodiscard]] int scroll(const std::filesystem::path& root, const Scroll& asked);
   [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);
   [[nodiscard]] std::vector<std::string> over_budget(const std::map<std::string, std::uint64_t>& measured, std::string_view budget_text, std::string_view profile = {…}, std::string_view fallback = {…});
   [[nodiscard]] std::vector<std::string> budget_profiles(std::string_view budget_text, std::string_view fallback);

@@ -5,8 +5,8 @@
 // - Server: a directory on a free port of 127.0.0.1 (pages(): gzip for the kinds a host compresses —
 //   mlibs.delivery's, the same a site's delivery is measured by — the rest as it is, keep-alive as
 //   Pages' HTTP is), or any handler.
-// - Browser: Chromium headless on about:blank with --remote-debugging-port=0 (it writes the port it
-// chose to
+// - Browser: Chromium headless (or headed: a window on the display) on about:blank with
+// --remote-debugging-port=0 (it writes the port it chose to
 //   DevToolsActivePort in its profile), its page's WebSocket; `call` sends a method and waits for
 //   its answer, each call with a deadline (OMUI_CDP_TIMEOUT_S, default 120 s: after one stall,
 //   later calls fail at once), `value` evaluates an expression (awaited, by value), `on` hears
@@ -141,6 +141,9 @@ struct Launch {
     int width = 1280, height = 800;
     std::vector<std::string>
         flags;  // more switches; a --user-data-dir= among them is the caller's profile, kept
+    // A window on the display there is, drawn by the machine's GPU, its viewport the window's own (no emulated
+    // metrics, no software fallback); else headless.
+    bool headed = false;
 };
 
 using Listener = std::function<void(const std::string& method, const json& params)>;

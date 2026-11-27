@@ -21,6 +21,7 @@ import :app;
 import :build_profile;
 import :agent_guide;
 import :shown;
+import :host;  // what this platform's run carries (hosting::runs_headless, frames_window)
 
 namespace omui {
 
@@ -248,11 +249,16 @@ std::shared_ptr<AgentAccess> agent_access_of(const AppSpec& app, const RunOption
 std::string window_mode(const AppSpec& app, const RunOptions& o) { return o.window.empty() ? app.window : o.window; }
 
 // The framework's frame around the application, when it may show (D-75).
+// A page is its own window: none there (hosting::frames_window).
 std::unique_ptr<FramedWindow> frame_of(Runtime& rt, const AppSpec& app, std::string_view mode) {
-    if (mode == "native") return nullptr;
-    WindowFrameOptions f = app.frame;
-    if (!f.title.is_set()) f.title = app.title;
-    return std::make_unique<FramedWindow>(rt, std::move(f));
+    if constexpr (!hosting::frames_window) {
+        return nullptr;
+    } else {
+        if (mode == "native") return nullptr;
+        WindowFrameOptions f = app.frame;
+        if (!f.title.is_set()) f.title = app.title;
+        return std::make_unique<FramedWindow>(rt, std::move(f));
+    }
 }
 
 // A headless run's window (a frame drawn as it would be on a desktop, for
@@ -545,7 +551,7 @@ int run(AppSpec app, const RunOptions& o) {
     register_primitives();  // by name: what its documents, scripts and agents name (omui.view holds none until asked)
     if (o.no_agent_player) app.agent_players = false;  // the person's word for this run
     if (app.components) app.components();
-    register_window_components();
+    if constexpr (hosting::frames_window) register_window_components();
     if (const std::string mode = window_mode(app, o); mode != "native" && mode != "framework" && mode != "switchable") {
         error("AppSpec::window `{}` is native, framework or switchable", mode);
         return 2;
@@ -569,7 +575,17 @@ int run(AppSpec app, const RunOptions& o) {
     if (o.dark) app.theme = std::exchange(app.dark_theme, std::nullopt).value_or(Theme::dark_theme());
     auto access = agent_access_of(app, o);
     if (!access) return 2;
-    if (o.headless) return headless(std::move(app), o, access);
+    if (o.headless) {
+        // A page is shown in its page (hosting::runs_headless): what a headless run writes and serves is a program's
+        // on its own.
+        if constexpr (hosting::runs_headless) {
+            return headless(std::move(app), o, access);
+        } else {
+            error("--headless, --serve, --static-html, --agent-guide, --png, --replay and --present-to run where the program runs on its own, "
+                  "not in a page: run it natively (mcpp run -- --headless …)");
+            return 2;
+        }
+    }
     // In this terminal's character cells (omui.host.terminal): the same view, prepared as a window's is.
     if (o.terminal)
         return hosting::terminal(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {

@@ -20,10 +20,13 @@ namespace oweb::shell {
     std::string href, title, trail, line;
   };
   using Finder = std::function<void(std::string query, std::function<void(std::vector<Found>)> answer)>;
+  void install_examples();
+  [[nodiscard]] bool holds_examples(std::string_view document, bool html);
   struct Layout {
     bool scrolls = false;
     Finder find;
     std::function<void(std::string href)> follow;
+    void (*examples)() = &install_examples;
   };
   [[nodiscard]] omui::Element page(Parts parts, Layout layout = {…});
   using View = std::function<omui::Element(Parts, Layout)>;

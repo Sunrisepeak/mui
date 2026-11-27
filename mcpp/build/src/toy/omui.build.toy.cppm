@@ -82,6 +82,16 @@ struct toy_options {
     // scripts, which the player reads from its working directory. Carried in the page itself. Data modules
     // (omui.config.ts, *.xdef.ts) go as their snapshots (omui.config.json, *.xdef.json): a page does not evaluate them.
     std::vector<std::string> files;
+    // A program in parts (a world's: the Web-program size design, 2026-11-27): `first` names another program target
+    // of the package — the same program built without the part (its call to it left out) — and the packed program is
+    // cut in two by what that one carries: its functions are the first part, the rest a part of its own, fetched only
+    // by a page whose document holds what `needs` selects (a CSS selector: "code.language-view"), where main waits for
+    // it; elsewhere a function of it called brings it in then. Empty: one program, whole.
+    struct part_options {
+        std::string first;
+        std::string needs;
+    };
+    part_options             part;
     std::string              out_dir = std::string(mcpp::out_dir());
 };
 

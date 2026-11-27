@@ -103,8 +103,11 @@ jobs:
         # The documents template built with the program its pages load (oweb.reader, packed as a world): the page a
         # browser reads before the program and the page the program draws, word by word (UI5's bound: no word to
         # another line, at most 2 px for nearly all, 1 px for half), at three widths, at the top and scrolled.
+        # A phrase of the document is still found by the browser's find then (red 167). The world is packed as a
+        # page takes it: for size (the `web` profile), in two parts — a page's live examples fetched only by a page
+        # that holds one (red 166).
         run: |
-          (cd modules/projects/oweb/reader && mcpp pack --target wasm32-emscripten --profile release --pkg-format dist-toy)
+          (cd modules/projects/oweb/reader && mcpp pack --target wasm32-emscripten --profile web --pkg-format dist-toy)
           world="$PWD/$(dirname "$(ls -t target/.build-mcpp/out/*/oweb.reader/toy/oweb-reader/index.html | head -1)")"
           mcpp run -p modules/projects/oweb --profile ci -- site.build --site modules/projects/oweb/templates/docs --out target/oweb-docs --engine "$world"
           for route in /start/ /agent/ /ui/ /live/; do

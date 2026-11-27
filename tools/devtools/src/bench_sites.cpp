@@ -157,7 +157,7 @@ std::expected<Ready, std::string> ready(const fs::path& root, const json& catalo
         made.args = {"site.build", "--site", utf8_of(root / fs::path(text_of(catalogue, "corpus")).parent_path()), "--out", utf8_of(made.out)};
         if (side.value("engine", false)) {
             // The program its pages load: the newest world packed here (oweb.reader: `mcpp pack --target
-            // wasm32-emscripten --profile release --pkg-format dist-toy` in modules/projects/oweb/reader).
+            // wasm32-emscripten --profile web --pkg-format dist-toy` in modules/projects/oweb/reader).
             fs::path world;
             fs::file_time_type newest{};
             for (const auto& entry : fs::directory_iterator(root / "target/.build-mcpp/out", error)) {
@@ -168,7 +168,7 @@ std::expected<Ready, std::string> ready(const fs::path& root, const json& catalo
                     newest = written;
                 }
             }
-            if (world.empty()) return std::unexpected("no world of oweb.reader is packed here (in modules/projects/oweb/reader: mcpp pack --target wasm32-emscripten --profile release --pkg-format dist-toy)");
+            if (world.empty()) return std::unexpected("no world of oweb.reader is packed here (in modules/projects/oweb/reader: mcpp pack --target wasm32-emscripten --profile web --pkg-format dist-toy)");
             made.args.insert(made.args.end(), {"--engine", utf8_of(world)});
         }
         made.versions["oweb"] = run::commit(root);

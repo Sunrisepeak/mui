@@ -1,5 +1,7 @@
 // The reader on the Web (`omui build --web`): a world — the page of a program that draws documents it was not built
 // with. Its index.html waits for a document; `oweb site.build --engine` gives each page of a site its own.
+// In two parts: what every page needs (oweb-reader-reading's functions), and what runs a page's live examples —
+// fetched only by a page whose document holds one (its code of the language `view`).
 import std;
 import mcpp;
 import omui.build.toy;
@@ -8,7 +10,8 @@ int main() {
     return omui::build::dist_toy({.target = "oweb-reader", .title = "oweb", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"},
                                   .background = "#ffffff", .background_dark = "#0b0d12", .sdk = false, .world = true,
                                   // Chinese's face before the program only on a page in Chinese; else when text asks.
-                                  .font_languages = {{"NotoSansSC", {"zh"}}}})
+                                  .font_languages = {{"NotoSansSC", {"zh"}}},
+                                  .part = {.first = "oweb-reader-reading", .needs = "code.language-view"}})
                ? 0
                : 1;
 }

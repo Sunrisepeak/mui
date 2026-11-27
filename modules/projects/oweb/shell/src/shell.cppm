@@ -41,6 +41,15 @@ struct Found {
 // site's index is fetched when it is first wanted) — and again only for the words asked last.
 using Finder = std::function<void(std::string query, std::function<void(std::vector<Found>)> answer)>;
 
+// What runs a page's live examples, the shell's own: its blocks of the language `view` are view documents over the
+// base components, found by name (a page's examples are its data: which components they use is not known to the
+// program) — every base component registered by name, and omui.ui.markdown's view documents installed at its slot.
+void install_examples();
+
+// Whether a page's document holds a live example (a block of the language `view`, as Markdown writes its fence or
+// as the page's HTML marks its code): what `install_examples` is wanted for.
+[[nodiscard]] bool holds_examples(std::string_view document, bool html);
+
 struct Layout {
     // The page in a view of the window's size that scrolls it: what a canvas needs (the window does not scroll a
     // canvas). Without: the page as tall as it is, for a window that scrolls it itself.
@@ -52,6 +61,12 @@ struct Layout {
     // that has the page hands it to its runtime (`Runtime::open_url`: the page's own in this tab, another's as a
     // browser opens it). Without: a link in the document is said and goes nowhere (a page as it is written).
     std::function<void(std::string href)> follow;
+    // Who runs a page's live examples, called once — when the first page that holds one is made: the shell's own by
+    // default. A program that never runs one says `.examples = nullptr` (a designated initializer, so the default is
+    // not named) and carries none of it: an example is then shown as its source, as on a page without a program. The
+    // program a site's pages load has two programs of its own this way, the second the measure of what the examples
+    // add (oweb.reader: its world in parts, a page with no example never fetching theirs).
+    void (*examples)() = &install_examples;
 };
 
 // The page as a view, for where an application's view is mounted (`main`). Its ids there: `main/page` the column; in

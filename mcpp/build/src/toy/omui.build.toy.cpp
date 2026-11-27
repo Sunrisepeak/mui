@@ -107,6 +107,13 @@ bool dist_toy(toy_options opt) {
             a.input(utf8(file).c_str());
         }
     }
+    if (!opt.part.first.empty()) {
+        // The whole program's symbol map and the first part's, each beside its program (--emit-symbol-map).
+        a.arg("--part-program").arg(("${mcpp.target_file:" + opt.target + "}").c_str());
+        a.arg("--part-first").arg(("${mcpp.target_file:" + opt.part.first + "}").c_str());
+        if (!opt.part.needs.empty()) a.arg("--part-needs").arg(opt.part.needs.c_str());
+        a.input(("${mcpp.target_file:" + opt.part.first + "}").c_str());
+    }
     a.input(("${mcpp.target_file:" + opt.target + "}").c_str());
     a.input(gen.c_str());
     a.output((out + "/index.html").c_str());

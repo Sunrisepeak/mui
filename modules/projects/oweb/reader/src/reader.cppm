@@ -35,4 +35,11 @@ struct Site {
 // own), a page that says so.
 [[nodiscard]] omui::Element view(std::string_view projection, const std::function<std::string(std::string_view id)>& markup, shell::Layout layout);
 
+// The program a site's pages load: the page the browser has, drawn — `view` over what the page wrote, its search
+// asking the site, a link pressed in its document followed by the runtime. `examples` runs a page's live examples
+// (shell::install_examples: the world's program, oweb-reader), or none (oweb-reader-reading: what a page that holds
+// none needs, the measure of the world's first part). The registry holds no base component by name until a page's
+// example asks for them. The process's exit code.
+[[nodiscard]] int program(int argc, char** argv, void (*examples)());
+
 }  // namespace oweb::reader

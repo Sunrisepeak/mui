@@ -28,7 +28,9 @@
 //   omui-gen cldr <cldr-json-dir> --locales en,zh,zh-Hant --version <x.y.z> --out <dir> [--check]
 //   omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T] [--fonts a,b|all] …
 //       a wasm32-emscripten program packaged for Bilibili Toy (openmui.gen.dist_toy;
-//       what `mcpp pack --pkg-format dist-toy` runs)
+//       what `mcpp pack --pkg-format dist-toy` runs); with --part-program <whole> --part-first <program>
+//       [--part-needs <selector>], in two parts: the functions the first program has, and the rest — fetched only
+//       by a page whose document holds what the selector matches (a world's live examples)
 //   omui-gen dist-toy-split <package dir> --primary <wasm> --deferred <wasm> [--lazy <route>,…]
 //       a packed page's program cut in two by wasm-split (omui-devtools site split):
 //       the first screen's half first, the rest compiled after it
@@ -637,6 +639,9 @@ mcpplibs::cmdline::App command_line() {
                         .option(Option("font-initial").takes_value().multiple().value_name("FONT=TEXT").help("a font's first screen's text"))
                         .option(Option("font-initial-text").takes_value().multiple().value_name("FONT=PATH,…").help("these files' characters added to a font's first screen's"))
                         .option(Option("font-on-demand").takes_value().multiple().value_name("FONT").help("a font with an initial cut whose full face waits until text asks for it"))
+                        .option(Option("part-program").takes_value().value_name("FILE").help("the program as built (its symbol map beside it): with --part-first, cut in two"))
+                        .option(Option("part-first").takes_value().value_name("FILE").help("a program of the package without the part (its symbol map beside it): its functions are the first part"))
+                        .option(Option("part-needs").takes_value().value_name("SELECTOR").help("what in a page's document needs the second part (fetched only there)"))
                         .option(static_html).option(lang).option(description).option(canonical).option(image).option(alternate))
         .subcommand(App("dist-toy-split")
                         .description("a packed page's program cut in two by wasm-split: the first screen's half first")

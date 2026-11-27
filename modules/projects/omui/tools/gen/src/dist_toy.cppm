@@ -6,6 +6,7 @@
 //                     [--fonts Inter,NotoSansSC | all] [--fonts-dir <dir>]
 //                     [--graph <mcpp graph file>] [--background #rrggbb] [--background-dark #rrggbb] [--load eager|idle|interaction] [--no-sdk]
 //                     [--later <dir>|<suffix>|</later/mount>]… [--subset <font>=<path>,<path>…]…
+//                     [--part-program <program> --part-first <program> [--part-needs <selector>]]
 //
 // The package (Toy's rules, from github.com/bilibili/toy at ae156ec — its
 // skill's content checklist and toy_doctor.py — and the publishing guide's
@@ -169,6 +170,10 @@ struct ToySplit {
     std::filesystem::path    primary;   // wasm-split's -o1
     std::filesystem::path    deferred;  // wasm-split's -o2
     std::vector<std::string> lazy;      // routes; omui-gen's default: "", "home"
+    // A part on need (a world's live examples): a selector of the page's document — where it holds what matches, the
+    // page waits for the second half before main; elsewhere the half is never fetched unless a function of it is
+    // called. Empty: a half by the first screen (`lazy`).
+    std::string              needs;
 };
 
 [[nodiscard]] std::expected<ToyReport, std::string> adopt_split(const ToySplit& split);

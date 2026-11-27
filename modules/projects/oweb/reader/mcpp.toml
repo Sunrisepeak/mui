@@ -28,6 +28,13 @@ kind = "lib"
 kind = "bin"
 main = "src/main.cpp"
 
+# The same program without what runs a page's live examples (the base components by name, view documents and their
+# expressions): what a page that holds none needs. Its functions are the world's first part (build.mcpp's `parts`):
+# the packed world is the program above cut in two, the second part fetched only by a page holding an example.
+[targets.oweb-reader-reading]
+kind = "bin"
+main = "src/reading/main.cpp"
+
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 

@@ -105,6 +105,7 @@ namespace omui::gen {
     std::filesystem::path primary;
     std::filesystem::path deferred;
     std::vector<std::string> lazy;
+    std::string needs;
   };
   [[nodiscard]] std::expected<ToyReport, std::string> adopt_split(const ToySplit& split);
   [[nodiscard]] std::vector<std::string> lazy_routes(std::string_view list);
@@ -359,6 +360,31 @@ namespace omui::gen {
   [[nodiscard]] std::string cpp_string(std::string_view s);
   [[nodiscard]] std::string format_double(double v);
   [[nodiscard]] std::string ident(std::string_view name);
+}
+== omui.gen.part
+namespace omui::gen {
+  [[nodiscard]] std::expected<std::size_t, std::string> function_imports(std::span<const std::uint8_t> wasm);
+  [[nodiscard]] std::vector<std::pair<std::size_t, std::size_t>> call_edges(std::string_view dot);
+  [[nodiscard]] std::string_view linked_name(std::string_view name) noexcept;
+  [[nodiscard]] std::map<std::size_t, std::uint64_t> body_hashes(std::string_view printed, const std::map<std::size_t, std::string>& names, std::size_t imports);
+  [[nodiscard]] std::set<std::size_t> first_part(const std::map<std::size_t, std::string>& whole, const std::set<std::string>& first, std::size_t imports, std::span<const std::pair<std::size_t, std::size_t>> edges, const std::map<std::size_t, std::uint64_t>& whole_bodies = {…}, const std::set<std::uint64_t>& first_bodies = {…});
+  struct PartCut {
+    std::filesystem::path whole;
+    std::filesystem::path whole_names;
+    std::filesystem::path first_names;
+    std::filesystem::path primary;
+    std::filesystem::path deferred;
+    std::filesystem::path binaryen;
+  };
+  struct PartReport {
+    std::size_t functions = 0;
+    std::size_t named = 0;
+    std::size_t bodies = 0;
+    std::size_t first = 0;
+  };
+  [[nodiscard]] std::expected<PartReport, std::string> cut_part(const PartCut& cut);
+  [[nodiscard]] std::optional<std::filesystem::path> binaryen_directory();
+  [[nodiscard]] std::span<const std::string_view> emscripten_features() noexcept;
 }
 == omui.gen.read
 namespace omui::gen {

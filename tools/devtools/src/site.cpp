@@ -403,17 +403,28 @@ int drive(const Drive& asked) {
         return 1;
     }
     auto& page = **launched;
-    // A built page's directory: served as Pages serves it.
+    // A built page's directory: served as Pages serves it. A route's directory of a built site (oweb site.build: the
+    // site's routes table above it) is served with its site, so what the page finds from its site's top (the
+    // engine's files) is there.
     std::string url = asked.url;
     std::unique_ptr<cdp::Server> served;
     if (std::error_code error; fs::is_directory(mcpplibs::os::fs::from_utf8(asked.url), error)) {
-        auto server = cdp::Server::start(cdp::pages(mcpplibs::os::fs::from_utf8(asked.url)));
+        const fs::path page_dir = fs::absolute(mcpplibs::os::fs::from_utf8(asked.url), error).lexically_normal();
+        fs::path top = page_dir;
+        for (fs::path up = page_dir; up.has_relative_path(); up = up.parent_path())
+            if (fs::exists(up / "site.routes.xdef.json", error)) {
+                top = up;
+                break;
+            }
+        auto server = cdp::Server::start(cdp::pages(top));
         if (!server) {
             std::cerr << "omui-devtools site drive: " << server.error() << '\n';
             return 1;
         }
         served = std::move(*server);
-        url = served->url() + "index.html";
+        std::string route = mcpplibs::os::fs::generic_utf8(page_dir.lexically_relative(top));
+        if (route == ".") route.clear();
+        url = served->url() + route + (route.empty() ? "" : "/") + "index.html";
     }
     std::vector<std::string> logs;
     page.on([&](const std::string& method, const json& params) {

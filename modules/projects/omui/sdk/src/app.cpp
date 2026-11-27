@@ -604,6 +604,7 @@ int run(AppSpec app, const RunOptions& o) {
         if (app.agent_presence && prepared.tasks) {
             Element presence = agent_presence({.id = "presence", .actors = "agent:"});
             presence.prop("pointer_events", Prop<std::string>(std::string("none")));
+            rt.set_slot_presented(agent_presence_slot, false);  // who is at work, never the design: its own motion
             rt.mount(agent_presence_slot, std::move(presence));
         }
         // Kept as long as the window: the frame, the tasks and generation, and the teardown before them.

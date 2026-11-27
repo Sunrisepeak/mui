@@ -1145,6 +1145,8 @@ namespace omui {
     };
     void set_design_presentation(DesignPresentation presentation);
     [[nodiscard]] DesignPresentation design_presentation() const noexcept;
+    void set_slot_presented(std::string_view slot, bool presented);
+    [[nodiscard]] bool slot_presented(std::string_view slot) const;
     void set_record_level(RecordLevel level);
     [[nodiscard]] RecordLevel record_level() const noexcept;
     [[nodiscard]] std::vector<InteractionRecord> interactions(std::uint64_t since = 0) const;

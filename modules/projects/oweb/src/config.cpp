@@ -142,11 +142,12 @@ std::expected<SiteOptions, std::string> configured(const std::filesystem::path& 
         return std::unexpected(std::format("{}: its default export is a `{}`, not a site: export default defineSite({{ … }}) from \"{}\"", mcpplibs::os::fs::utf8(file), data->kind, define_name));
     auto options = options_from(data->snapshot(), mcpplibs::os::fs::utf8(file));
     if (!options || stated.empty()) return options;
-    // What it states beside the pages is from where it stands.
+    // What it states beside the pages is from where it stands — in the generic spelling ('/' between names, on every
+    // system), as the rest of a site's data.
     const std::filesystem::path directory = std::filesystem::absolute(file, error).parent_path();
     const auto own = [&](std::string& path) {
         const std::filesystem::path given = mcpplibs::os::fs::from_utf8(path);
-        if (!path.empty() && !given.is_absolute()) path = mcpplibs::os::fs::utf8((directory / given).lexically_normal());
+        if (!path.empty() && !given.is_absolute()) path = mcpplibs::os::fs::generic_utf8((directory / given).lexically_normal());
     };
     own(options->engine);
     for (Declared& route : options->routes) {

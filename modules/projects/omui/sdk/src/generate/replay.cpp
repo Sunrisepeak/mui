@@ -232,6 +232,9 @@ void Replayer::present() {
     layers.push_back(std::move(bottom));
     Element over = stack({.width = window.width, .height = window.height}, std::move(layers));
     over.prop("pointer_events", through("children"));
+    // It reports on the design and is not part of it: a step's presentation leaves it its own motion (its caption read
+    // as it changes, its course at the step).
+    runtime_.set_slot_presented(slot, false);
     runtime_.mount(slot, std::move(over));
     mounted_ = true;
 }

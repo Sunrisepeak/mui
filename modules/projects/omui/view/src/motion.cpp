@@ -151,8 +151,8 @@ const MotionSpec* Runtime::Impl::select_motion(NodeId id, std::size_t slot, bool
     // flight, an undo's order) unless the presentation says its changes spring at its pace too (a show
     // played, each change seen over its beat: its words morphed glyph by glyph, its places sprung) — only
     // a node whose drawing changed reaches that slot. The window's root is never one (it would move the
-    // whole window).
-    const bool presenting = id != root && clock.now().count() < design_until;
+    // whole window), nor what a slot that reports on the design holds (a replay's card: set_slot_presented).
+    const bool presenting = id != root && clock.now().count() < design_until && presented(id);
     if (presenting && (slot == 1 || slot == 2 || (slot == 0 && design_changes)))
         return slot == 1 && !at(id).children.empty() ? &design_grow : &design_slots[slot];
     Node& n = at(id);
@@ -798,6 +798,24 @@ void Runtime::set_design_presentation(DesignPresentation presentation) {
 }
 
 Runtime::DesignPresentation Runtime::design_presentation() const noexcept { return impl_->design_presentation; }
+
+void Runtime::set_slot_presented(std::string_view slot, bool presented) {
+    std::vector<std::string>& apart = impl_->design_apart;
+    const auto it = std::ranges::find_if(apart, [&](const std::string& name) { return name == slot; });
+    if (presented && it != apart.end()) apart.erase(it);
+    else if (!presented && it == apart.end()) apart.emplace_back(slot);
+}
+
+bool Runtime::slot_presented(std::string_view slot) const {
+    return std::ranges::none_of(impl_->design_apart, [&](const std::string& name) { return name == slot; });
+}
+
+bool Runtime::Impl::presented(NodeId id) {
+    if (design_apart.empty()) return true;
+    NodeId top = id;  // the view mounted at a slot: the root's child it is under
+    while (alive(top) && alive(at(top).parent) && at(top).parent != root) top = at(top).parent;
+    return !alive(top) || std::ranges::none_of(design_apart, [&](const std::string& name) { return name == at(top).segment; });
+}
 
 void Runtime::present_design(seconds duration) {
     Impl& d = *impl_;

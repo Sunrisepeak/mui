@@ -574,6 +574,7 @@ struct Runtime::Impl {
     // Live Design's presentation: until when, and its recipes by slot (update, enter, exit).
     double                      design_until = -1;
     bool                        design_changes = false;  // its changes spring at its pace too (present_design's)
+    std::vector<std::string>    design_apart;            // slots whose views keep their own motion (set_slot_presented)
     std::array<MotionSpec, 3>   design_slots;
     MotionSpec                  design_grow;  // what a design step adds that holds others: it grows (W14 step 4)
     Runtime::DesignPresentation design_presentation;
@@ -772,6 +773,8 @@ struct Runtime::Impl {
     // holding nothing of its own (state, reorder, replace) falls back to the update slot's when `fallback`.
     [[nodiscard]] const MotionSpec* slot_motion(NodeId id, std::size_t slot, bool fallback = true);
     [[nodiscard]] const MotionSpec* select_motion(NodeId id, std::size_t slot, bool fallback);  // through Morphs::select
+    // Whether a design edit's presentation moves the node: not where its top-level slot keeps its own motion.
+    [[nodiscard]] bool presented(NodeId id);
     [[nodiscard]] const MotionSpec* update_motion(NodeId id) { return slot_motion(id, 0); }
     // Whether a change of its drawing is moved at all (any slot but enter and exit holds a morph).
     [[nodiscard]] bool moves_on_change(NodeId id) {

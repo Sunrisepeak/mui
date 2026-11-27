@@ -496,6 +496,12 @@ public:
     };
     void set_design_presentation(DesignPresentation presentation);
     [[nodiscard]] DesignPresentation design_presentation() const noexcept;
+    // Whether a design edit's presentation moves what is mounted at `slot` (every slot's view, unless said so): a view
+    // that reports on the design rather than being part of it — a replay's card and course, a maker's note, the
+    // agents' presence — is not presented and keeps its own motion (its caption read as it changes, its course at the
+    // step). Kept for the slot's name, mounted or not.
+    void set_slot_presented(std::string_view slot, bool presented);
+    [[nodiscard]] bool slot_presented(std::string_view slot) const;
     void set_record_level(RecordLevel level);
     [[nodiscard]] RecordLevel record_level() const noexcept;
     // What was recorded of the input events after `since` (a cause; 0: all

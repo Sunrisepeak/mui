@@ -64,8 +64,43 @@ What the numbers are of:
 - **Only oweb writes what an agent that only fetches reads**: each route's Markdown beside it and `llms.txt`, from the same tree as the page. As set up here — their defaults — the others write neither.
 - **The build**: 27 ms against mdBook's 41, both a process's start for eight routes. An earlier run of this day (five single builds, the machine at load 19) could not tell them apart — one round of five had oweb the slower, and the ledger judged it behind by the interval's lower end; a round times three builds since.
 
+## A thousand pages
+
+Eight routes are a build's start: every side's time above is mostly its own start-up. How a build grows with the site is measured on a generated corpus:
+
+```sh
+omui-devtools bench sites --no-install --scale 1000            # 1,000 pages and a first page
+omui-devtools bench sites --no-install --scale 1000 --ledger
+```
+
+The pages are three of the documents' (`start.md`, `ui.md`, `agent.md`: their words as they are, each its own title, their links between pages and their pictures left out so that one text serves every side), in directories of 50. Each side builds them with the navigation its own starter states for a site of that shape: mdBook a chapter a directory in `SUMMARY.md`, VitePress a collapsed sidebar group a directory, Starlight a collapsed group generated from each directory, oweb nothing (its navigation is the routes'). A build is from nothing written; three in a row, the median. One page deep in the site (`/s03/p0175/`) is read as each side wrote it.
+
+Measured 2026-11-27 (Linux x64, the same pins; 1-minute load 2 to 4):
+
+| side | build (ms) | ms a page | files | stored (kB) | a page stored (B) | a page sent (B) | links in the page |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| oweb | 1261 | 1.26 | 2008 | 15427.8 | 10662 | 2638 | 74 |
+| vitepress | 32418 | 32.42 | 3026 | 409826.8 | 401336 | 26964 | 1007 |
+| starlight | 3714 | 3.71 | 2046 | 172329.5 | 172391 | 14159 | 1012 |
+| mdbook | 2976 | 2.98 | 1036 | 31330.8 | 21955 | 5791 | 8 |
+
+As the ledger judges it (a later run of the day with other work on the machine, 1-minute load 3.6 at its start and 18.6 at its end: mdBook 4,257 ms, oweb 1,277 — the verdict is by the interval's lower end, which is the quiet run's ratio):
+
+| metric | against | ratio | verdict |
+|---|---|---:|---|
+| `site.scale.build.ms` | mdBook | 3.4× [2.4, 3.4] | ahead |
+| `site.scale.page.sent.bytes` | mdBook | 2.2× | ahead |
+| `site.scale.written.bytes` | mdBook | 2.0× | ahead |
+
+What the numbers are of:
+
+- **oweb's build was the slowest of the four before it was measured**: 13.2 s, and a page of 88.9 kB with 1,009 links — each page named every route, so a build grew with the square of the pages. A page now names its neighbourhood (the pages in its directory and in each directory above it, every other directory at those levels by its entry; [oweb's design §4.11](../../../../.agents/docs/2026-11-26-oweb-site-framework-design.md)), and a page written as its document alone is built and never laid out: 1.26 ms a page, the same bytes as with a layout.
+- **Starlight and VitePress write the whole sidebar into every page** (1,012 and 1,007 links; collapsed groups are still the page's HTML): a page of 172 kB and 401 kB, a site of 172 MB and 410 MB. Starlight's first build of the three took 6.9 s; the next two read its content cache.
+- **mdBook keeps its contents in one script** (`toc.js`, filled into each page; a page names 8 links itself, and a reader without scripts gets a page of the contents instead). Its build grows faster than its pages: at 4,000 pages 42.2 s (10.5 ms a page) against oweb's 6.8 s (1.7 ms a page — a page there names 134 links: 80 directories stand beside its own).
+- **Growth of oweb's**: 250 pages 0.30 s, 1,000 pages 1.26 s, 4,000 pages 6.8 s.
+
 ## What it does not say
 
-- **How a build grows with the site.** Eight routes are a build's start: every side's time here is mostly its own start-up (Node and Vite; a process and its fonts). A corpus of a thousand pages is the next measurement.
+- **That a page's navigation offers the same.** From a page of oweb's a reader reaches every page beside it and every directory in one step, any page in two; a sidebar with every page (theirs, with scripts or without) reaches any page in one.
 - **That the pages offer the same.** Their default themes carry a sidebar, a search box, a theme switch and their scripts; oweb's page without a program is the document with the site's navigation, the page's contents and the page before and after — its search is the command's and an agent's (`docs.search`, the index as data) until the page takes the program (`oweb-engine`), which has the box. Both of ours are in the table for that reason.
 - **Other browsers, other connections.** Chromium only; one profile.

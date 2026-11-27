@@ -1040,6 +1040,51 @@
         "mdbook"
       ],
       "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.scale.build.ms",
+      "about": "a site of 1,001 pages in directories of 50, made from the minimal documents' pages and built by each side at its pin with the navigation its starter states for that shape (omui-devtools bench sites --scale 1000): the build's wall time, nothing written before it",
+      "better": "lower",
+      "key": "scale-1000",
+      "field": "build_ms",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.scale.page.sent.bytes",
+      "about": "a site of 1,001 pages in directories of 50, made from the minimal documents' pages and built by each side at its pin with the navigation its starter states for that shape (omui-devtools bench sites --scale 1000): one page deep in the site, its HTML as a static host sends it (gzip)",
+      "better": "lower",
+      "key": "scale-1000",
+      "field": "page_sent_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "oweb",
+      "id": "site.scale.written.bytes",
+      "about": "a site of 1,001 pages in directories of 50, made from the minimal documents' pages and built by each side at its pin with the navigation its starter states for that shape (omui-devtools bench sites --scale 1000): everything the build wrote, as stored",
+      "better": "lower",
+      "key": "scale-1000",
+      "field": "written_bytes",
+      "ours": "oweb",
+      "competitors": [
+        "vitepress",
+        "starlight",
+        "mdbook"
+      ],
+      "status": "measured"
     }
   ]
 }

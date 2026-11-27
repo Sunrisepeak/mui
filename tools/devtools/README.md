@@ -178,6 +178,7 @@ omui-devtools check doors --page DIR [--path /ROUTE/] [--oweb PATH] [--omui PATH
 omui-devtools bench sites                      # every side, the catalogue's rounds; npm installs their pins into target/bench-sites
 omui-devtools bench sites --no-install --rounds 1 --only oweb,mdbook
 omui-devtools bench sites --no-install --ledger
+omui-devtools bench sites --no-install --scale 1000   # how a build grows with the site: 1,000 pages made from the documents', built by each side
 ```
 
 `omui-devtools bench material3 OUT` captures Material 3's controls in four states from their page (`tests/bench/competitors/compare/material3`, once bundled), the competitor's side of the controls' review.

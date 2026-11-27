@@ -356,6 +356,247 @@ json visit(const Visiting& how, const std::string& url, const SiteRoute& route, 
 
 std::string kilobytes(double bytes) { return std::format("{:.1f}", bytes / 1000.0); }
 
+// The machine's state, said on the ledger's records: other work on it moves the times, not the bytes.
+std::string load_now(const fs::path& root) {
+    // As uptime says it ("load average: 1.33, 2.29, 1.76"): the first.
+    const std::string said = run::output(root, "uptime", {}).value_or("");
+    const std::size_t at = said.find("average:");
+    if (at == std::string::npos) return std::string("unknown");
+    const std::size_t from = said.find_first_not_of(' ', at + 8), to = said.find(',', at);
+    return from == std::string::npos ? std::string("unknown") : said.substr(from, to == std::string::npos ? to : to - from);
+}
+
+// The lead ledger (D-135): each measured metric these samples are of, judged by the ratio a round; only the
+// metrics whose own series is one of `series`. The ledger and its pages written unless `dry`.
+int judged_into_ledger(const fs::path& root, const fs::path& samples_path, const lead::Context& context, std::span<const std::string> series, bool dry) {
+    const auto failed = [](std::string_view why) {
+        std::cerr << "omui-devtools bench sites: " << why << '\n';
+        return 2;
+    };
+    std::vector<std::string> skipped;
+    const auto judged = lead::verdicts(mcpplibs::os::fs::read(root / lead::metrics_path).value_or(""), mcpplibs::os::fs::read(samples_path).value_or(""),
+                                       mcpplibs::os::fs::read(root / lead::ledger_path).value_or(""), context, skipped);
+    if (!judged) return failed(judged.error());
+    std::vector<std::string> records;
+    for (const auto& verdict : *judged) {
+        const auto record = json::parse(verdict.record, nullptr, false);
+        if (record.is_discarded() || !record.contains("ours")) continue;
+        if (!std::ranges::contains(series, record["ours"].value("name", ""))) continue;
+        std::cout << verdict.said << '\n';
+        records.push_back(verdict.record);
+    }
+    if (dry) return 0;
+    if (!lead::append(root / lead::ledger_path, records)) return failed("the ledger cannot be written");
+    const auto pages_written = lead::write_pages(root);
+    if (!pages_written) return failed(pages_written.error());
+    for (const auto& path : *pages_written) std::cout << std::format("wrote {}\n", path);
+    return 0;
+}
+
+// ---- how a build grows with the site (`--scale N`; oweb's design §4.11) ----
+//
+// A corpus of N pages made from three pages of the documents (their words as they are; each its own title, its
+// links between pages and its picture left out so that one text serves every side), in directories of
+// `directory` pages, and a first page. Each side builds it with the navigation its own starter would state for a
+// site of that shape: mdBook a chapter a directory in SUMMARY.md, VitePress a collapsed sidebar group a
+// directory, Starlight a group generated from each directory, oweb nothing (its navigation is the routes').
+// Measured: the build's wall time (the median of the catalogue's `builds`), what is written, and one page deep
+// in the site as stored and as sent. The report: target/bench-sites/scale.report.xdef.json.
+
+// A page's text with its links between pages and its pictures left out, and its first heading taken off.
+std::string plain_page(std::string_view text) {
+    static const std::regex picture(R"(!\[[^\]]*\]\([^)]*\))"), linked(R"(\[([^\]]*)\]\((?!https?:)[^)]*\))"), heading(R"(^# [^\n]*\n)");
+    std::string out = std::regex_replace(std::string(text), picture, "");
+    out = std::regex_replace(out, linked, "$1");
+    return std::regex_replace(out, heading, "", std::regex_constants::format_first_only);
+}
+
+struct ScalePage {
+    std::string file, title, body;  // "s03/p0150.md"
+};
+
+int scale(const fs::path& root, const json& catalogue, std::span<const std::string> only, int pages, bool install, bool ledger, bool dry) {
+    const auto failed = [](std::string_view why) {
+        std::cerr << "omui-devtools bench sites --scale: " << why << '\n';
+        return 2;
+    };
+    const json stated = catalogue.value("scale", json::object());
+    const int in_directory = std::max(1, stated.value("directory", 50));
+    const int builds = std::max(1, catalogue.value("builds", 1));
+    std::vector<std::string> sources;
+    for (const json& name : stated.value("sources", json::array({"start.md", "ui.md", "agent.md"}))) {
+        const auto text = read_text(root / text_of(catalogue, "corpus") / name.get<std::string>());
+        if (!text) return failed(text.error());
+        sources.push_back(plain_page(*text));
+    }
+    std::vector<ScalePage> corpus;
+    for (int index = 0; index < pages; ++index)
+        corpus.push_back({std::format("s{:02}/p{:04}.md", index / in_directory, index), std::format("Page {}", index), sources[static_cast<std::size_t>(index) % sources.size()]});
+    const int directories = (pages + in_directory - 1) / in_directory;
+    const std::string home = std::format("{} pages in {} directories, built to see how a build grows with a site.\n", pages, directories);
+    const fs::path work = fs::absolute(root) / "target/bench-sites" / std::format("scale-{}", pages);
+    std::error_code error;
+    // One page deep in the site, measured as each side wrote it.
+    const ScalePage& sampled = corpus[std::min<std::size_t>(corpus.size() - 1, static_cast<std::size_t>(in_directory) * 3 + static_cast<std::size_t>(in_directory) / 2)];
+    const std::string sampled_route = sampled.file.substr(0, sampled.file.size() - 3);
+
+    json reported = json::array();
+    // A build is a round's sample (`key`: "scale-<pages>"): what the ledger judges, side against side.
+    const fs::path samples_path = work / "scale.samples.xdef.jsonl";
+    fs::create_directories(work, error);
+    fs::remove(samples_path, error);
+    const std::string load_at_start = load_now(root);
+    for (const json& side : catalogue.at("sides")) {
+        const std::string series = text_of(side, "series"), build = text_of(side, "build");
+        if (side.value("engine", false) || (!only.empty() && !std::ranges::contains(only, series))) continue;
+        const fs::path directory = work / series;
+        fs::remove_all(directory, error);
+        fs::create_directories(directory, error);
+        Ready made;
+        made.cwd = directory;
+        // The pages where the side reads them; a title as front matter where the side takes it from there.
+        const auto place = [&](const fs::path& content, bool front_matter) {
+            const auto page = [&](std::string_view title, std::string_view body) {
+                return front_matter ? std::format("---\ntitle: {}\n---\n{}", title, body) : std::format("# {}\n{}", title, body);
+            };
+            bool written = write_text(content / "index.md", page(std::format("{} pages", pages), "\n" + home));
+            for (const ScalePage& one : corpus) written = written && write_text(content / one.file, page(one.title, one.body));
+            return written;
+        };
+        const auto of_directory = [&](int number) {
+            std::vector<const ScalePage*> out;
+            for (int index = number * in_directory; index < std::min(pages, (number + 1) * in_directory); ++index) out.push_back(&corpus[static_cast<std::size_t>(index)]);
+            return out;
+        };
+        fs::path page_file;
+        if (build == "oweb") {
+            const auto built = run::build(root, {"-p", "modules/projects/oweb", "--profile", "release"});
+            if (!built) return failed(built.error());
+            const auto program = std::ranges::find(*built, std::string("oweb"), &run::Artifact::name);
+            if (program == built->end()) return failed("the build of modules/projects/oweb gave no program `oweb`");
+            if (!place(directory / "pages", false)) return failed(std::format("{}: the corpus cannot be written", series));
+            made.program = utf8_of(program->path);
+            made.out = directory / "out";
+            made.args = {"site.build", "--site", utf8_of(directory), "--out", utf8_of(made.out)};
+            made.versions["oweb"] = run::commit(root);
+            page_file = made.out / sampled_route / "index.html";
+        } else {
+            const fs::path project = root / "tests/bench/competitors/sites" / text_of(side, "project");
+            fs::copy(project, directory, fs::copy_options::recursive | fs::copy_options::overwrite_existing, error);
+            if (error) return failed(std::format("{}: {}", utf8_of(directory), error.message()));
+            const fs::path content = directory / text_of(side, "content");
+            fs::remove_all(content, error);
+            made.out = directory / text_of(side, "out");
+            if (!place(content, series == "starlight")) return failed(std::format("{}: the corpus cannot be written", series));
+            page_file = made.out / (text_of(side, "address") == "html" ? sampled_route + ".html" : sampled_route + "/index.html");
+            if (build == "mdbook") {
+                std::string summary = std::format("# Summary\n\n[{} pages](index.md)\n\n", pages);
+                for (int number = 0; number < directories; ++number) {
+                    const auto held = of_directory(number);
+                    summary += std::format("- [{}]({})\n", held.front()->title, held.front()->file);
+                    for (const ScalePage* one : held | std::views::drop(1)) summary += std::format("  - [{}]({})\n", one->title, one->file);
+                }
+                if (!write_text(content / "SUMMARY.md", summary)) return failed("mdbook: SUMMARY.md cannot be written");
+                const auto version = run::output(root, "mdbook", {"--version"});
+                if (!version) return failed(std::format("mdbook is not on PATH: {}", version.error()));
+                made.versions["mdbook"] = *version;
+                made.program = "mdbook";
+                made.args = {"build"};
+            } else if (build == "npm") {
+                // Its tools as `bench sites` installed them beside the documents' project (the same pins).
+                const fs::path installed = fs::absolute(root) / "target/bench-sites" / series / "node_modules";
+                if (install || !fs::is_directory(installed, error)) {
+                    const auto done = run::program(root, "npm", {"install", "--no-audit", "--no-fund"}, {.cwd = directory, .merged = true, .timeout = std::chrono::seconds(900)});
+                    if (!done || done->status != 0) return failed(std::format("npm install in {} failed", utf8_of(directory)));
+                } else {
+                    fs::create_directory_symlink(installed, directory / "node_modules", error);
+                    if (error) return failed(std::format("{}: {}", utf8_of(directory / "node_modules"), error.message()));
+                }
+                std::string groups;
+                for (int number = 0; number < directories; ++number) {
+                    const auto held = of_directory(number);
+                    if (series == "starlight") {
+                        groups += std::format("        {{ label: \"Directory {}\", collapsed: true, items: [{{ autogenerate: {{ directory: \"s{:02}\" }} }}] }},\n", number, number);
+                        continue;
+                    }
+                    std::string items;
+                    for (const ScalePage* one : held) items += std::format("{{ text: \"{}\", link: \"/{}\" }}, ", one->title, one->file.substr(0, one->file.size() - 3));
+                    groups += std::format("  {{ text: \"Directory {}\", collapsed: true, items: [{}] }},\n", number, items);
+                }
+                const bool starlight = series == "starlight";
+                const std::string config =
+                    starlight ? std::format("import {{ defineConfig }} from \"astro/config\";\nimport starlight from \"@astrojs/starlight\";\n\nexport default defineConfig({{\n  integrations: [\n    "
+                                            "starlight({{\n      title: \"{} pages\",\n      sidebar: [\n{}      ],\n    }}),\n  ],\n}});\n",
+                                            pages, groups)
+                              : std::format("import {{ defineConfig }} from \"vitepress\";\n\nconst sidebar = [\n{}];\n\nexport default defineConfig({{ title: \"{} pages\", themeConfig: {{ sidebar, search: "
+                                            "{{ provider: \"local\" }} }} }});\n",
+                                            groups, pages);
+                if (starlight) {
+                    if (!write_text(directory / "astro.config.mjs", config)) return failed("starlight: its configuration cannot be written");
+                } else {
+                    for (const auto& entry : fs::directory_iterator(directory / "docs/.vitepress", error))
+                        if (utf8_of(entry.path().filename()).starts_with("config.")) fs::remove(entry.path(), error);
+                    if (!write_text(directory / "docs/.vitepress/config.mts", config)) return failed("vitepress: its configuration cannot be written");
+                }
+                made.program = "npm";
+                made.args = {"run", "--silent", "build"};
+                for (const auto& name : side.value("pins", json::array())) made.versions[name.get<std::string>()] = text_of(catalogue.at("pins").at(name.get<std::string>()), "version");
+            } else {
+                continue;
+            }
+        }
+        std::vector<double> timed;
+        for (int again = 0; again < builds; ++again) {
+            fs::remove_all(made.out, error);
+            const auto begun = Clock::now();
+            const auto built = run::program(root, made.program, made.args, {.cwd = made.cwd, .merged = true, .timeout = std::chrono::seconds(1800)});
+            timed.push_back(std::chrono::duration<double, std::milli>(Clock::now() - begun).count());
+            if (!built) return failed(std::format("{}: {}", series, built.error()));
+            if (built->status != 0) return failed(std::format("{}: its build failed ({}):\n{}", series, built->status, built->out.substr(built->out.size() > 2000 ? built->out.size() - 2000 : 0)));
+        }
+        const auto written = mlibs::delivery::measure(made.out);
+        if (!written) return failed(std::format("{}: {}", series, written.error()));
+        const auto page_text = read_text(page_file);
+        if (!page_text) return failed(std::format("{}: the page {} was not written ({})", series, sampled_route, utf8_of(page_file)));
+        std::size_t links = 0;
+        for (std::size_t at = 0; (at = page_text->find("<a ", at)) != std::string::npos; ++at) ++links;
+        for (std::size_t round = 0; round < timed.size(); ++round)
+            if (!lead::append(samples_path, std::vector{json{{"series", series},
+                                                             {"round", round + 1},
+                                                             {"key", std::format("scale-{}", pages)},
+                                                             {"build_ms", timed[round]},
+                                                             {"written_bytes", written->bytes},
+                                                             {"page_bytes", page_text->size()},
+                                                             {"page_sent_bytes", mlibs::delivery::gzip(*page_text, 9).size()}}
+                                                            .dump()}))
+                return failed("the samples cannot be written");
+        const double took = median_of(timed);
+        std::cout << std::format("  {:<10} {} pages built in {:>7.0f} ms ({:.2f} ms a page); {} files, {} kB stored; a page {} B stored, {} B sent, {} links\n", series, pages, took, took / pages,
+                                 written->files.size(), kilobytes(static_cast<double>(written->bytes)), page_text->size(), mlibs::delivery::gzip(*page_text, 9).size(), links)
+                  << std::flush;
+        reported.push_back({{"series", series},
+                            {"versions", made.versions},
+                            {"build_ms", {{"median", took}, {"least", std::ranges::min(timed)}, {"most", std::ranges::max(timed)}, {"builds", builds}}},
+                            {"written", {{"files", written->files.size()}, {"bytes", written->bytes}, {"sent", written->sent}}},
+                            {"page", {{"route", "/" + sampled_route + "/"}, {"bytes", page_text->size()}, {"sent", mlibs::delivery::gzip(*page_text, 9).size()}, {"links", links}}}});
+    }
+    if (reported.empty()) return failed("no side of the catalogue is named so");
+    const json report = {{"$format", "report@1"}, {"report", "bench-sites-scale"}, {"date", run::today()}, {"commit", run::commit(root)}, {"pages", pages + 1}, {"directory", in_directory}, {"sides", reported}};
+    write_text(work / "scale.report.xdef.json", cdp::pretty(report, 2) + "\n");
+    std::cout << "\n| side | build (ms) | ms a page | files | stored (kB) | a page stored (B) | a page sent (B) | links in the page |\n|---|---:|---:|---:|---:|---:|---:|---:|\n";
+    for (const json& side : reported)
+        std::cout << std::format("| {} | {:.0f} | {:.2f} | {} | {} | {} | {} | {} |\n", text_of(side, "series"), side["build_ms"]["median"].get<double>(), side["build_ms"]["median"].get<double>() / pages,
+                                 side["written"]["files"].get<std::size_t>(), kilobytes(side["written"]["bytes"].get<double>()), side["page"]["bytes"].get<std::size_t>(),
+                                 side["page"]["sent"].get<std::size_t>(), side["page"]["links"].get<std::size_t>());
+    if (!ledger) return 0;
+    lead::Context context = lead::context_here(root);
+    context.conditions = std::format("{} pages in directories of {}, each side's build from nothing written, {} in a row; 1-minute load {} at the start, {} at the end", pages + 1, in_directory, builds,
+                                     load_at_start, load_now(root));
+    std::vector<std::string> series;
+    for (const json& side : reported) series.push_back(text_of(side, "series"));
+    return judged_into_ledger(root, samples_path, context, series, dry);
+}
+
 }  // namespace
 
 mcpplibs::cmdline::App sites_command_line() {
@@ -368,6 +609,7 @@ mcpplibs::cmdline::App sites_command_line() {
         .option(Option("rounds").takes_value().value_name("N").help("a build and a pass of visits a side, the sides alternating (default: the catalogue's)"))
         .option(Option("no-install").help("their tools as they are installed in target/bench-sites (no npm install)"))
         .option(Option("no-visit").help("build and measure what is written; visit no page"))
+        .option(Option("scale").takes_value().value_name("PAGES").help("how a build grows with the site instead: a corpus of that many pages made from the documents', built by each side (no visits)"))
         .option(Option("ledger").help("judge the rounds' samples into the lead ledger and write its pages (with every side, visited)"))
         .option(Option("dry-run").help("with --ledger: print the verdicts; write the samples, not the ledger"));
 }
@@ -387,6 +629,13 @@ int sites(const fs::path& root, const mcpplibs::cmdline::ParsedArgs& given) {
     if (const auto named = given.value("only"))
         for (const auto part : std::views::split(*named, ','))
             if (!std::ranges::empty(part)) only.emplace_back(part.begin(), part.end());
+    if (const auto asked = given.value("scale")) {
+        int pages = 0;
+        if (std::from_chars(asked->data(), asked->data() + asked->size(), pages).ec != std::errc{} || pages < 1) return failed("--scale takes a count of pages");
+        const bool judged = given.is_flag_set("ledger");
+        if (judged && !only.empty()) return failed("--ledger judges every side: without --only");
+        return scale(root, catalogue, only, pages, !given.is_flag_set("no-install"), judged, given.is_flag_set("dry-run"));
+    }
     int rounds = catalogue.value("rounds", 5);
     const int builds = std::max(1, catalogue.value("builds", 1));
     if (const auto asked = given.value("rounds")) {
@@ -433,16 +682,7 @@ int sites(const fs::path& root, const mcpplibs::cmdline::ParsedArgs& given) {
     }
     if (sides.empty()) return failed("no side of the catalogue is named so");
 
-    // The machine's state, said on the ledger's records: other work on it moves the times, not the bytes.
-    const auto load_now = [&] {
-        // As uptime says it ("load average: 1.33, 2.29, 1.76"): the first.
-        const std::string said = run::output(root, "uptime", {}).value_or("");
-        const std::size_t at = said.find("average:");
-        if (at == std::string::npos) return std::string("unknown");
-        const std::size_t from = said.find_first_not_of(' ', at + 8), to = said.find(',', at);
-        return from == std::string::npos ? std::string("unknown") : said.substr(from, to == std::string::npos ? to : to - from);
-    };
-    const std::string load_at_start = load_now();
+    const std::string load_at_start = load_now(root);
     const fs::path samples_path = work / "sites.samples.xdef.jsonl";
     fs::remove(samples_path, error);
     for (int round = 1; round <= rounds; ++round) {
@@ -589,27 +829,10 @@ int sites(const fs::path& root, const mcpplibs::cmdline::ParsedArgs& given) {
     lead::Context context = lead::context_here(root);
     context.display = std::format("headless Chromium, {} × {}", how.width, how.height);
     context.conditions = std::format("the connection {} (megabits a second / round trip in ms), the processor slowed {}×; a cold visit a route, a browser of its own each; 1-minute load {} at the start, {} at the end",
-                                     text_of(catalogue, "network"), catalogue.value("cpu", 1.0), load_at_start, load_now());
-    std::vector<std::string> skipped;
-    const auto judged = lead::verdicts(mcpplibs::os::fs::read(root / lead::metrics_path).value_or(""), mcpplibs::os::fs::read(samples_path).value_or(""),
-                                       mcpplibs::os::fs::read(root / lead::ledger_path).value_or(""), context, skipped);
-    if (!judged) return failed(judged.error());
-    std::vector<std::string> records;
-    for (const auto& verdict : *judged) {
-        const auto record = json::parse(verdict.record, nullptr, false);
-        if (record.is_discarded() || !record.contains("ours")) continue;
-        // Only this run's metrics: those whose series these sides are.
-        const std::string ours = record["ours"].value("name", "");
-        if (std::ranges::none_of(sides, [&](const Running& side) { return side.series == ours; })) continue;
-        std::cout << verdict.said << '\n';
-        records.push_back(verdict.record);
-    }
-    if (given.is_flag_set("dry-run")) return 0;
-    if (!lead::append(root / lead::ledger_path, records)) return failed("the ledger cannot be written");
-    const auto pages_written = lead::write_pages(root);
-    if (!pages_written) return failed(pages_written.error());
-    for (const auto& path : *pages_written) std::cout << std::format("wrote {}\n", path);
-    return 0;
+                                     text_of(catalogue, "network"), catalogue.value("cpu", 1.0), load_at_start, load_now(root));
+    std::vector<std::string> series;
+    for (const Running& side : sides) series.push_back(side.series);
+    return judged_into_ledger(root, samples_path, context, series, given.is_flag_set("dry-run"));
 }
 
 }  // namespace omui::devtools::bench

@@ -125,6 +125,93 @@ const Route* translated(std::span<const Route> routes, const Route& route, std::
     return found == routes.end() ? nullptr : &*found;
 }
 
+// A route's address below its language's own part ("/zh/guide/start/": "/guide/start/"; the site's first language
+// has no part), and the directory an address stands in ("/guide/start/": "/guide/"; the first page's: "/").
+std::string_view bare_of(const Route& route, const SiteOptions& options) {
+    const std::string_view first = options.languages.empty() ? std::string_view("en") : std::string_view(options.languages.front());
+    std::string_view bare = route.path;
+    if (route.language != first && bare.starts_with(std::format("/{}/", route.language))) bare.remove_prefix(route.language.size() + 1);
+    return bare;
+}
+std::string_view directory_of(std::string_view bare) {
+    if (bare.size() <= 1) return "/";
+    return bare.substr(0, bare.rfind('/', bare.size() - 2) + 1);
+}
+
+// The routes a page's navigation names (oweb's design §4.11): not the site — a site of a thousand pages would
+// write a thousand links into each of them, and a build's time and what it writes would grow with the square of
+// the pages — but the page's neighbourhood, among its language's routes: the pages in its own directory and in
+// each directory above it (a directory's own page stands in it), and for every other directory at those levels
+// its entry — the directory's own page, or where it has none its first page in the routes' order. From any page: one step to every page beside it and
+// to every directory beside its own or above; the site's whole list is its routes' table (and llms.txt). The
+// routes' order is kept. A site whose pages stand in one directory names them all, as before.
+// Read once for the routes (`Places`): finding a page's neighbourhood by passing over the routes would again be a
+// build that grows with the square of the pages.
+class Places {
+public:
+    Places(std::span<const Route> routes, const SiteOptions& options) : routes_(routes), options_(&options) {
+        for (std::size_t index = 0; index < routes.size(); ++index) {
+            const std::string_view bare = bare_of(routes[index], options);
+            // The page stands in its directory; it is the first of that directory and of each above it that has
+            // none yet, and each of those is a directory of the one above.
+            std::string_view directory = directory_of(bare);
+            at(routes[index].language, directory).pages.push_back(index);
+            while (directory.size() > 1) {
+                Directory& entered = at(routes[index].language, directory);
+                const bool known = entered.first != none;
+                if (!known) entered.first = index;
+                const std::string_view above = directory_of(directory);
+                if (!known) at(routes[index].language, above).directories.push_back(directory);
+                directory = above;
+            }
+        }
+        for (std::size_t index = 0; index < routes.size(); ++index) {
+            const std::string_view bare = bare_of(routes[index], options);
+            if (const auto own = directories_.find(key(routes[index].language, bare)); own != directories_.end() && bare.size() > 1) own->second.own = true;
+        }
+    }
+
+    [[nodiscard]] std::vector<const Route*> beside(const Route& page) const {
+        // The directory the page stands in; a directory's own page (a page with pages below it) stands in that
+        // directory: it names its pages.
+        std::string_view here = bare_of(page, *options_);
+        if (!directories_.contains(key(page.language, here))) here = directory_of(here);
+        std::vector<std::size_t> named;
+        for (std::string_view directory = here;; directory = directory_of(directory)) {
+            if (const auto found = directories_.find(key(page.language, directory)); found != directories_.end()) {
+                // The pages in it; and each directory in it that the page is not in, by its own page (among those
+                // pages already) or the first of its pages.
+                named.insert(named.end(), found->second.pages.begin(), found->second.pages.end());
+                for (const std::string_view inside : found->second.directories) {
+                    if (here.starts_with(inside)) continue;
+                    const Directory& other = directories_.at(key(page.language, inside));
+                    if (!other.own) named.push_back(other.first);
+                }
+            }
+            if (directory.size() <= 1) break;
+        }
+        std::ranges::sort(named);
+        std::vector<const Route*> out;
+        for (const std::size_t index : named) out.push_back(&routes_[index]);
+        return out;
+    }
+
+private:
+    static constexpr std::size_t none = static_cast<std::size_t>(-1);
+    struct Directory {
+        std::vector<std::size_t>      pages;        // the routes standing in it, in their order
+        std::vector<std::string_view> directories;  // the directories in it (their addresses are the routes' own text)
+        std::size_t                   first = none; // the first route in it or below
+        bool                          own = false;  // a route is its own page ("/guide/" for "/guide/…")
+    };
+    static std::string key(std::string_view language, std::string_view directory) { return std::format("{}\n{}", language, directory); }
+    Directory& at(std::string_view language, std::string_view directory) { return directories_[key(language, directory)]; }
+
+    std::span<const Route>                     routes_;
+    const SiteOptions*                         options_;
+    std::unordered_map<std::string, Directory> directories_;
+};
+
 // When a page takes its program (D-260).
 bool takes(std::string_view load) { return load == "eager" || load == "idle" || load == "interaction"; }
 
@@ -346,8 +433,8 @@ std::string said_of(std::span<const Route> routes, const Route& route, const Sit
 // A page evaluated from its text and written. `base` is stated for the page a host answers a lost address with: it
 // is served at any address, so its links are from the site's own and the document says where that is; it has no
 // contents of its own to choose between and no page before or after.
-std::expected<Page, std::string> written(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& given, std::string_view page_text,
-                                         std::string_view base) {
+std::expected<Page, std::string> written(const std::filesystem::path& site, std::span<const Route> routes, const Places& places, const Route& route, const SiteOptions& given,
+                                         std::string_view page_text, std::string_view base) {
     using namespace omui;
     const bool lost = !base.empty();
     // A site with a program: its pages look as the program draws them. The page for a lost address is served at any
@@ -357,7 +444,9 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
     const bool engine = !options.engine.empty() && !lost;
 
     // The page as an interface: the navigation the routes give (a site of one page has none) and its document.
-    Headless host({.level = options.look ? HeadlessLevel::pixels : HeadlessLevel::layout, .size = {960, 1200}, .fonts = &site_fonts()});
+    // Written as its document alone it is its tree: built and reconciled, never laid out (no text is set, no box
+    // placed — two fifths of a build's time, and nothing the HTML or the Markdown says). With a look it is drawn.
+    Headless host({.level = options.look ? HeadlessLevel::pixels : HeadlessLevel::semantics, .size = {960, 1200}, .fonts = &site_fonts()});
     if (options.look) {
         // Its look is read from what the frame drew: all of it, in each scheme a reader may prefer.
         host.runtime().set_draws_unseen(true);
@@ -368,9 +457,8 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         const auto page_link = [&](const Route& to) {
             return shell::Link{std::format("r{}", &to - routes.data()), relative(route.path, to.path), to.title};
         };
-        // The site's own language first, then each language's pages together.
-        for (const Route& other : routes)
-            if (other.language == route.language) parts.pages.push_back(page_link(other));
+        // The site's own language first: the page's neighbourhood among its routes, not the site (`beside`).
+        for (const Route* other : places.beside(route)) parts.pages.push_back(page_link(*other));
         // Each other language: this page in it where the site has it, that language's first page where not.
         for (const std::string& language : options.languages) {
             if (language == route.language) continue;
@@ -719,17 +807,19 @@ std::expected<std::string, std::string> source_text(const std::filesystem::path&
     return mlibs::control::gen::emit_catalog_markdown(*catalog);
 }
 
-std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options) {
+namespace {
+
+std::expected<Page, std::string> evaluated(const std::filesystem::path& site, std::span<const Route> routes, const Places& places, const Route& route, const SiteOptions& options) {
     const auto text = source_text(site, route);
     if (!text) return std::unexpected(text.error());
-    if (route.page.empty()) return written(site, routes, route, options, *text, {});
+    if (route.page.empty()) return written(site, routes, places, route, options, *text, {});
     // An application's page. Its document is evaluated as any page's — its sections for the search, its Markdown
     // for a reader that only fetches, its links checked — and the page served is the one its build wrote, saying in
     // its head what every route says. It is drawn by its own program: no look or face of the site's is its.
     SiteOptions plain = options;
     plain.look = false;
     plain.engine.clear();
-    auto page = written(site, routes, route, plain, *text, {});
+    auto page = written(site, routes, places, route, plain, *text, {});
     if (!page) return page;
     const std::filesystem::path file = adopted_of(site, route) / "index.html";
     auto html = read(file);
@@ -741,7 +831,13 @@ std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std
     return page;
 }
 
-std::expected<Page, std::string> lost_page(const std::filesystem::path& site, std::span<const Route> routes, const SiteOptions& options) {
+}  // namespace
+
+std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options) {
+    return evaluated(site, routes, Places(routes, options), route, options);
+}
+
+std::expected<Page, std::string> lost_page(const std::filesystem::path& site, std::span<const Route> routes, const Places& places, const SiteOptions& options) {
     if (routes.empty()) return std::unexpected("a site without a route has no page for a lost address");
     // The site's own (pages/404.md), or one that says so and leads home, in the site's first language.
     Route route;
@@ -767,7 +863,7 @@ std::expected<Page, std::string> lost_page(const std::filesystem::path& site, st
         if (block.kind == md::Kind::heading) route.headings.push_back({block.level, md::plain_text(block), block.anchor});
     });
     route.title = route.headings.empty() ? std::string("404") : route.headings.front().text;
-    return written(site, routes, route, options, text, base_of(options.url));
+    return written(site, routes, places, route, options, text, base_of(options.url));
 }
 
 std::string routes_json(std::span<const Route> routes, const SiteOptions& options) {
@@ -827,8 +923,9 @@ std::expected<std::vector<Section>, std::string> sections_of(const std::filesyst
     const auto routes = collect(site, options);
     if (!routes) return std::unexpected(routes.error());
     std::vector<Section> sections;
+    const Places places(*routes, options);
     for (const Route& route : *routes) {
-        auto page = evaluate(site, *routes, route, options);
+        auto page = evaluated(site, *routes, places, route, options);
         if (!page) return std::unexpected(page.error());
         std::ranges::move(page->sections, std::back_inserter(sections));
     }
@@ -857,15 +954,16 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     std::vector<Page> pages;
     std::string problems;
     std::size_t found = 0;
+    const Places places(*routes, options);
     for (const Route& route : *routes) {
-        auto page = evaluate(site, *routes, route, options);
+        auto page = evaluated(site, *routes, places, route, options);
         if (!page) return std::unexpected(page.error());
         for (const std::string& problem : page->problems)
             if (++found <= 12) problems += std::format("\n  {}", problem);
         pages.push_back(std::move(*page));
     }
     // What a static host answers a lost address with (GitHub Pages: 404.html at the site's top).
-    auto lost = lost_page(site, *routes, options);
+    auto lost = lost_page(site, *routes, places, options);
     if (!lost) return std::unexpected(lost.error());
     for (const std::string& problem : lost->problems)
         if (++found <= 12) problems += std::format("\n  {}", problem);

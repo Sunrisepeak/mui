@@ -74,7 +74,8 @@ ShadowToken shadow(float y, float blur, float spread, Color color, float tint, S
 }
 }  // namespace
 
-Theme Theme::light() {
+namespace {
+Theme light_theme() {
     Theme t;
     t.name = "light";
     t.dark = false;
@@ -135,6 +136,13 @@ Theme Theme::light() {
     t.shadows["thumb_halo:pressed"] = halo(12, 0.22f);
     common(t);
     return t;
+}
+}  // namespace
+
+// Built once a process and copied: a runtime begins with it, a host states it, a site's build makes a host a page.
+Theme Theme::light() {
+    static const Theme built = light_theme();
+    return built;
 }
 
 Theme Theme::dark_theme() {
@@ -306,7 +314,8 @@ std::span<const ComponentMotionRecipe> default_component_motion_recipes() {
     return recipes;
 }
 
-std::vector<MotionRule> default_motion_rules() {
+namespace {
+std::vector<MotionRule> built_motion_rules() {
     const auto library = default_motion_library();
     auto preset = [&](std::string_view name) {
         if (name == "none") return MotionSpec{.kind = MotionSpec::Kind::none};
@@ -329,8 +338,16 @@ std::vector<MotionRule> default_motion_rules() {
     for (auto& rule : rules) rule.layer = MotionRule::Layer::framework;
     return rules;
 }
+}  // namespace
 
-std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
+// Every Theme begins with them: built once a process (the library read, each rule named), then copied.
+std::vector<MotionRule> default_motion_rules() {
+    static const std::vector<MotionRule> rules = built_motion_rules();
+    return rules;
+}
+
+namespace {
+std::map<std::string, MotionSpec, std::less<>> built_motion_library() {
     std::map<std::string, MotionSpec, std::less<>> lib;
     MotionSpec morph;  // a spring, the runtime's standard one
     morph.name = "morph";
@@ -407,6 +424,12 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     // out of its strokes, left to right, the strokes unwritten as they go; and back.
     add("gather", compose_motion({P::match_drawing, P::fade, P::gather}, Transition::tween(hanim::seconds(1.2), hanim::ease::standard)));
     return lib;
+}
+}  // namespace
+
+std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
+    static const std::map<std::string, MotionSpec, std::less<>> library = built_motion_library();
+    return library;
 }
 
 namespace {

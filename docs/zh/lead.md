@@ -84,6 +84,9 @@
 | oweb | `site.written.bytes` | oweb 91025 | mdbook 1.12953e+06 | 12.41× [12.41, 12.41] | **far_ahead** |
 | oweb | `site.engine.route.transfer.bytes` | oweb-engine 2.45363e+06 | starlight 53891 | 0.02× [0.02, 0.02] | **behind** |
 | oweb | `site.engine.build.ms` | oweb-engine 688.912 | mdbook 40.5365 | 0.06× [0.06, 0.07] | **behind** |
+| oweb | `site.scale.build.ms` | oweb 1277.11 | mdbook 4256.81 | 3.37× [2.43, 3.39] | **ahead** |
+| oweb | `site.scale.page.sent.bytes` | oweb 2638 | mdbook 5791 | 2.20× [2.20, 2.20] | **ahead** |
+| oweb | `site.scale.written.bytes` | oweb 1.54278e+07 | mdbook 3.13308e+07 | 2.03× [2.03, 2.03] | **ahead** |
 
 ## 标志性特性
 

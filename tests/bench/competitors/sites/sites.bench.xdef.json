@@ -10,6 +10,7 @@
   "viewport": { "width": 412, "height": 823 },
   "quiet_ms": 2000,
   "timeout_ms": 90000,
+  "scale": { "about": "`--scale N`: how a build grows with the site — N pages made from these pages of the corpus (their links between pages and pictures left out, each its own title), `directory` to a directory, built by each side with the navigation its starter would state for that shape", "sources": ["start.md", "ui.md", "agent.md"], "directory": 50 },
   "routes": [
     { "path": "/", "source": "index.md", "says": "every page here is one semantic tree" },
     { "path": "/start/", "source": "start.md", "says": "Ten minutes: the tools, an application, running it." },

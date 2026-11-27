@@ -230,3 +230,21 @@
 **三级次序。** ① 页面不做类型检查：`declare` 是桌面的事，Web 上的 TypeScript 语言不带它（`declaring()` 按平台给：`src/checker/` 只在桌面编译，`src/native/web/declaring.cpp` 给空的），声明随之离开 Web 程序，不是放在旁边。Agent 写脚本要读的 API（`describe`，`design.api`）不动：它用 `components_of` 与 `ts::declare_components`，留在两边共用的单元里。② 把声明放在旁边、第一次读时取回（§13.2 的机制）：Web 上没有读的一方，取回也是多余的；不取。③ 无。
 
 **结果**（官网，同 §7 的步骤，Chromium 159 无头，本机）：首帧之前 1,372,935 → 1,357,344（−15,591），合计 2,783,729 → 2,759,557（−24,172），首帧 870 → 860 ms；`check site path` 27/27；前一半的数据段里三段声明都不在了，符号表里没有 `declare_typescript`。阅读器不带 TS，不变。`mcpp test -p omui.lang.js`（32 例，含声明的写出）。
+
+### 13.2 程序自己读的数据：放在旁边，第一次读之前放回（`mlibs.apart` 的第二种）
+
+**事实。** 每个操作目录（ops-gen 生成）都带一份清单（`<产品>.ops.json`，JSON 原文），Agent 的 `describe … detail: full` 原样回答它；AG5 之后，Web 宿主的端点是内核的 `agent::ProcessSession`，页面的 WebMCP 在浏览器有 `document.modelContext` 时每个主体问一次清单。阅读器里有两份：omui.agent 的 `ui`（`omui.ops.json`，23.5 KB 原样）与阅读器自己的 `site`（3.1 KB）；官网里是 `ui` 那一份（设计器与生成的清单只有命令行工具读，没有链接进页面）。一个从不问 Agent 的页面也取了它们。
+
+**设计。** §7 的“放在旁边”只给页面一侧（JS）读的数据；这里是 C++ 读的：
+- *谁先读。* 清单只在一处被读：内核回答 `describe … detail: full` 时（`mlibs.agent` 的 `subject.cpp`，经由 `Subject::listing()`）。那里改成 `mlibs::apart::present(listing)`：区域的第一个字节是它自己的（JSON 以 `{` 开头）就原样回答；是 0（打包器拿走了）就先请宿主放回再回答；放不回就当没有清单，回答主体的简述。
+- *原生与无头测试照旧。* 没有谁装放回的办法（`bring_with`），也没有谁拿走过：原生构建、无头测试、没打包的页面里，区域就在原处，`present` 当场返回。
+- *页面。* `omui.sdk` 的 Web 运行（`shown`）装上放回的办法：`src/js/omui_apart.js` 向加载器要这一种（`Module.omuiApart.texts('data')`，第一次要时才取那个文件），把每段按地址写回程序的内存。之后再读，第一个字节已经不是 0，不再取。
+- *从不问的页面。* 什么都不付：文件不取，代码只多一个函数。
+- *生成。* ops-gen 把清单写在标记之后（一个模块内的数组，导出的 `listing` 是指向它的视图，导出面只换了初始化的写法）；仓库里 27 个目录全部重新生成，它们的导出面重写（lint `api`）。
+- *为什么不是“页面在加载时取”。* §7 的着色器在加载时由设备决定取哪一套；清单要等 Agent 来问，问的时机（WebMCP、连上的 Agent）在程序之外，提前取就是让不问的页面也付。第一次问时同步取一次（与 §4 的第二部分同一个后备办法）。
+
+**三级次序。** ① 如上：清单只有一个读的地方，打包器本来就能把数据放在旁边，宿主本来就是页面与程序之间的那一层。② 让 WebMCP 在 JS 里直接读清单文件、不经 C++：清单只是 `describe` 的一种回答，绕开内核就成了第二条路（权限与主体的判定都在内核里），不取。③ 各家的做法是把工具清单编进程序，或由服务端提供；没有取。
+
+**结果**（阅读器，同 §7 的步骤）：第一部分 1,639,127 → 1,634,870（−4,257），launcher 54,487 → 54,663（+176，放回的 JS）；一个没有示例、CPU 画、不问 Agent 的页面 1,693,614 → 1,689,533（−4,081）；清单文件 `data.json` 26,319 B 原样、5,278 B gzip，只有 Agent 来问时取。`check takeover` `/start/` 7/7、`/live/` 8/8。`site drive`（`/start/`）：问之前 `omuiApartState` 里没有 `data`（没取）；`subjects` 是 `ui` 与 `site`，两者的 `describe … detail: full` 都完整回来（`site` 4 个工具、`omui` 32 个），之后 `omuiApartState.data` 是 `synchronous`（取了一次）。
+
+官网（同 §7 的步骤）：首帧之前 1,357,344 → 1,352,304（−5,040），合计 2,759,557 → 2,754,697，首帧 864 ms；`check site path` 27/27（其中访客的 Agent 经 `omui connect` 连上并操作页面）。剩下的 Agent 文字——目录表里的说明、参数的说明、入门的任务（`CatalogEntry`、`Guide`）——由派发与 `describe` 的简述在很多处读，要逐处经由 `present`；没做，见 §13.5。

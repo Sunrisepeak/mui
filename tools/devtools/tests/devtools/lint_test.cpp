@@ -45,6 +45,6 @@ static UTest cases{"devtools.lint", [] {
         const auto kept = lint::select({{"macros", "a.cpp:1", "one"}, {"layout", "b", "two"}, {"macros", "c.cpp:2", "three"}}, only);
         expect(eq(kept.size(), std::size_t{2}));
         for (const auto& problem : kept) expect(eq(problem.rule, std::string("macros")));
-        expect(eq(lint::rules().size(), std::size_t{46}));
+        expect(eq(lint::rules().size(), std::size_t{47}));
     };
 }};

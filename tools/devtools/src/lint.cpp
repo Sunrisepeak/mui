@@ -90,6 +90,7 @@ constexpr Rule all_rules[]{
     {"platform-table", "every cell of docs/release.platforms.xdef.json is real, software, unverified or unsupported, with its evidence or need (D-201)"},
     {"docs-code", "a guide's code is a member's file CI runs (<!-- code: file#region -->) or ```sh; en and zh keep the same headings (plan §6.3)"},
     {"api", "a package's committed api.omui.txt is its exported surface now (omui-devtools api -p MEMBER --write)"},
+    {"workflows", "a workflow's plain value holds no `: ` — the file would not parse, and nothing of it would run (quote it or say it otherwise)"},
 };
 
 bool starts_with_any(std::string_view text, std::span<const char* const> prefixes) {
@@ -444,6 +445,44 @@ std::vector<Problem> run_with(const fs::path& root, std::span<const std::string>
         if (*committed != api::surface(directory, api::interface_globs(member.text)))
             problems.push_back({"api", member.path + "/api.omui.txt", std::format("not the package's surface now: omui-devtools api -p {} --write", member.path)});
     }
+    // workflows: a value written plain (not quoted, not a block) that holds a colon and a space ends there as YAML
+    // reads it — the file is then no workflow, none of its jobs run, and the push says so only on the host. Found
+    // before the push: a step's `name:` with a colon in its sentence is the usual one.
+    {
+        std::error_code walked;
+        std::vector<fs::path> files;
+        for (const auto& entry : fs::directory_iterator(root / ".github/workflows", walked))
+            if (entry.path().extension() == ".yml" || entry.path().extension() == ".yaml") files.push_back(entry.path());
+        std::ranges::sort(files);
+        static const std::regex keyed(R"(^( *)(- )?([A-Za-z0-9_.-]+): +(.*)$)");
+        for (const fs::path& file : files) {
+            const auto text = read_text(file);
+            if (!text) continue;
+            int line_number = 0;
+            std::optional<std::size_t> block;  // the indentation of the key whose value is a block (`run: |`): its lines are text
+            for (const auto part : std::views::split(*text, '\n')) {
+                ++line_number;
+                const std::string line(part.begin(), part.end());
+                const std::size_t indent = line.find_first_not_of(' ');
+                if (indent == std::string::npos) continue;
+                if (block && indent > *block) continue;
+                block.reset();
+                if (line[indent] == '#') continue;
+                std::smatch found;
+                if (!std::regex_match(line, found, keyed)) continue;
+                const std::string value = found[4].str();
+                if (value.starts_with('|') || value.starts_with('>')) {
+                    block = indent + found[2].length();
+                    continue;
+                }
+                if (std::string_view("'\"[{&*!").contains(value.front())) continue;
+                const std::string plain = value.substr(0, value.find(" #"));
+                if (plain.contains(": ") || plain.ends_with(':'))
+                    problems.push_back({"workflows", std::format(".github/workflows/{}:{}", utf8_of(file.filename()), line_number),
+                                        std::format("`{}:` is written plain and holds a colon and a space: YAML ends the value there and the file does not parse — quote it or say it otherwise", found[3].str())});
+            }
+        }
+    }
     return select(std::move(problems), only);
 }
 
@@ -630,6 +669,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {"lead", ".agents/docs/evaluation/lead.features.xdef.json",
          R"({"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]})"},
         {"api", "modules/ui/core/api.omui.txt", "module openmui.core\n  void gone();\n"},
+        {"workflows", ".github/workflows/x.yml", "name: X\njobs:\n  a:\n    steps:\n      - name: Built, then checked: one answer\n        run: |\n          echo \"a: b\"\n"},
     };
     // The owners' samples come from the repository's own table.
     const fs::path table = owners_file(repository);

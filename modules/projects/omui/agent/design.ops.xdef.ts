@@ -346,6 +346,17 @@ export default defineOps({
       cost: "bounded",
     },
     {
+      name: "design.feedback",
+      effect: "reversible",
+      summary: "Whether a committed edit is marked where it changed (work presentation, D-283): a ring for a moment around each node it added or changed, and an agent's mark moved to the first — over the application, never delaying the edit's own frame; edits coming fast and less motion keep only the mark. On by default; asked with no `on`, says whether it is",
+      params: [
+        { name: "on", type: "bool", doc: "on (true) or off (false)", optional: true },
+      ],
+      result: "json",
+      undo: "design.feedback with `on` as it was (its answer says it)",
+      cost: "instant",
+    },
+    {
       name: "design.handover",
       effect: "read",
       summary: "Hands the floor to the person: they try the design; what they do from now, done, can be saved as a scenario (design.save_scenario)",

@@ -177,13 +177,65 @@ private:
         // What the step does in its maker's words (`say`), else what it did, mechanically.
         if (const Value* say = by ? by->args.get("say") : nullptr; say && say->type() == Value::Type::text && !say->as_string().empty())
             what = std::string(say->as_string());
-        auto commit = history.commit(design_texts(), intent.empty() ? std::move(what) : std::format("{} — {}", intent, what),
+        auto commit = history.commit(design_texts(), intent.empty() ? what : std::format("{} — {}", intent, what),
                                      by ? by->actor.text() : std::string("person"), agent::tree_hash(tree), std::nullopt,
                                      changes ? changes->json() : std::string());
         if (commit) done->set("commit", commit->id);
         held.see();  // the branch's last commit, the step's
         refresh_timeline();
+        feedback(done->get("changes"), by ? by->actor.text() : std::string("person"), what);  // again: the commit's id moved it
         return done;
+    }
+
+    // Work presentation (D-283; the presentation design §4.4): a committed edit is in the tree and in the pixels of its
+    // own frame; over it, for a moment, a ring around each node it added or changed, and its maker's mark (an agent's:
+    // a person's own pointer is there) moved to the first. Never queued: the next commit's takes its place; edits
+    // faster than its moment, and the person's less motion, keep only the mark. Off (design.feedback): none of it.
+    static constexpr double moment = 0.6;  // seconds a ring stays
+    bool          feedback_on = true;
+    std::uint64_t feedback_timer = 0;  // the rings' wait for the edit's layout, then their moment
+    double        feedback_at = -1;    // when the last commit put rings up
+    void feedback(const Value* changes, const std::string& actor, std::string_view what) {
+        if (!feedback_on || !changes) return;
+        std::vector<std::string> nodes;
+        for (const std::string_view kind : {"changed", "added"})
+            if (const Value* list = changes->get(kind); list && list->list())
+                for (const Value& node : *list->list())
+                    if (const Value* id = node.get("id"); id && nodes.size() < 12 && rt.valid(rt.find(id->as_string())))
+                        nodes.emplace_back(id->as_string());
+        const double now = rt.now().count();
+        // Its maker's mark at the first: an edit's own words put it there already (the player's), a step that said nothing here.
+        if (actor.starts_with("agent") && !nodes.empty() &&
+            std::ranges::none_of(rt.agent_notes(), [&](const AgentNote& note) { return note.actor == actor && note.at == now; }))
+            rt.note({.actor = actor, .text = std::string(what), .node = nodes.front()});
+        const bool quick = feedback_at >= 0 && now - feedback_at < moment;
+        if (nodes.empty() || quick || rt.reduce_motion()) return;
+        clear_feedback();  // the last commit's, if still up: this one takes its place
+        feedback_at = now;
+        // Each ring where its node is once the edit is laid out — a node it added has no place before — so at the frame
+        // after the edit's own (a timer that a timer adds runs a frame later): the edit's pixels are not held for it.
+        feedback_timer = rt.after(seconds(0), [this, nodes = std::move(nodes)]() mutable {
+            feedback_timer = rt.after(seconds(0), [this, nodes = std::move(nodes)] { ring(nodes); });
+        });
+    }
+    void ring(const std::vector<std::string>& nodes) {
+        feedback_timer = 0;
+        std::vector<Rect> boxes;
+        for (const std::string& path : nodes)
+            if (const NodeId found = rt.find(path); rt.valid(found))
+                if (const Rect around = rt.screen_bounds(found); around.width > 0 && around.height > 0) boxes.push_back(around);
+        if (boxes.empty()) return;
+        rt.set_slot_presented("design-feedback", false);  // its own motion, not the design's presentation
+        rt.mount("design-feedback", feedback_view(rt.size(), boxes));
+        feedback_timer = rt.after(seconds(moment), [this] {
+            feedback_timer = 0;
+            rt.unmount("design-feedback");
+        });
+    }
+    void clear_feedback() {
+        if (feedback_timer) rt.cancel(feedback_timer);
+        feedback_timer = 0;
+        rt.unmount("design-feedback");
     }
 
     // DesignSources: the player's sources, an edit run at once.
@@ -1152,6 +1204,13 @@ private:
             auto start = history.commit(design_texts(), std::format("{} — begun", intent), by ? by->actor.text() : std::string("person"), agent::tree_hash(tree));
             if (by) rt.note({.actor = by->actor.text(), .text = intent});
             return Value{}.set("intent", intent).set("branch", history.head_branch()).set("commit", start ? Value(start->id) : Value{});
+        });
+        add("design.feedback", [this](const Value& args) -> VerbResult {
+            if (const Value* on = args.get("on")) {
+                feedback_on = on->as_bool(true);
+                if (!feedback_on) clear_feedback();
+            }
+            return Value{}.set("on", feedback_on).set("moment", moment);
         });
         add("design.film", [this](const Value& args) -> VerbResult { return film(args); });
         add("design.show", [this](const Value& args) -> VerbResult { return show(args); });

@@ -918,6 +918,117 @@ static UTest cases{"designer", [] {
         std::println("design edit strip: {}", (dir / "design-edit.strip.png").string());
     };
 
+    "work presentation (D-283): an edit in its own frame, then a ring for a moment around what changed and the agent's mark there — no frame added"_test = [] {
+        // The page; with an offer, a node the edit adds (it has no place until the edit is laid out).
+        const auto page = [](std::string_view plan, std::string_view offer = {}) {
+            const std::string added = offer.empty() ? std::string() : std::format(R"j(, {{"type": "text", "id": "offer", "props": {{"text": "{}"}}}})j", offer);
+            return std::format(R"j({{"omui": "0.1", "view": {{"root": {{"type": "column", "id": "page", "props": {{"padding": 16, "gap": 10, "align": "start"}}, "children": [
+                {{"type": "text", "id": "title", "props": {{"text": "Subscriptions"}}}}, {{"type": "text", "id": "plan", "props": {{"text": "{}"}}}}{}]}}}}}})j",
+                               plan, added);
+        };
+        // The application in development mode, edited by an agent; how many frames until the plan's own pixels change,
+        // with the work presentation on and off (the ring is drawn outside the node: its inside is the edit's alone).
+        struct Run {
+            Headless       h{HeadlessOptions{.size = {240, 200}}};
+            player::Player p;
+            explicit Run(const player::Manifest& m) : p(h.runtime(), m, {stub()}, {.design = true}) {
+                expect(p.start().has_value());
+                h.settle();
+            }
+            std::string answered;  // the last answer, for a message
+            int invoke(std::string_view verb, Value args, std::string_view actor = "designer") {
+                Invocation call;
+                call.actor = {"agent", std::string(actor), {}};
+                call.args = std::move(args);
+                const Envelope answer = h.runtime().verbs().invoke(verb, call);
+                answered = answer.ndjson();
+                return static_cast<int>(answer.exit_code().value_or(-1));
+            }
+            // A text of the page, by its own id wherever its slot put it.
+            Rect where(std::string_view id) {
+                for (const auto& node : h.tree().snapshot().nodes)
+                    if (node.id.ends_with(std::format("/{}", id))) return h.runtime().screen_bounds(h.runtime().find(node.id));
+                return {};
+            }
+            Rect plan() { return where("plan"); }
+            bool feedback_shown() { return h.runtime().valid(h.runtime().find("design-feedback")); }
+            // The rings drawn: each one's box, 4 px out from its node's.
+            std::vector<Rect> rings() {
+                std::vector<Rect> out;
+                for (int at = 0; at < 12; ++at)
+                    if (const NodeId one = h.runtime().find(std::format("design-feedback/ring{}", at)); h.runtime().valid(one)) out.push_back(h.runtime().screen_bounds(one));
+                return out;
+            }
+        };
+        const auto frames_to_pixels = [&](bool on) {
+            const auto dir = scratch_dir(on ? "design-feedback-on" : "design-feedback-off");
+            write(dir / "logic" / "side.stub", page("Monthly"));
+            player::Manifest m;
+            m.id = "org.omui.design-feedback";
+            m.base = dir;
+            m.scripts = {{"stub", "logic/side.stub"}};
+            Run run(m);
+            expect(eq(run.invoke("design.feedback", Value{}.set("on", on)), 0));
+            const Rect inside = run.plan();
+            expect(fatal(inside.width > 4 && inside.height > 4)) << "the plan's text, found";
+            const mrender::raster::Surface before = run.h.pixels();
+            expect(eq(run.invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", page("Yearly, 2 months free", "Two months free"))), 0));
+            const float scale = run.h.runtime().scale();
+            for (int frame = 1; frame <= 30; ++frame) {
+                (void)run.h.step();
+                const mrender::raster::Surface& now = run.h.pixels();
+                bool changed = false;
+                for (int y = static_cast<int>((inside.y + 1) * scale); !changed && y < static_cast<int>((inside.y + inside.height - 1) * scale); ++y)
+                    for (int x = static_cast<int>((inside.x + 1) * scale); x < static_cast<int>((inside.x + inside.width - 1) * scale); ++x)
+                        if (!(now.at(x, y) == before.at(x, y))) {
+                            changed = true;
+                            break;
+                        }
+                if (changed) {
+                    if (on) {
+                        // The rings are where the edit put its nodes, at the frame after its own: the plan's new width, the offer it added.
+                        (void)run.h.step();
+                        expect(run.feedback_shown()) << "the rings are up the frame after the edit's: " << run.answered.substr(0, 900);
+                        const auto rings = run.rings();
+                        const auto around = [](Rect node, Rect ring) {
+                            return std::abs(ring.x - (node.x - 4)) < 0.5f && std::abs(ring.y - (node.y - 4)) < 0.5f && std::abs(ring.width - (node.width + 8)) < 0.5f &&
+                                   std::abs(ring.height - (node.height + 8)) < 0.5f;
+                        };
+                        const Rect plan_now = run.plan(), offer = run.where("offer");
+                        expect(plan_now.width > inside.width + 20) << "the plan's text is wider now";
+                        expect(eq(rings.size(), std::size_t{2}) && around(plan_now, rings[0]) && around(offer, rings[1]))
+                            << std::format("rings {} around the plan's {}×{} at {},{} and the offer's {}×{} at {},{}", rings.size(), plan_now.width, plan_now.height,
+                                           plan_now.x, plan_now.y, offer.width, offer.height, offer.x, offer.y);
+                        const auto notes = run.h.runtime().agent_notes();
+                        expect(std::ranges::any_of(notes, [](const AgentNote& note) { return note.actor == "agent:designer" && note.node.ends_with("plan"); }))
+                            << "the agent's mark at what it changed";
+                        (void)run.h.advance(seconds(0.7));
+                        expect(!run.feedback_shown()) << "gone after its moment";
+                        // Edits faster than its moment keep only the mark: a second within it puts up no ring of its own.
+                        expect(eq(run.invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", page("Monthly"))), 0));
+                        (void)run.h.advance(seconds(0.3));
+                        expect(eq(run.invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", page("Yearly"))), 0));
+                        (void)run.h.advance(seconds(0.35));
+                        expect(!run.feedback_shown()) << "the second, coming fast, did not keep the ring up";
+                        // The person's less motion: the mark, no ring.
+                        run.h.runtime().set_reduce_motion(true);
+                        (void)run.h.advance(seconds(1));
+                        expect(eq(run.invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", page("Quarterly"))), 0));
+                        (void)run.h.step();
+                        expect(!run.feedback_shown()) << "less motion: no ring";
+                    } else {
+                        expect(!run.feedback_shown()) << "off: no ring";
+                    }
+                    return frame;
+                }
+            }
+            return -1;
+        };
+        const int off = frames_to_pixels(false), on = frames_to_pixels(true);
+        std::println("    edit to pixels: {} frame(s) with the work presentation off, {} with it on", off, on);
+        expect(off > 0 && eq(on, off)) << "no frame added";
+    };
+
     "a demonstration as a test: the person's steps after design.handover saved as a scenario with what is expected, replayed on a fresh start"_test = [] {
         const auto dir = scratch_dir("player-scenario");
         write(dir / "ui" / "main.view.xdef.json", counter);

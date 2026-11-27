@@ -113,6 +113,9 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_design_expe
     {"absent", "bool", "they must not be there", true},
     {"motion", "json", "{act: {node, action, args?}, node, measure: height|width|x|y, within_ms: [least, most], overshoot: 0.1}", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_feedback{{
+    {"on", "bool", "on (true) or off (false)", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_save_scenario{{
     {"name", "string", "the scenario's name, no path", false},
 }};
@@ -121,7 +124,7 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_repl
 }};
 
 // Design a running application live: its sources and API, edits run at once with their state kept, expectations checked, the person's turn kept as a test, edits written back to the TypeScript sources.
-inline constexpr std::array<mlibs::control::CatalogEntry, 34> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 35> catalog{{
     {{"design.begin", openas::Effect::reversible, false}, "Begins a design session with what it is for: the intent shown by your presence, the state it begins from kept as a commit, and every step after (each edit, set, insert, remove is a commit of its own) saying it", parameters_design_begin, "json", mlibs::control::Cost::bounded, "none: it only names what follows; design.history.revert takes the steps back", false, false, false, {}},
     {{"design.pace", openas::Effect::reversible, false}, "How fast the design steps are seen: their presentation's time scaled (0.25 … 4; 2 is twice as fast, 0.5 slower for a person to follow); the person's own motion level still holds", parameters_design_pace, "json", mlibs::control::Cost::instant, "design.pace with the pace it answered before", false, false, false, {}},
     {{"design.sources", openas::Effect::read, false}, "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's), and the modules they import", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
@@ -151,6 +154,7 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 34> catalog{{
     {{"design.history.export", openas::Effect::reversible, false}, "The design's history as the replay a release ships (replay@1, D-253): a branch's steps the film's script keeps, each with every source's text then, its caption, who made it and its time on screen — what generate.replay plays in place in the application as it ships (omui.config.ts's generation.replay names the file)", parameters_design_history_export, "json", mlibs::control::Cost::bounded, "delete the file it names", false, false, false, {}},
     {{"design.expect", openas::Effect::read, false}, "What the person expects, kept to check against: `say` in their words, and either `query` — the nodes it means (id, role, name, state, value …), `absent` when they must not be there — or `motion`: after an action, how a node moves (\"opens in 300–400 ms, springs at most 10%\"), measured in a twin. With neither, lists what is expected", parameters_design_expect, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"design.check", openas::Effect::read, false}, "Each expectation read against the interface as it is now: holds or not, the nodes found with their name, value and states, and for a node that did not do what was expected, what the last press on it came to (the recorder)", {}, "json", mlibs::control::Cost::bounded, "", false, false, false, {}},
+    {{"design.feedback", openas::Effect::reversible, false}, "Whether a committed edit is marked where it changed (work presentation, D-283): a ring for a moment around each node it added or changed, and an agent's mark moved to the first — over the application, never delaying the edit's own frame; edits coming fast and less motion keep only the mark. On by default; asked with no `on`, says whether it is", parameters_design_feedback, "json", mlibs::control::Cost::instant, "design.feedback with `on` as it was (its answer says it)", false, false, false, {}},
     {{"design.handover", openas::Effect::read, false}, "Hands the floor to the person: they try the design; what they do from now, done, can be saved as a scenario (design.save_scenario)", {}, "json", mlibs::control::Cost::instant, "", false, false, false, {}},
     {{"design.save_scenario", openas::Effect::reversible, false}, "What the person did since design.handover — their actions that were done, as semantic steps (node, action, arguments) — and what is expected, written as tests/<name>.scenario.xdef.json beside the application: a demonstration as a test", parameters_design_save_scenario, "json", mlibs::control::Cost::bounded, "delete the file it names", false, false, false, {}},
     {{"design.replay", openas::Effect::reversible, false}, "A saved scenario played again: each step done as it was, then what is expected checked — the demonstration as a test", parameters_design_replay, "json", mlibs::control::Cost::bounded, "the steps' own (ui.undo for reversible ones)", false, false, false, {}},
@@ -164,7 +168,7 @@ inline constexpr mlibs::control::Guide guide{"Design a running application live:
 // The listing (design.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
 // carries apart until it is first read — a reader asks for it through mlibs::apart::present).
 namespace omui::agent::design::carried {
-inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "24944\0" "" R"listing({
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "25692\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "design",
@@ -228,6 +232,8 @@ inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "24944\0" "" R"li
      "inputSchema": {"type": "object", "properties": {"say": {"type": "string", "description": "the expectation in the person's words"}, "query": {"description": "the nodes it means: {\"id\": \"save\", \"state\": \"disabled\"}"}, "absent": {"type": "boolean", "description": "they must not be there"}, "motion": {"description": "{act: {node, action, args?}, node, measure: height|width|x|y, within_ms: [least, most], overshoot: 0.1}"}}, "required": []}},
     {"name": "design.check", "description": "Each expectation read against the interface as it is now: holds or not, the nodes found with their name, value and states, and for a node that did not do what was expected, what the last press on it came to (the recorder)", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "design.feedback", "description": "Whether a committed edit is marked where it changed (work presentation, D-283): a ring for a moment around each node it added or changed, and an agent's mark moved to the first — over the application, never delaying the edit's own frame; edits coming fast and less motion keep only the mark. On by default; asked with no `on`, says whether it is", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "design.feedback with `on` as it was (its answer says it)", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"on": {"type": "boolean", "description": "on (true) or off (false)"}}, "required": []}},
     {"name": "design.handover", "description": "Hands the floor to the person: they try the design; what they do from now, done, can be saved as a scenario (design.save_scenario)", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "design.save_scenario", "description": "What the person did since design.handover — their actions that were done, as semantic steps (node, action, arguments) — and what is expected, written as tests/<name>.scenario.xdef.json beside the application: a demonstration as a test", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "delete the file it names", "undoable": false, "cancellable": false, "result": "json",
@@ -245,5 +251,5 @@ inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "24944\0" "" R"li
 }  // namespace omui::agent::design::carried
 
 export namespace omui::agent::design {
-inline constexpr std::string_view listing{carried::listing + 23, 24944};
+inline constexpr std::string_view listing{carried::listing + 23, 25692};
 }  // namespace omui::agent::design

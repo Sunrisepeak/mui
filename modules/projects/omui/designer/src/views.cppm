@@ -140,6 +140,20 @@ inline Element code_card_view(Size window, Rect near, std::string_view place, st
                          std::move(lines))});
 }
 
+// A committed edit's mark (work presentation, D-283): a ring around each node it added or changed, for a moment — over
+// the application, taking no pointer.
+inline Element feedback_view(Size window, std::span<const Rect> boxes) {
+    std::vector<Element> rings;
+    for (std::size_t at = 0; at < boxes.size(); ++at) {
+        const Rect& around = boxes[at];
+        rings.push_back(box({.id = std::format("ring{}", at), .width = around.width + 8, .height = around.height + 8, .border_color = "accent",
+                             .border_width = 2, .radius = 6, .translate_x = around.x - 4, .translate_y = around.y - 4}));
+    }
+    Element over = stack({.width = window.width, .height = window.height}, std::move(rings));
+    over.prop("pointer_events", Prop<std::string>(std::string("none")));
+    return over;
+}
+
 // A film's caption (design.film): what the step was, at the bottom — within the window, two lines at most (a step's
 // raw words, a property's JSON, are longer than the window is wide).
 inline Element caption_view(Size window, std::string words) {

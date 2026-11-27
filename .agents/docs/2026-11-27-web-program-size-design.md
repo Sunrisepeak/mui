@@ -247,7 +247,7 @@
 
 **结果**（阅读器，同 §7 的步骤）：第一部分 1,639,127 → 1,634,870（−4,257），launcher 54,487 → 54,663（+176，放回的 JS）；一个没有示例、CPU 画、不问 Agent 的页面 1,693,614 → 1,689,533（−4,081）；清单文件 `data.json` 26,319 B 原样、5,278 B gzip，只有 Agent 来问时取。`check takeover` `/start/` 7/7、`/live/` 8/8。`site drive`（`/start/`）：问之前 `omuiApartState` 里没有 `data`（没取）；`subjects` 是 `ui` 与 `site`，两者的 `describe … detail: full` 都完整回来（`site` 4 个工具、`omui` 32 个），之后 `omuiApartState.data` 是 `synchronous`（取了一次）。
 
-官网（同 §7 的步骤）：首帧之前 1,357,344 → 1,352,304（−5,040），合计 2,759,557 → 2,754,697，首帧 864 ms；`check site path` 27/27（其中访客的 Agent 经 `omui connect` 连上并操作页面）。剩下的 Agent 文字——目录表里的说明、参数的说明、入门的任务（`CatalogEntry`、`Guide`）——由派发与 `describe` 的简述在很多处读，要逐处经由 `present`；没做，见 §13.5。
+官网（同 §7 的步骤）：首帧之前 1,357,344 → 1,352,304（−5,040），合计 2,759,557 → 2,754,697，首帧 864 ms；`check site path` 27/27（其中访客的 Agent 经 `omui connect` 连上并操作页面）。剩下的 Agent 文字——目录表里的说明、参数的说明、入门的任务（`CatalogEntry`、`Guide`）——由派发与 `describe` 的简述在很多处读，要逐处经由 `present`；没做，见 §13.6。
 
 ### 13.3 omui.core 的 `Value` 读法：与 mlibs.json 同一个解析器实例
 
@@ -260,3 +260,75 @@
 ### 13.4 HarfBuzz 的开关：索引的草稿 PR
 
 §9 要的索引改动已写成 [mcpplibs/mcpp-index#929](https://github.com/mcpplibs/mcpp-index/pull/929)（草稿，2026-11-27，分支 `compat-harfbuzz-no-unused-api`，在自己的 worktree 里做，没有动共享检出的分支）：`compat.harfbuzz` 14.3.0 加两个开关 `no-unused-api`、`no-aat-vertical`，与 `no-freetype` 同样在生成的 `config.h` 里读，三个平台的修订都到 3，CHANGELOG 记一条。没有经 mcpp 用这两个开关构建过（宏在 §9 的探针里由同一份合并源码编译过）；合入与打 tag 不在本轮。合入之后，`mlibs.text.harfbuzz` 的依赖写 `features = ["no-freetype", "no-unused-api"]`，再按 §7 的步骤重量；`no-aat-vertical` 作为 omui.sdk 的一个减项另议。
+
+### 13.5 Markdown 的解析器：在槽上，只读 HTML 的页面不带 md4c
+
+**事实。** 阅读器（`omui-gen size`，`web` profile 的整个程序）里 md4c 55 个函数 34,312 B，另有 md4c-html 的命名引用表（数据）。它们有两条来路：`omui.ui.markdown` 的 `format` 是运行时的属性，组件同时到达 HTML（`from_html`）与 Markdown 源（`Stream` → md4c）；`from_html` 解码每个字符引用时，经由 `decode_entity` 让 md4c-html 单独渲染这个引用（`md_html`，连带 md4c 的整个解析器）。阅读器显示的是页面自己的 HTML（D-284），从不读 Markdown 源。
+
+**设计（决定）。**
+- *谁装。* `mlibs.markdown` 的 `Parser` 是读源、认名字的一方：`into` 是 md4c 读源，`named` 是 md4c-html 的表认命名引用；`md4c()` 给出它。`Stream` 与 `from_html` 都接一个，默认 `md4c()`。`omui.ui.markdown` 从槽 `omui.ui.markdown.parser`（mlibs.compose，只有一个）上取：`register_markdown_component()`（脚本的、视图文档的）顺带 `install_markdown_parser()`；桌面上没人装时，组件自己找到 md4c（`src/native/fallback.cpp`），Web 上找不到（`src/web/fallback.cpp`）。
+- *七个消费者。*
+  - 播放器：`player.cpp:226` 登记组件，TS 应用与官网照旧带 md4c。
+  - omui 命令行：`documents.cpp:21` 登记。
+  - xtools：`films.cpp:28` 登记。
+  - 作品 markdown-wall：`app.cpp:566` 登记。
+  - 示例 12：TS 应用，经播放器登记。
+  - 示例 08、09：C++ 里直接用 `markdown()`，只在桌面上构建，后备就是 md4c，不变；哪天打包成 Web，在根上加一行 `omui::install_markdown_parser();`。
+  - oweb：
+    - 工具（`oweb/src`，桌面）的 `md::parse`、`md::from_html` 用默认的 md4c（`site.cpp:262、270、706、765`）。
+    - `oweb/shell` 按 `parts.html` 选格式（`shell.cpp:123`）：Web 上 `read()` 在第 157 行把它设为 HTML；桌面上由工具给 Markdown 源，后备是 md4c。
+  - **`oweb/src` 与 `oweb/shell` 没有一行要改。**
+- *不带 Markdown 的页面带什么。* md4c 的代码和 md4c-html 的表都不带。
+  - `from_html` 自己按 md4c-html 的规则解码两类引用，在可移植的单元里：
+    - 数字引用，编码同 `render_utf8_codepoint`，0 与超过 U+10FFFF 的写 U+FFFD；
+    - HTML 序列化写出的五个名字（`&amp; &lt; &gt; &quot; &nbsp;`）。HTML 标准里“转义一个字符串”只写这五个，所以浏览器的 `outerHTML` 里只有它们。
+  - 其余的名字交给 `Parser::named`，没有就照原样留着。阅读器读的正是 `outerHTML`，它读到的引用都用不着表。
+  - 组件没有解析器却收到 Markdown 源时，把源当文字显示（转义后的 `<pre><code>`），并说一次（槽的 `absent`）。
+- *一致。* 解码的规则与 md4c-html 逐字节相同，由 mlibs.markdown 的一致性测试拿 md4c-html 本身对照，有表与 `Parser{}` 两种情形各读一遍，覆盖：
+  - 36,885 个数字引用：U+3000 以下除空白外的每个码位，加上直到 U+FFFFFF 的各个边界，每个三种写法；
+  - md4c 的语法不认的写法；
+  - 五个名字和其他名字。
+
+**三级次序。**
+- ① 如上：阅读器的文档本来就是页面自己的 HTML，HTML 的序列化本来也只写五个名字。把认名字与读源放到槽上的同一方，读 HTML 的页面就什么都不带。
+- ② 两个组合，都没取：
+  - 用包的 feature 去掉 md4c：一次构建里 feature 取并集，同一工作区里播放器要它，阅读器也就带上（AGENTS §5 说的合并）。
+  - 在 Web 上请浏览器解码（`DOMParser`）：那是第二份实现；而且 0x80–0x9F 的数字引用，浏览器按 windows-1252 改写，与 md4c-html 不同。
+- ③ 静态站点框架（VitePress、Docusaurus）在构建时把 Markdown 写成 HTML，页面不带解析器。阅读器读页面自己的 HTML，这一点与它们相同。
+
+**结果**（阅读器，同 §7 的步骤）：
+- 第一部分 1,634,326 → 1,593,131（−41,195）。其中第 6 步只换了 `Stream` 的来路（−659），第 7 步把引用的解码移出 md4c（−40,536）。
+- launcher 54,661；没有示例、CPU 画的页面 1,688,988 → 1,647,792。
+- `omui-gen size`：md4c 从 55 个函数、34,312 B 降到没有；代码 −39,083 B，数据 −53,672 B（原样）。
+- `check takeover` `/start/` 7/7、`/live/` 8/8。
+- 验证：`mcpp test -p modules/content/markdown -p modules/projects/omui/components/markdown -p modules/projects/oweb/shell --profile ci`。
+- 官网：TS 页面经播放器登记组件，照旧带 md4c（§13.6）。
+
+### 13.6 第三轮之后（本分支 `325f5936`，主分支没有新的提交，即合并后的树）
+
+同 §7 的量法，本机：
+
+| | §12（合并之后） | 第三轮之后 |
+|---|---:|---:|
+| 阅读器：没有示例、CPU 画、不问 Agent 的页面取的程序 | 1,693,614 | 1,647,792（54,661 + 1,593,131） |
+| 同上，WebGPU 画（加 WGSL） | 1,724,098 | 1,678,284 |
+| 同上，WebGL2 画（加 ESSL） | 1,720,576 | 1,674,751 |
+| 阅读器：`the program`（`engine/*` 之和） | 2,096,286 | 2,055,782 |
+| 阅读器：清单（Agent 来问时才取） | — | 5,277 |
+| 官网：首帧之前 | 1,372,935 | 1,352,824 |
+| 官网：合计 | 2,783,729 | 2,755,875 |
+| 官网：首帧 | 870 ms | 860 ms |
+
+官网的一列是 §13.1、§13.2 之后又加 §13.5：TS 页面经播放器登记组件，md4c 照旧在；槽与可移植的引用解码在官网多 520 B（首帧之前 1,352,304 → 1,352,824）。`check site path` 27/27，`check takeover` `/start/` 7/7、`/live/` 8/8。离 D-247 的约 1.1 MB：阅读器 CPU 画的页面还多约 0.55 MB；官网离 1.2 MB 还差 152,824 B。
+
+剩下的，按字节从大到小：
+1. **Agent 面放进一个部分**（阅读器与官网，约 0.3 MiB 代码，§5）：页面第一次收到 Agent 的请求时再取。先要定契约：Agent 第一次请求时等多久。归属 omui.agent、mlibs.agent。
+2. **HarfBuzz 的开关**（§9、§13.4）：mcpplibs/mcpp-index#929 合入后，`mlibs.text.harfbuzz` 的依赖写 `no-unused-api`，探针量到 −10,504 gzip；再加 `no-aat-vertical`，共 −31,199。
+3. **Wasm 原生异常**（§5，阅读器约 −93 KB，官网约 45 KB）：先等 mcpp 上游 mcpp-community/mcpp#1029，再定 Web 的 ABI。
+4. **目录里其余的 Agent 文字**（`CatalogEntry` 的说明与参数、`Guide` 的入门任务）：
+   - omui.agent 生成的目录源码，除清单外还有约 24 KB 原样（含代码），gzip 后的份额没量。
+   - 派发、`describe` 的简述、入门在许多处读它们；要么每一处都经由 `present`，要么目录只留一个按名字取文字的入口，再把文字放在旁边。归属 mlibs.control.gen、mlibs.agent。
+5. **RTTI 的类型名**（官网约 12 KB，§5）：先查全工作区能不能 `-fno-rtti`。
+6. **脚本的类型在打包时擦掉**（官网约 12 KB，§11）：先定带设计器的发布页面是不是两样都带。
+7. **`omui.native.store` 的 `json` 实例**（阅读器 16,738 B 代码原样，§13.3）：归属 omui.native。
+8. 量过、不取：Web 上不解析命令行（约 10 KB）、CLDR（§11）。

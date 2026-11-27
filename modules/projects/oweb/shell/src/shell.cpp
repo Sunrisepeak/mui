@@ -88,12 +88,38 @@ std::vector<Found> found_in(std::span<const Section> sections, std::string_view 
     return out;
 }
 
+void install_examples() {
+    omui::register_base_components();
+    (void)omui::install_markdown_views();
+}
+
+bool holds_examples(std::string_view document, bool html) {
+    // The page's HTML marks a block's language on its code (`<code class="language-view">`, as omui.semantic writes
+    // it and mlibs.markdown reads it back); Markdown on its fence (```view, ~~~ view), indented by at most three.
+    if (html) return document.contains("language-view");
+    for (const auto line : std::views::split(document, '\n')) {
+        std::string_view text(line.begin(), line.end());
+        const std::size_t indent = text.find_first_not_of(' ');
+        if (indent == std::string_view::npos || indent > 3) continue;
+        text.remove_prefix(indent);
+        const char fence = text.empty() ? '\0' : text.front();
+        if ((fence != '`' && fence != '~') || !text.starts_with(std::string(3, fence))) continue;
+        text.remove_prefix(std::min(text.find_first_not_of(fence), text.size()));
+        text.remove_prefix(std::min(text.find_first_not_of(' '), text.size()));
+        if (text.starts_with("view") && (text.size() == 4 || text[4] == ' ' || text[4] == '\r')) return true;
+    }
+    return false;
+}
+
 Element document(Parts& parts, const Layout& layout) {
     using namespace omui;
-    // A page's live examples: its blocks of the language `view` run, as its builder ran them — view documents over
-    // the base components, found by name (a page's examples are its data: which it uses is not known to the program).
-    static const bool examples = (register_base_components(), install_markdown_views().has_value());
-    (void)examples;
+    // A page's live examples: its blocks of the language `view` run, as its builder ran them — by what the layout
+    // names (the shell's own: view documents over the base components, found by name), installed once a page holds
+    // one. A program that runs none carries none of it.
+    if (layout.examples && holds_examples(parts.document, parts.html)) {
+        static bool installed = false;
+        if (!std::exchange(installed, true)) layout.examples();
+    }
     Element main = column({.id = "main"}, {markdown({.id = std::string(document_part), .format = parts.html ? MarkdownFormat::html : MarkdownFormat::markdown,
                                                       .origin = MarkdownOrigin::app, .source = std::move(parts.document),
                                                       .on_link_activated = layout.follow})});

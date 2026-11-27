@@ -253,6 +253,8 @@ static UTest cases{"gen.dist_toy", [] {
                page.contains("f[3] = own ? new URL(own, document.baseURI).href : null; f[5] = true;"))
             << "the page's own cut of a face first, the world's whole face when a character wants it";
         expect(page.contains("function omuiArguments() {\n  return [];") && !page.contains("location.reload(); });")) << "what follows # is a place in the document: no flag, no reload";
+        expect(page.contains("fetch(omuiRoot + omuiDeferred.url, {") && page.contains("request.open('GET', omuiRoot + omuiDeferred.url, false);"))
+            << "the program's second part, where it is in parts, is a file of the world's too";
         expect(page.contains("window.omuiFontLanguage = document.documentElement.lang;")) << "a language's font by the document's language";
         expect(page.contains("document.querySelectorAll('[data-omui=static] img')") && page.contains("if (!left) return take();")) << "the program is taken once the document's pictures are there";
         expect(!page.contains("data-omui=\"faces\"") && !page.contains("user-scalable=no")) << "a page's look names its own faces; a reader may zoom a document";
@@ -267,6 +269,26 @@ static UTest cases{"gen.dist_toy", [] {
         put(t.root / "own.html", "<main data-omui-target=\"main\"><p data-omui-target=\"main/note\">A note.</p></main>\n");
         const auto refused = gen::adopt_document({.dir = p.out, .static_html = t.root / "own.html"});
         expect(!refused && refused.error().contains("a world's page")) << (refused ? "" : refused.error());
+    };
+
+    "a world in parts: the second part on need — fetched before main where the page's document holds what needs it, never elsewhere"_test = [] {
+        Tree t;
+        auto p = t.package(); p.sdk = false; p.world = true; p.out = t.root / "out" / "world";
+        auto made = gen::package_for_toy(p);
+        expect(made.has_value()) << (made ? "" : made.error());
+        if (!made) return;
+        put(t.root / "first.wasm", std::string("\0asm\1\0\0\0reading", 15));
+        put(t.root / "second.wasm", std::string("\0asm\1\0\0\0examples", 16));
+        auto split = gen::adopt_split({.dir = p.out, .primary = t.root / "first.wasm", .deferred = t.root / "second.wasm", .lazy = {}, .needs = "code.language-view"});
+        expect(split.has_value()) << (split ? "" : split.error());
+        if (!split) return;
+        const std::string page = read(p.out / "index.html");
+        std::string second;
+        for (const auto& f : split->files) if (f.path.ends_with(".deferred.wasm")) second = f.path;
+        expect(page.contains(std::format("var omuiDeferred = {{\"bytes\":16,\"lazy\":[],\"needs\":\"code.language-view\",\"url\":\"{}\"}};", second))) << "the part says what needs it";
+        expect(page.contains("if (omuiDeferred.needs) return !!document.querySelector(omuiDeferred.needs);") && page.contains("if (omuiDeferredNeeded()) {"))
+            << "a page whose document holds an example waits for the part before main";
+        expect(page.contains("if (omuiDeferred && !omuiDeferred.needs) omuiFetchDeferred()")) << "and no page fetches it after its first frame just because it is packed";
     };
 
     "--lazy's routes: the bare page is a route, an empty field too"_test = [] {

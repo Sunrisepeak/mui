@@ -7,4 +7,5 @@ namespace oweb::reader {
   };
   [[nodiscard]] shell::Finder finder(Site site);
   [[nodiscard]] omui::Element view(std::string_view projection, const std::function<std::string(std::string_view id)>& markup, shell::Layout layout);
+  [[nodiscard]] int program(int argc, char** argv, void (*examples)());
 }

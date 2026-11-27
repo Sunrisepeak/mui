@@ -37,7 +37,7 @@ struct Profile {
 [[nodiscard]] int profile(const Profile& asked);
 
 struct Drive {
-    std::string url;  // or a built page's directory, served as Pages serves it
+    std::string url;  // or a built page's directory, served as Pages serves it (a route's of a built site: with its site)
     std::filesystem::path out;  // the PNG
     double seconds = 6;
     int width = 1280, height = 800;

@@ -6,6 +6,7 @@ import mlibs.hash;
 import nlohmann.json;
 import omui.lang.ts;
 import mlibs.text.subset;
+import omui.gen.part;
 
 namespace omui::gen {
 
@@ -209,8 +210,8 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
     for (std::size_t at = file_list.find('<'); at != std::string::npos; at = file_list.find('<', at)) file_list.replace(at, 1, "\\u003c");
     html += std::format("var omuiFiles = {};\n", file_list);
     html += std::format("var omuiAssetBytes = {};\n", nlohmann::json(decoded_sizes).dump());
-    // The program's second half, when `omui-gen dist-toy-split` cut it in two
-    // (this exact line is what it replaces): {url, bytes, lazy: [routes]}.
+    // The program's second half, when `omui-gen dist-toy-split` cut it in two, or a world's part (dist-toy
+    // --part-first) — this exact line is what it replaces: {url, bytes, lazy: [routes], needs: selector}.
     html += std::string(deferred_marker) + "\n";
     html += "var omuiFontPending = 0;\n";
     html += R"(var omuiStatus = document.getElementById('status');
@@ -542,6 +543,14 @@ function omuiDeferredLazy() {
   if (/^[a-z]{2}$/.test(parts[0])) parts.shift();
   return !!omuiDeferred && omuiDeferred.lazy.indexOf(parts[0] || '') >= 0;
 }
+// Whether the page waits for the second half before main: a part on need (omuiDeferred.needs, a selector — a world's
+// live examples) where the page's document holds what needs it, and never elsewhere (a function of it called there
+// brings it in at once); a half by the first screen where the route was not profiled.
+function omuiDeferredNeeded() {
+  if (!omuiDeferred) return false;
+  if (omuiDeferred.needs) return !!document.querySelector(omuiDeferred.needs);
+  return !omuiDeferredLazy();
+}
 function omuiFetchDeferred() {
   if (!omuiDeferred || omuiDeferredModule) return Promise.resolve(omuiDeferredModule);
   if (omuiDeferredPromise) return omuiDeferredPromise;
@@ -595,7 +604,7 @@ var Module = {
   instantiateWasm: function (imports, receive) {
     omuiPlanFonts();
     imports = omuiSplitImports(imports);
-    if (omuiDeferred && !omuiDeferredLazy()) omuiFetchDeferred().catch(function () {});
+    if (omuiDeferredNeeded()) omuiFetchDeferred().catch(function () {});
     var job = omuiJob(omuiWasmAsset, async function (controller) {
       var body = await omuiFetchBody(omuiWasmAsset, controller);
       if (body.response && typeof WebAssembly.instantiateStreaming === 'function' && /^application\/wasm(?:;|$)/i.test(body.response.headers.get('Content-Type') || ''))
@@ -612,8 +621,8 @@ var Module = {
     Object.keys(omuiFiles).forEach(function (path) {
       var dir = path.substring(0, path.lastIndexOf('/')); if (dir) FS.mkdirTree(dir); FS.writeFile(path, omuiFiles[path]);
     });
-    if (omuiDeferred && !omuiDeferredLazy()) {
-      // Not a route the first half was profiled for: main waits for the second half.
+    if (omuiDeferredNeeded()) {
+      // Not a route the first half was profiled for, or a page that needs the part: main waits for the second half.
       Module.addRunDependency('omui-deferred');
       omuiFetchDeferred().then(function () { Module.removeRunDependency('omui-deferred'); },
                                function () { Module.removeRunDependency('omui-deferred'); });
@@ -639,7 +648,7 @@ function omuiFetchLater() {
   if (window.omuiHasPresented === true && !omuiPresented) { omuiPresented = true; omuiPublish('presented'); }
   if (omuiLaterStarted) { omuiFinished(); return; }
   omuiLaterStarted = true;
-  if (omuiDeferred) omuiFetchDeferred().catch(function () {});
+  if (omuiDeferred && !omuiDeferred.needs) omuiFetchDeferred().catch(function () {});
   omuiStartedLater().forEach(function (j) { omuiStart(j, false); }); omuiFinished();
 }
 // A character no face the program has covers (its code point), or every
@@ -772,6 +781,9 @@ document.getElementById('canvas').addEventListener('pointerdown', function () { 
          "  return f[2].length ? !omuiWants(f[2]) : !!f[3];\n}");
     swap("  var launcher = new URL(omuiLauncher, document.URL).href;", "  var launcher = new URL(omuiRoot + omuiLauncher, document.URL).href;");
     swap("function omuiArguments() {\n", "function omuiArguments() {\n  return [];\n");
+    // The program's second part, where it is in parts, is a file of the world's too.
+    swap("fetch(omuiDeferred.url, {", "fetch(omuiRoot + omuiDeferred.url, {");
+    swap("request.open('GET', omuiDeferred.url, false);", "request.open('GET', omuiRoot + omuiDeferred.url, false);");
     swap("function omuiWants(langs) {\n", "function omuiWants(langs) {\n  if (typeof window.omuiFontLanguage !== 'string' && document.documentElement.lang) "
                                           "window.omuiFontLanguage = document.documentElement.lang;\n");
     swap("window.addEventListener('hashchange', function () { if (!window.omuiFollowsRoute) location.reload(); });\n", "");
@@ -1089,6 +1101,30 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
             return 1;
         }
     }
+    // A program in parts (--part-first, a world's): the whole cut in two by what the first part's program carries,
+    // the second part fetched by a page whose document holds what --part-needs selects.
+    if (const auto first = args.value("part-first")) {
+        const auto program = args.value("part-program");
+        if (!program) return usage("--part-first names the first part's program, --part-program the whole's (each its symbol map beside it)");
+        const auto path = [](std::string_view text) { return fs::path(std::u8string(text.begin(), text.end())); };
+        fs::path work = p.out;
+        work += ".parts";
+        const auto cut = cut_part({.whole = p.stage / "bin" / (p.target + ".wasm"), .whole_names = path(*program + ".symbols"),
+                                   .first_names = path(*first + ".symbols"), .primary = work / "first.wasm", .deferred = work / "second.wasm"});
+        if (!cut) {
+            std::println(std::cerr, "dist-toy: the program in parts: {}", cut.error());
+            return 1;
+        }
+        r = adopt_split({.dir = p.out, .primary = work / "first.wasm", .deferred = work / "second.wasm", .lazy = {}, .needs = args.value("part-needs").value_or("")});
+        std::error_code ec;
+        fs::remove_all(work, ec);
+        if (!r) {
+            std::println(std::cerr, "dist-toy: {}", r.error());
+            return 1;
+        }
+        std::println("dist-toy: in two parts — {} of its {} functions first ({} by the first part's names, the rest what they call)", cut->first,
+                     cut->functions, cut->named);
+    }
     std::println("dist-toy: {} — {} files, {} bytes (index.html {} of {})", utf8(p.out), r->files.size(), r->total, r->index, toy_index_limit);
     return 0;
 }
@@ -1122,6 +1158,7 @@ std::expected<ToyReport, std::string> adopt_split(const ToySplit& split) {
 
     // The deferred line first: the replacements after it shift nothing before it.
     nlohmann::json about = {{"url", deferred_name}, {"bytes", deferred->size()}, {"lazy", split.lazy}};
+    if (!split.needs.empty()) about["needs"] = split.needs;
     html.replace(marker, deferred_marker.size(), std::format("var omuiDeferred = {};", about.dump()));
     // The decoded size the loader checks the primary against.
     const std::string bytes_key = std::format("\"{}\":", old_name);

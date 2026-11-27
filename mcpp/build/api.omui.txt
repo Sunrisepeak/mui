@@ -103,6 +103,11 @@ namespace omui::build {
     std::string image;
     std::vector<std::pair<std::string, std::string>> alternates;
     std::vector<std::string> files;
+    struct part_options {
+      std::string first;
+      std::string needs;
+    };
+    part_options part;
     std::string out_dir = std::string(mcpp::out_dir());
   };
   bool dist_toy(toy_options opt);

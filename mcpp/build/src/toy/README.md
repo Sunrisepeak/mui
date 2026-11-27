@@ -8,6 +8,8 @@ The build plugin for Bilibili Toy (D-84 §6.5): the pack format `dist-toy`. A pr
 
 With `.sdk = false` the page does not load Toy's SDK, and it is a plain static page. omui's site is built this way.
 
+With `.part = {.first = "<program target>", .needs = "<selector>"}` the program is packed in two parts: the functions the first program (the same package's, built without the part) has, and the rest — fetched only by a page whose document holds what the selector matches (`omui-gen dist-toy --part-first`; `oweb.reader`'s live examples).
+
 ```cpp
 // build.mcpp
 import mcpp;

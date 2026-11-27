@@ -7,6 +7,7 @@ Small domain-agnostic tools that are not libraries of their own yet, one directo
 | [hash](src/hash/README.md) | `mlibs.hash` | FNV-1a (64 and 32 bit): determinism hashes, content hashes, cache keys, generated ids; SHA-256 where another tool states a digest — the one implementation (lint `hash`) |
 | [base64](src/base64/README.md) | `mlibs.base64` | RFC 4648 base64: pictures in JSON and SVG, read back by the command line — the one implementation |
 | [http](src/http/README.md) | `mlibs.http` | HTTP/1.1's framing for a program's own loopback server (omui's bridge, the test page servers): a request's head, a response — the one implementation |
+| [version](src/version/README.md) | `mlibs.version` | Versions compared (`0.1.10` after `0.1.9`, a pre-release before its release) — the one implementation, for the launcher and the release tool |
 | [names](src/names/README.md) | `mlibs.names` | The nearest name for a typo ("did you mean `x`?") — the one implementation, for every reader of names a person or an agent wrote |
 | [apart](src/apart/README.md) | `mlibs.apart` | Data a program carries apart: the mark a generator writes before a region the program never reads itself (a shader's text), which the packer finds, takes out and writes beside the program — the one mark |
 | [message](src/message/README.md) | `mlibs.message` | A message's words and values (`{}` each) without a locale: what libraries a Web page links say their errors with, where `std::format` would bring `std::locale` (≈ 368 KB of a page) |

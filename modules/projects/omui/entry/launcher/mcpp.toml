@@ -47,6 +47,7 @@ mcpplibs.os = "0.4.8"
 mcpplibs.cmdline = "0.0.3"
 marzer.tomlplusplus = "3.4.0"  # the application's mcpp.toml: 76,998 B of the program (red 145: its reader is a decision)
 mlibs.json = { path = "../../../../base/json" }  # runtime.json read in place by its own scanner, --which quoted by it: no parser linked
+mlibs.utils = { path = "../../../../base/utils" }  # mlibs.version: the installed runtimes compared (the one implementation)
 
 [dev-dependencies]
 mcpplibs.mtest = "0.11.3"

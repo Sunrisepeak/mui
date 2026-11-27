@@ -78,6 +78,7 @@ std::optional<std::string> tsc(const fs::path& root) {
 
 static UTest cases{"lang.js declare", [] {
     "what an application describes (omui describe --api) and what its TypeScript is checked against agree: every builder, property and event (W3)"_test = [] {
+        if (!omui::lang::js::typescript().declare) return skip("the TypeScript language declares nothing on the Web (a page type-checks nothing: omui check is the desktop's)");
         // The declarations as omui check writes them, from the same runtime's catalogue …
         const fs::path root = temp_dir() / "app";
         std::string declared;
@@ -116,6 +117,7 @@ static UTest cases{"lang.js declare", [] {
     };
 
     "the files: the API and every registered builder, the natives, the define functions, tsc's configuration"_test = [] {
+        if (!omui::lang::js::typescript().declare) return skip("the TypeScript language declares nothing on the Web (a page type-checks nothing: omui check is the desktop's)");
         const fs::path root = temp_dir() / "app";
         const auto files = declared(root);
         expect(eq(files.size(), std::size_t{6}));
@@ -133,6 +135,7 @@ static UTest cases{"lang.js declare", [] {
     };
 
     "tsc: a correct application passes; a misspelt property, a wrong choice, a signal of the wrong type are reported where they are"_test = [] {
+        if (!omui::lang::js::typescript().declare) return skip("the TypeScript language declares nothing on the Web (a page type-checks nothing: omui check is the desktop's)");
         const fs::path root = temp_dir() / "checked";
         write(root / "app" / "main.ts", R"ts(import { button, column, fmt, mount, signal, text, textBox, verb, when } from "openmui";
 import { fuzzy } from "openmui:native/fuzzy";

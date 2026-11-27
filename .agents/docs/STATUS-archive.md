@@ -58,6 +58,7 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 
 **Moved at P0 (2026-11-27)**: M0's node record and the reds confirmed closed on macOS (run 45912985560), as STATUS had them:
 
+| 170 | `pages.yml` did not parse: a step's name written plain held a colon and a space (AG5's doors step), so the push ran none of its jobs and the requested lane had nothing to run | push of cefa0f92 (run 45935542778); 2026-11-27 | record | fixed: the name said otherwise; lint `workflows` now refuses a plain value holding `: ` in a workflow file (it catches the committed file; self-test 57 of 57) | (confirmed: Pages green at bc9ea78b)
 **M0 — local preflight done (2026-11-20, at 2c2be364; the fix 68d6cb6f).** The matrix: green at `2a9592bf`, all 12 jobs (run 44383015192).
 - Here, `--profile ci` with CI's main row's exclusions: 159 of 163 members (3,762 s). `omui.tools.mcp` expected 68 tools, G8 had added 4 (fixed, 12 cases). `xrender.rhi.sdl`, `omui.host.sdl3.gpu`, `quay/play` crash outside the GPU environment and pass in it (`omui-devtools gpu`: 9 programs): 163 of 163.
 - `check features`, `templates` (5), `agent-e2e`, `media --check --showcases`, the benchmarks' budgets (114, 26 skipped): passed. lint 0, self-test 53 of 53. Not run: the LLVM and wine rows (disk).

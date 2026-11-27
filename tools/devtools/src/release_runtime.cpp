@@ -9,7 +9,7 @@ import mlibs.image;
 import nlohmann.json;
 import tomlplusplus;
 import omui.devtools.run;
-import omui.entry.launcher;
+import mlibs.version;
 
 namespace omui::devtools::release {
 
@@ -59,7 +59,7 @@ std::vector<Packed> packed_in(const fs::path& out, std::string_view platform) {
         else one.sha256 = mlibs::hash::sha256_hex(os::fs::read(entry.path()).value_or(""));
         found.push_back(std::move(one));
     }
-    std::ranges::sort(found, [](const Packed& left, const Packed& right) { return omui::launcher::compare_versions(left.version, right.version) < 0; });
+    std::ranges::sort(found, [](const Packed& left, const Packed& right) { return mlibs::version::compare(left.version, right.version) < 0; });
     return found;
 }
 

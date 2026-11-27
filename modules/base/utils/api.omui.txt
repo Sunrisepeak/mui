@@ -291,3 +291,7 @@ namespace mlibs::trace {
   [[nodiscard]] Trace stop();
   [[nodiscard]] Trace snapshot();
 }
+== mlibs.version
+namespace mlibs::version {
+  [[nodiscard]] std::strong_ordering compare(std::string_view left, std::string_view right);
+}

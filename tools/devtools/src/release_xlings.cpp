@@ -5,7 +5,7 @@ module omui.devtools.release;
 import std;
 import mcpplibs.os;
 import omui.devtools.run;
-import omui.entry.launcher;
+import mlibs.version;
 
 namespace omui::devtools::release {
 
@@ -203,7 +203,7 @@ std::expected<std::vector<std::string>, std::string> xlings_loader(const fs::pat
         for (const auto& entry : fs::directory_iterator(packages / std::format("xim-x-{}", name), error)) {
             const std::string here = os::fs::utf8(entry.path().filename());
             for (const std::string_view lib : {"lib64", "lib"})
-                if (fs::is_directory(entry.path() / lib, error) && (version.empty() || omui::launcher::compare_versions(here, version) > 0)) {
+                if (fs::is_directory(entry.path() / lib, error) && (version.empty() || mlibs::version::compare(here, version) > 0)) {
                     version = here;
                     found = entry.path() / lib;
                     break;

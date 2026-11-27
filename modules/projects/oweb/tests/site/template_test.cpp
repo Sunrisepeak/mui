@@ -466,6 +466,9 @@ static UTest cases{"oweb.template", [] {
         // The seven guides of docs/en/guide, one after another under one title: a page of some twenty screens, the
         // corpus' long one (real documents, none copied). A link from one guide to another is its words here.
         const auto guides = package().parent_path().parent_path().parent_path() / "docs" / "en" / "guide";
+        // The guides are the repository's (its root's docs/), not a tier's: a tree split from it (omui-devtools split)
+        // carries none, and there the case has no corpus to run on.
+        if (!std::filesystem::exists(guides / "start.md")) return skip("the repository's guides (docs/en/guide) are not in this tree: a split tier carries none");
         std::string source = "# The guides, on one page\n";
         std::size_t words = 0;
         for (const std::string_view name : {"start", "ui", "motion", "agent", "world", "world3d", "game"}) {

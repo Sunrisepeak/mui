@@ -2,6 +2,7 @@
 module omui.entry.launcher;
 
 import std;
+import mlibs.version;
 import mcpplibs.os;
 import mcpplibs.cmdline;
 import mlibs.json;
@@ -39,40 +40,7 @@ constexpr std::array<std::string_view, 4> released_capabilities{"accessibility-b
 
 }  // namespace
 
-std::strong_ordering compare_versions(std::string_view left, std::string_view right) {
-    const auto split = [](std::string_view version) {
-        const auto dash = version.find('-');
-        return std::pair{version.substr(0, dash), dash == std::string_view::npos ? std::string_view{} : version.substr(dash + 1)};
-    };
-    const auto [left_core, left_pre] = split(left);
-    const auto [right_core, right_pre] = split(right);
-    // Part by part, as numbers where both are (a missing part is 0); else as text.
-    const auto parts = [](std::string_view text) {
-        std::vector<std::string_view> out;
-        for (const auto part : std::views::split(text, '.')) out.emplace_back(part.begin(), part.end());
-        return out;
-    };
-    const auto number = [](std::string_view part) -> std::optional<std::uint64_t> {
-        std::uint64_t value = 0;
-        const auto [end, failure] = std::from_chars(part.data(), part.data() + part.size(), value);
-        if (failure != std::errc{} || end != part.data() + part.size()) return std::nullopt;
-        return value;
-    };
-    const auto compare_parts = [&](std::string_view first, std::string_view second) {
-        const auto first_parts = parts(first), second_parts = parts(second);
-        for (std::size_t index = 0; index < std::max(first_parts.size(), second_parts.size()); ++index) {
-            const std::string_view mine = index < first_parts.size() ? first_parts[index] : "0";
-            const std::string_view theirs = index < second_parts.size() ? second_parts[index] : "0";
-            const auto mine_number = number(mine), their_number = number(theirs);
-            const std::strong_ordering order = mine_number && their_number ? *mine_number <=> *their_number : mine.compare(theirs) <=> 0;
-            if (order != 0) return order;
-        }
-        return std::strong_ordering::equal;
-    };
-    if (const auto order = compare_parts(left_core, right_core); order != 0) return order;
-    if (left_pre.empty() || right_pre.empty()) return left_pre.empty() <=> right_pre.empty();  // a release after its pre-releases
-    return compare_parts(left_pre, right_pre);
-}
+std::strong_ordering compare_versions(std::string_view left, std::string_view right) { return mlibs::version::compare(left, right); }
 
 // Read in place by mlibs.json's own scanner: the launcher links no JSON parser (red 145).
 std::expected<Runtime, std::string> read_runtime(std::string_view text, const fs::path& directory) {

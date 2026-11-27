@@ -3,6 +3,13 @@ namespace omui {
   [[nodiscard]] std::expected<player::Manifest, std::string> read_manifest(const std::filesystem::path& mcpp_toml);
   [[nodiscard]] player::TwinFn twins(const player::Manifest& manifest);
   void register_official();
+  struct ShowFilm {
+    std::size_t frames = 0;
+    int fps = 0;
+    double seconds = 0;
+    Size size;
+  };
+  [[nodiscard]] std::expected<ShowFilm, std::string> film_show(const player::Manifest& manifest, int fps, const std::function<void(std::size_t index, Headless& host)>& frame);
   int player_main(int argc, char** argv);
   int player_main(int argc, char** argv, void (*components)());
 }

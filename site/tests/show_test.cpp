@@ -9,7 +9,8 @@
 // Then sampled in time (AGENTS §6): each beat's last frame is its step as gone to, the frames between are neither
 // end, a step without a visible change lasts at most 0.3 s, the show ends on the page as it ships; paused, sent
 // forward or back in the middle of a beat, the page lands exactly where it was taken; unseen, a beat holds what is
-// left of it; with the person's less motion the show is its steps cut, on the same beats.
+// left of it; with the person's less motion the show is its steps cut, on the same beats. And the show's film (AG4) is
+// the page: its frame at t is the page's frame at t.
 import std;
 import mcpplibs.mtest;
 import omui;
@@ -17,6 +18,7 @@ import omui.player;
 import omui.entry.player;
 import omui.lang.js;
 import mlibs.agent;
+import mlibs.hash;
 
 using namespace mcpplibs::mtest;
 using namespace omui;
@@ -39,7 +41,7 @@ struct Stage {
     std::optional<generate::Generation> generation;
 
     Stage(const player::Manifest& manifest, const std::string& replay, const std::string& show)
-        : host({.level = HeadlessLevel::pixels, .size = manifest.size}), page(host.runtime(), manifest, {lang::js::typescript()}) {
+        : host({.level = HeadlessLevel::pixels, .size = manifest.size}), page(host.runtime(), manifest, {lang::js::typescript(), lang::js::javascript()}) {
         expect(fatal(page.start().has_value()));
         settle();
         generation.emplace(host.runtime(),
@@ -146,6 +148,15 @@ struct Seen {
     std::int64_t longest_step = 0;
     std::size_t  frames = 0;
 };
+
+// A picture's fingerprint (mlibs.hash: FNV-1a over its size and its bytes): two pictures alike to the byte.
+std::uint64_t fingerprint(const mrender::raster::Surface& picture) {
+    const auto pixels = picture.pixels();
+    return mlibs::hash::Fnv1a{}
+        .word(static_cast<std::uint64_t>(picture.width()) << 32 | static_cast<std::uint32_t>(picture.height()))
+        .bytes(std::span(reinterpret_cast<const std::uint8_t*>(pixels.data()), pixels.size_bytes()))
+        .value();
+}
 
 // The site as it ships: its manifest, its design's replay and the show made of it.
 struct Site {
@@ -382,5 +393,27 @@ static UTest cases{"site.show", [] {
         stage.settle();
         expect(eq(stage.apart(stage.shot(), step_of[0]), std::uint64_t{0})) << "with less motion too, the show ends on the page as it ships";
         stage.host.runtime().set_reduce_motion(false);
+    };
+
+    "the show's film is the page: its frame at t is the page's at t, to the byte, start to end (AG4; one evaluation)"_test = [] {
+        const Site site = read_site();
+        // The film at 30 a second (omui::film_show: what `omui-player --film-show` writes and video render encodes).
+        std::vector<std::uint64_t> film;
+        const auto filmed = omui::film_show(*site.manifest, 30, [&](std::size_t, Headless& host) { film.push_back(fingerprint(host.pixels())); });
+        expect(fatal(filmed.has_value())) << (filmed ? std::string() : filmed.error());
+        expect(eq(filmed->frames, film.size()) && film.size() >= static_cast<std::size_t>(filmed->seconds * 30)) << std::format("{} frames for {:.2f} s", film.size(), filmed->seconds);
+        // The page as the visitor's key plays it, at the show's own 60 a second: every other frame is the film's time.
+        Stage stage(*site.manifest, site.replay, site.show);
+        expect(fatal(stage.invoke(Value{}.set("from", 1)).exit_code().value_or(-1) == 0));
+        std::size_t same = 0, first_apart = film.size();
+        for (std::size_t drawn = 1, kept = 0; kept < film.size(); ++drawn) {
+            (void)stage.host.step({}, seconds(stage.host.now().count() + frame));
+            if (drawn % 2 != 0) continue;
+            if (fingerprint(stage.host.pixels()) == film[kept]) ++same;
+            else if (first_apart == film.size()) first_apart = kept;
+            ++kept;
+        }
+        std::println("    the film: {} frames at 30 a second, {:.2f} s; {} of them the page's at the same time", film.size(), filmed->seconds, same);
+        expect(eq(same, film.size())) << std::format("the film's frame {} ({:.3f} s) is not the page's", first_apart, static_cast<double>(first_apart + 1) / 30);
     };
 }};

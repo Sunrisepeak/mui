@@ -64,6 +64,8 @@ omui.lang.js       = { path = "../../lang/js" }
 omui.ui.markdown   = { path = "../../components/markdown", reexport = true }  # a derived registry may name it (B7b)
 omui.native = { path = "../../native", reexport = true }  # with its modules (fuzzy, store); a derived registry may name them
 omui.theme = { path = "../../theme" }  # with its packs
+omui.host.headless = { path = "../../host/headless" }  # a show's film is drawn on it (film_show)
+hanim.timeline = { path = "../../../hanim/timeline" }  # a show's rate and length (film_show)
 mlibs.json = { path = "../../../../base/json" }  # the manifest's declaration, read as JSON
 mcpplibs.os = "0.4.8"
 mcpplibs.cmdline = "0.0.3"

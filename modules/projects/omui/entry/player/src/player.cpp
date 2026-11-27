@@ -14,6 +14,7 @@ import omui.native.store;
 import omui.theme;
 import omui.theme.default_theme;
 import omui.theme.compact;
+import hanim.timeline;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::warn;
@@ -229,6 +230,72 @@ std::filesystem::path runtime_directory() {
 
 }  // namespace
 
+std::expected<ShowFilm, std::string> film_show(const player::Manifest& manifest, int fps, const std::function<void(std::size_t index, Headless& host)>& frame) {
+    auto config = read_config(manifest.base);
+    if (!config) return std::unexpected(config.error());
+    if (config->replay.empty() || config->replay_show.empty())
+        return std::unexpected("the application ships no show of its design: omui.config.ts's generation.replay names its replay and its `show` (design.show writes one)");
+    const auto read = [&](const std::filesystem::path& relative) -> std::expected<std::string, std::string> {
+        std::ifstream in(manifest.base / relative, std::ios::binary);
+        if (!in) return std::unexpected(std::format("{}: no such file", utf8(manifest.base / relative)));
+        return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    };
+    auto replay_text = read(config->replay);
+    if (!replay_text) return std::unexpected(replay_text.error());
+    auto show_text = read(config->replay_show);
+    if (!show_text) return std::unexpected(show_text.error());
+    auto show = hanim::timeline::read_timeline(*show_text, utf8(config->replay_show));
+    if (!show) return std::unexpected(show.error().front().text());
+    // The show's own rate: what the page draws by, each beat starting on one of its frames.
+    if (show->rate.den <= 0 || show->rate.num % show->rate.den != 0)
+        return std::unexpected(std::format("{}: a show's rate is whole frames a second to be filmed, not {}/{}", utf8(config->replay_show), show->rate.num, show->rate.den));
+    const auto rate = static_cast<int>(show->rate.num / show->rate.den);
+    if (fps <= 0 || rate % fps != 0) return std::unexpected(std::format("a film's rate divides its show's ({} a second): {} does not", rate, fps));
+    // What the page carries draws a change of words as a morph: the film too.
+    if (!morphs_installed())
+        if (auto installed = install_morphs(); !installed) return std::unexpected(std::format("the morphs' provider: {}", installed.error()));
+
+    // The page as it ships, its scripts done and at rest — then the Live Design key's verb, from the first step.
+    Headless host(HeadlessOptions{.level = HeadlessLevel::pixels, .size = manifest.size});
+    player::Player page(host.runtime(), manifest, {lang::js::typescript(), lang::js::javascript()});
+    if (auto started = page.start(); !started) return std::unexpected(started.error().message);
+    const auto settle = [&] {
+        (void)host.wait([&] { return page.idle(); });
+        (void)host.settle();
+    };
+    settle();
+    generate::Generation generation(host.runtime(), {.replay = *replay_text,
+                                                     .replay_file = utf8(config->replay),
+                                                     .replay_course = config->replay_course,
+                                                     .replay_show = *show_text,
+                                                     .replay_show_file = utf8(config->replay_show),
+                                                     .show = [&](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
+                                                         if (auto shown = page.show(texts); !shown) return std::unexpected(shown.error().message);
+                                                         return {};
+                                                     },
+                                                     .restore = [&] { (void)page.discard_edits(); }});
+    const auto ask = [&](Value args) {
+        Invocation call;
+        call.actor = {"person", "visitor", {}};
+        call.args = std::move(args);
+        return host.runtime().verbs().invoke("generate.replay", call);
+    };
+    if (const Envelope started = ask(Value{}.set("from", 1)); started.exit_code().value_or(-1) != 0) return std::unexpected(started.ndjson());
+    // A frame of the show's rate at a time, every `rate / fps`-th one kept, until it ends (or its length and a margin).
+    const double length = mlibs::time::to_seconds(show->duration());
+    const int each = rate / fps;
+    const auto most = static_cast<std::int64_t>((length + 5) * rate);
+    ShowFilm film{.fps = fps, .seconds = length, .size = manifest.size};
+    for (std::int64_t drawn = 1; drawn <= most; ++drawn) {
+        (void)host.step({}, seconds(host.now().count() + 1.0 / rate));
+        if (drawn % each == 0) frame(film.frames++, host);
+        const Envelope state = ask(Value(Value::Map{}));
+        const Value* answer = state.data_value();
+        if (const Value* ended = answer ? answer->get("ended") : nullptr; ended && ended->as_bool(false)) break;
+    }
+    return film;
+}
+
 void register_official() {
     register_base_components();
     register_markdown_component();
@@ -251,8 +318,9 @@ int player_main(int argc, char** argv, void (*components)()) {
         .option(Option("dev").help("development mode: the application is its own designer (D-149)"))
         .option(Option("types").takes_value().value_name("DIR").help("write the TypeScript declarations of what it registers, its API (api.json) and tsc's configuration into DIR, then end (omui check)"))
         .option(Option("design-film").takes_value().value_name("DIR").help("the design's history as a film: frames and a video description into DIR, then end (omui design film; needs the designer)"))
+        .option(Option("film-show").takes_value().value_name("DIR").help("the design's show as a film, as the page plays it: frames and a video description (video@1) into DIR, then end (video render encodes it)"))
         .option(Option("film-branch").takes_value().value_name("NAME").help("design-film: whose commits (the one designed on)"))
-        .option(Option("film-fps").value_type<int>().help("design-film: frames a second (30)"))
+        .option(Option("film-fps").value_type<int>().help("design-film, film-show: frames a second (30)"))
         .option(Option("film-seconds").value_type<double>().help("design-film: each step's time on screen (1.5)"))
         .option(Option("design-verb").takes_value().value_name("VERB").help("a design verb asked of the application started headless in development mode, its answer printed, then end (design.show …; needs the designer)"))
         .option(Option("design-args").takes_value().value_name("JSON").help("design-verb: its arguments, one JSON object"))
@@ -353,6 +421,44 @@ int player_main(int argc, char** argv, void (*components)()) {
             std::print("{}", answer.ndjson());
             return answer.exit_code().value_or(1) == 0 ? 0 : 1;
         };
+        if (auto out = parsed.value("film-show")) {
+            // The show as the page plays it, frame by frame: PNG files and the description video render reads.
+            register_window_components();
+            const std::filesystem::path dir = mcpplibs::os::fs::from_utf8(*out);
+            std::error_code error;
+            std::filesystem::remove_all(dir / "frames", error);
+            std::filesystem::create_directories(dir / "frames", error);
+            if (error) {
+                std::println(std::cerr, "{}: {}", utf8(dir), error.message());
+                return 1;
+            }
+            std::string problem;
+            auto film = film_show(*m, parsed.value_as<int>("film-fps").value_or(30), [&](std::size_t index, Headless& host) {
+                auto png = host.png();
+                if (!png) {
+                    if (problem.empty()) problem = png.error().text();
+                    return;
+                }
+                std::ofstream(dir / "frames" / std::format("{:05}.png", index), std::ios::binary)
+                    .write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
+            });
+            if (!film || !problem.empty()) {
+                std::println(std::cerr, "{}", film ? problem : film.error());
+                return 1;
+            }
+            const auto description = dir / "show.video.xdef.json";
+            const Value video = Value(Value::Map{})
+                                    .set("doc", std::format("{}: its design's show as the page plays it, {:.2f} s.", m->title.empty() ? m->id : m->title, film->seconds))
+                                    .set("width", static_cast<std::int64_t>(std::lround(film->size.width)))
+                                    .set("height", static_cast<std::int64_t>(std::lround(film->size.height)))
+                                    .set("fps", film->fps)
+                                    .set("frames", static_cast<std::int64_t>(film->frames))
+                                    .set("from", Value(Value::Map{}).set("png", "frames/{:05}.png"));
+            std::ofstream(description, std::ios::binary) << Value(Value::Map{}).set("$format", "video@1").set("video", video).json() << '\n';
+            std::println("{}", Value(Value::Map{}).set("frames", static_cast<std::int64_t>(film->frames)).set("fps", film->fps).set("seconds", film->seconds)
+                                   .set("description", utf8(description)).json());
+            return 0;
+        }
         if (auto film = parsed.value("design-film")) {
             Value args = Value{}.set("out", *film);
             if (auto branch = parsed.value("film-branch")) args.set("branch", *branch);
@@ -372,8 +478,8 @@ int player_main(int argc, char** argv, void (*components)()) {
             }
             return design(*verb, std::move(args));
         }
-    } else if (types || parsed.value("design-film") || parsed.value("design-verb")) {
-        std::println(std::cerr, "--types, --design-film and --design-verb run where the player runs on its own (omui check, omui design film), not in a page");
+    } else if (types || parsed.value("design-film") || parsed.value("design-verb") || parsed.value("film-show")) {
+        std::println(std::cerr, "--types, --design-film, --film-show and --design-verb run where the player runs on its own (omui check, omui design film), not in a page");
         return 2;
     }
     std::optional<player::Player> p;

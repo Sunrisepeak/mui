@@ -14,6 +14,7 @@
 export module omui.entry.player;
 
 import std;
+import omui.host.headless;  // the host a show's film is drawn on (film_show)
 import omui.player;
 
 export namespace omui {
@@ -29,6 +30,21 @@ export namespace omui {
 // view documents to create by name: what the `player` entry gives an application, and what a derived registry falls
 // back to (omui.build's closure(), B7b).
 void register_official();
+
+// A show's film (AG4; the presentation design §4.3): the application as it ships, its replay played as its show
+// (omui.config.ts's generation.replay with its `show`, design.show's timeline) on a headless host from its first step
+// until it ends — drawn at the show's own rate (its timeline's), as the page draws it, so the film's frame at t is the
+// page's at t — and every frame of `fps` (which divides that rate) handed to `frame` as the host drew it (its index
+// from 0, the host: pixels(), png()). The components it uses registered first (as player_main does). Answers what was
+// filmed, or why not.
+struct ShowFilm {
+    std::size_t frames = 0;   // handed over
+    int         fps = 0;
+    double      seconds = 0;  // the show's
+    Size        size;
+};
+[[nodiscard]] std::expected<ShowFilm, std::string> film_show(const player::Manifest& manifest, int fps,
+                                                             const std::function<void(std::size_t index, Headless& host)>& frame);
 
 // The player over the application's manifest, everything official registered (the `player` entry; an application's
 // own main).

@@ -282,6 +282,17 @@ static UTest cases{"text.subset", [] {
             for (const char* other : {"ss01", "cv11", "zero", "case", "dlig"})
                 expect(shaped(small, sample, {mlibs::text::Feature::on(other)}) == shaped(small, sample, {})) << std::format("{}: {} does nothing on the cut", sample, other);
         }
+        // The metrics of glyphs nothing draws are emptied, in place: hmtx (4 bytes each) holds as many entries as before, of
+        // which only the kept glyphs' (and the last, which every glyph after it has) are not zero.
+        const auto metrics = table(*cut, "hmtx");
+        const auto whole_metrics = table(inter, "hmtx");
+        const auto used = [&](std::span<const std::uint8_t> bytes) {
+            std::size_t n = 0;
+            for (std::size_t at = 0; at + 4 <= bytes.size(); at += 4) n += std::ranges::any_of(bytes.subspan(at, 4), [](auto byte) { return byte != 0; });
+            return n;
+        };
+        expect(metrics.size() == whole_metrics.size() && used(metrics) <= shaping_report.kept + 1 && used(metrics) * 4 < used(whole_metrics))
+            << std::format("{} advance entries in use of {}, {} glyphs kept", used(metrics), used(whole_metrics), shaping_report.kept);
         const auto twice = subset::subset_font(*cut, keep, nullptr, subset::shaping_features());
         expect(twice && *twice == *cut) << "cut again: the same bytes";
     };

@@ -941,6 +941,45 @@ std::optional<Bytes> pruned_gpos(std::span<const std::uint8_t> table, const std:
     return pruned;
 }
 
+// ── Tables indexed by glyph id that need nothing for a glyph no kept character reaches ───────────────────────────────
+// Emptied in place, nothing moves: a zero costs nothing to send and the glyph is never drawn or measured. The last
+// advance width of `hmtx` and the last entry of HVAR's advance mapping stand for every glyph after them, so they stay.
+
+// `hmtx`: advance and left side bearing of each glyph (the first `metrics` have both, the rest the last advance and
+// their own bearing).
+Bytes emptied_hmtx(std::span<const std::uint8_t> hmtx, std::size_t metrics, const std::vector<bool>& kept) {
+    Bytes out(hmtx.begin(), hmtx.end());
+    const std::size_t glyphs = kept.size();
+    for (std::size_t g = 0; g < glyphs; ++g) {
+        if (kept[g]) continue;
+        if (g < metrics) {
+            if (g + 1 == metrics) continue;  // the advance every glyph after it has
+            if (g * 4 + 4 <= out.size()) std::fill_n(out.begin() + static_cast<std::ptrdiff_t>(g * 4), 4, std::uint8_t{0});
+        } else if (metrics * 4 + (g - metrics) * 2 + 2 <= out.size()) {
+            std::fill_n(out.begin() + static_cast<std::ptrdiff_t>(metrics * 4 + (g - metrics) * 2), 2, std::uint8_t{0});
+        }
+    }
+    return out;
+}
+
+// HVAR's advance width mapping (a DeltaSetIndexMap): the delta set of each glyph, as outer and inner index packed in 1
+// to 4 bytes; a glyph past the last entry has the last. An entry of 0 is the first delta set, which exists.
+Bytes emptied_hvar(std::span<const std::uint8_t> hvar, const std::vector<bool>& kept) {
+    Bytes out(hvar.begin(), hvar.end());
+    if (hvar.size() < 20 || u16(hvar, 0) != 1) return out;
+    const std::size_t map = u32(hvar, 8);
+    if (!map || map + 4 > hvar.size()) return out;
+    const std::uint8_t format = hvar[map];
+    const std::uint8_t entry_format = hvar[map + 1];
+    const std::size_t size = ((entry_format >> 4) & 3) + 1;
+    const std::size_t count = format == 0 ? u16(hvar, map + 2) : format == 1 ? u32(hvar, map + 2) : 0;
+    const std::size_t entries = map + (format == 0 ? 4 : 6);
+    if (!count || entries + count * size > hvar.size()) return out;
+    for (std::size_t g = 0; g + 1 < count && g < kept.size(); ++g)
+        if (!kept[g]) std::fill_n(out.begin() + static_cast<std::ptrdiff_t>(entries + g * size), size, std::uint8_t{0});
+    return out;
+}
+
 }  // namespace
 
 std::span<const std::string_view> shaping_features() noexcept {
@@ -1226,6 +1265,11 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
         new_gvar.insert(new_gvar.end(), data.begin(), data.end());
     }
 
+    // The metrics of the glyphs that are not kept emptied, in place (hmtx; HVAR's advance mapping).
+    Bytes new_hmtx, new_hvar;
+    if (by.contains("hmtx") && by.contains("hhea") && by["hhea"].size() >= 36) new_hmtx = emptied_hmtx(by["hmtx"], u16(by["hhea"], 34), kept);
+    if (by.contains("HVAR")) new_hvar = emptied_hvar(by["HVAR"], kept);
+
     // GPOS again, for the kept glyphs, when it comes out smaller and is understood.
     Bytes new_gpos;
     if (by.contains("GPOS"))
@@ -1241,6 +1285,8 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
         else if (t.tag == "gvar") out_tables.push_back({t.tag, new_gvar});
         else if (t.tag == "GPOS" && !new_gpos.empty()) out_tables.push_back({t.tag, new_gpos});
         else if (t.tag == "GSUB" && !new_gsub.empty()) out_tables.push_back({t.tag, new_gsub});
+        else if (t.tag == "hmtx" && !new_hmtx.empty()) out_tables.push_back({t.tag, new_hmtx});
+        else if (t.tag == "HVAR" && !new_hvar.empty()) out_tables.push_back({t.tag, new_hvar});
         else out_tables.push_back({t.tag, t.data});
     }
     Bytes out(font.begin(), font.begin() + 12);

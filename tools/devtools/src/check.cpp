@@ -132,12 +132,18 @@ std::expected<Weighed, std::string> weigh_native(const fs::path& root, const Siz
     for (fs::path up = program->path.parent_path(); up.has_relative_path(); up = up.parent_path()) {
         const auto resolution = json::parse(mcpplibs::os::fs::read(up / "resolution.json").value_or(""), nullptr, false);
         if (resolution.is_discarded()) continue;
+        std::error_code same_error;
         for (const auto& package : resolution["graph"].value("packages", json::array())) {
             const auto instances = package.value("instances", json::array());
             if (std::ranges::find(instances, json("target")) == instances.end() || package.value("root", false)) continue;
             const auto& id = package["package"];
             const std::string name = id.value("namespace", "") + "." + id.value("name", "");
-            if (name != asked.package) links.insert(name);
+            // The program's own package, asked by its name or its directory: a workspace member selected by `-p` is not
+            // the graph's root (mcpp 2026.11.27.1 marks it requested by the workspace), and it is not a link of its own.
+            const std::string manifest_dir = package.value("manifest_dir", "");
+            const bool own = name == asked.package ||
+                             (!manifest_dir.empty() && fs::equivalent(mcpplibs::os::fs::from_utf8(manifest_dir), root / asked.package, same_error));
+            if (!own) links.insert(name);
             else program_out = mcpplibs::os::fs::from_utf8(package.value("outDir", ""));
         }
         break;

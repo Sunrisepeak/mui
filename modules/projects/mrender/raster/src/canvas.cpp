@@ -35,12 +35,25 @@ void rect_coverage(const Rect& r, PixelRect clip, Coverage& out, std::vector<std
     out.bounds = box;
     out.values.resize(static_cast<std::size_t>(box.width) * box.height);
     cols.resize(static_cast<std::size_t>(box.width));
-    for (std::int32_t x = 0; x < box.width; ++x) cols[static_cast<std::size_t>(x)] = span(l, rr, box.x + x);
+    // Through plain pointers: a byte written below may alias anything, and would make the vectors
+    // be read again every pixel.
+    std::uint32_t* const columns = cols.data();
+    std::uint8_t* const values = out.values.data();
+    for (std::int32_t x = 0; x < box.width; ++x)
+        columns[x] = span(l, rr, box.x + x);
+    // Separable: a row whose coverage is the one above's is that row's bytes (every row between the
+    // top and the bottom edge's), copied instead of computed again.
+    std::uint32_t above = 257;  // no row has it (0..256)
     for (std::int32_t y = 0; y < box.height; ++y) {
         std::uint32_t row = span(t, b, box.y + y);
-        std::uint8_t* dst = out.values.data() + static_cast<std::size_t>(y) * box.width;
+        std::uint8_t* dst = values + static_cast<std::size_t>(y) * box.width;
+        if (row == above) {
+            std::memcpy(dst, dst - box.width, static_cast<std::size_t>(box.width));
+            continue;
+        }
+        above = row;
         for (std::int32_t x = 0; x < box.width; ++x) {
-            std::uint32_t c = (cols[static_cast<std::size_t>(x)] * row + 128) >> 8;  // 0..256
+            std::uint32_t c = (columns[x] * row + 128) >> 8;  // 0..256
             dst[x] = static_cast<std::uint8_t>(c > 255 ? 255 : c);
         }
     }
@@ -574,7 +587,13 @@ void blur(Coverage& c, float sigma, std::vector<std::uint32_t>& buf, std::vector
     }
     c.bounds = nb;
     c.values.resize(buf.size());
-    for (std::size_t i = 0; i < buf.size(); ++i) c.values[i] = static_cast<std::uint8_t>(std::min<std::uint32_t>(255, buf[i]));
+    // Through plain pointers (a byte written may alias anything: the vectors would be read again
+    // every value).
+    std::uint8_t* const values = c.values.data();
+    const std::uint32_t* const sums = buf.data();
+    const std::size_t count = buf.size();
+    for (std::size_t i = 0; i < count; ++i)
+        values[i] = static_cast<std::uint8_t>(std::min<std::uint32_t>(255, sums[i]));
 }
 
 void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur_radius, float spread, bool inset,
@@ -615,12 +634,22 @@ void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, 
         polygons_.clear();
         flatten(box.data(), m, polygons_);
         rasterizer_.rasterize(polygons_, FillRule::nonzero, shape.bounds, inside);
-        if (!inside.empty())
-            for (std::int32_t y = inside.bounds.y; y < inside.bounds.y + inside.bounds.height; ++y)
-                for (std::int32_t x = inside.bounds.x; x < inside.bounds.x + inside.bounds.width; ++x) {
-                    std::size_t i = static_cast<std::size_t>(y - shape.bounds.y) * shape.bounds.width + (x - shape.bounds.x);
-                    shape.values[i] = static_cast<std::uint8_t>(mul255(shape.values[i], 255u - inside.at(x, y)));
+        if (!inside.empty()) {
+            // The scratch's buffers through plain pointers and its bounds as values (a byte written
+            // may alias them).
+            const PixelRect within = inside.bounds, around = shape.bounds;
+            std::uint8_t* const shaded = shape.values.data();
+            const std::uint8_t* const covered = inside.values.data();
+            for (std::int32_t y = within.y; y < within.y + within.height; ++y)
+                for (std::int32_t x = within.x; x < within.x + within.width; ++x) {
+                    std::size_t i =
+                        static_cast<std::size_t>(y - around.y) * around.width + (x - around.x);
+                    const std::uint8_t box_coverage =
+                        covered[static_cast<std::size_t>(y - within.y) * within.width +
+                                (x - within.x)];
+                    shaded[i] = static_cast<std::uint8_t>(mul255(shaded[i], 255u - box_coverage));
                 }
+        }
         std::swap(out, shape);  // the scratch keeps out's old buffer
     } else {
         // Inset: the blurred complement of the shrunk, offset box, inside the box.
@@ -647,21 +676,35 @@ void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, 
         Coverage& hole = scratch.hole;
         hole.bounds = pad;
         hole.values.assign(static_cast<std::size_t>(pad.width) * pad.height, 255);
-        for (std::int32_t y = 0; y < shape.bounds.height; ++y)
-            for (std::int32_t x = 0; x < shape.bounds.width; ++x) {
-                std::size_t i = static_cast<std::size_t>(y + shape.bounds.y - pad.y) * pad.width + (x + shape.bounds.x - pad.x);
-                hole.values[i] = static_cast<std::uint8_t>(255 - shape.values[static_cast<std::size_t>(y) * shape.bounds.width + x]);
-            }
+        {
+            const PixelRect shrunk = shape.bounds;
+            std::uint8_t* const holes = hole.values.data();
+            const std::uint8_t* const shrunk_values = shape.values.data();
+            for (std::int32_t y = 0; y < shrunk.height; ++y)
+                for (std::int32_t x = 0; x < shrunk.width; ++x) {
+                    std::size_t i = static_cast<std::size_t>(y + shrunk.y - pad.y) * pad.width +
+                                    (x + shrunk.x - pad.x);
+                    holes[i] = static_cast<std::uint8_t>(
+                        255 - shrunk_values[static_cast<std::size_t>(y) * shrunk.width + x]);
+                }
+        }
         blur(hole, sigma * m.max_scale(), scratch.sums, scratch.passed);
-        for (std::int32_t y = 0; y < outer.bounds.height; ++y)
-            for (std::int32_t x = 0; x < outer.bounds.width; ++x) {
-                int gx = x + outer.bounds.x, gy = y + outer.bounds.y;
+        const PixelRect box_bounds = outer.bounds, hole_bounds = hole.bounds;
+        // out's own values (`outer` is `out`): each multiplied in place.
+        std::uint8_t* const box_values = outer.values.data();
+        const std::uint8_t* const hole_values = hole.values.data();
+        for (std::int32_t y = 0; y < box_bounds.height; ++y)
+            for (std::int32_t x = 0; x < box_bounds.width; ++x) {
+                int gx = x + box_bounds.x, gy = y + box_bounds.y;
                 std::uint32_t h = 0;
-                if (gx >= hole.bounds.x && gy >= hole.bounds.y && gx < hole.bounds.x + hole.bounds.width &&
-                    gy < hole.bounds.y + hole.bounds.height)
-                    h = hole.at(gx, gy);
-                std::size_t i = static_cast<std::size_t>(y) * outer.bounds.width + x;
-                out.values[i] = static_cast<std::uint8_t>(mul255(outer.values[i], h));
+                if (gx >= hole_bounds.x && gy >= hole_bounds.y &&
+                    gx < hole_bounds.x + hole_bounds.width &&
+                    gy < hole_bounds.y + hole_bounds.height)
+                    h = hole_values[static_cast<std::size_t>(gy - hole_bounds.y) *
+                                        hole_bounds.width +
+                                    (gx - hole_bounds.x)];
+                std::size_t i = static_cast<std::size_t>(y) * box_bounds.width + x;
+                box_values[i] = static_cast<std::uint8_t>(mul255(box_values[i], h));
             }
     }
 }

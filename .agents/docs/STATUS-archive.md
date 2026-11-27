@@ -56,6 +56,12 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 
 ## CI red list — closed rows
 
+**Moved at AG7 (2026-11-27)**: reds retired with the C++ site (2026-11-21), as STATUS had them:
+
+| 30 | Pages: the site in a real browser hung after the reaction workspace's phone canvas | Pages; e5cc9ed4 | F | retired: the C++ site removed (2026-11-21, the page is the site; history keeps it) |
+| 143 | the site's no-script page, zh/motion at 390×844: the catalogue's group summary was not what lay under its own middle for the second the check waits after opening the catalogue | Pages run 44462533509 (5c051edd); 2026-11-19 | flaky (a re-run of the job passed and deployed) | retired: the C++ site removed (2026-11-21, the page is the site; history keeps it) |
+| 144 | the site's motion check on CI's Chrome 157: opening the docs' motion reference, the page traps (`memory access out of bounds`, a call from the deferred half of the split program into the first) and answers nothing after | Pages run 44476046568 (8be652f9); 2026-11-19 | flaky (not reproduced here in 6 runs; the next run, 44497257326 at 051825b8, passed and deployed) | retired: the C++ site removed (2026-11-21, the page is the site; history keeps it) |
+
 **Moved at P0's round (2026-11-27, run 45956715231)**: the reds the round confirmed, as STATUS had them:
 
 | 11 | cellular reaction kernel on Direct3D 12 (WARP): tick 1, index 515, GPU 0 against CPU 1 | Windows `rhi.sdl` | R | likely root cause fixed (RC2.15): the wrap edge took `x % w` of a negative `x` — undefined on Vulkan (OpSRem/OpSMod), emulated on DXBC; on an RTX 4080 it failed every `.wrap` case (lavapipe happened to agree), now 43/43 with non-negative operands. Direct3D 12 stays `unverified` (D-201) until a run of the suites there Confirmed on Windows (run 45956715231): `meng/kernel/cellular/rhi/cts` passes on the row. |

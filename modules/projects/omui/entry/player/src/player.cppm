@@ -31,6 +31,31 @@ export namespace omui {
 // back to (omui.build's closure(), B7b).
 void register_official();
 
+// An application as it ships (development's when `design`) on a headless host: its scripts run and at rest, and the
+// interface generated while it runs as its omui.config.ts declares — generation's openness for the mode, its
+// surfaces, components and verbs, its replay and show — what the released program runs, without a window: what a
+// test or a tool asks as an agent would (film_show plays a show in one). The components it uses registered first.
+class Shipped {
+public:
+    ~Shipped();
+    Shipped(const Shipped&) = delete;
+    Shipped& operator=(const Shipped&) = delete;
+    [[nodiscard]] Headless& host() noexcept;
+    [[nodiscard]] player::Player& page() noexcept;
+    // Whether interface is generated while it runs (its omui.config.ts declares a surface or a replay).
+    [[nodiscard]] bool generates() const noexcept;
+    // Its scripts done (the clock held), then frames until nothing moves.
+    void settle();
+
+    struct State;
+
+private:
+    explicit Shipped(std::unique_ptr<State> state);
+    std::unique_ptr<State> state_;
+    friend std::expected<std::unique_ptr<Shipped>, std::string> ship_headless(const player::Manifest& manifest, bool design);
+};
+[[nodiscard]] std::expected<std::unique_ptr<Shipped>, std::string> ship_headless(const player::Manifest& manifest, bool design = false);
+
 // A show's film (AG4; the presentation design §4.3): the application as it ships, its replay played as its show
 // (omui.config.ts's generation.replay with its `show`, design.show's timeline) on a headless host from its first step
 // until it ends — drawn at the show's own rate (its timeline's), as the page draws it, so the film's frame at t is the

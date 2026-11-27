@@ -70,6 +70,11 @@ mlibs.json = { path = "../../../../base/json" }  # the manifest's declaration, r
 mcpplibs.os = "0.4.8"
 mcpplibs.cmdline = "0.0.3"
 
+# Tests are mtest's (D-147): the application as it ships, headless (ship_headless), asked as a user's agent asks.
+[dev-dependencies]
+mcpplibs.mtest = "0.11.3"
+mlibs.utils    = { path = "../../../../base/utils" }  # scratch directories (mlibs.testing)
+
 [target.'cfg(not(os = "emscripten"))'.dependencies]
 marzer.tomlplusplus = "3.4.0"  # an application's mcpp.toml, written as JSON for the reader
 

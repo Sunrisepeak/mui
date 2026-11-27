@@ -3,6 +3,17 @@ namespace omui {
   [[nodiscard]] std::expected<player::Manifest, std::string> read_manifest(const std::filesystem::path& mcpp_toml);
   [[nodiscard]] player::TwinFn twins(const player::Manifest& manifest);
   void register_official();
+  class Shipped {
+    ~Shipped();
+    Shipped(const Shipped&) = delete;
+    Shipped& operator=(const Shipped&) = delete;
+    [[nodiscard]] Headless& host() noexcept;
+    [[nodiscard]] player::Player& page() noexcept;
+    [[nodiscard]] bool generates() const noexcept;
+    void settle();
+    struct State;
+  };
+  [[nodiscard]] std::expected<std::unique_ptr<Shipped>, std::string> ship_headless(const player::Manifest& manifest, bool design = false);
   struct ShowFilm {
     std::size_t frames = 0;
     int fps = 0;

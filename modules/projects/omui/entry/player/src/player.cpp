@@ -192,7 +192,8 @@ std::function<std::expected<Theme, std::string>(std::string_view)> customized(st
 }
 
 // Code that makes a generated view document (generation's `limited` and `all`): a TypeScript
-// data module, `export default defineView({…})`, evaluated as data modules are — no I/O, no
+// data module, `export default defineView({…})` (from "openmui/define": a view document is the
+// specification's format), evaluated as data modules are — no I/O, no
 // real time, no randomness, a bounded heap and time — and imports by path only inside an empty
 // directory.
 generate::EvaluateFn generated_views(const std::filesystem::path& base) {
@@ -202,8 +203,11 @@ generate::EvaluateFn generated_views(const std::filesystem::path& base) {
         std::filesystem::create_directories(scratch, error);
         auto data = lang::ts::evaluate_source(code, utf8(scratch / "draft.view.xdef.ts"),
                                               {.root = scratch, .memory_bytes = 16 * 1024 * 1024, .time = std::chrono::milliseconds(500)});
-        if (!data) return std::unexpected(data.error().text());
-        if (data->kind != "view") return std::unexpected(std::format("the code's default export is defineView(…), not a {}", data->kind));
+        if (!data)
+            return std::unexpected(std::format("{} (a generated view is `import {{ defineView }} from \"openmui/define\"; export default defineView({{ omui: \"0.1\", view: {{ root: … }} }});`)",
+                                               data.error().text()));
+        if (data->kind != "view")
+            return std::unexpected(std::format("the code's default export is defineView(…) from \"openmui/define\", not a {}", data->kind));
         return std::move(data->json);
     };
 }
@@ -230,6 +234,98 @@ std::filesystem::path runtime_directory() {
 
 }  // namespace
 
+namespace {
+
+// The interface generated while it runs (D-144), as omui.config.ts declares it: as open as it says for the mode —
+// everything in development, nothing in a release unless said — its surfaces, components and verbs, and the design
+// it ships played in place (G8: its replay and show), each step's texts run by the page's scripts (`page`, while they
+// run). None: it declares no surface and no replay.
+std::optional<generate::GenerationOptions> generation_of(const Config& config, const player::Manifest& m, bool design, std::function<player::Player*()> page) {
+    if (config.surfaces.empty() && config.replay.empty()) return std::nullopt;
+    const generate::Openness open = design ? config.development_generation.value_or(generate::Openness::all)
+                                           : config.release_generation.value_or(generate::Openness::off);
+    generate::GenerationOptions options{.openness = open,
+                                        .surfaces = config.surfaces,
+                                        .components = config.components,
+                                        .verbs = config.verbs,
+                                        .evaluate = generated_views(m.base),
+                                        .theme = customized(m.theme),
+                                        .directory = m.base / ".omui" / "generation"};
+    // The design shown in place (G8): the replay it ships, each step's texts run as an edit runs; at the end, or
+    // stopped, its own scripts again.
+    if (!config.replay.empty()) {
+        const std::filesystem::path file = m.base / config.replay;
+        std::ifstream in(file, std::ios::binary);
+        if (!in) std::println(std::cerr, "{}: generation.replay names no file here (design.history.export writes one)", utf8(file));
+        options.replay.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        options.replay_file = utf8(config.replay);
+        options.replay_course = config.replay_course;
+        if (!config.replay_show.empty()) {
+            const std::filesystem::path shown = m.base / config.replay_show;
+            std::ifstream show_in(shown, std::ios::binary);
+            if (!show_in) std::println(std::cerr, "{}: generation.replay.show names no file here (design.show writes one)", utf8(shown));
+            options.replay_show.assign(std::istreambuf_iterator<char>(show_in), std::istreambuf_iterator<char>());
+            options.replay_show_file = utf8(config.replay_show);
+        }
+        options.show = [page](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
+            player::Player* p = page();
+            if (!p) return std::unexpected(std::string("the application's scripts are not running"));
+            if (auto shown = p->show(texts); !shown) return std::unexpected(shown.error().message);
+            return {};
+        };
+        options.restore = [page] {
+            if (player::Player* p = page()) (void)p->discard_edits();
+        };
+    }
+    // On the Web a page's files do not outlive it: the versions are kept in the page's storage (the host's store,
+    // localStorage), so the customization is there again when the page is opened again.
+    if constexpr (mcpplibs::os::is_emscripten) {
+        const std::string prefix = std::format("omui.generation/{}/", m.id);
+        options.read_kept = [prefix](std::string_view name) { return omui::store().get(prefix + std::string(name)); };
+        options.write_kept = [prefix](std::string_view name, std::string_view text) { return omui::store().set(prefix + std::string(name), text); };
+    }
+    return options;
+}
+
+}  // namespace
+
+struct Shipped::State {
+    Headless                            host;
+    std::optional<player::Player>       page;
+    std::optional<generate::Generation> generation;
+    explicit State(const player::Manifest& m) : host(HeadlessOptions{.level = HeadlessLevel::pixels, .size = m.size}) {}
+};
+
+Shipped::Shipped(std::unique_ptr<State> state) : state_(std::move(state)) {}
+Shipped::~Shipped() {
+    if (!state_) return;
+    state_->generation.reset();  // what it generated, then the scripts, before their runtime
+    state_->page.reset();
+}
+Headless& Shipped::host() noexcept { return state_->host; }
+player::Player& Shipped::page() noexcept { return *state_->page; }
+bool Shipped::generates() const noexcept { return state_->generation.has_value(); }
+void Shipped::settle() {
+    (void)state_->host.wait([&] { return state_->page->idle(); });
+    (void)state_->host.settle();
+}
+
+std::expected<std::unique_ptr<Shipped>, std::string> ship_headless(const player::Manifest& manifest, bool design) {
+    auto config = read_config(manifest.base);
+    if (!config) return std::unexpected(config.error());
+    auto state = std::make_unique<Shipped::State>(manifest);
+    player::PlayerOptions options{.design = design};
+    if (design) options.twin = twins(manifest);
+    state->page.emplace(state->host.runtime(), manifest, std::vector<player::Language>{lang::js::typescript(), lang::js::javascript()}, options);
+    if (auto started = state->page->start(); !started) return std::unexpected(started.error().message);
+    std::unique_ptr<Shipped> shipped(new Shipped(std::move(state)));
+    shipped->settle();
+    player::Player* page = &shipped->page();
+    if (auto generation = generation_of(*config, manifest, design, [page] { return page; }))
+        shipped->state_->generation.emplace(shipped->host().runtime(), std::move(*generation));
+    return shipped;
+}
+
 std::expected<ShowFilm, std::string> film_show(const player::Manifest& manifest, int fps, const std::function<void(std::size_t index, Headless& host)>& frame) {
     auto config = read_config(manifest.base);
     if (!config) return std::unexpected(config.error());
@@ -255,25 +351,11 @@ std::expected<ShowFilm, std::string> film_show(const player::Manifest& manifest,
     if (!morphs_installed())
         if (auto installed = install_morphs(); !installed) return std::unexpected(std::format("the morphs' provider: {}", installed.error()));
 
-    // The page as it ships, its scripts done and at rest — then the Live Design key's verb, from the first step.
-    Headless host(HeadlessOptions{.level = HeadlessLevel::pixels, .size = manifest.size});
-    player::Player page(host.runtime(), manifest, {lang::js::typescript(), lang::js::javascript()});
-    if (auto started = page.start(); !started) return std::unexpected(started.error().message);
-    const auto settle = [&] {
-        (void)host.wait([&] { return page.idle(); });
-        (void)host.settle();
-    };
-    settle();
-    generate::Generation generation(host.runtime(), {.replay = *replay_text,
-                                                     .replay_file = utf8(config->replay),
-                                                     .replay_course = config->replay_course,
-                                                     .replay_show = *show_text,
-                                                     .replay_show_file = utf8(config->replay_show),
-                                                     .show = [&](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
-                                                         if (auto shown = page.show(texts); !shown) return std::unexpected(shown.error().message);
-                                                         return {};
-                                                     },
-                                                     .restore = [&] { (void)page.discard_edits(); }});
+    // The page as it ships, its scripts done and at rest, its generation as its omui.config.ts declares — then the
+    // Live Design key's verb, from the first step.
+    auto shipped = ship_headless(manifest);
+    if (!shipped) return std::unexpected(shipped.error());
+    Headless& host = (*shipped)->host();
     const auto ask = [&](Value args) {
         Invocation call;
         call.actor = {"person", "visitor", {}};
@@ -554,50 +636,8 @@ int player_main(int argc, char** argv, void (*components)()) {
             });
     };
     // Interface generated while it runs (D-144): where omui.config.ts lets it in, as open as it says
-    // — everything in development, nothing in a release unless said.
-    if (!config->surfaces.empty() || !config->replay.empty()) {
-        const generate::Openness open = design ? config->development_generation.value_or(generate::Openness::all)
-                                            : config->release_generation.value_or(generate::Openness::off);
-        app.generation = generate::GenerationOptions{.openness = open,
-                                                  .surfaces = config->surfaces,
-                                                  .components = config->components,
-                                                  .verbs = config->verbs,
-                                                  .evaluate = generated_views(m->base),
-                                                  .theme = customized(m->theme),
-                                                  .directory = m->base / ".omui" / "generation"};
-        // The design shown in place (G8): the replay it ships, each step's texts run as an edit runs; at the end, or
-        // stopped, its own scripts again.
-        if (!config->replay.empty()) {
-            const std::filesystem::path file = m->base / config->replay;
-            std::ifstream in(file, std::ios::binary);
-            if (!in) std::println(std::cerr, "{}: generation.replay names no file here (design.history.export writes one)", utf8(file));
-            app.generation->replay.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-            app.generation->replay_file = utf8(config->replay);
-            app.generation->replay_course = config->replay_course;
-            if (!config->replay_show.empty()) {
-                const std::filesystem::path shown = m->base / config->replay_show;
-                std::ifstream show_in(shown, std::ios::binary);
-                if (!show_in) std::println(std::cerr, "{}: generation.replay.show names no file here (design.show writes one)", utf8(shown));
-                app.generation->replay_show.assign(std::istreambuf_iterator<char>(show_in), std::istreambuf_iterator<char>());
-                app.generation->replay_show_file = utf8(config->replay_show);
-            }
-            app.generation->show = [&p](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
-                if (!p) return std::unexpected(std::string("the application's scripts are not running"));
-                if (auto shown = p->show(texts); !shown) return std::unexpected(shown.error().message);
-                return {};
-            };
-            app.generation->restore = [&p] {
-                if (p) (void)p->discard_edits();
-            };
-        }
-        // On the Web a page's files do not outlive it: the versions are kept in the page's storage (the host's store,
-        // localStorage), so the customization is there again when the page is opened again.
-        if constexpr (mcpplibs::os::is_emscripten) {
-            const std::string prefix = std::format("omui.generation/{}/", m->id);
-            app.generation->read_kept = [prefix](std::string_view name) { return omui::store().get(prefix + std::string(name)); };
-            app.generation->write_kept = [prefix](std::string_view name, std::string_view text) { return omui::store().set(prefix + std::string(name), text); };
-        }
-    }
+    // — everything in development, nothing in a release unless said (generation_of: what ship_headless gives too).
+    app.generation = generation_of(*config, *m, design, [&p] { return p ? &*p : nullptr; });
     app.ready = [&] { return p && p->idle(); };
     app.teardown = [&](Runtime&) { p.reset(); };  // the player goes before its runtime
     return run(std::move(app), options);

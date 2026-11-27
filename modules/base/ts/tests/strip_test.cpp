@@ -272,15 +272,14 @@ UTest cases{"lang.ts strip", [] {
     };
 
     "esbuild makes the same JavaScript of the stripped text as of the TypeScript (cases, corpus, the repository's files)"_test = [] {
-        const auto chosen = mcpplibs::os::env::get("OMUI_ESBUILD");
-        const auto program = chosen && !chosen->empty() ? std::optional(mcpplibs::os::fs::from_utf8(*chosen)) : mcpplibs::os::env::find_executable("esbuild");
+        const auto program = mcpplibs::os::env::find_executable("esbuild");
         if (!program) {
-            // The workspace declares it ([xlings.workspace], when = "run"): on CI its absence is a failure, not a skip.
+            // The workspace declares it ([xlings.workspace], when = "run"): mcpp installs it for a test run and puts
+            // its directory on the test's PATH on every host (mcpp 2026.11.27.1, mcpp#926). On CI its absence is a
+            // failure, not a skip.
             if (mcpplibs::os::env::get("CI"))
-                // mcpp installs it for a test run and gives a test its directory on PATH on Linux and macOS, not
-                // on Windows (mcpp#926): that row names the installed program by OMUI_ESBUILD.
-                fail("no esbuild on PATH and none named by OMUI_ESBUILD, though the workspace declares it for test runs ([xlings.workspace], when = \"run\")");
-            skip("no esbuild (the workspace declares it: mcpp test installs it; or OMUI_ESBUILD)");
+                fail("no esbuild on PATH, though the workspace declares it for test runs ([xlings.workspace], when = \"run\")");
+            skip("no esbuild (the workspace declares it: mcpp test installs it)");
         }
         std::vector<std::pair<std::string, std::string>> sources;
         for (const auto& [name, source, stripped] : forms) sources.emplace_back(name, source);

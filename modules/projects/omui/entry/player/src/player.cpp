@@ -297,52 +297,59 @@ int player_main(int argc, char** argv, void (*components)()) {
     // application's own come from its manifest (`themes`).
     for (auto add : {themes::add_default, themes::add_compact})
         if (auto r = add(); !r) warn("a theme package: {}", r.error()[0].text());
-    if (types) {
-        // What the application registered, declared for tsc (W1 step 5): its
-        // components (its component documents too, so it starts, headless),
-        // native modules and the define functions, a file a line. The
-        // official components first, as run() registers them.
-        register_window_components();
-        Headless headless(HeadlessOptions{.size = m->size});
-        player::Player declaring(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()});
-        if (auto r = declaring.start(); !r) std::print(std::cerr, "{}", r.error());
-        auto files = declaring.declare(*types);
-        if (!files) {
-            std::println(std::cerr, "{}", files.error());
-            return 1;
+    // --types and --design-film run the application headless and write files: a program's on its own. A page (the
+    // Web) is shown in its page and carries neither — nor the declarations for tsc, the headless host or its window.
+    if constexpr (!mcpplibs::os::is_emscripten) {
+        if (types) {
+            // What the application registered, declared for tsc (W1 step 5): its
+            // components (its component documents too, so it starts, headless),
+            // native modules and the define functions, a file a line. The
+            // official components first, as run() registers them.
+            register_window_components();
+            Headless headless(HeadlessOptions{.size = m->size});
+            player::Player declaring(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()});
+            if (auto r = declaring.start(); !r) std::print(std::cerr, "{}", r.error());
+            auto files = declaring.declare(*types);
+            if (!files) {
+                std::println(std::cerr, "{}", files.error());
+                return 1;
+            }
+            // Beside them, the same API as data (omui.agent:api): `omui describe --api`, llms.txt and
+            // `omui check --portable` read it.
+            const auto api = *types / "api.json";
+            if (auto written = mcpplibs::os::fs::write_atomic(api, agent::api_of(headless.runtime()).json()); !written) {
+                std::println(std::cerr, "cannot write {}: {}", utf8(api), written.error().message());
+                return 1;
+            }
+            files->push_back(api);
+            for (const auto& file : *files) std::println("{}", utf8(file));
+            return 0;
         }
-        // Beside them, the same API as data (omui.agent:api): `omui describe --api`, llms.txt and
-        // `omui check --portable` read it.
-        const auto api = *types / "api.json";
-        if (auto written = mcpplibs::os::fs::write_atomic(api, agent::api_of(headless.runtime()).json()); !written) {
-            std::println(std::cerr, "cannot write {}: {}", utf8(api), written.error().message());
-            return 1;
+        if (auto film = parsed.value("design-film")) {
+            // The design's history as a film (design.film, the designer's): the application started
+            // headless in development mode, the verb asked, its answer printed.
+            register_window_components();
+            Headless headless(HeadlessOptions{.size = m->size, .app = m->id});
+            player::Player designing(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()}, {.design = true, .twin = twins(*m)});
+            if (auto r = designing.start(); !r) {
+                std::print(std::cerr, "{}", r.error());
+                if (!headless.runtime().verbs().find("design.film")) return 2;  // no designer linked: nothing to film with
+            }
+            for (int frame = 0; frame < 600 && !designing.idle(); ++frame) (void)headless.step();
+            Value args = Value{}.set("out", *film);
+            if (auto branch = parsed.value("film-branch")) args.set("branch", *branch);
+            if (auto fps = parsed.value_as<int>("film-fps")) args.set("fps", *fps);
+            if (auto each = parsed.value_as<double>("film-seconds")) args.set("seconds", *each);
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"person", "developer", {}};
+            const Envelope answer = headless.runtime().verbs().invoke("design.film", call);
+            std::print("{}", answer.ndjson());
+            return answer.exit_code().value_or(1) == 0 ? 0 : 1;
         }
-        files->push_back(api);
-        for (const auto& file : *files) std::println("{}", utf8(file));
-        return 0;
-    }
-    if (auto film = parsed.value("design-film")) {
-        // The design's history as a film (design.film, the designer's): the application started
-        // headless in development mode, the verb asked, its answer printed.
-        register_window_components();
-        Headless headless(HeadlessOptions{.size = m->size, .app = m->id});
-        player::Player designing(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()}, {.design = true, .twin = twins(*m)});
-        if (auto r = designing.start(); !r) {
-            std::print(std::cerr, "{}", r.error());
-            if (!headless.runtime().verbs().find("design.film")) return 2;  // no designer linked: nothing to film with
-        }
-        for (int frame = 0; frame < 600 && !designing.idle(); ++frame) (void)headless.step();
-        Value args = Value{}.set("out", *film);
-        if (auto branch = parsed.value("film-branch")) args.set("branch", *branch);
-        if (auto fps = parsed.value_as<int>("film-fps")) args.set("fps", *fps);
-        if (auto each = parsed.value_as<double>("film-seconds")) args.set("seconds", *each);
-        Invocation call;
-        call.args = std::move(args);
-        call.actor = {"person", "developer", {}};
-        const Envelope answer = headless.runtime().verbs().invoke("design.film", call);
-        std::print("{}", answer.ndjson());
-        return answer.exit_code().value_or(1) == 0 ? 0 : 1;
+    } else if (types || parsed.value("design-film")) {
+        std::println(std::cerr, "--types and --design-film run where the player runs on its own (omui check, omui design film), not in a page");
+        return 2;
     }
     std::optional<player::Player> p;
     std::optional<Watch> linking;  // a release's designer, waiting for the person's agent

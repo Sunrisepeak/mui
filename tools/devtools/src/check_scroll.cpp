@@ -49,15 +49,16 @@ constexpr std::string_view probe_script = R"js((() => {
 constexpr std::string_view state_script = R"js((() => {
   const view = document.querySelector('[data-omui=mirror] [data-omui-scroll]');
   const canvas = document.querySelector('canvas');
+  // Elements whose own words still flow rather than stand on the canvas's lines (a text not drawn yet).
+  const flowing = [...document.querySelectorAll('[data-omui=mirror] [data-omui-id]:not([data-omui-inline])')].filter((el) =>
+    !el.querySelector(':scope > [data-omui-line]') && [...el.childNodes].some((n) => n.nodeType === 3 && n.data.trim()));
   let drawn = 'none';
   if (canvas) for (const kind of ['webgpu', 'webgl2', 'webgl', '2d']) { try { if (canvas.getContext(kind)) { drawn = kind; break; } } catch (e) {} }
   return { y: view ? view.scrollTop : -1, most: view ? view.scrollHeight - view.clientHeight : -1,
            elements: document.querySelectorAll('[data-omui=mirror] *').length,
            lines: document.querySelectorAll('[data-omui=mirror] [data-omui-line]').length,
            words: document.querySelectorAll('[data-omui=mirror] [data-omui-word]').length,
-           // Elements whose own words still flow rather than stand on the canvas's lines (a text not drawn yet).
-           flowed: [...document.querySelectorAll('[data-omui=mirror] [data-omui-id]:not([data-omui-inline])')].filter((el) =>
-             !el.querySelector(':scope > [data-omui-line]') && [...el.childNodes].some((n) => n.nodeType === 3 && n.data.trim())).length,
+           flowed: flowing.length, flowing: flowing.slice(0, 12).map((el) => el.getAttribute('data-omui-id') + ' @' + Math.round(el.getBoundingClientRect().top)),
            width: innerWidth, height: innerHeight, ratio: devicePixelRatio, drawn };
 })())js";
 
@@ -407,6 +408,11 @@ int scroll(const fs::path& root, const Scroll& asked) {
             page.post("Input.dispatchMouseEvent", {{"type", "mouseWheel"}, {"x", x}, {"y", y}, {"deltaX", 0}, {"deltaY", direction * step}});
             if (asked.spans && index % 60 == 0) page.post("Runtime.evaluate", {{"expression", "window.omuiScrollProbe.cycle(true)"}});
         }
+        // The page's own events may still be on their way (a main thread late by frames): the view at its end first,
+        // within ten seconds.
+        const std::string there = direction > 0 ? "(() => { const v = document.querySelector('[data-omui=mirror] [data-omui-scroll]'); return !v || v.scrollTop >= v.scrollHeight - v.clientHeight - 1; })()"
+                                                : "(() => { const v = document.querySelector('[data-omui=mirror] [data-omui-scroll]'); return !v || v.scrollTop <= 1; })()";
+        static_cast<void>(wait(there, 100, "the view at its end"));
         page.pump(std::chrono::milliseconds(600));
     };
     std::string address = (*server)->url();
@@ -467,25 +473,33 @@ int scroll(const fs::path& root, const Scroll& asked) {
     // once scrolled to its end, no element whose words still flow (every text the canvas drew stands on its lines).
     constexpr double browser_bar = 1000.0 / 60;
     bool held = true;
-    std::map<std::string, std::pair<double, double>> worst;  // route -> worst p99 of its moving phases, most flowed
+    struct Worst {
+        double p99 = 0, flowed = 0;
+        bool   reached = true;  // the view at its end once the wheel stopped (else: its events still on their way)
+    };
+    std::map<std::string, Worst> worst;  // by route: the worst p99 of its moving phases, the most left flowing
     for (const json& visit : rows) {
         const std::string route = text(at(visit, "path"));
         if (route == reference_address) continue;
         for (const json& phase : at(visit, "phases")) {
             const std::string name = text(at(phase, "phase"));
             if (!name.ends_with("-down") && !name.ends_with("-up")) continue;
-            auto& [p99, flowed] = worst[route];
-            p99 = std::max(p99, number(at(at(at(phase, "trace"), "displayed"), "p99_ms")));
-            if (name.ends_with("-down")) flowed = std::max(flowed, number(at(at(phase, "after"), "flowed")));
+            Worst& seen = worst[route];
+            seen.p99 = std::max(seen.p99, number(at(at(at(phase, "trace"), "displayed"), "p99_ms")));
+            const json& after = at(phase, "after");
+            if (!name.ends_with("-down")) continue;
+            seen.flowed = std::max(seen.flowed, number(at(after, "flowed")));
+            seen.reached = seen.reached && number(at(after, "y")) >= number(at(after, "most")) - 1;
         }
     }
     json verdict = json::object();
     for (const auto& [route, seen] : worst) {
-        const bool ok = seen.first <= browser_bar && seen.second == 0;
+        const bool ok = seen.p99 <= browser_bar && seen.flowed == 0 && seen.reached;
         held = held && ok;
-        verdict[route] = {{"p99_ms", seen.first}, {"flowed", seen.second}, {"browser_bar", ok}, {"monitor_bar", seen.first <= interval + 0.01}};
-        std::cout << std::format("  {} {}: shown frames' p99 while it moves {} ms (the browser's bar {:.1f}, the monitor's {:.1f}); {} element(s) left flowing at its end\n",
-                                 ok ? "ok  " : "FAIL", route, seen.first, browser_bar, interval, seen.second);
+        verdict[route] = {{"p99_ms", seen.p99}, {"flowed", seen.flowed}, {"reached", seen.reached}, {"browser_bar", seen.p99 <= browser_bar}, {"monitor_bar", seen.p99 <= interval + 0.01}};
+        std::cout << std::format("  {} {}: shown frames' p99 while it moves {} ms (the browser's bar {:.1f}, the monitor's {:.1f}); {}\n", ok ? "ok  " : "FAIL", route, seen.p99,
+                                 browser_bar, interval,
+                                 seen.reached ? std::format("{} element(s) left flowing at its end", seen.flowed) : std::string("the view did not reach its end within ten seconds of the wheel"));
     }
     const json report = {{"$format", "scroll-report@1"},
                          {"page", mcpplibs::os::fs::utf8(asked.page)},

@@ -34,7 +34,16 @@ mlibs.compose = { path = "../../../base/compose" }
 mcpplibs.mwrap.harfbuzz = "14.3.0"
 # HarfBuzz without its FreeType backend (mcpp-index#860): shaping reads its fonts through HarfBuzz's own `ot`
 # functions, and with FreeType built in, every program that makes a font would link all of FreeType (red 149).
-compat.harfbuzz = { version = "14.3.0", features = ["no-freetype"] }
+# And without the APIs this shaper never calls (mcpp-index#929, revision 3: buffer serialisation, verification and
+# messages, the MATH and meta tables, the layout API no shaper uses, glyph names, style queries): its 57 `hb_*` calls
+# answer as before (the Web-program size design §14).
+compat.harfbuzz = { version = "14.3.0", features = ["no-freetype", "no-unused-api"] }
+
+[features]
+# A reduction (omui.sdk's `no-aat-text` forwards to it; mcpp-index#929's `no-aat-vertical`): HarfBuzz without Apple's AAT
+# shaping (`morx`, `kerx`, `trak`) and vertical layout. Faces with OpenType layout — every face this repository ships —
+# shape horizontally as before; a face that has only AAT tables would shape without them. Off unless a program says so.
+no-aat-vertical = { forward = ["compat.harfbuzz/no-aat-vertical"] }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.11.3"

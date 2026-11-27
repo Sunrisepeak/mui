@@ -2,7 +2,8 @@
 // draws (performance tiers §7: the page's Chinese font, 2.7 MB of the first
 // frame's 7.7). Glyph ids are kept — what no kept character reaches is
 // emptied (its outline in `glyf`, its variations in `gvar`), not removed —
-// so layout tables (GSUB, GPOS) and metrics retain their glyph ids. The Unicode
+// so GSUB and the metrics retain their glyph ids, and GPOS (kerning above all)
+// is written again for the glyphs that stay. The Unicode
 // cmap contains only requested characters, allowing other fonts to provide
 // the rest. TrueType outlines (`glyf`, `loca`; variable fonts' `gvar`);
 // a composite glyph keeps its components.
@@ -31,9 +32,25 @@ struct FontDeliveryReport {
 [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> compact_font_post(
     std::span<const std::uint8_t> font, FontDeliveryReport* report = nullptr);
 
-// The font with every glyph no character of `keep` reaches emptied.
+// The layout features omui's text turns on: the shaper's own for a line of text (the common and the horizontal ones,
+// the direction's forms, variable fonts' substitutions) and tabular figures (`tnum`) — what a face cut for the first
+// frame keeps the glyphs of (below).
+[[nodiscard]] std::span<const std::string_view> shaping_features() noexcept;
+// The variation axes omui's text moves: the weight (`wght`) — no style sets another, so a variable face's `opsz`, `wdth`,
+// `slnt` stay at their defaults.
+[[nodiscard]] std::span<const std::string_view> shaping_axes() noexcept;
+
+// The font with every glyph no character of `keep` reaches emptied. With `features` (shaping_features(), say), only the
+// glyphs those layout features make are kept besides, and every other feature is left without lookups, so a face that
+// holds the alternates of ss01 or zero no more than the page asks for does not draw one blank where a style asks for
+// them: it applies none. The default, no features: every feature of the face, every glyph they can make. With `move_axes`
+// (shaping_axes(), say), a variable face's other axes are held at their defaults: the variation data of regions that move
+// them is dropped from `gvar` (the glyph at any weight is the same, the data for an `opsz` nothing sets is gone). The
+// default, no axes: every axis stays.
 [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep,
-                                                                               FontSubsetReport* report = nullptr);
+                                                                               FontSubsetReport* report = nullptr,
+                                                                               std::span<const std::string_view> features = {},
+                                                                               std::span<const std::string_view> move_axes = {});
 
 // What a font covers, coarsely: the 256-code-point blocks its Unicode cmap
 // maps any character of, merged into ranges of blocks [first, last] — what a

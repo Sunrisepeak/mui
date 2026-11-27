@@ -191,6 +191,82 @@ std::vector<std::pair<std::size_t, std::size_t>> call_edges(std::string_view dot
     return edges;
 }
 
+std::vector<std::pair<std::size_t, std::size_t>> invoke_edges(std::string_view printed, const std::map<std::size_t, std::string>& names, std::size_t imports) {
+    std::vector<std::pair<std::size_t, std::size_t>> edges;
+    // Which imports are invokers: `$fimport$K` for K below `imports` whose name the symbol map gives as invoke_….
+    std::set<std::size_t> invokers;
+    for (const auto& [index, name] : names)
+        if (index < imports && name.starts_with("invoke_")) invokers.insert(index);
+    if (invokers.empty()) return edges;
+    const auto number = [](std::string_view text) -> std::optional<std::size_t> {
+        std::size_t value = 0;
+        const auto [end, failure] = std::from_chars(text.data(), text.data() + text.size(), value);
+        if (failure != std::errc{} || end == text.data()) return std::nullopt;
+        return value;
+    };
+    // The table's slots: each active element segment, `(elem $0 (table $0) (i32.const 1) func $5062 $2848 …)`, a function of the
+    // program by its index among those it defines (`$5062`), an import's left out.
+    std::map<std::size_t, std::size_t> slots;
+    std::optional<std::size_t> current;
+    bool wants_slot = false;
+    for (const auto piece : std::views::split(printed, '\n')) {
+        std::string_view line(piece.begin(), piece.end());
+        if (line.starts_with(" (elem ")) {
+            // The entries follow the offset, after `func` in some prints and without it in others.
+            const std::size_t constant = line.find("(i32.const ");
+            if (constant == std::string_view::npos) continue;
+            const std::size_t start = constant + 11, close = line.find(')', start);
+            if (close == std::string_view::npos) continue;
+            const auto offset = number(line.substr(start, close - start));
+            if (!offset) continue;
+            std::size_t slot = *offset;
+            for (const auto entry : std::views::split(line.substr(close + 1), ' ')) {
+                std::string_view name(entry.begin(), entry.end());
+                while (!name.empty() && name.back() == ')') name.remove_suffix(1);
+                if (name.empty() || name == "func") continue;
+                if (name.starts_with("$") && !name.starts_with("$fimport$"))
+                    if (const auto function = number(name.substr(1))) slots[slot] = *function;
+                ++slot;
+            }
+            continue;
+        }
+        if (line.starts_with(" (func $")) {
+            const std::string_view rest = line.substr(8);
+            current = number(rest);
+            wants_slot = false;
+            continue;
+        }
+        if (!current) continue;
+        if (line.starts_with(" (")) {
+            current.reset();
+            continue;
+        }
+        const std::size_t first = line.find_first_not_of(' ');
+        if (first == std::string_view::npos) continue;
+        const std::string_view text = line.substr(first);
+        if (wants_slot) {  // the invoker's first operand, the line after its call
+            wants_slot = false;
+            if (text.starts_with("(i32.const "))
+                if (const auto slot = number(text.substr(11, text.find(')') - 11)))
+                    if (const auto target = slots.find(*slot); target != slots.end() && target->second != *current) edges.emplace_back(*current, target->second);
+            continue;
+        }
+        if (text.starts_with("(call $fimport$")) {
+            const std::size_t end = std::min(text.find_first_of(" )", 15), text.size());
+            const auto import = number(text.substr(15, end - 15));
+            if (import && invokers.contains(*import)) {
+                wants_slot = end == text.size();  // the operand is on the next line (folded), not in this one
+                if (!wants_slot && end + 12 < text.size() && text.substr(end).starts_with(" (i32.const ")) {
+                    const std::size_t at = end + 12;
+                    if (const auto slot = number(text.substr(at, text.find(')', at) - at)))
+                        if (const auto target = slots.find(*slot); target != slots.end() && target->second != *current) edges.emplace_back(*current, target->second);
+                }
+            }
+        }
+    }
+    return edges;
+}
+
 std::string_view linked_name(std::string_view name) noexcept {
     const std::size_t cut = name.find_last_not_of("0123456789");
     if (cut == std::string_view::npos || cut + 1 == name.size() || name[cut] != '_' || cut == 0) return name;
@@ -372,13 +448,17 @@ std::expected<PartReport, std::string> cut_part(const PartCut& cut) {
     const auto graph = process::run({.program = tool("wasm-opt"), .args = with_features({utf8(cut.whole), "--print-call-graph"})});
     if (!graph || !graph->status.success())
         return std::unexpected(std::format("wasm-opt --print-call-graph failed: {}", graph ? graph->err : graph.error().message()));
-    const auto edges = call_edges(graph->out);
+    auto edges = call_edges(graph->out);
     // Each program's functions by body, as Binaryen prints them.
     const auto printed = [&](const fs::path& program) { return process::run({.program = tool("wasm-opt"), .args = with_features({utf8(program), "--print"})}); };
     const auto whole_printed = printed(cut.whole);
     const auto first_printed = printed(first_program);
     for (const auto* run : {&whole_printed, &first_printed})
         if (!*run || !(*run)->status.success()) return std::unexpected(std::format("wasm-opt --print failed: {}", *run ? (*run)->err : run->error().message()));
+    // The calls a try block makes through an exception invoker (`invoke_vi(slot, …)`) are no edges of the call graph: the table
+    // slot is a constant, the function in it is called all the same — a first part's function reaches it, so it is the first part's.
+    const auto invoked = invoke_edges(whole_printed->out, names, *imports);
+    edges.insert(edges.end(), invoked.begin(), invoked.end());
     const auto whole_bodies = body_hashes(whole_printed->out, names, *imports);
     std::set<std::uint64_t> first_bodies;
     for (const auto& [index, body] : body_hashes(first_printed->out, first_names, *first_imports)) first_bodies.insert(body);

@@ -25,7 +25,7 @@ root = true  # the SDK chooses an application's providers (build.mcpp writes the
 slots = ["omui.sdk.generation"]     # runtime generation (src/generate/generation.cppm)
 provides = ["omui.sdk.generation"]  # its own
 worlds = ["lean", "app", "full"]                         # a chain that only adds; `full` the default
-reductions = ["no-gamepad-hidapi", "software-present"]   # take away: no world implies them (`minimal` is `lean` with all of them)
+reductions = ["no-gamepad-hidapi", "software-present", "no-aat-text"]   # take away: no world implies them (`minimal` is `lean` with all of them)
 # What the unit installs, as build.mcpp's rows say it (lint compose holds the two alike): a build's report reads this.
 [package.metadata.openmui.compose.installs]
 "mlibs.text.harfbuzz" = { feature = "shaping", targets = "all" }  # text shaped with fonts (mlibs.text's slot; a terminal's world measures in cells)
@@ -91,10 +91,13 @@ accessibility-bridge = {}
 no-gamepad-hidapi = { forward = ["omui.host.sdl3/no-gamepad-hidapi"] }
 # CPU frames presented by SDL's software renderer alone: its accelerated 2D back ends left out (omui.host.sdl3).
 software-present = { forward = ["omui.host.sdl3/software-present"] }
+# HarfBuzz without AAT shaping and vertical layout (mlibs.text.harfbuzz): for a program whose faces carry OpenType layout
+# and whose text runs horizontally (a page's faces are packed with it); 9.9 KiB of the site's first half, 22.8 KB of it sent.
+no-aat-text = { forward = ["mlibs.text.harfbuzz/no-aat-vertical"] }
 # `lean` with every reduction: the smallest program. Reductions take away, so no world implies them or this (they
 # would pass up the chain to `full`), and the command line cannot add them back: name them on the line a release
 # is built with.
-minimal = { implies = ["lean", "no-gamepad-hidapi", "software-present"] }
+minimal = { implies = ["lean", "no-gamepad-hidapi", "software-present", "no-aat-text"] }
 
 [dependencies]
 omui.core          = { path = "../core" }

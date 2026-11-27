@@ -224,8 +224,13 @@ int site(const fs::path& root, const fs::path& built, const fs::path& given_omui
             script.sleep(1200);
             (void)mark("design");
             (void)script.screenshot(pictures / "design.png");
+            // As long as its show says (each step's beat), and ten seconds more.
+            double length = 0;
+            if (const json& listed = at(dig(playing, "data"), "steps"); listed.is_array())
+                for (const json& one : listed)
+                    if (one.is_object() && one.contains("seconds") && one["seconds"].is_number()) length += one["seconds"].get<double>();
             const bool ended = script.until_time([&] { return truthy(dig(replay(json::object()), "data", "ended")); },
-                                                 static_cast<int>(steps * 1250) + 10000, 250);
+                                                 static_cast<int>(std::max(length, steps * 1.25) * 1000) + 10000, 250);
             script.sleep(800);
             step(ended && name_of("line").contains("one semantic tree"), "to its end: the page as it ships, its sentence");
 

@@ -38,8 +38,22 @@ main = "src/reading/main.cpp"
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 
+# The world's web profile is the workspace's without LTO. The world is packed in two parts by what the program without
+# examples carries (build.mcpp's `parts`: the functions of the sibling program, by name and body, and what they call
+# directly); under LTO the whole program's functions are cloned and inlined differently from the sibling's, and
+# what a first-part function calls through a table slot (a virtual call, an exception invoker) is no edge of that
+# cut — a page without examples then fetches its second part synchronously at the first frame (measured: 4 of 4
+# routes, `omuiDeferredSync`). LTO gives the world 86 KB sent in its first part; the part's cut would have to follow
+# indirect calls first (the Web-program size design §14.8).
+[profile.web]
+opt        = "z"
+lto        = false
+debug      = false
+ndebug     = true
+trim_paths = true
+
 [dependencies]
-omui.sdk   = { path = "../../omui/sdk", default-features = false, features = ["app"] }  # no runtime generation: it draws documents
+omui.sdk   = { path = "../../omui/sdk", default-features = false, features = ["app", "no-aat-text"] }  # no runtime generation: it draws documents; its three faces carry OpenType layout
 omui.core  = { path = "../../omui/core" }
 omui.view  = { path = "../../omui/view" }
 oweb.shell = { path = "../shell" }

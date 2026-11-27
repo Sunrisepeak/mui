@@ -349,7 +349,7 @@ std::expected<ShowFilm, std::string> film_show(const player::Manifest& manifest,
     if (fps <= 0 || rate % fps != 0) return std::unexpected(std::format("a film's rate divides its show's ({} a second): {} does not", rate, fps));
     // What the page carries draws a change of words as a morph: the film too.
     if (!morphs_installed())
-        if (auto installed = install_morphs(); !installed) return std::unexpected(std::format("the morphs' provider: {}", installed.error()));
+        if (auto installed = install_morphs(); !installed) return std::unexpected(std::format("the morphs' provider: {}", installed.error().message));
 
     // The page as it ships, its scripts done and at rest, its generation as its omui.config.ts declares — then the
     // Live Design key's verb, from the first step.

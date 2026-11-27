@@ -15,7 +15,8 @@ namespace {
 
 namespace fs = std::filesystem;
 using mlibs::text::subset::always_kept, mlibs::text::subset::characters_of, mlibs::text::subset::compact_font_post, mlibs::text::subset::font_blocks,
-    mlibs::text::subset::FontDeliveryReport, mlibs::text::subset::FontSubsetReport, mlibs::text::subset::subset_font;
+    mlibs::text::subset::FontDeliveryReport, mlibs::text::subset::FontSubsetReport, mlibs::text::subset::shaping_axes, mlibs::text::subset::shaping_features,
+    mlibs::text::subset::subset_font;
 
 std::string utf8(const fs::path& p) {
     const std::u8string u = p.generic_u8string();
@@ -946,7 +947,9 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             characters_of(first->second, keep);
             if (const auto more = std::ranges::find(p.font_initial_text, stem, &std::pair<std::string, std::vector<fs::path>>::first); more != p.font_initial_text.end())
                 if (auto read_all = characters_of_files(more->second, keep); !read_all) return std::unexpected(std::format("--font-initial-text {}: {}", stem, read_all.error()));
-            auto cut = subset_font(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()), keep);
+            // The face of the first frame: the glyphs of the text and of the features omui's text turns on; the face a page
+            // has whole (below, or on demand) has every feature, and the cut shapes with what it holds.
+            auto cut = subset_font(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()), keep, nullptr, shaping_features(), shaping_axes());
             if (!cut) return std::unexpected(std::format("initial font {}: {}", stem, cut.error()));
             auto delivered = compact_font_post(*cut);
             if (!delivered) return std::unexpected(std::format("initial font {}: {}", stem, delivered.error()));

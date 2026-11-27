@@ -64,13 +64,20 @@ Bytes outline(const Bytes& font, std::uint16_t glyph) {
     const auto begin = offset(glyph), end = offset(std::size_t{glyph} + 1);
     return {glyf.begin() + begin, glyf.begin() + end};
 }
-Bytes with_gsub(Bytes font, std::span<const std::uint8_t> gsub) {
-    const auto rec = table_record(font, "GSUB");
+Bytes with_table(Bytes font, std::string_view tag, std::span<const std::uint8_t> data) {
+    const auto rec = table_record(font, tag);
     while (font.size() % 4) font.push_back(0);
     set_dword(font, rec + 8, static_cast<std::uint32_t>(font.size()));
-    set_dword(font, rec + 12, static_cast<std::uint32_t>(gsub.size()));
-    font.insert(font.end(), gsub.begin(), gsub.end());
+    set_dword(font, rec + 12, static_cast<std::uint32_t>(data.size()));
+    font.insert(font.end(), data.begin(), data.end());
     return font;
+}
+Bytes with_gsub(Bytes font, std::span<const std::uint8_t> gsub) { return with_table(std::move(font), "GSUB", gsub); }
+// A GPOS of empty script and feature lists and one lookup of the given type, its subtable's words behind it.
+Bytes gpos_table(std::uint16_t type, const Bytes& subtable) {
+    Bytes out = words({1, 0, 10, 12, 14, 0, 0, 1, 4, type, 0, 1, 8});
+    out.insert(out.end(), subtable.begin(), subtable.end());
+    return out;
 }
 Bytes gsub_table(const std::vector<std::pair<std::uint16_t, Bytes>>& lookups) {
     // Empty Script/Feature lists, then one subtable per lookup. The closure
@@ -197,7 +204,9 @@ static UTest cases{"text.subset", [] {
     "initial Inter preserves default substitutions and positions at both UI weights (its pixels: omui.gen's font_delivery_test, where a renderer is)"_test = [&] {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
         std::set<char32_t> keep;
-        const std::array<std::string, 9> samples{"Office", "Notification", "configuration", "One interface.", "Every perspective.", ":-)", "UI (CPU)", "A-B", "2x3"};
+        // The last ones are kerned (class pairs and glyph pairs: AV, To, Ty, Wa, P., LT, r., 1 and 7), in their pairs.
+        const std::array<std::string, 16> samples{"Office", "Notification", "configuration", "One interface.", "Every perspective.", ":-)", "UI (CPU)", "A-B", "2x3",
+                                                  "AVATAR Wave", "Today Type", "Pa. LT r. y,", "17 71 \"To\"", "Yo Ye P,", "Vo Va We", "fi fl ff"};
         for (const auto& sample : samples) subset::characters_of(sample, keep);
         auto cut = subset::subset_font(inter, keep);
         expect(cut.has_value()) << (cut ? "" : cut.error()); if (!cut) return;
@@ -234,10 +243,121 @@ static UTest cases{"text.subset", [] {
             }
         }
         expect(saw_substitution) << "the fixture exercises a real default calt glyph, not only cmap glyphs";
+        // Kerning is cut with the glyphs: the pairs no kept glyph is in, and the classes none is in, are gone.
+        const auto gpos_full = table(inter, "GPOS"), gpos_cut = table(*cut, "GPOS");
+        expect(gpos_cut.size() * 3 < gpos_full.size()) << std::format("GPOS {} -> {} bytes", gpos_full.size(), gpos_cut.size());
         auto twice = subset::subset_font(*cut, keep);
         expect(twice && *twice == *cut) << "substitution/composite closure is byte stable";
     };
 
+
+    "a face cut for the shaping features keeps what those make and no other feature's glyphs; the other features do nothing"_test = [&] {
+        const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
+        std::set<char32_t> keep;
+        const std::array<std::string, 6> samples{"Office", "Notification 2026", "One interface.", "(UI) A-B", "0123456789", "Today: 17 of 1,024 -> ok"};
+        for (const auto& sample : samples) subset::characters_of(sample, keep);
+        subset::FontSubsetReport all_report, shaping_report;
+        auto everything = subset::subset_font(inter, keep, &all_report);
+        auto cut = subset::subset_font(inter, keep, &shaping_report, subset::shaping_features(), subset::shaping_axes());
+        expect(everything.has_value() && cut.has_value()) << (cut ? "" : cut.error()); if (!everything || !cut) return;
+        expect(shaping_report.kept * 2 < all_report.kept && cut->size() < everything->size())
+            << std::format("{} of {} glyphs kept for the shaping features, {} of them for every feature", shaping_report.kept, shaping_report.glyphs, all_report.kept);
+        mlibs::text::FontCollection full{mlibs::text::harfbuzz::shaper()}, small{mlibs::text::harfbuzz::shaper()};
+        const auto full_face = full.add_data(inter), small_face = small.add_data(*cut);
+        expect(full_face.has_value() && small_face.has_value()); if (!full_face || !small_face) return;
+        using Placed = std::vector<std::array<float, 3>>;  // glyph, x, y
+        const auto shaped = [](mlibs::text::FontCollection& fonts, const std::string& sample, std::vector<mlibs::text::Feature> features) {
+            mlibs::text::ParagraphStyle style; style.style.size = 28; style.style.weight = 600; style.style.features = std::move(features);
+            mlibs::text::Paragraph paragraph(fonts, sample, style); paragraph.layout(1024);
+            Placed out;
+            for (const auto& line : paragraph.lines()) for (const auto& run : line.runs) for (const auto& glyph : run.glyphs)
+                out.push_back({static_cast<float>(glyph.id), glyph.position.x, glyph.position.y});
+            return out;
+        };
+        for (const auto& sample : samples) {
+            // What the shaper does by itself, and tabular figures: the same as the whole face.
+            expect(shaped(small, sample, {}) == shaped(full, sample, {})) << std::format("{}: the default features shape as the whole face", sample);
+            expect(shaped(small, sample, {mlibs::text::Feature::on("tnum")}) == shaped(full, sample, {mlibs::text::Feature::on("tnum")}))
+                << std::format("{}: tabular figures shape as the whole face", sample);
+            // Alternates the cut does not hold: no feature of theirs is left, so the glyphs are the plain ones, never an emptied outline.
+            for (const char* other : {"ss01", "cv11", "zero", "case", "dlig"})
+                expect(shaped(small, sample, {mlibs::text::Feature::on(other)}) == shaped(small, sample, {})) << std::format("{}: {} does nothing on the cut", sample, other);
+        }
+        // The variation data of the axis nothing sets (Inter's opsz) is gone, and the glyphs at any weight are the same as the
+        // whole face's: the same outline, point by point.
+        const auto variations = table(*cut, "gvar"), whole_variations = table(*everything, "gvar");
+        expect(variations.size() * 3 < whole_variations.size() * 2) << std::format("gvar {} bytes, {} with every axis", variations.size(), whole_variations.size());
+        std::size_t outlines = 0;
+        for (const float weight : {100.0f, 300.0f, 400.0f, 650.0f, 800.0f, 900.0f}) for (const auto& sample : samples) {
+            mlibs::text::ParagraphStyle style; style.style.size = 28; style.style.weight = weight;
+            mlibs::text::Paragraph in_full(full, sample, style); in_full.layout(1024);
+            for (const auto& line : in_full.lines()) for (const auto& run : line.runs) for (const auto& glyph : run.glyphs) {
+                const auto a = full.outline(full.font(*full_face, weight, mlibs::text::Slant::normal), glyph.id),
+                           b = small.outline(small.font(*small_face, weight, mlibs::text::Slant::normal), glyph.id);
+                bool same = a.verbs == b.verbs && a.points.size() == b.points.size();
+                for (std::size_t i = 0; same && i < a.points.size(); ++i) same = a.points[i].x == b.points[i].x && a.points[i].y == b.points[i].y;
+                expect(same) << std::format("{}: glyph {} at weight {} is the whole face's outline", sample, glyph.id, weight);
+                outlines += !a.points.empty();
+            }
+        }
+        expect(outlines > 200) << "the outlines compared are real ones";
+        // The metrics of glyphs nothing draws are emptied, in place: hmtx (4 bytes each) holds as many entries as before, of
+        // which only the kept glyphs' (and the last, which every glyph after it has) are not zero.
+        const auto metrics = table(*cut, "hmtx");
+        const auto whole_metrics = table(inter, "hmtx");
+        const auto used = [&](std::span<const std::uint8_t> bytes) {
+            std::size_t n = 0;
+            for (std::size_t at = 0; at + 4 <= bytes.size(); at += 4) n += std::ranges::any_of(bytes.subspan(at, 4), [](auto byte) { return byte != 0; });
+            return n;
+        };
+        expect(metrics.size() == whole_metrics.size() && used(metrics) <= shaping_report.kept + 1 && used(metrics) * 4 < used(whole_metrics))
+            << std::format("{} advance entries in use of {}, {} glyphs kept", used(metrics), used(whole_metrics), shaping_report.kept);
+        // GSUB keeps what the shaping features reach and no more: the lookups of every other feature have no subtables and
+        // the bytes only they reach are zero, in place, so the table's size is the same and what is sent is a fraction.
+        const auto zeros = [](std::span<const std::uint8_t> bytes) { return static_cast<std::size_t>(std::ranges::count(bytes, std::uint8_t{0})); };
+        const auto substitutions = table(*cut, "GSUB"), whole_substitutions = table(inter, "GSUB");
+        expect(substitutions.size() == whole_substitutions.size() && zeros(substitutions) > zeros(whole_substitutions) + whole_substitutions.size() / 4)
+            << std::format("GSUB {} bytes, {} zero (the whole face's: {})", substitutions.size(), zeros(substitutions), zeros(whole_substitutions));
+        const auto twice = subset::subset_font(*cut, keep, nullptr, subset::shaping_features(), subset::shaping_axes());
+        expect(twice && *twice == *cut) << "cut again: the same bytes";
+    };
+
+    "GPOS is cut with the glyphs: a pair set keeps the pairs of kept glyphs; what is not understood stays as it was"_test = [&] {
+        const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
+        mlibs::text::FontCollection fonts{mlibs::text::harfbuzz::shaper()}; expect(fonts.add_data(inter).has_value());
+        const auto a = glyph_id(fonts, "A"), b = glyph_id(fonts, "B"), v = glyph_id(fonts, "V");
+        // PairPos format 1 after A: V by -50, B by -20 (its coverage after the pair set).
+        const auto pairs = gpos_table(2, words({1, 22, 4, 0, 1, 12, 2, v, static_cast<std::uint16_t>(-50), b, static_cast<std::uint16_t>(-20), 1, 1, a}));
+        const auto cut = subset::subset_font(with_table(inter, "GPOS", pairs), {U'A', U'V'});
+        expect(cut.has_value()) << (cut ? "" : cut.error()); if (!cut) return;
+        const auto gpos = table(*cut, "GPOS");
+        const auto lookups = std::size_t{word(gpos, 8)}, lookup = lookups + word(gpos, lookups + 2), subtable = lookup + word(gpos, lookup + 6);
+        expect(word(gpos, lookup) == 2 && word(gpos, subtable) == 1 && word(gpos, subtable + 4) == 4) << "a pair lookup, format 1, its values' format kept";
+        const auto set = subtable + word(gpos, subtable + 10);
+        expect(word(gpos, subtable + 8) == 1 && word(gpos, set) == 1 && word(gpos, set + 2) == v && static_cast<std::int16_t>(word(gpos, set + 4)) == -50)
+            << "the pair with B is gone, the pair with V is as it was";
+        const auto covering = subtable + word(gpos, subtable + 2);
+        expect(word(gpos, covering) == 1 && word(gpos, covering + 2) == 1 && word(gpos, covering + 4) == a) << "A is covered";
+        const auto twice = subset::subset_font(*cut, {U'A', U'V'});
+        expect(twice && *twice == *cut) << "cut again: the same bytes";
+
+        // No kept glyph in a lookup: nothing of it stays.
+        const auto gone = subset::subset_font(with_table(inter, "GPOS", pairs), {U'B', U'V'});
+        expect(gone.has_value()) << (gone ? "" : gone.error()); if (!gone) return;
+        const auto empty = table(*gone, "GPOS");
+        const auto none = std::size_t{word(empty, 8)} + word(empty, std::size_t{word(empty, 8)} + 2);
+        expect(word(empty, none + 4) == 0) << "a lookup no kept glyph is the first of has no subtable";
+
+        // Contextual positioning is not written again: where a kept glyph can reach it the table stays whole, and so does
+        // a table that is cut short — never worse than before.
+        const auto contextual = gpos_table(7, words({1, 6, 0, 0, a, 0}));
+        const auto kept_whole = subset::subset_font(with_table(inter, "GPOS", contextual), {U'A'});
+        expect(kept_whole.has_value() && std::ranges::equal(table(*kept_whole, "GPOS"), contextual)) << "contextual positioning: the table as it was";
+        for (std::size_t size = 0; size < pairs.size(); ++size) {
+            const auto short_cut = subset::subset_font(with_table(inter, "GPOS", std::span(pairs).first(size)), {U'A', U'V'});
+            expect(short_cut.has_value()) << std::format("a GPOS of {} bytes is read without failing", size);
+        }
+    };
 
     "all GSUB output forms close transitively with composite glyphs without retaining unrelated outlines"_test = [&] {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");

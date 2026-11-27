@@ -185,6 +185,8 @@ static UTest cases{"site.design", [] {
         std::string states = replaced(page, sentence, draft_sentence);
         states = replaced(std::move(states), R"(maxWidth: 640, padding: 18,)", R"(maxWidth: 640, padding: 16,)");
         states = replaced(std::move(states), key_plays, key_still);
+        const std::string_view docs_link = "    link({ id: \"docs\", text: \"Docs\", href: \"docs/\" }),\n";
+        states = replaced(std::move(states), docs_link, "");
         edit(states, "Mui, in four states");
         expect(h.tree().find({.role = Role::button, .name = "Copy"}).size() == 1) << "at rest";
 
@@ -212,7 +214,10 @@ static UTest cases{"site.design", [] {
         (void)done("design.history.switch", Value{}.set("to", "main"));
         expect(h.tree().find({.role = Role::heading}).front().name == sentence) << "back on main, the person's sentence";
 
-        // 7. At rest: the key plays this very design. Written to the file: the TypeScript is the one source.
+        // 7. The documents, beside GitHub (the site's other routes: oweb.config.ts). At rest: the key plays this very
+        // design. Written to the file: the TypeScript is the one source.
+        edit(replaced(page, key_plays, key_still), "the documents, a link beside GitHub");
+        expect(shown("docs")) << "the documents' link";
         edit(page, "the Live Design key plays this design in place");
         (void)done("design.commit");
         const std::string final_text = file_text(dir / "app" / "main.ts");

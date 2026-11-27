@@ -4,37 +4,40 @@
     {"at": "0f", "name": "beat 1"},
     {"at": "144f", "name": "beat 2"},
     {"at": "288f", "name": "beat 3"},
-    {"at": "458f", "name": "beat 4"},
-    {"at": "585f", "name": "beat 5"},
-    {"at": "720f", "name": "beat 6"},
-    {"at": "864f", "name": "beat 7"},
-    {"at": "1001f", "name": "beat 8"},
-    {"at": "1270f", "name": "beat 9"}
+    {"at": "461f", "name": "beat 4"},
+    {"at": "591f", "name": "beat 5"},
+    {"at": "726f", "name": "beat 6"},
+    {"at": "870f", "name": "beat 7"},
+    {"at": "1010f", "name": "beat 8"},
+    {"at": "1129f", "name": "beat 9"},
+    {"at": "1431f", "name": "beat 10"}
   ],
   "tracks": [
     {"name": "states", "kind": "video", "clips": [
       {"name": "settle_in", "source": "design:main#1", "at": "0f", "length": "144f", "properties": [{"name": "moving", "keys": [["0f", 0.667]]}]},
       {"name": "settle_in", "source": "design:main#2", "at": "144f", "length": "144f", "properties": [{"name": "moving", "keys": [["0f", 0.883]]}]},
-      {"name": "morph", "source": "design:main#3", "at": "288f", "length": "170f", "properties": [{"name": "moving", "keys": [["0f", 0.733]]}]},
-      {"name": "morph", "source": "design:main#4", "at": "458f", "length": "127f", "properties": [{"name": "moving", "keys": [["0f", 0.867]]}]},
-      {"name": "settle_in", "source": "design:main#5", "at": "585f", "length": "135f", "properties": [{"name": "moving", "keys": [["0f", 0.767]]}]},
-      {"name": "settle_in", "source": "design:main#6", "at": "720f", "length": "144f", "properties": [{"name": "moving", "keys": [["0f", 0.667]]}]},
-      {"name": "morph", "source": "design:main#7", "at": "864f", "length": "137f", "properties": [{"name": "moving", "keys": [["0f", 0.683]]}]},
-      {"name": "morph", "source": "design:main#8", "at": "1001f", "length": "269f", "properties": [{"name": "moving", "keys": [["0f", 0.733]]}]},
-      {"name": "fade_in", "source": "design:main#9", "at": "1270f", "length": "18f"}
+      {"name": "morph", "source": "design:main#3", "at": "288f", "length": "173f", "properties": [{"name": "moving", "keys": [["0f", 0.733]]}]},
+      {"name": "morph", "source": "design:main#4", "at": "461f", "length": "130f", "properties": [{"name": "moving", "keys": [["0f", 0.867]]}]},
+      {"name": "settle_in", "source": "design:main#5", "at": "591f", "length": "135f", "properties": [{"name": "moving", "keys": [["0f", 0.767]]}]},
+      {"name": "settle_in", "source": "design:main#6", "at": "726f", "length": "144f", "properties": [{"name": "moving", "keys": [["0f", 0.667]]}]},
+      {"name": "morph", "source": "design:main#7", "at": "870f", "length": "140f", "properties": [{"name": "moving", "keys": [["0f", 0.683]]}]},
+      {"name": "morph", "source": "design:main#8", "at": "1010f", "length": "119f", "properties": [{"name": "moving", "keys": [["0f", 0.733]]}]},
+      {"name": "settle_in", "source": "design:main#9", "at": "1129f", "length": "302f", "properties": [{"name": "moving", "keys": [["0f", 0.767]]}]},
+      {"name": "fade_in", "source": "design:main#10", "at": "1431f", "length": "18f"}
     ]},
     {"name": "camera", "kind": "animation", "clips": [
-      {"name": "camera", "source": "camera", "at": "0f", "length": "1288f", "properties": [{"name": "x", "keys": [["0f", 640]]}, {"name": "y", "keys": [["0f", 400]]}, {"name": "zoom", "keys": [["0f", 1]]}]}
+      {"name": "camera", "source": "camera", "at": "0f", "length": "1449f", "properties": [{"name": "x", "keys": [["0f", 640], ["1129f", 640, "cubic-bezier(0.2, 0, 0, 1)"], ["1165f", 1066.6666666666667]]}, {"name": "y", "keys": [["0f", 400], ["1129f", 400, "cubic-bezier(0.2, 0, 0, 1)"], ["1165f", 133.33333333333334]]}, {"name": "zoom", "keys": [["0f", 1], ["1129f", 1, "cubic-bezier(0.2, 0, 0, 1)"], ["1165f", 3]]}]}
     ]},
     {"name": "captions", "kind": "events", "clips": [
-      {"name": "1/9 · omui's site, one page — begun", "source": "caption", "at": "0f", "length": "144f"},
-      {"name": "2/9 · the mark: a circle around the word", "source": "caption", "at": "144f", "length": "144f"},
-      {"name": "3/9 · the sentence under it, the page's one heading", "source": "caption", "at": "288f", "length": "170f"},
-      {"name": "4/9 · the Live Design key between them", "source": "caption", "at": "458f", "length": "127f"},
-      {"name": "5/9 · the install: two tabs and Copy", "source": "caption", "at": "585f", "length": "135f"},
-      {"name": "6/9 · Mui, in four states", "source": "caption", "at": "720f", "length": "144f"},
-      {"name": "7/9 · the sentence, in the person's words", "source": "caption", "at": "864f", "length": "137f"},
-      {"name": "8/9 · more room around the install\n9/9 · the Live Design key plays this design in place", "source": "caption", "at": "1001f", "length": "287f"}
+      {"name": "1/10 · omui's site, one page — begun", "source": "caption", "at": "0f", "length": "144f"},
+      {"name": "2/10 · the mark: a circle around the word", "source": "caption", "at": "144f", "length": "144f"},
+      {"name": "3/10 · the sentence under it, the page's one heading", "source": "caption", "at": "288f", "length": "173f"},
+      {"name": "4/10 · the Live Design key between them", "source": "caption", "at": "461f", "length": "130f"},
+      {"name": "5/10 · the install: two tabs and Copy", "source": "caption", "at": "591f", "length": "135f"},
+      {"name": "6/10 · Mui, in four states", "source": "caption", "at": "726f", "length": "144f"},
+      {"name": "7/10 · the sentence, in the person's words", "source": "caption", "at": "870f", "length": "140f"},
+      {"name": "8/10 · more room around the install", "source": "caption", "at": "1010f", "length": "119f"},
+      {"name": "9/10 · the documents, a link beside GitHub\n10/10 · the Live Design key plays this design in place", "source": "caption", "at": "1129f", "length": "320f"}
     ]}
   ]
 }}

@@ -20,8 +20,8 @@
    "replace": "mount(\"main\", stack({ width: \"100%\", height: \"100%\", background: paper, onPointerMove: lookAt, onPointerLeave: lookAhead }, ["
   },
   {
-   "find": "  row({ position: \"absolute\", top: 0, right: 0, padding: 20 }, [\n    link({ id: \"github\", text: \"GitHub\", href: \"https://github.com/Sunrisepeak/mui\" }),\n  ]),",
-   "replace": "  // The project's name, top left.\n  row({ id: \"brand\", position: \"absolute\", top: 0, left: 0, padding: 20 }, [\n    text({ id: \"name\", text: \"omui\", style: \"label\", color: ink }),\n  ]),\n  // GitHub, its mark.\n  row({ position: \"absolute\", top: 0, right: 0, padding: 20 }, [\n    link({ id: \"github\", icon: githubMark, label: \"GitHub\", width: 28, height: 28, href: \"https://github.com/Sunrisepeak/mui\" }),\n  ]),"
+   "find": "  row({ position: \"absolute\", top: 0, right: 0, padding: 20, gap: 20 }, [\n    link({ id: \"docs\", text: \"Docs\", href: \"docs/\" }),\n    link({ id: \"github\", text: \"GitHub\", href: \"https://github.com/Sunrisepeak/mui\" }),\n  ]),",
+   "replace": "  // The project's name, top left.\n  row({ id: \"brand\", position: \"absolute\", top: 0, left: 0, padding: 20 }, [\n    text({ id: \"name\", text: \"omui\", style: \"label\", color: ink }),\n  ]),\n  // The documents, and GitHub as its mark.\n  row({ position: \"absolute\", top: 0, right: 0, padding: 20, gap: 20, alignItems: \"center\" }, [\n    link({ id: \"docs\", text: \"Docs\", href: \"docs/\" }),\n    link({ id: \"github\", icon: githubMark, label: \"GitHub\", width: 28, height: 28, href: \"https://github.com/Sunrisepeak/mui\" }),\n  ]),"
   },
   {
    "find": "// Under the mark: the Live Design key,",

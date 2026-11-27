@@ -161,7 +161,8 @@ mount("main", stack({ width: "100%", height: "100%", background: paper }, [
     sentence,
     install,
   ]),
-  row({ position: "absolute", top: 0, right: 0, padding: 20 }, [
+  row({ position: "absolute", top: 0, right: 0, padding: 20, gap: 20 }, [
+    link({ id: "docs", text: "Docs", href: "docs/" }),
     link({ id: "github", text: "GitHub", href: "https://github.com/Sunrisepeak/mui" }),
   ]),
 ]));

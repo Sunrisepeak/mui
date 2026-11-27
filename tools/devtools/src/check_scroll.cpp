@@ -88,20 +88,59 @@ constexpr std::string_view state_script = R"js((() => {
 
 // The browser's own ceiling on this display: a page of nothing but a canvas whose picture changes at every frame,
 // served by the check beside the site — how often this browser, this GPU and this monitor show a new frame at all.
+// With ?webgl the canvas is a WebGL2 context made and shown as mrender.rhi.webgl makes and shows one (the same
+// attributes; a frame drawn into a texture, then blitted onto the canvas upside down): the ceiling of that way of
+// showing frames, before anything a page draws. &desync asks the context for a canvas that need not wait for the
+// compositor (`desynchronized`); &bitmap draws in an OffscreenCanvas's WebGL2 context and hands each frame to a
+// canvas that only shows bitmaps (`transferToImageBitmap`, `bitmaprenderer`); &opaque asks for a context without alpha
+// (a canvas the compositor need not blend); &copy2d draws in an OffscreenCanvas's WebGL2 context and copies each frame
+// onto a 2D canvas (`drawImage`): ways of showing frames to compare.
 constexpr std::string_view reference_address = "/omui-scroll-reference/";
 constexpr std::string_view reference_page = R"html(<!doctype html><meta charset="utf-8"><title>reference</title>
 <style>html,body{margin:0;height:100%;overflow:hidden;background:#fff}canvas{display:block;width:100vw;height:100vh}</style>
 <canvas></canvas><script>
-const canvas = document.querySelector('canvas'), context = canvas.getContext('2d');
+const canvas = document.querySelector('canvas');
 let count = 0;
-const draw = () => {
-  canvas.width = innerWidth * devicePixelRatio; canvas.height = innerHeight * devicePixelRatio;
-  context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = '#123'; context.fillRect((count * 7) % canvas.width, 0, 40, canvas.height);
-  context.font = '32px sans-serif'; context.fillText(String(++count), 40, 80);
+if (/[?&]webgl/.test(location.search)) {
+  const bitmap = /[&]bitmap/.test(location.search), copy = /[&]copy2d/.test(location.search), desynchronized = /[&]desync/.test(location.search);
+  const attributes = { alpha: !/[&]opaque/.test(location.search), premultipliedAlpha: true, antialias: false, depth: false, stencil: false,
+                       preserveDrawingBuffer: false, desynchronized };
+  const apart = bitmap || copy;
+  const offscreen = apart ? new OffscreenCanvas(1, 1) : null, presenter = bitmap ? canvas.getContext('bitmaprenderer') : null;
+  const copier = copy ? canvas.getContext('2d') : null;
+  const gl = (apart ? offscreen : canvas).getContext('webgl2', attributes);
+  let texture = null, framebuffer = null, width = 0, height = 0;
+  const draw = () => {
+    const wide = Math.round(innerWidth * devicePixelRatio), high = Math.round(innerHeight * devicePixelRatio);
+    if (wide !== width || high !== height) {
+      canvas.width = width = wide; canvas.height = height = high;
+      if (apart) { offscreen.width = width; offscreen.height = height; }
+      texture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, texture); gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, width, height);
+      framebuffer = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.disable(gl.SCISSOR_TEST); gl.clearColor(1, 1, 1, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.SCISSOR_TEST); gl.scissor((count++ * 7) % width, 0, 40, height); gl.clearColor(0.07, 0.13, 0.2, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer); gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null); gl.disable(gl.SCISSOR_TEST);
+    gl.blitFramebuffer(0, 0, width, height, 0, height, width, 0, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
+    if (bitmap) presenter.transferFromImageBitmap(offscreen.transferToImageBitmap());
+    if (copy) copier.drawImage(offscreen, 0, 0);
+    requestAnimationFrame(draw);
+  };
   requestAnimationFrame(draw);
-};
-requestAnimationFrame(draw);
+} else {
+  const context = canvas.getContext('2d');
+  const draw = () => {
+    canvas.width = innerWidth * devicePixelRatio; canvas.height = innerHeight * devicePixelRatio;
+    context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#123'; context.fillRect((count * 7) % canvas.width, 0, 40, canvas.height);
+    context.font = '32px sans-serif'; context.fillText(String(++count), 40, 80);
+    requestAnimationFrame(draw);
+  };
+  requestAnimationFrame(draw);
+}
 window.omuiHasPresented = true;
 </script>)html";
 
@@ -138,6 +177,26 @@ json load(const fs::path& root) {
         rest.remove_prefix(static_cast<std::size_t>(end - rest.data()));
     }
     return out;
+}
+
+// The GPU's load as nvidia-smi says it ("31, 750, P5": busy %, graphics clock MHz, performance state), beside the
+// CPU's: frames that wait on a display compositor the machine's other programs keep busy are not the page's. Null
+// where there is no nvidia-smi.
+json gpu_load(const fs::path& root) {
+    const auto said = run::output(root, "nvidia-smi", {"--query-gpu=utilization.gpu,clocks.gr,pstate", "--format=csv,noheader,nounits"});
+    if (!said) return nullptr;
+    std::vector<std::string> fields;
+    for (const auto part : std::views::split(std::string_view(*said).substr(0, said->find('\n')), ',')) {
+        std::string_view field(part.begin(), part.end());
+        field.remove_prefix(std::min(field.find_first_not_of(' '), field.size()));
+        while (!field.empty() && (field.back() == ' ' || field.back() == '\r')) field.remove_suffix(1);
+        fields.emplace_back(field);
+    }
+    if (fields.size() != 3) return nullptr;
+    double busy = 0, clock = 0;
+    std::from_chars(fields[0].data(), fields[0].data() + fields[0].size(), busy);
+    std::from_chars(fields[1].data(), fields[1].data() + fields[1].size(), clock);
+    return {{"busy_percent", busy}, {"clock_mhz", clock}, {"state", fields[2]}};
 }
 
 double percentile(std::vector<double> values, double share) {
@@ -208,8 +267,19 @@ json read_trace(const std::vector<json>& events, double interval) {
         spans.push_back({begin, begin + took, name.is_string() ? std::string_view(name.get_ref<const std::string&>()) : std::string_view{}});
     }
     std::ranges::sort(spans, {}, &Span::begin);
+    // The wheel's events as the page's main thread dispatched them, by the main frame they came before (Chromium hands
+    // a page its continuous input at its frames): a frame that got none has nothing new to show — the view stands for
+    // that interval whatever the page costs, and the display shows the frame before again.
+    std::vector<double> wheels;
+    for (const json& e : events)
+        if (text(at(e, "name")) == "EventDispatch" && thread_of(e).pid == main.pid && thread_of(e).tid == main.tid &&
+            text(at(at(at(e, "args"), "data"), "type")) == "wheel")
+            wheels.push_back(number(at(e, "ts")) / 1000.0);
+    std::ranges::sort(wheels);
     // Each main frame (BeginMainFrame): how long, and what it held.
     std::vector<double> frames;
+    std::array<int, 3> wheeled{};  // main frames with none, one, more wheel events since the frame before
+    double frame_before = -1;
     json slow = json::object();  // the parts of the frames that took longer than an interval, summed
     int slow_frames = 0;
     double slow_total = 0;
@@ -219,6 +289,11 @@ json read_trace(const std::vector<json>& events, double interval) {
         if (frame.name != "ProxyMain::BeginMainFrame") continue;
         const double took = frame.end - frame.begin;
         frames.push_back(took);
+        if (frame_before >= 0 && !wheels.empty() && frame.begin > wheels.front() && frame_before < wheels.back()) {
+            const auto count = std::ranges::lower_bound(wheels, frame.begin) - std::ranges::lower_bound(wheels, frame_before);
+            ++wheeled[static_cast<std::size_t>(std::min<std::ptrdiff_t>(count, 2))];
+        }
+        frame_before = frame.begin;
         if (took <= interval) continue;
         ++slow_frames;
         slow_total += took;
@@ -263,6 +338,7 @@ json read_trace(const std::vector<json>& events, double interval) {
             {"reporter", reported},
             {"main_frames", intervals_row(frames, interval)},
             {"slow_main_frames", slow},
+            {"wheel_per_main_frame", {{"none", wheeled[0]}, {"one", wheeled[1]}, {"more", wheeled[2]}}},
             {"spent", by_name}};
 }
 
@@ -371,7 +447,7 @@ int scroll(const fs::path& root, const Scroll& asked) {
     };
     // A phase measured: the trace and the probe around what `act` does.
     const auto measure = [&](const std::string& label, const std::function<void()>& act) -> json {
-        json row = {{"phase", label}, {"load", {{"before", load(root)}}}};
+        json row = {{"phase", label}, {"load", {{"before", load(root)}}}, {"gpu", {{"before", gpu_load(root)}}}};
         const auto state = page.value(state_script);
         row["before"] = state ? *state : json();
         collected.clear();
@@ -398,6 +474,7 @@ int scroll(const fs::path& root, const Scroll& asked) {
         static_cast<void>(page.call("Tracing.end"));
         for (int attempt = 0; attempt < 600 && !complete; ++attempt) page.pump(std::chrono::milliseconds(50));
         row["load"]["after"] = load(root);
+        row["gpu"]["after"] = gpu_load(root);
         const auto after = page.value(state_script);
         row["after"] = after ? *after : json();
         // The animation frames the page was given, their gaps.
@@ -456,27 +533,39 @@ int scroll(const fs::path& root, const Scroll& asked) {
     const auto said = [](const json& phase) {
         const json& shown = at(at(phase, "trace"), "displayed");
         const json& frames = at(phase, "animation_frames");
-        std::cout << std::format("  {:<16} load {}; shown {} median {} p99 {} most {} ms, {} two or more; callbacks {} p99 {} ms; long tasks {}; elements {} → {}\n",
-                                 text(at(phase, "phase")), at(at(phase, "load"), "before").dump(), number(at(shown, "frames")), number(at(shown, "median_ms")),
+        const json& gpu = at(at(phase, "gpu"), "before");
+        const std::string gpu_said = gpu.is_object() ? std::format(", GPU {}% {}", number(at(gpu, "busy_percent")), text(at(gpu, "state"))) : std::string();
+        const json& wheeled = at(at(phase, "trace"), "wheel_per_main_frame");
+        std::cout << std::format("  {:<16} load {}{}; shown {} median {} p99 {} most {} ms, {} two or more; callbacks {} p99 {} ms; main frames without a wheel event {}; long tasks {}; elements {} → {}\n",
+                                 text(at(phase, "phase")), at(at(phase, "load"), "before").dump(), gpu_said, number(at(shown, "frames")), number(at(shown, "median_ms")),
                                  number(at(shown, "p99_ms")), number(at(shown, "most_ms")), number(at(shown, "two_or_more")), number(at(frames, "frames")),
-                                 number(at(frames, "p99_ms")), at(phase, "long_tasks_ms").size(), number(at(at(phase, "before"), "elements")),
+                                 number(at(frames, "p99_ms")), number(at(wheeled, "none")), at(phase, "long_tasks_ms").size(), number(at(at(phase, "before"), "elements")),
                                  number(at(at(phase, "after"), "elements")));
     };
     for (int round = 1; round <= asked.rounds && problem.empty(); ++round) {
-        // The browser's ceiling first: a canvas that changes at every frame.
-        if (const auto gone = page.call("Page.navigate", {{"url", address + std::string(reference_address)}}); !gone) {
-            problem = gone.error();
-            break;
+        // The browser's ceiling first: a canvas that changes at every frame — a 2D one, a WebGL2 one as the page shows its
+        // frames, and the other ways a WebGL2 frame can be shown.
+        std::vector<std::string_view> kinds{"", "webgl"};
+        if (asked.ways) kinds.insert(kinds.end(), {"webgl&desync", "webgl&bitmap", "webgl&opaque", "webgl&copy2d"});
+        for (const std::string_view kind : kinds) {
+            const std::string reference_path = kind.empty() ? std::string(reference_address) : std::format("{}?{}", reference_address, kind);
+            if (const auto gone = page.call("Page.navigate", {{"url", address + reference_path}}); !gone) {
+                problem = gone.error();
+                break;
+            }
+            if (const auto late = wait("window.omuiHasPresented === true", 300, "the reference page"); late) {
+                problem = *late;
+                break;
+            }
+            page.pump(std::chrono::milliseconds(1000));
+            json reference = {{"round", round}, {"path", reference_path}, {"phases", json::array()}};
+            std::string label = kind.empty() ? std::format("{}-reference", round) : std::format("{}-reference-{}", round, kind);
+            std::ranges::replace(label, '&', '-');
+            reference["phases"].push_back(measure(label, [&] { page.pump(std::chrono::milliseconds(2000)); }));
+            said(reference["phases"].back());
+            rows.push_back(std::move(reference));
         }
-        if (const auto late = wait("window.omuiHasPresented === true", 300, "the reference page"); late) {
-            problem = *late;
-            break;
-        }
-        page.pump(std::chrono::milliseconds(1000));
-        json reference = {{"round", round}, {"path", std::string(reference_address)}, {"phases", json::array()}};
-        reference["phases"].push_back(measure(std::format("{}-reference", round), [&] { page.pump(std::chrono::milliseconds(2000)); }));
-        said(reference["phases"].back());
-        rows.push_back(std::move(reference));
+        if (!problem.empty()) break;
         for (const std::string& route : routes) {
             if (!problem.empty()) break;
             if (const auto gone = page.call("Page.navigate", {{"url", address + route + asked.query}}); !gone) {
@@ -515,7 +604,7 @@ int scroll(const fs::path& root, const Scroll& asked) {
     std::map<std::string, Worst> worst;  // by route: the worst p99 of its moving phases, the most left flowing
     for (const json& visit : rows) {
         const std::string route = text(at(visit, "path"));
-        if (route == reference_address) continue;
+        if (route.starts_with(reference_address)) continue;
         for (const json& phase : at(visit, "phases")) {
             const std::string name = text(at(phase, "phase"));
             if (!name.ends_with("-down") && !name.ends_with("-up")) continue;
@@ -526,6 +615,22 @@ int scroll(const fs::path& root, const Scroll& asked) {
             seen.flowed = std::max(seen.flowed, number(at(after, "flowed")));
             seen.reached = seen.reached && number(at(after, "y")) >= number(at(after, "most")) - 1;
         }
+    }
+    // What this browser shows of a canvas that does nothing else, the worst round of each way of showing one: the page
+    // cannot do better than the way it shows its frames does.
+    std::map<std::string, double> ceiling;
+    for (const json& visit : rows) {
+        if (!text(at(visit, "path")).starts_with(reference_address)) continue;
+        for (const json& phase : at(visit, "phases")) {
+            const std::string way = text(at(visit, "path")).substr(reference_address.size());
+            double& seen = ceiling[way.empty() ? std::string("2d") : way.substr(1)];
+            seen = std::max(seen, number(at(at(at(phase, "trace"), "displayed"), "p99_ms")));
+        }
+    }
+    if (!ceiling.empty()) {
+        std::cout << "  the browser's own ceiling here, p99 of the worst round, ms:";
+        for (const auto& [way, p99] : ceiling) std::cout << std::format(" {} {}", way, p99);
+        std::cout << '\n';
     }
     json verdict = json::object();
     for (const auto& [route, seen] : worst) {
@@ -541,6 +646,7 @@ int scroll(const fs::path& root, const Scroll& asked) {
                          {"browser", version},
                          {"monitor", {{"name", monitor_name}, {"hertz", hertz}, {"interval_ms", round2(interval)}}},
                          {"speed", asked.speed},
+                         {"ceiling", ceiling},
                          {"verdict", verdict},
                          {"rows", rows}};
     std::error_code made;

@@ -163,6 +163,7 @@ struct Scroll {
     // not for the frame numbers (recording costs the program time of its own).
     bool                     spans = false;
     bool                     gl_calls = false;  // every WebGL2 call counted by name (a run for that, too)
+    bool                     ways = false;      // the other ways a WebGL2 frame can be shown, each as a canvas of nothing else
 };
 [[nodiscard]] int scroll(const std::filesystem::path& root, const Scroll& asked);
 

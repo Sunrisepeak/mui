@@ -43,6 +43,8 @@ namespace omui::devtools::bench {
   [[nodiscard]] std::string corpus(const std::filesystem::path& root, std::size_t size = std::size_t{…} << 20);
   [[nodiscard]] mcpplibs::cmdline::App apps_command_line();
   [[nodiscard]] int apps(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
+  [[nodiscard]] mcpplibs::cmdline::App windows_command_line();
+  [[nodiscard]] int windows(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
   [[nodiscard]] mcpplibs::cmdline::App sites_command_line();
   [[nodiscard]] int sites(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
   struct Memory {

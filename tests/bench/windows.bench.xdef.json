@@ -1,0 +1,104 @@
+{
+  "format": "omui.bench.windows@0.1",
+  "about": "The game windows' frames on a real display (EN2; D-187: a frame's p99 within 8.3 ms on this class of machine, CPU and GPU both counted), run by `omui-devtools bench windows --screen MONITOR`. Each window is built in the release profile (`dist`), opened on the monitor named (`--position`: the real pointer is not touched), given `setup` input once it has settled (keys, the button — the person's input, sent through its own agent endpoint, so the real keyboard and pointer are not used), then watched from outside its process for `span_ms` after `warm_ms`: DAMAGE gives each presented frame's time (the intervals between them), the process's processor time (mcpplibs.os) what it spends, nvidia-smi the share of the GPU's multiprocessors this process kept busy each second and the display's clocks. `repeat` input is sent every `every_ms` while it is measured. The window's own trace (`--profile`) says what its frame costs it, by the frame (the app's frame, the host's render and present): a diagnostic, named so in every report; SDL_GPU has no GPU timestamps (mlibs.rhi), so the GPU's per-frame time is the driver's mean, not a distribution.",
+  "warm_ms": 4000,
+  "span_ms": 20000,
+  "quiet_ms": 600,
+  "timeout_ms": 30000,
+  "windows": [
+    {
+      "series": "quay",
+      "package": "omui.showcase.quay.window",
+      "program": "quay",
+      "args": [
+        "--gpu"
+      ],
+      "scenarios": [
+        {
+          "name": "harbour",
+          "about": "the first night as it starts: the wardens on their rounds, the rain, nothing pressed"
+        },
+        {
+          "name": "harbour-run",
+          "about": "the watchkeeper runs (W, Shift) and fires every half second: the rifle's flashes, the marks of shots, the wardens that hear it",
+          "setup": [
+            {
+              "type": "key_down",
+              "key": "W"
+            },
+            {
+              "type": "key_down",
+              "key": "Shift"
+            }
+          ],
+          "repeat": [
+            {
+              "type": "click",
+              "x": 640,
+              "y": 360
+            }
+          ],
+          "every_ms": 500
+        },
+        {
+          "name": "second-night-run",
+          "about": "the second night (the lookouts' beams, the fuse boxes' panels, a fifth warden): the watchkeeper runs and fires every half second",
+          "args": [
+            "--stage",
+            "second-night"
+          ],
+          "setup": [
+            {
+              "type": "key_down",
+              "key": "W"
+            },
+            {
+              "type": "key_down",
+              "key": "Shift"
+            }
+          ],
+          "repeat": [
+            {
+              "type": "click",
+              "x": 640,
+              "y": 360
+            }
+          ],
+          "every_ms": 500
+        }
+      ]
+    },
+    {
+      "series": "kiln",
+      "package": "omui.showcase.kiln.window",
+      "program": "kiln",
+      "args": [
+        "--gpu"
+      ],
+      "scenarios": [
+        {
+          "name": "cavern",
+          "about": "the first cavern as it starts: the matter at rest, Mui standing, nothing pressed"
+        },
+        {
+          "name": "cavern-cast",
+          "about": "Mui walks right (D) and casts toward the pointer's place every 400 ms: fire, water and bombs on the matter",
+          "setup": [
+            {
+              "type": "key_down",
+              "key": "D"
+            }
+          ],
+          "repeat": [
+            {
+              "type": "click",
+              "x": 800,
+              "y": 280
+            }
+          ],
+          "every_ms": 400
+        }
+      ]
+    }
+  ]
+}

@@ -440,6 +440,7 @@ cmd::App app() {
                                         .option(Option("rounds").takes_value().value_name("N").help("with --ledger: how many (default: 15)"))
                                         .option(Option("dry-run").help("with --ledger: print the verdicts, write nothing")))
                         .subcommand(omui::devtools::bench::apps_command_line())
+                        .subcommand(omui::devtools::bench::windows_command_line())
                         .subcommand(omui::devtools::bench::sites_command_line())
                         .subcommand(cmd::App("material3")
                                         .description("Material 3's controls in four states (rest, hover, pressed, focus), captured from their page as the competitor's side of the controls' review")
@@ -1871,9 +1872,10 @@ int main(int argc, char** argv) {
             return *status;
         }
         if (sub.subcommand_name() == "apps") return omui::devtools::bench::apps(root, sub.subcommand()->get());
+        if (sub.subcommand_name() == "windows") return omui::devtools::bench::windows(root, sub.subcommand()->get());
         if (sub.subcommand_name() == "sites") return omui::devtools::bench::sites(root, sub.subcommand()->get());
         if (sub.subcommand_name() != "competitors") {
-            std::cerr << "usage: omui-devtools bench competitors [--ledger [--rounds N] [--dry-run]] | apps … | sites … | material3 OUT\n";
+            std::cerr << "usage: omui-devtools bench competitors [--ledger [--rounds N] [--dry-run]] | apps … | windows … | sites … | material3 OUT\n";
             return 2;
         }
         const auto& given = sub.subcommand()->get();

@@ -43,6 +43,12 @@ struct Options {
 [[nodiscard]] mcpplibs::cmdline::App apps_command_line();
 [[nodiscard]] int apps(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
 
+// `bench windows` (EN2, D-187): a game's window (Quay's, Kiln's; tests/bench/windows.bench.xdef.json) on this machine's own
+// display, played by its agent endpoint and measured from outside its process — the intervals between its presented
+// frames, its processor, the GPU's share it keeps busy — with its own trace beside them as a diagnostic.
+[[nodiscard]] mcpplibs::cmdline::App windows_command_line();
+[[nodiscard]] int windows(const std::filesystem::path& root, const mcpplibs::cmdline::ParsedArgs& given);
+
 // `bench sites` (ST7): sites of documents side by side — oweb's beside VitePress's, Astro Starlight's and mdBook's —
 // one corpus built by each at its pin (tests/bench/competitors/sites), the build timed, what is written measured,
 // each route visited cold in headless Chromium with scripts on and off. Its command line, and the run.

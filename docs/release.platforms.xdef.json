@@ -41,7 +41,7 @@
       "label": "preview",
       "cells": {
         "linux-x64": {"status": "real", "evidence": "RTX 4080 headless (omui-devtools gpu --real): quay.picture.device; lavapipe on CI"},
-        "web": {"status": "software", "evidence": "Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance)", "needs": "a real browser on a real GPU: web_frame_test through omui-devtools browser --headed under gpu --real where a display is (headless Chromium has no Vulkan on NVIDIA's driver)"},
+        "web": {"status": "real", "evidence": "Quay's frame (showcase/quay web_frame_test) in headed Chromium (Playwright 1248) on this machine's display: WebGPU on the RTX 4080 through the system's NVIDIA Vulkan ICD (VK_DRIVER_FILES=/usr/share/vulkan/icd.d/nvidia_icd.json; xlings' `gpu --real` ICD gave no adapter), 43 draws, 8 lights, 300 frames drawn, 2026-11-27; CI's headless SwiftShader row stays as the software check"},
         "macos-arm64": {"status": "software", "evidence": "quay.picture.device on CI's Apple Paravirtual device (offscreen)"},
         "windows-x64": {"status": "software", "evidence": "CI row windows-2022: lavapipe"},
         "linux-arm64": {"status": "software", "evidence": "CI row ubuntu-24.04-arm: lavapipe"},
@@ -66,7 +66,7 @@
       "name": "A window drawn by a device (quay.desktop)",
       "label": "preview",
       "cells": {
-        "linux-x64": {"status": "software", "evidence": "quay.desktop with lavapipe (SDL offscreen video driver)"},
+        "linux-x64": {"status": "real", "evidence": "quay in a real window on HDMI-0 (120 Hz), the RTX 4080 through SDL_GPU, the release build, drawn and played by its agent endpoint: omui-devtools bench windows --screen HDMI-0, 2026-11-27 (frames and their cost: STATUS EN2, reds 177–178); quay.desktop with lavapipe (SDL offscreen) stays the CI check"},
         "web": {"status": "unverified", "needs": "a real browser's WebGPU canvas"},
         "macos-arm64": {"status": "unverified", "needs": "a CI run with RC0.3's fix (the case under cocoa, as the device tests run; red 98)"},
         "windows-x64": {"status": "software", "evidence": "quay.desktop on CI with lavapipe (windows video driver)"},
@@ -121,7 +121,7 @@
       "label": "preview",
       "cells": {
         "linux-x64": {"status": "unverified", "needs": "an integrated-GPU machine; only the RTX 4080 is measured"},
-        "web": {"status": "unverified", "needs": "Quay's frame in a real browser on a real GPU (web_frame_test, omui-devtools browser --headed under gpu --real, where a display is): RC2.1"},
+        "web": {"status": "real", "evidence": "Quay's frame (showcase/quay web_frame_test) in headed Chromium (Playwright 1248) on this machine's display, WebGPU on the RTX 4080 through the system's NVIDIA Vulkan ICD, 1920×1080, 300 frames, 2026-11-27, load 1.5–2.5, one run: p50 12.70 ms, p99 83.20, worst 112.9 — over the 16.7 ms bar (red 178's lead; not a pass). Firefox not run"},
         "android": {"status": "unverified", "needs": "a mobile device"}
       }
     },

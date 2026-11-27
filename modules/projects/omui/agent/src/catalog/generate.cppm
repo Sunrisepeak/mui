@@ -83,9 +83,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 16> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"Put generated interface into a running application: drafts checked against what it registers and how open it is, prepared, previewed as real pixels, committed as versions of a surface that undo takes back.", {}};
+}  // namespace omui::agent::generate
 
-// The listing (generate.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (generate.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace omui::agent::generate::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "11059\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "generate",
@@ -127,5 +130,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace omui::agent::generate::carried
 
+export namespace omui::agent::generate {
+inline constexpr std::string_view listing{carried::listing + 23, 11059};
 }  // namespace omui::agent::generate

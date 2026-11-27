@@ -150,9 +150,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 33> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"Design a running application live: its sources and API, edits run at once with their state kept, expectations checked, the person's turn kept as a test, edits written back to the TypeScript sources.", {}};
+}  // namespace omui::agent::design
 
-// The listing (design.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (design.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace omui::agent::design::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "22903\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "design",
@@ -228,5 +231,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace omui::agent::design::carried
 
+export namespace omui::agent::design {
+inline constexpr std::string_view listing{carried::listing + 23, 22903};
 }  // namespace omui::agent::design

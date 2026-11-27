@@ -23,9 +23,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 1> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"A timeline's gain automation heard and seen, offline: the curve drives a real audio bus under a reference tone, and a headless omui view shows it frame by frame — a WAV, a contact sheet, an animation and a report.", {}};
+}  // namespace xtools::audition
 
-// The listing (audition.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (audition.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace xtools::audition::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "1466\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "audition",
@@ -37,5 +40,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace xtools::audition::carried
 
+export namespace xtools::audition {
+inline constexpr std::string_view listing{carried::listing + 22, 1466};
 }  // namespace xtools::audition

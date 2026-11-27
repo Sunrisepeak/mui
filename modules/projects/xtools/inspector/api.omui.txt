@@ -59,7 +59,9 @@ namespace xtools::inspector {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_motion_save{…};
   inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace xtools::inspector {
+  inline constexpr std::string_view listing{…};
 }
 == xtools.inspector:cellular
 namespace xtools::inspector::cellular {

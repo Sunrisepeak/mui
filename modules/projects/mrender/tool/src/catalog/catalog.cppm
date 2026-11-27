@@ -51,9 +51,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 6> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"Check and preview pixel effects through the real GPU renderer, run the render contract's conformance suite on this machine's device, describe the device, look at a glTF model beside another renderer's picture of it.", {}};
+}  // namespace mrender::tool
 
-// The listing (mrender.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (mrender.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace mrender::tool::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "5267\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "mrender",
@@ -75,5 +78,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace mrender::tool::carried
 
+export namespace mrender::tool {
+inline constexpr std::string_view listing{carried::listing + 22, 5267};
 }  // namespace mrender::tool

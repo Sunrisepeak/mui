@@ -59,9 +59,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 5> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"Films on exact frame and sample counts: render a description to WebM, Y4M, PNG or WAV, take a still, check a description, probe a file, show the timing. A view's frames are omui's, through a composition that adds them.", {}};
+}  // namespace meng::video::tool
 
-// The listing (video.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (video.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace meng::video::tool::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "5189\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "video",
@@ -81,5 +84,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace meng::video::tool::carried
 
+export namespace meng::video::tool {
+inline constexpr std::string_view listing{carried::listing + 22, 5189};
 }  // namespace meng::video::tool

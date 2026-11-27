@@ -13,7 +13,9 @@ namespace oweb {
   inline constexpr std::array<mlibs::control::Parameter, 5> parameters_docs_search{…};
   inline constexpr std::array<mlibs::control::CatalogEntry, 5> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace oweb {
+  inline constexpr std::string_view listing{…};
 }
 == oweb:config
 namespace oweb {

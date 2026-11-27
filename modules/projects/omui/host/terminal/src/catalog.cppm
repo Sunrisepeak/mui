@@ -37,9 +37,12 @@ inline constexpr std::array<mlibs::control::Task, 2> guide_tasks{{
     {"ask-what-drew-a-cell", "Go from a cell back to the node that drew it", steps_ask_what_drew_a_cell},
 }};
 inline constexpr mlibs::control::Guide guide{"Read an application's picture in a terminal: its cells as text, their colours and style, and what drew one.", guide_tasks};
+}  // namespace omui::terminal
 
-// The listing (terminal.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (terminal.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace omui::terminal::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "1718\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "terminal",
@@ -63,5 +66,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace omui::terminal::carried
 
+export namespace omui::terminal {
+inline constexpr std::string_view listing{carried::listing + 22, 1718};
 }  // namespace omui::terminal

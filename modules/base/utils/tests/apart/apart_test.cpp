@@ -33,6 +33,24 @@ UTest cases{"apart", [] {
         expect(mlibs::apart::regions(bytes_of(prefix + std::string("w g\0" "1\0a", 7))).empty());
         expect(mlibs::apart::regions({}).empty());
     };
+    "data the program reads: present as it is where nothing carried it apart; brought back once where it was"_test = [] {
+        static std::array<char, 8> memory{};  // a region a packer zeroed, and what the host gives back
+        static int brought = 0;
+        constexpr std::string_view text = "{\"a\":1}";
+        const std::string_view region(memory.data(), text.size());
+        expect(eq(mlibs::apart::present(text), text)) << "in place: as it is, nothing asked";
+        expect(mlibs::apart::present(region).empty()) << "carried apart, no host to bring it back: empty, not zeros";
+        mlibs::apart::bring_with([](std::string_view kind) noexcept {
+            ++brought;
+            if (kind != mlibs::apart::data_kind) return false;
+            std::ranges::copy(std::string_view("{\"a\":1}"), memory.begin());
+            return true;
+        });
+        expect(eq(mlibs::apart::present(region), text)) << "brought back, then read";
+        expect(eq(mlibs::apart::present(region), text) && eq(brought, 1)) << "once: the second read finds it there";
+        mlibs::apart::bring_with(nullptr);
+    };
+
     "a region's bytes are not searched for marks of their own"_test = [] {
         const std::string inner = mlibs::apart::mark("essl", 1) + "z";
         const std::string data = mlibs::apart::mark("wgsl", inner.size()) + inner;

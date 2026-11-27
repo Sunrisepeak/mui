@@ -24,5 +24,7 @@ namespace oweb::reader {
   inline constexpr std::array<std::string_view, 3> steps_read_the_site{…};
   inline constexpr std::array<mlibs::control::Task, 1> guide_tasks{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace oweb::reader {
+  inline constexpr std::string_view listing{…};
 }

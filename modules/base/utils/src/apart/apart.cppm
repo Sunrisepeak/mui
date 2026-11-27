@@ -33,4 +33,20 @@ struct Region {
 // the data's end, is not a mark.
 [[nodiscard]] std::vector<Region> regions(std::span<const std::uint8_t> data);
 
+// ── Data the program reads itself ────────────────────────────────────────────────────────────────────────────────
+// The kind of a region the program reads (a catalog's listing, which an agent's `describe … detail: full` answers):
+// a packer carries it apart like any kind, and the program asks for it through present() before it reads it — the
+// first read brings the kind back, a program that never reads it pays for none.
+inline constexpr std::string_view data_kind = "data";
+
+// How a host puts a kind's regions back where they were in the program's memory (the Web's: the page gives them back,
+// fetched the first time), true when they are there. None installed: nothing was carried apart — every native build,
+// every headless test, a page nobody packed.
+using Bring = bool (*)(std::string_view kind) noexcept;
+void bring_with(Bring bring) noexcept;
+
+// A region of kind `data`, ready to read: as it is where nothing carried it apart (its first byte is its own — no text
+// a program reads begins with a NUL); else once the host has brought the kind back; empty when it cannot be.
+[[nodiscard]] std::string_view present(std::string_view region) noexcept;
+
 }  // namespace mlibs::apart

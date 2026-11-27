@@ -21,5 +21,7 @@ namespace hanim::timeline::tool {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_timeline_undo{…};
   inline constexpr std::array<mlibs::control::CatalogEntry, 4> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace hanim::timeline::tool {
+  inline constexpr std::string_view listing{…};
 }

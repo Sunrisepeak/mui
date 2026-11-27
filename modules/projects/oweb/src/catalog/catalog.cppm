@@ -54,9 +54,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 5> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"A site states its title, address, languages, routes and budget in its oweb.config.ts; every operation reads it and a request's options stand over it. Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown. Ask a site what it is, list its routes, read one page as an agent that only fetches would, and search every page's sections — of its source, without building it, or of the site as built: the directory a build wrote, read as it was published.", {}};
+}  // namespace oweb
 
-// The listing (oweb.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (oweb.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace oweb::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "7591\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "oweb",
@@ -76,5 +79,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace oweb::carried
 
+export namespace oweb {
+inline constexpr std::string_view listing{carried::listing + 22, 7591};
 }  // namespace oweb

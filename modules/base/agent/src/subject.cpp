@@ -4,6 +4,7 @@ import std;
 import openas;
 import mlibs.control;
 import mlibs.json;
+import mlibs.apart;
 
 namespace mlibs::agent {
 
@@ -316,8 +317,10 @@ void SubjectSession::dispatch(std::string_view line, const Reply& reply) {
                 return answer.fail(openas::error_code::not_found, std::format("`{}` has no operation `{}`", candidate->name(), *operation), openas::exit_code::failed,
                                    nearest(subjects_, *operation));
             answer.data(whole(*entry));
-        } else if (request["detail"].text() == "full" && !candidate->listing().empty()) {
-            answer.data(candidate->listing());
+        } else if (const std::string_view listing = request["detail"].text() == "full" ? mlibs::apart::present(candidate->listing()) : std::string_view{};
+                   !listing.empty()) {
+            // A subject's listing is data a page may carry apart until it is first asked for (mlibs.apart): present first.
+            answer.data(listing);
         } else {
             answer.data(brief(*candidate));
         }

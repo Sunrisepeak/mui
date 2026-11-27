@@ -274,9 +274,12 @@ inline constexpr std::array<mlibs::control::Task, 4> guide_tasks{{
     {"read-what-changed", "After acting, read the changes alone instead of the whole tree again", steps_read_what_changed},
 }};
 inline constexpr mlibs::control::Guide guide{"Read, find, act on, wait for, capture and inspect a running application's semantic tree.", guide_tasks};
+}  // namespace omui::agent
 
-// The listing (omui.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (omui.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace omui::agent::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "23534\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "omui",
@@ -401,5 +404,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace omui::agent::carried
 
+export namespace omui::agent {
+inline constexpr std::string_view listing{carried::listing + 23, 23534};
 }  // namespace omui::agent

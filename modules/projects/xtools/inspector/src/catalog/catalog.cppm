@@ -90,9 +90,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"Read, edit, step and replay the Inspector's cellular material field; look at, point into and tune a hanim animation document.", {}};
+}  // namespace xtools::inspector
 
-// The listing (inspector.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (inspector.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace xtools::inspector::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "9938\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "inspector",
@@ -146,5 +149,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace xtools::inspector::carried
 
+export namespace xtools::inspector {
+inline constexpr std::string_view listing{carried::listing + 22, 9938};
 }  // namespace xtools::inspector

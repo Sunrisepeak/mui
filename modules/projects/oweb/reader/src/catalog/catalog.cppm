@@ -42,9 +42,12 @@ inline constexpr std::array<mlibs::control::Task, 1> guide_tasks{{
     {"read-the-site", "What the site is and holds, the sections that answer a question, then a page as Markdown", steps_read_the_site},
 }};
 inline constexpr mlibs::control::Guide guide{"The site this page is of, asked from inside the page: what it is, its routes, the sections that answer a question, a page as it was written. The answers are the ones the `oweb` command gives of the site as built and the ones its static files hold (llms.txt, each route's index.md, site.search.xdef.json) — whichever door an agent comes by, a site says the same. Its files are fetched when first asked for, once; a reader who asks nothing pays for none.", guide_tasks};
+}  // namespace oweb::reader
 
-// The listing (site.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (site.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace oweb::reader::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "3102\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "site",
@@ -72,5 +75,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace oweb::reader::carried
 
+export namespace oweb::reader {
+inline constexpr std::string_view listing{carried::listing + 22, 3102};
 }  // namespace oweb::reader

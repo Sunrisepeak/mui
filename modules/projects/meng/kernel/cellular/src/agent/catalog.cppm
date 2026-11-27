@@ -102,9 +102,12 @@ inline constexpr std::array<mlibs::control::Task, 4> guide_tasks{{
     {"ask-who-changed-a-cell", "Place a value and ask who changed a cell, and what the last step did to it", steps_ask_who_changed_a_cell},
 }};
 inline constexpr mlibs::control::Guide guide{"Read a field of cells as numbers, place values in it, step it, return to a frame, ask what would be, and who changed a cell.", guide_tasks};
+}  // namespace meng::cellular::agent
 
-// The listing (field.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (field.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace meng::cellular::agent::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "6276\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "field",
@@ -156,5 +159,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace meng::cellular::agent::carried
 
+export namespace meng::cellular::agent {
+inline constexpr std::string_view listing{carried::listing + 22, 6276};
 }  // namespace meng::cellular::agent

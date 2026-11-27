@@ -43,7 +43,9 @@ namespace omui::cli::ops {
   inline constexpr std::array<mlibs::control::Parameter, 4> parameters_omui_design_film{…};
   inline constexpr std::array<mlibs::control::CatalogEntry, 23> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace omui::cli::ops {
+  inline constexpr std::string_view listing{…};
 }
 == omui.cli:omui_profile
 namespace omui::cli {

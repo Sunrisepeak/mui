@@ -170,9 +170,12 @@ inline constexpr std::array<mlibs::control::Task, 3> guide_tasks{{
     {"block-and-see", "Ask what an obstacle would do before placing it: a branch ahead, then the obstacle and the path again", steps_block_and_see},
 }};
 inline constexpr mlibs::control::Guide guide{"Build a navigation mesh from triangles, ask paths, rays and the nearest place on it, add walkers and send them, place obstacles and links, step the crowd, return to a frame, and ask what would be.", guide_tasks};
+}  // namespace meng::nav::agent
 
-// The listing (nav.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (nav.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace meng::nav::agent::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "10972\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "nav",
@@ -248,5 +251,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace meng::nav::agent::carried
 
+export namespace meng::nav::agent {
+inline constexpr std::string_view listing{carried::listing + 23, 10972};
 }  // namespace meng::nav::agent

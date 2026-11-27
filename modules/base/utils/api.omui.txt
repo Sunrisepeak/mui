@@ -9,6 +9,10 @@ namespace mlibs::apart {
     std::size_t length = 0;
   };
   [[nodiscard]] std::vector<Region> regions(std::span<const std::uint8_t> data);
+  inline constexpr std::string_view data_kind = "data";
+  using Bring = bool (*)(std::string_view kind) noexcept;
+  void bring_with(Bring bring) noexcept;
+  [[nodiscard]] std::string_view present(std::string_view region) noexcept;
 }
 == mlibs.base64
 export import mlibs.base64.api;

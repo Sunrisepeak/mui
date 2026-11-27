@@ -167,9 +167,12 @@ inline constexpr std::array<mlibs::control::Task, 5> guide_tasks{{
     {"ask-before-pushing", "See what a push would do some steps ahead, the world itself untouched", steps_ask_before_pushing},
 }};
 inline constexpr mlibs::control::Guide guide{"Read a 3D rigid world's bodies, joints, characters and what touched what, cast a ray or a shape into it, push a body, drive a joint's motor, walk and jump a character, step it, return to a frame, and ask what would be.", guide_tasks};
+}  // namespace meng::dynamics::rigid3::agent
 
-// The listing (rigid3.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (rigid3.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace meng::dynamics::rigid3::agent::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "10725\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "rigid3",
@@ -255,5 +258,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace meng::dynamics::rigid3::agent::carried
 
+export namespace meng::dynamics::rigid3::agent {
+inline constexpr std::string_view listing{carried::listing + 23, 10725};
 }  // namespace meng::dynamics::rigid3::agent

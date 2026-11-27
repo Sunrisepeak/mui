@@ -316,6 +316,9 @@ struct CpuRenderer::Impl {
     std::vector<EffectLayer> effect_layers;
     std::size_t              effect_count = 0;
     LayerBoundsMap            layer_bounds;
+    // prepare_effects's: the transforms over the list, and an effect's parameters with their defaults.
+    std::vector<Affine>      effect_transforms;
+    std::vector<float>       effect_params;
 
     Scratch& take(mrender::raster::Surface& target) {
         std::scoped_lock g(lock);
@@ -569,7 +572,8 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const mrender::raster
     Impl& d = *impl_;
     d.effect_count = 0;
     const auto& all = list.commands();
-    std::vector<Affine> transforms{options.transform.value_or(Affine::scale(options.scale, options.scale))};
+    std::vector<Affine>& transforms = d.effect_transforms;
+    transforms.assign(1, options.transform.value_or(Affine::scale(options.scale, options.scale)));
     // Logical pixels to device pixels, for the effects' sizes and reaches.
     const float scale = options.effect_scale.value_or(transforms.front().max_scale());
     bool bounds_measured=false;
@@ -593,7 +597,8 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const mrender::raster
         }
         if (pop >= all.size()) break;  // unbalanced: drawn as an ordinary layer
         const EffectInfo* info = effects().info(push->effect);
-        std::vector<float> params(push->params.begin(), push->params.end());
+        std::vector<float>& params = d.effect_params;
+        params.assign(push->params.begin(), push->params.end());
         if (info) for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
         if (info && info->identity && info->identity(params)) continue;
         if (!info || !info->cpu) {

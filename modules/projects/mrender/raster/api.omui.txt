@@ -21,6 +21,11 @@ namespace mrender::raster {
 namespace mrender::raster {
   using mlibs::geom::CornerRadii;
   enum class Blend : std::uint8_t { normal, multiply, screen, overlay, darken, lighten, color_dodge, color_burn, hard_light, soft_light, difference, exclusion, plus, erase, };
+  struct ShadowScratch {
+    PathBuilder shape, box;
+    Coverage blurred, inside, hole;
+    std::vector<std::uint32_t> sums, passed;
+  };
   class Canvas {
     explicit Canvas(Surface& target);
     Canvas(const Canvas&) = delete;
@@ -49,8 +54,10 @@ namespace mrender::raster {
     [[nodiscard]] inline std::size_t depth() const noexcept;
   };
   void blur(Coverage& coverage, float sigma);
+  void blur(Coverage& coverage, float sigma, std::vector<std::uint32_t>& sums, std::vector<std::uint32_t>& passed);
   void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii);
   void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, bool inset, const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons, Rasterizer& rasterizer);
+  void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, bool inset, const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons, Rasterizer& rasterizer, ShadowScratch& scratch);
 }
 == mrender.raster.api:paint
 namespace mrender::raster {
@@ -183,7 +190,14 @@ namespace mrender::raster {
     float trim_end = 1;
     float trim_offset = 0;
   };
+  struct StrokeScratch {
+    Polygons flat, lines, cut, local;
+    std::vector<Point> poly, normals;
+    std::array<std::vector<double>, 2> angles;
+    std::vector<float> lengths;
+  };
   void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygons& out);
+  void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygons& out, StrokeScratch& scratch);
   void stroke_coverage(PathData path, const Stroke& stroke, const Affine& m, PixelRect clip, Coverage& out);
 }
 == mrender.raster.api:surface

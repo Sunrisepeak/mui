@@ -24,6 +24,15 @@ enum class Blend : std::uint8_t {
     difference, exclusion, plus, erase,
 };
 
+// What a box shadow's coverage is made in — its shape and the box's, their
+// coverage, the blur's sums — kept by a caller that draws shadows again (a
+// Canvas has one), so a shadow drawn again allocates nothing.
+struct ShadowScratch {
+    PathBuilder                shape, box;
+    Coverage                   blurred, inside, hole;
+    std::vector<std::uint32_t> sums, passed;
+};
+
 class Canvas {
 public:
     explicit Canvas(Surface& target);
@@ -121,12 +130,17 @@ private:
     PathBuilder                path_;      // scratch for rectangles and rounded rectangles
     Coverage                   shadow_;    // scratch for box shadows
     Coverage                   scratch_;   // scratch for clips and shadows
-    Coverage                   scratch2_;
+    std::vector<std::uint32_t> columns_;   // a rectangle's coverage of each column (rect_coverage)
+    StrokeScratch              stroke_;    // stroke_outline's
+    ShadowScratch              shadow_scratch_;
 };
 
 // Blurs a coverage mask (three box passes approximating a Gaussian of
 // standard deviation sigma, W3C Filter Effects §9.2), growing its bounds.
+// `sums` and `passed`: the passes' storage, kept by a caller that blurs again.
 void blur(Coverage& coverage, float sigma);
+void blur(Coverage& coverage, float sigma, std::vector<std::uint32_t>& sums, std::vector<std::uint32_t>& passed);
+
 
 // The path of a rounded rectangle (radii fitted to its size), as rounded
 // fills, clips and shadows draw it.
@@ -134,9 +148,13 @@ void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii)
 
 // The coverage of a CSS box shadow (σ = blur / 2): what Canvas::box_shadow
 // composites, for a renderer that composites elsewhere (the GPU). The
-// shadow is cut to `scissor` as a canvas's clip would; `polygons` and
-// `rasterizer` are scratch, so a caller drawing many reuses its own.
+// shadow is cut to `scissor` as a canvas's clip would; `polygons`,
+// `rasterizer` and `scratch` are scratch, so a caller drawing many reuses its
+// own (without `scratch`: one of its own for this call).
 void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, bool inset,
                          const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons, Rasterizer& rasterizer);
+void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, bool inset,
+                         const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons, Rasterizer& rasterizer,
+                         ShadowScratch& scratch);
 
 }  // namespace mrender::raster

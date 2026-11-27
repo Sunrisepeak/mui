@@ -177,7 +177,8 @@ void DamageTracker::build(const DisplayList& list, float scale, std::int32_t wid
         } else if (const auto* layer = std::get_if<PushLayer>(&command); layer && layer->effect.id != 0) {
             // An effect may move pixels up to its reach outside the layer (D-68):
             // all of that is the node's own drawing.
-            std::vector<float> params(layer->params.begin(), layer->params.end());
+            std::vector<float>& params = params_;
+            params.assign(layer->params.begin(), layer->params.end());
             if (const EffectInfo* info = effects().info(layer->effect))
                 for (std::size_t k = params.size(); k < info->params.size(); ++k) params.push_back(info->params[k].value);
             const float reach = effects().reach(layer->effect, params) * scale + 2;
@@ -198,9 +199,9 @@ void DamageTracker::build(const DisplayList& list, float scale, std::int32_t wid
             // what changed of it, mapped from its source to where it is drawn.
             if (const auto* image = std::get_if<DrawImage>(&command); image && resources.images && !visible.empty()) {
                 const std::uint64_t revision = resources.images->revision(image->image);
-                next_image_revisions_[image->image.id] = revision;
-                const auto seen = image_revisions_.find(image->image.id);
-                if (seen != image_revisions_.end() && seen->second != revision) {
+                next_image_revisions_.emplace_back(image->image.id, revision);
+                const auto seen = std::ranges::lower_bound(image_revisions_, image->image.id, {}, &std::pair<std::uint32_t, std::uint64_t>::first);
+                if (seen != image_revisions_.end() && seen->first == image->image.id && seen->second != revision) {
                     image_changes_.clear();
                     if (revision < seen->second || !resources.images->changed_since(image->image, seen->second, image_changes_)) {
                         image_damage_.push_back(visible);
@@ -254,6 +255,7 @@ std::span<const RowSpan> DamageTracker::update(const DisplayList& list, std::int
     next_image_revisions_.clear();
     build(list, scale, width, height, resources, current_);
     for (const Rect& r : image_damage_) add(r);
+    std::ranges::sort(next_image_revisions_);  // by id (an image drawn twice has one revision a frame)
     image_revisions_.swap(next_image_revisions_);
     full_ = !valid_ || width != width_ || height != height_ || scale != scale_;
     if (full_) {

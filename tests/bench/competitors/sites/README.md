@@ -32,15 +32,15 @@ A round's number is the median over the eight routes; a side's, the median of th
 
 ## The numbers
 
-Measured 2026-11-27 at `8be179c7` (Linux x64, headless Chromium 159; five rounds, one build a round in this run; the machine shared with other builds, 1-minute load 19 at the start and 8 at the end — the times move with it, the bytes do not). Each number is the median of the rounds:
+Measured 2026-11-27 at `f19dd3e7` (Linux x64, headless Chromium 159; five rounds; 1-minute load 8 at the start and 6 at the end — the times move with it, the bytes do not). Each number is the median of the rounds:
 
-| side | build (ms) | files | stored (kB) | a route transfers (kB) | its first paint waits for (kB) | requests | first paint (ms) | largest paint (ms) | blocked (ms) | its program has drawn (ms) | reads with no script | Markdown routes | llms.txt |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| oweb | 29 | 24 | 91.0 | 2.4 | 2.5 | 1 | 248 | 248 | 0 | — | 8 of 8 | 8 | yes |
-| oweb-engine | 813 | 35 | 14682.4 | 3392.5 | 14.1 | 9 | 248 | 248 | 286 | 17879 | 8 of 8 | 8 | yes |
-| vitepress | 2623 | 48 | 1180.5 | 163.8 | 25.1 | 13 | 890 | 890 | 36 | — | 8 of 8 | 0 | no |
-| starlight | 1734 | 53 | 1234.8 | 53.9 | 18.4 | 10 | 468 | 512 | 0 | — | 8 of 8 | 0 | no |
-| mdbook | 52 | 44 | 1129.5 | 99.1 | 25.9 | 16 | 614 | 614 | 0 | — | 8 of 8 | 0 | no |
+| side | build (ms) | files | stored (kB) | a route transfers (kB) | its first paint waits for (kB) | requests | first paint (ms) | largest paint (ms) | blocked (ms) | its program has drawn (ms) | reads with no script | the browser's find reaches its words | Markdown routes | llms.txt |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| oweb | 27 | 24 | 91.0 | 2.4 | 2.5 | 1 | 238 | 238 | 0 | — | 8 of 8 | 8 of 8 | 8 | yes |
+| oweb-engine | 689 | 36 | 12407.6 | 2453.6 | 14.4 | 9 | 242 | 242 | 258 | 13148 | 8 of 8 | 8 of 8 | 8 | yes |
+| vitepress | 1572 | 48 | 1180.6 | 163.8 | 25.1 | 13 | 884 | 884 | 0 | — | 8 of 8 | 8 of 8 | 0 | no |
+| starlight | 1006 | 53 | 1234.8 | 53.9 | 18.4 | 10 | 474 | 496 | 0 | — | 8 of 8 | 8 of 8 | 0 | no |
+| mdbook | 41 | 44 | 1129.5 | 99.1 | 25.9 | 16 | 608 | 608 | 0 | — | 8 of 8 | 8 of 8 | 0 | no |
 
 As the ledger judges them ([the lead pages](../../../../docs/en/lead.md), project `oweb`): the ratio against the strongest of the three, its 95 % interval, the verdict by the interval's lower end.
 
@@ -50,18 +50,19 @@ As the ledger judges them ([the lead pages](../../../../docs/en/lead.md), projec
 | `site.route.requests` | Starlight | 10.0× | far ahead |
 | `site.written.bytes` | mdBook | 12.4× | far ahead |
 | `site.route.blocking.bytes` | Starlight | 7.3× | ahead |
-| `site.route.fcp.mobile.ms` | Starlight | 1.9× [1.5, 2.0] | ahead |
-| `site.route.lcp.mobile.ms` | Starlight | 2.1× [1.7, 2.2] | ahead |
-| `site.build.ms` | mdBook | 1.8× [0.9, 2.3] | behind: one round of the five was the slower (45.5 against 40.6 ms), and five medians cannot tell 29 ms from 52 on a busy machine — a round times three builds since |
-| `site.engine.route.transfer.bytes` | Starlight | 0.016× | behind: the program a page takes (red 166) |
-| `site.engine.build.ms` | mdBook | 0.063× | behind: 813 ms against 52 (not a core metric: where the time goes is not yet taken apart) |
+| `site.route.lcp.mobile.ms` | Starlight | 2.1× [2.1, 2.5] | ahead |
+| `site.route.fcp.mobile.ms` | Starlight | 2.0× [2.0, 2.2] | ahead |
+| `site.build.ms` | mdBook | 1.5× [1.4, 1.5] | ahead |
+| `site.engine.route.transfer.bytes` | Starlight | 0.022× | behind: the program a page takes (red 166) |
+| `site.engine.build.ms` | mdBook | 0.059× | behind: 689 ms against 41 (not a core metric: where the time goes is not yet taken apart) |
 
 What the numbers are of:
 
 - **A route of oweb's is one request.** The page is its document — its HTML with its sheet inside, 2.4 kB as sent — and nothing else is asked for: no script, no font, no style sheet. Theirs each send a theme's sheets, fonts and scripts beside the document (10 to 16 requests, 54 to 164 kB), of which the first paint waits for 18 to 26 kB.
-- **The same page with its engine paints as early** (248 ms: it is written before the program), then takes 3.4 MB — 63 times Starlight's route — and its program has drawn it 17.9 s after the visit began on this connection. That is red 166, and why the engine is a site's choice a route (`load`), not the default.
-- **Every side's words are in the page without scripts** (8 of 8 each): all four write their pages ahead of time.
+- **The same page with its engine paints as early** (242 ms: it is written before the program), then takes 2.45 MB — 46 times Starlight's route — and its program has drawn it 13.1 s after the visit began on this connection. That is red 166 (3.39 MB and 17.9 s before the world was packed for size and in two parts), and why the engine is a site's choice a route (`load`), not the default.
+- **Every side's words are in the page without scripts** (8 of 8 each): all four write their pages ahead of time. With scripts, the browser's own find reaches a phrase of each page on every side — on oweb's with its engine too, once the program has the page (red 167: it found single words only, before the layer set a text as one text).
 - **Only oweb writes what an agent that only fetches reads**: each route's Markdown beside it and `llms.txt`, from the same tree as the page. As set up here — their defaults — the others write neither.
+- **The build**: 27 ms against mdBook's 41, both a process's start for eight routes. An earlier run of this day (five single builds, the machine at load 19) could not tell them apart — one round of five had oweb the slower, and the ledger judged it behind by the interval's lower end; a round times three builds since.
 
 ## What it does not say
 

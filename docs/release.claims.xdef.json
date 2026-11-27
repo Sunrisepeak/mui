@@ -90,6 +90,31 @@
       ],
       "date": "2026-11-17",
       "hardware": "CI's ubuntu-24.04 runner (4 threads), side by side in one job (Bench run 44168311039)"
+    },
+    {
+      "id": "oweb.docs-route",
+      "where": "modules/projects/oweb/README.md",
+      "says": "a route of a documents site is one request of 2.4 kB and paints at 238 ms on a slow phone: 22× fewer bytes, 10× fewer requests and 2.0× sooner than the strongest of VitePress, Starlight and mdBook (Starlight); the build 1.5× mdBook's; with its engine a route takes 2.45 MB, 46× Starlight's (behind)",
+      "kind": "size",
+      "evidence": [
+        {
+          "ledger": "site.route.transfer.bytes"
+        },
+        {
+          "ledger": "site.route.requests"
+        },
+        {
+          "ledger": "site.route.fcp.mobile.ms"
+        },
+        {
+          "ledger": "site.build.ms"
+        },
+        {
+          "ledger": "site.engine.route.transfer.bytes"
+        }
+      ],
+      "date": "2026-11-27",
+      "hardware": "speak-pc-32t (the development machine), headless Chromium 159 on Lighthouse's mobile profile (1.6 Mbps, 150 ms, the processor slowed 4×); five alternating rounds, 1-minute load 6–8"
     }
   ]
 }

@@ -75,15 +75,15 @@
 | mlibs | markdown.html.web.median_ms | mlibs.markdown-wasm 21.336 | md4w 20.788 | 0.97× [0.96, 0.98] | par |
 | mlibs | markdown.commonmark.pass | — | md4c, cmark-gfm | — | planned |
 | mlibs | i18n.data.bytes | — | icu4x | — | planned |
-| oweb | site.build.ms | oweb 29.2937 | mdbook 51.9566 | 1.80× [0.89, 2.26] | behind |
+| oweb | site.build.ms | oweb 26.957 | mdbook 40.5365 | 1.50× [1.44, 1.54] | ahead |
 | oweb | site.route.transfer.bytes | oweb 2424 | starlight 53891 | 22.23× [22.23, 22.23] | far_ahead |
 | oweb | site.route.blocking.bytes | oweb 2535.5 | starlight 18389.5 | 7.25× [7.25, 7.25] | ahead |
 | oweb | site.route.requests | oweb 1 | starlight 10 | 10.00× [10.00, 10.00] | far_ahead |
-| oweb | site.route.fcp.mobile.ms | oweb 248 | starlight 468 | 1.91× [1.49, 2.02] | ahead |
-| oweb | site.route.lcp.mobile.ms | oweb 248 | starlight 512 | 2.08× [1.71, 2.21] | ahead |
+| oweb | site.route.fcp.mobile.ms | oweb 238 | starlight 474 | 1.98× [1.98, 2.15] | ahead |
+| oweb | site.route.lcp.mobile.ms | oweb 238 | starlight 496 | 2.08× [2.07, 2.54] | ahead |
 | oweb | site.written.bytes | oweb 91025 | mdbook 1.12953e+06 | 12.41× [12.41, 12.41] | far_ahead |
-| oweb | site.engine.route.transfer.bytes | oweb-engine 3.39254e+06 | starlight 53891 | 0.02× [0.02, 0.02] | behind |
-| oweb | site.engine.build.ms | oweb-engine 813.308 | mdbook 51.9566 | 0.06× [0.05, 0.07] | behind |
+| oweb | site.engine.route.transfer.bytes | oweb-engine 2.45363e+06 | starlight 53891 | 0.02× [0.02, 0.02] | behind |
+| oweb | site.engine.build.ms | oweb-engine 688.912 | mdbook 40.5365 | 0.06× [0.06, 0.07] | behind |
 
 ## 标志性特性
 

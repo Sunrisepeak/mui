@@ -7,6 +7,8 @@ import mlibs.markdown;
 import :markdown_contract;
 import :parts;
 import :document;
+import :parser;
+import mlibs.log;
 
 namespace omui {
 
@@ -15,6 +17,13 @@ namespace {
 mlibs::markdown::Extension extensions_of(const std::vector<std::string>& names) {
     mlibs::markdown::Extension e = mlibs::markdown::extensions(names);
     return names.empty() ? mlibs::markdown::gfm : e;
+}
+
+// A source no parser reads (on the Web, none installed), shown as its text: one block of it, as HTML's <pre> reads.
+mlibs::markdown::Document as_text(std::string_view source, mlibs::markdown::Extension extensions) {
+    std::string html = "<pre><code>";
+    for (const char c : source) html += c == '&' ? std::string("&amp;") : c == '<' ? std::string("&lt;") : c == '>' ? std::string("&gt;") : std::string(1, c);
+    return mlibs::markdown::from_html(html + "</code></pre>", extensions);
 }
 
 std::string lower(std::string_view s) {
@@ -31,7 +40,7 @@ void tasks(const mlibs::markdown::Block& b, std::vector<const mlibs::markdown::B
 
 }  // namespace
 
-Markdown::Markdown() : hub_(std::make_shared<mdview::Hub>()), stream_(mlibs::markdown::gfm) {}
+Markdown::Markdown() : hub_(std::make_shared<mdview::Hub>()), stream_(mlibs::markdown::gfm, mlibs::markdown::Parser{}) {}  // the parser: reset_stream's
 
 Markdown::~Markdown() {
     // Parts outlive nothing of ours but the hub; they must not call back.
@@ -58,12 +67,22 @@ void Markdown::mounted() {
 void Markdown::reset_stream() {
     ext_ = extensions_of(props.extensions);
     html_ = props.format == MarkdownFormat::html;
-    stream_ = mlibs::markdown::Stream(ext_);
+    // HTML is read by from_html; Markdown source by the parser at the slot (omui.ui.markdown:parser) — none on the Web
+    // unless the program installed one: then the source is shown as its text, and that is said once.
+    const mlibs::markdown::Parser parser = html_ ? mlibs::markdown::Parser{} : markdown_parser();
+    unparsed_ = !html_ && !parser.into;
+    stream_ = mlibs::markdown::Stream(ext_, parser);
+    if (unparsed_) {
+        static bool said = false;
+        if (!said) mlibs::log::warn("{}: {}", markdown_parser_slot.info.id, markdown_parser_slot.info.absent);
+        said = true;
+    }
     if (html_) {
         html_source_ = props.source;
         html_document_ = mlibs::markdown::from_html(html_source_, ext_);
     } else {
         stream_.assign(props.source);
+        if (unparsed_) html_document_ = as_text(stream_.source(), ext_);
     }
 }
 
@@ -80,6 +99,7 @@ void Markdown::take(std::string_view source) {
     } else {
         stream_.assign(source);
     }
+    if (unparsed_) html_document_ = as_text(stream_.source(), ext_);
 }
 
 void Markdown::prop_changed(MarkdownProp p) {
@@ -261,6 +281,10 @@ ActResult Markdown::find(ActContext&, const Value& query) {
     return ActResult::done(Value(std::move(hits)));
 }
 
-void register_markdown_component() { register_type(component_type<Markdown>()); }
+void register_markdown_component() {
+    // By name, a script's or a view document's: they may give Markdown source, so its parser is installed with it.
+    (void)install_markdown_parser();
+    register_type(component_type<Markdown>());
+}
 
 }  // namespace omui

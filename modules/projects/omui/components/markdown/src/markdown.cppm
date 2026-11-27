@@ -15,3 +15,4 @@ export import :markdown_contract;
 export import :document;
 export import :read;
 export import :live;
+export import :parser;

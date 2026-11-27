@@ -219,9 +219,20 @@ struct Run {
 
 // ── streaming ──
 
+// What reads Markdown source into a document's top-level blocks and links — md4c's, md4c(): a stream is given one,
+// so a program that only reads documents as HTML (from_html) links no Markdown parser. `into` appends to `doc` the
+// blocks of `source` (its task offsets shifted by `base`; without `hashes` the blocks' are left 0); false when it
+// failed (out of memory).
+struct Parser {
+    bool (*into)(Document& doc, std::string_view source, std::size_t base, bool hashes) = nullptr;
+};
+[[nodiscard]] Parser md4c() noexcept;
+
 class Stream {
 public:
-    explicit Stream(Extension extensions = gfm);
+    // The parser is evaluated where the stream is made: a caller that names its own (omui.ui.markdown, from its slot)
+    // links no other.
+    explicit Stream(Extension extensions = gfm, Parser parser = md4c());
 
     void assign(std::string_view source);   // the whole source anew
     void append(std::string_view chunk);    // more of it
@@ -247,6 +258,7 @@ private:
     void reparse_tail();
 
     Extension     ext_;
+    Parser        parser_;
     std::string   source_;
     Document      doc_;
     std::uint64_t revision_ = 0;

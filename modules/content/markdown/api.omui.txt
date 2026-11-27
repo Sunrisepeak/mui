@@ -80,8 +80,12 @@ namespace mlibs::markdown {
   [[nodiscard]] bool operator==(const Block& a, const Block& b) noexcept;
   [[nodiscard]] bool operator==(const Document& a, const Document& b) noexcept;
   [[nodiscard]] bool operator==(const Run& a, const Run& b) noexcept;
+  struct Parser {
+    bool (*into)(Document& doc, std::string_view source, std::size_t base, bool hashes) = nullptr;
+  };
+  [[nodiscard]] Parser md4c() noexcept;
   class Stream {
-    explicit Stream(Extension extensions = gfm);
+    explicit Stream(Extension extensions = gfm, Parser parser = md4c());
     void assign(std::string_view source);
     void append(std::string_view chunk);
     void clear();

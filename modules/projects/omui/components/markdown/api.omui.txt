@@ -6,6 +6,7 @@ export import :markdown_contract;
 export import :document;
 export import :read;
 export import :live;
+export import :parser;
 == omui.ui.markdown.views
 namespace omui {
   std::expected<void, mlibs::compose::Error> install_markdown_views();
@@ -42,6 +43,15 @@ namespace omui {
   };
   inline constexpr mlibs::compose::Slot<MarkdownLive> markdown_live_slot{…};
   [[nodiscard]] const MarkdownLive* markdown_live(std::string_view language) noexcept;
+}
+== omui.ui.markdown:parser
+namespace omui {
+  struct MarkdownParser {
+    mlibs::markdown::Parser parser;
+  };
+  inline constexpr mlibs::compose::Slot<MarkdownParser> markdown_parser_slot{…};
+  std::expected<void, mlibs::compose::Error> install_markdown_parser();
+  [[nodiscard]] mlibs::markdown::Parser markdown_parser() noexcept;
 }
 == omui.ui.markdown:read
 namespace omui {

@@ -27,6 +27,14 @@ kind = "lib"
 sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
+# What reads Markdown source when no program installed a parser (omui.ui.markdown:parser): md4c off the Web; nothing on
+# the Web, where a page that shows its documents as HTML alone links no Markdown parser.
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/web/*.cpp"]
+
 # View documents run where a document shows them (```view: a live example above its source): omui.viewdoc at this
 # package's slot `omui.ui.markdown.live` (src/views/, `import omui.ui.markdown.views;`, omui::install_markdown_views).
 # A feature, so a program that only shows documents carries no view documents and no expressions (D-99).

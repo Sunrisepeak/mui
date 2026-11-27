@@ -425,4 +425,6 @@ std::string_view name(Kind k) noexcept {
     return names[static_cast<std::size_t>(k)];
 }
 
+Parser md4c() noexcept { return {&parse_into}; }
+
 }  // namespace mlibs::markdown

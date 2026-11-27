@@ -119,7 +119,7 @@ void shift_refs(Block& b, std::uint32_t by) {
 
 }  // namespace
 
-Stream::Stream(Extension extensions) : ext_(extensions) { clear(); }
+Stream::Stream(Extension extensions, Parser parser) : ext_(extensions), parser_(parser) { clear(); }
 
 void Stream::clear() {
     source_.clear();
@@ -216,7 +216,7 @@ bool Stream::freeze(std::size_t boundary) {
     segment += '\n';
     Document part;
     part.extensions = ext_;
-    const bool ok = parse_into(part, segment, frozen_);
+    const bool ok = parser_.into && parser_.into(part, segment, frozen_, true);
     last_parsed_ += segment.size();
     auto& blocks = part.root.children;
     if (!ok || blocks.empty() || blocks.back().kind != Kind::paragraph || blocks.back().content.text != sentinel ||
@@ -245,7 +245,7 @@ void Stream::reparse_tail() {
     Document tail;
     tail.extensions = ext_;
     const std::string_view rest = std::string_view(source_).substr(frozen_);
-    doc_.complete = parse_into(tail, rest, frozen_);
+    doc_.complete = parser_.into && parser_.into(tail, rest, frozen_, true);
     last_parsed_ += rest.size();
     Anchors used;  // the tail's, on top of the frozen counts
     std::uint64_t h = frozen_hash_;

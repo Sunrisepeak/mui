@@ -10,8 +10,11 @@
 //   :edit   changes made of three steps, each change giving back its inverse
 //   :file   a timeline's JSON read (every problem at its place), written back
 //           and written back as itself
+//   :direct a show's timeline directed from what each step of a history
+//           changed (FE4): a pure function, its rules data (`direction@1`)
 export module hanim.timeline;
 
 export import :model;
 export import :edit;
 export import :file;
+export import :direct;

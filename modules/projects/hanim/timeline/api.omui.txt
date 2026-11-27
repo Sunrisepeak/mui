@@ -2,6 +2,42 @@
 export import :model;
 export import :edit;
 export import :file;
+export import :direct;
+== hanim.timeline:direct
+namespace hanim::timeline {
+  struct Region {
+    double x = 0, y = 0, width = 0, height = 0;
+    double weight = 1;
+  };
+  struct Beat {
+    std::string source;
+    std::string caption;
+    std::vector<Region> regions;
+    std::uint32_t appeared = 0, removed = 0, retexted = 0, moved = 0, restyled = 0;
+  };
+  struct Direction {
+    Rate rate{…};
+    double shortest = 0.8;
+    double longest = 2.4;
+    double full = 0.25;
+    double still = 0.3;
+    double reading = 18;
+    double glance = 0.6;
+    double near = 0.25;
+    double fill = 1.0 / 3.0;
+    double deepest = 3;
+    double stay = 0.15;
+    double move = 0.6;
+    std::string appear = "settle_in";
+    std::string vanish = "fade_out";
+    std::string retext = "morph";
+    std::string relocate = "morph";
+    std::string otherwise = "fade_in";
+    [[nodiscard]] bool operator==(const Direction& other) const;
+  };
+  [[nodiscard]] Timeline direct(std::span<const Beat> beats, std::int32_t width, std::int32_t height, const Direction& rules = {…});
+  [[nodiscard]] std::expected<Direction, std::vector<Problem>> read_direction(std::string_view text, std::string_view file);
+}
 == hanim.timeline:edit
 namespace hanim::timeline {
   struct Step {

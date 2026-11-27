@@ -91,7 +91,9 @@ namespace hanim::control {
   inline constexpr std::array<std::string_view, 3> steps_pause_a_playback{…};
   inline constexpr std::array<mlibs::control::Task, 4> guide_tasks{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace hanim::control {
+  inline constexpr std::string_view listing{…};
 }
 == hanim.effect
 export import hanim.core;

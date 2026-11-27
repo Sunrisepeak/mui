@@ -4,15 +4,25 @@ module omui;
 
 import std;
 import mlibs.error;
+import mlibs.apart;
 import omui.core;
 import omui.view;
 import omui.host.web;
 import :app;
 import :shown;
 
+extern "C" int omui_apart_bring(const char* kind, std::size_t length);  // src/js/omui_apart.js
+
 namespace omui::hosting {
 
+namespace {
+// What the page's packer carried apart that the program reads (mlibs.apart's `data`: a catalog's listing), put back by
+// the page the first time it is read.
+bool bring_from_page(std::string_view kind) noexcept { return omui_apart_bring(kind.data(), kind.size()) == 1; }
+}  // namespace
+
 int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
+    mlibs::apart::bring_with(&bring_from_page);
     WebOptions w;
     w.title = app.title;
     w.app = app.id;

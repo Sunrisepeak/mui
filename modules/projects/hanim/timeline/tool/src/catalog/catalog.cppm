@@ -37,9 +37,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 4> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"Check timelines, read what plays at a moment, make the usual edits and take them back.", {}};
+}  // namespace hanim::timeline::tool
 
-// The listing (timeline.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (timeline.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace hanim::timeline::tool::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "2790\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "timeline",
@@ -57,5 +60,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace hanim::timeline::tool::carried
 
+export namespace hanim::timeline::tool {
+inline constexpr std::string_view listing{carried::listing + 22, 2790};
 }  // namespace hanim::timeline::tool

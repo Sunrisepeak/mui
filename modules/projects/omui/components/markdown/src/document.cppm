@@ -43,7 +43,7 @@ public:
     ActResult find(ActContext& ctx, const Value& query);
 
     // The document as parsed, and its source (Markdown's, or HTML's).
-    [[nodiscard]] const mlibs::markdown::Document& document() const noexcept { return html_ ? html_document_ : stream_.document(); }
+    [[nodiscard]] const mlibs::markdown::Document& document() const noexcept { return html_ || unparsed_ ? html_document_ : stream_.document(); }
     [[nodiscard]] std::string_view source() const noexcept { return html_ ? std::string_view(html_source_) : stream_.source(); }
     // Bytes the last change parsed (streaming re-parses only the tail).
     [[nodiscard]] std::size_t last_parsed() const noexcept { return stream_.last_parsed(); }
@@ -58,6 +58,8 @@ private:
     mlibs::markdown::Stream                   stream_;
     // HTML as the source (format html, D-141): read whole each time it changes.
     bool                                      html_ = false;
+    // Markdown source with no parser to read it (on the Web, none installed: omui.ui.markdown:parser): shown as its text.
+    bool                                      unparsed_ = false;
     std::string                               html_source_;
     mlibs::markdown::Document                 html_document_;
     mlibs::markdown::Extension                ext_ = mlibs::markdown::gfm;

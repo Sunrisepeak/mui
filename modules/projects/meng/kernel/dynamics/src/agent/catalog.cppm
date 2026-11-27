@@ -85,9 +85,12 @@ inline constexpr std::array<mlibs::control::Task, 3> guide_tasks{{
     {"ask-before-pushing", "See where a kick would take it some steps ahead, the body itself untouched", steps_ask_before_pushing},
 }};
 inline constexpr mlibs::control::Guide guide{"Read a soft body's place, squash, speed and contacts, push it, step it, return to a frame, and ask what would be.", guide_tasks};
+}  // namespace meng::dynamics::agent
 
-// The listing (body.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (body.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace meng::dynamics::agent::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "4863\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "body",
@@ -135,5 +138,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace meng::dynamics::agent::carried
 
+export namespace meng::dynamics::agent {
+inline constexpr std::string_view listing{carried::listing + 22, 4863};
 }  // namespace meng::dynamics::agent

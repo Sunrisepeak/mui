@@ -94,9 +94,12 @@ inline constexpr std::array<mlibs::control::Task, 3> guide_tasks{{
     {"ask-before-heating", "See what a fire would do some steps ahead, the air itself untouched", steps_ask_before_heating},
 }};
 inline constexpr mlibs::control::Guide guide{"Read the air's cells and wind, apply a quantity at a place, step it, return to a frame, ask what would be, and why a cell is what it is.", guide_tasks};
+}  // namespace meng::field::agent
 
-// The listing (air.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (air.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace meng::field::agent::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "5916\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "air",
@@ -147,5 +150,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace meng::field::agent::carried
 
+export namespace meng::field::agent {
+inline constexpr std::string_view listing{carried::listing + 22, 5916};
 }  // namespace meng::field::agent

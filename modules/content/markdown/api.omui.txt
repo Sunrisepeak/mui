@@ -63,8 +63,13 @@ namespace mlibs::markdown {
   [[nodiscard]] Document parse(std::string_view source, Extension extensions = gfm);
   [[nodiscard]] std::string to_html(const Document& doc);
   [[nodiscard]] std::string to_html(std::string_view source, Extension extensions = gfm);
+  struct Parser {
+    bool (*into)(Document& doc, std::string_view source, std::size_t base, bool hashes) = nullptr;
+    bool (*named)(std::string_view reference, std::string& out) = nullptr;
+  };
+  [[nodiscard]] Parser md4c() noexcept;
   [[nodiscard]] std::string to_markdown(const Document& doc);
-  [[nodiscard]] Document from_html(std::string_view html, Extension extensions = gfm);
+  [[nodiscard]] Document from_html(std::string_view html, Extension extensions = gfm, Parser parser = md4c());
   [[nodiscard]] std::string plain_text(const Block& block);
   [[nodiscard]] std::string slug(std::string_view text);
   template <class F> void walk(const Block& b, F&& f);
@@ -81,7 +86,7 @@ namespace mlibs::markdown {
   [[nodiscard]] bool operator==(const Document& a, const Document& b) noexcept;
   [[nodiscard]] bool operator==(const Run& a, const Run& b) noexcept;
   class Stream {
-    explicit Stream(Extension extensions = gfm);
+    explicit Stream(Extension extensions = gfm, Parser parser = md4c());
     void assign(std::string_view source);
     void append(std::string_view chunk);
     void clear();

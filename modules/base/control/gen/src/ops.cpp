@@ -4,6 +4,7 @@ module mlibs.control.gen;
 import std;
 import mlibs.json;
 import mlibs.xdef.tool;
+import mlibs.apart;
 
 namespace mlibs::control::gen {
 namespace {
@@ -425,10 +426,19 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
         out += "}};";
     }
     out += std::format("\ninline constexpr mlibs::control::Guide guide{{{}, {}}};\n", cpp_string(catalog.doc), catalog.tasks.empty() ? "{}" : "guide_tasks");
-    // The listing itself, for a program that serves the catalog (MCP) without its file.
-    out += std::format("\n// The listing ({}.ops.json), as written beside this file.\n"
-                       "inline constexpr std::string_view listing = R\"listing({})listing\";\n\n}}  // namespace {}\n",
-                       catalog.product, emit_catalog_json(catalog), catalog.ns);
+    // The listing itself, for a program that serves the catalog (MCP, an agent's `describe … detail: full`) without its
+    // file — after its mark (mlibs.apart's kind `data`): data a program reads, which a page's packer carries apart and
+    // the page gives back when it is first read; every reader asks for it through mlibs::apart::present().
+    const std::string listing = emit_catalog_json(catalog);
+    const std::string mark = mlibs::apart::mark(mlibs::apart::data_kind, listing.size());
+    std::string mark_literal = "\"";
+    for (const char character : mark) mark_literal += character == '\0' ? std::string("\\0\" \"") : std::string(1, character);
+    mark_literal += "\"";
+    out += std::format("}}  // namespace {0}\n\n// The listing ({1}.ops.json), as written beside this file, after its mark (mlibs.apart: data a page\n"
+                       "// carries apart until it is first read — a reader asks for it through mlibs::apart::present).\n"
+                       "namespace {0}::carried {{\ninline constexpr char listing[] = {2} R\"listing({3})listing\";\n}}  // namespace {0}::carried\n\n"
+                       "export namespace {0} {{\ninline constexpr std::string_view listing{{carried::listing + {4}, {5}}};\n}}  // namespace {0}\n",
+                       catalog.ns, catalog.product, mark_literal, listing, mark.size(), listing.size());
     return out;
 }
 

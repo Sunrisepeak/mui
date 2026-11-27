@@ -48,4 +48,18 @@ std::vector<Region> regions(std::span<const std::uint8_t> data) {
     return found;
 }
 
+namespace {
+std::atomic<Bring> installed{nullptr};
+}  // namespace
+
+void bring_with(Bring bring) noexcept { installed.store(bring); }
+
+std::string_view present(std::string_view region) noexcept {
+    // Read here, at run time, from where the region is: a reader's constant says what was linked, not what is there.
+    if (region.empty() || region.front() != '\0') return region;
+    const Bring bring = installed.load();
+    if (bring && bring(data_kind) && region.front() != '\0') return region;
+    return {};
+}
+
 }  // namespace mlibs::apart

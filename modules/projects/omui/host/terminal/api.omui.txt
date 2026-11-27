@@ -73,7 +73,9 @@ namespace omui::terminal {
   inline constexpr std::array<std::string_view, 1> steps_ask_what_drew_a_cell{…};
   inline constexpr std::array<mlibs::control::Task, 2> guide_tasks{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace omui::terminal {
+  inline constexpr std::string_view listing{…};
 }
 == omui.host.terminal:input
 namespace omui::terminal {

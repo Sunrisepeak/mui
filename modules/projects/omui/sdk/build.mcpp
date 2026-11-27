@@ -56,6 +56,10 @@ bool write(const std::filesystem::path& file, const std::string& text, std::stri
 
 int main() {
     mcpp::rerun_if_env_changed("MCPP_PROFILE");
+    // On the Web, the page's half of mlibs.apart's way back (what the program reads, carried apart by its packer).
+    mcpp::rerun_if_changed("src/js/omui_apart.js");
+    if (std::string_view(mcpp::target_os()) == "emscripten")
+        mcpp::link_flag(std::format("--js-library={}/src/js/omui_apart.js", mcpp::manifest_dir()).c_str());
     const auto file = std::filesystem::path(mcpp::out_dir()) / "omui" / "build_profile.cppm";
     std::error_code error;
     std::filesystem::create_directories(file.parent_path(), error);

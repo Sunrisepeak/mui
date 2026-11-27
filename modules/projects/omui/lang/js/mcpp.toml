@@ -27,7 +27,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 # page's own engine runs the scripts (src/native/web, and src/js/omui_script.js
 # linked as an Emscripten library by build.mcpp: D-237, G1).
 [target.'cfg(not(os = "emscripten"))'.build]
-sources = ["src/native/quickjs/*.cpp"]
+sources = ["src/native/quickjs/*.cpp", "src/checker/*.cpp"]  # checker/: the declarations a type checker reads (none on the Web)
 
 [target.'cfg(os = "emscripten")'.build]
 sources = ["src/native/web/*.cpp"]

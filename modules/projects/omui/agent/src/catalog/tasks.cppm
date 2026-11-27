@@ -25,9 +25,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 3> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"Background tasks: started with a handle at once, their progress and end readable, cancelled without waiting, the interface running all along.", {}};
+}  // namespace omui::agent::tasks
 
-// The listing (task.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (task.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace omui::agent::tasks::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "1762\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "task",
@@ -43,5 +46,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace omui::agent::tasks::carried
 
+export namespace omui::agent::tasks {
+inline constexpr std::string_view listing{carried::listing + 22, 1762};
 }  // namespace omui::agent::tasks

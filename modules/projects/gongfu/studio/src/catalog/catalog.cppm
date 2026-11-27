@@ -78,9 +78,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 8> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"Make and check fighters: hurtboxes baked from the animation, contact sheets, stage pictures, art cut from sheets, the roster's balance.", {}};
+}  // namespace gongfu::studio::ops
 
-// The listing (gongfu.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (gongfu.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace gongfu::studio::ops::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "6257\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "gongfu",
@@ -106,5 +109,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace gongfu::studio::ops::carried
 
+export namespace gongfu::studio::ops {
+inline constexpr std::string_view listing{carried::listing + 22, 6257};
 }  // namespace gongfu::studio::ops

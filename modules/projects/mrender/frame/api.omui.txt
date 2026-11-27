@@ -86,5 +86,7 @@ namespace mrender {
   inline constexpr std::array<std::string_view, 1> steps_ask_what_drew_a_pixel{…};
   inline constexpr std::array<mlibs::control::Task, 3> guide_tasks{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace mrender {
+  inline constexpr std::string_view listing{…};
 }

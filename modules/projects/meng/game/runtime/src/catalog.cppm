@@ -93,9 +93,12 @@ inline constexpr std::array<mlibs::control::Task, 4> guide_tasks{{
     {"ask-before-acting", "See where an action would lead some steps ahead, the game itself untouched", steps_ask_before_acting},
 }};
 inline constexpr mlibs::control::Guide guide{"Observe a game running on its own, play it as a person does, step and seek its time, and ask what would be.", guide_tasks};
+}  // namespace meng::runtime
 
-// The listing (world.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (world.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace meng::runtime::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "6705\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "world",
@@ -149,5 +152,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace meng::runtime::carried
 
+export namespace meng::runtime {
+inline constexpr std::string_view listing{carried::listing + 22, 6705};
 }  // namespace meng::runtime

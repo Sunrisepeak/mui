@@ -35,6 +35,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 mlibs.json = { path = "../../json" }
+mlibs.utils = { path = "../../utils" }  # mlibs.apart: the mark before a listing (data a page carries apart until it is read)
 mlibs.xdef.tool = { path = "../../xdef/tool" }  # a catalog module evaluated with its workspace's define modules
 mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"

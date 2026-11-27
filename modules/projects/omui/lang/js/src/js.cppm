@@ -76,11 +76,10 @@ bool let_page_run();
 
 }  // namespace omui::lang::js
 
-// The module's own, for its units: TypeScript's declarations for a type checker
-// (declare.cpp; the TypeScript language's `declare`).
+// The module's own, for its units: the catalogue's shapes (components.cpp) and the TypeScript language's `declare`
+// — the declarations a type checker reads (checker/declare.cpp) off the Web, none on the Web (native/web/).
 namespace omui::lang::js {
 // The runtime's component catalogue (omuiCatalog's JSON) as the declaration writer's shapes.
 [[nodiscard]] std::vector<ts::ComponentShape> components_of(const omui::lang::Json& catalog);
-[[nodiscard]] std::expected<std::vector<std::filesystem::path>, std::string> declare_typescript(std::string_view catalog_json, std::string_view natives_json,
-                                                                                                const std::filesystem::path& root, const std::filesystem::path& dir);
+[[nodiscard]] decltype(player::Language::declare) declaring();
 }

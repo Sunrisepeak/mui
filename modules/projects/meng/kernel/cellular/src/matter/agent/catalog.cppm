@@ -157,9 +157,12 @@ inline constexpr std::array<mlibs::control::Task, 4> guide_tasks{{
     {"ask-what-would-happen", "See the field some steps ahead with a material placed first, the world itself untouched", steps_ask_what_would_happen},
 }};
 inline constexpr mlibs::control::Guide guide{"Read a field of matter by material and in units, place a material, apply a quantity, ask why a cell is what it is, what happened, and what would.", guide_tasks};
+}  // namespace meng::cellular::matter_agent
 
-// The listing (matter.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (matter.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace meng::cellular::matter_agent::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "12226\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "matter",
@@ -233,5 +236,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace meng::cellular::matter_agent::carried
 
+export namespace meng::cellular::matter_agent {
+inline constexpr std::string_view listing{carried::listing + 23, 12226};
 }  // namespace meng::cellular::matter_agent

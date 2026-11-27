@@ -102,7 +102,9 @@ namespace omui::agent {
   inline constexpr std::array<std::string_view, 2> steps_read_what_changed{…};
   inline constexpr std::array<mlibs::control::Task, 4> guide_tasks{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace omui::agent {
+  inline constexpr std::string_view listing{…};
 }
 == omui.agent:design
 namespace omui::agent::design {
@@ -132,7 +134,9 @@ namespace omui::agent::design {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_replay{…};
   inline constexpr std::array<mlibs::control::CatalogEntry, 33> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace omui::agent::design {
+  inline constexpr std::string_view listing{…};
 }
 == omui.agent:endpoint
 namespace omui::agent {
@@ -194,7 +198,9 @@ namespace omui::agent::generate {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_discard{…};
   inline constexpr std::array<mlibs::control::CatalogEntry, 16> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace omui::agent::generate {
+  inline constexpr std::string_view listing{…};
 }
 == omui.agent:protocol
 namespace omui::agent {
@@ -322,5 +328,7 @@ namespace omui::agent::tasks {
   inline constexpr std::array<mlibs::control::Parameter, 1> parameters_task_cancel{…};
   inline constexpr std::array<mlibs::control::CatalogEntry, 3> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
-  inline constexpr std::string_view listing = R"…";
+}
+namespace omui::agent::tasks {
+  inline constexpr std::string_view listing{…};
 }

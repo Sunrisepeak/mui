@@ -128,9 +128,12 @@ inline constexpr std::array<mlibs::control::Task, 4> guide_tasks{{
     {"pause-a-playback", "Pause the first playback and see its state", steps_pause_a_playback},
 }};
 inline constexpr mlibs::control::Guide guide{"Prepare, play, inspect and steer animations on a host's one Engine.", guide_tasks};
+}  // namespace hanim::control
 
-// The listing (hanim.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (hanim.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace hanim::control::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "8053\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "hanim",
@@ -198,5 +201,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace hanim::control::carried
 
+export namespace hanim::control {
+inline constexpr std::string_view listing{carried::listing + 22, 8053};
 }  // namespace hanim::control

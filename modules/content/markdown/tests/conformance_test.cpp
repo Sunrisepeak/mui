@@ -549,6 +549,74 @@ UTest cases{"markdown.conformance", [] {
         expect(same >= written - 1) << std::format("{} of {}", same, written);
     };
 
+    "character references in HTML read as md4c-html decodes them: numeric ones and a serializer's names with no parser, every other name by md4c's table"_test = [] {
+        // md4c-html's text of one reference: rendered alone as a paragraph, the paragraph and its escapes taken off.
+        const auto rendered = [](std::string_view reference) {
+            const std::string html = oracle(reference, 0);
+            std::string_view inside = html;
+            if (inside.starts_with("<p>")) inside.remove_prefix(3);
+            if (inside.ends_with("</p>\n")) inside.remove_suffix(5);
+            constexpr std::array<std::pair<std::string_view, char>, 4> escapes{{{"&amp;", '&'}, {"&lt;", '<'}, {"&gt;", '>'}, {"&quot;", '"'}}};
+            std::string text;
+            for (std::size_t at = 0; at < inside.size();) {
+                bool escape = false;
+                for (const auto& [written, character] : escapes)
+                    if (inside.substr(at).starts_with(written)) {
+                        text += character;
+                        at += written.size();
+                        escape = true;
+                        break;
+                    }
+                if (!escape) text += inside[at++];
+            }
+            return text;
+        };
+        // What from_html reads between two letters (a reference that makes whitespace is read as whitespace is: left out).
+        const auto read = [](std::string_view reference, md::Parser parser) {
+            const md::Document doc = md::from_html(std::format("<p>a{}b</p>", reference), md::gfm, parser);
+            return doc.root.children.empty() ? std::string() : doc.root.children.front().content.text;
+        };
+        std::vector<std::string> numeric;
+        const auto both = [&](unsigned code) {
+            numeric.push_back(std::format("&#{};", code));
+            numeric.push_back(std::format("&#x{:x};", code));
+            numeric.push_back(std::format("&#X{:X};", code));
+        };
+        for (unsigned code = 0; code < 0x3000; ++code)
+            if (code != '\t' && code != '\n' && code != '\f' && code != '\r' && code != ' ') both(code);
+        for (unsigned code : {0xd7ffu, 0xd800u, 0xdfffu, 0xe000u, 0xfffdu, 0xffffu, 0x10000u, 0x1f600u, 0x10ffffu, 0x110000u, 0xffffffu})
+            both(code);
+        numeric.insert(numeric.end(), {"&#9999999;", "&#0000065;", "&#x00041;"});
+        // What md4c's grammar reads as no reference: as written.
+        const std::vector<std::string> none{"&#;", "&#x;", "&#12345678;", "&#x1234567;", "&#xG1;", "&#1a;", "&a;", "&1ab;", "&a#b;", "&#1#2;"};
+        const std::vector<std::string> serialized{"&amp;", "&lt;", "&gt;", "&quot;", "&nbsp;"};
+        const std::vector<std::string> named{"&copy;", "&AElig;", "&Dcaron;", "&frac34;", "&HilbertSpace;", "&DifferentialD;",
+                                             "&ClockwiseContourIntegral;", "&ngE;", "&AMP;", "&MadeUpEntity;", "&xy;"};
+        int differ = 0;
+        std::vector<std::string> said;
+        const auto check = [&](const std::string& reference, md::Parser parser, const std::string& wanted) {
+            const std::string got = read(reference, parser);
+            if (got == "a" + wanted + "b") return;
+            ++differ;
+            if (said.size() < 8) said.push_back(std::format("{} ({}): \"{}\" for \"{}\"", reference, parser.named ? "md4c" : "none", got, wanted));
+        };
+        for (const std::vector<std::string>* group : std::array<const std::vector<std::string>*, 3>{&numeric, &none, &serialized})
+            for (const std::string& reference : *group) {
+                check(reference, md::md4c(), rendered(reference));
+                check(reference, md::Parser{}, rendered(reference));
+            }
+        for (const std::string& reference : named) {
+            check(reference, md::md4c(), rendered(reference));
+            check(reference, md::Parser{}, reference);  // no table: the name as written
+        }
+        for (const auto& one : said) std::println("    {}", one);
+        expect(numeric.size() > 30000);
+        expect(eq(differ, 0));
+        // The table is md4c-html's: a name it knows is decoded, one it does not stays.
+        expect(eq(rendered("&ngE;"), std::string("\xE2\x89\xA7\xCC\xB8")));
+        expect(eq(rendered("&MadeUpEntity;"), std::string("&MadeUpEntity;")));
+    };
+
     "HTML as people write it: whitespace, containers, unclosed tags, task boxes, attributes not read, scripts dropped"_test = [] {
         const md::Document doc = md::from_html(R"html(<!doctype html><html><head><title>t</title><style>p{}</style></head><body>
 <div class="post">

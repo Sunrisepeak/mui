@@ -122,9 +122,12 @@ inline constexpr std::array<mlibs::control::Task, 3> guide_tasks{{
     {"wave-while-walking", "Ask what a wave on the upper body would look like before giving it: a branch ahead, then the layer and a step", steps_wave_while_walking},
 }};
 inline constexpr mlibs::control::Guide guide{"Play skeletal characters: read the rig and each character's state, send one to a state or set its parameters, layer a clip on part of it, ask where a joint is, sample any clip at any time, step, return to a frame, and ask what would be.", guide_tasks};
+}  // namespace hanim::skeleton::agent
 
-// The listing (skeleton.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (skeleton.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace hanim::skeleton::agent::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "8157\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "skeleton",
@@ -182,5 +185,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace hanim::skeleton::agent::carried
 
+export namespace hanim::skeleton::agent {
+inline constexpr std::string_view listing{carried::listing + 22, 8157};
 }  // namespace hanim::skeleton::agent

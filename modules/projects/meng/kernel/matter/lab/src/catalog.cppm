@@ -210,9 +210,12 @@ inline constexpr std::array<mlibs::control::Task, 5> guide_tasks{{
     {"hold-the-part-you-work-on", "Say which part you are working on so others do not write over it, and let it go", steps_hold_the_part_you_work_on},
 }};
 inline constexpr mlibs::control::Guide guide{"Design matter: change a material's row or a law and see the same scene under the new definition, try a change before making it, keep every step as a commit, and hold the part you are working on. The scene is its edits — what was placed and applied, each at its step: a change of the definition plays it again to its last edit, and steps run on after that are the running world's, not the scene's.", guide_tasks};
+}  // namespace meng::matter::lab
 
-// The listing (lab.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (lab.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace meng::matter::lab::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "17201\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "lab",
@@ -307,5 +310,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace meng::matter::lab::carried
 
+export namespace meng::matter::lab {
+inline constexpr std::string_view listing{carried::listing + 23, 17201};
 }  // namespace meng::matter::lab

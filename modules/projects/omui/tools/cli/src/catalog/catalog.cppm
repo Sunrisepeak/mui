@@ -111,9 +111,12 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 23> catalog{{
 }};
 
 inline constexpr mlibs::control::Guide guide{"The project's commands: create, build, test, check, describe, package; dependencies, tools and the design's history.", {}};
+}  // namespace omui::cli::ops
 
-// The listing (omui-cli.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (omui-cli.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace omui::cli::ops::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "13822\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "omui-cli",
@@ -170,5 +173,8 @@ inline constexpr std::string_view listing = R"listing({
   "tiers": []
 }
 )listing";
+}  // namespace omui::cli::ops::carried
 
+export namespace omui::cli::ops {
+inline constexpr std::string_view listing{carried::listing + 23, 13822};
 }  // namespace omui::cli::ops

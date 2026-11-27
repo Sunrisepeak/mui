@@ -46,9 +46,12 @@ inline constexpr std::array<mlibs::control::Task, 3> guide_tasks{{
     {"ask-what-drew-a-pixel", "Go from a pixel back to the layer and the object that drew it", steps_ask_what_drew_a_pixel},
 }};
 inline constexpr mlibs::control::Guide guide{"See which layers a frame is made of, take its pixels, and go from a pixel back to what drew it.", guide_tasks};
+}  // namespace mrender
 
-// The listing (frame.ops.json), as written beside this file.
-inline constexpr std::string_view listing = R"listing({
+// The listing (frame.ops.json), as written beside this file, after its mark (mlibs.apart: data a page
+// carries apart until it is first read — a reader asks for it through mlibs::apart::present).
+namespace mrender::carried {
+inline constexpr char listing[] = "\0" "omui.apart\0" "data\0" "2395\0" "" R"listing({
   "kind": "omui.ops",
   "version": 1,
   "product": "frame",
@@ -79,5 +82,8 @@ inline constexpr std::string_view listing = R"listing({
   ]
 }
 )listing";
+}  // namespace mrender::carried
 
+export namespace mrender {
+inline constexpr std::string_view listing{carried::listing + 22, 2395};
 }  // namespace mrender

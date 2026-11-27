@@ -100,6 +100,28 @@ UTest cases{"timeline.direct", [] {
         expect(eq(tl::write_timeline(tl::direct(history(), 1280, 800)), tl::write_timeline(tl::direct(history(), 1280, 800)))) << "the rest unchanged";
     };
 
+    "its sound, when the rules give one: a score under the whole show, a cue on each visible beat's first frame"_test = [] {
+        tl::Direction rules;
+        rules.score = "main.music.xdef.ts";
+        rules.cue = "step";
+        const tl::Timeline show = tl::direct(history(), 1280, 800, rules);
+        const auto& music = track(show, "music");
+        expect(music.kind == tl::Kind::audio && music.clips.size() == 1 && music.clips[0].source == "main.music.xdef.ts" && music.clips[0].at == 0 &&
+               music.clips[0].length == show.duration()) << "the score, start to end";
+        const auto& states = track(show, "states").clips;
+        const auto& cues = track(show, "sfx").clips;
+        expect(eq(cues.size(), std::size_t{3})) << "beats 1, 3 and 4 change what is seen; 2 and 5 do not";
+        if (cues.size() == 3) {
+            expect(cues[0].at == states[0].at && cues[1].at == states[2].at && cues[2].at == states[3].at) << "on the beats' own frames";
+            expect(cues[1].source == "sound:step" && cues[1].name == "beat 3" && frames(show, cues[1].length) == 1);
+        }
+        expect(eq(show.tracks[0].name, std::string("states"))) << "the picture's tracks first, as before";
+        expect(std::ranges::none_of(tl::direct(history(), 1280, 800).tracks, [](const tl::Track& t) { return t.kind == tl::Kind::audio || t.name == "sfx"; }))
+            << "no sound unless the rules give one";
+        const auto read = tl::read_direction(R"({"$format":"direction@1","direction":{"score":"main.music.xdef.ts","cue":"step"}})", "main.direction.xdef.json");
+        expect(read.has_value() && read->score == "main.music.xdef.ts" && read->cue == "step") << "read from the rules";
+    };
+
     "a pure function: the same beats and rules, the same timeline to the bit — written, read back and written again"_test = [] {
         const auto beats = history();
         const std::string first = tl::write_timeline(tl::direct(beats, 1280, 800));

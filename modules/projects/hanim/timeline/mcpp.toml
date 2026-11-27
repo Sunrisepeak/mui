@@ -36,6 +36,11 @@ mlibs.utils         = { path = "../../../base/utils" }
 mlibs.json          = { path = "../../../base/json" }
 mlibs.xdef = { path = "../../../base/xdef" }  # a snapshot's format checked first (D-209)
 
+# The declared data kinds this package owns (mlibs.xdef registry, D-209): a show's rules (`direction@1`, read by
+# read_direction), written as JSON (no define module).
+[package.metadata.openmui.xdef]
+kinds = { direction = 1 }
+
 [dev-dependencies]
 mcpplibs.mtest = "0.11.3"
 mlibs.cts = { path = "../../../base/cts" }

@@ -8,6 +8,8 @@ namespace omui {
     int fps = 0;
     double seconds = 0;
     Size size;
+    std::filesystem::path score, sounds;
+    std::vector<std::pair<std::string, double>> cues;
   };
   [[nodiscard]] std::expected<ShowFilm, std::string> film_show(const player::Manifest& manifest, int fps, const std::function<void(std::size_t index, Headless& host)>& frame);
   int player_main(int argc, char** argv);

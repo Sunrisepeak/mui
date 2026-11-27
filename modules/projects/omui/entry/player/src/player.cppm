@@ -42,6 +42,10 @@ struct ShowFilm {
     int         fps = 0;
     double      seconds = 0;  // the show's
     Size        size;
+    // Its sound as the show states it (silent when none): the score under it (its `music` track's clip), and each
+    // cue on its `sfx` track — the sound's name and its time — from the bank beside the show (<name>.sound.xdef.ts).
+    std::filesystem::path                        score, sounds;
+    std::vector<std::pair<std::string, double>> cues;
 };
 [[nodiscard]] std::expected<ShowFilm, std::string> film_show(const player::Manifest& manifest, int fps,
                                                              const std::function<void(std::size_t index, Headless& host)>& frame);

@@ -38,6 +38,20 @@
       {"name": "7/10 · the sentence, in the person's words", "source": "caption", "at": "870f", "length": "140f"},
       {"name": "8/10 · more room around the install", "source": "caption", "at": "1010f", "length": "119f"},
       {"name": "9/10 · the documents, a link beside GitHub\n10/10 · the Live Design key plays this design in place", "source": "caption", "at": "1129f", "length": "320f"}
+    ]},
+    {"name": "music", "kind": "audio", "clips": [
+      {"name": "score", "source": "main.music.xdef.ts", "at": "0f", "length": "1449f"}
+    ]},
+    {"name": "sfx", "kind": "events", "clips": [
+      {"name": "beat 1", "source": "sound:step", "at": "0f", "length": "1f"},
+      {"name": "beat 2", "source": "sound:step", "at": "144f", "length": "1f"},
+      {"name": "beat 3", "source": "sound:step", "at": "288f", "length": "1f"},
+      {"name": "beat 4", "source": "sound:step", "at": "461f", "length": "1f"},
+      {"name": "beat 5", "source": "sound:step", "at": "591f", "length": "1f"},
+      {"name": "beat 6", "source": "sound:step", "at": "726f", "length": "1f"},
+      {"name": "beat 7", "source": "sound:step", "at": "870f", "length": "1f"},
+      {"name": "beat 8", "source": "sound:step", "at": "1010f", "length": "1f"},
+      {"name": "beat 9", "source": "sound:step", "at": "1129f", "length": "1f"}
     ]}
   ]
 }}

@@ -61,6 +61,11 @@ struct Direction {
     std::string retext = "morph";      // that changed words,
     std::string relocate = "morph";    // that moved nodes,
     std::string otherwise = "fade_in"; // and any other
+    // Its sound (none by default): a score under the whole show — a `music` track, one clip of the music file named
+    // (its player's to resolve, e.g. beside the show) — and a cue on each visible beat's first frame — an `sfx` track
+    // of clips `sound:<cue>`, the sound's name in the player's bank — so the music's hits land on the beats.
+    std::string score;
+    std::string cue;
     // Every rule the same (written out: GCC 16.1 stops with an internal error on a defaulted one here).
     [[nodiscard]] bool operator==(const Direction& other) const;
 };

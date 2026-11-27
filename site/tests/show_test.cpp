@@ -10,7 +10,7 @@
 // end, a step without a visible change lasts at most 0.3 s, the show ends on the page as it ships; paused, sent
 // forward or back in the middle of a beat, the page lands exactly where it was taken; unseen, a beat holds what is
 // left of it; with the person's less motion the show is its steps cut, on the same beats. And the show's film (AG4) is
-// the page: its frame at t is the page's frame at t.
+// the page — its frame at t is the page's frame at t — with its sound: a score under it, a chime on each seen beat.
 import std;
 import mcpplibs.mtest;
 import omui;
@@ -404,6 +404,16 @@ static UTest cases{"site.show", [] {
         expect(eq(filmed->frames, film.size()) && film.size() >= static_cast<std::size_t>(filmed->seconds * 30)) << std::format("{} frames for {:.2f} s", film.size(), filmed->seconds);
         // The page as the visitor's key plays it, at the show's own 60 a second: every other frame is the film's time.
         Stage stage(*site.manifest, site.replay, site.show);
+        // Its sound, as the show states it (design/main.direction.xdef.json): the score under it and the chimes' bank,
+        // beside the show; a `step` chime at the start of each beat that changes what is seen — not the still last one.
+        expect(filmed->score.filename() == "main.music.xdef.ts" && std::filesystem::exists(filmed->score)) << filmed->score.generic_string();
+        expect(filmed->sounds.filename() == "main.sound.xdef.ts" && std::filesystem::exists(filmed->sounds)) << filmed->sounds.generic_string();
+        const std::vector<double> beats = stage.where().beats;
+        expect(fatal(!beats.empty() && filmed->cues.size() == beats.size() - 1)) << std::format("{} chimes for {} beats", filmed->cues.size(), beats.size());
+        double start = 0;
+        for (std::size_t beat = 0; beat < filmed->cues.size(); start += beats[beat], ++beat)
+            expect(filmed->cues[beat].first == "step" && std::abs(filmed->cues[beat].second - start) < 1e-6)
+                << std::format("beat {}'s chime at {:.4f} s, its start {:.4f} s", beat + 1, filmed->cues[beat].second, start);
         expect(fatal(stage.invoke(Value{}.set("from", 1)).exit_code().value_or(-1) == 0));
         std::size_t same = 0, first_apart = film.size();
         for (std::size_t drawn = 1, kept = 0; kept < film.size(); ++drawn) {

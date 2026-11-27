@@ -34,6 +34,8 @@ namespace hanim::timeline {
     std::string retext = "morph";
     std::string relocate = "morph";
     std::string otherwise = "fade_in";
+    std::string score;
+    std::string cue;
     [[nodiscard]] bool operator==(const Direction& other) const;
   };
   [[nodiscard]] Timeline direct(std::span<const Beat> beats, std::int32_t width, std::int32_t height, const Direction& rules = {…});

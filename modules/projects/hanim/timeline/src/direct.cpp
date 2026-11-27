@@ -101,7 +101,7 @@ bool Direction::operator==(const Direction& other) const {
     return rate == other.rate && shortest == other.shortest && longest == other.longest && full == other.full && still == other.still &&
            reading == other.reading && glance == other.glance && near == other.near && fill == other.fill && deepest == other.deepest &&
            stay == other.stay && move == other.move && appear == other.appear && vanish == other.vanish && retext == other.retext &&
-           relocate == other.relocate && otherwise == other.otherwise;
+           relocate == other.relocate && otherwise == other.otherwise && score == other.score && cue == other.cue;
 }
 
 Timeline direct(std::span<const Beat> beats, std::int32_t width, std::int32_t height, const Direction& rules) {
@@ -222,6 +222,19 @@ Timeline direct(std::span<const Beat> beats, std::int32_t width, std::int32_t he
     show.tracks.push_back(std::move(states));
     show.tracks.push_back(std::move(camera_track));
     show.tracks.push_back(std::move(captions));
+    // Its sound, when the rules give one: the score under the whole show, a cue on each visible beat's first frame.
+    if (!rules.score.empty() && !beats.empty())
+        show.tracks.push_back({.name = "music",
+                               .kind = Kind::audio,
+                               .clips = {{.name = "score", .source = rules.score, .at = 0, .length = rules.rate.frame_time(starts.back())}}});
+    if (!rules.cue.empty()) {
+        Track sfx{.name = "sfx", .kind = Kind::events};
+        for (std::size_t at = 0; at < beats.size(); ++at)
+            if (places[at].visible)
+                sfx.clips.push_back({.name = std::format("beat {}", at + 1), .source = std::format("sound:{}", rules.cue), .at = rules.rate.frame_time(starts[at]),
+                                     .length = rules.rate.frame_time(1)});
+        if (!sfx.clips.empty()) show.tracks.push_back(std::move(sfx));
+    }
     return show;
 }
 
@@ -229,8 +242,9 @@ namespace {
 
 using mlibs::json::Node;
 
-constexpr std::array<std::string_view, 18> direction_keys{"rate",  "shortest", "longest", "full",   "still",  "reading",  "glance",   "near",      "fill",
-                                                          "deepest", "stay",   "move",    "appear", "vanish", "retext",   "relocate", "otherwise", "doc"};
+constexpr std::array<std::string_view, 20> direction_keys{"rate",  "shortest", "longest", "full",   "still",  "reading",  "glance",   "near",      "fill",
+                                                          "deepest", "stay",   "move",    "appear", "vanish", "retext",   "relocate", "otherwise", "score",
+                                                          "cue",     "doc"};
 
 }  // namespace
 
@@ -299,6 +313,14 @@ std::expected<Direction, std::vector<Problem>> read_direction(std::string_view t
         if (!node) continue;
         const auto name = node.text();
         if (!name || name->empty()) said(node, std::format("`{}` is a recipe's registered name", key), "settle_in, fade_out, morph …");
+        else *into = *name;
+    }
+    for (const auto& [key, into, what] : {std::tuple<std::string_view, std::string*, std::string_view>{"score", &rules.score, "a music file (\"main.music.xdef.ts\")"},
+                                          {"cue", &rules.cue, "a sound's name in the bank (\"step\")"}}) {
+        const Node node = rules_node[key];
+        if (!node) continue;
+        const auto name = node.text();
+        if (!name) said(node, std::format("`{}` is {}", key, what), "");
         else *into = *name;
     }
     if (!problems.empty()) return std::unexpected(std::move(problems));

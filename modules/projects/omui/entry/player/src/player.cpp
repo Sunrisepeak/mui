@@ -286,6 +286,21 @@ std::expected<ShowFilm, std::string> film_show(const player::Manifest& manifest,
     const int each = rate / fps;
     const auto most = static_cast<std::int64_t>((length + 5) * rate);
     ShowFilm film{.fps = fps, .seconds = length, .size = manifest.size};
+    // Its sound: the score's file and the cues' bank beside the show (the director names them from its rules).
+    const std::filesystem::path beside = (manifest.base / config->replay_show).parent_path();
+    for (const hanim::timeline::Track& track : show->tracks) {
+        if (track.kind == hanim::timeline::Kind::audio && !track.muted && film.score.empty() && !track.clips.empty())
+            film.score = beside / mcpplibs::os::fs::from_utf8(track.clips.front().source);
+        if (track.name == "sfx" && !track.muted)
+            for (const hanim::timeline::Clip& clip : track.clips)
+                if (clip.source.starts_with("sound:")) film.cues.emplace_back(clip.source.substr(6), mlibs::time::to_seconds(clip.at));
+    }
+    if (!film.cues.empty()) {
+        std::string stem = utf8(config->replay_show.filename());
+        if (const auto cut = stem.find(".show.timeline."); cut != std::string::npos) stem.resize(cut);
+        film.sounds = beside / mcpplibs::os::fs::from_utf8(stem + ".sound.xdef.ts");
+        if (!std::filesystem::exists(film.sounds)) return std::unexpected(std::format("the show's cues sound from {}: no such file", utf8(film.sounds)));
+    }
     for (std::int64_t drawn = 1; drawn <= most; ++drawn) {
         (void)host.step({}, seconds(host.now().count() + 1.0 / rate));
         if (drawn % each == 0) frame(film.frames++, host);
@@ -446,17 +461,39 @@ int player_main(int argc, char** argv, void (*components)()) {
                 std::println(std::cerr, "{}", film ? problem : film.error());
                 return 1;
             }
-            const auto description = dir / "show.video.xdef.json";
-            const Value video = Value(Value::Map{})
-                                    .set("doc", std::format("{}: its design's show as the page plays it, {:.2f} s.", m->title.empty() ? m->id : m->title, film->seconds))
-                                    .set("width", static_cast<std::int64_t>(std::lround(film->size.width)))
-                                    .set("height", static_cast<std::int64_t>(std::lround(film->size.height)))
-                                    .set("fps", film->fps)
-                                    .set("frames", static_cast<std::int64_t>(film->frames))
-                                    .set("from", Value(Value::Map{}).set("png", "frames/{:05}.png"));
-            std::ofstream(description, std::ios::binary) << Value(Value::Map{}).set("$format", "video@1").set("video", video).json() << '\n';
+            // Two descriptions, with its sound (when the show states one) and without.
+            const auto from_dir = [&](const std::filesystem::path& file) {
+                std::error_code ignored;
+                return mcpplibs::os::fs::generic_utf8(std::filesystem::relative(std::filesystem::absolute(file, ignored), std::filesystem::absolute(dir, ignored), ignored));
+            };
+            const auto described = [&](bool sound) {
+                Value video = Value(Value::Map{})
+                                  .set("doc", std::format("{}: its design's show as the page plays it, {:.2f} s{}.", m->title.empty() ? m->id : m->title, film->seconds,
+                                                          sound ? ", with its sound" : ""))
+                                  .set("width", static_cast<std::int64_t>(std::lround(film->size.width)))
+                                  .set("height", static_cast<std::int64_t>(std::lround(film->size.height)))
+                                  .set("fps", film->fps)
+                                  .set("frames", static_cast<std::int64_t>(film->frames))
+                                  .set("from", Value(Value::Map{}).set("png", "frames/{:05}.png"));
+                if (sound) {
+                    Value audio = Value(Value::Map{});
+                    if (!film->score.empty()) audio.set("music", from_dir(film->score));
+                    if (!film->cues.empty()) {
+                        Value::List cues;
+                        for (const auto& [name, at] : film->cues) cues.push_back(Value{}.set("sound", name).set("at", at));
+                        audio.set("sounds", from_dir(film->sounds)).set("cues", Value(std::move(cues)));
+                    }
+                    video.set("audio", std::move(audio));
+                }
+                return Value(Value::Map{}).set("$format", "video@1").set("video", std::move(video));
+            };
+            const bool sounding = !film->score.empty() || !film->cues.empty();
+            const auto description = dir / "show.video.xdef.json", silent = dir / "show.silent.video.xdef.json";
+            std::ofstream(description, std::ios::binary) << described(sounding).json() << '\n';
+            std::ofstream(silent, std::ios::binary) << described(false).json() << '\n';
             std::println("{}", Value(Value::Map{}).set("frames", static_cast<std::int64_t>(film->frames)).set("fps", film->fps).set("seconds", film->seconds)
-                                   .set("description", utf8(description)).json());
+                                   .set("description", utf8(description)).set("silent", utf8(silent)).set("sound", sounding)
+                                   .set("cues", static_cast<std::int64_t>(film->cues.size())).json());
             return 0;
         }
         if (auto film = parsed.value("design-film")) {

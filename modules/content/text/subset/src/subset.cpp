@@ -1011,7 +1011,95 @@ Bytes emptied_hvar(std::span<const std::uint8_t> hvar, const std::vector<bool>& 
     return out;
 }
 
+// ── gvar: a glyph's variations at the axes a cut lets move ───────────────────────────────────────────────────────────
+// A tuple of a glyph's variation data is a region of the design space and the deltas for it. At an axis held at its
+// default (coordinate 0) a tuple whose region has a peak on that axis counts for nothing — unless its region reaches
+// across 0 — so a cut for text that moves only the weight (Inter's other axis, `opsz`, is never set) drops them: what is
+// left is what the text can draw. The glyph's data is written again without them (the headers kept, the shared point
+// numbers as they were, the data of the tuples kept); a glyph that keeps none has no data.
+Bytes pinned_glyph_variations(std::span<const std::uint8_t> glyph, std::size_t axes, std::span<const std::uint8_t> shared_tuples,
+                              const std::vector<bool>& pinned) {
+    const auto keep_whole = [&] { return Bytes(glyph.begin(), glyph.end()); };
+    if (glyph.size() < 4 || !axes) return keep_whole();
+    const std::size_t count = u16(glyph, 0) & 0x0FFF, data_offset = u16(glyph, 2);
+    struct Tuple {
+        std::size_t header_at = 0, header_end = 0, data_size = 0;
+        bool keep = true;
+    };
+    std::vector<Tuple> tuples;
+    std::size_t at = 4, data_total = 0;
+    for (std::size_t i = 0; i < count; ++i) {
+        if (at + 4 > glyph.size()) return keep_whole();
+        Tuple tuple{.header_at = at, .data_size = u16(glyph, at)};
+        const std::uint16_t index = u16(glyph, at + 2);
+        at += 4;
+        std::size_t peak = at;  // the peak coordinates: here, or among the shared tuples
+        std::span<const std::uint8_t> peaks = glyph;
+        if (index & 0x8000) at += axes * 2;
+        else {
+            peak = std::size_t{index & 0x0FFF} * axes * 2;
+            peaks = shared_tuples;
+            if (peak + axes * 2 > peaks.size()) return keep_whole();
+        }
+        const std::size_t region = at;  // the intermediate region's start and end, when there is one
+        if (index & 0x4000) at += axes * 4;
+        if (at > glyph.size()) return keep_whole();
+        for (std::size_t axis = 0; axis < axes && tuple.keep; ++axis) {
+            if (!pinned[axis] || static_cast<std::int16_t>(u16(peaks, peak + axis * 2)) == 0) continue;
+            const bool across = (index & 0x4000) && static_cast<std::int16_t>(u16(glyph, region + axis * 2)) <= 0 &&
+                                static_cast<std::int16_t>(u16(glyph, region + axes * 2 + axis * 2)) >= 0;
+            tuple.keep = across;
+        }
+        tuple.header_end = at;
+        data_total += tuple.data_size;
+        tuples.push_back(tuple);
+    }
+    if (data_offset > glyph.size() || data_offset < at) return keep_whole();
+    // The shared point numbers (packed: a count, then runs of numbers as bytes or words), where the glyph has them; the
+    // data of its tuples follows, each as long as its header says.
+    std::size_t shared_end = data_offset;
+    if (u16(glyph, 0) & 0x8000) {
+        std::size_t cursor = data_offset, points = 0;
+        if (cursor >= glyph.size()) return keep_whole();
+        if (const std::uint8_t first = glyph[cursor++]; first & 0x80) {
+            if (cursor >= glyph.size()) return keep_whole();
+            points = (std::size_t{first & 0x7Fu} << 8) | glyph[cursor++];
+        } else points = first;
+        for (std::size_t covered = 0; covered < points;) {
+            if (cursor >= glyph.size()) return keep_whole();
+            const std::uint8_t control = glyph[cursor++];
+            const std::size_t run = std::size_t{control & 0x7Fu} + 1;
+            cursor += run * ((control & 0x80) ? 2 : 1);
+            covered += run;
+        }
+        shared_end = cursor;
+    }
+    if (shared_end > glyph.size() || data_total > glyph.size() - shared_end) return keep_whole();
+    std::size_t kept_count = 0, headers = 0;
+    for (const Tuple& tuple : tuples)
+        if (tuple.keep) ++kept_count, headers += tuple.header_end - tuple.header_at;
+    if (kept_count == tuples.size()) return keep_whole();
+    if (!kept_count) return {};
+    Bytes out;
+    push16(out, static_cast<std::uint16_t>(kept_count | (u16(glyph, 0) & 0xF000)));
+    push16(out, static_cast<std::uint16_t>(4 + headers));
+    for (const Tuple& tuple : tuples)
+        if (tuple.keep) out.insert(out.end(), glyph.begin() + static_cast<std::ptrdiff_t>(tuple.header_at), glyph.begin() + static_cast<std::ptrdiff_t>(tuple.header_end));
+    out.insert(out.end(), glyph.begin() + static_cast<std::ptrdiff_t>(data_offset), glyph.begin() + static_cast<std::ptrdiff_t>(shared_end));
+    std::size_t data_at = shared_end;
+    for (const Tuple& tuple : tuples) {
+        if (tuple.keep) out.insert(out.end(), glyph.begin() + static_cast<std::ptrdiff_t>(data_at), glyph.begin() + static_cast<std::ptrdiff_t>(data_at + tuple.data_size));
+        data_at += tuple.data_size;
+    }
+    return out;
+}
+
 }  // namespace
+
+std::span<const std::string_view> shaping_axes() noexcept {
+    static constexpr std::array<std::string_view, 1> axes{"wght"};  // the one a style sets (a text's weight)
+    return axes;
+}
 
 std::span<const std::string_view> shaping_features() noexcept {
     // What HarfBuzz turns on by itself for text in a line (its common and horizontal features, the direction's forms and
@@ -1183,7 +1271,7 @@ std::expected<std::vector<std::pair<std::uint32_t, std::uint32_t>>, std::string>
 }
 
 std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep, FontSubsetReport* report,
-                                              std::span<const std::string_view> features) {
+                                              std::span<const std::string_view> features, std::span<const std::string_view> move_axes) {
     if (font.size() < 12 || (u32(font, 0) != 0x00010000 && u32(font, 0) != 0x74727565)) return std::unexpected("not a TrueType font (glyf outlines)");
     const std::uint16_t count = u16(font, 4);
     if (12 + std::size_t{count} * 16 > font.size()) return std::unexpected("truncated font table directory");
@@ -1276,13 +1364,28 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
         const std::size_t shared_at = u32(gv, 8), data_at = u32(gv, 16);
         auto goff = [&](std::size_t g) -> std::size_t { return (flags & 1) ? u32(gv, 20 + g * 4) : std::size_t{u16(gv, 20 + g * 2)} * 2; };
         const std::size_t shared_len = std::size_t{shared} * axes * 2;
+        // The axes the text does not move are held at their default: fvar's axes by their tags.
+        std::vector<bool> pinned(axes, false);
+        if (!move_axes.empty() && by.contains("fvar") && by["fvar"].size() >= 16) {
+            const auto fv = by["fvar"];
+            const std::size_t first = u16(fv, 4), size = u16(fv, 10);
+            for (std::size_t axis = 0; axis < axes && size >= 4 && first + (axis + 1) * size <= fv.size(); ++axis)
+                pinned[axis] = std::ranges::find(move_axes, std::string_view(reinterpret_cast<const char*>(fv.data() + first + axis * size), 4)) == move_axes.end();
+        }
+        const bool pinning = std::ranges::any_of(pinned, [](bool pin) { return pin; });
+        const auto shared_tuples = shared_at + shared_len <= gv.size() ? gv.subspan(shared_at, shared_len) : std::span<const std::uint8_t>{};
         Bytes data;
         std::vector<std::uint32_t> offs;
         for (std::size_t g = 0; g < gcount; ++g) {
             offs.push_back(static_cast<std::uint32_t>(data.size()));
             if (g < glyphs && !kept[g]) continue;
             const std::size_t a = data_at + goff(g), b = data_at + goff(g + 1);
-            if (b > a && b <= gv.size()) data.insert(data.end(), gv.begin() + static_cast<std::ptrdiff_t>(a), gv.begin() + static_cast<std::ptrdiff_t>(b));
+            if (b > a && b <= gv.size()) {
+                const auto glyph = gv.subspan(a, b - a);
+                const Bytes variations = pinning ? pinned_glyph_variations(glyph, axes, shared_tuples, pinned) : Bytes(glyph.begin(), glyph.end());
+                data.insert(data.end(), variations.begin(), variations.end());
+                if (pinning && data.size() % 2) data.push_back(0);
+            }
         }
         offs.push_back(static_cast<std::uint32_t>(data.size()));
         const std::size_t header = 20 + offs.size() * 4;

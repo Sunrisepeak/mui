@@ -204,7 +204,7 @@ static UTest cases{"gen.font_delivery", [] {
         options.font_initial = {{"Inter", sample}};
         std::set<char32_t> keep; mlibs::text::subset::characters_of(sample, keep);
         // The packer's initial cut: the page's text and the glyphs of the features omui's text turns on.
-        const auto initial = mlibs::text::subset::subset_font(inter, keep, nullptr, mlibs::text::subset::shaping_features()); expect(initial.has_value()); if (!initial) return;
+        const auto initial = mlibs::text::subset::subset_font(inter, keep, nullptr, mlibs::text::subset::shaping_features(), mlibs::text::subset::shaping_axes()); expect(initial.has_value()); if (!initial) return;
         const auto result = gen::package_for_toy(options); expect(result.has_value()) << (result ? "" : result.error()); if (!result) return;
         int inter_full = 0, inter_initial = 0, monospaced = 0;
         for (const auto& file : result->files) if (file.path.ends_with(".ttf")) {

@@ -258,12 +258,13 @@ static UTest cases{"text.subset", [] {
         for (const auto& sample : samples) subset::characters_of(sample, keep);
         subset::FontSubsetReport all_report, shaping_report;
         auto everything = subset::subset_font(inter, keep, &all_report);
-        auto cut = subset::subset_font(inter, keep, &shaping_report, subset::shaping_features());
+        auto cut = subset::subset_font(inter, keep, &shaping_report, subset::shaping_features(), subset::shaping_axes());
         expect(everything.has_value() && cut.has_value()) << (cut ? "" : cut.error()); if (!everything || !cut) return;
         expect(shaping_report.kept * 2 < all_report.kept && cut->size() < everything->size())
             << std::format("{} of {} glyphs kept for the shaping features, {} of them for every feature", shaping_report.kept, shaping_report.glyphs, all_report.kept);
         mlibs::text::FontCollection full{mlibs::text::harfbuzz::shaper()}, small{mlibs::text::harfbuzz::shaper()};
-        expect(full.add_data(inter).has_value() && small.add_data(*cut).has_value());
+        const auto full_face = full.add_data(inter), small_face = small.add_data(*cut);
+        expect(full_face.has_value() && small_face.has_value()); if (!full_face || !small_face) return;
         using Placed = std::vector<std::array<float, 3>>;  // glyph, x, y
         const auto shaped = [](mlibs::text::FontCollection& fonts, const std::string& sample, std::vector<mlibs::text::Feature> features) {
             mlibs::text::ParagraphStyle style; style.style.size = 28; style.style.weight = 600; style.style.features = std::move(features);
@@ -282,6 +283,24 @@ static UTest cases{"text.subset", [] {
             for (const char* other : {"ss01", "cv11", "zero", "case", "dlig"})
                 expect(shaped(small, sample, {mlibs::text::Feature::on(other)}) == shaped(small, sample, {})) << std::format("{}: {} does nothing on the cut", sample, other);
         }
+        // The variation data of the axis nothing sets (Inter's opsz) is gone, and the glyphs at any weight are the same as the
+        // whole face's: the same outline, point by point.
+        const auto variations = table(*cut, "gvar"), whole_variations = table(*everything, "gvar");
+        expect(variations.size() * 3 < whole_variations.size() * 2) << std::format("gvar {} bytes, {} with every axis", variations.size(), whole_variations.size());
+        std::size_t outlines = 0;
+        for (const float weight : {100.0f, 300.0f, 400.0f, 650.0f, 800.0f, 900.0f}) for (const auto& sample : samples) {
+            mlibs::text::ParagraphStyle style; style.style.size = 28; style.style.weight = weight;
+            mlibs::text::Paragraph in_full(full, sample, style); in_full.layout(1024);
+            for (const auto& line : in_full.lines()) for (const auto& run : line.runs) for (const auto& glyph : run.glyphs) {
+                const auto a = full.outline(full.font(*full_face, weight, mlibs::text::Slant::normal), glyph.id),
+                           b = small.outline(small.font(*small_face, weight, mlibs::text::Slant::normal), glyph.id);
+                bool same = a.verbs == b.verbs && a.points.size() == b.points.size();
+                for (std::size_t i = 0; same && i < a.points.size(); ++i) same = a.points[i].x == b.points[i].x && a.points[i].y == b.points[i].y;
+                expect(same) << std::format("{}: glyph {} at weight {} is the whole face's outline", sample, glyph.id, weight);
+                outlines += !a.points.empty();
+            }
+        }
+        expect(outlines > 200) << "the outlines compared are real ones";
         // The metrics of glyphs nothing draws are emptied, in place: hmtx (4 bytes each) holds as many entries as before, of
         // which only the kept glyphs' (and the last, which every glyph after it has) are not zero.
         const auto metrics = table(*cut, "hmtx");
@@ -299,7 +318,7 @@ static UTest cases{"text.subset", [] {
         const auto substitutions = table(*cut, "GSUB"), whole_substitutions = table(inter, "GSUB");
         expect(substitutions.size() == whole_substitutions.size() && zeros(substitutions) > zeros(whole_substitutions) + whole_substitutions.size() / 4)
             << std::format("GSUB {} bytes, {} zero (the whole face's: {})", substitutions.size(), zeros(substitutions), zeros(whole_substitutions));
-        const auto twice = subset::subset_font(*cut, keep, nullptr, subset::shaping_features());
+        const auto twice = subset::subset_font(*cut, keep, nullptr, subset::shaping_features(), subset::shaping_axes());
         expect(twice && *twice == *cut) << "cut again: the same bytes";
     };
 

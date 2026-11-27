@@ -10,7 +10,8 @@ namespace mlibs::text::subset {
   };
   [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> compact_font_post( std::span<const std::uint8_t> font, FontDeliveryReport* report = nullptr);
   [[nodiscard]] std::span<const std::string_view> shaping_features() noexcept;
-  [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep, FontSubsetReport* report = nullptr, std::span<const std::string_view> features = {…});
+  [[nodiscard]] std::span<const std::string_view> shaping_axes() noexcept;
+  [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep, FontSubsetReport* report = nullptr, std::span<const std::string_view> features = {…}, std::span<const std::string_view> move_axes = {…});
   [[nodiscard]] std::expected<std::vector<std::pair<std::uint32_t, std::uint32_t>>, std::string> font_blocks(std::span<const std::uint8_t> font);
   void characters_of(std::string_view text, std::set<char32_t>& into);
   void always_kept(std::set<char32_t>& into);

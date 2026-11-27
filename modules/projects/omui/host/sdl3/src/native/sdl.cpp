@@ -596,11 +596,19 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
             case SDL_EVENT_WINDOW_MINIMIZED:
             case SDL_EVENT_WINDOW_RESTORED:
             case SDL_EVENT_WINDOW_ENTER_FULLSCREEN:
-            case SDL_EVENT_WINDOW_LEAVE_FULLSCREEN: out.state = state(w); break;
+            case SDL_EVENT_WINDOW_LEAVE_FULLSCREEN:
+                out.state = state(w);
+                out.shown = *out.state != WindowState::minimized;
+                break;
+            // Seen or not: hidden or covered whole, and shown again (a minimized window is said above).
+            case SDL_EVENT_WINDOW_HIDDEN:
+            case SDL_EVENT_WINDOW_OCCLUDED: out.shown = false; break;
+            case SDL_EVENT_WINDOW_SHOWN: out.shown = true; break;
             case SDL_EVENT_SYSTEM_THEME_CHANGED: out.appearance = true; break;
             case SDL_EVENT_WINDOW_EXPOSED:
                 // What the server lost of the window (no compositor keeps it): the frame shown, sent again whole.
                 if (w.framebuffer && w.shown) (void)SDL_UpdateWindowSurface(w.window);
+                out.shown = true;  // part of it can be seen again (after being covered whole)
                 break;
             case SDL_EVENT_WINDOW_FOCUS_GAINED: out.events.push_back(FocusEvent{true}); break;
             case SDL_EVENT_WINDOW_FOCUS_LOST: out.events.push_back(FocusEvent{false}); break;

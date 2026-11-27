@@ -8,8 +8,8 @@
 // motion, so only the design's change is slowed.
 // Then sampled in time (AGENTS §6): each beat's last frame is its step as gone to, the frames between are neither
 // end, a step without a visible change lasts at most 0.3 s, the show ends on the page as it ships; paused, sent
-// forward or back in the middle of a beat, the page lands exactly where it was taken; with the person's less motion
-// the show is its steps cut, on the same beats.
+// forward or back in the middle of a beat, the page lands exactly where it was taken; unseen, a beat holds what is
+// left of it; with the person's less motion the show is its steps cut, on the same beats.
 import std;
 import mcpplibs.mtest;
 import omui;
@@ -71,7 +71,7 @@ struct Stage {
     // Where the replay is: the step shown (0: none), whether it ended, each step's time on screen.
     struct Where {
         std::int64_t        at = 0;
-        bool                ended = false;
+        bool                ended = false, held = false;
         std::vector<double> beats;
     };
     Where where() {
@@ -81,6 +81,7 @@ struct Stage {
         if (!state) return out;
         if (const Value* step = state->get("at"); step && step->is_number()) out.at = step->as_int();
         if (const Value* ended = state->get("ended")) out.ended = ended->as_bool(false);
+        if (const Value* held = state->get("held")) out.held = held->as_bool(false);
         if (const Value* steps = state->get("steps"); steps && steps->list())
             for (const Value& step : *steps->list())
                 if (const Value* seconds = step.get("seconds"); seconds && seconds->is_number()) out.beats.push_back(seconds->as_double());
@@ -333,6 +334,29 @@ static UTest cases{"site.show", [] {
         (void)stage.invoke(Value{}.set("stop", true));
         stage.settle();
         expect(eq(stage.apart(stage.shot(), step_of[0]), std::uint64_t{0})) << "stopped: the page as it ships";
+
+        // Unseen in the middle of a beat (a hidden tab, a minimized window: the host says so): the step holds what is left
+        // of its time, still playing, and goes on with it when the window is seen again.
+        expect(fatal(stage.invoke(Value{}.set("from", 3)).exit_code().value_or(-1) == 0));
+        const double hidden_at = stage.host.now().count() + beats[2] * 0.4;
+        while (stage.host.now().count() < hidden_at) (void)stage.next();
+        const double left = beats[2] - (stage.host.now().count() - (hidden_at - beats[2] * 0.4));
+        omui::window().set_shown(false);
+        for (int unseen = 0; unseen < 60 * 3; ++unseen) (void)stage.next();  // three seconds: longer than the beat
+        const Stage::Where held = stage.where();
+        expect(eq(held.at, std::int64_t{3}) && held.held) << "unseen, it holds at its step";
+        omui::window().set_shown(true);
+        const double seen_again = stage.host.now().count();
+        std::int64_t now_at = 3;
+        while (now_at == 3 && stage.host.now().count() < seen_again + beats[2] + 1) {
+            (void)stage.next();
+            now_at = stage.where().at;
+        }
+        const double went_on = stage.host.now().count() - seen_again;
+        expect(eq(now_at, std::int64_t{4}) && std::abs(went_on - left) <= 2 * frame)
+            << std::format("seen again, it went on after {:.3f} s with {:.3f} s left", went_on, left);
+        (void)stage.invoke(Value{}.set("stop", true));
+        stage.settle();
 
         // The person's less motion (the system's setting, which the hosts read): the show is its steps cut — every frame
         // the step shown or, for the frame it is shown in, the one before — on the same beats, to the same end.

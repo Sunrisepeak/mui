@@ -57,6 +57,20 @@ Replayer::Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn sh
                 beats_.push_back(mlibs::time::to_seconds(clip.length));
                 moving_.push_back(clip.value("moving", clip.at));  // how long its change is seen to move at pace 1 (0: unmeasured)
             }
+    // A show plays to be seen: while none of the window can be (a hidden tab, a minimized or covered window), the step
+    // shown holds what is left of its time, and goes on with it when the window is seen again.
+    seen_ = Watch([this] {
+        const bool shown = omui::window().is_shown();
+        if (!shown && timer_) {
+            held_ = std::max(0.0, due_ - runtime_.now().count());
+            runtime_.cancel(timer_);
+            timer_ = 0;
+        } else if (shown && held_ >= 0) {
+            const double left = held_;
+            held_ = -1;
+            schedule(left);
+        }
+    });
 }
 
 double Replayer::seconds_of(std::size_t step) const noexcept {
@@ -71,7 +85,7 @@ Replayer::~Replayer() {
     if (mounted_) runtime_.unmount(slot);  // its controls call back here
 }
 
-void Replayer::said_playing() { toggle_.set(timer_ ? "Pause" : "Play"); }
+void Replayer::said_playing() { toggle_.set(playing() ? "Pause" : "Play"); }
 
 std::expected<void, std::string> Replayer::play(std::size_t from, double speed) {
     if (from == 0 || from > replay_.steps.size())
@@ -87,6 +101,7 @@ std::expected<void, std::string> Replayer::play(std::size_t from, double speed) 
 void Replayer::pause() {
     if (timer_) runtime_.cancel(timer_);
     timer_ = 0;
+    held_ = -1;  // held while unseen: paused now, and not taken up again when seen
     said_playing();
 }
 
@@ -172,8 +187,10 @@ void Replayer::place_course() {
     });
 }
 
-void Replayer::schedule() {
-    const double on_screen = seconds_of(at_) / speed_;
+void Replayer::schedule(std::optional<double> left) {
+    // The step's time on screen, or what was left of it when the window went unseen.
+    const double on_screen = left.value_or(seconds_of(at_) / speed_);
+    due_ = runtime_.now().count() + on_screen;
     timer_ = runtime_.after(seconds(on_screen), [this] {
         timer_ = 0;
         if (at_ < replay_.steps.size()) {
@@ -211,7 +228,7 @@ void Replayer::present() {
                                        {text({.id = "who", .text = who_, .style = "caption", .color = "text_muted"}),
                                         text({.id = "caption", .text = caption_, .style = "label", .max_lines = 2, .max_width = inner - 150})}),
                                 button({.id = "play", .text = toggle_, .variant = ButtonVariant::ghost, .on_activated = [this] {
-                                            if (timer_) pause();
+                                            if (playing()) pause();
                                             else (void)play(at_ == 0 ? 1 : at_, speed_);  // on from the step shown
                                         }}),
                                 button({.id = "close", .text = "Close", .variant = ButtonVariant::ghost, .on_activated = [this] { stop(); }})}),
@@ -253,7 +270,8 @@ Value Replayer::state() const {
                     .set("doc", replay_.doc)
                     .set("steps", Value(std::move(steps)))
                     .set("at", static_cast<std::int64_t>(at_))
-                    .set("playing", timer_ != 0)
+                    .set("playing", playing())
+                    .set("held", held_ >= 0)
                     .set("ended", ended_)
                     .set("speed", speed_);
     if (!problem_.empty()) out.set("problem", problem_);

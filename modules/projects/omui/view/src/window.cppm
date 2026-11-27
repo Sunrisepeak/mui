@@ -56,6 +56,10 @@ public:
     // Whether what the interface leaves transparent shows what is behind the
     // window (a frame's shadow needs it); true until a host says otherwise.
     void set_transparent(bool transparent);
+    // Whether any of it can be seen — not minimized, hidden or covered, the
+    // page's tab not hidden: true until a host says otherwise. What plays
+    // only to be seen (a show) holds while it is not.
+    void set_shown(bool shown);
 
     // Read by views (signals: what reads them follows the window).
     [[nodiscard]] WindowState state() const;
@@ -63,11 +67,13 @@ public:
     [[nodiscard]] bool closing() const;
     [[nodiscard]] bool framework_drawn() const;
     [[nodiscard]] bool transparent() const;
+    [[nodiscard]] bool shown() const;
     Signal<std::string> state_name;  // "normal", "maximized", "minimized", "fullscreen"
     Signal<bool>        is_active;
     Signal<bool>        is_closing;
     Signal<bool>        is_framework;
     Signal<bool>        is_transparent;
+    Signal<bool>        is_shown;
 
 private:
     WindowHost* host_ = nullptr;

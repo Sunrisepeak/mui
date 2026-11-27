@@ -1019,6 +1019,7 @@ bool Desktop::step(bool wait) {
     platform::Polled polled = platform::poll(*d.window, sleep, timeout);
     d.take_over(was_idle && polled.events.empty());  // the device, when it became ready meanwhile (UI9)
     if (polled.state) omui::window().set_state(*polled.state);
+    if (polled.shown) omui::window().set_shown(*polled.shown);
     // The system's appearance changed (SDL told it, or the portal's listener woke the loop): the runtime has it now.
     if (d.options.follow_system) {
         bool changed = false;

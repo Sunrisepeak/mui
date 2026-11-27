@@ -511,6 +511,7 @@ struct Web::Impl {
         // The page hidden or shown again: the application's hook, then the window's focus.
         if (const bool h = opened && page::hidden(); h != is_hidden) {
             is_hidden = h;
+            omui::window().set_shown(!h);  // what plays only to be seen (a show) holds while the tab is hidden
             if (visibility) visibility(h);
             events.push_back(FocusEvent{!h});
         }

@@ -20,7 +20,7 @@ std::string_view name(WindowState s) noexcept { return state_names[static_cast<s
 
 Window::Window()
     : state_name(signal(std::string("normal"))), is_active(signal(true)), is_closing(signal(false)), is_framework(signal(false)),
-      is_transparent(signal(true)) {}
+      is_transparent(signal(true)), is_shown(signal(true)) {}
 
 void Window::attach(WindowHost* host, Verbs& verbs) {
     host_ = host;
@@ -55,6 +55,9 @@ void Window::set_state(WindowState s) { state_name.set(std::string(name(s))); }
 void Window::set_active(bool active) { is_active.set(active); }
 void Window::set_closing(bool closing) { is_closing.set(closing); }
 void Window::set_transparent(bool transparent) { is_transparent.set(transparent); }
+void Window::set_shown(bool shown) {
+    if (is_shown.peek() != shown) is_shown.set(shown);
+}
 
 WindowState Window::state() const {
     const std::string s = state_name.peek();
@@ -66,6 +69,7 @@ bool Window::active() const { return is_active.peek(); }
 bool Window::closing() const { return is_closing.peek(); }
 bool Window::framework_drawn() const { return is_framework.peek(); }
 bool Window::transparent() const { return is_transparent.peek(); }
+bool Window::shown() const { return is_shown.peek(); }
 
 Window& window() {
     thread_local Window w;

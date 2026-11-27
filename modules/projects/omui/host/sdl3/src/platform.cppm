@@ -62,6 +62,7 @@ struct Polled {
     std::vector<InputEvent>    events;
     bool                       quit = false;
     std::optional<WindowState> state;  // the system changed it
+    std::optional<bool>        shown;  // whether any of it can be seen: hidden, minimized or covered, and back
     bool                       appearance = false;  // the system's light or dark appearance changed (system_dark)
 };
 

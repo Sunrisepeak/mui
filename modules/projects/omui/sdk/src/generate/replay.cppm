@@ -11,7 +11,8 @@
 // the time read is time something is seen to change;
 // at the end the application's own scripts again. A person (its play button,
 // the timeline they scrub, Close) or an agent (generate.replay) plays, pauses,
-// goes to a step and stops; every step shown is a real interface. Its course
+// goes to a step and stops; every step shown is a real interface. Played, it holds
+// while none of its window can be seen (a hidden tab) and goes on when it is. Its course
 // can lie on a node of the application's own (`course`: a path's id, the
 // site's O): where the step's interface has it, the steps are on that shape
 // where it is drawn, and the card has no line of its own.
@@ -54,7 +55,8 @@ public:
     // The steps (caption, who, seconds) and where it is: `at` 0 is the application as it ships.
     [[nodiscard]] Value state() const;
     [[nodiscard]] std::size_t step() const noexcept { return at_; }
-    [[nodiscard]] bool playing() const noexcept { return timer_ != 0; }
+    // Playing: its next step due, or held while the window is unseen (it goes on when seen again).
+    [[nodiscard]] bool playing() const noexcept { return timer_ != 0 || held_ >= 0; }
     [[nodiscard]] const mlibs::agent::Replay& replay() const noexcept { return replay_; }
 
     // A step's time on screen at speed 1: its beat in the show, else its own seconds.
@@ -66,7 +68,7 @@ public:
 
 private:
     std::expected<void, std::string> show(std::size_t step, bool playing = false);
-    void schedule();
+    void schedule(std::optional<double> left = std::nullopt);
     void present();
     void place_course();  // on the course's node where the step's interface has it
 
@@ -78,7 +80,10 @@ private:
     std::vector<double>      moving_;       // how long a step's change is seen to move at pace 1 (the show's; 0: unmeasured)
     std::size_t              at_ = 0;       // the step shown (0: none)
     double                   speed_ = 1;
-    std::uint64_t            timer_ = 0;    // the next step's (0: paused)
+    std::uint64_t            timer_ = 0;    // the next step's (0: paused, or held)
+    double                   due_ = 0;      // when it is due, on the runtime's clock
+    double                   held_ = -1;    // what was left of the step's time when the window went unseen (-1: not held)
+    Watch                    seen_;         // the window seen or not (omui::window().is_shown)
     bool                     ended_ = false;
     std::string              problem_;      // why the last step could not be shown
     Signal<std::string>      caption_{std::string()}, who_{std::string()};

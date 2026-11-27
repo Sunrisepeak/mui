@@ -7,10 +7,11 @@ export import :oweb_reference;
 == oweb:catalog
 namespace oweb {
   inline constexpr std::array<mlibs::control::Parameter, 9> parameters_site_build{…};
+  inline constexpr std::array<mlibs::control::Parameter, 4> parameters_site_describe{…};
   inline constexpr std::array<mlibs::control::Parameter, 3> parameters_routes_list{…};
   inline constexpr std::array<mlibs::control::Parameter, 5> parameters_page_read{…};
   inline constexpr std::array<mlibs::control::Parameter, 5> parameters_docs_search{…};
-  inline constexpr std::array<mlibs::control::CatalogEntry, 4> catalog{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 5> catalog{…};
   inline constexpr mlibs::control::Guide guide{…};
   inline constexpr std::string_view listing = R"…";
 }
@@ -25,11 +26,8 @@ namespace oweb {
 export import mlibs.delivery;
 export import oweb.shell;
 namespace oweb {
-  struct Heading {
-    int level = 1;
-    std::string text;
-    std::string anchor;
-  };
+  using shell::Heading;
+  using shell::Table;
   inline constexpr std::string_view own_catalog = "oweb";
   struct Route {
     std::string path;
@@ -84,6 +82,8 @@ namespace oweb {
   [[nodiscard]] std::expected<Built, std::string> build(const std::filesystem::path& site, const std::filesystem::path& out, const SiteOptions& options = {…});
   [[nodiscard]] std::string routes_json(std::span<const Route> routes, const SiteOptions& options);
   [[nodiscard]] std::string llms_txt(std::span<const Route> routes, const SiteOptions& options);
+  [[nodiscard]] Table table_of(std::span<const Route> routes, const SiteOptions& options);
+  [[nodiscard]] bool is_built(const std::filesystem::path& site);
   [[nodiscard]] std::string sitemap_xml(std::span<const Route> routes, const SiteOptions& options);
   using shell::search;
   using shell::search_json;

@@ -9,7 +9,7 @@ export default defineOps({
   product: "oweb",
   module: "oweb",
   namespace: "oweb",
-  doc: "A site states its title, address, languages, routes and budget in its oweb.config.ts; every operation reads it and a request's options stand over it. Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown; list a site's routes; read one page as an agent that only fetches would, and search every page's sections, without building the site.",
+  doc: "A site states its title, address, languages, routes and budget in its oweb.config.ts; every operation reads it and a request's options stand over it. Build a directory of pages into a site whose every route is its semantic tree written as HTML and as Markdown. Ask a site what it is, list its routes, read one page as an agent that only fetches would, and search every page's sections — of its source, without building it, or of the site as built: the directory a build wrote, read as it was published.",
   generated: "src/catalog",
   operations: [
     {
@@ -32,11 +32,24 @@ export default defineOps({
       undo: "delete the directory written",
     },
     {
+      name: "site.describe",
+      effect: "read",
+      summary: "What a site is, as it says it at each of its doors: its title, address and languages, each route with its title and its Markdown's address, the requests to go on with — and the text a build writes as llms.txt, the same words an agent that only fetches is given",
+      params: [
+        { name: "site", type: "path", doc: "the site's directory: its source (it holds pages/), or the site as built (the directory a build wrote: read as published, nothing evaluated)" },
+        { name: "config", type: "path", doc: "the site's configuration, where it is not the oweb.config.ts in its directory: the same pages as another site — what it states beside the pages (an engine, a route's built page, a catalog) is from its own directory", optional: true },
+        { name: "languages", type: "string", doc: "its languages, the default first", optional: true },
+        { name: "url", type: "string", doc: "where a source is served, where its configuration does not say: the addresses its description gives (a built site states its own)", optional: true },
+      ],
+      result: "json",
+      cost: "instant",
+    },
+    {
       name: "routes.list",
       effect: "read",
       summary: "The routes a site's pages give: each its address, source, title, language and headings with their anchors",
       params: [
-        { name: "site", type: "path", doc: "the site's directory" },
+        { name: "site", type: "path", doc: "the site's directory: its source (it holds pages/), or the site as built (the directory a build wrote: read as published, nothing evaluated)" },
         { name: "config", type: "path", doc: "the site's configuration, where it is not the oweb.config.ts in its directory: the same pages as another site — what it states beside the pages (an engine, a route's built page, a catalog) is from its own directory", optional: true },
         { name: "languages", type: "string", doc: "its languages, the default first", optional: true },
       ],
@@ -46,9 +59,9 @@ export default defineOps({
     {
       name: "page.read",
       effect: "read",
-      summary: "One route as it would be written, without building the site: its Markdown (what an agent that only fetches reads) or its HTML",
+      summary: "One route as it is written — evaluated now from a site's source, or read from a site as built: its Markdown (what an agent that only fetches reads) or its HTML",
       params: [
-        { name: "site", type: "path", doc: "the site's directory" },
+        { name: "site", type: "path", doc: "the site's directory: its source (it holds pages/), or the site as built (the directory a build wrote: read as published, nothing evaluated)" },
         { name: "config", type: "path", doc: "the site's configuration, where it is not the oweb.config.ts in its directory: the same pages as another site — what it states beside the pages (an engine, a route's built page, a catalog) is from its own directory", optional: true },
         { name: "route", type: "string", doc: "its address (/guide/start/)" },
         { name: "as", type: "string", doc: "markdown (default) or html", optional: true },
@@ -62,7 +75,7 @@ export default defineOps({
       effect: "read",
       summary: "The sections of a site's pages that hold every word asked for, best first: each its route, its anchor, the headings it is under and the line that says so — the same index a built site serves as site.search.xdef.json",
       params: [
-        { name: "site", type: "path", doc: "the site's directory" },
+        { name: "site", type: "path", doc: "the site's directory: its source (it holds pages/), or the site as built (the directory a build wrote: read as published, nothing evaluated)" },
         { name: "config", type: "path", doc: "the site's configuration, where it is not the oweb.config.ts in its directory: the same pages as another site — what it states beside the pages (an engine, a route's built page, a catalog) is from its own directory", optional: true },
         { name: "query", type: "string", doc: "the words; text without spaces between words matches by characters in a row" },
         { name: "limit", type: "string", doc: "how many at most (default 8)", optional: true },

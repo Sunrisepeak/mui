@@ -7,6 +7,7 @@ Label: **preview** (0.1.0). A project of its own on omui, beside the game layer:
 ```sh
 oweb site.build --site docs --out dist --languages en,zh --url https://example.org/docs/
 oweb routes.list --site docs
+oweb site.describe --site dist                          # what a site is: its routes, their Markdown, what to ask next — a source or a built site
 oweb page.read --site docs --route /guide/start/        # the page as Markdown: what an agent that only fetches reads
 oweb docs.search --site docs --query "first window"     # the sections that answer: route, anchor, trail, the line that says so
 oweb mcp                                                # the same operations to an MCP client
@@ -97,7 +98,7 @@ Not yet here (0.1.0's tasks ST2–ST7): pages written as views (`*.ts`), an exam
 
 ## Agent surface
 
-The subject `oweb` (interface `oweb@1`) behind the tool kernel's three entries — the command line, MCP (`oweb mcp`) and the protocol. Its operations are a catalog ([`oweb.ops.xdef.ts`](oweb.ops.xdef.ts), listed in [`src/catalog`](src/catalog)): `site.build` (reversible: delete what was written), `routes.list`, `page.read` and `docs.search` (read). Every answer is data; a failure says why and what the site's routes are. How an agent uses them is [`skill.omui.md`](skill.omui.md). A built site is itself an agent surface: `llms.txt`, each route's `index.md`, `site.routes.xdef.json`, `site.search.xdef.json` and `site.delivery.xdef.json` need no engine and no script.
+The subject `oweb` (interface `oweb@1`) behind the tool kernel's three entries — the command line, MCP (`oweb mcp`) and the protocol. Its operations are a catalog ([`oweb.ops.xdef.ts`](oweb.ops.xdef.ts), listed in [`src/catalog`](src/catalog)): `site.build` (reversible: delete what was written), `site.describe`, `routes.list`, `page.read` and `docs.search` (read). The reading ones take a site's source or the site as built — the directory a build wrote, read as it was published — and answer the same either way; `site.describe`'s text is the built site's `llms.txt`, word for word (one description at every door: [design §4.10](../../../.agents/docs/2026-11-26-oweb-site-framework-design.md)). Every answer is data; a failure says why and what the site's routes are. How an agent uses them is [`skill.omui.md`](skill.omui.md). A built site is itself an agent surface: `llms.txt`, each route's `index.md`, `site.routes.xdef.json`, `site.search.xdef.json` and `site.delivery.xdef.json` need no engine and no script.
 
 ## Packages
 
@@ -112,4 +113,4 @@ omui (`omui.view`, `omui.semantic`, the headless host, the base and Markdown com
 
 ## Tests
 
-`tests/site/site_test.cpp`: a site of three pages in two languages and a site of one page, built into a scratch directory — the routes and their addresses; every route's `index.html` read back and its `index.md` parsed again against its source's document; links between pages in each writing's own form; the tables; the sections and what a query finds (words, beginnings, Chinese); the command's four operations and what they refuse.
+`tests/site/site_test.cpp`: a site of three pages in two languages and a site of one page, built into a scratch directory — the routes and their addresses; every route's `index.html` read back and its `index.md` parsed again against its source's document; links between pages in each writing's own form; the tables; the sections and what a query finds (words, beginnings, Chinese); the command's operations and what they refuse. `tests/site/doors_test.cpp`: the command asked of a site's source and of the site as built answers the same (routes, a page's Markdown — the file a host serves — and what a query finds); `site.describe`'s text is the built `llms.txt`; a built site that is not whole says what is missing.

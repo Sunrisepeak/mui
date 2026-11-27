@@ -18,11 +18,9 @@ export import oweb.shell;
 
 export namespace oweb {
 
-struct Heading {
-    int         level = 1;
-    std::string text;
-    std::string anchor;
-};
+// A page's heading and a site's table as it is read back: the shell's (a page's own program reads the same table).
+using shell::Heading;
+using shell::Table;
 
 // The catalog of the command that builds the site, by name (a route's `reference: "oweb"`): carried with the
 // builder, so a site anywhere — a project made from a template — can show how it is built.
@@ -148,6 +146,13 @@ struct Built {
 // address), and the sitemap (each route's address under `url`).
 [[nodiscard]] std::string routes_json(std::span<const Route> routes, const SiteOptions& options);
 [[nodiscard]] std::string llms_txt(std::span<const Route> routes, const SiteOptions& options);
+// What the routes table says of these routes, without writing it: the site's title (its first route's where none is
+// stated), address and languages, each route's address, source, title, language and headings.
+[[nodiscard]] Table table_of(std::span<const Route> routes, const SiteOptions& options);
+// Whether a directory is a site as built — it holds the routes table a build writes and no pages/ of a source: the
+// reading operations then answer from what was written (its tables, each route's index.md and index.html), nothing
+// evaluated — what is published is what is read.
+[[nodiscard]] bool is_built(const std::filesystem::path& site);
 [[nodiscard]] std::string sitemap_xml(std::span<const Route> routes, const SiteOptions& options);
 
 // The index every route's sections make and the query over it: the shell's.

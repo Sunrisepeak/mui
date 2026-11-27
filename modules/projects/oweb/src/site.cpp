@@ -138,6 +138,28 @@ std::filesystem::path world_of(const std::filesystem::path& site, const SiteOpti
     return stated.is_absolute() ? stated : site / stated;
 }
 
+// An address that says where it leads by itself (`https:`, `mailto:`): no address of the site's.
+bool schemed(std::string_view href) {
+    const std::size_t first = href.find_first_of(":/?#");
+    return first != std::string_view::npos && href[first] == ':';
+}
+
+// An application's built page a route adopts: its directory, as the route states it — from the site's directory, or
+// absolute.
+std::filesystem::path adopted_of(const std::filesystem::path& site, const Route& route) {
+    const std::filesystem::path stated = mcpplibs::os::fs::from_utf8(route.page);
+    return stated.is_absolute() ? stated : site / stated;
+}
+
+// The document a built page holds for a reader without its program (omui.gen's dist_toy: the page's first screen as
+// its semantic tree reads, in `[data-omui=static]`), and what stands between two tags of the page.
+constexpr std::string_view adopted_document = "<div data-omui=\"static\">", adopted_document_end = "</div>\n<script>window.addEventListener('omui-load'";
+std::string_view between(std::string_view html, std::string_view opening, std::string_view closing) {
+    const std::size_t from = html.find(opening);
+    const std::size_t to = from == std::string_view::npos ? from : html.find(closing, from + opening.size());
+    return to == std::string_view::npos ? std::string_view{} : html.substr(from + opening.size(), to - from - opening.size());
+}
+
 // What one page of a site puts at a world's places.
 struct Filled {
     std::string language, title, head, document, root, load;
@@ -234,6 +256,11 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
         md::walk(document.root, [&](const md::Block& block) {
             if (block.kind == md::Kind::heading) route.headings.push_back({block.level, md::plain_text(block), block.anchor});
         });
+        // An application's page is named as it names itself (its `<title>`): its first heading is its first screen's
+        // line, not what a navigation calls it.
+        if (route.title.empty() && !route.page.empty())
+            if (const auto page = read(adopted_of(site, route) / "index.html"))
+                route.title = md::plain_text(md::from_html(between(*page, "<title>", "</title>")).root);
         if (route.title.empty()) route.title = route.headings.empty() ? route.path : route.headings.front().text;
         const std::size_t end = route.path.find('/', 1);
         const std::string first = end == std::string::npos ? std::string{} : route.path.substr(1, end - 1);
@@ -250,14 +277,18 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
         for (const Declared& declared : options.routes) {
             Route route;
             route.path = declared.path;
-            route.source = declared.reference.empty() ? declared.source : declared.reference;
+            route.source = !declared.page.empty() ? generic(mcpplibs::os::fs::from_utf8(declared.page) / "index.html") : declared.reference.empty() ? declared.source : declared.reference;
             route.reference = declared.reference;
+            route.page = declared.page;
             route.title = declared.title;
             route.load = declared.load;
             std::error_code missing;
             if (route.reference != own_catalog && !std::filesystem::is_regular_file(site / mcpplibs::os::fs::from_utf8(route.source), missing))
-                return std::unexpected(std::format("the route `{}` states the {} {}, which is not in {}: write it, or take the route out of oweb.config.ts", route.path,
-                                                   route.reference.empty() ? "page" : "catalog", route.source, utf8(site)));
+                return std::unexpected(route.page.empty() ? std::format("the route `{}` states the {} {}, which is not in {}: write it, or take the route out of oweb.config.ts", route.path,
+                                                                        route.reference.empty() ? "page" : "catalog", route.source, utf8(site))
+                                                          : std::format("the route `{}` states the built page {}, which has no index.html (from {}): build the application first "
+                                                                        "(`omui build --web`), and state the directory its page was written into",
+                                                                        route.path, route.page, utf8(site)));
             if (std::ranges::contains(routes, route.path, &Route::path)) return std::unexpected(std::format("the route `{}` is stated twice: keep one", route.path));
             if (auto read_in = described(route); !read_in) return std::unexpected(read_in.error());
             routes.push_back(std::move(route));
@@ -287,6 +318,23 @@ std::expected<std::vector<Route>, std::string> collect(const std::filesystem::pa
 }
 
 namespace {
+
+// What a route's page says of itself in its head: where its Markdown is and where the site's search index is, and
+// the same page in the site's other languages, as a search engine is told of them — each language's, its own too.
+std::string said_of(std::span<const Route> routes, const Route& route, const SiteOptions& options) {
+    std::string said = std::format("<link rel=\"alternate\" type=\"text/markdown\" href=\"index.md\">\n<link rel=\"search\" type=\"application/json\" href=\"{}site.search.xdef.json\">",
+                                   relative(route.path, "/") == "./" ? std::string() : relative(route.path, "/"));
+    std::string others;
+    std::size_t count = 0;
+    for (const std::string& language : options.languages) {
+        const Route* there = language == route.language ? &route : translated(routes, route, language, options);
+        if (!there) continue;
+        others += std::format("\n<link rel=\"alternate\" hreflang=\"{}\" href=\"{}\">", escaped(language), escaped(relative(route.path, there->path)));
+        count += language != route.language;
+    }
+    if (count > 0) said += others;
+    return said;
+}
 
 // A page evaluated from its text and written. `base` is stated for the page a host answers a lost address with: it
 // is served at any address, so its links are from the site's own and the document says where that is; it has no
@@ -405,6 +453,20 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
         // A link that begins with `/` is the site's own address: a route's, or a file's beside the pages.
         std::optional<std::pair<std::string, std::string>> target;
         auto page = routes.end();
+        // A built page's own links are addresses from where it is served: a file it was built with (copied beside
+        // it, left as it is), or a place of the site, checked as the site's own addresses are. One that leads above
+        // the site is not the site's.
+        std::string from_address;
+        if (!route.page.empty() && !href.empty() && !href.starts_with('/') && !href.starts_with('#') && !schemed(href)) {
+            const std::size_t cut = href.find_first_of("#?");
+            const std::string_view path = href.substr(0, cut);
+            std::error_code missing;
+            if (std::filesystem::is_regular_file(adopted_of(site, route) / mcpplibs::os::fs::from_utf8(path), missing)) return std::nullopt;
+            const std::string inner = generic((mcpplibs::os::fs::from_utf8(route.path.substr(1)) / mcpplibs::os::fs::from_utf8(path)).lexically_normal());
+            if (inner.starts_with("..")) return std::nullopt;
+            from_address = std::format("/{}{}", inner == "." ? std::string() : inner, cut == std::string_view::npos ? std::string_view{} : href.substr(cut));
+            href = from_address;
+        }
         if (href.starts_with('/') && !href.starts_with("//")) {
             const std::size_t cut = href.find_first_of("#?");
             std::string path(href.substr(0, cut));
@@ -553,21 +615,7 @@ std::expected<Page, std::string> written(const std::filesystem::path& site, std:
                                                 semantic::look_sheet(look))
                                   : std::string(sheet);
     // A route says where its Markdown is; the page for a lost address says where the site is, and is no page to index.
-    std::string said = lost ? std::format("<base href=\"{}\">\n<meta name=\"robots\" content=\"noindex\">", escaped(base))
-                            : std::format("<link rel=\"alternate\" type=\"text/markdown\" href=\"index.md\">\n<link rel=\"search\" type=\"application/json\" href=\"{}site.search.xdef.json\">",
-                                          relative(route.path, "/") == "./" ? std::string() : relative(route.path, "/"));
-    // The same page in the site's other languages, as a search engine is told of them: each language's, its own too.
-    if (!lost) {
-        std::string others;
-        std::size_t count = 0;
-        for (const std::string& language : options.languages) {
-            const Route* there = language == route.language ? &route : translated(routes, route, language, options);
-            if (!there) continue;
-            others += std::format("\n<link rel=\"alternate\" hreflang=\"{}\" href=\"{}\">", escaped(language), escaped(relative(route.path, there->path)));
-            count += language != route.language;
-        }
-        if (count > 0) said += others;
-    }
+    const std::string said = lost ? std::format("<base href=\"{}\">\n<meta name=\"robots\" content=\"noindex\">", escaped(base)) : said_of(routes, route, options);
     const std::string title = options.title.empty() || options.title == route.title ? route.title : std::format("{} · {}", route.title, options.title);
     if (engine) {
         // The world's page with this page's document in it: the same document, read with no script until the page
@@ -618,6 +666,19 @@ std::string base_of(std::string_view url) {
 }  // namespace
 
 std::expected<std::string, std::string> source_text(const std::filesystem::path& site, const Route& route) {
+    if (!route.page.empty()) {
+        // An application's page: what it says to a reader without its program, as Markdown — the same document the
+        // page shows before its program draws (a page's HTML is its data, D-284).
+        const std::filesystem::path file = adopted_of(site, route) / "index.html";
+        const auto page = read(file);
+        if (!page) return std::unexpected(std::format("the route `{}`: {}", route.path, page.error()));
+        const std::string_view document = between(*page, adopted_document, adopted_document_end);
+        if (document.find_first_not_of(" \t\r\n") == std::string_view::npos)
+            return std::unexpected(std::format("the route `{}`: {} holds no document — a built page says its first screen in `[data-omui=static]` (`omui build --web` writes it); "
+                                               "without one the site's tables, its search and a reader that only fetches have nothing of the page",
+                                               route.path, utf8(file)));
+        return md::to_markdown(md::from_html(document));
+    }
     if (route.reference.empty()) return read(site / mcpplibs::os::fs::from_utf8(route.source));
     // A reference: the catalog read now, its page what the catalog's own generator writes. The builder's own
     // catalog is carried with it (what the generator wrote of oweb.ops.xdef.ts when the command was built).
@@ -635,7 +696,23 @@ std::expected<std::string, std::string> source_text(const std::filesystem::path&
 std::expected<Page, std::string> evaluate(const std::filesystem::path& site, std::span<const Route> routes, const Route& route, const SiteOptions& options) {
     const auto text = source_text(site, route);
     if (!text) return std::unexpected(text.error());
-    return written(site, routes, route, options, *text, {});
+    if (route.page.empty()) return written(site, routes, route, options, *text, {});
+    // An application's page. Its document is evaluated as any page's — its sections for the search, its Markdown
+    // for a reader that only fetches, its links checked — and the page served is the one its build wrote, saying in
+    // its head what every route says. It is drawn by its own program: no look or face of the site's is its.
+    SiteOptions plain = options;
+    plain.look = false;
+    plain.engine.clear();
+    auto page = written(site, routes, route, plain, *text, {});
+    if (!page) return page;
+    const std::filesystem::path file = adopted_of(site, route) / "index.html";
+    auto html = read(file);
+    if (!html) return std::unexpected(html.error());
+    const std::size_t head = html->find("</head>");
+    if (head == std::string::npos) return std::unexpected(std::format("the route `{}`: {} has no head", route.path, utf8(file)));
+    html->insert(head, std::format("{}\n", said_of(routes, route, options)));
+    page->html = std::move(*html);
+    return page;
 }
 
 std::expected<Page, std::string> lost_page(const std::filesystem::path& site, std::span<const Route> routes, const SiteOptions& options) {
@@ -653,7 +730,8 @@ std::expected<Page, std::string> lost_page(const std::filesystem::path& site, st
         text = std::move(*own);
     } else {
         const Route& home = routes.front();
-        const std::string to = home.source.starts_with("pages/") ? home.source.substr(6) : std::string{};
+        // A page of pages/ by its file, any other route (a reference, an application's page) by its address.
+        const std::string to = home.source.starts_with("pages/") ? home.source.substr(6) : home.path;
         const bool chinese = route.language.starts_with("zh");
         text = chinese ? std::format("# 没有这一页\n\n这个地址不通向本站的任何一页。{}\n", to.empty() ? std::string{} : std::format("回到[{}]({})。", home.title, to))
                        : std::format("# No such page\n\nThis address leads to no page of the site.{}\n", to.empty() ? std::string{} : std::format(" Back to [{}]({}).", home.title, to));
@@ -673,16 +751,21 @@ std::string routes_json(std::span<const Route> routes, const SiteOptions& option
         Value::List headings;
         for (const Heading& heading : route.headings)
             headings.push_back(Value{}.set("level", Value(static_cast<std::int64_t>(heading.level))).set("text", heading.text).set("anchor", heading.anchor));
+        // An application's page stated by a whole path of the machine that built the site: the table is published,
+        // and says the page by its directory's name.
+        const std::filesystem::path file = mcpplibs::os::fs::from_utf8(route.source);
+        const std::string stated = route.page.empty() || !file.is_absolute() ? route.source : generic(file.parent_path().filename() / file.filename());
         list.push_back(Value{}
                            .set("path", route.path)
-                           .set("source", route.source)
-                           .set("generated", !route.reference.empty())
+                           .set("source", stated)
+                           .set("generated", !route.reference.empty() || !route.page.empty())
                            .set("title", route.title)
                            .set("language", route.language)
                            .set("markdown", std::format("{}index.md", route.path))
                            .set("headings", Value(std::move(headings))));
-        // When its page takes the site's program, where the site has one.
-        if (!options.engine.empty()) list.back().set("load", route.load);
+        // An application's page has its own program; any other takes the site's, where the site has one, and says when.
+        if (!route.page.empty()) list.back().set("application", true);
+        else if (!options.engine.empty()) list.back().set("load", route.load);
     }
     Value::List languages;
     for (const std::string& language : options.languages) languages.emplace_back(language);
@@ -730,7 +813,10 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     Built built;
     std::vector<Section> sections;
     std::vector<mlibs::delivery::File> files;
+    std::unordered_set<std::string> placed;
     const auto write = [&](const std::string& path, std::string_view bytes) -> std::expected<void, std::string> {
+        // One file at one place: two things of the site that would be served at the same address are said.
+        if (!placed.insert(path).second) return std::unexpected(std::format("two files of the site are `{}`: a route's page, its files and the site's own share one directory — move one", path));
         const std::filesystem::path file = out / mcpplibs::os::fs::from_utf8(path);
         std::error_code error;
         std::filesystem::create_directories(file.parent_path(), error);
@@ -771,6 +857,21 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
         if (auto written = write(directory + "index.html", page.html); !written) return std::unexpected(written.error());
         if (auto written = write(directory + "index.md", page.markdown); !written) return std::unexpected(written.error());
         std::ranges::move(page.sections, std::back_inserter(sections));
+        if (page.route.page.empty()) continue;
+        // An application's page: the files it was built with (its program, its faces, its pictures), where it finds
+        // them — beside it.
+        const std::filesystem::path from = adopted_of(site, page.route);
+        std::error_code walking;
+        std::vector<std::filesystem::path> held;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(from, walking))
+            if (entry.is_regular_file() && entry.path() != from / "index.html") held.push_back(entry.path());
+        if (walking) return std::unexpected(std::format("the route `{}`'s page {}: {}", page.route.path, utf8(from), walking.message()));
+        std::ranges::sort(held);
+        for (const std::filesystem::path& file : held) {
+            const auto bytes = read(file);
+            if (!bytes) return std::unexpected(bytes.error());
+            if (auto written = write(directory + generic(file.lexically_relative(from)), *bytes); !written) return std::unexpected(written.error());
+        }
     }
     if (auto written = write("404.html", lost->html); !written) return std::unexpected(written.error());
     // With a look: the faces the pages' text is set in, once for the site.
@@ -840,7 +941,9 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
     // counted, the faces: the cuts its pages are set in (fetched with a page) and the whole ones (when text asks).
     if (!options.engine.empty()) {
         budgets.push_back({"the program", "engine/*", mlibs::delivery::Measure::sent, mlibs::delivery::Over::sum, options.program});
-        budgets.push_back({"the pages' faces", "assets/*.ttf", mlibs::delivery::Measure::sent, mlibs::delivery::Over::sum, 0});
+        // The site's own cuts, by the name a face's file has (omui.semantic's font_key): an application's page keeps
+        // its faces in the same directory under names of their own.
+        budgets.push_back({"the pages' faces", "assets/omui-*.ttf", mlibs::delivery::Measure::sent, mlibs::delivery::Over::sum, 0});
         budgets.push_back({"the whole faces, on demand", "engine/assets/**", mlibs::delivery::Measure::sent, mlibs::delivery::Over::sum, 0});
     }
     built.delivery = mlibs::delivery::held(std::move(files), budgets);

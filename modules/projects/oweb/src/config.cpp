@@ -14,7 +14,7 @@ namespace oweb {
 namespace {
 
 constexpr std::array<std::string_view, 8> site_fields{"title", "url", "languages", "routes", "budgets", "look", "engine", "load"};
-constexpr std::array<std::string_view, 5> route_fields{"path", "source", "reference", "title", "load"};
+constexpr std::array<std::string_view, 6> route_fields{"path", "source", "reference", "page", "title", "load"};
 constexpr std::array<std::string_view, 3> loads{"eager", "idle", "interaction"};
 constexpr std::array<std::string_view, 2> budget_fields{"readable", "program"};
 
@@ -82,11 +82,17 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
             if (!route.is_object()) return problem(route, "a route is an object", "{ path: \"/start/\", source: \"pages/start.md\" }");
             if (const auto stray = known(route, route_fields)) return problem(stray->second, "no field of a route", mlibs::names::nearest(stray->first, route_fields));
             Declared declared;
-            const auto path = route["path"], source = route["source"], title = route["title"], reference = route["reference"];
+            const auto path = route["path"], source = route["source"], title = route["title"], reference = route["reference"], page = route["page"];
             if (!path.is_string() || !path.text()->starts_with('/') || !path.text()->ends_with('/') || path.text()->contains("//"))
                 return problem(path ? path : route, "a route's path is where it is served: it begins and ends with `/`", "path: \"/guide/start/\"");
-            if (source && reference) return problem(reference, "a route is its page (`source`) or a catalog's reference (`reference`), not both");
-            if (reference) {
+            if ((source ? 1 : 0) + (reference ? 1 : 0) + (page ? 1 : 0) > 1)
+                return problem(page ? page : reference, "a route is its page (`source`), a catalog's reference (`reference`) or an application's built page (`page`): one of them");
+            if (page) {
+                // What an application's build wrote: it may stand outside the site's directory, as an engine does.
+                if (!page.is_string() || page.text()->empty())
+                    return problem(page, "a route's page is the directory an application's page was built into (`omui build --web`), from the site's directory", "page: \"../app/web\"");
+                declared.page = *page.text();
+            } else if (reference) {
                 // A catalog belongs to its product's sources: it may stand outside the site's directory. The command
                 // that builds the site carries its own, by its name: a site anywhere can show how it is built.
                 if (!reference.is_string() || !(*reference.text() == own_catalog || reference.text()->ends_with(".ops.xdef.ts") || reference.text()->ends_with(".ops.xdef.json")))

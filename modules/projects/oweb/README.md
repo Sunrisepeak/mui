@@ -16,6 +16,8 @@ oweb mcp                                                # the same operations to
 
 A directory with `pages/`. Every Markdown file there is a route: `pages/index.md` is `/`, `pages/guide/start.md` is `/guide/start/`, a directory's `index.md` the directory's own. A site of one page has one route and no navigation; a site of many has the navigation its routes give. A first directory named as one of the site's languages (`--languages en,zh`) holds that language's pages.
 
+A route can also be **an application's page**: `{ path: "/", page: "<directory>" }` in `oweb.config.ts` names the directory an application's page was built into (`omui build --web`: the page and its files). The page is served as it was built, its files beside it, and it is a route like any other — in the navigation by its own `<title>`, in the routes table (`application: true`), in the search and in `llms.txt` — by what its own document says: the first screen a built page holds for a reader without its program (`[data-omui=static]`) is read as Markdown, written as the route's `index.md`, and its links are checked as any page's (an address from where the page is served — `start/` — is a file of its own or a place of the site). Nothing is described twice: no front matter, no metadata beside the page. A page with no such document is not adopted, and two files that would share an address are said.
+
 ## What is built
 
 Each route is evaluated once, headless, into its semantic tree — the navigation and the page's document — and the tree is written twice:
@@ -51,7 +53,7 @@ It is used five ways: the template's content, the round-trip checks (`tests/oweb
 oweb site.build --site modules/projects/oweb/templates/docs --out /tmp/docs
 ```
 
-The presets `page` (one page, a view) and `site` (a first page that is a view, and documents) follow with pages written as views.
+The presets `page` (one page, a view) and `site` (a first page that is a view, and documents) follow: a site whose first page is an application is stated today by a route's `page` (above), the application built by its own package.
 
 ## Signature features (candidates until their evidence is in)
 

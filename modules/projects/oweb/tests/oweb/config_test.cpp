@@ -106,7 +106,12 @@ static UTest cases{"oweb.config", [] {
         expect(of(R"({"budgets":{"program":1200000}})").has_value() && of(R"({"budgets":{"program":1200000}})")->program == 1'200'000u) << "the program's budget, stated";
         expect(says(R"({"budgets":{"program":"small"}})", "/site/budgets/program", "number of bytes"));
         expect(of(R"({"routes":[{"path":"/ops/","reference":"../tool/tool.ops.xdef.ts"}]})").has_value()) << "a route that is a catalog's reference";
-        expect(says(R"({"routes":[{"path":"/ops/","source":"pages/ops.md","reference":"tool.ops.xdef.ts"}]})", "/site/routes/0/reference", "not both"));
+        expect(says(R"({"routes":[{"path":"/ops/","source":"pages/ops.md","reference":"tool.ops.xdef.ts"}]})", "/site/routes/0/reference", "one of them"));
+        // A route that is an application's built page: its directory, which may stand outside the site's.
+        const auto adopted = of(R"({"routes":[{"path":"/","page":"../app/web"},{"path":"/start/","source":"pages/start.md"}]})");
+        expect(adopted.has_value() && adopted->routes.front().page == "../app/web" && adopted->routes.front().source.empty() && adopted->routes.back().page.empty());
+        expect(says(R"({"routes":[{"path":"/","source":"pages/index.md","page":"../app/web"}]})", "/site/routes/0/page", "one of them"));
+        expect(says(R"({"routes":[{"path":"/","page":""}]})", "/site/routes/0/page", "omui build --web"));
         expect(says(R"({"routes":[{"path":"/ops/","reference":"tool.md"}]})", "/site/routes/0/reference", "an operation catalog"));
         const auto other = oweb::options_from("{\"$format\":\"routes@1\",\"routes\":[]}\n", "oweb.config.ts");
         expect(!other.has_value() && other.error().contains("a routes snapshot, not a site one")) << (other ? "" : other.error());

@@ -354,6 +354,93 @@ static UTest cases{"oweb.site", [] {
         expect(not_a_number.str().contains("--readable is a number of bytes")) << not_a_number.str();
     };
 
+    "a route that is an application's page: served as built with its files, and in the site's tables by what its own document says"_test = [] {
+        // An application's page as its build writes it (omui build --web): its document for a reader without the
+        // program, the program's files beside it.
+        const auto app = scratch("adopted-app"), site = scratch("adopted-site"), out = scratch("adopted-out");
+        const auto put = [](const std::filesystem::path& file, std::string_view text) {
+            std::filesystem::create_directories(file.parent_path());
+            std::ofstream(file, std::ios::binary) << text;
+        };
+        const std::string built =
+            "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Tide &amp; moon</title>\n</head>\n<body>\n"
+            "<div data-omui=\"static\">\n<div data-omui-target=\"app\">\n  <h1 data-omui-target=\"main/line\">One tree, every reading.</h1>\n"
+            "  <button data-omui-target=\"main/live\" type=\"button\">Live Design</button>\n"
+            "  <p data-omui-target=\"main/words\">Start with <a data-omui-target=\"main/words/start\" href=\"start/\">the first steps</a>, see <a href=\"start/#install\">the install</a>, "
+            "the <a href=\"media/mark.svg\">mark</a> or <a href=\"https://example.org/\">elsewhere</a>.</p>\n  <h2 data-omui-target=\"main/tides\">Tides</h2>\n"
+            "  <p data-omui-target=\"main/tides/words\">A spring tide follows the new moon.</p>\n</div>\n</div>\n"
+            "<script>window.addEventListener('omui-load', function (e) {});</script>\n<canvas id=\"canvas\"></canvas>\n<script src=\"tide-1a2b.js\"></script>\n</body>\n</html>\n";
+        put(app / "index.html", built);
+        put(app / "tide-1a2b.js", "var tide = 1;\n");
+        put(app / "tide-1a2b.wasm", std::string("\0asm\1\0\0\0", 8));
+        put(app / "media" / "mark.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"8\"/>\n");
+        put(site / "pages" / "start.md", "# First steps\n\n## Install\n\nBack to [the front](/), to [its tides](/#tides).\n");
+        oweb::SiteOptions options{.url = "https://example.org/notes/", .routes = {{.path = "/", .page = app.generic_string()}, {.path = "/start/", .source = "pages/start.md"}}};
+
+        const auto routes = oweb::collect(site, options);
+        expect(fatal(routes.has_value())) << (routes ? "" : routes.error());
+        const oweb::Route& front = routes->front();
+        expect(front.title == "Tide & moon") << "named as it names itself: " << front.title;
+        expect(front.headings.size() == 2 && front.headings.front().text == "One tree, every reading." && front.headings.back().anchor == "tides");
+        const auto text = oweb::source_text(site, front);
+        expect(text.has_value() && text->contains("# One tree, every reading.") && text->contains("[the first steps](start/)") && text->contains("Live Design") && !text->contains("<"))
+            << "its document, as Markdown: " << text.value_or(text.error());
+
+        const auto made = oweb::build(site, out, options);
+        expect(fatal(made.has_value())) << (made ? "" : made.error());
+        // The page as built, saying in its head what every route says; its files beside it.
+        const std::string html = read(out / "index.html");
+        const std::size_t head = html.find("</head>");
+        expect(html.contains("<canvas id=\"canvas\"></canvas>") && html.contains("href=\"start/\">the first steps</a>") && html.size() > built.size()) << "the page its build wrote";
+        expect(html.find("<link rel=\"alternate\" type=\"text/markdown\" href=\"index.md\">") < head && html.find("<link rel=\"search\" type=\"application/json\" href=\"site.search.xdef.json\">") < head) << html;
+        expect(read(out / "tide-1a2b.js") == "var tide = 1;\n" && read(out / "tide-1a2b.wasm").size() == 8 && std::filesystem::exists(out / "media" / "mark.svg"));
+        // Its Markdown: the document, a link to another route the Markdown's, a file of its own and an address elsewhere as they were.
+        const std::string markdown = read(out / "index.md");
+        expect(markdown.contains("# One tree, every reading.") && markdown.contains("[the first steps](start/index.md)") && markdown.contains("(start/index.md#install)") &&
+               markdown.contains("(media/mark.svg)") && markdown.contains("(https://example.org/)") && markdown.contains("## Tides"))
+            << markdown;
+        // The tables: one more route, which is an application's; the search finds its words; the other page leads to it.
+        const std::string table = read(out / "site.routes.xdef.json");
+        expect(table.contains("\"source\":\"adopted-app/index.html\"") && !table.contains(app.generic_string())) << "a published table names no path of the machine that built it: " << table;
+        expect(table.contains("\"path\":\"/\"") && table.contains("\"application\":true") && table.contains("\"title\":\"Tide & moon\"") && table.contains("\"anchor\":\"tides\"")) << table;
+        expect(read(out / "llms.txt").contains("- [Tide & moon](https://example.org/notes/index.md)") && read(out / "sitemap.xml").contains("<loc>https://example.org/notes/</loc>"));
+        const std::string index = read(out / "site.search.xdef.json");
+        expect(index.contains("A spring tide follows the new moon.") && index.contains("\"anchor\":\"tides\"")) << index;
+        const std::string start = read(out / "start" / "index.html");
+        expect(start.contains(">Tide &amp; moon</a>") && start.contains("href=\"../\">the front</a>") && start.contains("href=\"../#tides\">its tides</a>")) << start;
+        expect(read(out / "404.html").contains("Tide &amp; moon")) << "the page for a lost address leads to it";
+        expect(std::ranges::contains(made->delivery.files, std::string("tide-1a2b.wasm"), &mlibs::delivery::File::path)) << "its files are the site's, in the delivery manifest";
+
+        // A link of the page that leads to no place of the site is said, as any page's; so is an anchor its page has not.
+        put(app / "index.html", [&] {
+            std::string wrong = built;
+            wrong.replace(wrong.find("href=\"start/\""), 13, "href=\"begin/\"");
+            return wrong;
+        }());
+        const auto nowhere = oweb::build(site, scratch("adopted-nowhere"), options);
+        expect(!nowhere.has_value() && nowhere.error().contains("links to /begin/, which is no route of the site")) << (nowhere ? "" : nowhere.error());
+        put(app / "index.html", built);
+        put(site / "pages" / "start.md", "# First steps\n\n## Install\n\nTo [its moons](/#moons).\n");
+        const auto anchorless = oweb::build(site, scratch("adopted-anchor"), options);
+        expect(!anchorless.has_value() && anchorless.error().contains("no heading of the anchor `moons`")) << (anchorless ? "" : anchorless.error());
+        put(site / "pages" / "start.md", "# First steps\n\n## Install\n\nBack to [the front](/).\n");
+
+        // A page with no document says nothing to the tables: not adopted. A directory with no page: build it first.
+        put(app / "index.html", "<!doctype html>\n<html lang=\"en\">\n<head>\n<title>Tide</title>\n</head>\n<body>\n<canvas id=\"canvas\"></canvas>\n</body>\n</html>\n");
+        const auto silent = oweb::collect(site, options);
+        expect(!silent.has_value() && silent.error().contains("holds no document") && silent.error().contains("omui build --web")) << (silent ? "" : silent.error());
+        options.routes.front().page = (app / "none").generic_string();
+        const auto unbuilt = oweb::collect(site, options);
+        expect(!unbuilt.has_value() && unbuilt.error().contains("has no index.html") && unbuilt.error().contains("omui build --web")) << (unbuilt ? "" : unbuilt.error());
+
+        // Two files at one address — a file of the page's and a file beside the site's pages — are said, not one over the other.
+        options.routes.front().page = app.generic_string();
+        put(app / "index.html", built);
+        put(site / "pages" / "media" / "mark.svg", "<svg xmlns=\"http://www.w3.org/2000/svg\"/>\n");
+        const auto twice = oweb::build(site, scratch("adopted-twice"), options);
+        expect(!twice.has_value() && twice.error().contains("two files of the site are `media/mark.svg`")) << (twice ? "" : twice.error());
+    };
+
     "the subject `oweb`: a site's routes, one page read as an agent fetches it, the site built; what is not a request says why"_test = [] {
         oweb::Sites sites;
         mlibs::agent::SubjectSession session({&sites});

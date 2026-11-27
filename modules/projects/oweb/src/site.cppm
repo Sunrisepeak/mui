@@ -34,7 +34,11 @@ struct Route {
     // The operation catalog its page is the reference of, from the site's directory ("../tool/tool.ops.xdef.ts"),
     // or `own_catalog`: the page is generated from it at each build. Empty: its page is `source`.
     std::string          reference;
-    std::string          title;     // its first heading; its path where it has none
+    // The built page of an application it adopts (`omui build --web`: a directory with the page and its files), from
+    // the site's directory or absolute: the page is served as it was built, its files beside it, and the site's
+    // tables say of it what its own document says. `source` is then that page (`<page>/index.html`).
+    std::string          page;
+    std::string          title;     // its first heading (an application's page: its own title); its path where it has none
     std::string          language;  // "en", "zh"
     std::vector<Heading> headings;
     // When its page takes the site's program (D-260): "eager" at once, "idle" once the page has loaded and is idle,
@@ -49,6 +53,7 @@ struct Declared {
     std::string source;  // "pages/guide/start.md"; empty where it is a reference
     std::string title;   // empty: its page's first heading
     std::string reference;  // an operation catalog (<product>.ops.xdef.ts, or its snapshot): the page is its reference
+    std::string page;    // an application's built page (its directory): the route is that page, as built
     std::string load;    // when its page takes the program; empty: as the site says
 };
 
@@ -122,7 +127,8 @@ struct Built {
 // pages of one address, a stated page that is not there).
 [[nodiscard]] std::expected<std::vector<Route>, std::string> collect(const std::filesystem::path& site, const SiteOptions& options = {});
 
-// A route's page as Markdown: its source's text, or the reference generated from its catalog.
+// A route's page as Markdown: its source's text, the reference generated from its catalog, or — an application's
+// page — the document that page holds for a reader without its program, as Markdown.
 [[nodiscard]] std::expected<std::string, std::string> source_text(const std::filesystem::path& site, const Route& route);
 
 // One route evaluated and written, the others its navigation.
@@ -133,8 +139,8 @@ struct Built {
 // said by the document (`<base>`) — and it is no route: no table lists it.
 [[nodiscard]] std::expected<Page, std::string> lost_page(const std::filesystem::path& site, std::span<const Route> routes, const SiteOptions& options = {});
 
-// The site written to `out`: every route's two files, what pages/ holds beside its pages (pictures) at the same
-// place, the site's tables, `404.html` and `.nojekyll` (GitHub Pages serves the directory as it is) and, last, the delivery
+// The site written to `out`: every route's two files (an application's page with the files it was built with), what
+// pages/ holds beside its pages (pictures) at the same place, the site's tables, `404.html` and `.nojekyll` (GitHub Pages serves the directory as it is) and, last, the delivery
 // manifest of all of it (site.delivery.xdef.json).
 [[nodiscard]] std::expected<Built, std::string> build(const std::filesystem::path& site, const std::filesystem::path& out, const SiteOptions& options = {});
 

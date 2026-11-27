@@ -35,6 +35,7 @@ namespace oweb {
     std::string path;
     std::string source;
     std::string reference;
+    std::string page;
     std::string title;
     std::string language;
     std::vector<Heading> headings;
@@ -45,6 +46,7 @@ namespace oweb {
     std::string source;
     std::string title;
     std::string reference;
+    std::string page;
     std::string load;
   };
   struct SiteOptions {

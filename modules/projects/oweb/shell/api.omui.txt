@@ -74,4 +74,9 @@ namespace oweb::shell {
   };
   [[nodiscard]] std::expected<Table, std::string> table_from(std::string_view routes_table);
   [[nodiscard]] std::string described(const Table& table);
+  [[nodiscard]] std::string describe_answer(const Table& table, bool built, std::string_view next);
+  [[nodiscard]] std::string routes_answer(const Table& table);
+  [[nodiscard]] std::string search_answer(std::span<const Section> sections, std::string_view query, std::size_t limit);
+  [[nodiscard]] std::string page_answer(const Entry& route, std::string_view as, std::string_view text);
+  [[nodiscard]] std::string entry_json(const Entry& route);
 }

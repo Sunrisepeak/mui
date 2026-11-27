@@ -112,13 +112,6 @@ void site_build(Reply& reply, const mlibs::agent::Arguments& args, const shell::
     reply.fail("failed", over);
 }
 
-Value headings_of(std::span<const Heading> from) {
-    Value::List headings;
-    for (const Heading& heading : from)
-        headings.push_back(Value{}.set("level", Value(static_cast<std::int64_t>(heading.level))).set("text", heading.text).set("anchor", heading.anchor));
-    return Value(std::move(headings));
-}
-
 // The site a request reads (0.1.0 plan AG5): its source — pages/, each answer evaluated now as a build would write
 // it — or a site as built: the directory a build wrote, or a copy of what a host serves, its tables and pages read
 // as they were published. The same operations, the same answers.
@@ -169,17 +162,12 @@ std::optional<Reading> reading_of(Reply& reply, const mlibs::agent::Arguments& a
     return reading;
 }
 
-Value listed(const shell::Entry& route) {
-    return Value{}.set("path", route.path).set("source", route.source).set("title", route.title).set("language", route.language).set("headings", headings_of(route.headings));
-}
 
 void routes_list(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
     if (!args.value("site")) return wrong(reply, "routes.list takes --site, the site's directory: its source (it holds pages/) or the site as built");
     const auto reading = reading_of(reply, args, view);
     if (!reading) return;
-    Value::List routes;
-    for (const shell::Entry& route : reading->table.routes) routes.push_back(listed(route));
-    done(reply, Value{}.set("ok", true).set("routes", Value(std::move(routes))));
+    reply.data(shell::routes_answer(reading->table));
 }
 
 // What a site is, as it says it at every door: the table's facts, and the text a build writes as llms.txt.
@@ -188,24 +176,11 @@ void site_describe(Reply& reply, const mlibs::agent::Arguments& args, const shel
     const auto reading = reading_of(reply, args, view);
     if (!reading) return;
     const Table& table = reading->table;
-    Value::List languages, routes;
-    for (const std::string& language : table.languages) languages.emplace_back(language);
-    for (const shell::Entry& route : table.routes)
-        routes.push_back(Value{}.set("path", route.path).set("title", route.title).set("language", route.language).set("markdown", std::format("{}index.md", route.path)));
     // The ways in, each a request that can be sent as it stands: read a page, ask the pages a question.
     const std::string site = args.value("site").value_or("");
     const std::string first = table.routes.empty() ? std::string("/") : table.routes.front().path;
-    done(reply, Value{}
-                    .set("ok", true)
-                    .set("title", table.title)
-                    .set("url", table.url)
-                    .set("languages", Value(std::move(languages)))
-                    .set("routes", Value(std::move(routes)))
-                    .set("built", reading->built)
-                    .set("tables", Value{}.set("routes", "site.routes.xdef.json").set("search", "site.search.xdef.json"))
-                    .set("next", Value(Value::List{Value{}.set("op", "page.read").set("site", site).set("route", first),
-                                                   Value{}.set("op", "docs.search").set("site", site).set("query", table.title)}))
-                    .set("text", shell::described(table)));
+    const Value next(Value::List{Value{}.set("op", "page.read").set("site", site).set("route", first), Value{}.set("op", "docs.search").set("site", site).set("query", table.title)});
+    reply.data(shell::describe_answer(table, reading->built, next.json()));
 }
 
 void page_read(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
@@ -226,7 +201,7 @@ void page_read(Reply& reply, const mlibs::agent::Arguments& args, const shell::V
         const std::filesystem::path file = reading->site / mcpplibs::os::fs::from_utf8(address->substr(1)) / (as == "html" ? "index.html" : "index.md");
         const auto text = file_of(file);
         if (!text) return failed(reply, std::format("{}: the site's table lists `{}` and its {} is not there — build the site again (oweb site.build)", mcpplibs::os::fs::utf8(file), *address, as == "html" ? "page" : "Markdown"));
-        return done(reply, Value{}.set("ok", true).set("route", listed(*listed_route)).set("as", as).set("text", *text));
+        return reply.data(shell::page_answer(*listed_route, as, *text));
     }
     const auto route = std::ranges::find(reading->routes, *address, &Route::path);
     const auto page = evaluate(reading->site, reading->routes, *route, reading->options);
@@ -252,20 +227,7 @@ void docs_search(Reply& reply, const mlibs::agent::Arguments& args, const shell:
         sections = sections_of(reading->site, reading->options);
     }
     if (!sections) return failed(reply, sections.error());
-    Value::List found;
-    for (const Hit& hit : search(*sections, *query, limit)) {
-        Value::List trail;
-        for (const std::string& above : hit.section.trail) trail.emplace_back(above);
-        found.push_back(Value{}
-                            .set("route", hit.section.route)
-                            .set("anchor", hit.section.anchor)
-                            .set("title", hit.section.title)
-                            .set("trail", Value(std::move(trail)))
-                            .set("excerpt", hit.excerpt)
-                            .set("markdown", std::format("{}index.md", hit.section.route))
-                            .set("score", Value(hit.score)));
-    }
-    done(reply, Value{}.set("ok", true).set("query", *query).set("sections", Value(static_cast<std::int64_t>(sections->size()))).set("found", Value(std::move(found))));
+    reply.data(shell::search_answer(*sections, *query, limit));
 }
 
 }  // namespace

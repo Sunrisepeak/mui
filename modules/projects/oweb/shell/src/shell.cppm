@@ -173,4 +173,20 @@ struct Table {
 // `site.describe` answers with it: one description, said the same at every door.
 [[nodiscard]] std::string described(const Table& table);
 
+// What the site's reading operations answer with (0.1.0 plan AG5), each a JSON object: the command and a page's own
+// subject answer with these, so a site says the same to whoever asks, from wherever.
+// `site.describe`: the table's facts (title, address, languages, each route with its Markdown's address), whether
+// what answers is the site as built, where its two tables are, the requests to go on with (`next`: a JSON array,
+// written as the door that answers takes them) and `text` — the description, `described`.
+[[nodiscard]] std::string describe_answer(const Table& table, bool built, std::string_view next);
+// `routes.list`: each route as `entry_json` says it.
+[[nodiscard]] std::string routes_answer(const Table& table);
+// `docs.search`: the sections found for the words, best first — each its route, anchor, title, the headings it is
+// under, the line that says so and where its page's Markdown is — and how many sections were asked.
+[[nodiscard]] std::string search_answer(std::span<const Section> sections, std::string_view query, std::size_t limit);
+// `page.read` of a route as it was written: what the table says of the route, and the text (`as`: markdown or html).
+[[nodiscard]] std::string page_answer(const Entry& route, std::string_view as, std::string_view text);
+// A route as the operations list it: its address, source, title, language and headings.
+[[nodiscard]] std::string entry_json(const Entry& route);
+
 }  // namespace oweb::shell

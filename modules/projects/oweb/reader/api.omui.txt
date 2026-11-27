@@ -1,11 +1,28 @@
 == oweb.reader
 export import oweb.shell;
+export import mlibs.agent;
 namespace oweb::reader {
   struct Site {
     std::function<std::string(std::string_view relation)> link;
     std::function<void(std::string_view address, std::function<void(std::expected<std::string, std::string>)> done)> file;
   };
+  [[nodiscard]] Site keeping_tables(Site site);
   [[nodiscard]] shell::Finder finder(Site site);
+  [[nodiscard]] std::unique_ptr<mlibs::agent::Subject> subject(Site site, std::function<void(std::string_view query)> shown = {…});
+  bool show_search(omui::Runtime& runtime, std::string_view query);
   [[nodiscard]] omui::Element view(std::string_view projection, const std::function<std::string(std::string_view id)>& markup, shell::Layout layout);
   [[nodiscard]] int program(int argc, char** argv, void (*examples)());
+}
+== oweb.reader:catalog
+namespace oweb::reader {
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_page_read{…};
+  inline constexpr std::array<mlibs::control::Parameter, 2> parameters_docs_search{…};
+  inline constexpr std::array<std::string_view, 1> examples_site_describe{…};
+  inline constexpr std::array<std::string_view, 1> examples_page_read{…};
+  inline constexpr std::array<std::string_view, 1> examples_docs_search{…};
+  inline constexpr std::array<mlibs::control::CatalogEntry, 4> catalog{…};
+  inline constexpr std::array<std::string_view, 3> steps_read_the_site{…};
+  inline constexpr std::array<mlibs::control::Task, 1> guide_tasks{…};
+  inline constexpr mlibs::control::Guide guide{…};
+  inline constexpr std::string_view listing = R"…";
 }

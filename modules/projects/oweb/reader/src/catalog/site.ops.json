@@ -1,0 +1,27 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "site",
+  "doc": "The site this page is of, asked from inside the page: what it is, its routes, the sections that answer a question, a page as it was written. The answers are the ones the `oweb` command gives of the site as built and the ones its static files hold (llms.txt, each route's index.md, site.search.xdef.json) — whichever door an agent comes by, a site says the same. Its files are fetched when first asked for, once; a reader who asks nothing pays for none.",
+  "tools": [
+    {"name": "site.describe", "description": "What the site is, as it says it at each of its doors: its title, address and languages, each route with its title and its Markdown's address, the requests to go on with — and the text its build wrote as llms.txt", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"site.describe"}],
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "routes.list", "description": "The site's routes: each its address, source, title, language and headings with their anchors", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "page.read", "description": "One route as it was written: its Markdown (what an agent that only fetches reads) or its HTML", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"page.read","route":"/"}],
+     "inputSchema": {"type": "object", "properties": {"route": {"type": "string", "description": "its address in the site (/guide/start/)"}, "as": {"type": "string", "description": "markdown (default) or html"}}, "required": ["route"]}},
+    {"name": "docs.search", "description": "The sections of the site's pages that hold every word asked for, best first: each its route, its anchor, the headings it is under and the line that says so. The words are also put in the page's search box: who reads the page sees what was asked and what was found", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "examples": [{"op":"docs.search","query":"install"}],
+     "inputSchema": {"type": "object", "properties": {"query": {"type": "string", "description": "the words; text without spaces between words matches by characters in a row"}, "limit": {"type": "string", "description": "the most sections answered (default 8)"}}, "required": ["query"]}}
+  ],
+  "tiers": [],
+  "tasks": [
+    {"name": "read-the-site", "summary": "What the site is and holds, the sections that answer a question, then a page as Markdown", "steps": [
+      {"op":"site.describe"},
+      {"op":"docs.search","query":"install"},
+      {"op":"page.read","route":"/"}
+    ]}
+  ]
+}

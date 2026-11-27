@@ -209,6 +209,7 @@ my-site/
   2. *页面里的主体*。页面的程序把站点的主体挂在自己的运行时上，文件靠页面抓取（答案晚到）；`docs.search` 同时把词放进页面的搜索框——Agent 的查询结果人看得见。Agent 到达时才取两张表（读者不为它付字节）。
   3. *页面的门把主体的操作交给 WebMCP*（界面之外每个主体的每个操作一个工具，输入的形状取自目录的清单，不写应用代码）；接入的门经 `omui connect` 问同一个主体。四个门各一条用例进检查；Pages 上从主机取回核对。
 - **不做的**：命令按地址读远处的站点（`--site https://…`）——工作区没有 TLS 的客户端，为它引入一个不值；只拿到地址的 Agent 走抓取的门（它本来就会抓取），拿到目录的走命令的门。重启条件：`mcpplibs` 有了 HTTPS 的客户端。
+- **第 2 步的实现**（2026-11-27）：四个回答的形状归 `oweb.shell`（`describe_answer`、`routes_answer`、`page_answer`、`search_answer`），命令与页面调同一组函数；页面的主体是 `oweb.reader` 的 `subject(site, shown)`（主体名 `site`，接口 `oweb.site@1`，目录 `site.ops.xdef.ts`：命令的四个阅读操作去掉 `site` 参数）。文件经页面自己的抓取到（`Site::file`），回答留着（`Answer::later`）、文件到了才结束；两张表由 `keeping_tables` 只取一次，页面的搜索框与主体共用——读者搜过的索引就是回答 Agent 的那一份。`site.describe` 给的后续请求按这个门的写法（不带 `site`）。站点的地址由页面文档里搜索索引的相对地址推出（`../../site.search.xdef.json` → `../../`），不另写一份。检查（reader 的 `reader_test`、`doors_test`）：只读的页面什么也不取；同一张表两次询问只取一次、到了一起回答；对命令构建出的同一个目录，页面主体与命令的 `routes.list`、`page.read`（Markdown 与 HTML）、`docs.search` 逐字相同，`site.describe` 除后续请求外相同、`text` 就是 `llms.txt`；没到的文件说出地址、原因与出路，下一次询问重新取；`docs.search` 的词出现在页面的搜索框里、结果列在下面。
 - **第 1 步的检查**（`doors_test`）：同一个站点，问源与问已构建的目录，`routes.list` 与 `docs.search` 的回答逐字相同，`page.read` 的 Markdown 相同、且就是主机发出的那个文件；`site.describe` 的 `text` 在源、已构建、`llms.txt` 三处相同；已构建的站点缺了索引或某一页，回答说缺什么与怎么补（重新构建）。
 
 ## 5. 不做的

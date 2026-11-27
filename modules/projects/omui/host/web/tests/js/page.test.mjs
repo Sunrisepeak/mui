@@ -822,11 +822,11 @@ test('WebMCP: where the browser offers it, the page\'s operations are tools — 
   assert.deepEqual(plain(reads), ['ui_snapshot', 'ui_find', 'ui_preview', 'ui_capture'], 'what only reads says so');
   const act = offered.find((t) => t.name === 'ui_act');
   assert.deepEqual(plain(act.inputSchema.required), ['node', 'action']);
-  // An action that runs: the request as window.omui makes it, the agent named.
+  // An action that runs: the request as window.omui makes it, the agent named (the page's first request asked who is here).
   const done = act.execute({ node: 'main/title', action: 'set_value', args: { value: 'Plan' } }, {});
-  assert.deepEqual(JSON.parse(heard.at(-1)[3]), { op: 'act', node: 'main/title', action: 'set_value', args: { value: 'Plan' }, dry_run: false, actor: 'agent:webmcp', re: 1 });
-  context.omui_web_agent_reply(JSON.stringify({ kind: 'data', data: { value: 'Plan' }, re: 1 }));
-  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 0, re: 1 }));
+  assert.deepEqual(JSON.parse(heard.at(-1)[3]), { op: 'act', node: 'main/title', action: 'set_value', args: { value: 'Plan' }, dry_run: false, actor: 'agent:webmcp', re: 2 });
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'data', data: { value: 'Plan' }, re: 2 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 0, re: 2 }));
   const first = await done;
   assert.equal(first.isError, false);
   assert.equal(first.content[0].text, '{"value":"Plan"}');
@@ -834,22 +834,79 @@ test('WebMCP: where the browser offers it, the page\'s operations are tools — 
   let asked = 0;
   window.confirm = () => { asked++; return true; };
   const publish = act.execute({ node: 'main/publish', action: 'activate' }, {});
-  context.omui_web_agent_reply(JSON.stringify({ kind: 'error', code: 'needs-answer', text: 'Publish to the team?', answer: 'yes', re: 2 }));
-  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 2, re: 2 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'error', code: 'needs-answer', text: 'Publish to the team?', answer: 'yes', re: 3 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 2, re: 3 }));
   await new Promise((r) => setTimeout(r, 0));
   assert.equal(asked, 1, 'the person was asked once');
-  assert.deepEqual(JSON.parse(heard.at(-1)[3]), { op: 'act', node: 'main/publish', action: 'activate', args: {}, dry_run: false, answer: 'yes', actor: 'agent:webmcp;via=person:user', re: 3 });
-  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 0, re: 3 }));
+  assert.deepEqual(JSON.parse(heard.at(-1)[3]), { op: 'act', node: 'main/publish', action: 'activate', args: {}, dry_run: false, answer: 'yes', actor: 'agent:webmcp;via=person:user', re: 4 });
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 0, re: 4 }));
   assert.equal((await publish).isError, false);
   // Declined: nothing sent again.
   window.confirm = () => false;
   const declined = act.execute({ node: 'main/publish', action: 'activate' }, {});
-  context.omui_web_agent_reply(JSON.stringify({ kind: 'error', code: 'needs-answer', text: 'Publish?', answer: 'yes', re: 4 }));
-  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 2, re: 4 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'error', code: 'needs-answer', text: 'Publish?', answer: 'yes', re: 5 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 2, re: 5 }));
   const no = await declined;
   assert.equal(no.isError, true);
   assert.match(no.content[0].text, /declined/);
-  assert.equal(JSON.parse(heard.at(-1)[3]).re, 4, 'no request after the person said no');
+  assert.equal(JSON.parse(heard.at(-1)[3]).re, 5, 'no request after the person said no');
+});
+
+test('WebMCP: the program\'s other subjects — each operation a tool from the subject\'s own listing, asked once when the page begins', async () => {
+  const offered = [];
+  const { P, heard, context } = page({ modelContext: { registerTool: (t) => { offered.push(t); } } });
+  // The page asks who is here, first of all.
+  assert.deepEqual(JSON.parse(heard.at(-1)[3]), { op: 'subjects', re: 1 });
+  const answer = (re, data, exitCode = 0) => {
+    if (data !== undefined) context.omui_web_agent_reply(JSON.stringify({ kind: 'data', data, re }));
+    context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode, re }));
+  };
+  answer(1, { subjects: [{ name: 'ui', interface: 'openmui.tree@0.1' }, { name: 'site', interface: 'oweb.site@1' }] });
+  await new Promise((r) => setTimeout(r, 0));
+  // The interface's tools are the page's own; every other subject is asked for its listing, whole.
+  assert.deepEqual(JSON.parse(heard.at(-1)[3]), { op: 'describe', subject: 'site', detail: 'full', re: 2 });
+  answer(2, { kind: 'omui.ops', product: 'site', tools: [
+    { name: 'site.describe', description: 'What the site is', effect: 'read', inputSchema: { type: 'object', properties: {}, required: [] } },
+    { name: 'docs.search', description: 'The sections that hold every word', effect: 'read',
+      inputSchema: { type: 'object', properties: { query: { type: 'string', description: 'the words' }, limit: { type: 'string' } }, required: ['query'] } },
+    { name: 'notes.add', description: 'Adds a note', effect: 'reversible', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
+    { name: 'ui_find', description: 'a name the page already has', effect: 'read', inputSchema: { type: 'object', properties: {}, required: [] } },
+  ] });
+  await P.webMcpSubjects;
+  const names = offered.map((t) => t.name);
+  for (const n of ['site_describe', 'docs_search', 'notes_add']) assert.ok(names.includes(n), n);
+  assert.equal(names.filter((n) => n === 'ui_find').length, 1, 'a name is offered once');
+  assert.deepEqual(plain(P.webMcpTools), plain(names));
+  const search = offered.find((t) => t.name === 'docs_search');
+  assert.equal(search.description, 'The sections that hold every word');
+  assert.deepEqual(plain(search.inputSchema), { type: 'object', properties: { query: { type: 'string', description: 'the words' }, limit: { type: 'string' } }, required: ['query'] });
+  assert.equal(search.annotations.readOnlyHint, true);
+  assert.equal(offered.find((t) => t.name === 'notes_add').annotations.readOnlyHint, false, 'what changes something does not say it only reads');
+  // Called: the operation by its whole name with what was given, the agent named; its data the tool's words.
+  const found = search.execute({ query: 'install', limit: '2' }, {});
+  assert.deepEqual(JSON.parse(heard.at(-1)[3]), { query: 'install', limit: '2', op: 'docs.search', actor: 'agent:webmcp', re: 3 });
+  answer(3, { ok: true, found: [{ route: '/start/' }] });
+  const words = await found;
+  assert.equal(words.isError, false);
+  assert.equal(words.content[0].text, '{"ok":true,"found":[{"route":"/start/"}]}');
+  // An answer that says why not is the tool's error, in its words.
+  const none = search.execute({}, {});
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'error', code: 'invalid-argument', text: '`docs.search` needs `query`', re: 4 }));
+  answer(4, undefined, 1);
+  const refused = await none;
+  assert.equal(refused.isError, true);
+  assert.match(refused.content[0].text, /needs `query`/);
+});
+
+test('WebMCP: a program with the interface alone offers the interface\'s tools and no more', async () => {
+  const offered = [];
+  const { P, heard, context } = page({ modelContext: { registerTool: (t) => { offered.push(t); } } });
+  const before = offered.length;
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'data', data: { subjects: [{ name: 'ui' }] }, re: 1 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 0, re: 1 }));
+  await P.webMcpSubjects;
+  assert.equal(offered.length, before);
+  assert.equal(JSON.parse(heard.at(-1)[3]).op, 'subjects', 'nothing asked after');
 });
 
 test('WebMCP: a browser without it is offered nothing', () => {

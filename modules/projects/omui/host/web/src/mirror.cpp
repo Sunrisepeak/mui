@@ -4,6 +4,8 @@ import std;
 import omui.core;
 import omui.view;
 import omui.semantic;
+import mlibs.text;
+import mlibs.trace;
 
 namespace omui {
 
@@ -106,9 +108,13 @@ std::optional<Value> DomMirror::sync() {
     const std::uint64_t revision = tree_.runtime().semantic_revision();
     if (!first_ && revision == synced_) return std::nullopt;
     synced_ = revision;
+    mlibs::trace::Span span("mirror.sync", "host");
     spec::SemanticDelta delta = tree_.changes();
     if (delta.empty()) return std::nullopt;
     const bool first = std::exchange(first_, false);
+    // Faces that changed shape every text again: each element is read again.
+    const std::uint64_t fonts = tree_.runtime().fonts().revision();
+    const bool reshaped = std::exchange(fonts_, fonts) != fonts;
 
     Value batch;
     if (first && !delta.added.empty()) batch.set("root", delta.added.front().id);
@@ -156,6 +162,36 @@ std::optional<Value> DomMirror::sync() {
         const auto around = parent.empty() ? elements_.end() : elements_.find(std::string(parent));
         return around == elements_.end() ? std::string_view{} : std::string_view(around->second.tag);
     };
+    // Where a node is in what the views around it scroll: its box in the window with each view's offset in this
+    // frame's layout added back. It does not change as a view scrolls — so a scroll, one value of the tree (the
+    // view's offset), is one value of the page (the element's), and nothing else is read again for it.
+    const auto parent_id = [&](std::string_view id) -> std::string_view {
+        if (const auto said = parent_of.find(id); said != parent_of.end()) return said->second;
+        if (const auto known = elements_.find(std::string(id)); known != elements_.end()) return known->second.parent;
+        return {};
+    };
+    std::unordered_map<std::string_view, std::optional<Point>> offsets;  // the views met, by id; none: not a view
+    const auto offset_of = [&](std::string_view id) -> std::optional<Point> {
+        if (const auto known = offsets.find(id); known != offsets.end()) return known->second;
+        std::optional<Point> by;
+        if (const auto element = elements_.find(std::string(id)); element != elements_.end() && element->second.view)
+            by = tree_.runtime().scroll_offset(tree_.runtime().find(id)).value_or(Point{});
+        offsets.emplace(id, by);
+        return by;
+    };
+    const auto placed_in_views = [&](const spec::SemanticNode& n) -> std::optional<spec::Rect> {
+        if (!n.bounds) return std::nullopt;
+        spec::Rect box = *n.bounds;
+        for (std::string_view up = parent_id(n.id); !up.empty(); up = parent_id(up))
+            if (const auto by = offset_of(up)) box.x += by->x, box.y += by->y;
+        return box;
+    };
+    // The same box, but for what adding an offset back leaves in the last bits.
+    const auto same_place = [](const std::optional<spec::Rect>& a, const std::optional<spec::Rect>& b) {
+        if (!a || !b) return !a && !b;
+        constexpr float within = 1.0f / 64;
+        return std::abs(a->x - b->x) < within && std::abs(a->y - b->y) < within && std::abs(a->width - b->width) < within && std::abs(a->height - b->height) < within;
+    };
     // A piece of an element's own text for the page: a run a string, an element {"tag","c"}, a child node standing
     // in the text {"tag","node","c"} (its attributes are its own entry's).
     const auto piece = [](this auto const& self, const semantic::Inline& from) -> Value {
@@ -177,8 +213,23 @@ std::optional<Value> DomMirror::sync() {
     std::vector<std::string> shown_again;  // children an element's text placed and places no more
 
     auto take = [&](const spec::SemanticNode& n, bool added) {
+        const std::optional<spec::Rect> placed = placed_in_views(n);
+        // The same node, where it was in what its views scroll: the element is as it is (a view's scroll moves every
+        // node under it in the window, and none of them in the page). A text not drawn yet when it was read is asked
+        // for its lines again: the canvas draws it once it comes into sight.
+        if (!added && !reshaped)
+            if (const auto known = elements_.find(n.id); known != elements_.end() && known->second.face && same_place(known->second.in_views, placed)) {
+                Element& was = known->second;
+                const std::optional<spec::Rect> then = std::exchange(was.face->bounds, n.bounds);
+                const bool same = *was.face == n;
+                was.face->bounds = then;
+                if (same && (was.lines != Lines::awaited || tree_.runtime().text_lines(tree_.runtime().find(n.id)).empty())) return;
+            }
         const std::string_view inside = tag_around(n.id);
         Element& e = elements_[n.id];
+        e.face = n;
+        e.in_views = placed;
+        e.lines = Lines::none;
         // What the element is and holds, as the static page has it (omui.semantic:html, D-236, D-286).
         semantic::HtmlElement made = semantic::html_element(n, inside, find, semantic::HtmlFor::live);
         // A tag that changed is another element: all of it is sent again.
@@ -216,6 +267,7 @@ std::optional<Value> DomMirror::sync() {
             for (const semantic::Inline& from : whole) covered = std::max(covered, from.end);
             std::vector<TextLineBox> drawn;
             if (covered > 0 && n.bounds) drawn = tree_.runtime().text_lines(tree_.runtime().find(n.id));
+            if (covered > 0 && n.bounds && drawn.empty()) e.lines = Lines::awaited;
             if (!drawn.empty() && (drawn.front().begin != 0 || drawn.back().end != covered)) drawn.clear();
             // Words without width were not drawn (no shaper gave them glyphs): nothing to stand them by. A line that
             // is only its break (an empty line of code) has no words and no width, and is as it should be.
@@ -238,7 +290,8 @@ std::optional<Value> DomMirror::sync() {
                 const std::string_view text = n.name;
                 if (line.end > line.begin && line.end <= text.size() && text[line.end - 1] == '\n' && &line != &drawn.back()) lines.back().set("br", true);
             }
-            if (lines.empty())
+            if (!lines.empty()) e.lines = Lines::sent;
+            else
                 for (const semantic::Inline& from : made.content) pieces.push_back(piece(from));
             const bool plain = lines.empty() && (pieces.empty() || (pieces.size() == 1 && pieces.front().type() == Value::Type::text));
             std::string text = !lines.empty() ? Value(lines).json() : pieces.empty() ? std::string{} : Value(pieces).json();
@@ -284,7 +337,8 @@ std::optional<Value> DomMirror::sync() {
         // A view that scrolls: where it is and how far it goes. Its children's places are places in what it scrolls.
         // How far is the node's to say; where it is is read once the batch's nodes are taken (below): the offset its
         // children's boxes were laid out with, which a glide moves frame by frame while the node states where it ends.
-        if (n.role == Role::scroll_view && n.value.map()) {
+        e.view = n.role == Role::scroll_view && n.value.map();
+        if (e.view) {
             const auto number = [&](std::string_view key) {
                 const Value* stated = n.value.get(key);
                 return stated && stated->is_number() ? round(static_cast<float>(stated->as_double())) : std::int64_t{0};
@@ -298,7 +352,7 @@ std::optional<Value> DomMirror::sync() {
             for (const std::string& child : n.children) moved.push_back(child);
         }
         std::optional<Box> bounds;
-        if (n.bounds) bounds = Box{round(n.bounds->x), round(n.bounds->y), round(n.bounds->width), round(n.bounds->height)};
+        if (placed) bounds = Box{round(placed->x), round(placed->y), round(placed->width), round(placed->height)};
         if (added || bounds != e.bounds) {
             e.bounds = bounds;
             moved.push_back(n.id);
@@ -311,27 +365,31 @@ std::optional<Value> DomMirror::sync() {
         if (!first && added && n.role == Role::alert_dialog && !n.name.empty()) alert = n.name;
         e.spoken = std::move(says);
     };
-    for (const spec::SemanticNode& n : delta.added) take(n, true);
-    for (const spec::SemanticNode& n : delta.updated) take(n, false);
+    {
+        mlibs::trace::Span taking("mirror.take", "host");
+        for (const spec::SemanticNode& n : delta.added) take(n, true);
+        for (const spec::SemanticNode& n : delta.updated) take(n, false);
+    }
     // What a text placed and places no more is an element of its own again: its tag, its text, its box.
     for (const std::string& id : shown_again) {
         const auto known = elements_.find(id);
         if (known == elements_.end() || known->second.inlined) continue;
         known->second.tag.clear();
+        known->second.face.reset();  // read again, all of it
         if (const spec::SemanticNode* node = find(id)) take(*node, false);
         moved.push_back(id);
     }
 
-    // Where each view that scrolls is: said when it changed; its children's boxes stay what they were.
+    // Where each view that scrolls is: said when it changed; its children's boxes are what they were (places in what
+    // it scrolls).
     std::erase_if(scrolls_, [&](const std::string& id) { return !elements_.contains(id); });
     for (const std::string& id : scrolls_) {
         Element& e = elements_.find(id)->second;
-        const Point shown = tree_.runtime().scroll_offset(tree_.runtime().find(id)).value_or(Point{});
+        const Point shown = offset_of(id).value_or(Point{});
         const Box now{round(shown.x), round(shown.y), e.extent[0], e.extent[1]};
         if (e.scroll == now) continue;
         e.scroll = now;
         entry(id).set("scroll", Value(Value::List{Value(now[0]), Value(now[1]), Value(now[2]), Value(now[3])}));
-        for (const std::string& child : e.children) moved.push_back(child);
     }
 
     // Children know their parents again; a child that changed parent moves.
@@ -405,15 +463,11 @@ void DomMirror::place(const std::string& id, std::vector<Value>& out, std::unord
     const Box base = parent != elements_.end() ? parent->second.box : Box{};
     const Box before = e.box;
     e.box = e.bounds.value_or(base);
-    // In a view that scrolls, a place in what it scrolls: where it is in the window, and how far the view is scrolled.
-    const Box scrolled = parent != elements_.end() && parent->second.scroll ? *parent->second.scroll : Box{};
-    const Box rel{e.box[0] - base[0] + scrolled[0], e.box[1] - base[1] + scrolled[1], e.box[2], e.box[3]};
-    // A box and an offset are each rounded to a pixel, so their sum wavers by one as the view glides: a box that
-    // stands within a pixel of the one sent is the one sent.
-    const bool wavers = parent != elements_.end() && parent->second.scroll && e.sent && (*e.sent)[2] == rel[2] && (*e.sent)[3] == rel[3] &&
-                        std::abs((*e.sent)[0] - rel[0]) <= 1 && std::abs((*e.sent)[1] - rel[1]) <= 1;
+    // Both are places in what the views around them scroll (a view's children: in what it scrolls), so where a view
+    // has scrolled them does not move them here.
+    const Box rel{e.box[0] - base[0], e.box[1] - base[1], e.box[2], e.box[3]};
     // What stands in its parent's text is placed by the text: no box of its own.
-    if (!e.inlined && e.sent != rel && !wavers) {
+    if (!e.inlined && e.sent != rel) {
         e.sent = rel;
         auto [slot, made] = at.try_emplace(id, out.size());
         if (made) out.push_back(Value{}.set("id", id));

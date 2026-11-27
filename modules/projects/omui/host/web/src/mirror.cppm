@@ -68,6 +68,9 @@ public:
 
 private:
     using Box = std::array<std::int64_t, 4>;
+    // An element's own text by line: none to set so (no text, or a text the canvas does not draw as its own bytes),
+    // sent so, or awaited (not drawn yet: its lines are asked for again until it is).
+    enum class Lines : std::uint8_t { none, sent, awaited };
     struct Element {
         std::string              tag;     // the element it is
         std::vector<std::pair<std::string, std::string>> attrs;
@@ -78,11 +81,17 @@ private:
         bool                     inlined = false;  // it stands in its parent's text: no box of its own
         std::optional<Box>       scroll;  // a view that scrolls: its offset and how far it goes (x, y, max x, max y)
         std::array<std::int64_t, 2> extent{};  // how far, as its node states it
+        bool                     view = false;  // it is a view that scrolls
         std::string              parent;
-        std::optional<Box>       bounds;  // its own, rounded
+        std::optional<Box>       bounds;  // its own where it is in what the views around it scroll, rounded
         Box                      box{};   // its own, or its parent's where it has none
         std::optional<Box>       sent;    // relative to the parent's, as the page has it
         std::string              spoken;  // what the live region would say of it
+        // The node as it was last taken (its bounds the window's then), and its box in what the views around it
+        // scroll: a node the same but for where a view has scrolled it is not taken again.
+        std::optional<spec::SemanticNode> face;
+        std::optional<spec::Rect> in_views;
+        Lines                    lines = Lines::none;
     };
 
     void place(const std::string& id, std::vector<Value>& out, std::unordered_map<std::string, std::size_t>& at);
@@ -96,6 +105,7 @@ private:
     std::string                              main_;  // the main landmark
     std::string                              skip_;  // what the skip link was last sent as
     std::uint64_t                            synced_ = 0;  // the runtime's semantic revision last read
+    std::uint64_t                            fonts_ = 0;   // the fonts' revision the texts were last read at
     bool                                     first_ = true;
 };
 

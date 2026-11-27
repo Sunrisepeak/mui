@@ -109,7 +109,11 @@ struct Web::Impl {
     float                                    scale = 1.0f;
     // The page's other halves: the hidden DOM, window.omui, the store, the textarea.
     std::unique_ptr<DomMirror>               mirror;     // with a page
-    std::unique_ptr<agent::Protocol>         protocol;   // made at the first request
+    // What answers the page's agents (window.omui, a linked agent, the page's WebMCP tools): the interface's
+    // protocol and, by their operations' whole names, the runtime's other subjects — the process's session, as a
+    // desktop endpoint's. Made at the first request.
+    std::unique_ptr<agent::ProcessSession>   process;
+    agent::Protocol*                         protocol = nullptr;  // the session's own
     std::unique_ptr<PageStore>               page_store; // with a page that has localStorage
     struct Asked {
         page::Request::Kind                    kind = page::Request::Kind::agent;
@@ -179,8 +183,8 @@ struct Web::Impl {
         if (!native::find("store")) (void)natives::store::define();
     }
 
-    agent::Protocol& agents() {
-        if (!protocol) {
+    agent::ProcessSession& agents() {
+        if (!process) {
             agent::ProtocolOptions o;
             o.app = options.app;
             o.default_actor = "agent:page";
@@ -204,9 +208,10 @@ struct Web::Impl {
                 const mrender::Resources resources{&runtime->images(), glyphs.get()};
                 return agent::vector_capture(*runtime, resources, region, scale, std::nullopt);
             };
-            protocol = std::make_unique<agent::Protocol>(*runtime, std::move(o));
+            process = std::make_unique<agent::ProcessSession>(*runtime, std::move(o));
+            protocol = &process->protocol();
         }
-        return *protocol;
+        return *process;
     }
 
     // A request of the page's, or one synthesized: served before the frame.
@@ -619,7 +624,8 @@ Web::~Web() {
     // The components drawn on the device (a world's targets) before the device: what reads the runtime, then an
     // own runtime; a borrowed one is told there is no device any more.
     Impl& d = *impl_;
-    d.protocol.reset();
+    d.protocol = nullptr;
+    d.process.reset();
     d.mirror.reset();
     if (d.device) d.shown_pictures.release(*d.device);
     if (d.own_runtime) {

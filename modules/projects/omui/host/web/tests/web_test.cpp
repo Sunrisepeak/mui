@@ -8,6 +8,9 @@
 // (src/js/omui_web.js) is tested under node with a fake DOM: tests/js.
 import std;
 import omui.host.web;
+import mlibs.agent;
+import mlibs.control;
+import openas;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -82,6 +85,31 @@ std::vector<Value> records(Web& w, std::string_view line) {
 int exit_of(const std::vector<Value>& r) {
     return r.empty() || !r.back().get("exitCode") ? -100 : static_cast<int>(r.back().get("exitCode")->as_int());
 }
+
+// A subject beside the interface (a site's pages, a game shown in a viewport): one operation that reads.
+struct Shelf final : mlibs::agent::Subject {
+    static constexpr std::array<mlibs::control::Parameter, 1> parameters{{{"title", "string", "the book's title", false}}};
+    static constexpr std::array<mlibs::control::CatalogEntry, 1> entries{
+        {{{"shelf.find", openas::Effect::read, false}, "Where a book stands", parameters, "json", mlibs::control::Cost::bounded, "", false, false, false, {}}}};
+    [[nodiscard]] std::string_view name() const noexcept override { return "shelf"; }
+    [[nodiscard]] std::string_view interface_name() const noexcept override { return "shelf@1"; }
+    [[nodiscard]] mlibs::agent::Capabilities capabilities() const noexcept override { return {.observation = true}; }
+    [[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() const noexcept override { return entries; }
+    [[nodiscard]] std::string_view listing() const noexcept override {
+        return R"({"kind":"omui.ops","version":1,"product":"shelf","tools":[{"name":"shelf.find","description":"Where a book stands","effect":"read","inputSchema":{"type":"object","properties":{"title":{"type":"string"}},"required":["title"]}}],"tiers":[]})";
+    }
+    void operate(std::string_view, const mlibs::agent::Request& request, mlibs::agent::Answer& answer) override {
+        // The answer comes when the shelf has been looked through: kept, and ended then.
+        waiting.emplace_back(answer.later(), request["title"].text().value_or(""));
+    }
+    void found() {
+        for (auto& [answer, title] : std::exchange(waiting, {})) {
+            answer.data(std::format(R"({{"title":{},"row":3}})", mlibs::agent::json_text(title)));
+            answer.result();
+        }
+    }
+    std::vector<std::pair<mlibs::agent::Answer, std::string>> waiting;
+};
 
 }  // namespace
 
@@ -250,6 +278,33 @@ UTest cases{"host.web", [] {
         };
         const std::string a = run();
         expect(a == run() && !a.empty()) << "two runs agree";
+    };
+
+    "window.omui reaches the runtime's other subjects by their operations' whole names: listed, described with their schema, answered — later too"_test = [] {
+        Shelf shelf;
+        Web w({.app = "org.example.notes", .size = {200, 160}, .fonts = &fonts()});
+        Page page;
+        w.runtime().add_subject(shelf);
+        w.mount("main", page.view());
+        (void)w.step();
+        // The interface's own requests are answered as before.
+        expect(exit_of(records(w, R"({"op":"describe","re":1})")) == 0);
+        auto here = records(w, R"({"op":"subjects"})");
+        expect(exit_of(here) == 0 && here.front().json().contains(R"("name":"shelf")") && here.front().json().contains(R"("name":"ui")")) << (here.empty() ? "" : here.front().json());
+        auto listed = records(w, R"({"op":"describe","subject":"shelf","detail":"full"})");
+        expect(exit_of(listed) == 0 && listed.front().json().contains(R"("inputSchema")") && listed.front().json().contains("shelf.find")) << (listed.empty() ? "" : listed.front().json());
+        // Its operation: asked now, answered when the subject ends it.
+        std::vector<Value> answered;
+        w.request(R"({"op":"shelf.find","title":"Dune","re":9})", [&](std::string_view line) { answered.push_back(parse_json(line).value()); });
+        (void)w.step();
+        expect(answered.empty() && shelf.waiting.size() == 1u) << "kept until its file has come";
+        shelf.found();
+        expect(exit_of(answered) == 0 && answered.front().get("data")->get("title")->as_string() == "Dune" && answered.front().get("re")->as_int() == 9) << (answered.empty() ? "" : answered.front().json());
+        // What it requires is said by the session, with a request that is well formed.
+        auto refused = records(w, R"({"op":"shelf.find"})");
+        expect(exit_of(refused) != 0 && refused.front().json().contains("needs `title`")) << (refused.empty() ? "" : refused.front().json());
+        w.runtime().remove_subject(shelf);
+        expect(!records(w, R"({"op":"subjects"})").front().json().contains(R"("name":"shelf")"));
     };
 
     "window.omui: the agent protocol over the bus, decided as any agent's"_test = [] {

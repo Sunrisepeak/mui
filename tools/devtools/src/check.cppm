@@ -70,6 +70,10 @@
 //           (site/delivery.budget.xdef.json), then the visitor's path — the Live Design key, Copy, the circle breathing
 //           while it waits, the visitor's agent connected by `omui connect <code>` and named with its omui and platform,
 //           the bridge stopped, reduced motion (target/site-perf.json, target/site.json).
+// doors     a built site whose pages load a program, one of its pages in a real browser: the site asked by fetching its
+//           files, by the `oweb` command, by the tools the page offers (WebMCP) and connected to the page (`omui
+//           connect`) says of itself the same text, reads a page as the same Markdown and finds the same sections
+//           (AG5; target/doors.report.xdef.json).
 // atspi     examples 03 and 07 built and read and operated through AT-SPI (`omui-devtools atspi`) on a private
 //           session bus (dbus-run-session), as a screen reader does. Linux x86_64 (AccessKit's library);
 //           at-spi2-core.
@@ -131,6 +135,35 @@ struct Size {
 // most 1 px, none to another line. `path`: the page among a site's ("/start/"; "/" the directory's own). The report:
 // target/takeover.report.xdef.json.
 [[nodiscard]] int takeover(const std::filesystem::path& root, const std::filesystem::path& page, std::string_view path, std::span<const int> widths);
+
+// A built site whose pages load a program (`oweb site.build --engine`), its page at `path` in headless Chromium:
+// the site's four doors — fetching its files, the `oweb` command over the directory, the tools the page offers
+// (each operation of its subject `site`, from the listing), connected to the page by `omui connect` — held to one
+// answer: what the site says of itself is its llms.txt, a page read is its index.md, a search finds the same
+// sections; the words searched for through the page are in its own search box. `oweb`, `omui`: these programs
+// (built here when not given). The report: target/doors.report.xdef.json.
+[[nodiscard]] int doors(const std::filesystem::path& root, const std::filesystem::path& site, std::string_view path, const std::filesystem::path& oweb,
+                        const std::filesystem::path& omui);
+// A built site's pages scrolled by the wheel in a headed Chromium on a monitor of the desktop (red 164): each route
+// in turn, round after round — at rest, the wheel down to the page's end and back up — measured by the browser's own
+// trace and the page's long tasks and animation frames, the machine's load beside each phase. The report:
+// target/scroll.report.xdef.json (with `keep_trace`, each phase's trace in target/scroll/).
+struct Scroll {
+    std::filesystem::path    page;             // a site built with its engine (oweb site.build --engine)
+    std::vector<std::string> paths;            // its routes, visited in turn ("/long/", "/start/")
+    int                      rounds = 2;
+    std::string              screen;           // the monitor (RANDR's name: HDMI-0); empty: the primary
+    int                      width = 1280, height = 900;  // the window's
+    double                   speed = 3000;     // how fast the wheel turns, px a second
+    std::string              query;            // after each route's address (?renderer=cpu)
+    std::vector<std::string> flags;            // more switches for Chromium
+    bool                     headless = false;  // no window: a headless Chromium (not a performance number)
+    bool                     keep_trace = false;
+    // The program's own spans recorded too (mlibs.trace through window.omui): where its frames go — a run for that,
+    // not for the frame numbers (recording costs the program time of its own).
+    bool                     spans = false;
+};
+[[nodiscard]] int scroll(const std::filesystem::path& root, const Scroll& asked);
 
 // A template's file rendered: each {{name}} replaced by its value; or the first name it has no value for.
 [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);

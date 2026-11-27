@@ -113,6 +113,12 @@ jobs:
           for route in /start/ /agent/ /ui/ /live/; do
             mcpp run omui-devtools -p tools/devtools --profile ci -- check takeover --page target/oweb-docs --path "$route"
           done
+      - name: A site's four doors (AG5) — fetched, by the command, by the page's tools, connected — one answer
+        # The same built site, a page of it in a real browser: what the site says of itself is its llms.txt at every
+        # door, a page read is its index.md, a search finds the same sections — through the files a host sends, the
+        # `oweb` command, the tools the page offers (each operation of its subject, from the listing; WebMCP) and an
+        # agent connected by `omui connect`. The words searched for through the page are in its own search box.
+        run: mcpp run omui-devtools -p tools/devtools --profile ci -- check doors --page target/oweb-docs --path /start/
       - name: One site (ST7) — the page first, the minimal documents behind it; the template beside, at templates/docs/
         # site/oweb.config.ts: the route `/` is the page built above (an application's page, adopted as built), the
         # other routes the documents template's pages — one routes table, one search, one llms.txt. The page's own

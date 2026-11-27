@@ -74,6 +74,7 @@ struct Spans {
 // outline (a word of bits skips 64 columns of a shape's inside).
 class Rasterizer {
 public:
+    static constexpr std::int32_t piece_slack = 8;  // rasterize_rows's `values`: bytes readable past a piece's last
     void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Coverage& out);
     void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Spans& out);
     // The same runs as Spans holds, given one by one to emit(row, column,
@@ -91,13 +92,14 @@ public:
     // The same coverage, a row's short pieces gathered: emit(row, column,
     // count, value, values) — `values` null for a run of `value` (long runs:
     // a shape's inside), else the coverage of each of `count` pixels (the
-    // edge cells and the short runs between them, together), for a caller
-    // that composites a stretch of varying coverage at once.
+    // edge cells and the short runs between them, together; readable
+    // piece_slack bytes past the last), for a caller that composites a
+    // stretch of varying coverage at once.
     template <class Emit>
     void rasterize_rows(const Polygons& polygons, FillRule rule, PixelRect clip, Emit&& emit) {
         if (!prepare(polygons, clip)) return;
         const std::int32_t step = band_rows();
-        if (row_pieces_.size() < static_cast<std::size_t>(width_)) row_pieces_.resize(static_cast<std::size_t>(width_));
+        if (row_pieces_.size() < static_cast<std::size_t>(width_ + piece_slack)) row_pieces_.resize(static_cast<std::size_t>(width_ + piece_slack));
         for (std::int32_t first = 0; first < box_height_; first += step) {
             {
                 mlibs::trace::Span cells("raster.cells", "mrender.raster");  // the edges' cover and area into their cells

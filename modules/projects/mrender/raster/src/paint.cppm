@@ -108,6 +108,8 @@ struct WeightedPaint { Paint paint; float weight = 0; };
 class Shader {
 public:
     explicit Shader(const Paint& paint);
+    // The premultiplied colour a solid paint's Shader gives (its opacity applied): what SolidShading carries.
+    [[nodiscard]] static Rgba8 solid_of(const Paint& paint) noexcept;
     [[nodiscard]] inline bool opaque_solid() const noexcept { return solid_ && solid_color_.a == 255; }
     [[nodiscard]] inline bool solid() const noexcept { return solid_; }
     [[nodiscard]] inline Rgba8 solid_color() const noexcept { return solid_color_; }
@@ -158,6 +160,18 @@ private:
     std::uint32_t         opacity8_ = 255;
     std::uint32_t         image_k_ = 255;  // an image's tint times the opacity, in 1/255
     std::uint64_t         serial_ = 0;     // this shader's own number (its columns' cache, below)
+};
+
+// A solid paint's shading without a Shader's tables (a fill of one colour is
+// most fills: nothing of a gradient's or an image's set up for it) — the
+// same colour and the same answers as Shader gives for it.
+struct SolidShading {
+    Rgba8 color;
+    explicit SolidShading(const Paint& paint) noexcept : color(Shader::solid_of(paint)) {}
+    [[nodiscard]] bool solid() const noexcept { return true; }
+    [[nodiscard]] Rgba8 solid_color() const noexcept { return color; }
+    [[nodiscard]] bool opaque() const noexcept { return false; }  // as Shader for a solid paint (its fills take solid_color)
+    void shade(int, int, int, Rgba8*) const noexcept {}
 };
 
 // Caller-owned reusable setup/row scratch. Every leaf is shaded by Shader;

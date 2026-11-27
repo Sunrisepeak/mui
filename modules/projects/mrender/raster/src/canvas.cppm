@@ -131,6 +131,7 @@ private:
     Coverage                   shadow_;    // scratch for box shadows
     Coverage                   scratch_;   // scratch for clips and shadows
     std::vector<std::uint32_t> columns_;   // a rectangle's coverage of each column (rect_coverage)
+    std::vector<std::uint8_t>  coverage_row_;  // a row of a mask's coverage under a clip's mask
     StrokeScratch              stroke_;    // stroke_outline's
     ShadowScratch              shadow_scratch_;
 };

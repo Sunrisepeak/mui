@@ -13,6 +13,8 @@ namespace mrender::raster {
   [[nodiscard, gnu::always_inline]] inline Rgba8 scaled_scalar(Rgba8 s, std::uint32_t k) noexcept;
   void over_run(Rgba8* out, std::int32_t count, Rgba8 source) noexcept;
   void over_coverage(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
+  inline constexpr std::int32_t coverage_slack = 8;
+  void over_coverage_padded(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
   void over_coverage_reference(Rgba8* out, std::int32_t count, Rgba8 source, const std::uint8_t* coverage) noexcept;
   [[nodiscard]] std::string_view blend_path() noexcept;
   void over_run_reference(Rgba8* out, std::int32_t count, Rgba8 source) noexcept;
@@ -119,6 +121,7 @@ namespace mrender::raster {
   };
   class Shader {
     explicit Shader(const Paint& paint);
+    [[nodiscard]] static Rgba8 solid_of(const Paint& paint) noexcept;
     [[nodiscard]] inline bool opaque_solid() const noexcept;
     [[nodiscard]] inline bool solid() const noexcept;
     [[nodiscard]] inline Rgba8 solid_color() const noexcept;
@@ -128,6 +131,14 @@ namespace mrender::raster {
     [[nodiscard]] inline std::span<const std::uint8_t, 256> hard() const noexcept;
     [[nodiscard]] Rgba8 ramp_colour(float t) const noexcept;
     [[nodiscard]] static Rgba8 lit(Rgba8 color, Rgba8 normal, const MaterialSetup& m) noexcept;
+  };
+  struct SolidShading {
+    Rgba8 color;
+    explicit SolidShading(const Paint& paint) noexcept : color(Shader::solid_of(paint));
+    [[nodiscard]] bool solid() const noexcept;
+    [[nodiscard]] Rgba8 solid_color() const noexcept;
+    [[nodiscard]] bool opaque() const noexcept;
+    void shade(int, int, int, Rgba8*) const noexcept;
   };
   class MixShader {
     [[nodiscard]] bool reset(const Paint& paint);
@@ -167,6 +178,7 @@ namespace mrender::raster {
     [[nodiscard]] inline bool empty() const noexcept;
   };
   class Rasterizer {
+    static constexpr std::int32_t piece_slack = 8;
     void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Coverage& out);
     void rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Spans& out);
     template <class Emit> void rasterize_runs(const Polygons& polygons, FillRule rule, PixelRect clip, Emit&& emit);

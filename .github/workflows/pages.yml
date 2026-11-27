@@ -110,15 +110,24 @@ jobs:
           for route in /start/ /agent/ /ui/ /live/; do
             mcpp run omui-devtools -p tools/devtools --profile ci -- check takeover --page target/oweb-docs --path "$route"
           done
-      - name: The documents template beside the site (ST6) — published with it, at templates/docs/
-        # The same site built for where it is served (its sitemap's addresses), into the directory Pages publishes:
-        # a site of documents with its engine on a static host, under a path that is not the host's top.
+      - name: One site (ST7) — the page first, the minimal documents behind it; the template beside, at templates/docs/
+        # site/oweb.config.ts: the route `/` is the page built above (an application's page, adopted as built), the
+        # other routes the documents template's pages — one routes table, one search, one llms.txt. The page's own
+        # checks above ran on it alone; the documents' takeover is checked again here, in the site as published.
+        # Then the template by itself, built for where it is served: a site of documents with its engine on a static
+        # host, under a path that is not the host's top (ST6).
         run: |
           world="$PWD/$(dirname "$(ls -t target/.build-mcpp/out/*/oweb.reader/toy/oweb-reader/index.html | head -1)")"
           owner="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          mcpp run -p modules/projects/oweb --profile ci -- site.build --site modules/projects/oweb/templates/docs --out target/site/templates/docs --engine "$world" \
-            --url "https://$owner.github.io/${{ github.event.repository.name }}/templates/docs/"
-          test -f target/site/templates/docs/start/index.html && test -f target/site/templates/docs/site.delivery.xdef.json
+          served="https://$owner.github.io/${{ github.event.repository.name }}/"
+          mcpp run -p modules/projects/oweb --profile ci -- site.build --site modules/projects/oweb/templates/docs --config site/oweb.config.ts --out target/pages --engine "$world" \
+            --url "$served"
+          test -f target/pages/index.html && test -f target/pages/index.md && test -f target/pages/start/index.html
+          grep -q '"application":true' target/pages/site.routes.xdef.json && grep -q 'rel="search"' target/pages/index.html
+          mcpp run omui-devtools -p tools/devtools --profile ci -- check takeover --page target/pages --path /start/
+          mcpp run -p modules/projects/oweb --profile ci -- site.build --site modules/projects/oweb/templates/docs --out target/pages/templates/docs --engine "$world" \
+            --url "${served}templates/docs/"
+          test -f target/pages/templates/docs/start/index.html && test -f target/pages/templates/docs/site.delivery.xdef.json
       - name: Keep the site's checks and pictures
         if: always()
         uses: actions/upload-artifact@v4
@@ -140,6 +149,7 @@ jobs:
           name: site-built
           path: |
             target/site/
+            target/pages/site.*.json
             target/site-split/*.profile
           if-no-files-found: ignore
       - name: Where the site's WebAssembly bytes go (W8; Q-38)
@@ -156,7 +166,7 @@ jobs:
       - name: Keep the site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: target/site
+          path: target/pages
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -189,3 +199,15 @@ jobs:
           program="$(curl -fsS "${base}start/" | sed -n 's/^var omuiWasm = "\(.*\)";$/\1/p' | head -1)"
           test -n "$program" && curl -fsSI "${base}engine/${program}" | grep -qi '^content-type: application/wasm'
           echo "served: ${base} (routes, a page, its Markdown, the search index, llms.txt, the program)"
+      - name: The site is one site (ST7) — its first page an application, in the same tables as its documents
+        run: |
+          root="${{ steps.deployment.outputs.page_url }}"
+          curl -fsS "${root}site.routes.xdef.json" -o site.json
+          grep -q '"application":true' site.json && grep -q '"path":"/start/"' site.json
+          curl -fsS "${root}" -o first.html
+          grep -q 'rel="alternate" type="text/markdown" href="index.md"' first.html && grep -q 'data-omui="static"' first.html
+          curl -fsS "${root}index.md" | grep -q '^# '
+          curl -fsS "${root}start/" | grep -q 'data-omui-target='
+          curl -fsS "${root}llms.txt" | grep -q "${root}index.md"
+          curl -fsS "${root}site.search.xdef.json" | grep -q '"route":"/"'
+          echo "served: ${root} (the first page and its Markdown, a documents page, the tables, the search index)"

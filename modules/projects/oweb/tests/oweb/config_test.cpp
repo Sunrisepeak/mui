@@ -131,6 +131,47 @@ static UTest cases{"oweb.config", [] {
         }
     };
 
+    "a configuration that stands elsewhere: the site's pages, and what it states beside them from its own directory"_test = [] {
+        const auto site = scratch("config-elsewhere-site"), product = scratch("config-elsewhere-product");
+        write(site / "pages/index.md", "# Notes\n\nTo [the start](start.md).\n");
+        write(site / "pages/start.md", "# Start\n");
+        write(site / "oweb.config.ts", "import { defineSite } from \"oweb/define\";\nexport default defineSite({ title: \"The pages' own\" });\n");
+        write(product / "oweb.config.ts",
+              "import { defineSite } from \"oweb/define\";\nexport default defineSite({ title: \"The product\", engine: \"world\", routes: [\n"
+              "  { path: \"/\", page: \"web\" }, { path: \"/notes/\", source: \"pages/index.md\" }, { path: \"/start/\", source: \"pages/start.md\" },\n"
+              "  { path: \"/ops/\", reference: \"tool/tool.ops.xdef.ts\" }, { path: \"/built/\", reference: \"oweb\" }] });\n");
+        const auto options = oweb::configured(site, product / "oweb.config.ts");
+        expect(fatal(options.has_value())) << (options ? "" : options.error());
+        const auto from_product = [&](std::string_view inner) { return (product / inner).generic_string(); };
+        expect(options->title == "The product" && options->engine == from_product("world")) << options->engine;
+        expect(options->routes[0].page == from_product("web") && options->routes[3].reference == from_product("tool/tool.ops.xdef.ts")) << options->routes[0].page;
+        expect(options->routes[1].source == "pages/index.md" && options->routes[4].reference == "oweb") << "its pages are the site's; the builder's own catalog is no file";
+        // The site's own is read where none is named; one named that is not there is said, not passed over.
+        expect(oweb::configured(site).value_or(oweb::SiteOptions{}).title == "The pages' own");
+        const auto none = oweb::configured(site, product / "other.config.ts");
+        expect(!none.has_value() && none.error().contains("no such configuration")) << (none ? "" : none.error());
+
+        // The command: the same pages built as the product's site.
+        write(product / "web/index.html",
+              "<!doctype html>\n<html lang=\"en\">\n<head>\n<title>The product</title>\n</head>\n<body>\n<div data-omui=\"static\">\n<h1>One line.</h1>\n</div>\n"
+              "<script>window.addEventListener('omui-load', function (e) {});</script>\n</body>\n</html>\n");
+        write(product / "oweb.config.ts",
+              "import { defineSite } from \"oweb/define\";\nexport default defineSite({ routes: [\n"
+              "  { path: \"/\", page: \"web\" }, { path: \"/notes/\", source: \"pages/index.md\" }, { path: \"/start/\", source: \"pages/start.md\" }] });\n");
+        oweb::Sites sites;
+        mlibs::agent::SubjectSession session({&sites});
+        const auto out = scratch("config-elsewhere-out");
+        std::ostringstream made, errors;
+        expect(mlibs::agent::command_line(session,
+                                          std::vector<std::string_view>{"site.build", "--site", site.generic_string(), "--config", (product / "oweb.config.ts").generic_string(), "--out",
+                                                                        out.generic_string()},
+                                          made, errors) == 0)
+            << made.str() << errors.str();
+        const std::string table = read(out / "site.routes.xdef.json");
+        expect(table.contains("\"source\":\"web/index.html\"") && table.contains("\"path\":\"/notes/\"") && !table.contains(product.generic_string())) << table;
+        expect(read(out / "index.html").contains("<h1>One line.</h1>") && read(out / "notes" / "index.html").contains("href=\"../start/\"") && read(out / "notes" / "index.html").contains(">The product</a>"));
+    };
+
     "a link inside the site that leads nowhere: the page, the link and why, each said; nothing is written"_test = [] {
         const auto site = scratch("links-wrong");
         write(site / "pages/index.md", "# Home\n\nSee [the guide](guide.md#setup), [a draft](draft.md), [a place](guide.md#nowhere), [marked](guide.md#marked) and ![a picture](media/none.png).\n\n"

@@ -30,10 +30,10 @@ void failed(Reply& reply, std::string_view why) {
 
 inline constexpr std::uintmax_t not_a_number = std::numeric_limits<std::uintmax_t>::max();
 
-// A site's options: its configuration's (oweb.config.ts), and what the request states over them ("en,zh": its
+// A site's options: its configuration's (oweb.config.ts, or the one the request names), and what the request states over them ("en,zh": its
 // languages, the default first). Nothing where the configuration cannot be read: the reply says why.
 std::optional<SiteOptions> options_of(Reply& reply, const mlibs::agent::Arguments& args, const shell::View& view) {
-    auto stated = configured(mcpplibs::os::fs::from_utf8(args.value("site").value_or("")));
+    auto stated = configured(mcpplibs::os::fs::from_utf8(args.value("site").value_or("")), mcpplibs::os::fs::from_utf8(args.value("config").value_or("")));
     if (!stated) {
         failed(reply, stated.error());
         return std::nullopt;

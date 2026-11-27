@@ -751,10 +751,10 @@ std::string routes_json(std::span<const Route> routes, const SiteOptions& option
         Value::List headings;
         for (const Heading& heading : route.headings)
             headings.push_back(Value{}.set("level", Value(static_cast<std::int64_t>(heading.level))).set("text", heading.text).set("anchor", heading.anchor));
-        // An application's page stated by a whole path of the machine that built the site: the table is published,
-        // and says the page by its directory's name.
+        // A source stated by a whole path of the machine that built the site (an application's page, a catalog a
+        // configuration elsewhere names): the table is published, and says it by its directory's name.
         const std::filesystem::path file = mcpplibs::os::fs::from_utf8(route.source);
-        const std::string stated = route.page.empty() || !file.is_absolute() ? route.source : generic(file.parent_path().filename() / file.filename());
+        const std::string stated = !file.is_absolute() ? route.source : generic(file.parent_path().filename() / file.filename());
         list.push_back(Value{}
                            .set("path", route.path)
                            .set("source", stated)

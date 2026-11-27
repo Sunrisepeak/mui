@@ -18,6 +18,7 @@ export default defineOps({
       summary: "Build the site: each page of pages/ a route with its index.html (the tree as HTML: readable with no script) and index.md (the tree as Markdown), the routes table, llms.txt, the search index, 404.html for a lost address, given the site's address sitemap.xml, and the delivery manifest — every file as stored and as a static host sends it, each route's bytes before it reads held to a budget (over it: written, and failed with where). A link inside the site that leads nowhere fails the build with each one said, and nothing is written",
       params: [
         { name: "site", type: "path", doc: "the site's directory (it holds pages/)" },
+        { name: "config", type: "path", doc: "the site's configuration, where it is not the oweb.config.ts in its directory: the same pages as another site — what it states beside the pages (an engine, a route's built page, a catalog) is from its own directory", optional: true },
         { name: "out", type: "path", doc: "the directory written" },
         { name: "title", type: "string", doc: "the site's title (default: its first page's)", optional: true },
         { name: "languages", type: "string", doc: "its languages, the default first: en,zh — a first directory of that name is that language's pages", optional: true },
@@ -36,6 +37,7 @@ export default defineOps({
       summary: "The routes a site's pages give: each its address, source, title, language and headings with their anchors",
       params: [
         { name: "site", type: "path", doc: "the site's directory" },
+        { name: "config", type: "path", doc: "the site's configuration, where it is not the oweb.config.ts in its directory: the same pages as another site — what it states beside the pages (an engine, a route's built page, a catalog) is from its own directory", optional: true },
         { name: "languages", type: "string", doc: "its languages, the default first", optional: true },
       ],
       result: "json",
@@ -47,6 +49,7 @@ export default defineOps({
       summary: "One route as it would be written, without building the site: its Markdown (what an agent that only fetches reads) or its HTML",
       params: [
         { name: "site", type: "path", doc: "the site's directory" },
+        { name: "config", type: "path", doc: "the site's configuration, where it is not the oweb.config.ts in its directory: the same pages as another site — what it states beside the pages (an engine, a route's built page, a catalog) is from its own directory", optional: true },
         { name: "route", type: "string", doc: "its address (/guide/start/)" },
         { name: "as", type: "string", doc: "markdown (default) or html", optional: true },
         { name: "languages", type: "string", doc: "the site's languages, the default first", optional: true },
@@ -60,6 +63,7 @@ export default defineOps({
       summary: "The sections of a site's pages that hold every word asked for, best first: each its route, its anchor, the headings it is under and the line that says so — the same index a built site serves as site.search.xdef.json",
       params: [
         { name: "site", type: "path", doc: "the site's directory" },
+        { name: "config", type: "path", doc: "the site's configuration, where it is not the oweb.config.ts in its directory: the same pages as another site — what it states beside the pages (an engine, a route's built page, a catalog) is from its own directory", optional: true },
         { name: "query", type: "string", doc: "the words; text without spaces between words matches by characters in a row" },
         { name: "limit", type: "string", doc: "how many at most (default 8)", optional: true },
         { name: "languages", type: "string", doc: "the site's languages, the default first", optional: true },

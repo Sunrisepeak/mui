@@ -27,7 +27,11 @@ inline constexpr std::string_view define_name = "oweb/define";
 [[nodiscard]] std::string define_module();
 
 // A site's options as its oweb.config.ts states them, over the defaults; the defaults where it has none.
-[[nodiscard]] std::expected<SiteOptions, std::string> configured(const std::filesystem::path& site);
+// `stated`: a configuration that stands elsewhere than in the site's directory — the same pages as another site (a
+// product's documents behind its own first page, one corpus built two ways). Its pages are the site's (`source`,
+// from the site's directory); what it states beside them — an engine, a route's built page, a catalog — is from
+// its own directory. One that is not there is an error, not the defaults.
+[[nodiscard]] std::expected<SiteOptions, std::string> configured(const std::filesystem::path& site, const std::filesystem::path& stated = {});
 
 // The same from a configuration's snapshot (`{"$format":"site@1","site":{…}}`); `file` names it in a problem.
 [[nodiscard]] std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, std::string file);

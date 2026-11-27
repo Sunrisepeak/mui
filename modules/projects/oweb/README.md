@@ -18,6 +18,8 @@ A directory with `pages/`. Every Markdown file there is a route: `pages/index.md
 
 A route can also be **an application's page**: `{ path: "/", page: "<directory>" }` in `oweb.config.ts` names the directory an application's page was built into (`omui build --web`: the page and its files). The page is served as it was built, its files beside it, and it is a route like any other — in the navigation by its own `<title>`, in the routes table (`application: true`), in the search and in `llms.txt` — by what its own document says: the first screen a built page holds for a reader without its program (`[data-omui=static]`) is read as Markdown, written as the route's `index.md`, and its links are checked as any page's (an address from where the page is served — `start/` — is a file of its own or a place of the site). Nothing is described twice: no front matter, no metadata beside the page. A page with no such document is not adopted, and two files that would share an address are said.
 
+A site's configuration is the `oweb.config.ts` in its directory — or the one a request names (`--config FILE`): the same pages built as another site, a product's documents behind its own first page. The pages stay the site's (`source`); what such a configuration states beside them (an engine, a route's built page, a catalog) is from its own directory. omui's site is built so: [`site/oweb.config.ts`](../../../site/oweb.config.ts) puts the page `site/` builds first and the minimal documents behind it.
+
 ## What is built
 
 Each route is evaluated once, headless, into its semantic tree — the navigation and the page's document — and the tree is written twice:

@@ -18,7 +18,7 @@
     { "name": "split", "job": "split", "minutes": 141,
       "what": "each tier exported with only what it declares and tested on its own (three jobs)" },
     { "name": "pages", "workflow": "pages.yml", "minutes": 55,
-      "what": "the site, one page (G5), built for the Web, its visitor's path and delivery checked in a real browser, published to GitHub Pages; a site of documents with its engine, each page's words where its program draws them, published beside the site (templates/docs/) and fetched as served" },
+      "what": "the site, one page (G5), built for the Web, its visitor's path and delivery checked in a real browser, published to GitHub Pages; a site of documents with its engine, each page's words where its program draws them; the page and the documents published as one site (the page its first route, ST7), the template beside it (templates/docs/), both fetched as served" },
     { "name": "sanitize", "workflow": "nightly.yml", "minutes": 150,
       "what": "every member's tests under AddressSanitizer and UndefinedBehaviorSanitizer" },
     { "name": "bench", "workflow": "bench.yml", "minutes": 23,

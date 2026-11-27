@@ -129,15 +129,31 @@ std::expected<SiteOptions, std::string> options_from(std::string_view snapshot, 
     return options;
 }
 
-std::expected<SiteOptions, std::string> configured(const std::filesystem::path& site) {
-    const std::filesystem::path file = site / "oweb.config.ts";
+std::expected<SiteOptions, std::string> configured(const std::filesystem::path& site, const std::filesystem::path& stated) {
+    const std::filesystem::path file = stated.empty() ? site / "oweb.config.ts" : stated;
     std::error_code error;
-    if (!std::filesystem::exists(file, error)) return SiteOptions{};
+    if (!std::filesystem::exists(file, error)) {
+        if (stated.empty()) return SiteOptions{};
+        return std::unexpected(std::format("{}: no such configuration (left out, the site's own oweb.config.ts is read)", mcpplibs::os::fs::utf8(file)));
+    }
     const auto data = mlibs::ts::evaluate(file, {.modules = {{std::string(define_name), define_module()}}});
     if (!data) return std::unexpected(data.error().message);
     if (data->kind != "site")
         return std::unexpected(std::format("{}: its default export is a `{}`, not a site: export default defineSite({{ … }}) from \"{}\"", mcpplibs::os::fs::utf8(file), data->kind, define_name));
-    return options_from(data->snapshot(), mcpplibs::os::fs::utf8(file));
+    auto options = options_from(data->snapshot(), mcpplibs::os::fs::utf8(file));
+    if (!options || stated.empty()) return options;
+    // What it states beside the pages is from where it stands.
+    const std::filesystem::path directory = std::filesystem::absolute(file, error).parent_path();
+    const auto own = [&](std::string& path) {
+        const std::filesystem::path given = mcpplibs::os::fs::from_utf8(path);
+        if (!path.empty() && !given.is_absolute()) path = mcpplibs::os::fs::utf8((directory / given).lexically_normal());
+    };
+    own(options->engine);
+    for (Declared& route : options->routes) {
+        own(route.page);
+        if (route.reference != own_catalog) own(route.reference);
+    }
+    return options;
 }
 
 }  // namespace oweb

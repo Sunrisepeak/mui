@@ -26,6 +26,13 @@ export namespace omui::gen {
 // each (caller, callee) between two functions the program defines.
 [[nodiscard]] std::vector<std::pair<std::size_t, std::size_t>> call_edges(std::string_view dot);
 
+// The calls the call graph does not state: a call through an exception invoker (`invoke_vi(slot, …)`, a try block's
+// call of the function the table holds at `slot`), where `slot` is a constant — each (caller, callee) between two
+// functions the program defines, from the program as Binaryen prints it (`wasm-opt --print`: `names` the symbol map
+// by function index, imports first, which says which imports are invokers; `imports` how many the program imports).
+[[nodiscard]] std::vector<std::pair<std::size_t, std::size_t>> invoke_edges(std::string_view printed, const std::map<std::size_t, std::string>& names,
+                                                                          std::size_t imports);
+
 // A function's name as two links of the same code both have it: the uniquing suffix Emscripten's symbol map gives a
 // name two functions share (`~__func()_17692`, by the function's index) dropped.
 [[nodiscard]] std::string_view linked_name(std::string_view name) noexcept;

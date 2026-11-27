@@ -105,6 +105,34 @@ static UTest cases{"omui.gen.part", [] {
         expect(edges == std::vector<std::pair<std::size_t, std::size_t>>{{0, 7}, {7, 2}}) << "the key's A -> B is no function's";
     };
 
+    "a call through an exception invoker with a constant slot is an edge: the function the table holds there"_test = [] {
+        // Imports 0 (a JS function) and 1 (invoke_vi); table slots 1.. hold functions 5, 3, an import, 7. Function 2 calls slot 2 (3)
+        // through the invoker with its operand on the next line; function 4 calls slot 1 (5) with it on the same line; function 6
+        // calls the other import; function 7 calls slot 3, an import's — none; and a computed slot is no edge.
+        const std::string printed =
+            " (import \"a\" \"b\" (func $fimport$0))\n (import \"a\" \"c\" (func $fimport$1 (param i32 i32)))\n"
+            " (elem $0 (table $0) (i32.const 1) func $5 $3 $fimport$1 $7)\n"
+            " (func $2 (param $0 i32)\n  (call $fimport$1\n   (i32.const 2)\n   (local.get $0)\n  )\n )\n"
+            " (func $4\n  (call $fimport$1 (i32.const 1) (i32.const 0))\n )\n"
+            " (func $6\n  (call $fimport$0)\n  (call $fimport$1\n   (local.get $0)\n   (i32.const 2)\n  )\n )\n"
+            " (func $7\n  (call $fimport$1\n   (i32.const 3)\n   (i32.const 0)\n  )\n )\n (export \"main\" (func $2))\n";
+        const std::map<std::size_t, std::string> names{{0, "b"}, {1, "invoke_vi"}};
+        const auto edges = gen::invoke_edges(printed, names, 2);
+        expect(edges == std::vector<std::pair<std::size_t, std::size_t>>{{2, 3}, {4, 5}}) << "a constant slot: its function; an import's slot and a computed one: none";
+        // The whole's print has no `func` and no table in its element segment (the first part's has both).
+        std::string plain = printed;
+        const std::string_view with_table = " (elem $0 (table $0) (i32.const 1) func $5";
+        plain.replace(plain.find(with_table), with_table.size(), " (elem $0 (i32.const 1) $5");
+        expect(gen::invoke_edges(plain, names, 2) == edges) << "an element segment as the whole prints it";
+        expect(gen::invoke_edges(printed, {{0, "b"}, {1, "other"}}, 2).empty()) << "an import that is no invoker";
+        // The first part follows them: main (the sibling has it) -> the invoker -> the function a try block calls, which the sibling
+        // inlined; the examples' function is neither.
+        const std::map<std::size_t, std::string> whole{{0, "now"}, {1, "main"}, {2, "initialiser()"}, {3, "examples()"}};  // main is defined 0
+        const std::vector<std::pair<std::size_t, std::size_t>> none{}, followed{{0, 1}};
+        expect(gen::first_part(whole, {"now", "main"}, 1, none) == std::set<std::size_t>{0}) << "without the edge the initialiser is left in the second part";
+        expect(gen::first_part(whole, {"now", "main"}, 1, followed) == std::set<std::size_t>{0, 1}) << "with it, the first part has it";
+    };
+
     "the first part: what the sibling has by name, and what that calls directly in the whole"_test = [] {
         // Two imports (0, 1); the whole defines 2..7 — by its own index 0..5.
         const std::map<std::size_t, std::string> whole{{0, "now"}, {1, "later"}, {2, "main"}, {3, "read(page)"}, {4, "inlined there(x)"},

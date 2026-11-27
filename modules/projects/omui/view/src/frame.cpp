@@ -377,6 +377,7 @@ void Runtime::Impl::run_animations() {
             // Settled: readers waiting for it see a new revision (no further frame is needed).
             dirty |= dirty_semantics;
             ++semantic_revision;
+            ++semantic_content_revision;
         }
     }
     animating = std::move(still);
@@ -393,6 +394,7 @@ void Runtime::Impl::run_layout() {
     stats.laid_out = layout.stats().layouts;
     dirty |= dirty_paint | dirty_semantics;
     ++semantic_revision;  // bounds moved
+    ++semantic_content_revision;  // and what a component says of its size, its rows: all read again
 }
 
 bool Runtime::Impl::displayed(NodeId id) const {
@@ -1181,6 +1183,7 @@ void Runtime::Impl::collect_presentation() {
     if (changed) {
         // This frame already carries the new geometry. Publish its revision
         // without requesting a redundant animation frame after it settles.
+        // Only where nodes are moved: the content revision stays.
         dirty |= dirty_semantics;
         ++semantic_revision;
     }

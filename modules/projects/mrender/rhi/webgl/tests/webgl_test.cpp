@@ -27,7 +27,8 @@ bool require_flag = false;  // --require-webgl
 bool required() { return require_flag || mcpplibs::os::env::get("OMUI_REQUIRE_WEBGL") == "1"; }
 
 std::unique_ptr<Device> open_device() {
-    auto d = webgl::create();
+    // The conformance run reads GL's errors after every submission, so a failure names the one that made it.
+    auto d = webgl::create({.checked = true});
     if (!d) {
         if (required()) expect(false) << std::format("WebGL2 is required here, and there is no device: {}", d.error().message);
         else std::println("no WebGL2 device here ({}); OMUI_REQUIRE_WEBGL=1 makes that a failure", d.error().message);

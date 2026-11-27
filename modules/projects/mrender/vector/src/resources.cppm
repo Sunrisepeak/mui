@@ -74,7 +74,17 @@ public:
     [[nodiscard]] virtual GlyphMask mask(FontRef font, std::uint32_t glyph, float size, Point fraction) = 0;
     // The outline in em units, y down, for transforms masks cannot express.
     [[nodiscard]] virtual mrender::raster::PathData outline(FontRef font, std::uint32_t glyph) = 0;
+    // How many subpixel positions per pixel its masks tell apart, on each axis: a fraction stands for its phase
+    // (phase_of), and two fractions of one phase have the same mask — what keeps them may keep one. 0: each
+    // fraction its own.
+    [[nodiscard]] virtual int mask_phases() const noexcept { return 0; }
 };
+
+// The phase a subpixel fraction in [0, 1) stands for among `phases` per pixel: the nearest, one past the last
+// clamped to the last (floor(f · phases + ½), within [0, phases)).
+[[nodiscard]] inline int phase_of(float fraction, int phases) noexcept {
+    return std::clamp(static_cast<int>(std::floor(fraction * static_cast<float>(phases) + 0.5f)), 0, phases - 1);
+}
 
 struct Resources {
     const ImageStore* images = nullptr;

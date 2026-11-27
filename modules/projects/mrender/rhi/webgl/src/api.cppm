@@ -29,6 +29,12 @@ struct Options {
     // WebGL2 context the device is, and that present() shows frames on.
     // Empty: a canvas of the page's own that nobody sees (offscreen work).
     std::string canvas;
+    // GL's errors read after every submission and present: each a round trip to the browser's GPU process, which
+    // waits for the work before it (a debugging session, a conformance run). Off, they are read where that costs
+    // nothing more or where an error comes from — a resource made, a readback, wait(), the first frames and the
+    // next ones after anything is made — and an error is still said, by the first of those after it (GL keeps it
+    // until it is read): what is lost is which submission made it. A page turns it on with ?gl-checks.
+    bool checked = false;
 };
 
 // A device, or why there is none (Errc::unsupported: not in a page, no

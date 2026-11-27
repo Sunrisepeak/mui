@@ -48,4 +48,10 @@ bool read(std::uint32_t buffer, std::uint32_t offset, std::span<std::byte> out);
 // 1 shown, 0 nothing to show, -1 failed.
 [[nodiscard]] int present(std::uint32_t texture);
 
+// Every submission and present read for GL's errors (else: the first frames, after anything is made, readbacks,
+// waits; a page's ?gl-checks turns it on as well).
+void checked(bool on);
+// GL's errors of the work so far read; false: there was one (error() says it).
+[[nodiscard]] bool settle();
+
 }  // namespace mrender::rhi::webgl::page

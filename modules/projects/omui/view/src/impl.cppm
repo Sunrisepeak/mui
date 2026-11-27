@@ -548,6 +548,7 @@ struct Runtime::Impl {
     NodeId                                  pointed_by;
 
     std::uint64_t        semantic_revision = 1;
+    std::uint64_t        semantic_content_revision = 1;  // the same, not for where nodes are (Runtime::semantic_content_revision)
     std::uint64_t        next_token = 1;
     struct RuntimeHandler {
         std::uint64_t token;
@@ -803,7 +804,7 @@ struct Runtime::Impl {
     void        touch(std::uint8_t what) {
         dirty |= what;
         frame_requested = true;
-        if (what & (dirty_semantics | dirty_tree)) ++semantic_revision;
+        if (what & (dirty_semantics | dirty_tree)) ++semantic_revision, ++semantic_content_revision;
     }
 
     // tree (tree.cpp)
@@ -906,6 +907,7 @@ struct Runtime::Impl {
     void     reveal(NodeId id, bool at_start);
     Envelope perform_item(NodeId holder, std::string_view key, std::string_view action, const Invocation& call, Outcome* out = nullptr);
     [[nodiscard]] spec::SemanticNode semantics(NodeId id) const;
+    [[nodiscard]] Runtime::SemanticGeometry semantic_geometry(NodeId id) const;
 
     // history and transactions (history.cpp, S-12, S-13)
     struct UndoStep {

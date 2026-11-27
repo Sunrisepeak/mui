@@ -21,5 +21,7 @@ bool read(std::uint32_t, std::uint32_t, std::span<std::byte>) { return false; }
 std::string error() { return {}; }
 bool lost() { return false; }
 int present(std::uint32_t) { return -1; }
+void checked(bool) {}
+bool settle() { return true; }
 
 }  // namespace mrender::rhi::webgl::page

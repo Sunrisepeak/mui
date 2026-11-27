@@ -351,6 +351,10 @@ struct Web::Impl {
                 if (!shown_pictures.failed().empty()) warn("host.web: {}", shown_pictures.failed());
                 return texture;
             };
+            // Frames shown one after another, as a window's (the desktop host's): text and smoothed corners are their
+            // outlines' — a line scrolled to a new fraction of a pixel rasterises and sends nothing. Kept for
+            // read_frame only (a page that cannot show them), each glyph the reference's bytes.
+            if (options.present) how.glyph_masks = mrender::glyph_masks_a_live_frame;
             if (auto r = gpu->render({&ui_layer, 1}, target, static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(hgt), how); !r)
                 return gpu_failed(r.error().message);
         }

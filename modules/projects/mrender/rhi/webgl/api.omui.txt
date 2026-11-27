@@ -4,6 +4,7 @@ export import mrender.rhi.webgl.api;
 namespace mrender::rhi::webgl {
   struct Options {
     std::string canvas;
+    bool checked = false;
   };
   [[nodiscard]] Result<std::unique_ptr<Device>> create(const Options& options = {…});
 }

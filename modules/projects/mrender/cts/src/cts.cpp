@@ -191,6 +191,36 @@ private:
     std::map<std::uint32_t, std::unique_ptr<raster::PathBuilder>> outlines_;
 };
 
+// The boxes as a text engine keeps them: a mask for each of four subpixel phases a pixel on each axis (as
+// mrender.text's glyph cache does), what it gives every fraction of a phase the same mask — and it says so.
+class Phased final : public render::GlyphSource {
+public:
+    static constexpr int phases = 4;
+    std::size_t made = 0;  // masks it rasterised
+    render::GlyphMask mask(render::FontRef, std::uint32_t glyph, float size, geom::Point fraction) override {
+        const int px = render::phase_of(fraction.x, phases), py = render::phase_of(fraction.y, phases);
+        const auto key = std::format("{}/{}/{}/{}", glyph, size, px, py);
+        auto it = masks_.find(key);
+        if (it == masks_.end()) {
+            ++made;
+            raster::PathBuilder pb;
+            const float w = (static_cast<float>(glyph) + 2) / 10 * size, h = 0.7f * size;
+            const float ox = static_cast<float>(px) / phases, oy = static_cast<float>(py) / phases;
+            pb.rect({ox, oy - h, w, h});
+            auto c = std::make_unique<raster::Coverage>();
+            raster::fill_coverage(pb.data(), {}, raster::FillRule::nonzero, {-1000, -1000, 4000, 4000}, *c);
+            it = masks_.emplace(key, std::move(c)).first;
+        }
+        return {it->second.get(), nullptr, {}};
+    }
+    raster::PathData outline(render::FontRef font, std::uint32_t glyph) override { return boxes_.outline(font, glyph); }
+    int mask_phases() const noexcept override { return phases; }
+
+private:
+    std::map<std::string, std::unique_ptr<raster::Coverage>> masks_;
+    Boxes boxes_;
+};
+
 // Glyphs with curves and holes: a disc, a ring (its inner contour wound the
 // other way), a bowl (a cubic and a quadratic), each an em tall or less.
 class Rounds final : public render::GlyphSource {
@@ -1014,6 +1044,45 @@ void add(Cases& suite) {
         auto last = rig.gpu.render(few, *target, {&rig.images, &rig.glyphs}, {.scale = 1, .background = bg});
         check(last.has_value());
         if (last) check(last->masks_made + last->masks_reused == 30, "the first frame's masks, made again or kept");
+    });
+
+    add_case(suite, "render.vector.glyph-phases", mlibs::cts::Level::tolerance, [](Bench& bench) {  // text moved by less than its source's phase (a view scrolled by a fraction of a pixel) is drawn from the masks the atlas has: none made or sent again, the reference's bytes
+        rhi::Device* device = &bench.device;
+        auto gpu = render::GpuRenderer::create(*device);
+        check(gpu.has_value(), gpu ? "" : gpu.error().message);
+        if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.target"});
+        check(target.has_value());
+        if (!target) return;
+        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
+        Phased phased;
+        rig.source = &phased;
+        // A line of text where a view that scrolls has it: its origin `down` from where it was, by a fraction.
+        auto text = [](render::DisplayList& dl, float down) {
+            std::array<render::Glyph, 8> run{};
+            for (std::uint32_t index = 0; index < run.size(); ++index) run[index] = {index, {static_cast<float>(index) * 11.3f, 0}, index, index, 0, 0};
+            dl.draw_glyphs({1}, 14, {6.3f, 30.02f + down}, run, render::Paint::solid(geom::Color::hex(0x0f172a)));
+        };
+        render::DisplayList first;
+        text(first, 0);
+        check(rig.compare(first, "a line of text", {1, 0}).empty(), "the first frame");
+        check(rig.last.masks_made > 0, "its masks made");
+        // 0.02 and 0.08 of a pixel are one phase of four (the nearest quarter: 0): the same masks.
+        render::DisplayList moved;
+        text(moved, 0.06f);
+        const std::string same = rig.compare(moved, "the line moved within its phase", {1, 0});
+        check(same.empty(), same);
+        check_eq(rig.last.masks_made, std::size_t{0});
+        // A quarter further is another phase: its masks made once.
+        render::DisplayList further;
+        text(further, 0.25f);
+        check(rig.compare(further, "the line in the next phase", {1, 0}).empty(), "the next phase");
+        check(rig.last.masks_made > 0, "the next phase's masks made");
+        render::DisplayList back;
+        text(back, 0.04f);
+        check(rig.compare(back, "the line back in the first phase", {1, 0}).empty(), "back");
+        check_eq(rig.last.masks_made, std::size_t{0});
+        device->destroy(*target);
     });
 
     add_case(suite, "render.vector.glyphs-outlined", mlibs::cts::Level::tolerance, [](Bench& bench) {  // a frame's glyph masks limited: text in motion is covered on the device from its outlines, at rest it is the reference's bytes

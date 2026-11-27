@@ -221,6 +221,8 @@ namespace omui::devtools::check {
     bool headless = false;
     bool keep_trace = false;
     bool spans = false;
+    bool gl_calls = false;
+    bool ways = false;
   };
   [[nodiscard]] int scroll(const std::filesystem::path& root, const Scroll& asked);
   [[nodiscard]] std::expected<std::string, std::string> render(std::string_view text, const std::map<std::string, std::string>& values);

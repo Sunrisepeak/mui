@@ -383,7 +383,9 @@ cmd::App app() {
                                         .option(Option("flag").takes_value().multiple().value_name("SWITCH").help("a switch for Chromium (--flag=--enable-unsafe-webgpu)"))
                                         .option(Option("headless").help("no window (not a performance number)"))
                                         .option(Option("trace").help("each phase's trace kept for Perfetto (target/scroll/)"))
-                                        .option(Option("spans").help("the program's own spans too: where its frames go (a run for that: recording them costs it time)")))
+                                        .option(Option("spans").help("the program's own spans too: where its frames go (a run for that: recording them costs it time)"))
+                                        .option(Option("gl-calls").help("every WebGL2 call the page makes counted by name (a run for that, too)"))
+                                        .option(Option("ways").help("the browser's ceiling for the other ways a WebGL2 frame can be shown too (desynchronized, ImageBitmap, opaque, copied onto a 2D canvas)")))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
                                         .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))
@@ -1793,6 +1795,8 @@ int main(int argc, char** argv) {
             asked.headless = given.is_flag_set("headless");
             asked.keep_trace = given.is_flag_set("trace");
             asked.spans = given.is_flag_set("spans");
+            asked.gl_calls = given.is_flag_set("gl-calls");
+            asked.ways = given.is_flag_set("ways");
             return step::scroll(root, asked);
         }
         if (sub.subcommand_name() == "web") return step::web(root, given.value("profile").value_or("wasm-test"));

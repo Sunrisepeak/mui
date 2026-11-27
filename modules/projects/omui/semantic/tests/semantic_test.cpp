@@ -4,6 +4,7 @@
 import std;
 import mlibs.text.harfbuzz;
 import omui.semantic;
+import mlibs.trace;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -174,6 +175,55 @@ UTest cases{"semantic", [] {
         app.toast.set(false);
         rt.frame({seconds(1), {}});
         expect(tree.changes().removed == std::vector<std::string>{"main/toast"});
+    };
+
+    "a view scrolled: only places are read again — the view whole, each node where it is now — and the tree is what a reading of it all gives"_test = [] {
+        Runtime rt(options());
+        Signal<std::string> fifth{std::string("Row 5")};
+        std::vector<Element> rows;
+        for (int index = 0; index < 12; ++index)
+            rows.push_back(index == 5 ? text({.id = "r5", .text = derive([fifth] { return fifth.get(); })}) : text({.id = std::format("r{}", index), .text = std::format("Row {}", index)}));
+        rt.mount("main", column({}, {scroll({.id = "list", .width = 300, .height = 100}, {column({.id = "rows", .gap = 10}, std::move(rows))})}));
+        expect(rt.frame({seconds(0), {}}).failure.empty());
+        sem::Tree tree(rt);
+        (void)tree.changes();
+        const auto whole = [&] {
+            sem::Tree fresh(rt);
+            return fresh.snapshot({}).nodes;
+        };
+        // The wheel (a touchpad's, precise: the view jumps): where things are moved, nothing else did.
+        const std::uint64_t content = rt.semantic_content_revision();
+        WheelEvent wheel;
+        wheel.position = {50, 50};
+        wheel.delta = {0, 45};
+        wheel.precise = true;
+        expect(rt.frame({seconds(0), {wheel}}).failure.empty());
+        expect(eq(rt.semantic_content_revision(), content)) << "a scroll moved places only";
+        mlibs::trace::start();
+        const auto scrolled = tree.changes();
+        const auto read = mlibs::trace::stop().summary();
+        const auto spans = [&](std::string_view name) { return std::ranges::count(read, name, &mlibs::trace::Stat::name); };
+        expect(spans("semantic.moved") == 1 && spans("semantic.refresh") == 0) << "only places read again, not every node";
+        expect(scrolled.added.empty() && scrolled.removed.empty());
+        const auto view = std::ranges::find(scrolled.updated, std::string("main/list"), &spec::SemanticNode::id);
+        expect(view != scrolled.updated.end()) << "the view says where it is now";
+        const auto row = std::ranges::find(scrolled.updated, std::string("main/list/rows/r3"), &spec::SemanticNode::id);
+        expect(row != scrolled.updated.end() && row->bounds && row->name == "Row 3");
+        expect(tree.snapshot({}).nodes == whole()) << "what a reading of it all gives";
+        // A row's words change while the view scrolls: that is read, whole.
+        fifth.set("Row five");
+        wheel.delta = {0, 30};
+        expect(rt.frame({seconds(0), {wheel}}).failure.empty());
+        expect(rt.semantic_content_revision() != content);
+        const auto renamed = tree.changes();
+        const auto five = std::ranges::find(renamed.updated, std::string("main/list/rows/r5"), &spec::SemanticNode::id);
+        expect(five != renamed.updated.end() && five->name == "Row five");
+        expect(tree.snapshot({}).nodes == whole());
+        // Back up past where it began: offscreen rows come into sight, others leave it, all as a whole read says.
+        wheel.delta = {0, -75};
+        expect(rt.frame({seconds(0), {wheel}}).failure.empty());
+        (void)tree.changes();
+        expect(tree.snapshot({}).nodes == whole());
     };
 
     "a holder's thousand items: read once while their revision stays, and only what changed is answered"_test = [] {

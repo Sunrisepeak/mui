@@ -422,6 +422,50 @@ test('buffers read back where they are; GL\'s errors and a lost context go to th
   assert.match(c.omui_webgl_error(), /lost/);
 });
 
+test('a steady frame reads no GL error (each read waits for the GPU process); one is said by the next look: a wait, a readback, a frame after something is made; every one when checked', () => {
+  const l = opened();
+  const { c, G, gl, heap } = l;
+  c.omui_webgl_buffer(0, 16, G.BUF.vertex);
+  const data = heap.bytes(Array.from({ length: 16 }, (_, i) => i));
+  const w = wire(G).upload_buffer(0, 0, data, 16).words;
+  const reads = () => gl.calls('getError').length;
+  // The first submissions after the buffer was made are watched; then the frames are steady.
+  for (let frame = 0; frame < G.WATCHED; ++frame) assert.equal(c.omui_webgl_run(heap.words(w), w.length), 1);
+  const steady = reads();
+  for (let frame = 0; frame < 10; ++frame) assert.equal(c.omui_webgl_run(heap.words(w), w.length), 1);
+  assert.equal(reads(), steady, 'ten steady submissions read nothing');
+  // An error in a steady frame is GL's until read: the wait reads it, and says it.
+  gl.errors.push(0x0502);
+  assert.equal(c.omui_webgl_run(heap.words(w), w.length), 1, 'not read by the steady submission');
+  assert.equal(c.omui_webgl_settle(), 0);
+  assert.match(c.omui_webgl_error(), /GL INVALID_OPERATION in the work before waiting/);
+  assert.equal(c.omui_webgl_settle(), 1, 'said once');
+  // Something made: the next frames are watched again.
+  c.omui_webgl_texture(1, 0, 4, 4, 1, 1);
+  gl.errors.push(0x0501);
+  assert.equal(c.omui_webgl_run(heap.words(w), w.length), 0, 'the submission after a texture was made is read');
+  assert.match(c.omui_webgl_error(), /GL INVALID_VALUE in the submission/);
+  for (let frame = 0; frame < G.WATCHED; ++frame) c.omui_webgl_run(heap.words(w), w.length);
+  // Checked: every submission is read.
+  c.omui_webgl_checked(1);
+  const before = reads();
+  for (let frame = 0; frame < 3; ++frame) assert.equal(c.omui_webgl_run(heap.words(w), w.length), 1);
+  assert.equal(reads(), before + 3, 'checked: each submission read');
+  c.omui_webgl_checked(0);
+  const after = reads();
+  c.omui_webgl_run(heap.words(w), w.length);
+  assert.equal(reads(), after, 'unchecked again: steady');
+});
+
+test('a page asks for every submission to be read with ?gl-checks in its address', () => {
+  const l = load();
+  l.c.location = { search: '?renderer=webgl&gl-checks' };
+  const heap = new Heap(l.c);
+  assert.equal(l.c.omui_webgl_open('', heap.words([0, 0, 0, 0, 0, 0, 0])), 1);
+  l.c.omui_webgl_checked(0);
+  assert.equal(l.G.always, true);
+});
+
 test('present: the frame blitted onto the canvas flipped, texel for pixel at the same size; nothing on a canvas of no size', () => {
   const l = load();
   const heap = new Heap(l.c);

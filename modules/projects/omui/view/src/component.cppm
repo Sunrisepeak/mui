@@ -370,6 +370,14 @@ public:
     virtual void invalidate_paint(NodeId node) = 0;
     virtual void invalidate_layout(NodeId node) = 0;
     virtual void invalidate_semantics(NodeId node) = 0;
+    // A view that scrolls moved to `to`: its `x` and `y` written back (their sources learn them) and its node is
+    // new to readers — and nothing else is (what its offset moves is where things are: Runtime's
+    // semantic_content_revision does not move for it).
+    virtual void scrolled(NodeId node, Point to) {
+        write_back(node, "x", Value(static_cast<double>(to.x)));
+        write_back(node, "y", Value(static_cast<double>(to.y)));
+        invalidate_semantics(node);
+    }
     virtual void request_frame() = 0;
     // A component's own motion under way (a scroll easing, a knob sliding, a
     // lens on its way): said while painting, the node is animating to every

@@ -2,7 +2,7 @@
 
 Text as the renderer draws it. [mlibs.text](../../../content/text) shapes and lays out text and gives glyphs as geometry (`FontCollection::outline`, `color_layers`); it knows no renderer (convergence plan §5.3). This package is the renderer's side:
 
-- **`GlyphCache`** — the renderer's `GlyphSource` over a `FontCollection`: outlines rasterised by [mrender.raster](../raster) per size and subpixel phase (quarter pixels), colour glyphs (COLR v0) composed from the font's palette into premultiplied images, so text pixels are as deterministic as any other shape.
+- **`GlyphCache`** — the renderer's `GlyphSource` over a `FontCollection`: outlines rasterised by [mrender.raster](../raster) per size and subpixel phase (quarter pixels, which it says: `mask_phases()`, so a renderer that keeps masks keeps one a phase), colour glyphs (COLR v0) composed from the font's palette into premultiplied images, so text pixels are as deterministic as any other shape.
 - **`paint(paragraph, list, origin)`** — a laid-out paragraph's glyph runs (id, position and provenance — byte, grapheme, word, line, D-68) and decorations into a [display list](../vector): one `DrawGlyphs` a run, its glyphs written in place into the list's arena, nothing else allocated.
 
 ```cpp

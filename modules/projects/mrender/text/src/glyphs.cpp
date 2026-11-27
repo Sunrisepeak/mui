@@ -93,10 +93,7 @@ raster::PathData GlyphCache::outline(FontRef font, std::uint32_t glyph) {
 }
 
 GlyphMask GlyphCache::mask(FontRef font, std::uint32_t glyph, float size, geom::Point fraction) {
-    auto quant = [](float f) {
-        int q = static_cast<int>(std::floor(f * phases + 0.5f));
-        return static_cast<std::uint8_t>(std::clamp(q, 0, phases - 1));
-    };
+    auto quant = [](float f) { return static_cast<std::uint8_t>(phase_of(f, phases)); };
     Key key{font.id, glyph, static_cast<std::int32_t>(std::floor(size * 64 + 0.5f)), quant(fraction.x), quant(fraction.y)};
     auto it = impl_->entries.find(key);
     if (it == impl_->entries.end()) {

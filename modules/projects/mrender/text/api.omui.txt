@@ -11,6 +11,7 @@ namespace mrender::text {
     [[nodiscard]] std::size_t size() const noexcept;
     void clear();
     static constexpr int phases = 4;
+    [[nodiscard]] int mask_phases() const noexcept override;
   };
 }
 == mrender.text:paint

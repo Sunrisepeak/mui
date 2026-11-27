@@ -56,6 +56,16 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 
 ## CI red list — closed rows
 
+**Moved at P0 (2026-11-27)**: M0's node record and the reds confirmed closed on macOS (run 45912985560), as STATUS had them:
+
+**M0 — local preflight done (2026-11-20, at 2c2be364; the fix 68d6cb6f).** The matrix: green at `2a9592bf`, all 12 jobs (run 44383015192).
+- Here, `--profile ci` with CI's main row's exclusions: 159 of 163 members (3,762 s). `omui.tools.mcp` expected 68 tools, G8 had added 4 (fixed, 12 cases). `xrender.rhi.sdl`, `omui.host.sdl3.gpu`, `quay/play` crash outside the GPU environment and pass in it (`omui-devtools gpu`: 9 programs): 163 of 163.
+- `check features`, `templates` (5), `agent-e2e`, `media --check --showcases`, the benchmarks' budgets (114, 26 skipped): passed. lint 0, self-test 53 of 53. Not run: the LLVM and wine rows (disk).
+- Counters: 166 members; 27 open reds; STATUS 177 lines. Toolchain: mcpp 2026.11.20.1 (2026-11-20), mtest 0.8.4. Departure: a member a checkpoint did not run (MCP after G8's catalogs) found only here; a catalog's change now names its listing's consumers.
+
+| 140 | meng's `audio.device`: on the null backend the feed starved 1280 frames where the windows that asked past the lead allow 384 | macOS; run 44317791418 (662f4a29) | F (wave 2) | fixed (1585f9bb), confirmed on macOS (run 45912985560): the allowance was no bound (it began after the open and judged by the lead). Now from the first fill, by what the feed held at each look; a case on one clock: 72 ms late none short, 150 ms short by exactly the excess |
+| 161 | macOS: `tests/size/terminal` and `terminal-agent` do not link — `cxx_runtime = "host-coupled"` compiles with llvm 23's libc++ headers and links macOS 15's libc++, which lacks 8 symbols; the row's build stopped there, so red 140 is still unconfirmed on macOS | macOS arm64; run 45883884764 (f6145e01) | P (macOS) | fixed (2d25af71), confirmed on macOS (run 45912985560): `host-coupled` stated per target (x86_64 and aarch64 Linux, x86_64 Windows; mcpp's docs/20, #336, #704), macOS takes mcpp's default. Linux bytes unchanged (1,040,710 and 1,829,480 B). |
+
 | # | Failure | Where | Since | Kind | State |
 |---|---|---|---|---|---|
 | 1 | `WeightedPaint` incomplete type in `std::span` arithmetic | Windows build, omui pack | ≤ `c9b0d1c` | R | fixed, confirmed on Windows CI (75655b7: build and omui pack green): MSVC STL checks C++23 const-iterator concepts when `std::span<const T>` is instantiated, so a span of the then-incomplete `WeightedPaint` cannot be a `Paint` member; `mlibs::memory::View<T>` replaces it in raster and render |

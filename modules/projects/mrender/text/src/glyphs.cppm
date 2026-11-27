@@ -26,8 +26,9 @@ public:
     [[nodiscard]] std::size_t size() const noexcept;  // cached entries
     void clear();
 
-    // Horizontal phases per pixel (4: positions snap to quarter pixels).
+    // Phases per pixel on each axis (4: positions snap to quarter pixels): the masks it tells apart.
     static constexpr int phases = 4;
+    [[nodiscard]] int mask_phases() const noexcept override { return phases; }
 
 private:
     struct Impl;

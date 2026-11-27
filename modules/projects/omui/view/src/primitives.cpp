@@ -587,11 +587,10 @@ struct ScrollNode {
                 static_cast<void>(cy->jump(to.y));
             }
         }
-        services->write_back(node, "x", Value(static_cast<double>(to.x)));
-        services->write_back(node, "y", Value(static_cast<double>(to.y)));
+        // Its x and y written back, its node new to readers — and only it: what it moves is where things are.
+        services->scrolled(node, to);
         services->emit(node, "scrolled", Value{}.set("x", static_cast<double>(to.x)).set("y", static_cast<double>(to.y)));
         services->invalidate_paint(node);
-        services->invalidate_semantics(node);
         return true;
     }
 

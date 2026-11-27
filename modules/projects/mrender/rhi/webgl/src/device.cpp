@@ -60,9 +60,10 @@ public:
     std::optional<ComputePipelineInfo> describe(ComputePipeline) const noexcept override { return std::nullopt; }
 
     // WebGL2 is synchronous: what a caller can see of a submission (a
-    // readback) comes after it in GL's order. Nothing to wait for.
-    Result<void> wait(Submission) override { return reported(); }
-    Result<void> wait_idle() override { return reported(); }
+    // readback) comes after it in GL's order. Nothing to wait for — but GL's
+    // errors of the work so far are read (a caller that waits wants to know).
+    Result<void> wait(Submission) override { return settled(); }
+    Result<void> wait_idle() override { return settled(); }
 
 protected:
     Result<Buffer> make(const BufferDesc& d) override {
@@ -160,6 +161,10 @@ protected:
     }
 
 private:
+    static Result<void> settled() {
+        if (!page::settle()) return fail(page::lost() ? Errc::device_lost : Errc::backend, mlibs::message::format("WebGL2: {}", page::error()));
+        return reported();
+    }
     static Result<void> reported() {
         std::string e = page::error();
         if (e.empty()) return {};
@@ -183,6 +188,7 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     if (live) return fail(Errc::unsupported, "a WebGL2 device of this page's is alive: one at a time");
     auto context = page::open(options.canvas);
     if (!context) return fail(Errc::unsupported, std::move(context.error()));
+    page::checked(options.checked);
     Caps caps;
     caps.backend = Backend::webgl;
     caps.device = context->name;

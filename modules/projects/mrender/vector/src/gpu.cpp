@@ -2368,9 +2368,14 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                             }
                             if (pl.mask) {
                                 const MaskCall call = mask_call(pl.pen, c.size, mm);
-                                // The glyph cache's mask, kept in the atlas by what asked for it.
+                                // The glyph cache's mask, kept in the atlas by what asked for it — a fraction by the phase
+                                // the source keeps its mask for (what it gives two fractions of one phase is one mask:
+                                // a view scrolled by a fraction of a pixel finds its glyphs where they were).
                                 Key k;
-                                k.u64(5).u64(c.font.id).u64(gl.id).f32(call.size).f32(call.fraction.x).f32(call.fraction.y);
+                                k.u64(5).u64(c.font.id).u64(gl.id).f32(call.size);
+                                if (const int phases = res.glyphs->mask_phases(); phases > 0)
+                                    k.u64(static_cast<std::uint64_t>(phase_of(call.fraction.x, phases))).u64(static_cast<std::uint64_t>(phase_of(call.fraction.y, phases)));
+                                else k.f32(call.fraction.x).f32(call.fraction.y);
                                 const std::uint64_t key = k.value();
                                 const auto hit = g.cached.find(key);
                                 if (hit != g.cached.end() && !hit->second.color) {

@@ -272,6 +272,48 @@ void write(std::string& out, const Inline& piece) {
     out += std::format("</{}>", piece.tag);
 }
 
+// A text's runs cut where its look sets white space apart (`Look::apart`), that white space an element of its own face;
+// the elements in it the same way.
+void set_apart(std::vector<Inline>& pieces, std::span<const Look::Span> apart) {
+    std::vector<Inline> out;
+    out.reserve(pieces.size());
+    for (Inline& piece : pieces) {
+        if (!piece.tag.empty()) {
+            set_apart(piece.children, apart);
+            out.push_back(std::move(piece));
+            continue;
+        }
+        // Only a run whose bytes are the node's text's own (not markup the application wrote).
+        if (piece.markup || piece.text.size() != piece.end - piece.begin) {
+            out.push_back(std::move(piece));
+            continue;
+        }
+        const auto run = [&](std::size_t from, std::size_t to) {
+            Inline part;
+            part.text = piece.text.substr(from - piece.begin, to - from);
+            part.begin = from;
+            part.end = to;
+            return part;
+        };
+        std::size_t at = piece.begin;
+        for (const Look::Span& span : apart) {
+            if (span.end <= at || span.begin >= piece.end) continue;
+            const std::size_t from = std::max<std::size_t>(span.begin, at), to = std::min<std::size_t>(span.end, piece.end);
+            if (from > at) out.push_back(run(at, from));
+            Inline own;
+            own.tag = "span";
+            own.attributes = {{"style", span.style}};
+            own.children = {run(from, to)};
+            own.begin = from;
+            own.end = to;
+            out.push_back(std::move(own));
+            at = to;
+        }
+        if (at < piece.end) out.push_back(run(at, piece.end));
+    }
+    pieces = std::move(out);
+}
+
 }  // namespace
 
 HtmlElement html_element(const spec::SemanticNode& n, std::string_view inside, const NodeLookup& find, HtmlFor where) {
@@ -403,7 +445,10 @@ std::string static_html(const Snapshot& snapshot, const HtmlOptions& options) {
                     self(piece.children);
                 }
             };
-            if (made.tag != "pre") parts(made.content);
+            if (made.tag != "pre") {
+                parts(made.content);
+                if (const auto apart = options.look->set_apart(n.id); !apart.empty()) set_apart(made.content, apart);
+            }
         }
         // Code that holds something (the button that copies it) under a look: the node's box is an element around
         // both — what the button is placed in — and the code inside takes its face from it.

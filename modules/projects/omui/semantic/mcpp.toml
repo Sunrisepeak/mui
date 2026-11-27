@@ -30,6 +30,7 @@ omui.core    = { path = "../core" }
 omui.view    = { path = "../view" }
 mlibs.agent   = { path = "../../../base/agent", features = ["session"] }  # mlibs.session
 mlibs.utils    = { path = "../../../base/utils" }
+mlibs.unicode  = { path = "../../../base/unicode" }  # the characters a look's faces drew (their order)
 
 [dev-dependencies]
 mlibs.text.harfbuzz = { path = "../../../content/text/harfbuzz" }  # the shaper its tests draw text with (mlibs.text's slot)

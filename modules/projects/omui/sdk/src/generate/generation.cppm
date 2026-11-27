@@ -103,6 +103,8 @@ struct GenerationOptions {
     std::string           replay;       // the replay's text
     std::string           replay_file;  // its name, in problems
     std::string           replay_course;  // the id of a path of the application's its course lies on (else the card's line)
+    std::string           replay_show;       // its show's text (a hanim.timeline, design.show): each step for its beat
+    std::string           replay_show_file;  // its name, in problems
     ShowTextsFn           show;
     std::function<void()> restore;
 };

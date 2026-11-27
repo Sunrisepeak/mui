@@ -78,8 +78,10 @@ export interface Generation {
     verbs?: string[];
     /** The design shown in place (generate.replay): how the application was designed, as the replay design.history.export
      *  writes (`"design/main.replay.xdef.json"`, from here), each step played in it under its caption; with `course`, the
-     *  id of a path of the application's own its steps lie on where a step has it (the site's O), else the card's line. */
-    replay?: string | { file: string; course?: string };
+     *  id of a path of the application's own its steps lie on where a step has it (the site's O), else the card's line;
+     *  with `show`, the timeline design.show made of it (`"design/main.show.timeline.xdef.json"`): each step played for its
+     *  beat, what it changes presented over most of the beat. */
+    replay?: string | { file: string; course?: string; show?: string };
 }
 export interface Config {
     agent?: ByMode<AgentMode>;

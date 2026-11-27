@@ -104,6 +104,7 @@ hanim.visual      = { path = "../../hanim/visual" }
 omui.agent         = { path = "../agent" }
 mlibs.control       = { path = "../../../base/control" }  # generate: its catalog
 mlibs.agent         = { path = "../../../base/agent" }    # generate: the design shown in place (replay@1)
+hanim.timeline      = { path = "../../hanim/timeline" }   # generate: a replay's show, each step for its beat (design.show)
 omui.expr          = { path = "../expr" }
 omui.viewdoc       = { path = "../viewdoc" }
 mlibs.utils         = { path = "../../../base/utils" }

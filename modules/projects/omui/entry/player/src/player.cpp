@@ -78,6 +78,7 @@ struct Config {
     std::vector<std::string>       components, verbs;
     std::filesystem::path          replay;  // from the manifest's directory
     std::string                    replay_course;  // the id of the path its course lies on (the site's O)
+    std::filesystem::path          replay_show;    // its show (design.show's timeline), from the manifest's directory
 };
 
 std::expected<Config, std::string> read_config(const std::filesystem::path& base) {
@@ -144,16 +145,21 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
                                         kind_name == "theme" ? generate::Surface::Kind::theme : generate::Surface::Kind::view});
             }
         if (const Value* replay = generation->get("replay")) {
-            // A path from here, or { file, course }: the course on a path of the application's own (its id).
+            // A path from here, or { file, course, show }: the course on a path of the application's own (its id), the
+            // show the steps are played as (design.show's timeline).
             const Value* named = replay->type() == Value::Type::text ? replay : replay->get("file");
             const Value* course = replay->type() == Value::Type::text ? nullptr : replay->get("course");
-            if (!named || named->type() != Value::Type::text || named->as_string().empty() || (course && course->type() != Value::Type::text))
+            const Value* show = replay->type() == Value::Type::text ? nullptr : replay->get("show");
+            if (!named || named->type() != Value::Type::text || named->as_string().empty() || (course && course->type() != Value::Type::text) ||
+                (show && (show->type() != Value::Type::text || show->as_string().empty())))
                 return std::unexpected(std::format("{}: generation.replay is the design's replay, a path from here (\"design/main.replay.xdef.json\"), "
-                                                   "or {{ file, course }} with the id of the path its course lies on (\"o\")",
+                                                   "or {{ file, course, show }} with the id of the path its course lies on (\"o\") and its show's timeline "
+                                                   "(\"design/main.show.timeline.xdef.json\", design.show writes it)",
                                                    utf8(file)));
-            const std::string_view path = named->as_string();
-            out.replay = std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(path.data()), path.size()));
+            const auto as_path = [](std::string_view text) { return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size())); };
+            out.replay = as_path(named->as_string());
             if (course) out.replay_course = std::string(course->as_string());
+            if (show) out.replay_show = as_path(show->as_string());
         }
         for (const auto& [list, into] : {std::pair{"components", &out.components}, std::pair{"verbs", &out.verbs}})
             if (const Value* names = generation->get(list); names && names->list())
@@ -424,6 +430,13 @@ int player_main(int argc, char** argv, void (*components)()) {
             app.generation->replay.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
             app.generation->replay_file = utf8(config->replay);
             app.generation->replay_course = config->replay_course;
+            if (!config->replay_show.empty()) {
+                const std::filesystem::path shown = m->base / config->replay_show;
+                std::ifstream show_in(shown, std::ios::binary);
+                if (!show_in) std::println(std::cerr, "{}: generation.replay.show names no file here (design.show writes one)", utf8(shown));
+                app.generation->replay_show.assign(std::istreambuf_iterator<char>(show_in), std::istreambuf_iterator<char>());
+                app.generation->replay_show_file = utf8(config->replay_show);
+            }
             app.generation->show = [&p](const std::map<std::string, std::string>& texts) -> std::expected<void, std::string> {
                 if (!p) return std::unexpected(std::string("the application's scripts are not running"));
                 if (auto shown = p->show(texts); !shown) return std::unexpected(shown.error().message);

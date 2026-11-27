@@ -8,6 +8,7 @@ export default defineConfig({
   agent: { development: "development", release: "dual-user" },
   record: { development: "full", release: "errors" },
   designer: { development: true, release: true },
-  // Its course on the mark's O (the path whose id is "o"): the progress goes round the O, scrubbed along it.
-  generation: { replay: { file: "design/main.replay.xdef.json", course: "o" } },
+  // Its course on the mark's O (the path whose id is "o"): the progress goes round the O, scrubbed along it. Played as
+  // its show (design.show): each step for its beat, what it changes presented over most of it.
+  generation: { replay: { file: "design/main.replay.xdef.json", course: "o", show: "design/main.show.timeline.xdef.json" } },
 });

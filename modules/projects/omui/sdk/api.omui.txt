@@ -67,6 +67,8 @@ namespace omui::generate {
     std::string replay;
     std::string replay_file;
     std::string replay_course;
+    std::string replay_show;
+    std::string replay_show_file;
     ShowTextsFn show;
     std::function<void()> restore;
   };
@@ -104,7 +106,7 @@ namespace omui::generate {
 namespace omui::generate {
   using ShowTextsFn = std::function<std::expected<void, std::string>(const std::map<std::string, std::string>& texts)>;
   class Replayer {
-    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore, std::string course = {…});
+    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore, std::string course = {…}, std::optional<hanim::timeline::Timeline> show_timeline = std::nullopt);
     ~Replayer();
     Replayer(const Replayer&) = delete;
     Replayer& operator=(const Replayer&) = delete;
@@ -116,7 +118,9 @@ namespace omui::generate {
     [[nodiscard]] std::size_t step() const noexcept;
     [[nodiscard]] bool playing() const noexcept;
     [[nodiscard]] const mlibs::agent::Replay& replay() const noexcept;
+    [[nodiscard]] double seconds_of(std::size_t step) const noexcept;
     static constexpr std::string_view slot = "generate.replay";
+    static constexpr double presented = 0.85;
   };
 }
 == omui:agent_guide

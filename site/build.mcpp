@@ -1,6 +1,6 @@
 // The site on the Web, a static page (`omui build --web`, D-236): the
 // player, its fonts, the page's own files (its manifest, its config, app/ and
-// its design's replay) in the player's file system before it starts, and its
+// its design's replay and show) in the player's file system before it starts, and its
 // first screen as a document a reader and a search engine read before it runs
 // — the file below, which `omui build --web` writes first by running it natively.
 import std;
@@ -26,6 +26,6 @@ int main() {
                                              .static_html = "target/web/omui-site.static.html", .lang = "en",
                                              .description = "A UI framework where one semantic tree drives the pixels, the motion, accessibility, agents and tests. "
                                                             "An agent made this page in Live Design; press the key to watch it.",
-                                             .files = {"mcpp.toml", "omui.config.ts", "app", "design/main.replay.xdef.json"}});
+                                             .files = {"mcpp.toml", "omui.config.ts", "app", "design/main.replay.xdef.json", "design/main.show.timeline.xdef.json"}});
     return components && page ? 0 : 1;
 }

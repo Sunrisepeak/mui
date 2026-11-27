@@ -9,6 +9,7 @@ import omui.semantic;
 import omui.viewdoc;
 import omui.agent;
 import mlibs.agent;
+import hanim.timeline;
 import mlibs.base64;
 import mlibs.control;
 import mcpplibs.os;
@@ -754,7 +755,17 @@ struct Generation::Impl {
             replay_problem = std::format("the replay this application ships does not read: {}", read.error());
             return;
         }
-        replayer = std::make_unique<Replayer>(runtime, std::move(*read), options.show, options.restore, options.replay_course);
+        // Its show, when it ships one (design.show: a hanim.timeline a clip a step): each step on screen for its beat.
+        std::optional<hanim::timeline::Timeline> show_timeline;
+        if (!options.replay_show.empty()) {
+            auto timeline = hanim::timeline::read_timeline(options.replay_show, options.replay_show_file.empty() ? "show" : options.replay_show_file);
+            if (!timeline) {
+                replay_problem = std::format("the replay's show does not read: {}", timeline.error().front().text());
+                return;
+            }
+            show_timeline = std::move(*timeline);
+        }
+        replayer = std::make_unique<Replayer>(runtime, std::move(*read), options.show, options.restore, options.replay_course, std::move(show_timeline));
     }
 
     VerbResult replay(const Value& args) {

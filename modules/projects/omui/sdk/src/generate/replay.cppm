@@ -5,6 +5,9 @@
 // of its scripts' (as an edit runs, its changes presented as an edit's are),
 // under the step's caption and a timeline of how far it has come, its maker shown at
 // what the step built (a note at the step's node: the agent's presence, D-160);
+// played as a show when it has one (FE4, AG3; a hanim.timeline the director made of the replay: design.show) — each
+// step on screen for its beat, and what the step changes presented as a design edit is (written in, springing)
+// slowed to fill most of its beat, so that the time read is time something is seen to change;
 // at the end the application's own scripts again. A person (its play button,
 // the timeline they scrub, Close) or an agent (generate.replay) plays, pauses,
 // goes to a step and stops; every step shown is a real interface. Its course
@@ -21,6 +24,7 @@ import std;
 import omui.core;
 import omui.view;
 import mlibs.agent;
+import hanim.timeline;
 
 export namespace omui::generate {
 
@@ -31,7 +35,9 @@ class Replayer {
 public:
     // `restore`: the application's own scripts again (the player's edits dropped). `course`: the id of a path its
     // course lies on where a step's interface has one (omui.config.ts's generation.replay.course), else the card's.
-    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore, std::string course = {});
+    // `show`: the replay's show (its `states` track a clip a step, in order), else each step's own seconds.
+    Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore, std::string course = {},
+             std::optional<hanim::timeline::Timeline> show_timeline = std::nullopt);
     ~Replayer();
     Replayer(const Replayer&) = delete;
     Replayer& operator=(const Replayer&) = delete;
@@ -50,11 +56,15 @@ public:
     [[nodiscard]] bool playing() const noexcept { return timer_ != 0; }
     [[nodiscard]] const mlibs::agent::Replay& replay() const noexcept { return replay_; }
 
+    // A step's time on screen at speed 1: its beat in the show, else its own seconds.
+    [[nodiscard]] double seconds_of(std::size_t step) const noexcept;
     // The slot its caption is mounted at, over the application.
     static constexpr std::string_view slot = "generate.replay";
+    // How much of a step's time on screen its presentation fills while playing (the rest it rests).
+    static constexpr double presented = 0.85;
 
 private:
-    std::expected<void, std::string> show(std::size_t step);
+    std::expected<void, std::string> show(std::size_t step, bool playing = false);
     void schedule();
     void present();
     void place_course();  // on the course's node where the step's interface has it
@@ -63,6 +73,7 @@ private:
     mlibs::agent::Replay     replay_;
     ShowTextsFn              show_;
     std::function<void()>    restore_;
+    std::vector<double>      beats_;        // a step's beat in the show, in seconds (empty: the steps' own)
     std::size_t              at_ = 0;       // the step shown (0: none)
     double                   speed_ = 1;
     std::uint64_t            timer_ = 0;    // the next step's (0: paused)

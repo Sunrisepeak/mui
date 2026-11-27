@@ -6,6 +6,7 @@ import omui.core;
 import omui.view;
 import omui.ui.base;
 import mlibs.agent;
+import hanim.timeline;
 
 namespace omui::generate {
 
@@ -46,8 +47,19 @@ constexpr int looks = 10;
 
 }  // namespace
 
-Replayer::Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore, std::string course)
-    : runtime_(runtime), replay_(std::move(replay)), show_(std::move(show)), restore_(std::move(restore)), course_(std::move(course)) {}
+Replayer::Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn show, std::function<void()> restore, std::string course,
+                   std::optional<hanim::timeline::Timeline> show_timeline)
+    : runtime_(runtime), replay_(std::move(replay)), show_(std::move(show)), restore_(std::move(restore)), course_(std::move(course)) {
+    // The show's beats, a clip of its `states` track a step (the director makes one a step, in order).
+    if (show_timeline)
+        if (const auto states = std::ranges::find(show_timeline->tracks, "states", &hanim::timeline::Track::name); states != show_timeline->tracks.end())
+            for (const hanim::timeline::Clip& clip : states->clips) beats_.push_back(mlibs::time::to_seconds(clip.length));
+}
+
+double Replayer::seconds_of(std::size_t step) const noexcept {
+    if (step == 0 || step > replay_.steps.size()) return 0;
+    return step <= beats_.size() ? beats_[step - 1] : replay_.steps[step - 1].seconds;
+}
 
 Replayer::~Replayer() {
     if (timer_) runtime_.cancel(timer_);
@@ -63,7 +75,7 @@ std::expected<void, std::string> Replayer::play(std::size_t from, double speed) 
         return std::unexpected(std::format("step {} is not in the replay (1 … {})", from, replay_.steps.size()));
     speed_ = std::clamp(std::isfinite(speed) ? speed : 1.0, 0.25, 4.0);
     pause();
-    if (auto shown = show(from); !shown) return shown;
+    if (auto shown = show(from, true); !shown) return shown;
     schedule();
     said_playing();
     return {};
@@ -96,9 +108,20 @@ void Replayer::stop() {
     mounted_ = false;
 }
 
-std::expected<void, std::string> Replayer::show(std::size_t step) {
+std::expected<void, std::string> Replayer::show(std::size_t step, bool playing) {
     const mlibs::agent::ReplayStep& shown = replay_.steps[step - 1];
-    if (auto ran = show_ ? show_(shown.texts) : std::expected<void, std::string>{}; !ran) {
+    // Played: what the step changes presented as a design edit is, its time scaled to fill most of the step's time on
+    // screen (the presentation is 0.9 s at its own pace, ¼ to 4 times as fast) — in a release too, where an edit is
+    // otherwise shown at once. Gone to (`at`, the person scrubbing): shown as an edit is where it is shown at all.
+    const Runtime::DesignPresentation before = runtime_.design_presentation();
+    if (playing) {
+        const double on_screen = std::max(0.05, seconds_of(step) / speed_);
+        runtime_.set_design_presentation({Runtime::DesignPresentation::Kind::edit, 0.9 / (presented * on_screen)});
+        runtime_.present_design();
+    }
+    auto ran = show_ ? show_(shown.texts) : std::expected<void, std::string>{};
+    if (playing) runtime_.set_design_presentation(before);
+    if (!ran) {
         problem_ = std::format("step {}: {}", step, ran.error());
         stop();
         return std::unexpected(problem_);
@@ -144,11 +167,11 @@ void Replayer::place_course() {
 }
 
 void Replayer::schedule() {
-    const double on_screen = replay_.steps[at_ - 1].seconds / speed_;
+    const double on_screen = seconds_of(at_) / speed_;
     timer_ = runtime_.after(seconds(on_screen), [this] {
         timer_ = 0;
         if (at_ < replay_.steps.size()) {
-            if (show(at_ + 1)) schedule();
+            if (show(at_ + 1, true)) schedule();
             said_playing();
             return;
         }
@@ -216,7 +239,7 @@ void Replayer::present() {
 Value Replayer::state() const {
     Value::List steps;
     for (const mlibs::agent::ReplayStep& step : replay_.steps)
-        steps.push_back(Value{}.set("caption", step.caption).set("actor", step.actor).set("seconds", step.seconds));
+        steps.push_back(Value{}.set("caption", step.caption).set("actor", step.actor).set("seconds", seconds_of(steps.size() + 1)));
     Value out = Value{}
                     .set("doc", replay_.doc)
                     .set("steps", Value(std::move(steps)))

@@ -55,6 +55,9 @@ constexpr std::string_view state_script = R"js((() => {
            elements: document.querySelectorAll('[data-omui=mirror] *').length,
            lines: document.querySelectorAll('[data-omui=mirror] [data-omui-line]').length,
            words: document.querySelectorAll('[data-omui=mirror] [data-omui-word]').length,
+           // Elements whose own words still flow rather than stand on the canvas's lines (a text not drawn yet).
+           flowed: [...document.querySelectorAll('[data-omui=mirror] [data-omui-id]:not([data-omui-inline])')].filter((el) =>
+             !el.querySelector(':scope > [data-omui-line]') && [...el.childNodes].some((n) => n.nodeType === 3 && n.data.trim())).length,
            width: innerWidth, height: innerHeight, ratio: devicePixelRatio, drawn };
 })())js";
 
@@ -459,15 +462,42 @@ int scroll(const fs::path& root, const Scroll& asked) {
     page.close();
     (*server)->close();
     if (!problem.empty()) return failed(std::format("the scroll's check did not run: {}", problem));
+    // The bar (AGENTS §2.10, D-187): in a browser a frame's p99 at most 16.7 ms (60 a second), on this machine's
+    // monitor its interval (120 Hz: 8.3 ms) — the frames shown while a page's view moves, each route's worst; and
+    // once scrolled to its end, no element whose words still flow (every text the canvas drew stands on its lines).
+    constexpr double browser_bar = 1000.0 / 60;
+    bool held = true;
+    std::map<std::string, std::pair<double, double>> worst;  // route -> worst p99 of its moving phases, most flowed
+    for (const json& visit : rows) {
+        const std::string route = text(at(visit, "path"));
+        if (route == reference_address) continue;
+        for (const json& phase : at(visit, "phases")) {
+            const std::string name = text(at(phase, "phase"));
+            if (!name.ends_with("-down") && !name.ends_with("-up")) continue;
+            auto& [p99, flowed] = worst[route];
+            p99 = std::max(p99, number(at(at(at(phase, "trace"), "displayed"), "p99_ms")));
+            if (name.ends_with("-down")) flowed = std::max(flowed, number(at(at(phase, "after"), "flowed")));
+        }
+    }
+    json verdict = json::object();
+    for (const auto& [route, seen] : worst) {
+        const bool ok = seen.first <= browser_bar && seen.second == 0;
+        held = held && ok;
+        verdict[route] = {{"p99_ms", seen.first}, {"flowed", seen.second}, {"browser_bar", ok}, {"monitor_bar", seen.first <= interval + 0.01}};
+        std::cout << std::format("  {} {}: shown frames' p99 while it moves {} ms (the browser's bar {:.1f}, the monitor's {:.1f}); {} element(s) left flowing at its end\n",
+                                 ok ? "ok  " : "FAIL", route, seen.first, browser_bar, interval, seen.second);
+    }
     const json report = {{"$format", "scroll-report@1"},
                          {"page", mcpplibs::os::fs::utf8(asked.page)},
                          {"browser", version},
                          {"monitor", {{"name", monitor_name}, {"hertz", hertz}, {"interval_ms", round2(interval)}}},
                          {"speed", asked.speed},
+                         {"verdict", verdict},
                          {"rows", rows}};
     std::error_code made;
     fs::create_directories(root / "target", made);
     std::ofstream(root / "target/scroll.report.xdef.json", std::ios::binary) << cdp::pretty(report, 2) << '\n';
+    if (!held) return failed("a page's frames while it scrolls are past the bar, or its words are left off the canvas's lines (target/scroll.report.xdef.json)");
     return 0;
 }
 

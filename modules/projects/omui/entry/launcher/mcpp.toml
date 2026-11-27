@@ -27,8 +27,19 @@ main = "src/entry/main.cpp"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+
 # The C++ runtime shared (red 145): released through xlings, libstdc++ is xim:gcc-runtime, one copy a machine like
 # the C library; linked into each program it brought iostream, locale and the demangler with `import std;` (528 KB).
+# Stated per target, as the size tests state theirs (red 161): on macOS mcpp's LLVM compiles against its own libc++'s
+# headers and the runtime linked there lacks what they declare (`__atomic_wait_global_table` …; red 168), so there
+# the launcher keeps mcpp's default as every other member does.
+[target.x86_64-linux-gnu]
+cxx_runtime = "toolchain-coupled"
+
+[target.aarch64-linux-gnu]
+cxx_runtime = "toolchain-coupled"
+
+[target.x86_64-windows-msvc]
 cxx_runtime = "toolchain-coupled"
 
 [dependencies]

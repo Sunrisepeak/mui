@@ -5,6 +5,7 @@ module omui.devtools.lint;
 
 import std;
 import nlohmann.json;
+import omui.devtools.api;
 import omui.devtools.lead;
 import mlibs.xdef.tool;
 import :tree;
@@ -88,6 +89,7 @@ constexpr Rule all_rules[]{
     {"claims", "a public document's ratio against another project is a claim of docs/release.claims.xdef.json, with evidence (D-193)"},
     {"platform-table", "every cell of docs/release.platforms.xdef.json is real, software, unverified or unsupported, with its evidence or need (D-201)"},
     {"docs-code", "a guide's code is a member's file CI runs (<!-- code: file#region -->) or ```sh; en and zh keep the same headings (plan §6.3)"},
+    {"api", "a package's committed api.omui.txt is its exported surface now (omui-devtools api -p MEMBER --write)"},
 };
 
 bool starts_with_any(std::string_view text, std::span<const char* const> prefixes) {
@@ -432,6 +434,16 @@ std::vector<Problem> run_with(const fs::path& root, std::span<const std::string>
     std::ranges::move(check_sources(root, owners), std::back_inserter(problems));
     if (fs::exists(root / ".agents/docs/evaluation/lead.features.xdef.json"))
         for (auto& [where, what] : lead::problems(root)) problems.push_back({"lead", std::move(where), std::move(what)});
+    // api: a listing committed beside a package is the surface its interface units export now — a change to one is
+    // a change to the other in the same commit (the devtools' own test holds the same; this says it before a push).
+    for (const Member& member : workspace.members) {
+        if (member.text.empty()) continue;
+        const fs::path directory = root / path_of(member.path);
+        const auto committed = read_text(directory / "api.omui.txt");
+        if (!committed) continue;
+        if (*committed != api::surface(directory, api::interface_globs(member.text)))
+            problems.push_back({"api", member.path + "/api.omui.txt", std::format("not the package's surface now: omui-devtools api -p {} --write", member.path)});
+    }
     return select(std::move(problems), only);
 }
 
@@ -617,6 +629,7 @@ int self_test(const fs::path& repository, const fs::path& scratch, std::ostream&
         {"status", ".agents/docs/STATUS.md", "# STATUS\n\n| Task | State | Evidence |\n|---|---|---|\n| FE0 (C5) the name | done | renamed |\n"},
         {"lead", ".agents/docs/evaluation/lead.features.xdef.json",
          R"({"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]})"},
+        {"api", "modules/ui/core/api.omui.txt", "module openmui.core\n  void gone();\n"},
     };
     // The owners' samples come from the repository's own table.
     const fs::path table = owners_file(repository);

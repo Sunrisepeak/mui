@@ -256,3 +256,7 @@
 **结果**（同 §7 的步骤）：第一部分 1,634,870 → 1,634,326，launcher 54,663 → 54,662；没有示例、CPU 画的页面 1,689,533 → 1,688,988（−545）。小，但是一个读法少一个实例；`parse_json` 的错误（行、列、偏移、nlohmann 的说明）不变：同一个 SAX 的 `parse_error`，偏移同样从文字开头算。验证：`mcpp test -p omui.core -p omui.view -p omui.agent -p oweb.reader --profile ci`（46 个程序全过）。
 
 **提议。** 剩下的 `json` 实例归 `omui.native.store`（阅读器不跑脚本，却因为 `omui.native` 链接了存储模块的 `define`）：要么存储模块也用 `ordered_json`（或 mlibs.json），要么不跑脚本的程序不带原生模块（由谁登记原生模块决定）。属主 omui.native，未做。
+
+### 13.4 HarfBuzz 的开关：索引的草稿 PR
+
+§9 要的索引改动已写成 [mcpplibs/mcpp-index#929](https://github.com/mcpplibs/mcpp-index/pull/929)（草稿，2026-11-27，分支 `compat-harfbuzz-no-unused-api`，在自己的 worktree 里做，没有动共享检出的分支）：`compat.harfbuzz` 14.3.0 加两个开关 `no-unused-api`、`no-aat-vertical`，与 `no-freetype` 同样在生成的 `config.h` 里读，三个平台的修订都到 3，CHANGELOG 记一条。没有经 mcpp 用这两个开关构建过（宏在 §9 的探针里由同一份合并源码编译过）；合入与打 tag 不在本轮。合入之后，`mlibs.text.harfbuzz` 的依赖写 `features = ["no-freetype", "no-unused-api"]`，再按 §7 的步骤重量；`no-aat-vertical` 作为 omui.sdk 的一个减项另议。

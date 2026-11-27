@@ -220,3 +220,13 @@
 | 官网：首帧 | 957 ms | 870 ms |
 
 主分支在这期间也给阅读器加了东西（AG5：站点的主体、页面里的 Agent 门；第二步时第一部分多 16.4 kB gzip），所以“合并之后”一列是两边之和；本轮各步各自的差在 §7、§8、§10。`check takeover` `/start/` 7/7、`/live/` 8/8，`check site path` 27/27。离 D-247 的约 1.1 MB：阅读器 CPU 画的页面还多约 0.59 MB；官网离 1.2 MB 还差 172,935 B。剩下的按字节排在 §9 与 §11。
+
+## 13. 第三轮（2026-11-27，分支 `p0-size3`，起点 `d57aa843`，内容与 §12 的树相同）
+
+### 13.1 给 tsc 的声明：Web 程序不带
+
+**事实。** 官网前一半的数据里有三段 TypeScript 声明：规范的绑定 API（`openmui.d.ts`，16.9 KB 原样的分区，gzip 约 4.9 KB）、`openmui/define`（约 1.9 KB）、`omui/define`（omui.lang.ts，32 KB 原样，gzip 约 10.4 KB）。它们只由 `declare_typescript` 读——写 `omui check` 的 tsc 用的声明文件；它挂在 TypeScript 语言的 `declare` 上（`std::function`），只要构造了这个语言就被链接，哪怕 Web 上从不调用（播放器的 `--types` 上一轮已只在桌面上）。
+
+**三级次序。** ① 页面不做类型检查：`declare` 是桌面的事，Web 上的 TypeScript 语言不带它（`declaring()` 按平台给：`src/checker/` 只在桌面编译，`src/native/web/declaring.cpp` 给空的），声明随之离开 Web 程序，不是放在旁边。Agent 写脚本要读的 API（`describe`，`design.api`）不动：它用 `components_of` 与 `ts::declare_components`，留在两边共用的单元里。② 把声明放在旁边、第一次读时取回（§13.2 的机制）：Web 上没有读的一方，取回也是多余的；不取。③ 无。
+
+**结果**（官网，同 §7 的步骤，Chromium 159 无头，本机）：首帧之前 1,372,935 → 1,357,344（−15,591），合计 2,783,729 → 2,759,557（−24,172），首帧 870 → 860 ms；`check site path` 27/27；前一半的数据段里三段声明都不在了，符号表里没有 `declare_typescript`。阅读器不带 TS，不变。`mcpp test -p omui.lang.js`（32 例，含声明的写出）。

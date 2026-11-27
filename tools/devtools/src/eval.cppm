@@ -39,6 +39,7 @@ struct Session {
 struct Reply {
     std::string text;                // the final message
     std::vector<std::string> tools;  // the tools it called, in order
+    std::vector<std::string> commands;  // what its shell tool ran, in order (a Bash call's command)
     int turns = 0;
     nlohmann::json usage;            // as the agent reports it
     nlohmann::json raw;              // claude's result event

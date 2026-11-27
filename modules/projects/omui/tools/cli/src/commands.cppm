@@ -35,7 +35,9 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
 using Transport = std::function<std::vector<Value>(const Value& request, std::chrono::milliseconds limit)>;
 // `omui agent <op> <app> …` (the app taken out) and `omui page <op> …` (running.cpp): the operation's words through the
 // tool kernel's command line over the protocol's catalogs (ui.*, design.*, generate.*, task.*); `--out FILE` keeps a
-// picture, its vectors or a trace the answer carries in that file. The exit code is the answer's.
+// picture, its vectors or a trace the answer carries in that file. An operation of none of these catalogs with a dot
+// in its name (`site.describe`, `world.observe` — a subject the application holds beside its interface) and `subjects`
+// go to the application as the request the words make, and its own session answers. The exit code is the answer's.
 int operate_running(std::vector<std::string> words, const Transport& send, std::ostream& out, std::ostream& err);
 // `call`: one request of the protocol's as it is (the first word, a JSON object), or why the words make none.
 [[nodiscard]] std::expected<Value, std::string> raw_request(std::span<const std::string> words);

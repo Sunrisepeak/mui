@@ -4,7 +4,7 @@
 //           it, one of its pages in a real browser. An agent reaches a site by fetching its files, by the `oweb`
 //           command over its directory, by the tools the page offers (WebMCP: each operation of the page's
 //           subject `site` a tool, from its listing), or connected to the page (`omui connect <code>`, then the
-//           page's subjects asked through the bridge). At each door the site says of itself the same text — its
+//           page's subjects asked through the bridge: `omui page site.describe`). At each door the site says of itself the same text — its
 //           llms.txt — reads a page as the same Markdown — the route's index.md — and finds the same sections
 //           for a question. The words searched for through the page are in the page's own search box, with what
 //           they found. The report: target/doors.report.xdef.json.
@@ -243,17 +243,24 @@ int doors(const fs::path& root, const fs::path& directory, std::string_view path
             }
         });
     }
-    const auto asked = [&](std::string request) { return ran(*omui, {"page", "call", std::move(request), "--dir", mcpplibs::os::fs::utf8(bridge_dir)}); };
+    // An operation of the page's subject as a command line: its words are its request (`omui page docs.search --query …`).
+    const auto asked = [&](std::vector<std::string> words) {
+        words.insert(words.begin(), "page");
+        words.insert(words.end(), {"--dir", mcpplibs::os::fs::utf8(bridge_dir)});
+        return ran(*omui, std::move(words));
+    };
     const Said paired = ran(*omui, {"page", "status", "--wait", "--dir", mcpplibs::os::fs::utf8(bridge_dir)});
     step(paired.code == 0 && paired.all.contains("\"paired\":true"), "connected", "omui connect <the page's code>: paired", paired.all + bridge_said);
-    const Said here = asked(R"({"op":"subjects"})");
+    const Said here = asked({"subjects"});
     step(here.code == 0 && here.all.contains(R"("name":"site")") && here.all.contains(R"("name":"ui")"), "connected", "who is here: the interface and the site", here.all);
-    const Said told = asked(R"({"op":"site.describe"})");
+    const Said told = asked({"site.describe"});
     step(told.code == 0 && text(at(told.data, "text")) == llms, "connected", "site.describe: its text is llms.txt, word for word", told.all);
-    const Said given = asked(json({{"op", "page.read"}, {"route", route}}).dump());
+    const Said given = asked({"page.read", "--route", route});
     step(given.code == 0 && text(at(given.data, "text")) == markdown, "connected", "page.read: the page's index.md", given.all);
-    const Said sought = asked(json({{"op", "docs.search"}, {"query", query}}).dump());
-    step(sought.code == 0 && at(sought.data, "found") == at(found.data, "found"), "connected", "docs.search: the sections the command finds", sought.all);
+    const Said sought = asked({"call", json({{"op", "docs.search"}, {"query", query}}).dump()});
+    const Said sought_by_words = asked({"docs.search", "--query", query});
+    step(sought.code == 0 && at(sought.data, "found") == at(found.data, "found") && at(sought_by_words.data, "found") == at(found.data, "found"), "connected",
+         "docs.search, as words and as a request whole: the sections the command finds", sought.all + sought_by_words.all);
     (void)page.value("window.omui.unlink()");
 
     const std::string version = page.version();

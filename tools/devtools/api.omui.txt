@@ -366,6 +366,7 @@ namespace omui::devtools::eval {
   struct Reply {
     std::string text;
     std::vector<std::string> tools;
+    std::vector<std::string> commands;
     int turns = 0;
     nlohmann::json usage;
     nlohmann::json raw;

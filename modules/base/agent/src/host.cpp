@@ -97,9 +97,16 @@ std::expected<std::string, std::string> request_from(std::span<const std::string
     std::string out = std::format("{{\"op\":{}", json_text(op));
     std::size_t at = 1;
     // The session's own, with what they take unnamed: `describe world.act`, `find set something on fire`.
+    // The request's own word before it is taken too (`describe operation world.act`): it is what the answers print.
     if (op == "describe" && at < arguments.size() && !arguments[at].starts_with("--")) {
-        out += std::format(",{}:{}", arguments[at].contains('.') ? "\"operation\"" : "\"subject\"", json_text(arguments[at]));
-        ++at;
+        const bool worded = (arguments[at] == "operation" || arguments[at] == "subject") && at + 1 < arguments.size() && !arguments[at + 1].starts_with("--");
+        std::string_view what = arguments[worded ? at + 1 : at];
+        std::string_view as = worded ? arguments[at] : what.contains('.') ? std::string_view("operation") : std::string_view("subject");
+        // And as one word: `describe operation=world.act`.
+        for (const std::string_view stated : {std::string_view("operation="), std::string_view("subject=")})
+            if (!worded && what.starts_with(stated)) as = stated.substr(0, stated.size() - 1), what.remove_prefix(stated.size());
+        out += std::format(",{}:{}", json_text(as), json_text(what));
+        at += worded ? 2 : 1;
     } else if (op == "find" && at < arguments.size() && !arguments[at].starts_with("--")) {
         std::string words;
         for (; at < arguments.size() && !arguments[at].starts_with("--"); ++at) words += (words.empty() ? "" : " ") + std::string(arguments[at]);
@@ -164,7 +171,8 @@ Answered answer_to(Session& session, std::string_view request, std::chrono::mill
 // parameter not named otherwise, in the catalog's order, the ones it needs first (`document.check rise.json` is
 // --file rise.json; more words than parameters go to the last: `effect.check a.json b.json`); `--name` is a switch
 // when the parameter is one (bool) or the operation has no such parameter, and takes the next word as its value
-// only when it is a parameter of another type (`--json bad`: a switch, then a word). An operation the session does
+// only when it is a parameter of another type (`--json bad`: a switch, then a word); `name=value` names a parameter
+// as `--name value` does. An operation the session does
 // not know keeps only its name, so that its answer is the session's: not found, and the nearest names.
 std::vector<std::string> named_in_order(Session& session, std::span<const std::string_view> arguments) {
     std::vector<std::string> out(arguments.begin(), arguments.end());
@@ -187,6 +195,15 @@ std::vector<std::string> named_in_order(Session& session, std::span<const std::s
             break;
         }
         if (!argument.starts_with("--")) {
+            // `name=value` with the name one of the operation's parameters is that parameter (what an agent types
+            // after reading the parameters by name): read as the next unnamed word, a site's path would begin
+            // with "site=" and the answer would be of a place that is not there.
+            const std::size_t is = argument.find('=');
+            if (is != std::string_view::npos && is > 0 && parameter(argument.substr(0, is)) != parameters.end()) {
+                given.emplace_back(argument.substr(0, is));
+                named.push_back("--" + std::string(argument));
+                continue;
+            }
             words.emplace_back(argument);
             continue;
         }
@@ -220,6 +237,8 @@ std::vector<std::string> named_in_order(Session& session, std::span<const std::s
 
 int command_line(Session& session, std::span<const std::string_view> arguments, std::ostream& out, std::ostream& errors, const CommandLine& how) {
     std::vector<std::string_view> given(arguments.begin(), arguments.end());
+    // A request typed whole without its switch (`'{"op":"subjects"}'`) is that request.
+    if (given.size() == 1 && given.front().starts_with('{')) given.insert(given.begin(), std::string_view("--request"));
     // A name without a dot is the product's own, when the program has one.
     constexpr std::array own{"subjects", "help", "describe", "find", "log"};
     std::string prefixed;
@@ -227,9 +246,11 @@ int command_line(Session& session, std::span<const std::string_view> arguments, 
         prefixed = how.product + "." + std::string(given.front());
         given.front() = prefixed;
     }
-    // An operation's --help: the operation described whole (its parameters, cost, undo, examples).
+    // An operation's --help: the operation described whole (its parameters, cost, undo, examples); the session's
+    // own words' (`describe --help`): how to ask here.
+    const bool own_word = !given.empty() && std::ranges::contains(own, given.front());
     if (given.size() > 1 && !given.front().starts_with("-") && std::ranges::any_of(given | std::views::drop(1), [](std::string_view word) { return word == "--help" || word == "-h"; })) {
-        const Answered described = answer_to(session, std::format(R"({{"op":"describe","operation":{}}})", json_text(given.front())));
+        const Answered described = answer_to(session, own_word ? std::string(R"({"op":"help"})") : std::format(R"({{"op":"describe","operation":{}}})", json_text(given.front())));
         for (const std::string& record : described.records) std::println(out, "{}", record);
         return described.finished ? described.exit_code : 1;
     }

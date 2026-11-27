@@ -109,6 +109,17 @@ static UTest cases{"cli", [] {
         const Value transaction = request({"transaction", R"([{"node":"main/a","action":"toggle"}])", "--label", "both"});
         expect(eq(text(transaction, "steps"), std::string(R"([{"node":"main/a","action":"toggle"}])")) && eq(text(transaction, "label"), std::string(R"("both")")))
             << transaction.json();
+        // An operation of a subject the application holds beside its interface: no catalog of it here — the words
+        // make its request, and the application answers. Who is there, the same way.
+        const Value described = request({"site.describe"});
+        expect(eq(text(described, "op"), std::string(R"("site.describe")")) && described.map()->size() == 1u) << described.json();
+        const Value searched = request({"docs.search", "--query", "first window", "--limit", "2"});
+        expect(eq(text(searched, "op"), std::string(R"("docs.search")")) && eq(text(searched, "query"), std::string(R"("first window")")) && eq(text(searched, "limit"), std::string("2")))
+            << searched.json();
+        expect(eq(text(request({"subjects"}), "op"), std::string(R"("subjects")")));
+        // A verb of the catalogs carried here is still an `invoke`.
+        const Value sources = request({"design.sources"});
+        expect(eq(text(sources, "op"), std::string(R"("invoke")")) && eq(text(sources, "verb"), std::string(R"("design.sources")"))) << sources.json();
         const Value clock = request({"clock", "rate", "0.5"});
         expect(eq(text(clock, "action"), std::string(R"("rate")")) && eq(text(clock, "rate"), std::string("0.5"))) << clock.json();
         // A verb of Live Design: `invoke`, its arguments beside what the request itself carries.

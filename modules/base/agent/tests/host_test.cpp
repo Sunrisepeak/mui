@@ -68,6 +68,11 @@ static UTest cases{"agent.host", [] {
         expect(eq(request({"world.act", "--at", "[3,4]"}), std::string(R"({"op":"world.act","at":[3,4]})")));
         expect(eq(request({"document.sample", "--at", "0", "--file", "a.json", "--at", "1.5"}), std::string(R"({"op":"document.sample","at":[0,1.5],"file":"a.json"})")));
         expect(eq(request({"describe", "counter"}), std::string(R"({"op":"describe","subject":"counter"})")));
+        // The request's own word before what is described reads the same (what a cold agent types after an answer).
+        expect(eq(request({"describe", "operation", "counter.add"}), std::string(R"({"op":"describe","operation":"counter.add"})")));
+        expect(eq(request({"describe", "subject", "counter"}), std::string(R"({"op":"describe","subject":"counter"})")));
+        expect(eq(request({"describe", "operation"}), std::string(R"({"op":"describe","subject":"operation"})")));
+        expect(eq(request({"describe", "operation=counter.add"}), std::string(R"({"op":"describe","operation":"counter.add"})")));
         expect(eq(request({"describe", "counter.add"}), std::string(R"({"op":"describe","operation":"counter.add"})")));
         expect(eq(request({"find", "add", "to", "it"}), std::string(R"({"op":"find","q":"add to it"})")));
         expect(eq(request({"--request", R"({"op":"subjects"})"}), std::string(R"({"op":"subjects"})")));
@@ -146,11 +151,23 @@ static UTest cases{"agent.host", [] {
         // A switch takes the true or false written after it: a dry run said off is no dry run.
         const std::array said_off{std::string_view("counter.add"), std::string_view("--dry-run"), std::string_view("false"), std::string_view("2")};
         expect(eq(agent::command_line(session, said_off, typed, errors), 0) && counter.count == 12) << typed.str();
+        // `name=value` names a parameter as `--name value` does; a word with `=` that names none is a word.
+        const std::array by_equals{std::string_view("counter.add"), std::string_view("by=3")};
+        const std::int64_t before_equals = counter.count;
+        expect(eq(agent::command_line(session, by_equals, typed, errors), 0) && counter.count == before_equals + 3) << typed.str();
+        // A request typed whole, without `--request`, is that request.
+        const std::array whole{std::string_view(R"({"op":"counter.add","by":2})")};
+        const std::int64_t before_whole = counter.count;
+        expect(eq(agent::command_line(session, whole, typed, errors), 0) && counter.count == before_whole + 2) << typed.str();
         // An operation's --help: it described whole.
         std::ostringstream helped;
         const std::array asking{std::string_view("counter.add"), std::string_view("--help")};
         expect(eq(agent::command_line(session, asking, helped, errors), 0) && helped.str().contains(R"("name":"counter.add")") && helped.str().contains(R"("parameters")"))
             << helped.str();
+        // The session's own word's --help: how to ask here, not "no operation `describe`".
+        std::ostringstream how;
+        const std::array asking_how{std::string_view("describe"), std::string_view("--help")};
+        expect(eq(agent::command_line(session, asking_how, how, errors), 0) && !how.str().contains("not-found") && how.str().contains("subjects")) << how.str();
         std::ostringstream none;
         expect(eq(agent::command_line(session, {}, none, errors), 2));
     };

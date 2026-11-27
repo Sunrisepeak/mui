@@ -43,16 +43,21 @@ struct Course {
         const auto [code, checked] = hanim_says(hanim, {"document.check", "--file", os::fs::utf8(file)});
         ok = code == 0 && checked.value("ok", false);
         problems = checked.value("problems", json::array());
+        // Not the document's problems but the program's own (it did not start, it answered no record): what it said.
+        if (!ok && problems.empty()) problems = json::array({std::format("hanim exited {}: {}", code, checked.value("raw", checked.dump()).substr(0, 240))});
         if (!ok) return;
         plan = checked["plan"];
         if (plan["duration"].is_number()) duration = plan["duration"].get<double>();
-        std::vector<std::string> args{"document.sample", "--file", os::fs::utf8(file)};
+        // One request, whole: 601 moments as `--at` words are 1,202 arguments, and a platform may start a program
+        // with no more than some hundreds (openkal-linux 0.26: 512, answered as "out of memory").
+        json moments = json::array();
         for (int index = 0; index <= steps; ++index) {
             times.push_back(duration * index / steps);
-            args.insert(args.end(), {"--at", std::format("{:.6f}", times.back())});
+            moments.push_back(std::round(times.back() * 1e6) / 1e6);
         }
-        const auto [sampled_code, sampled] = hanim_says(hanim, std::move(args));
+        const auto [sampled_code, sampled] = hanim_says(hanim, {"--request", json{{"op", "document.sample"}, {"file", os::fs::utf8(file)}, {"at", moments}}.dump()});
         ok = sampled_code == 0 && sampled.value("ok", false);
+        if (!ok) problems = json::array({std::format("document.sample exited {}: {}", sampled_code, sampled.value("raw", sampled.dump()).substr(0, 240))});
         if (ok)
             for (const auto& sample : sampled.value("samples", json::array())) samples.push_back(sample);
         document = json::parse(os::fs::read(file).value_or(""), nullptr, false);
@@ -94,6 +99,13 @@ std::array<int, 4> rgba(const json& value) {
     for (std::size_t index = 0; index < 4 && index * 2 + 2 <= text.size(); ++index)
         std::from_chars(text.data() + index * 2, text.data() + index * 2 + 2, out[index], 16);
     return out;
+}
+
+// How opaque an object is shown, 0 … 255: its fill's alpha through its own opacity (a recipe that fades an object
+// in moves its opacity and leaves its fill as stated; a fill animated to transparent moves the fill).
+int shown_alpha(const json& object) {
+    const double opacity = object.contains("opacity") && object["opacity"].is_number() ? object["opacity"].get<double>() : 1.0;
+    return static_cast<int>(std::lround(rgba(object.value("fill", json()))[3] * std::clamp(opacity, 0.0, 1.0)));
 }
 
 // How many times it leaves the ground again after touching it (its bottom edge's samples).
@@ -227,7 +239,7 @@ std::vector<Check> grade(const Course& course, std::string_view kind) {
         check("the turn comes after the spring", turned > peak, std::format("turn at sample {}, peak at {}", turned, peak));
     } else if (kind == "fade") {
         std::vector<int> alphas;
-        for (const auto& [time, fill] : course.series("bar", "fill")) alphas.push_back(rgba(fill)[3]);
+        for (std::size_t index = 0; index < course.samples.size(); ++index) alphas.push_back(shown_alpha(course.object(index, "bar")));
         const auto ys = values(course.series("bar", "position"), 1);
         check("it starts invisible", alphas.front() == 0, std::to_string(alphas.front()));
         check("it ends opaque", alphas.back() == 255, std::to_string(alphas.back()));
@@ -250,16 +262,16 @@ std::vector<Check> grade(const Course& course, std::string_view kind) {
             const std::string name = std::format("card{}", card);
             const json start = course.at_start(name), end = course.at_end(name);
             check(std::format("{} starts invisible at the centre, scale 0.6", name),
-                  rgba(start.value("fill", json()))[3] == 0 && near(item(start.value("position", json::array({0, 0})), 0), 240, 1) &&
+                  shown_alpha(start) == 0 && near(item(start.value("position", json::array({0, 0})), 0), 240, 1) &&
                       near(item(start.value("scale", json::array({0})), 0), 0.6, 0.01),
                   start.dump());
             check(std::format("{} ends opaque on its place at scale 1", name),
-                  rgba(end.value("fill", json()))[3] == 255 && near(item(end.value("position", json::array({0, 0})), 0), places[card - 1], 1.5) &&
+                  shown_alpha(end) == 255 && near(item(end.value("position", json::array({0, 0})), 0), places[card - 1], 1.5) &&
                       near(item(end.value("position", json::array({0, 0})), 1), 160, 1.5) && near(item(end.value("scale", json::array({0})), 0), 1, 0.01),
                   end.dump());
             std::optional<double> shown;
-            for (const auto& [time, fill] : course.series(name, "fill"))
-                if (!shown && rgba(fill)[3] > 0) shown = time;
+            for (std::size_t index = 0; index < course.samples.size(); ++index)
+                if (!shown && shown_alpha(course.object(index, name)) > 0) shown = course.samples[index].value("time", 0.0);
             appear.push_back(shown);
             std::vector<double> rotations;
             for (const auto& [time, rotation] : course.series(name, "rotation_degrees"))

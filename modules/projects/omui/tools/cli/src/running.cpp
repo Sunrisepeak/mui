@@ -143,6 +143,27 @@ int operate_running(std::vector<std::string> words, const Transport& send, std::
     // `describe` and `find` are the protocol's here (ui.describe, ui.find), as every name the ui catalog has.
     if (!words.empty() && std::ranges::any_of(agent::catalog, [&](const auto& e) { return e.operation.name == "ui." + words.front(); })) words.front() = "ui." + words.front();
     const std::vector<std::string_view> viewed(words.begin(), words.end());
+    // An operation of a subject the application holds beside these (a site's pages, a game's world — the runtime's
+    // other subjects), or who is there: no catalog of it is carried here, so the words make its request as any
+    // command line's do (`docs.search --query install`: {"op":"docs.search","query":"install"}) and the
+    // application's own session answers it — its refusal too, with the ways on.
+    const auto carried = [&](std::string_view operation) {
+        const auto has = [&](std::span<const mlibs::control::CatalogEntry> catalog) { return std::ranges::any_of(catalog, [&](const auto& entry) { return entry.operation.name == operation; }); };
+        return has(agent::catalog) || has(agent::design::catalog) || has(agent::generate::catalog) || has(agent::tasks::catalog);
+    };
+    if (!words.empty() && (words.front() == "subjects" || (words.front().contains('.') && !carried(words.front())))) {
+        const auto made = mlibs::agent::request_from(viewed);
+        if (!made) {
+            err << "omui: " << made.error() << '\n';
+            return 2;
+        }
+        const auto request = parse_json(*made);
+        if (!request || !request->map()) {
+            err << "omui: the words make no request\n";
+            return 2;
+        }
+        return print_records(send(*request, std::chrono::seconds(30)), out);
+    }
     if (!out_file) return mlibs::agent::command_line(session, viewed, out, err, {.product = "ui"});
     std::ostringstream answered;
     const int code = mlibs::agent::command_line(session, viewed, answered, err, {.product = "ui"});

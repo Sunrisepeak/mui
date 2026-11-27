@@ -191,7 +191,9 @@ std::expected<Reply, std::string> ask(const Session& session, std::string_view p
         const std::string type = event.value("type", "");
         if (type == "assistant" && event.contains("message"))
             for (const auto& content : event["message"].value("content", json::array())) {
-                if (content.value("type", "") == "tool_use") reply.tools.push_back(content.value("name", ""));
+                if (content.value("type", "") != "tool_use") continue;
+                reply.tools.push_back(content.value("name", ""));
+                if (content.value("name", "") == "Bash" && content.contains("input") && content["input"].is_object()) reply.commands.push_back(content["input"].value("command", ""));
                 else if (content.value("type", "") == "text") reply.text = content.value("text", "");
             }
         if (type == "result") reply.raw = event;

@@ -97,6 +97,8 @@ struct Substitutions {
     std::vector<SubstitutionRule> rules;
     std::vector<std::vector<std::uint16_t>> called;  // by lookup: the lookups its contextual rules call
     std::size_t current = 0;                         // the lookup being read
+    bool tracking = false;                           // while the lookups are read: which lookup reaches each structure
+    std::map<std::size_t, std::set<std::size_t>> reached_by;  // a structure's start, the lookups that reach it
 
     bool fail(std::string_view message) {
         if (error.empty()) error = std::format("GSUB: {}", message);
@@ -108,6 +110,7 @@ struct Substitutions {
     std::uint16_t word(std::size_t at) { return has(at, 2) ? u16(data, at) : 0; }
     std::size_t relative(std::size_t base, std::size_t delta) {
         if (!delta || !has(base, delta) || !has(base + delta, 2)) { fail("invalid relative offset"); return data.size(); }
+        if (tracking) reached_by[base + delta].insert(current);
         return base + delta;
     }
     bool glyph(std::uint16_t id) { return id < glyphs || fail("glyph id exceeds maxp glyph count"); }
@@ -298,6 +301,7 @@ struct Substitutions {
         const auto list = relative(0, word(8)); lookup_count = word(list);
         if (!has(list + 2, std::size_t{lookup_count} * 2)) return false;
         called.assign(lookup_count, {});
+        tracking = true;
         for (std::size_t i = 0; i < lookup_count; ++i) {
             current = i;
             const std::size_t first_rule = rules.size();
@@ -308,6 +312,7 @@ struct Substitutions {
                 if (!subtable(type, relative(lookup, word(lookup + 6 + j * 2)))) return false;
             for (std::size_t k = first_rule; k < rules.size(); ++k) rules[k].lookup = i;
         }
+        tracking = false;
         return error.empty();
     }
 
@@ -340,7 +345,7 @@ struct Substitutions {
     // The table with the features not given left without lookups (their lookup counts 0, their indices zeroed — in place:
     // nothing moves), so a cut that does not hold their glyphs applies none of them. A feature table two records share is
     // left as it is while one of them is kept.
-    Bytes without_other_features(std::span<const std::string_view> features) {
+    Bytes without_other_features(std::span<const std::string_view> features, const std::vector<bool>& reach) {
         Bytes out(data.begin(), data.end());
         const auto list = relative(0, word(6)), count = std::size_t{word(list)};
         std::set<std::size_t> kept_tables;
@@ -357,7 +362,33 @@ struct Substitutions {
             put16(out, feature + 2, 0);
             std::fill_n(out.begin() + static_cast<std::ptrdiff_t>(feature + 4), lookups * 2, std::uint8_t{0});
         }
-        return error.empty() ? out : Bytes(data.begin(), data.end());
+        if (!error.empty()) return Bytes(data.begin(), data.end());
+        // The lookups no kept feature reaches (the others' lookups, and what only those call): each without subtables
+        // (a count of 0, no mark filtering set) and everything only they reach zeroed. A structure two lookups share stays
+        // while one of them is reached. The extent of a structure is up to the next one that starts: tables of the layout
+        // header, the script list and the feature list are such starts too, and are never zeroed.
+        const std::size_t lookup_list = relative(0, word(8));
+        std::map<std::size_t, bool> zeroed;  // start -> whether its bytes go
+        for (const auto& [start, lookups] : reached_by)
+            zeroed[start] = std::ranges::none_of(lookups, [&](std::size_t lookup) { return reach[lookup]; });
+        for (std::size_t lookup = 0; lookup < lookup_count; ++lookup) {  // lookup tables are not emptied whole: their header stays
+            const std::size_t at = lookup_list + word(lookup_list + 2 + lookup * 2);
+            zeroed[at] = false;
+        }
+        for (const std::size_t fixed : {std::size_t{word(4)}, std::size_t{word(6)}, lookup_list}) zeroed[fixed] = false;
+        if (!error.empty()) return Bytes(data.begin(), data.end());
+        for (auto it = zeroed.begin(); it != zeroed.end(); ++it) {
+            const auto next = std::next(it);
+            if (it->second) std::fill(out.begin() + static_cast<std::ptrdiff_t>(it->first), out.begin() + static_cast<std::ptrdiff_t>(next == zeroed.end() ? out.size() : next->first), std::uint8_t{0});
+        }
+        for (std::size_t lookup = 0; lookup < lookup_count; ++lookup) {
+            if (reach[lookup]) continue;
+            const std::size_t at = lookup_list + word(lookup_list + 2 + lookup * 2), count = word(at + 4), flags = word(at + 2);
+            put16(out, at + 2, static_cast<std::uint16_t>(flags & ~0x10u));
+            put16(out, at + 4, 0);
+            std::fill_n(out.begin() + static_cast<std::ptrdiff_t>(at + 6), count * 2 + ((flags & 0x10) ? 2 : 0), std::uint8_t{0});
+        }
+        return out;
     }
 };
 
@@ -1182,7 +1213,7 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
     // Only the given features' lookups: the glyphs the others would make are not kept, and the others are taken out.
     const auto reached = by.contains("GSUB") ? substitutions.reached(features) : std::nullopt;
     Bytes new_gsub;
-    if (reached) new_gsub = substitutions.without_other_features(features);
+    if (reached) new_gsub = substitutions.without_other_features(features, *reached);
     auto mapped = glyphs_of(by["cmap"], keep);
     if (!mapped) return std::unexpected(mapped.error());
     std::vector<bool> kept(glyphs, false);

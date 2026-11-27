@@ -293,6 +293,12 @@ static UTest cases{"text.subset", [] {
         };
         expect(metrics.size() == whole_metrics.size() && used(metrics) <= shaping_report.kept + 1 && used(metrics) * 4 < used(whole_metrics))
             << std::format("{} advance entries in use of {}, {} glyphs kept", used(metrics), used(whole_metrics), shaping_report.kept);
+        // GSUB keeps what the shaping features reach and no more: the lookups of every other feature have no subtables and
+        // the bytes only they reach are zero, in place, so the table's size is the same and what is sent is a fraction.
+        const auto zeros = [](std::span<const std::uint8_t> bytes) { return static_cast<std::size_t>(std::ranges::count(bytes, std::uint8_t{0})); };
+        const auto substitutions = table(*cut, "GSUB"), whole_substitutions = table(inter, "GSUB");
+        expect(substitutions.size() == whole_substitutions.size() && zeros(substitutions) > zeros(whole_substitutions) + whole_substitutions.size() / 4)
+            << std::format("GSUB {} bytes, {} zero (the whole face's: {})", substitutions.size(), zeros(substitutions), zeros(whole_substitutions));
         const auto twice = subset::subset_font(*cut, keep, nullptr, subset::shaping_features());
         expect(twice && *twice == *cut) << "cut again: the same bytes";
     };

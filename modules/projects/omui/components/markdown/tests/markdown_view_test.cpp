@@ -335,6 +335,53 @@ UTest cases{"ui.markdown", [] {
         expect(held >= 2u);
     };
 
+    "the page written with its look draws what the frame drew: inline code's ground, an ordered list's numbers (UI5)"_test = [] {
+        Headless h({.level = HeadlessLevel::pixels, .size = {720, 600}});
+        h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = "Add `index.md` to its address.\n\n1. one\n2. two\n\n- a bullet\n\n3) three\n"})}));
+        h.settle();
+        const semantic::Snapshot snapshot = h.tree().snapshot({});
+        const semantic::Look look = semantic::html_look(h.runtime(), snapshot);
+        // The code's ground: its element's own background, 2 px past its glyphs on each side by a padding its margin
+        // takes back (no word moves), from a line's top to its bottom less a pixel (a padding over its face's ascent).
+        // The ground is the code's alone: the words after it begin inside it, where it runs on past the code.
+        std::vector<std::string> grounds;
+        for (const auto& [id, parts] : look.spans)
+            for (const semantic::Look::Span& part : parts)
+                if (part.style.contains("background-color:")) grounds.push_back(std::format("{} {}-{} {}", id, part.begin, part.end, part.style));
+        expect(grounds.size() == 1u) << grounds.size() << (grounds.size() > 1 ? grounds[1] : std::string());
+        const std::string code = grounds.empty() ? std::string() : grounds.front();
+        expect(code.contains(" 4-12 ") && code.contains("border-radius:4px;") && code.contains(" 2px ") && code.contains("margin:0 -2px;") && code.contains("box-decoration-break:clone;") &&
+               code.contains("font-size:13.5px;"))
+            << code;
+        // Each item of an ordered list says the number it drew, figures and delimiter as drawn; an item of a list of
+        // bullets says none.
+        std::vector<std::string> numbers;
+        for (const spec::SemanticNode& n : snapshot.nodes) {
+            if (n.role != Role::list_item) continue;
+            const std::string_view style = look.style(n.id);
+            const auto at = style.find("--omui-marker:");
+            numbers.push_back(at == std::string_view::npos ? std::string("-") : std::string(style.substr(at + 14, style.find(';', at) - at - 14)));
+            if (at != std::string_view::npos)
+                expect(style.contains("--omui-marker-numeric:tabular-nums;") && style.contains("--omui-marker-font:400 15px/") && style.contains("--omui-marker-left:")) << style;
+        }
+        expect(numbers == std::vector<std::string>{"\"1.\"", "\"2.\"", "-", "\"3)\""}) << numbers.size() << " " << (numbers.empty() ? "" : numbers.back());
+        const std::string sheet = semantic::look_sheet(look);
+        expect(sheet.contains("[data-omui-look] li[style*='--omui-marker:']::before{content:var(--omui-marker);position:absolute;")) << sheet;
+        // Nothing a reader reads is added: the page's words are the document's.
+        const std::string written = semantic::static_html(snapshot, {.look = &look}), plain = semantic::static_html(snapshot, {});
+        const auto words = [](std::string_view markup) {
+            std::string out;
+            bool tag = false;
+            for (const char c : markup) {
+                if (c == '<') tag = true;
+                else if (c == '>') tag = false;
+                else if (!tag && c != ' ' && c != '\n') out += c;
+            }
+            return out;
+        };
+        expect(written.contains("<code style=\"background-color:") && words(written) == words(plain)) << written;
+    };
+
     "the tree read back as the document, written as Markdown, parses to the document it was given (UI2)"_test = [] {
         const auto sources = documents();
         std::size_t same = 0;

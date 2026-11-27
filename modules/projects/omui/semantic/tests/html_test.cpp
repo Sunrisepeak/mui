@@ -166,7 +166,9 @@ static UTest cases{"html", [] {
             expect(!sem::look_sheet(look).contains("prefers-color-scheme")) << "one scheme: nothing by preference";
             // A browser that rounds each glyph's advance to a whole pixel is asked for the outline's own geometry, as
             // the engine sets it — a control too, which the browser's own sheet would set back.
-            expect(sheet.contains("font-optical-sizing:none;text-rendering:geometricPrecision}")) << sheet;
+            expect(sheet.contains("font-optical-sizing:none;text-rendering:geometricPrecision;")) << sheet;
+            // The space the engine puts between an ideograph and a Latin letter, which a browser puts only when asked.
+            expect(sheet.contains("text-autospace:normal}")) << sheet;
             expect(sheet.contains("font:inherit;text-rendering:inherit;")) << sheet;
         }
         const std::string_view title = look.style("main/title"), add = look.style("main/bar/add");
@@ -204,6 +206,33 @@ static UTest cases{"html", [] {
         // Wrappers open and close: as many of one as of the other.
         const auto count = [&](std::string_view what) { std::size_t n = 0; for (auto at = html.find(what); at != std::string::npos; at = html.find(what, at + 1)) ++n; return n; };
         expect(eq(count("<div"), count("</div>"))) << html;
+    };
+
+    "a Chinese line with Latin words: its faces in the order the frame tried them, a space set in the face that set it"_test = [] {
+        RuntimeOptions o;
+        o.fonts = &fonts();
+        o.size = {480, 120};
+        Runtime rt(o);
+        rt.mount("main", column({}, {text({.id = "line", .text = "由 oweb 构建：给 Agent 写成。"})}));
+        expect(rt.frame({seconds(0), {}}).failure.empty());
+        sem::Tree tree(rt);
+        const sem::Snapshot snapshot = tree.snapshot();
+        const sem::Look look = sem::html_look(rt, snapshot);
+        // Most of its glyphs are the Chinese face's, but the Latin one is tried first: a page that names them so sets
+        // "oweb" and "Agent" in it, as the frame did (named the other way, in the Chinese face's own Latin letters).
+        const std::string_view line = look.style("main/line");
+        expect(line.contains("font-family:'omui-inter','omui-notosanssc',system-ui,sans-serif;")) << line;
+        // A space after Chinese text is the Chinese face's, as the engine sets it (beside what it follows); after a
+        // Latin word, the Latin face's — which is what a page gives every space, so only the first are set apart.
+        const std::string text = "由 oweb 构建：给 Agent 写成。";
+        std::vector<std::size_t> apart;
+        for (const sem::Look::Span& span : look.set_apart("main/line")) {
+            expect(span.end == span.begin + 1 && text[span.begin] == ' ' && span.style == "font-family:'omui-notosanssc',system-ui,sans-serif;line-height:0;") << span.begin << " " << span.style;
+            apart.push_back(span.begin);
+        }
+        expect(apart == std::vector<std::size_t>{text.find(" oweb"), text.find(" Agent")}) << apart.size();
+        const std::string html = sem::static_html(snapshot, {.look = &look});
+        expect(html.contains("由<span style=\"font-family:'omui-notosanssc',system-ui,sans-serif;line-height:0;\"> </span>oweb 构建")) << html;
     };
 
     "a running application's tree projected: every node there by its id, every text the tree's"_test = [] {

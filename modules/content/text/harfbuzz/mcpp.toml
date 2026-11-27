@@ -34,7 +34,10 @@ mlibs.compose = { path = "../../../base/compose" }
 mcpplibs.mwrap.harfbuzz = "14.3.0"
 # HarfBuzz without its FreeType backend (mcpp-index#860): shaping reads its fonts through HarfBuzz's own `ot`
 # functions, and with FreeType built in, every program that makes a font would link all of FreeType (red 149).
-compat.harfbuzz = { version = "14.3.0", features = ["no-freetype"] }
+# And without the APIs this shaper never calls (mcpp-index#929, revision 3: buffer serialisation, verification and
+# messages, the MATH and meta tables, the layout API no shaper uses, glyph names, style queries): its 57 `hb_*` calls
+# answer as before (the Web-program size design §14).
+compat.harfbuzz = { version = "14.3.0", features = ["no-freetype", "no-unused-api"] }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.11.3"

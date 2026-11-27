@@ -79,6 +79,8 @@ static UTest cases{"site.show", [] {
             Seen seen;
             std::size_t still = 0;
             double still_run = 0;
+            std::map<std::int64_t, std::pair<std::size_t, std::size_t>> by_step;  // a step's frames, and its still ones
+            std::int64_t step_now = 0;
             const auto take = [&] {
                 at += frame;
                 (void)host.step({}, seconds(at));
@@ -95,6 +97,8 @@ static UTest cases{"site.show", [] {
                 }
                 before = now;
                 ++seen.frames;
+                ++by_step[step_now].first;
+                if (!changed) ++by_step[step_now].second;
                 if (changed) {
                     still_run = 0;
                 } else {
@@ -111,15 +115,21 @@ static UTest cases{"site.show", [] {
                     take();
                     const Envelope asked = invoke(Value(Value::Map{}));
                     const Value* state = asked.data_value();
+                    if (const Value* step = state ? state->get("at") : nullptr; step && step->is_number()) step_now = step->as_int();
                     if (const Value* ended = state ? state->get("ended") : nullptr; ended && ended->as_bool(false)) break;
                 }
             } else {
                 // Before its show: each step gone to and held for its own seconds, shown at once.
                 for (std::size_t step = 1; step <= steps->steps.size(); ++step) {
                     expect(invoke(Value{}.set("at", static_cast<std::int64_t>(step))).exit_code().value_or(-1) == 0);
+                    step_now = static_cast<std::int64_t>(step);
                     for (double held = 0; held < steps->steps[step - 1].seconds; held += frame) take();
                 }
             }
+            for (const auto& [step, counts] : by_step)
+                if (step > 0)
+                    std::println("      step {}: {:.2f} s, {:.0f}% still", step, static_cast<double>(counts.first) * frame,
+                                 100.0 * static_cast<double>(counts.second) / static_cast<double>(std::max<std::size_t>(1, counts.first)));
             seen.seconds = static_cast<double>(seen.frames) * frame;
             seen.still_share = static_cast<double>(still) / static_cast<double>(std::max<std::size_t>(1, seen.frames));
             (void)invoke(Value{}.set("stop", true));

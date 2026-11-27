@@ -5,12 +5,12 @@
     "subject": "org.openmui.site",
     "branch": "main",
     "steps": [
-      {"caption": "1/9 · omui's site: one page, the mark, one sentence, Live Design and the install — begun", "actor": "agent:designer", "seconds": 1.5, "files": {"app/main.ts": "459bdbcc4499d78a"}},
+      {"caption": "1/9 · omui's site, one page — begun", "actor": "agent:designer", "seconds": 1.5, "files": {"app/main.ts": "459bdbcc4499d78a"}},
       {"caption": "2/9 · the mark: a circle around the word", "actor": "agent:designer", "seconds": 1.5, "node": "main/mark/o", "files": {"app/main.ts": "c27b65364db6c449"}},
       {"caption": "3/9 · the sentence under it, the page's one heading", "actor": "agent:designer", "seconds": 1.5, "node": "main/line", "files": {"app/main.ts": "574f99bd09aa4a4b"}},
       {"caption": "4/9 · the Live Design key between them", "actor": "agent:designer", "seconds": 1.5, "node": "main/live", "files": {"app/main.ts": "c5ca437ce6c2c49f"}},
-      {"caption": "5/9 · the install: an agent's one sentence or two commands, a tab each, and Copy", "actor": "agent:designer", "seconds": 1.5, "node": "main/install", "files": {"app/main.ts": "07b53a2810a45233"}},
-      {"caption": "6/9 · Mui: four states of one picture, her head in the circle when an agent connects", "actor": "agent:designer", "seconds": 1.5, "node": "main/column:0/mark/breath", "files": {"app/main.ts": "606e6ac9fdbbce9e"}},
+      {"caption": "5/9 · the install: two tabs and Copy", "actor": "agent:designer", "seconds": 1.5, "node": "main/install", "files": {"app/main.ts": "07b53a2810a45233"}},
+      {"caption": "6/9 · Mui, in four states", "actor": "agent:designer", "seconds": 1.5, "node": "main/column:0/mark/breath", "files": {"app/main.ts": "606e6ac9fdbbce9e"}},
       {"caption": "7/9 · the sentence, in the person's words", "actor": "person:maintainer", "seconds": 1.5, "node": "main/column:0/line", "files": {"app/main.ts": "867abf5260c69ab7"}},
       {"caption": "8/9 · more room around the install", "actor": "person:maintainer", "seconds": 1.5, "files": {"app/main.ts": "85e3344737aa9cad"}},
       {"caption": "9/9 · the Live Design key plays this design in place", "actor": "agent:designer", "seconds": 1.5, "files": {"app/main.ts": "3c9600e5727bb760"}}

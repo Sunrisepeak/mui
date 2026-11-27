@@ -164,14 +164,14 @@ static UTest cases{"site.design", [] {
         const auto shown = [&](std::string_view id) { return !path_of(id).starts_with("<no"); };
 
         // 2. The agent drafts the page, a part at a time.
-        (void)done("design.begin", Value{}.set("intent", "omui's site: one page, the mark, one sentence, Live Design and the install"));
+        (void)done("design.begin", Value{}.set("intent", "omui's site, one page"));
         edit(drafted("stack, column, path, mount", "", mark_view), "the mark: a circle around the word");
         expect(shown("o") && shown("word")) << "the mark";
         edit(drafted("stack, column, text, path, mount", "", std::format("{}{}", mark_view, with_sentence())), "the sentence under it, the page's one heading");
         edit(drafted("stack, column, text, button, path, mount", "", std::format("{}{}{}", mark_view, key, with_sentence())), "the Live Design key between them");
         edit(drafted("signal, eq, select, stack, column, row, text, button, segmented, path, mount, copy", install_state,
                      std::format("{}{}{}{}", mark_view, key, with_sentence(), install_view)),
-             "the install: an agent's one sentence or two commands, a tab each, and Copy");
+             "the install: two tabs and Copy");
         expect(shown("install") && shown("copy")) << "the install";
 
         // 3. Mui: the page as it ships, but for the person's touch to come and the key's last part.
@@ -185,7 +185,7 @@ static UTest cases{"site.design", [] {
         std::string states = replaced(page, sentence, draft_sentence);
         states = replaced(std::move(states), R"(maxWidth: 640, padding: 18,)", R"(maxWidth: 640, padding: 16,)");
         states = replaced(std::move(states), key_plays, key_still);
-        edit(states, "Mui: four states of one picture, her head in the circle when an agent connects");
+        edit(states, "Mui, in four states");
         expect(h.tree().find({.role = Role::button, .name = "Copy"}).size() == 1) << "at rest";
 
         // 4. The person takes over: the sentence in their words, the install given more room.

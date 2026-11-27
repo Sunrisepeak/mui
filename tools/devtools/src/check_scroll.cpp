@@ -29,12 +29,17 @@ namespace {
 using cdp::json, cdp::at, cdp::number, cdp::text, cdp::truthy;
 
 // What the page keeps while a phase is measured: the time each animation frame was given (the frame's start, as
-// the browser paces them), the long tasks it saw.
+// the browser paces them), the long tasks it saw; with the program's spans asked for, their summaries — the
+// program's profile read and begun again by the page itself (`cycle`), so the wheel's pace is not held up for it.
 constexpr std::string_view probe_script = R"js((() => {
-  const probe = window.omuiScrollProbe = { frames: [], long: [], on: false };
+  const probe = window.omuiScrollProbe = { frames: [], long: [], own: [], on: false };
   const tick = (at) => { if (!probe.on) return; probe.frames.push(at); requestAnimationFrame(tick); };
-  probe.start = () => { probe.frames = []; probe.long = []; probe.on = true; requestAnimationFrame(tick); return true; };
+  probe.start = () => { probe.frames = []; probe.long = []; probe.own = []; probe.on = true; requestAnimationFrame(tick); return true; };
   probe.stop = () => { probe.on = false; return { frames: probe.frames, long: probe.long }; };
+  probe.cycle = (again) => window.omui.request({ op: 'profile', action: 'stop' }).then((a) => {
+    probe.own.push((a.data && a.data.summary) || []);
+    return again ? window.omui.request({ op: 'profile', action: 'start' }).then(() => true) : true;
+  });
   try {
     new PerformanceObserver((list) => { if (probe.on) for (const e of list.getEntries()) probe.long.push([e.startTime, e.duration]); }).observe({ type: 'longtask' });
   } catch (e) {}
@@ -52,6 +57,25 @@ constexpr std::string_view state_script = R"js((() => {
            words: document.querySelectorAll('[data-omui=mirror] [data-omui-word]').length,
            width: innerWidth, height: innerHeight, ratio: devicePixelRatio, drawn };
 })())js";
+
+// The browser's own ceiling on this display: a page of nothing but a canvas whose picture changes at every frame,
+// served by the check beside the site — how often this browser, this GPU and this monitor show a new frame at all.
+constexpr std::string_view reference_address = "/omui-scroll-reference/";
+constexpr std::string_view reference_page = R"html(<!doctype html><meta charset="utf-8"><title>reference</title>
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#fff}canvas{display:block;width:100vw;height:100vh}</style>
+<canvas></canvas><script>
+const canvas = document.querySelector('canvas'), context = canvas.getContext('2d');
+let count = 0;
+const draw = () => {
+  canvas.width = innerWidth * devicePixelRatio; canvas.height = innerHeight * devicePixelRatio;
+  context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = '#123'; context.fillRect((count * 7) % canvas.width, 0, 40, canvas.height);
+  context.font = '32px sans-serif'; context.fillText(String(++count), 40, 80);
+  requestAnimationFrame(draw);
+};
+requestAnimationFrame(draw);
+window.omuiHasPresented = true;
+</script>)html";
 
 // What the trace is asked for: the frames as the compositor and the display have them, the main thread's tasks
 // (scripts, styles, layouts, paints), the collections.
@@ -257,7 +281,10 @@ int scroll(const fs::path& root, const Scroll& asked) {
     const double interval = 1000.0 / hertz;
     const auto chrome = asked.headless ? browser::chromium() : headed_chromium();
     if (!chrome) return failed(asked.headless ? "no headless Chromium (OMUI_CHROME)" : "no Chromium that opens a window (OMUI_CHROME, playwright-chromium)");
-    auto server = cdp::Server::start(cdp::pages(asked.page));
+    auto server = cdp::Server::start([served = cdp::pages(asked.page)](const cdp::Arrived& request) -> cdp::Reply {
+        if (request.path == reference_address) return {.status = 200, .body = std::string(reference_page), .type = "text/html; charset=utf-8", .headers = {}};
+        return served(request);
+    });
     if (!server) return failed(server.error());
     std::vector<std::string> flags{std::format("--window-position={},{}", monitor.x + 40, monitor.y + 40)};
     flags.insert(flags.end(), asked.flags.begin(), asked.flags.end());
@@ -284,23 +311,33 @@ int scroll(const fs::path& root, const Scroll& asked) {
         }
         return std::format("{} did not come", what);
     };
-    // The program's own spans (mlibs.trace, through window.omui's `profile`: where its frame's time goes), read and
-    // begun again every half second — a thread keeps 65,536 events, a second of this page's frames — and summed.
-    struct Own {
-        std::int64_t count = 0;
-        double total = 0, most = 0;
-    };
-    std::map<std::string, Own> own;
-    const auto own_read = [&](bool again) {
-        const auto said = page.value("window.omui ? window.omui.request({op: 'profile', action: 'stop'}).then((a) => a.data && a.data.summary) : null");
+    // The program's own spans (mlibs.trace, through window.omui's `profile`: where its frame's time goes), when asked
+    // for: a second run's attribution — recording them costs the program time of its own, so the frame numbers are
+    // the runs without. The page reads them and begins again every half second (a thread keeps 65,536 events, about
+    // a second of this page's frames); they are summed here.
+    const auto own_spans = [&]() -> json {
+        struct Own {
+            std::int64_t count = 0;
+            double total = 0, most = 0;
+        };
+        std::map<std::string, Own> own;
+        static_cast<void>(page.value("window.omuiScrollProbe.cycle(false)"));
+        const auto said = page.value("window.omuiScrollProbe.own");
         if (said && said->is_array())
-            for (const json& span : *said) {
-                Own& kept = own[text(at(span, "name"))];
-                kept.count += static_cast<std::int64_t>(number(at(span, "count")));
-                kept.total += number(at(span, "total_ms"));
-                kept.most = std::max(kept.most, number(at(span, "max_ms")));
-            }
-        if (again) static_cast<void>(page.value("window.omui ? window.omui.request({op: 'profile', action: 'start'}).then((a) => a.exitCode) : -1"));
+            for (const json& part : *said)
+                for (const json& span : part) {
+                    Own& kept = own[text(at(span, "name"))];
+                    kept.count += static_cast<std::int64_t>(number(at(span, "count")));
+                    kept.total += number(at(span, "total_ms"));
+                    kept.most = std::max(kept.most, number(at(span, "max_ms")));
+                }
+        std::vector<std::pair<std::string, Own>> spans(own.begin(), own.end());
+        std::ranges::sort(spans, [](const auto& a, const auto& b) { return a.second.total > b.second.total; });
+        json program = json::array();
+        for (std::size_t index = 0; index < spans.size() && index < 30; ++index)
+            program.push_back({{"name", spans[index].first}, {"count", spans[index].second.count}, {"total_ms", round2(spans[index].second.total)},
+                               {"most_ms", round2(spans[index].second.most)}});
+        return program;
     };
     // A phase measured: the trace and the probe around what `act` does.
     const auto measure = [&](const std::string& label, const std::function<void()>& act) -> json {
@@ -315,20 +352,10 @@ int scroll(const fs::path& root, const Scroll& asked) {
             return row;
         }
         static_cast<void>(page.value("window.omuiScrollProbe.start()"));
-        own.clear();
-        static_cast<void>(page.value("window.omui ? window.omui.request({op: 'profile', action: 'start'}).then((a) => a.exitCode) : -1"));
+        if (asked.spans) static_cast<void>(page.value("window.omui.request({op: 'profile', action: 'start'}).then((a) => a.exitCode)"));
         act();
         const auto kept = page.value("window.omuiScrollProbe.stop()");
-        own_read(false);
-        {
-            std::vector<std::pair<std::string, Own>> spans(own.begin(), own.end());
-            std::ranges::sort(spans, [](const auto& a, const auto& b) { return a.second.total > b.second.total; });
-            json program = json::array();
-            for (std::size_t index = 0; index < spans.size() && index < 30; ++index)
-                program.push_back({{"name", spans[index].first}, {"count", spans[index].second.count}, {"total_ms", round2(spans[index].second.total)},
-                                   {"most_ms", round2(spans[index].second.most)}});
-            row["program"] = program;
-        }
+        if (asked.spans) row["program"] = own_spans();
         static_cast<void>(page.call("Tracing.end"));
         for (int attempt = 0; attempt < 600 && !complete; ++attempt) page.pump(std::chrono::milliseconds(50));
         row["load"]["after"] = load(root);
@@ -354,31 +381,58 @@ int scroll(const fs::path& root, const Scroll& asked) {
         }
         return row;
     };
-    // The wheel turned over the middle of the window, `speed` px a second in steps of a frame's interval, until the
-    // view is at its end (or as long as it would take twice over); then a moment for the view to come to rest.
+    // The wheel turned over the middle of the window, `speed` px a second, a step at each of the monitor's intervals
+    // (a touchpad's or a free-spinning wheel's stream: what lets the view move at every frame), as far as the view
+    // goes, on a schedule — what a step's sending was late by goes with the next, as a device's
+    // events are coalesced. Nothing is asked of the page meanwhile. Then a moment for the view to come to rest.
     const auto wheel = [&](int direction) {
         const auto state = page.value(state_script);
         if (!state) return;
-        const double x = number(at(*state, "width")) / 2, y = number(at(*state, "height")) / 2, most = number(at(*state, "most"));
-        const double step = asked.speed * 0.016;
-        const int steps = static_cast<int>(std::ceil(std::max(most, 1000.0) / step)) * 2;
-        for (int index = 0; index < steps; ++index) {
+        const double x = number(at(*state, "width")) / 2, y = number(at(*state, "height")) / 2;
+        const double distance = std::max(number(at(*state, "most")), 0.0) + 4;
+        const auto every = std::chrono::duration<double, std::milli>(interval);
+        const auto began = std::chrono::steady_clock::now();
+        double sent = 0;
+        for (int index = 1; sent < distance; ++index) {
+            const auto due = began + std::chrono::duration_cast<std::chrono::steady_clock::duration>(every * index);
+            const auto now = std::chrono::steady_clock::now();
+            if (now < due) page.pump(std::chrono::duration_cast<std::chrono::milliseconds>(due - now));
+            const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - began).count();
+            const double step = std::min(distance, asked.speed * elapsed) - sent;
+            if (step < 0.5) continue;
+            sent += step;
             page.post("Input.dispatchMouseEvent", {{"type", "mouseWheel"}, {"x", x}, {"y", y}, {"deltaX", 0}, {"deltaY", direction * step}});
-            page.pump(std::chrono::milliseconds(16));
-            if (index % 32 == 31) own_read(true);
-            if (index % 8 == 7) {
-                const auto now = page.value(state_script);
-                if (!now) return;
-                const double at_y = number(at(*now, "y"));
-                if (direction > 0 ? at_y >= most - 1 : at_y <= 0) break;
-            }
+            if (asked.spans && index % 60 == 0) page.post("Runtime.evaluate", {{"expression", "window.omuiScrollProbe.cycle(true)"}});
         }
         page.pump(std::chrono::milliseconds(600));
     };
     std::string address = (*server)->url();
     if (address.ends_with('/')) address.pop_back();
     json rows = json::array();
-    for (int round = 1; round <= asked.rounds && problem.empty(); ++round)
+    const auto said = [](const json& phase) {
+        const json& shown = at(at(phase, "trace"), "displayed");
+        const json& frames = at(phase, "animation_frames");
+        std::cout << std::format("  {:<16} load {}; shown {} median {} p99 {} most {} ms, {} two or more; callbacks {} p99 {} ms; long tasks {}; elements {} → {}\n",
+                                 text(at(phase, "phase")), at(at(phase, "load"), "before").dump(), number(at(shown, "frames")), number(at(shown, "median_ms")),
+                                 number(at(shown, "p99_ms")), number(at(shown, "most_ms")), number(at(shown, "two_or_more")), number(at(frames, "frames")),
+                                 number(at(frames, "p99_ms")), at(phase, "long_tasks_ms").size(), number(at(at(phase, "before"), "elements")),
+                                 number(at(at(phase, "after"), "elements")));
+    };
+    for (int round = 1; round <= asked.rounds && problem.empty(); ++round) {
+        // The browser's ceiling first: a canvas that changes at every frame.
+        if (const auto gone = page.call("Page.navigate", {{"url", address + std::string(reference_address)}}); !gone) {
+            problem = gone.error();
+            break;
+        }
+        if (const auto late = wait("window.omuiHasPresented === true", 300, "the reference page"); late) {
+            problem = *late;
+            break;
+        }
+        page.pump(std::chrono::milliseconds(1000));
+        json reference = {{"round", round}, {"path", std::string(reference_address)}, {"phases", json::array()}};
+        reference["phases"].push_back(measure(std::format("{}-reference", round), [&] { page.pump(std::chrono::milliseconds(2000)); }));
+        said(reference["phases"].back());
+        rows.push_back(std::move(reference));
         for (const std::string& route : routes) {
             if (!problem.empty()) break;
             if (const auto gone = page.call("Page.navigate", {{"url", address + route + asked.query}}); !gone) {
@@ -393,24 +447,14 @@ int scroll(const fs::path& root, const Scroll& asked) {
             std::string name = route == "/" ? "home" : route.substr(1, route.size() - 2);
             std::ranges::replace(name, '/', '-');
             const std::string prefix = std::format("{}-{}", round, name);
-            json visit = {{"round", round}, {"path", route}};
-            visit["phases"] = json::array();
+            json visit = {{"round", round}, {"path", route}, {"phases", json::array()}};
             visit["phases"].push_back(measure(prefix + "-rest", [&] { page.pump(std::chrono::milliseconds(2000)); }));
             visit["phases"].push_back(measure(prefix + "-down", [&] { wheel(1); }));
             visit["phases"].push_back(measure(prefix + "-up", [&] { wheel(-1); }));
+            for (const json& phase : visit["phases"]) said(phase);
             rows.push_back(std::move(visit));
-            const json& phases = rows.back()["phases"];
-            for (const json& phase : phases) {
-                const json& shown = at(at(phase, "trace"), "displayed");
-                const json& frames = at(phase, "animation_frames");
-                std::cout << std::format("  {:<14} load {}; shown {} median {} p99 {} most {} ms, {} two or more; callbacks {} p99 {} ms, {} two or more; long tasks {}; "
-                                         "elements {} → {}\n",
-                                         text(at(phase, "phase")), at(at(phase, "load"), "before").dump(), number(at(shown, "frames")), number(at(shown, "median_ms")),
-                                         number(at(shown, "p99_ms")), number(at(shown, "most_ms")), number(at(shown, "two_or_more")), number(at(frames, "frames")),
-                                         number(at(frames, "p99_ms")), number(at(frames, "two_or_more")), at(phase, "long_tasks_ms").size(),
-                                         number(at(at(phase, "before"), "elements")), number(at(at(phase, "after"), "elements")));
-            }
         }
+    }
     const std::string version = page.version();
     page.close();
     (*server)->close();

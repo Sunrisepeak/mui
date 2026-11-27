@@ -147,6 +147,9 @@ struct Scroll {
     std::vector<std::string> flags;            // more switches for Chromium
     bool                     headless = false;  // no window: a headless Chromium (not a performance number)
     bool                     keep_trace = false;
+    // The program's own spans recorded too (mlibs.trace through window.omui): where its frames go — a run for that,
+    // not for the frame numbers (recording costs the program time of its own).
+    bool                     spans = false;
 };
 [[nodiscard]] int scroll(const std::filesystem::path& root, const Scroll& asked);
 

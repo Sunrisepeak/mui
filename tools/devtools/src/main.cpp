@@ -376,7 +376,8 @@ cmd::App app() {
                                         .option(Option("query").takes_value().value_name("?Q").help("after each route's address (?renderer=cpu)"))
                                         .option(Option("flag").takes_value().multiple().value_name("SWITCH").help("a switch for Chromium (--flag=--enable-unsafe-webgpu)"))
                                         .option(Option("headless").help("no window (not a performance number)"))
-                                        .option(Option("trace").help("each phase's trace kept for Perfetto (target/scroll/)")))
+                                        .option(Option("trace").help("each phase's trace kept for Perfetto (target/scroll/)"))
+                                        .option(Option("spans").help("the program's own spans too: where its frames go (a run for that: recording them costs it time)")))
                         .subcommand(cmd::App("atspi")
                                         .description("Examples 03 and 07 built, then read and operated through AT-SPI on a private session bus")
                                         .option(Option("profile").takes_value().value_name("P").help("the examples' build profile"))
@@ -1777,6 +1778,7 @@ int main(int argc, char** argv) {
             asked.flags = given.option_or_empty("flag").values;
             asked.headless = given.is_flag_set("headless");
             asked.keep_trace = given.is_flag_set("trace");
+            asked.spans = given.is_flag_set("spans");
             return step::scroll(root, asked);
         }
         if (sub.subcommand_name() == "web") return step::web(root, given.value("profile").value_or("wasm-test"));

@@ -111,3 +111,49 @@
 - 没动的：mrender（着色器的提议在 §5）、`modules/projects/oweb/src`（`the program` 行仍是 `engine/*` 之和：两部分都算；是否另记“没有示例的页面取的”是属主的事）、`.github/workflows/pages.yml`（`--profile web` 的提议在 §5）、`omui_web.js` 与镜像。
 - 新的能力是通用的：任何一个包都可以用“同包里少一个能力的程序”把自己的世界切成部分（`.part`），按页面文档里的选择器取；不止阅读器的示例。
 
+
+## 7. 一页只取一套着色器：程序把着色器的文字放在旁边（第二轮，2026-11-27，分支 `p0-size2`，起点 `ed1db276`）
+
+**事实。** 阅读器第一部分的数据段 962,634 B 原样（单独 gzip 362,230 B），其中 WGSL 107,269 B（21 个着色器文件的 27 个入口，单独 gzip 31,179 B）、ESSL 82,308 B（26 个入口，27,366 B）：每个入口两套，都在数据段里，wasm-split 不切数据，两套都在每页必取的那一半。运行时一页只用一套：有 WebGPU 时 WGSL，只有 WebGL2 时 ESSL，GPU 是软件的（无头 Chromium 的 SwiftShader）或没有 GPU 时 CPU 画，两套都不用。§5 说的“各 57 KB gzip”是按 16 KB 分块各自压缩的估计，偏大；按整段压缩是上面的数。
+
+**① 从本体系出发。**
+
+- *程序自己从不读这些文字。* 着色器的文字只有页面一侧的设备读（`omui_webgpu.js` 与 `omui_webgl.js` 按指针与长度解码后交给浏览器编译），C++ 只传指针。所以它们可以不在程序里，而在页面旁边，由设备在需要时取回——程序的行为不变，`rhi::ShaderCode` 的契约不变（仍是格式与字节；字节的第一个字节为 0 时，页面按地址给出那段文字）。
+- *谁画，在程序加载时就知道。* WebGPU 的设备本来就在加载时（一个运行依赖里）向浏览器要 adapter；宿主的 `automatic` 选法（软件的 adapter 算没有 GPU，`?renderer=` 优先）用的是同一组事实。于是设备在同一个运行依赖里顺便取它那一套：硬件 adapter、或页面要了 GPU 时取 WGSL；页面没有 WebGPU、或要了 WebGL2 时，WebGL 一侧取 ESSL。CPU 画的页面两套都不取。猜错（例如有 `navigator.gpu` 却拿不到 adapter、而 WebGL2 是硬件的）只是第一次建管线时同步取一次，画面不错。
+- *打包器本来就在改写程序。* “一个能力的部分”（§2 ①）是代码按能力切；这里是数据的对应物：生成器在数据前写一个标记（`mlibs.apart`，与领域无关），打包器（`omui-gen` 的 `carry_apart`）在链接好的程序里找到标记，把那一段与标记置零（函数与下标都不变，所以“部分”的切分照旧），每种写成一个文件 `<程序>-<hash>.<种类>.json`（地址 → 文字），加载器给出 `Module.omuiApart`（`want`、`texts`）。没有打包的程序（测试、`mcpp run` 的产物）文字在原处，照原样读。
+- *结论：取这一级。* 标记与找标记是一处（`mlibs.apart`），写标记的是着色器的生成器（`mlibs.shader` 的 `emit_cpp`，只给 WGSL 与 ESSL；原生格式的输出逐字节不变），取回的是两个设备，按种类各取各的。
+
+**② 前沿与组合（试过或查过，不取）。**
+
+| 做法 | 结论 |
+|---|---|
+| 页面里把一套翻译成另一套（Tint、Naga 编成 wasm） | 要把一个着色器翻译器（前端、中间表示、后端）带进每一页，省下的只是 gzip 约 27 KB 的一套；未量，不取 |
+| 每个后端链接一个程序（WGSL 一个 wasm、ESSL 一个），加载器按 `navigator.gpu` 选 | 打包与 D5、示例的切分都要做两遍；CPU 画的页面仍带一套 |
+| Emscripten 的 `--preload-file` 或 `.data` 包 | 全有或全无、在 main 之前取，两套照样都取；dist-toy 也拒绝 `.data`（页面的文件是带 hash 的资源） |
+| wasm 的自定义段（custom section）放文字 | 仍在 wasm 文件里，照样传输；程序也不能按地址读它 |
+| Binaryen 的 `--memory-packing` | 只去掉零，不改变哪些数据在程序里 |
+
+**③ 业界做法。** 用 Emscripten 的通用机制（数据段、`--embed-file`、`--preload-file`）把着色器随程序一起发，每种后端的变体都在包里。没有取。
+
+**实施**（提交 `a4f43f13` 为第一步，字节与验证为第二步）：`mlibs.apart`（mlibs.utils）；`mlibs.shader` 的 `emit_cpp`；`omui-gen` 的 `carry_apart`（`omui.gen.part`）与 `dist_toy`（写旁边的文件、加载器的 `Module.omuiApart`；“部分”的切分读打包后的程序）；`mrender.rhi.webgpu` 与 `mrender.rhi.webgl` 的页面一侧（`start` 里取自己那一套，`text()` 按地址读）。
+
+**结果**（2026-11-27，本机 Linux x64，emsdk 6.0.9；阅读器 `mcpp pack --profile web`，文档模板 `site.build --engine` 用它，`site.delivery.xdef.json` 的行，mlibs.delivery 的 gzip）：
+
+| | 之前（`ed1db276`） | 之后 |
+|---|---:|---:|
+| launcher | 54,021 | 54,299 |
+| 第一部分 wasm | 1,682,409 | 1,625,233 |
+| 示例的部分 | 345,327 | 345,361 |
+| WGSL（WebGPU 画的页面才取） | — | 30,484 |
+| ESSL（WebGL2 画的页面才取） | — | 26,962 |
+| `the program`（`engine/*` 之和，两套都算） | 2,081,757 | 2,082,339 |
+| 页面自己的 HTML（加载器多了 `omuiApart`，最大一页） | 14,255 | 14,792 |
+| 一个没有示例、CPU 画的页面取的程序（launcher 与第一部分） | 1,736,430 | 1,679,532（−56,898） |
+| 同上，WebGPU 画 | 1,736,430 | 1,710,016（−26,414） |
+| 同上，WebGL2 画 | 1,736,430 | 1,706,494（−29,936） |
+
+验证：`check takeover` 的 `/start/` 7 项、`/live/` 8 项全过（含浏览器的查找）；`site drive` 在无头 Chromium 159（`--enable-unsafe-webgpu`，SwiftShader）里以 `?renderer=webgpu` 与 `?renderer=webgl` 打开 `/start/`：`omuiApartState` 分别是 `{"wgsl":"held"}` 与 `{"essl":"held"}`（加载时取到，没有同步取），没有警告；截图与之前的世界逐字节相同（WebGL2 画出整页；无头的 WebGPU 不能呈现到画布上，之前与之后都是空白）。`mcpp test` 的 `mlibs.utils`（`apart` 4 例）、`mlibs.shader`（15 例，含标记的输出）、`omui.gen`（50 例，含 `carry_apart` 的置零与只取一次）；两个设备页面一侧的 node 测试（各 12 例，含取哪一套、按地址读、读不到时失败并说明）。没有在真实 GPU 的浏览器里验证（本机的有界面浏览器上 WebGPU 是硬件的那条路径）：标“未验证”。
+
+**红 148，官网**（`site/` 里 `omui build --web`，复制打包出的页面与符号表，`omui-devtools site split`（D5），`check site delivery` 与 `check site path`，Chromium 159 无头，各跑一次；之前是主会话在 `ed1db276` 上量的，同一台机器、同一组步骤）：首帧之前 1,446,961 → 1,386,630（−60,331），合计 2,866,601 → 2,809,521，首帧 957 → 860 ms；`check site path` 27/27。无头的 Chromium 用 SwiftShader，CPU 画，两套都不取。官网离 1.2 MB 还差 186,630 B。
+
+**Wasm 原生异常（§2 ②、§5）。** 归约成三个文件的复现（一个调用 `setjmp` 的 C 单元、一个 `try` 的 C++ 单元、`[target.'cfg(os = "emscripten")'.abi] exceptions = "wasm"`）：C++ 单元与链接有 `-fwasm-exceptions`，C 单元两样都没有，链接报 `emscripten_longjmp` 未定义；给 C 单元加 `-sSUPPORT_LONGJMP=wasm` 就链接、在 node 里运行输出 `ok`。已报上游：[mcpp#1029](https://github.com/mcpp-community/mcpp/issues/1029)（2026-11-27）。本仓库不绕开；等它修好再决定 Web 的 ABI 是否整体换（浏览器测试的 Asyncify 与 Wasm 异常的取舍仍在 §5）。

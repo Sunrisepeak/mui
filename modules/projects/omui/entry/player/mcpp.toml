@@ -48,7 +48,15 @@ agent = { part = "omui.agent" }  # the application it runs is the subject, at th
 main = "src/entry/main.cpp"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# The manifest: off the Web its mcpp.toml (toml++), on the Web the JSON snapshot the page carries (no TOML parser in a
+# Web program); both read by the one reader of the declaration (src/manifest.cpp).
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/web/*.cpp"]
 
 [dependencies]
 omui.sdk           = { path = "../../sdk" }
@@ -59,9 +67,12 @@ omui.lang.js       = { path = "../../lang/js" }
 omui.ui.markdown   = { path = "../../components/markdown", reexport = true }  # a derived registry may name it (B7b)
 omui.native = { path = "../../native", reexport = true }  # with its modules (fuzzy, store); a derived registry may name them
 omui.theme = { path = "../../theme" }  # with its packs
-marzer.tomlplusplus = "3.4.0"
+mlibs.json = { path = "../../../../base/json" }  # the manifest's declaration, read as JSON
 mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
+
+[target.'cfg(not(os = "emscripten"))'.dependencies]
+marzer.tomlplusplus = "3.4.0"  # an application's mcpp.toml, written as JSON for the reader
 
 # Live Design's designer (D-149): linked by `omui dev`
 # (`mcpp run --features omui.entry.player/design -- --dev`), left out of a

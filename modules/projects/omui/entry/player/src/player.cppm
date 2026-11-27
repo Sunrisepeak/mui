@@ -39,3 +39,9 @@ int player_main(int argc, char** argv);
 int player_main(int argc, char** argv, void (*components)());
 
 }  // namespace omui
+
+// The module's own: an application's declaration read from its manifest as JSON (manifest.cpp) — the one reader, which
+// read_manifest gives the mcpp.toml as JSON off the Web (native/) and the page's snapshot of it on the Web (web/).
+namespace omui {
+[[nodiscard]] std::expected<player::Manifest, std::string> manifest_of(std::string_view json, const std::filesystem::path& file);
+}

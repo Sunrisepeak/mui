@@ -35,6 +35,7 @@ mlibs.json = { path = "../../../../base/json" }
 mlibs.xdef = { path = "../../../../base/xdef" }  # a snapshot's format checked first (D-209)
 "mlibs.xdef.tool" = { path = "../../../../base/xdef/tool" }  # the embed emitters (D-73), one owner
 nlohmann.json       = "3.12.0"
+marzer.tomlplusplus = "3.4.0"  # a page carries an application's mcpp.toml as its JSON snapshot (dist-toy)
 mcpplibs.cmdline    = "0.0.3"
 mcpplibs.os         = "0.4.4"  # the packer runs Binaryen's wasm-opt and wasm-split (a world in parts)
 

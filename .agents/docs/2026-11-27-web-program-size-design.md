@@ -167,3 +167,39 @@
 **结果**（同 §7 的量法；之前是 §7 之后的世界）：第一部分 1,625,233 → 1,621,613（−3,620），launcher 54,299 → 54,268，示例的部分 345,361 → 345,466；一个没有示例、CPU 画的页面 1,679,532 → 1,675,881（−3,651）；`the program` 2,082,339 → 2,078,794。比 §5 估的少：`json` 的词法与 SAX 解析仍随 omui.core 的 `Value` 读法留在程序里（nlohmann 的代码 49.2 KiB 原样，`omui-gen size`），只少了 i18n 那一棵树与它的访问。验证：`mcpp test -p mlibs.i18n -p mlibs.i18n.cldr`（三个语言包与 likely 读出、问题仍按路径报）；`check takeover` `/start/` 7/7。
 
 **提议（未做）。** omui.core 的 `Value` 也用 mlibs.json 读（或 mlibs.json 只留一个解析器实例），nlohmann 的 `json` 才整个离开；属主是 omui.core，改动面在它的读法与问题的位置上，单独一步。
+
+## 9. HarfBuzz 的 `HB_NO_*`：量了，要改索引（第二轮）
+
+**量法**（2026-11-27，本机，emsdk 6.0.9）：`target/` 下的探针，只链接 mlibs.text.harfbuzz 调用的 HarfBuzz 函数（它三个原生单元里的 57 个 `hb_*`），用构建 Web 程序时 HarfBuzz 的同一组编译参数（`-Oz -std=c++23 -fexceptions -ffunction-sections -fdata-sections -DNDEBUG`，`compile_commands.json` 里 `harfbuzz.cc` 的那一行），只换宏：
+
+| 宏 | wasm 原样 | gzip | 对我们的行为 |
+|---|---:|---:|---|
+| 无（现在） | 556,891 | 218,946 | — |
+| A：`HB_NO_BUFFER_SERIALIZE`、`HB_NO_BUFFER_VERIFY`、`HB_NO_BUFFER_MESSAGE`、`HB_NO_MATH`、`HB_NO_META`、`HB_NO_LAYOUT_UNUSED`、`HB_NO_OT_FONT_GLYPH_NAMES`、`HB_NO_STYLE` | 531,727 | 208,442（−10,504） | 不变：这些 API 我们一个都不调 |
+| B：A 加 `HB_NO_AAT`、`HB_NO_VERTICAL` | 461,992 | 187,747（−31,199） | 横排不变（整形只设 LTR、RTL）；只有 AAT 表（`morx`、`kerx`）而没有 OpenType 表的字体整形会变：页面带的字体（Inter、Noto Sans SC、JetBrains Mono）没有，但应用可以载入别的字体，所以 B 是一个“减项”，不是默认 |
+| 对照：只给 HarfBuzz `-fno-exceptions` | 534,640 | 216,067（−2,879） | 不变（HarfBuzz 不抛异常）；小，不取 |
+
+`HB_NO_BITMAP` 不在里面：我们调 `hb_ot_color_has_png`（字体有没有 PNG 字形），去掉位图表会改变带这种字形的字体的画面。`HB_LEAN` 去掉绘制、颜色、变体与 CFF，不能用（§5）。
+
+**三级次序。** ① 从本体系出发：我们的整形只调 57 个函数、只排横向，宏按“程序用到什么”取，开关用索引已有的 feature 机制（与 `no-freetype` 同一条路）。② 上游自己的预设 `HB_LEAN`、`HB_TINY`：去掉的包括我们要的绘制、颜色、变体，不取。③ 各家通常整套链接 HarfBuzz；不取。
+
+**为什么停在这里。** 宏只能进 HarfBuzz 自己的单元：它是 mcpp-index 的 `compat.harfbuzz`，单元的参数由索引里的描述给出（`mcpp_generated/config.h` 由描述生成，`no-freetype` 就是这样一个开关，`MCPP_FEATURE_NO_FREETYPE` 在生成的 `config.h` 里读）；工作区的 `cflags` 到不了索引包的单元（§7 末尾，mcpp#1029 的旁注）。要做的是索引里的一个改动：`compat.harfbuzz` 加两个 feature——`no-unused-api`（A，读 `MCPP_FEATURE_NO_UNUSED_API`，在生成的 `config.h` 里定义 A 的八个宏）与 `no-aat-vertical`（B 多出的两个）——描述的 `revision` 加一，再由 `mlibs.text.harfbuzz` 选 `features = ["no-freetype", "no-unused-api"]`；B 作为 omui.sdk 的一个减项（`minimal` 那一类）给明确不载入 AAT 字体的作品。没有改共享的包缓存去量（别的会话在用），数字来自上面的探针，在程序里的实际份额以落地后重量为准。
+
+## 10. 清单在打包时读成 JSON：Web 程序里没有 TOML 解析器（第二轮）
+
+**事实。** 官网的页面是 TS 应用，播放器在首屏读应用的 `mcpp.toml`（`[package.metadata.openmui]`：标题、尺寸、脚本、主题），用 toml++ 读——toml++ 的代码在前一半（§5：约 29 KB 原样，gzip 约 12 KB）。
+
+**三级次序。** ① 打包器本来就把应用的文件写进页面，数据模块（`omui.config.ts`）已经是“在打包时求值、页面只读快照”；TOML 是同一类：打包器把 TOML 文件写成它的 JSON 快照（`<路径>.json`，toml++ 自己的 `json_formatter`），Web 上的播放器读快照。声明只有一个读法（`omui.entry.player` 的 `manifest_of`，经由 mlibs.json）：原生上先把 `mcpp.toml` 用 toml++ 写成 JSON 再交给它，Web 上直接读快照，toml++ 只在原生的依赖里。② 在页面里换一个更小的 TOML 解析器：仍是一个解析器、第二个实现，不取。③ 业界的 Web 打包通常把配置在构建时编进产物；我们就是这样做，用的是已有的快照机制。
+
+**与红 145 的关系。** 145 要的是原生的 `omui-launch` 不带 TOML 解析器，读的是安装在用户机器上的应用，快照要由 `omui`（构建或打包时）写在应用旁边——写的一方不同，是另一个改动；本步给出的“一个读法读 JSON 声明”可以在那时复用（`manifest_of` 是播放器的，launcher 读的是 `runtime` 一节）。没有做 145。
+
+**结果**（官网，`omui build --web`、`site split`、`check site delivery`，同 §7；之前是 §7 之后、§8 之前的那次，之后含 §8 与本节——阅读器不经过播放器，§8 在官网上的份额没有单独量）：首帧之前 1,386,630 → 1,371,883（−14,747），合计 2,809,521 → 2,782,460，首帧 860 → 866 ms；页面里是 `/mcpp.toml.json`，程序的符号表里没有 `toml::`；`check site path` 27/27。`mcpp test -p omui.gen`（50 例，含 TOML 写成快照、坏的 TOML 说出位置）；播放器原生构建通过。
+
+## 11. 量过或看过、这一轮没做的（第二轮）
+
+- **Markdown 的解析器做成槽（红 166）。** 阅读器里 md4c 33.5 KiB 代码（`omui-gen size`，`web` profile 的整个程序），另有 `mlibs.markdown` 的流式解析一段。它在程序里，是因为 `omui.ui.markdown` 的 `format` 是运行时的属性：组件的虚函数表同时到达 HTML（`from_html`）与 Markdown 源（`Stream` → md4c）两条路。做成槽，就要每个显示 Markdown 源的程序在根上装解析器：播放器（TS 应用）、三个示例、一个作品、xtools、omui 命令行、oweb 的命令（`modules/projects/oweb/src`，不在本分支的边界内）。要先定：谁装（sdk 的 compose 行，只在程序链接了这个组件时——sdk 不依赖它），装不上时组件说什么。未做，提议。
+- **脚本的类型在打包时擦掉（红 148，约 12 KB 移出前一半）。** 官网带设计器（`designer.release`），设计器编辑的是 TS 源（D-149：TS 源是唯一的事实），页面只带擦过的 JS 就不能再编辑；两样都带，每页多出脚本的字节。要先定：带设计器的发布页面是否两样都带。未做。
+- **Web 上不解析命令行（约 10 KB）。** Web 上的地址 `#/…` 就是程序的开关（`omuiArguments`），应用自己的开关也声明在同一个 `App` 里；Web 另写一个解析器是第二个实现。不取。
+- **Agent 目录的说明文字与给 tsc 的声明（官网前一半约 35 KB 与 25 KB）。** §7 的“放在旁边”现在只给 JS 读的数据；这些文字由 C++ 在 Agent 来问时读，要在第一次读之前放回内存（`mlibs.apart` 里一个由 Web 宿主装上的钩子，读的一方经由它），而 Web 宿主的 Agent 端点正在换成 `agent::ProcessSession`（AG5 第三步，主会话的 `web.cpp`）。等它落地、合进来后再量（主分支上阅读器的世界因 AG5 第二步第一部分多了 16.4 kB gzip）。
+- **CLDR。** 每个程序启动时读三个语言包（复数规则、人的语言的格式），首帧要用；打包时生成成代码也去不掉数据。不取。
+- **omui.core 的 `Value` 读法**（§8 的提议）：它用 nlohmann `json` 的 SAX 解析器，是 nlohmann 留在程序里的第二个实例的大半；改成与 mlibs.json 同一个实例（`ordered_json` 的 SAX，或经由 mlibs.json）。属主 omui.core，不在本分支的边界内。

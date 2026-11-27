@@ -4,6 +4,7 @@ import std;
 import mcpplibs.cmdline;
 import mlibs.hash;
 import nlohmann.json;
+import tomlplusplus;
 import omui.lang.ts;
 import mlibs.text.subset;
 import omui.gen.part;
@@ -1048,17 +1049,29 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
         if (!f.path.starts_with('/')) return std::unexpected(std::format("a file's path in the program's file system is absolute ({})", f.path));
         auto bytes = read(f.source);
         if (!bytes) return std::unexpected(bytes.error());
+        std::string path = f.path;
         if (f.data) {
             auto evaluated = omui::lang::ts::evaluate(f.source);
             if (!evaluated) return std::unexpected(std::format("{}: {}", utf8(f.source), evaluated.error().text()));
             bytes = evaluated->snapshot();
+        } else if (path.ends_with(".toml")) {
+            // A TOML file (an application's mcpp.toml) as its JSON snapshot, at `<path>.json`: a page parses no TOML
+            // (the player reads the snapshot on the Web, with the one reader of a manifest's declaration).
+            try {
+                std::ostringstream json;
+                json << toml::json_formatter{toml::parse(*bytes, utf8(f.source))};
+                bytes = json.str();
+            } catch (const toml::parse_error& e) {
+                return std::unexpected(std::format("{}:{}:{}: {}", utf8(f.source), e.source().begin.line, e.source().begin.column, e.description()));
+            }
+            path += ".json";
         }
         try {
             (void)nlohmann::json(*bytes).dump();  // text the page can carry: UTF-8
         } catch (const nlohmann::json::exception&) {
             return std::unexpected(std::format("{}: not UTF-8 text (the page carries the application's text files)", utf8(f.source)));
         }
-        files[f.path] = std::move(*bytes);
+        files[path] = std::move(*bytes);
     }
     const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes, coverage, files, apart_files);
     if (index.empty()) return std::unexpected("a world's page could not be made: the loader is not as dist-toy's world expects it (omui.gen's dist_toy.cpp)");

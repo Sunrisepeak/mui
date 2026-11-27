@@ -86,6 +86,7 @@ std::expected<std::vector<Table>, std::string> delivery_tables(std::span<const s
 // enabled features. A rule fires only when all of its input glyphs are kept.
 struct SubstitutionRule {
     std::vector<std::uint16_t> inputs, outputs;
+    std::size_t lookup = 0;  // the lookup it is in
 };
 
 struct Substitutions {
@@ -94,6 +95,8 @@ struct Substitutions {
     std::uint16_t lookup_count = 0;
     std::string error;
     std::vector<SubstitutionRule> rules;
+    std::vector<std::vector<std::uint16_t>> called;  // by lookup: the lookups its contextual rules call
+    std::size_t current = 0;                         // the lookup being read
 
     bool fail(std::string_view message) {
         if (error.empty()) error = std::format("GSUB: {}", message);
@@ -152,8 +155,10 @@ struct Substitutions {
     }
     bool records(std::size_t at, std::size_t count, std::size_t inputs) {
         if (!has(at, count * 4)) return false;
-        for (std::size_t i = 0; i < count; ++i)
+        for (std::size_t i = 0; i < count; ++i) {
             if (word(at + i * 4) >= inputs || word(at + i * 4 + 2) >= lookup_count) return fail("invalid contextual lookup record");
+            called[current].push_back(word(at + i * 4 + 2));
+        }
         return error.empty();
     }
     // Context tables introduce no output glyphs themselves. Validate their
@@ -292,14 +297,67 @@ struct Substitutions {
         if (word(2) == 1 && !has(0, 14)) return false;
         const auto list = relative(0, word(8)); lookup_count = word(list);
         if (!has(list + 2, std::size_t{lookup_count} * 2)) return false;
+        called.assign(lookup_count, {});
         for (std::size_t i = 0; i < lookup_count; ++i) {
+            current = i;
+            const std::size_t first_rule = rules.size();
             const auto lookup = relative(list, word(list + 2 + i * 2));
             const auto type = word(lookup), flags = word(lookup + 2), count = word(lookup + 4);
             if (type < 1 || type > 8 || !has(lookup + 6, std::size_t{count} * 2 + ((flags & 0x10) ? 2 : 0))) return fail("invalid lookup header");
             for (std::size_t j = 0; j < count; ++j)
                 if (!subtable(type, relative(lookup, word(lookup + 6 + j * 2)))) return false;
+            for (std::size_t k = first_rule; k < rules.size(); ++k) rules[k].lookup = i;
         }
         return error.empty();
+    }
+
+    // The lookups the layout features given reach — theirs, and what those call — or none when every lookup is to be
+    // taken (no feature given, or feature variations, which add lookups to a feature where a condition holds).
+    std::optional<std::vector<bool>> reached(std::span<const std::string_view> features) {
+        if (features.empty() || (word(2) == 1 && u32(data, 10) != 0)) return std::nullopt;
+        std::vector<bool> reach(lookup_count, false);
+        std::vector<std::size_t> todo;
+        const auto list = relative(0, word(6)), count = std::size_t{word(list)};
+        for (std::size_t i = 0; i < count && error.empty(); ++i) {
+            if (!has(list + 2 + i * 6, 6)) return std::nullopt;
+            const std::string_view tag(reinterpret_cast<const char*>(data.data() + list + 2 + i * 6), 4);
+            if (std::ranges::find(features, tag) == features.end()) continue;
+            const auto feature = relative(list, word(list + 2 + i * 6 + 4)), lookups = std::size_t{word(feature + 2)};
+            if (!has(feature + 4, lookups * 2)) return std::nullopt;
+            for (std::size_t k = 0; k < lookups; ++k) todo.push_back(word(feature + 4 + k * 2));
+        }
+        if (!error.empty()) return std::nullopt;
+        while (!todo.empty()) {
+            const std::size_t lookup = todo.back();
+            todo.pop_back();
+            if (lookup >= lookup_count || reach[lookup]) continue;
+            reach[lookup] = true;
+            for (const std::uint16_t next : called[lookup]) todo.push_back(next);
+        }
+        return reach;
+    }
+
+    // The table with the features not given left without lookups (their lookup counts 0, their indices zeroed — in place:
+    // nothing moves), so a cut that does not hold their glyphs applies none of them. A feature table two records share is
+    // left as it is while one of them is kept.
+    Bytes without_other_features(std::span<const std::string_view> features) {
+        Bytes out(data.begin(), data.end());
+        const auto list = relative(0, word(6)), count = std::size_t{word(list)};
+        std::set<std::size_t> kept_tables;
+        for (std::size_t i = 0; i < count && error.empty(); ++i) {
+            const std::string_view tag(reinterpret_cast<const char*>(data.data() + list + 2 + i * 6), 4);
+            if (std::ranges::find(features, tag) != features.end()) kept_tables.insert(relative(list, word(list + 2 + i * 6 + 4)));
+        }
+        for (std::size_t i = 0; i < count && error.empty(); ++i) {
+            const std::string_view tag(reinterpret_cast<const char*>(data.data() + list + 2 + i * 6), 4);
+            const auto feature = relative(list, word(list + 2 + i * 6 + 4));
+            if (std::ranges::find(features, tag) != features.end() || kept_tables.contains(feature)) continue;
+            const std::size_t lookups = word(feature + 2);
+            if (!has(feature + 4, lookups * 2)) return Bytes(data.begin(), data.end());
+            put16(out, feature + 2, 0);
+            std::fill_n(out.begin() + static_cast<std::ptrdiff_t>(feature + 4), lookups * 2, std::uint8_t{0});
+        }
+        return error.empty() ? out : Bytes(data.begin(), data.end());
     }
 };
 
@@ -369,7 +427,529 @@ Bytes cmap_for(const std::map<char32_t, std::uint32_t>& mapping) {
     return out;
 }
 
+// ── GPOS: the pair adjustments of the glyphs a cut keeps ─────────────────────────────────────────────────────────
+// A cut keeps every glyph id, so GPOS — kerning above all: 154 KB of Inter's, 49 KB sent — would stay whole for the few
+// hundred glyphs the cut can draw. Its pair lookups (PairPos formats 1 and 2) are written again for the kept glyphs
+// alone (a pair set loses the pairs whose glyphs are not kept, a class matrix the classes no kept glyph is in), and a
+// subtable of another kind is left out when no kept glyph can reach it. What it does not understand — a lookup of
+// another kind a kept glyph can reach, contextual positioning, feature variations, an offset that does not fit in
+// 16 bits — leaves the table as it was, so a cut is never worse than the one before it.
+class GposPruner {
+public:
+    GposPruner(std::span<const std::uint8_t> table, const std::vector<bool>& kept) : table_(table), kept_(kept) {}
+
+    // The table written again, or nothing when it is to stay as it is.
+    std::optional<Bytes> run() {
+        // 1.0, or 1.1 without feature variations (which would point into the lookups): a header of 10 bytes, or 14
+        const std::size_t header = word(2) == 1 ? 14 : 10;
+        if (word(0) != 1 || word(2) > 1 || (word(2) == 1 && dword(10) != 0)) return std::nullopt;
+        const std::size_t scripts = word(4), features = word(6), lookups = word(8);
+        const std::size_t scripts_end = script_list_end(scripts), features_end = feature_list_end(features);
+        if (!ok_ || scripts_end <= scripts || features_end <= features) return std::nullopt;
+        const std::size_t lookup_count = word(lookups);
+        if (!has(lookups + 2, lookup_count * 2)) return std::nullopt;
+        std::vector<Lookup> built;
+        for (std::size_t i = 0; i < lookup_count && ok_; ++i) built.push_back(read_lookup(lookups + word(lookups + 2 + i * 2)));
+        if (!ok_) return std::nullopt;
+        Bytes list = lookup_list(built, false);
+        if (list.empty()) list = lookup_list(built, true);  // the subtables do not reach in 16 bits: every lookup an extension
+        if (list.empty()) return std::nullopt;
+        const std::size_t scripts_size = scripts_end - scripts, features_size = features_end - features;
+        if (header + scripts_size + features_size > 0xFFFF) return std::nullopt;
+        Bytes out;
+        push16(out, 1), push16(out, word(2));
+        push16(out, static_cast<std::uint16_t>(header));
+        push16(out, static_cast<std::uint16_t>(header + scripts_size));
+        push16(out, static_cast<std::uint16_t>(header + scripts_size + features_size));
+        if (header == 14) push32(out, 0);
+        out.insert(out.end(), table_.begin() + static_cast<std::ptrdiff_t>(scripts), table_.begin() + static_cast<std::ptrdiff_t>(scripts_end));
+        out.insert(out.end(), table_.begin() + static_cast<std::ptrdiff_t>(features), table_.begin() + static_cast<std::ptrdiff_t>(features_end));
+        out.insert(out.end(), list.begin(), list.end());
+        return out;
+    }
+
+private:
+    std::span<const std::uint8_t> table_;
+    const std::vector<bool>& kept_;
+    bool ok_ = true;
+    void fail() { ok_ = false; }
+
+    // Device tables a value record points to, copied once whatever the number of records pointing at them.
+    struct Devices {
+        Bytes bytes;
+        std::map<Bytes, std::size_t> at;
+    };
+    struct DevicePointer {
+        std::size_t where;      // the offset's place in the subtable
+        std::size_t device_at;  // the device table's place in the pool
+        std::size_t parent;     // the table the offset is from: the subtable, or a pair set (format 1)
+    };
+
+    bool has(std::size_t at, std::size_t bytes) const { return at <= table_.size() && bytes <= table_.size() - at; }
+    std::uint16_t word(std::size_t at) {
+        if (!has(at, 2)) return fail(), 0;
+        return u16(table_, at);
+    }
+    std::uint32_t dword(std::size_t at) {
+        if (!has(at, 4)) return fail(), 0;
+        return u32(table_, at);
+    }
+    bool is_kept(std::size_t glyph) const { return glyph < kept_.size() && kept_[glyph]; }
+
+    // The scripts' and the features' tables, copied as they are: how far each reaches from its start.
+    std::size_t language_system_end(std::size_t at) { return at + 6 + std::size_t{word(at + 4)} * 2; }
+    std::size_t script_list_end(std::size_t at) {
+        const std::size_t count = word(at);
+        std::size_t end = at + 2 + count * 6;
+        for (std::size_t i = 0; i < count && ok_; ++i) {
+            const std::size_t script = at + word(at + 2 + i * 6 + 4), systems = word(script + 2), fallback = word(script);
+            end = std::max(end, script + 4 + systems * 6);
+            if (fallback) end = std::max(end, language_system_end(script + fallback));
+            for (std::size_t k = 0; k < systems && ok_; ++k) end = std::max(end, language_system_end(script + word(script + 4 + k * 6 + 4)));
+        }
+        return ok_ && has(at, end - at) ? end : 0;
+    }
+    std::size_t feature_list_end(std::size_t at) {
+        const std::size_t count = word(at);
+        std::size_t end = at + 2 + count * 6;
+        for (std::size_t i = 0; i < count && ok_; ++i) {
+            const std::size_t record = at + 2 + i * 6, feature = at + word(record + 4);
+            end = std::max(end, feature + 4 + std::size_t{word(feature + 2)} * 2);
+            if (const std::size_t parameters = word(feature)) {  // the few kinds of feature parameters there are
+                const std::string_view tag(reinterpret_cast<const char*>(table_.data() + record), 4);
+                const std::size_t params = feature + parameters;
+                if (tag == "size") end = std::max(end, params + 10);
+                else if (tag.starts_with("ss")) end = std::max(end, params + 4);
+                else if (tag.starts_with("cv")) end = std::max(end, params + 14 + std::size_t{word(params + 12)} * 3);
+                else fail();
+            }
+        }
+        return ok_ && has(at, end - at) ? end : 0;
+    }
+
+    std::vector<std::uint16_t> coverage(std::size_t at) {
+        std::vector<std::uint16_t> out;
+        const auto format = word(at), count = word(at + 2);
+        if (!ok_) return out;
+        if (format == 1 && has(at + 4, std::size_t{count} * 2)) {
+            for (std::size_t i = 0; i < count; ++i) out.push_back(word(at + 4 + i * 2));
+        } else if (format == 2 && has(at + 4, std::size_t{count} * 6)) {
+            for (std::size_t i = 0; i < count; ++i) {
+                const auto first = word(at + 4 + i * 6), last = word(at + 6 + i * 6);
+                if (first > last || word(at + 8 + i * 6) != out.size()) { fail(); return out; }
+                for (std::uint32_t glyph = first; glyph <= last; ++glyph) out.push_back(static_cast<std::uint16_t>(glyph));
+            }
+        } else fail();
+        return out;
+    }
+    static Bytes coverage_table(const std::vector<std::uint16_t>& glyphs) {
+        std::vector<std::array<std::uint16_t, 3>> ranges;  // first, last, the index of first
+        for (std::size_t i = 0; i < glyphs.size(); ++i) {
+            if (!ranges.empty() && glyphs[i] == ranges.back()[1] + 1) ranges.back()[1] = glyphs[i];
+            else ranges.push_back({glyphs[i], glyphs[i], static_cast<std::uint16_t>(i)});
+        }
+        Bytes out;
+        if (glyphs.size() * 2 <= ranges.size() * 6) {
+            push16(out, 1), push16(out, static_cast<std::uint16_t>(glyphs.size()));
+            for (const auto glyph : glyphs) push16(out, glyph);
+        } else {
+            push16(out, 2), push16(out, static_cast<std::uint16_t>(ranges.size()));
+            for (const auto& range : ranges) push16(out, range[0]), push16(out, range[1]), push16(out, range[2]);
+        }
+        return out;
+    }
+    // The glyphs that have a class but 0 (what is not in a class definition is in class 0).
+    std::map<std::uint16_t, std::uint16_t> class_definition(std::size_t at) {
+        std::map<std::uint16_t, std::uint16_t> out;
+        const auto format = word(at);
+        if (format == 1) {
+            const std::size_t start = word(at + 2), count = word(at + 4);
+            if (!has(at + 6, count * 2)) return fail(), out;
+            for (std::size_t i = 0; i < count; ++i)
+                if (const auto glyph_class = word(at + 6 + i * 2)) out[static_cast<std::uint16_t>(start + i)] = glyph_class;
+        } else if (format == 2) {
+            const std::size_t count = word(at + 2);
+            if (!has(at + 4, count * 6)) return fail(), out;
+            for (std::size_t i = 0; i < count; ++i) {
+                const auto first = word(at + 4 + i * 6), last = word(at + 6 + i * 6), glyph_class = word(at + 8 + i * 6);
+                for (std::uint32_t glyph = first; glyph <= last && glyph_class; ++glyph) out[static_cast<std::uint16_t>(glyph)] = glyph_class;
+            }
+        } else fail();
+        return out;
+    }
+    static Bytes class_definition_table(const std::map<std::uint16_t, std::uint16_t>& classes) {
+        std::vector<std::array<std::uint16_t, 3>> ranges;  // first, last, class
+        for (const auto& [glyph, glyph_class] : classes) {
+            if (!ranges.empty() && glyph == ranges.back()[1] + 1 && glyph_class == ranges.back()[2]) ranges.back()[1] = glyph;
+            else ranges.push_back({glyph, glyph, glyph_class});
+        }
+        Bytes out;
+        const std::size_t span = classes.empty() ? 0 : std::size_t{classes.rbegin()->first} - classes.begin()->first + 1;
+        if (!classes.empty() && 6 + span * 2 < 4 + ranges.size() * 6) {
+            push16(out, 1), push16(out, classes.begin()->first), push16(out, static_cast<std::uint16_t>(span));
+            std::vector<std::uint16_t> array(span, 0);
+            for (const auto& [glyph, glyph_class] : classes) array[glyph - classes.begin()->first] = glyph_class;
+            for (const auto glyph_class : array) push16(out, glyph_class);
+        } else {
+            push16(out, 2), push16(out, static_cast<std::uint16_t>(ranges.size()));
+            for (const auto& range : ranges) push16(out, range[0]), push16(out, range[1]), push16(out, range[2]);
+        }
+        return out;
+    }
+
+    // A value record: its numbers as they are, and the device tables it points to given offsets in the pool.
+    std::size_t value_size(std::uint16_t format) {
+        if (format & 0xFF00) fail();
+        return std::size_t(std::popcount(static_cast<unsigned>(format & 0xFF))) * 2;
+    }
+    std::size_t device_size(std::size_t at) {
+        const std::size_t first = word(at), last = word(at + 2), format = word(at + 4);
+        if (format == 0x8000) return 6;
+        if (format < 1 || format > 3 || last < first) return fail(), 0;
+        return 6 + (((last - first + 1) * (std::size_t{1} << format) + 15) / 16) * 2;
+    }
+    // `from` is the table the source's offsets are from (the PairPos subtable, or a pair set), `parent` where its copy is in `out`.
+    void copy_value(std::size_t at, std::uint16_t format, std::size_t from, std::size_t parent, Bytes& out, Devices& devices,
+                    std::vector<DevicePointer>& pointers) {
+        for (std::uint16_t bit = 1; bit <= 0x80 && ok_; bit = static_cast<std::uint16_t>(bit << 1)) {
+            if (!(format & bit)) continue;
+            const std::uint16_t value = word(at);
+            at += 2;
+            if (bit < 0x10 || value == 0) { push16(out, value); continue; }
+            const std::size_t device = from + value, size = device_size(device);
+            if (!ok_ || !has(device, size)) { fail(); return; }
+            Bytes copy(table_.begin() + static_cast<std::ptrdiff_t>(device), table_.begin() + static_cast<std::ptrdiff_t>(device + size));
+            const auto [found, added] = devices.at.emplace(copy, devices.bytes.size());
+            if (added) devices.bytes.insert(devices.bytes.end(), copy.begin(), copy.end());
+            pointers.push_back({out.size(), found->second, parent});
+            push16(out, 0);
+        }
+    }
+    // The pool after the subtable's own bytes, the pointers to it filled in.
+    void append_devices(Bytes& out, const Devices& devices, const std::vector<DevicePointer>& pointers) {
+        const std::size_t base = out.size();
+        out.insert(out.end(), devices.bytes.begin(), devices.bytes.end());
+        for (const DevicePointer& pointer : pointers) {
+            if (base + pointer.device_at - pointer.parent > 0xFFFF) { fail(); return; }
+            put16(out, pointer.where, static_cast<std::uint16_t>(base + pointer.device_at - pointer.parent));
+        }
+    }
+
+    // PairPos format 1: a first glyph's set of second glyphs and their values.
+    Bytes pair_glyphs(std::size_t at) {
+        const std::uint16_t format1 = word(at + 4), format2 = word(at + 6);
+        const std::size_t count = word(at + 8), size1 = value_size(format1), size2 = value_size(format2), record = 2 + size1 + size2;
+        const auto firsts = coverage(at + word(at + 2));
+        if (!ok_ || firsts.size() != count || !has(at + 10, count * 2)) return fail(), Bytes{};
+        struct Pair {
+            std::uint16_t second;
+            std::size_t values;
+        };
+        std::vector<std::uint16_t> covered;
+        std::vector<std::vector<Pair>> sets;
+        std::vector<std::size_t> set_starts;  // where each set is in the source: its value records' device offsets are from it
+        for (std::size_t i = 0; i < count && ok_; ++i) {
+            if (!is_kept(firsts[i])) continue;
+            const std::size_t set = at + word(at + 10 + i * 2), pairs = word(set);
+            if (!has(set + 2, pairs * record)) return fail(), Bytes{};
+            std::vector<Pair> kept_pairs;
+            for (std::size_t k = 0; k < pairs; ++k) {
+                const std::size_t pair = set + 2 + k * record;
+                if (is_kept(word(pair))) kept_pairs.push_back({word(pair), pair + 2});
+            }
+            if (kept_pairs.empty()) continue;
+            covered.push_back(firsts[i]);
+            sets.push_back(std::move(kept_pairs));
+            set_starts.push_back(set);
+        }
+        if (!ok_ || covered.empty()) return {};
+        Bytes out;
+        push16(out, 1), push16(out, 0), push16(out, format1), push16(out, format2), push16(out, static_cast<std::uint16_t>(sets.size()));
+        out.resize(10 + sets.size() * 2);
+        const Bytes covering = coverage_table(covered);
+        put16(out, 2, static_cast<std::uint16_t>(out.size()));
+        out.insert(out.end(), covering.begin(), covering.end());
+        Devices devices;
+        std::vector<DevicePointer> pointers;
+        for (std::size_t i = 0; i < sets.size() && ok_; ++i) {
+            if (out.size() > 0xFFFF) { fail(); break; }
+            const std::size_t set_start = out.size();
+            put16(out, 10 + i * 2, static_cast<std::uint16_t>(set_start));
+            push16(out, static_cast<std::uint16_t>(sets[i].size()));
+            for (const Pair& pair : sets[i]) {
+                push16(out, pair.second);
+                copy_value(pair.values, format1, set_starts[i], set_start, out, devices, pointers);
+                copy_value(pair.values + size1, format2, set_starts[i], set_start, out, devices, pointers);
+            }
+        }
+        if (ok_) append_devices(out, devices, pointers);
+        return ok_ ? out : Bytes{};
+    }
+
+    // PairPos format 2: the classes of the first and second glyphs and a matrix of values between them.
+    Bytes pair_classes(std::size_t at) {
+        const std::uint16_t format1 = word(at + 4), format2 = word(at + 6);
+        const std::size_t first_classes = word(at + 12), second_classes = word(at + 14);
+        const std::size_t size1 = value_size(format1), size2 = value_size(format2), cell = size1 + size2;
+        const auto firsts = coverage(at + word(at + 2));
+        const auto classes1 = class_definition(at + word(at + 8)), classes2 = class_definition(at + word(at + 10));
+        if (!ok_ || !has(at + 16, first_classes * second_classes * cell)) return fail(), Bytes{};
+        const auto class_of = [](const std::map<std::uint16_t, std::uint16_t>& classes, std::uint16_t glyph) -> std::size_t {
+            const auto found = classes.find(glyph);
+            return found == classes.end() ? 0 : found->second;
+        };
+        std::vector<std::uint16_t> covered;
+        std::set<std::size_t> rows{0}, columns{0};  // class 0 is what a glyph without a class is in: it stays
+        for (const std::uint16_t glyph : firsts) {
+            if (!is_kept(glyph)) continue;
+            covered.push_back(glyph);
+            rows.insert(class_of(classes1, glyph));
+        }
+        for (const auto& [glyph, glyph_class] : classes2)
+            if (is_kept(glyph)) columns.insert(glyph_class);
+        if (covered.empty()) return {};
+        if (*rows.rbegin() >= first_classes || *columns.rbegin() >= second_classes) return fail(), Bytes{};
+        std::map<std::size_t, std::uint16_t> new_row, new_column;
+        for (const std::size_t row : rows) new_row.emplace(row, static_cast<std::uint16_t>(new_row.size()));
+        for (const std::size_t column : columns) new_column.emplace(column, static_cast<std::uint16_t>(new_column.size()));
+        std::map<std::uint16_t, std::uint16_t> kept_classes1, kept_classes2;
+        for (const std::uint16_t glyph : covered)
+            if (const std::size_t row = class_of(classes1, glyph)) kept_classes1[glyph] = new_row[row];
+        for (const auto& [glyph, glyph_class] : classes2)
+            if (is_kept(glyph)) kept_classes2[glyph] = new_column[glyph_class];
+        Bytes out;
+        push16(out, 2);
+        for (int i = 0; i < 5; ++i) push16(out, 0);  // offsets, below
+        out.resize(16);
+        put16(out, 4, format1), put16(out, 6, format2);
+        put16(out, 12, static_cast<std::uint16_t>(rows.size())), put16(out, 14, static_cast<std::uint16_t>(columns.size()));
+        Devices devices;
+        std::vector<DevicePointer> pointers;
+        for (const std::size_t row : rows)
+            for (const std::size_t column : columns) {
+                const std::size_t values = at + 16 + (row * second_classes + column) * cell;
+                copy_value(values, format1, at, 0, out, devices, pointers);
+                copy_value(values + size1, format2, at, 0, out, devices, pointers);
+            }
+        const Bytes covering = coverage_table(covered), first_definition = class_definition_table(kept_classes1),
+                    second_definition = class_definition_table(kept_classes2);
+        if (out.size() + covering.size() + first_definition.size() + second_definition.size() > 0xFFFF) return fail(), Bytes{};
+        put16(out, 2, static_cast<std::uint16_t>(out.size()));
+        out.insert(out.end(), covering.begin(), covering.end());
+        put16(out, 8, static_cast<std::uint16_t>(out.size()));
+        out.insert(out.end(), first_definition.begin(), first_definition.end());
+        put16(out, 10, static_cast<std::uint16_t>(out.size()));
+        out.insert(out.end(), second_definition.begin(), second_definition.end());
+        append_devices(out, devices, pointers);
+        return ok_ ? out : Bytes{};
+    }
+
+    // SinglePos: one value for each covered glyph (format 1: the same for all; format 2: one each).
+    Bytes single_values(std::size_t at) {
+        const auto format = word(at), value_format = word(at + 4);
+        const auto glyphs = coverage(at + word(at + 2));
+        const std::size_t size = value_size(value_format);
+        std::vector<std::uint16_t> covered;
+        std::vector<std::size_t> values;  // where each kept glyph's value is
+        if (format == 1 && has(at + 6, size)) {
+            for (const std::uint16_t glyph : glyphs)
+                if (is_kept(glyph)) covered.push_back(glyph), values.push_back(at + 6);
+        } else if (format == 2 && word(at + 6) == glyphs.size() && has(at + 8, glyphs.size() * size)) {
+            for (std::size_t i = 0; i < glyphs.size(); ++i)
+                if (is_kept(glyphs[i])) covered.push_back(glyphs[i]), values.push_back(at + 8 + i * size);
+        } else fail();
+        if (!ok_ || covered.empty()) return {};
+        Bytes out;
+        push16(out, format), push16(out, 0), push16(out, value_format);
+        if (format == 2) push16(out, static_cast<std::uint16_t>(covered.size()));
+        Devices devices;
+        std::vector<DevicePointer> pointers;
+        if (format == 1) copy_value(values.front(), value_format, at, 0, out, devices, pointers);
+        else for (const std::size_t value : values) copy_value(value, value_format, at, 0, out, devices, pointers);
+        const Bytes covering = coverage_table(covered);
+        if (out.size() + covering.size() > 0xFFFF) return fail(), Bytes{};
+        put16(out, 2, static_cast<std::uint16_t>(out.size()));
+        out.insert(out.end(), covering.begin(), covering.end());
+        append_devices(out, devices, pointers);
+        return ok_ ? out : Bytes{};
+    }
+
+    // Mark attachment (MarkBasePos, MarkMarkPos): marks and the bases (or marks) they sit on, each with an anchor per mark
+    // class. Cursive and ligature-mark attachment are not written again: where a kept glyph can take them, the table
+    // stays as it was.
+    std::size_t anchor_copy(std::size_t from, Devices& pool) {
+        const std::uint16_t format = word(from);
+        if (format < 1 || format > 3) return fail(), 0;
+        const std::size_t size = format == 1 ? 6 : format == 2 ? 8 : 10;
+        if (!has(from, size)) return fail(), 0;
+        Bytes copy(table_.begin() + static_cast<std::ptrdiff_t>(from), table_.begin() + static_cast<std::ptrdiff_t>(from + size));
+        if (format == 3)  // its device tables after it
+            for (const std::size_t slot : {std::size_t{6}, std::size_t{8}}) {
+                const std::size_t device = word(from + slot);
+                if (!device) continue;
+                const std::size_t length = device_size(from + device);
+                if (!ok_ || !has(from + device, length)) return fail(), 0;
+                put16(copy, slot, static_cast<std::uint16_t>(copy.size()));
+                copy.insert(copy.end(), table_.begin() + static_cast<std::ptrdiff_t>(from + device),
+                            table_.begin() + static_cast<std::ptrdiff_t>(from + device + length));
+            }
+        const auto [found, added] = pool.at.emplace(copy, pool.bytes.size());
+        if (added) pool.bytes.insert(pool.bytes.end(), copy.begin(), copy.end());
+        return found->second;
+    }
+    Bytes attachment(std::uint16_t type, std::size_t at) {
+        const auto any_kept = [&](std::size_t coverage_at) {
+            const auto glyphs = coverage(coverage_at);
+            return std::ranges::any_of(glyphs, [&](std::uint16_t glyph) { return is_kept(glyph); });
+        };
+        if (type == 3) return any_kept(at + word(at + 2)) ? (fail(), Bytes{}) : Bytes{};
+        if (type < 4 || type > 6 || word(at) != 1) return fail(), Bytes{};
+        const auto first_glyphs = coverage(at + word(at + 2)), second_glyphs = coverage(at + word(at + 4));
+        const std::size_t classes = word(at + 6), first_array = at + word(at + 8), second_array = at + word(at + 10);
+        std::vector<std::size_t> firsts, seconds;  // what is kept: by index in its coverage
+        std::vector<std::uint16_t> covered_firsts, covered_seconds;
+        for (std::size_t i = 0; i < first_glyphs.size(); ++i)
+            if (is_kept(first_glyphs[i])) firsts.push_back(i), covered_firsts.push_back(first_glyphs[i]);
+        for (std::size_t i = 0; i < second_glyphs.size(); ++i)
+            if (is_kept(second_glyphs[i])) seconds.push_back(i), covered_seconds.push_back(second_glyphs[i]);
+        if (!ok_ || firsts.empty() || seconds.empty()) return {};
+        if (type == 5) return fail(), Bytes{};
+        if (word(first_array) != first_glyphs.size() || word(second_array) != second_glyphs.size() || !has(first_array + 2, first_glyphs.size() * 4) ||
+            !has(second_array + 2, second_glyphs.size() * classes * 2))
+            return fail(), Bytes{};
+        Bytes out;
+        push16(out, 1), push16(out, 0), push16(out, 0), push16(out, static_cast<std::uint16_t>(classes)), push16(out, 0), push16(out, 0);
+        struct AnchorPointer {
+            std::size_t where, array, anchor;  // the offset's place, the array it is from, the anchor in the pool
+        };
+        std::vector<AnchorPointer> pointers;
+        Devices anchors;
+        put16(out, 8, static_cast<std::uint16_t>(out.size()));
+        const std::size_t first_start = out.size();
+        push16(out, static_cast<std::uint16_t>(firsts.size()));
+        for (const std::size_t i : firsts) {
+            push16(out, word(first_array + 2 + i * 4));
+            pointers.push_back({out.size(), first_start, anchor_copy(first_array + word(first_array + 2 + i * 4 + 2), anchors)});
+            push16(out, 0);
+        }
+        put16(out, 10, static_cast<std::uint16_t>(out.size()));
+        const std::size_t second_start = out.size();
+        push16(out, static_cast<std::uint16_t>(seconds.size()));
+        for (const std::size_t i : seconds)
+            for (std::size_t k = 0; k < classes && ok_; ++k) {
+                const std::size_t anchor = word(second_array + 2 + (i * classes + k) * 2);
+                if (anchor) pointers.push_back({out.size(), second_start, anchor_copy(second_array + anchor, anchors)});
+                push16(out, 0);
+            }
+        const Bytes first_covering = coverage_table(covered_firsts), second_covering = coverage_table(covered_seconds);
+        put16(out, 2, static_cast<std::uint16_t>(out.size()));
+        out.insert(out.end(), first_covering.begin(), first_covering.end());
+        put16(out, 4, static_cast<std::uint16_t>(out.size()));
+        out.insert(out.end(), second_covering.begin(), second_covering.end());
+        const std::size_t pool = out.size();
+        out.insert(out.end(), anchors.bytes.begin(), anchors.bytes.end());
+        for (const AnchorPointer& pointer : pointers) {
+            if (pool + pointer.anchor - pointer.array > 0xFFFF) return fail(), Bytes{};
+            put16(out, pointer.where, static_cast<std::uint16_t>(pool + pointer.anchor - pointer.array));
+        }
+        return ok_ && pool <= 0xFFFF ? out : (fail(), Bytes{});
+    }
+
+    // A lookup as the cut needs it: its flags and mark filtering set as they were, its subtables written again.
+    struct Lookup {
+        std::uint16_t type = 0;       // as it was (9: an extension)
+        std::uint16_t real_type = 0;  // of its subtables
+        std::uint16_t flags = 0;
+        std::optional<std::uint16_t> mark_set;
+        std::vector<Bytes> subtables;
+    };
+    Lookup read_lookup(std::size_t at) {
+        Lookup lookup;
+        lookup.type = lookup.real_type = word(at);
+        lookup.flags = word(at + 2);
+        const std::size_t count = word(at + 4), extra = (lookup.flags & 0x10) ? 2 : 0;
+        if (!ok_ || !has(at + 6, count * 2 + extra)) return fail(), lookup;
+        if (extra) lookup.mark_set = word(at + 6 + count * 2);
+        for (std::size_t i = 0; i < count && ok_; ++i) {
+            std::size_t subtable = at + word(at + 6 + i * 2);
+            if (lookup.type == 9) {
+                if (word(subtable) != 1 || (i > 0 && word(subtable + 2) != lookup.real_type)) return fail(), lookup;
+                lookup.real_type = word(subtable + 2);
+                subtable += dword(subtable + 4);
+            }
+            Bytes built;
+            if (lookup.real_type == 1 || lookup.real_type == 2) {
+                const auto format = word(subtable);
+                if (format != 1 && format != 2) return fail(), lookup;
+                built = lookup.real_type == 1 ? single_values(subtable) : format == 1 ? pair_glyphs(subtable) : pair_classes(subtable);
+            } else built = attachment(lookup.real_type, subtable);
+            if (!built.empty()) lookup.subtables.push_back(std::move(built));
+        }
+        return lookup;
+    }
+    // The lookups behind their list: each with its subtables after it, and an extension (8 bytes, 32-bit offsets) where
+    // the lookup was one or the subtables would not reach; or, `extensions`, every one an extension, all subtables last.
+    // Nothing when an offset does not fit.
+    Bytes lookup_list(const std::vector<Lookup>& lookups, bool extensions) {
+        Bytes list, bodies;
+        push16(list, static_cast<std::uint16_t>(lookups.size()));
+        list.resize(2 + lookups.size() * 2);
+        std::vector<std::pair<std::size_t, std::size_t>> pointers;  // an extension's place, the subtable's place in `bodies`
+        for (std::size_t i = 0; i < lookups.size(); ++i) {
+            const Lookup& lookup = lookups[i];
+            const std::size_t start = list.size(), extra = lookup.mark_set ? 2 : 0, header = 6 + lookup.subtables.size() * 2 + extra;
+            if (start > 0xFFFF) return {};
+            put16(list, 2 + i * 2, static_cast<std::uint16_t>(start));
+            bool direct = !extensions && lookup.type != 9;
+            if (direct) {
+                std::size_t reaching = header;
+                for (const Bytes& subtable : lookup.subtables) {
+                    if (reaching > 0xFFFF) direct = false;
+                    reaching += subtable.size();
+                }
+            }
+            push16(list, direct ? lookup.real_type : std::uint16_t{9}), push16(list, lookup.flags);
+            push16(list, static_cast<std::uint16_t>(lookup.subtables.size()));
+            std::size_t place = header, index = 0;
+            for (const Bytes& subtable : lookup.subtables) {
+                const std::size_t reaches = direct ? place : header + index * 8;  // the subtable, or the extension that points to it
+                if (reaches > 0xFFFF) return {};
+                push16(list, static_cast<std::uint16_t>(reaches));
+                place += subtable.size(), ++index;
+            }
+            if (lookup.mark_set) push16(list, *lookup.mark_set);
+            if (direct) {
+                for (const Bytes& subtable : lookup.subtables) list.insert(list.end(), subtable.begin(), subtable.end());
+            } else {
+                for (const Bytes& subtable : lookup.subtables) {
+                    pointers.emplace_back(list.size(), bodies.size());
+                    push16(list, 1), push16(list, lookup.real_type), push32(list, 0);
+                    bodies.insert(bodies.end(), subtable.begin(), subtable.end());
+                }
+            }
+        }
+        for (const auto& [extension, body] : pointers) put32(list, extension + 4, static_cast<std::uint32_t>(list.size() - extension + body));
+        list.insert(list.end(), bodies.begin(), bodies.end());
+        return list;
+    }
+};
+
+// GPOS written again for the kept glyphs, when that is smaller and understood.
+std::optional<Bytes> pruned_gpos(std::span<const std::uint8_t> table, const std::vector<bool>& kept) {
+    auto pruned = GposPruner(table, kept).run();
+    if (!pruned || pruned->size() >= table.size()) return std::nullopt;
+    return pruned;
+}
+
 }  // namespace
+
+std::span<const std::string_view> shaping_features() noexcept {
+    // What HarfBuzz turns on by itself for text in a line (its common and horizontal features, the direction's forms and
+    // the variable fonts' substitutions), and the tabular figures omui's text asks for (tnum).
+    static constexpr std::array<std::string_view, 20> features{"rvrn", "ccmp", "locl", "mark", "mkmk", "rlig", "calt", "clig", "curs", "dist",
+                                                               "kern", "liga", "rclt", "ltra", "ltrm", "rtla", "rtlm", "abvm", "blwm", "tnum"};
+    return features;
+}
 
 void characters_of(std::string_view t, std::set<char32_t>& into) {
     for (std::size_t i = 0; i < t.size();) {
@@ -532,7 +1112,8 @@ std::expected<std::vector<std::pair<std::uint32_t, std::uint32_t>>, std::string>
     return out;
 }
 
-std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep, FontSubsetReport* report) {
+std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep, FontSubsetReport* report,
+                                              std::span<const std::string_view> features) {
     if (font.size() < 12 || (u32(font, 0) != 0x00010000 && u32(font, 0) != 0x74727565)) return std::unexpected("not a TrueType font (glyf outlines)");
     const std::uint16_t count = u16(font, 4);
     if (12 + std::size_t{count} * 16 > font.size()) return std::unexpected("truncated font table directory");
@@ -559,6 +1140,10 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
         if (offset(g) > offset(g + 1) || offset(g + 1) > glyf.size()) return std::unexpected("invalid glyph offsets");
     Substitutions substitutions{by.contains("GSUB") ? by["GSUB"] : std::span<const std::uint8_t>{}, glyphs};
     if (by.contains("GSUB") && !substitutions.parse()) return std::unexpected(substitutions.error);
+    // Only the given features' lookups: the glyphs the others would make are not kept, and the others are taken out.
+    const auto reached = by.contains("GSUB") ? substitutions.reached(features) : std::nullopt;
+    Bytes new_gsub;
+    if (reached) new_gsub = substitutions.without_other_features(features);
     auto mapped = glyphs_of(by["cmap"], keep);
     if (!mapped) return std::unexpected(mapped.error());
     std::vector<bool> kept(glyphs, false);
@@ -594,7 +1179,7 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
             }
         }
         for (const auto& rule : substitutions.rules)
-            if (std::ranges::all_of(rule.inputs, [&](auto id) { return kept[id]; }))
+            if ((!reached || (*reached)[rule.lookup]) && std::ranges::all_of(rule.inputs, [&](auto id) { return kept[id]; }))
                 for (const auto id : rule.outputs) if (!kept[id]) todo.push_back(id);
         if (todo.empty()) break;
     }
@@ -641,6 +1226,11 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
         new_gvar.insert(new_gvar.end(), data.begin(), data.end());
     }
 
+    // GPOS again, for the kept glyphs, when it comes out smaller and is understood.
+    Bytes new_gpos;
+    if (by.contains("GPOS"))
+        if (auto pruned = pruned_gpos(by["GPOS"], kept)) new_gpos = std::move(*pruned);
+
     // The file again, its tables in their order, each on four bytes.
     std::vector<std::pair<std::string, std::span<const std::uint8_t>>> out_tables;
     for (const Table& t : tables) {
@@ -649,6 +1239,8 @@ std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font
         else if (t.tag == "head") out_tables.push_back({t.tag, new_head});
         else if (t.tag == "cmap") out_tables.push_back({t.tag, new_cmap});
         else if (t.tag == "gvar") out_tables.push_back({t.tag, new_gvar});
+        else if (t.tag == "GPOS" && !new_gpos.empty()) out_tables.push_back({t.tag, new_gpos});
+        else if (t.tag == "GSUB" && !new_gsub.empty()) out_tables.push_back({t.tag, new_gsub});
         else out_tables.push_back({t.tag, t.data});
     }
     Bytes out(font.begin(), font.begin() + 12);

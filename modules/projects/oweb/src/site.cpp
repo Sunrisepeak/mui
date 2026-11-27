@@ -1022,7 +1022,8 @@ std::expected<Built, std::string> build(const std::filesystem::path& site, const
             const std::span<const std::uint8_t> whole = fonts.face_data(*face);
             // A face the cut cannot read (outlines that are not TrueType's) goes whole: the manifest says its bytes.
             std::vector<std::uint8_t> sent(whole.begin(), whole.end());
-            if (auto cut = mlibs::text::subset::subset_font(whole, shown)) {
+            // The glyphs of the page's text and of the features omui's text turns on (default shaping, tabular figures).
+            if (auto cut = mlibs::text::subset::subset_font(whole, shown, nullptr, mlibs::text::subset::shaping_features())) {
                 sent = std::move(*cut);
                 if (auto compact = mlibs::text::subset::compact_font_post(sent)) sent = std::move(*compact);
             }

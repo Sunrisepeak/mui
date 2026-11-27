@@ -297,7 +297,9 @@ namespace mrender {
     virtual ~GlyphSource() = default;
     [[nodiscard]] virtual GlyphMask mask(FontRef font, std::uint32_t glyph, float size, Point fraction) = 0;
     [[nodiscard]] virtual mrender::raster::PathData outline(FontRef font, std::uint32_t glyph) = 0;
+    [[nodiscard]] virtual int mask_phases() const noexcept;
   };
+  [[nodiscard]] inline int phase_of(float fraction, int phases) noexcept;
   struct Resources {
     const ImageStore* images = nullptr;
     GlyphSource* glyphs = nullptr;

@@ -156,6 +156,7 @@ public:
         const OutlineSlot* s = find_outline(k, false);
         return s && s->used ? s->data : mrender::raster::PathData{};
     }
+    int mask_phases() const noexcept override { return source_ ? source_->mask_phases() : 0; }
     // While resolving, calls go to the source and are recorded; afterwards
     // they are answered from the record.
     bool resolving_ = false;

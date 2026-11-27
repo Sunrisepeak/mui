@@ -162,6 +162,7 @@ struct Scroll {
     // The program's own spans recorded too (mlibs.trace through window.omui): where its frames go — a run for that,
     // not for the frame numbers (recording costs the program time of its own).
     bool                     spans = false;
+    bool                     gl_calls = false;  // every WebGL2 call counted by name (a run for that, too)
 };
 [[nodiscard]] int scroll(const std::filesystem::path& root, const Scroll& asked);
 

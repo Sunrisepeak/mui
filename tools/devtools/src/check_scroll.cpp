@@ -45,6 +45,30 @@ constexpr std::string_view probe_script = R"js((() => {
   } catch (e) {}
 })();)js";
 
+// With the GL calls asked for: every WebGL2 call the page makes counted by name while a phase is measured (a cost of
+// its own, so a run for that, not for the frame numbers).
+constexpr std::string_view gl_calls_script = R"js((() => {
+  if (typeof WebGL2RenderingContext === 'undefined') return;
+  const probe = window.omuiScrollProbe, counts = probe.gl = {};
+  const P = WebGL2RenderingContext.prototype;
+  for (const name of Object.getOwnPropertyNames(P)) {
+    const d = Object.getOwnPropertyDescriptor(P, name);
+    if (!d || typeof d.value !== 'function' || name === 'constructor') continue;
+    const call = d.value;
+    // An upload by its size too: what is uploaded how often.
+    const sized = name === 'texSubImage2D' || name === 'texImage2D';
+    P[name] = function (...a) {
+      if (probe.on) {
+        counts[name] = (counts[name] || 0) + 1;
+        if (sized && a.length >= 9) { const key = name + ' ' + a[4] + 'x' + a[5]; counts[key] = (counts[key] || 0) + 1; }
+      }
+      return call.apply(this, a);
+    };
+  }
+  const start = probe.start;
+  probe.start = () => { for (const k of Object.keys(counts)) delete counts[k]; return start(); };
+})();)js";
+
 // The page as the measure needs it: how far its view scrolls and where it is, the layer's elements, what draws.
 constexpr std::string_view state_script = R"js((() => {
   const view = document.querySelector('[data-omui=mirror] [data-omui-scroll]');
@@ -306,6 +330,8 @@ int scroll(const fs::path& root, const Scroll& asked) {
     });
     std::string problem;
     if (const auto added = page.call("Page.addScriptToEvaluateOnNewDocument", {{"source", std::string(probe_script)}}); !added) problem = added.error();
+    if (asked.gl_calls)
+        if (const auto added = page.call("Page.addScriptToEvaluateOnNewDocument", {{"source", std::string(gl_calls_script)}}); !added) problem = added.error();
     const auto wait = [&](std::string_view ready, int tenths, std::string_view what) -> std::optional<std::string> {
         for (int attempt = 0; attempt < tenths; ++attempt) {
             const auto held = page.value(ready);
@@ -360,6 +386,15 @@ int scroll(const fs::path& root, const Scroll& asked) {
         act();
         const auto kept = page.value("window.omuiScrollProbe.stop()");
         if (asked.spans) row["program"] = own_spans();
+        if (asked.gl_calls)
+            if (const auto counted = page.value("window.omuiScrollProbe.gl || null"); counted && counted->is_object()) {
+                std::vector<std::pair<std::string, double>> calls;
+                for (auto item = counted->begin(); item != counted->end(); ++item) calls.emplace_back(item.key(), number(item.value()));
+                std::ranges::sort(calls, [](const auto& a, const auto& b) { return a.second > b.second; });
+                json listed = json::object();
+                for (std::size_t index = 0; index < calls.size() && index < 30; ++index) listed[calls[index].first] = calls[index].second;
+                row["gl_calls"] = listed;
+            }
         static_cast<void>(page.call("Tracing.end"));
         for (int attempt = 0; attempt < 600 && !complete; ++attempt) page.pump(std::chrono::milliseconds(50));
         row["load"]["after"] = load(root);

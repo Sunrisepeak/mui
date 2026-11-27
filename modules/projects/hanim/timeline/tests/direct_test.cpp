@@ -87,6 +87,19 @@ UTest cases{"timeline.direct", [] {
         expect(eq(tl::direct(history(), 1280, 800, rules).tracks[0].clips[3].name, std::string("arc_to"))) << "the rules name it";
     };
 
+    "how long a beat's change is seen to move, when measured, rides on its states clip for the player; unmeasured, nothing"_test = [] {
+        auto beats = history();
+        beats[0].moving = 1.23456;
+        beats[2].moving = 0.5;
+        const tl::Timeline show = tl::direct(beats, 1280, 800);
+        const auto& clips = track(show, "states").clips;
+        expect(eq(clips[0].value("moving", 0), 1.235) && eq(clips[2].value("moving", clips[2].at + clips[2].length / 2), 0.5)) << "a constant, to the millisecond";
+        expect(clips[1].properties.empty() && clips[4].properties.empty()) << "not measured: no property";
+        const auto read = tl::read_timeline(tl::write_timeline(show), "show.timeline.xdef.json");
+        expect(read.has_value() && eq(read->tracks[0].clips[0].value("moving", 0), 1.235)) << "and read back";
+        expect(eq(tl::write_timeline(tl::direct(history(), 1280, 800)), tl::write_timeline(tl::direct(history(), 1280, 800)))) << "the rest unchanged";
+    };
+
     "a pure function: the same beats and rules, the same timeline to the bit — written, read back and written again"_test = [] {
         const auto beats = history();
         const std::string first = tl::write_timeline(tl::direct(beats, 1280, 800));

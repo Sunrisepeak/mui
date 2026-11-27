@@ -7,7 +7,8 @@
 // what the step built (a note at the step's node: the agent's presence, D-160);
 // played as a show when it has one (FE4, AG3; a hanim.timeline the director made of the replay: design.show) — each
 // step on screen for its beat, and what the step changes presented as a design edit is (written in, springing)
-// slowed to fill most of its beat, so that the time read is time something is seen to change;
+// slowed so that what is seen to move (design.show measured it: the clip's `moving`) fills most of its beat, so that
+// the time read is time something is seen to change;
 // at the end the application's own scripts again. A person (its play button,
 // the timeline they scrub, Close) or an agent (generate.replay) plays, pauses,
 // goes to a step and stops; every step shown is a real interface. Its course
@@ -60,7 +61,7 @@ public:
     [[nodiscard]] double seconds_of(std::size_t step) const noexcept;
     // The slot its caption is mounted at, over the application.
     static constexpr std::string_view slot = "generate.replay";
-    // How much of a step's time on screen its presentation fills while playing (the rest it rests).
+    // How much of a step's time on screen what it changes is seen to move while playing (the rest it rests).
     static constexpr double presented = 0.85;
 
 private:
@@ -74,6 +75,7 @@ private:
     ShowTextsFn              show_;
     std::function<void()>    restore_;
     std::vector<double>      beats_;        // a step's beat in the show, in seconds (empty: the steps' own)
+    std::vector<double>      moving_;       // how long a step's change is seen to move at pace 1 (the show's; 0: unmeasured)
     std::size_t              at_ = 0;       // the step shown (0: none)
     double                   speed_ = 1;
     std::uint64_t            timer_ = 0;    // the next step's (0: paused)

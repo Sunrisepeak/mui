@@ -138,6 +138,9 @@ public:
     virtual void step(std::optional<seconds> at = std::nullopt) = 0;
     // Its scripts done, nothing moving.
     virtual void settle() = 0;
+    // Its scripts done with its clock held — no frame stepped meanwhile, so what a change looks like from its first
+    // frame on is the change's, not how fast the scripts' thread was (a presentation measured).
+    virtual void wait_scripts() = 0;
     [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, ViewFailure> png() = 0;
     // Its picture as drawn (device pixels, the runtime's scale): what a step changed is read from two of them.
     [[nodiscard]] virtual const mrender::raster::Surface& pixels() = 0;

@@ -761,14 +761,35 @@ private:
         std::vector<hanim::timeline::Beat> beats;
         std::optional<mrender::raster::Surface> picture;  // the step kept before, as drawn
         std::optional<semantic::Snapshot> nodes;          // and its nodes
+        const Runtime::DesignPresentation presentation = shown.runtime().design_presentation();
         for (const Step& step : steps) {
             // A step left out is still run (the next builds on it); what it changed is the next kept step's.
+            // Presented as a show plays it (an edit at its own pace, its changes too: generate.replay): how long it is
+            // seen to move — from the change to the last frame that differs from the one before — is what a player
+            // paces its beat by. The scripts run with the clock held, so the time is the presentation's alone.
+            shown.runtime().set_design_presentation({Runtime::DesignPresentation::Kind::edit, 1.0, true});
+            shown.runtime().present_design();
             if (auto ran = shown.player().show(step.texts); !ran) return std::unexpected(std::format("{}: {}", step.label, ran.error()));
+            shown.wait_scripts();
+            double moving = 0;
+            {
+                const double began = shown.time().count();
+                mrender::raster::Surface before = shown.pixels();
+                for (int frame = 0; frame < 60 * 10; ++frame) {  // at most ten seconds; it rests after half of one unmoved
+                    shown.step();
+                    const mrender::raster::Surface& now = shown.pixels();
+                    const double at = shown.time().count() - began;
+                    if (!mrender::raster::changed_regions(before, now).empty()) moving = at;
+                    else if (at - moving > 0.5) break;
+                    before = now;
+                }
+            }
+            shown.runtime().set_design_presentation(presentation);
             shown.settle();
             if (!step.keep) continue;
             semantic::Tree tree(shown.runtime());
             semantic::Snapshot now = tree.snapshot();
-            hanim::timeline::Beat beat{.source = std::format("design:{}#{}", branch, beats.size() + 1), .caption = step.caption};
+            hanim::timeline::Beat beat{.source = std::format("design:{}#{}", branch, beats.size() + 1), .caption = step.caption, .moving = moving};
             if (!picture) {
                 beat.regions.push_back({0, 0, window.width, window.height});
                 beat.appeared = static_cast<std::uint32_t>(now.nodes.size());
@@ -852,6 +873,7 @@ private:
             Value one = Value{}
                             .set("share", std::round(std::min(1.0, area / (window.width * window.height)) * 10000) / 10000)
                             .set("regions", static_cast<std::int64_t>(beat.regions.size()))
+                            .set("moving", std::round(beat.moving * 1000) / 1000)
                             .set("nodes", Value{}.set("appeared", beat.appeared).set("removed", beat.removed).set("words", beat.retexted).set("moved", beat.moved).set("other", beat.restyled));
             if (!beat.regions.empty()) one.set("bounds", Value(Value::List{Value(left), Value(top), Value(right - left), Value(bottom - top)}));
             seen.push_back(std::move(one));

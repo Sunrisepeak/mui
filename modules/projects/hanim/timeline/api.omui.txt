@@ -14,6 +14,7 @@ namespace hanim::timeline {
     std::string caption;
     std::vector<Region> regions;
     std::uint32_t appeared = 0, removed = 0, retexted = 0, moved = 0, restyled = 0;
+    double moving = 0;
   };
   struct Direction {
     Rate rate{…};

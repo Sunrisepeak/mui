@@ -28,7 +28,6 @@ kind = "lib"
 # `main = { from = "omui.entry.player/player" }` in its manifest.
 [targets.player]
 kind = "entry"
-agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
 main = "src/entry/main.cpp"
 
 # The same main for an application whose build program derives the components it carries from its scripts'
@@ -36,7 +35,6 @@ main = "src/entry/main.cpp"
 # writes the registry this main calls); the components it does not name are not in the program.
 [targets.closure]
 kind = "entry"
-agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
 main = "src/entry/closure.cpp"
 
 # The player as a program of its own (E2): the omui tool ships it, built with the
@@ -44,7 +42,6 @@ main = "src/entry/closure.cpp"
 # version through it (`omui-player --manifest DIR`), with nothing built.
 [targets.omui-player]
 kind = "bin"
-agent = { part = "omui.agent" }  # the application it runs is the subject, at the agent endpoint omui.agent serves (D-174)
 main = "src/entry/main.cpp"
 
 [build]

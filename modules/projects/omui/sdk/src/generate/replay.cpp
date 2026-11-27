@@ -53,7 +53,10 @@ Replayer::Replayer(Runtime& runtime, mlibs::agent::Replay replay, ShowTextsFn sh
     // The show's beats, a clip of its `states` track a step (the director makes one a step, in order).
     if (show_timeline)
         if (const auto states = std::ranges::find(show_timeline->tracks, "states", &hanim::timeline::Track::name); states != show_timeline->tracks.end())
-            for (const hanim::timeline::Clip& clip : states->clips) beats_.push_back(mlibs::time::to_seconds(clip.length));
+            for (const hanim::timeline::Clip& clip : states->clips) {
+                beats_.push_back(mlibs::time::to_seconds(clip.length));
+                moving_.push_back(clip.value("moving", clip.at));  // how long its change is seen to move at pace 1 (0: unmeasured)
+            }
 }
 
 double Replayer::seconds_of(std::size_t step) const noexcept {
@@ -113,11 +116,14 @@ std::expected<void, std::string> Replayer::show(std::size_t step, bool playing) 
     // Played: what the step changes presented as a design edit is, its time scaled to fill most of the step's time on
     // screen (the presentation is 0.9 s at its own pace, ¼ to 4 times as fast) — in a release too, where an edit is
     // otherwise shown at once. Gone to (`at`, the person scrubbing): shown as an edit is where it is shown at all.
+    // Its pace makes what is seen to move (the show's measure of the step at pace 1, else the presentation's own
+    // 0.9 s) end at `presented` of the step's time on screen; the presentation lasts at least as long.
     const Runtime::DesignPresentation before = runtime_.design_presentation();
     if (playing) {
         const double on_screen = std::max(0.05, seconds_of(step) / speed_);
-        runtime_.set_design_presentation({Runtime::DesignPresentation::Kind::edit, 0.9 / (presented * on_screen), true});
-        runtime_.present_design();
+        const double moving = step <= moving_.size() && moving_[step - 1] > 0 ? moving_[step - 1] : 0.9;
+        runtime_.set_design_presentation({Runtime::DesignPresentation::Kind::edit, moving / (presented * on_screen), true});
+        runtime_.present_design(seconds(std::max(0.9, moving)));
     }
     auto ran = show_ ? show_(shown.texts) : std::expected<void, std::string>{};
     if (playing) runtime_.set_design_presentation(before);

@@ -2,13 +2,14 @@
 // development mode), its replay played by the Live Design key's verb, stepped at 60 frames a second, every frame's
 // picture against the one before outside the replay's own card — how much of the time the page is seen to change.
 // Twice: as the replay played before it had a show (each step 1.5 s, shown at once), and as its show plays it (each
-// step for its beat, what it changes — its nodes, its words, its places — presented over most of the beat). Both are
-// printed; the show changes more of the time than the replay did. The design's bound (still at most 30% of the frames,
-// AG1 §5) is printed and open: the replay's own overlay (its card, its course, its maker's note) is not the design and
-// keeps its own motion, so the beats' still tails are seen as they are.
+// step for its beat, what it changes — its nodes, its words, its places — seen to move over most of the beat, as
+// design.show measured it). Both are printed; the show changes more of the time than the replay did and is still at
+// most 30% of its frames (AG1 §5) — the replay's own overlay (its card, its course, its maker's note) keeping its own
+// motion, so only the design's change is slowed.
 // Then sampled in time (AGENTS §6): each beat's last frame is its step as gone to, the frames between are neither
 // end, a step without a visible change lasts at most 0.3 s, the show ends on the page as it ships; paused, sent
-// forward or back in the middle of a beat, the page lands exactly where it was taken.
+// forward or back in the middle of a beat, the page lands exactly where it was taken; with the person's less motion
+// the show is its steps cut, on the same beats.
 import std;
 import mcpplibs.mtest;
 import omui;
@@ -172,7 +173,7 @@ extern "C++" void omui_application_components();
 static UTest cases{"site.show", [] {
     omui_application_components();
 
-    "the design played in the page as a show: each step for its beat, presented over it — changing more of the time than before"_test = [] {
+    "the design played in the page as a show: each step for its beat, presented over it — still at most 30% of the time"_test = [] {
         const Site site = read_site();
         const auto steps = mlibs::agent::read_replay(site.replay, "main.replay.xdef.json");
         expect(fatal(steps.has_value()));
@@ -242,9 +243,10 @@ static UTest cases{"site.show", [] {
         for (const auto& [name, seen] : {std::pair{"the site's replay before its show:", unpaced}, std::pair{"as its show plays it:           ", shown}})
             std::println("    {} {:.1f} s, still {:.0f}% of the frames, longest still {:.2f} s (step {}, {:.2f} s in)", name, seen.seconds,
                          seen.still_share * 100, seen.longest_still, seen.longest_step, seen.longest_into);
-        // Held: the show is seen to change more of the time than the replay was, and ends. The design's bound (AG1 §5:
-        // still at most 30% of its frames, from 86%) is AG3's open acceptance: printed above.
+        // Held: the show is seen to change more of the time than the replay was, within the design's bound (AG1 §5:
+        // still at most 30% of its frames, from 86%), and ends.
         expect(shown.still_share < unpaced.still_share) << "the show changes more of the time";
+        expect(shown.still_share <= 0.30) << std::format("still {:.0f}% of the show's frames (AG1 §5: at most 30%)", shown.still_share * 100);
         expect(shown.seconds < 120) << "it ends";
     };
 
@@ -331,5 +333,30 @@ static UTest cases{"site.show", [] {
         (void)stage.invoke(Value{}.set("stop", true));
         stage.settle();
         expect(eq(stage.apart(stage.shot(), step_of[0]), std::uint64_t{0})) << "stopped: the page as it ships";
+
+        // The person's less motion (the system's setting, which the hosts read): the show is its steps cut — every frame
+        // the step shown or, for the frame it is shown in, the one before — on the same beats, to the same end.
+        stage.host.runtime().set_reduce_motion(true);
+        expect(fatal(stage.invoke(Value{}.set("from", 1)).exit_code().value_or(-1) == 0));
+        std::size_t cut = 0, seen_frames = 0;
+        std::int64_t at_step = 1;
+        for (bool over = false; !over && seen_frames < 60 * 120; ++seen_frames) {
+            const Shot now = stage.next();
+            const Stage::Where where = stage.where();
+            over = where.ended;
+            if (over) break;
+            const bool moved_on = where.at != at_step;
+            at_step = where.at;
+            const auto index = static_cast<std::size_t>(at_step);
+            const bool is_step = stage.apart(now, step_of[index]) == 0, is_before = moved_on && stage.apart(now, step_of[index - 1]) == 0;
+            if (!is_step && !is_before) {
+                ++cut;
+                if (cut == 1) std::println("      less motion, step {}: {}", at_step, stage.where_apart(now, step_of[index]));
+            }
+        }
+        expect(eq(cut, std::size_t{0})) << std::format("{} frames between steps with less motion", cut);
+        stage.settle();
+        expect(eq(stage.apart(stage.shot(), step_of[0]), std::uint64_t{0})) << "with less motion too, the show ends on the page as it ships";
+        stage.host.runtime().set_reduce_motion(false);
     };
 }};

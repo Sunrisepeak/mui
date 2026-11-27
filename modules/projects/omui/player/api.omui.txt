@@ -51,6 +51,7 @@ namespace omui::player {
     [[nodiscard]] virtual seconds time() = 0;
     virtual void step(std::optional<seconds> at = std::nullopt) = 0;
     virtual void settle() = 0;
+    virtual void wait_scripts() = 0;
     [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, ViewFailure> png() = 0;
     [[nodiscard]] virtual const mrender::raster::Surface& pixels() = 0;
     [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, ViewFailure> framed_png(Rect frame, std::string_view fixed) = 0;

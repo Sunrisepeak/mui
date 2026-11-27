@@ -110,6 +110,7 @@ public:
     seconds time() override { return host_.runtime().now(); }
     void step(std::optional<seconds> at) override { (void)host_.step({}, at); }
     void settle() override { host_.settle(); }
+    void wait_scripts() override {}  // its language runs on the caller's thread: nothing to wait for
     std::expected<std::vector<std::uint8_t>, omui::ViewFailure> png() override { return host_.png(); }
     const mrender::raster::Surface& pixels() override { return host_.pixels(); }
     std::expected<std::vector<std::uint8_t>, omui::ViewFailure> framed_png(Rect frame, std::string_view fixed) override {

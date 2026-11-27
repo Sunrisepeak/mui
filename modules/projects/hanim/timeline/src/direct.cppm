@@ -30,12 +30,15 @@ struct Region {
 };
 
 // One step of a history as measured, in no domain's words: what it shows, its words, where its pixels changed
-// (none: no visible change) and its nodes by what happened to them.
+// (none: no visible change), its nodes by what happened to them, and how long what it changes is seen to move when
+// its transition plays at its own pace (seconds; 0: not measured) — written on its `states` clip as the property
+// `moving`, so a player paces the transition to fill its beat.
 struct Beat {
     std::string         source;   // what the step shows (`design:<history>#<step>`): the `states` clip's source
     std::string         caption;  // its words
     std::vector<Region> regions;
     std::uint32_t       appeared = 0, removed = 0, retexted = 0, moved = 0, restyled = 0;
+    double              moving = 0;
 };
 
 // The director's rules, each a value with its default. The defaults are assumptions (the presentation design's

@@ -166,6 +166,12 @@ Timeline direct(std::span<const Beat> beats, std::int32_t width, std::int32_t he
                                 .source = beats[at].source,
                                 .at = rules.rate.frame_time(starts[at]),
                                 .length = rules.rate.frame_time(frames[at])});
+        // How long its change is seen to move at its own pace, when measured (to the millisecond): the player's.
+        if (beats[at].moving > 0) {
+            Property moving{.name = "moving"};
+            moving.keys.key(hanim::seconds{0}, std::round(beats[at].moving * 1000) / 1000);
+            states.clips.back().properties.push_back(std::move(moving));
+        }
         show.markers.push_back({rules.rate.frame_time(starts[at]), std::format("beat {}", at + 1)});
     }
     for (std::size_t index = 0; index < groups.size(); ++index) {

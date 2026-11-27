@@ -6,14 +6,14 @@
 |---|---|---|---|---|---|---|---|
 | CPU reference rendering, simulation and the semantic tree | 稳定 | 实机 | 实机 | 实机 | 实机 | 实机 | 软件 |
 | 2D on a GPU device (mrender, mlibs.rhi) | 稳定 | 实机 | 未验证 | 软件 | 软件 | 软件 | 未验证 |
-| 3D mesh pass on a device (mrender.mesh.gpu) | 预览 | 实机 | 软件 | 软件 | 软件 | 软件 | 未验证 |
+| 3D mesh pass on a device (mrender.mesh.gpu) | 预览 | 实机 | 实机 | 软件 | 软件 | 软件 | 未验证 |
 | Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu) | 预览 | 实机 | 软件 | 未验证 | 未验证 | 未验证 | 未验证 |
-| A window drawn by a device (quay.desktop) | 预览 | 软件 | 未验证 | 未验证 | 软件 | 软件 | 未验证 |
+| A window drawn by a device (quay.desktop) | 预览 | 实机 | 未验证 | 未验证 | 软件 | 软件 | 未验证 |
 | The Direct3D 12 device backend | 预览 | | | | 未验证 | | |
 | The accessibility bridge to the system's screen reader | 稳定 | 实机 | 未验证 | 未验证 | 未验证 | | |
 | Input methods (composition, candidates) | 稳定 | 实机 | 软件 | 软件 | 软件 | | |
 | Gamepads (Quay, widget breakout) | 预览 | 软件 | 未验证 | 软件 | 软件 | | |
-| D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms | 预览 | 未验证 | 未验证 | | | | 未验证 |
+| D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms | 预览 | 未验证 | 实机 | | | | 未验证 |
 | An application's first frame: process start to the window's first pixels (RC3.6) | 稳定 | 实机 | 未验证 | 未验证 | 未验证 | | |
 | Keyboard reach and visible focus: every component on the wall by Tab, its ring drawn (RC3.6) | 稳定 | 未验证 | 未验证 | 未验证 | 未验证 | | |
 | High DPI and several displays: moved to a display of another scale, drawn again at it (RC3.6) | 稳定 | 软件 | 未验证 | 软件 | 软件 | | |
@@ -37,7 +37,7 @@
 - **2D on a GPU device (mrender, mlibs.rhi)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
 - **2D on a GPU device (mrender, mlibs.rhi)**, Android: 缺: a device run; CI builds and runs the emulator without a GPU device case
 - **3D mesh pass on a device (mrender.mesh.gpu)**, Linux x64: RTX 4080 headless (omui-devtools gpu --real): quay.picture.device; lavapipe on CI
-- **3D mesh pass on a device (mrender.mesh.gpu)**, Web (wasm32): Quay's frame on headless Chromium's SwiftShader WebGPU (showcase/quay web_frame_test --frames 20: 46 draws, 8 lights; ~3 s a frame, not performance); 缺: a real browser on a real GPU: web_frame_test through omui-devtools browser --headed under gpu --real where a display is (headless Chromium has no Vulkan on NVIDIA's driver)
+- **3D mesh pass on a device (mrender.mesh.gpu)**, Web (wasm32): Quay's frame (showcase/quay web_frame_test) in headed Chromium (Playwright 1248) on this machine's display: WebGPU on the RTX 4080 through the system's NVIDIA Vulkan ICD (VK_DRIVER_FILES=/usr/share/vulkan/icd.d/nvidia_icd.json; xlings' `gpu --real` ICD gave no adapter), 43 draws, 8 lights, 300 frames drawn, 2026-11-27; CI's headless SwiftShader row stays as the software check
 - **3D mesh pass on a device (mrender.mesh.gpu)**, macOS arm64: quay.picture.device on CI's Apple Paravirtual device (offscreen)
 - **3D mesh pass on a device (mrender.mesh.gpu)**, Windows x64: CI row windows-2022: lavapipe
 - **3D mesh pass on a device (mrender.mesh.gpu)**, Linux arm64: CI row ubuntu-24.04-arm: lavapipe
@@ -48,7 +48,7 @@
 - **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu)**, Windows x64: 缺: a CI run of mesh.blocks on lavapipe (BC7)
 - **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu)**, Linux arm64: 缺: a CI run of mesh.blocks on lavapipe (BC7)
 - **Pictures as a device's blocks (KTX2 to BC7, ASTC or ETC2; mrender.mesh.gpu)**, Android: 缺: a device run (ASTC or ETC2)
-- **A window drawn by a device (quay.desktop)**, Linux x64: quay.desktop with lavapipe (SDL offscreen video driver)
+- **A window drawn by a device (quay.desktop)**, Linux x64: quay in a real window on HDMI-0 (120 Hz), the RTX 4080 through SDL_GPU, the release build, drawn and played by its agent endpoint: omui-devtools bench windows --screen HDMI-0, 2026-11-27 (frames and their cost: STATUS EN2, reds 177–178); quay.desktop with lavapipe (SDL offscreen) stays the CI check
 - **A window drawn by a device (quay.desktop)**, Web (wasm32): 缺: a real browser's WebGPU canvas
 - **A window drawn by a device (quay.desktop)**, macOS arm64: 缺: a CI run with RC0.3's fix (the case under cocoa, as the device tests run; red 98)
 - **A window drawn by a device (quay.desktop)**, Windows x64: quay.desktop on CI with lavapipe (windows video driver)
@@ -68,7 +68,7 @@
 - **Gamepads (Quay, widget breakout)**, macOS arm64: the same tests on CI row macos-15
 - **Gamepads (Quay, widget breakout)**, Windows x64: the same tests on CI row windows-2022
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Linux x64: 缺: an integrated-GPU machine; only the RTX 4080 is measured
-- **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Web (wasm32): 缺: Quay's frame in a real browser on a real GPU (web_frame_test, omui-devtools browser --headed under gpu --real, where a display is): RC2.1
+- **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Web (wasm32): Quay's frame (showcase/quay web_frame_test) in headed Chromium (Playwright 1248) on this machine's display, WebGPU on the RTX 4080 through the system's NVIDIA Vulkan ICD, 1920×1080, 300 frames, 2026-11-27, load 1.5–2.5, one run: p50 12.70 ms, p99 83.20, worst 112.9 — over the 16.7 ms bar (red 178's lead; not a pass). Firefox not run
 - **D-187 on weaker machines (integrated GPUs, mobile): p99 ≤ 16.7 ms**, Android: 缺: a mobile device
 - **An application's first frame: process start to the window's first pixels (RC3.6)**, Linux x64: example 01, release, `--frames 1` (the window asked for to its first frame shown), RTX 4080 under SDL's offscreen driver, 2026-11-17: the CPU renderer 41–53 ms warm (185 ms cold; the whole process 150–270 ms); the GPU renderer 207–334 ms warm (784 ms cold), its device and pipelines made before the first frame. Since then the device is made on a thread of its own from the host's start, beside its fonts, runtime and window: the same dev build interleaved A/B under the same load, 209–328 ms against 403–596 ms before. In a real window on this machine's display (HDMI-0, 120 Hz, the desktop's window manager and compositor), measured from outside the process: `omui-devtools bench apps --screen HDMI-0`, 2026-11-26, the `app` world's hello on the RTX 4080, launch to its first presented frame equal to the settled picture, 410 ms cold and 355 warm (medians of 10 rounds; Slint 243 and 251 the same way; the ledger's `ui.start.hello.*` with `display`). Not yet held by a CI row
 - **An application's first frame: process start to the window's first pixels (RC3.6)**, Web (wasm32): 缺: the page's first frame timed in a real browser (RC2.9 splits what loads before it)

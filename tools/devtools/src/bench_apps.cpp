@@ -1060,6 +1060,14 @@ public:
             return std::unexpected("the agent endpoint: " + written.error().message());
         return {};
     }
+    // Input events (a JSON list's elements, `{"type":"key_down","key":"W"}`…) sent as the person's, not waited for.
+    std::expected<void, std::string> input(std::string_view events) {
+        drain();
+        const std::string line = std::format(R"({{"op":"input","events":[{}],"re":{}}})", events, next_++);
+        if (auto written = connection_.write(line + "\n"); !written)
+            return std::unexpected("the agent endpoint: " + written.error().message());
+        return {};
+    }
     // What has arrived, read; a refusal said once.
     void drain() {
         while (true) {
@@ -1458,6 +1466,508 @@ std::optional<fs::path> fontconfig(const fs::path& root, const fs::path& work) {
         return std::nullopt;
     (void)run::program(root, "fc-cache", {}, {.variables = {{"FONTCONFIG_FILE", utf8(file)}}});
     return file;
+}
+
+// --- `bench windows` (EN2, D-187): a game's window on this machine's display -------------------------------------
+// The windows and their scenarios are tests/bench/windows.bench.xdef.json. Each window is opened on the monitor named
+// (`--position`: the real pointer is untouched), played by its own agent endpoint (the person's input, sent as
+// events: keys, the button), and watched from outside for a span: the X server's DAMAGE gives each present's time
+// (the intervals, the refreshes missed), the process's processor time (mcpplibs.os) gives what it spends, nvidia-smi
+// (`pmon`) the share of the GPU's streaming multiprocessors this process kept busy each second, and the display's
+// clocks. What the process says of itself (its `--profile` trace: the frame's phases by the frame) is beside them,
+// named so: a diagnostic, not the measure. SDL_GPU has no GPU timestamps (mlibs.rhi), so a frame's own GPU time is not
+// seen per frame: the GPU's is the mean the driver reports, the CPU's the trace's.
+struct WindowScenario {
+    std::string name, about;
+    std::vector<std::string> args;    // besides the window's own
+    std::vector<std::string> setup;   // input events (JSON objects), sent once the window has settled
+    std::vector<std::string> repeat;  // input events sent every `every_ms` while measured
+    int every_ms = 500;
+};
+
+struct WindowSide {
+    std::string series, package, program;
+    std::vector<std::string> args;
+    std::vector<WindowScenario> scenarios;
+    fs::path executable;
+};
+
+// What one launch measured.
+struct WindowRun {
+    std::string failure, driver, shot;
+    double start_ms = 0, span_s = 0, cpu_percent = 0, load_before = 0, load_after = 0;
+    std::vector<double> presents;  // the intervals between presented frames in the span (ms)
+    std::map<std::string, double> cpu_by_thread;
+    std::vector<double> gpu_busy;                                  // this process's share of the GPU's SMs a second (%)
+    std::vector<double> device_busy, device_clock, device_power;   // the whole device's, each second (%, MHz, W)
+    std::map<std::string, std::vector<double>> spans;              // the trace's, each in ms: "frame/timers"…
+    std::vector<double> frame_cpu;                                 // a frame's work: the frame and the host's render of it (ms; not the present: it waits for the display)
+    std::vector<double> frame_starts;                              // the trace's frames' beginnings (ms)
+};
+
+// A run's trace (Chrome JSON): the spans of the main thread's frames after `from_us`, and each frame's CPU work — its
+// `frame` and the host's `render` that follows it. The host's `present` is not in it: where frames come as fast as the
+// display shows them it waits for the next refresh (7 ms of 8.3 at 120 Hz), which is the display's time, not the frame's.
+void read_trace(const fs::path& file, double from_us, WindowRun& out) {
+    const auto parsed = json::parse(mcpplibs::os::fs::read(file).value_or(""), nullptr, false);
+    if (parsed.is_discarded() || !parsed.contains("traceEvents"))
+        return;
+    struct Open {
+        std::string key;
+        double at = 0;
+    };
+    std::map<std::int64_t, std::vector<Open>> stacks;
+    std::optional<std::int64_t> main_thread;
+    bool in_span = false;
+    for (const auto& event : parsed["traceEvents"]) {
+        const std::string phase = event.value("ph", "");
+        if (phase != "B" && phase != "E")
+            continue;
+        const std::int64_t thread = event.value("tid", std::int64_t{0});
+        const double at = event.value("ts", 0.0);
+        auto& stack = stacks[thread];
+        if (phase == "B") {
+            std::string key = event.value("cat", "") + "/" + event.value("name", "");
+            if (key == "frame/frame") {
+                if (!main_thread)
+                    main_thread = thread;
+                if (thread == *main_thread && at >= from_us) {
+                    in_span = true;
+                    out.frame_cpu.push_back(0);
+                    out.frame_starts.push_back(at / 1000.0);
+                }
+            }
+            stack.push_back({std::move(key), at});
+        } else if (!stack.empty()) {
+            const Open done = std::move(stack.back());
+            stack.pop_back();
+            if (done.at < from_us)
+                continue;
+            const double took = (at - done.at) / 1000.0;
+            out.spans[done.key].push_back(took);
+            if (in_span && main_thread && thread == *main_thread && !out.frame_cpu.empty() &&
+                (done.key == "frame/frame" || done.key == "host/render"))
+                out.frame_cpu.back() += took;
+        }
+    }
+}
+
+// The rows of `nvidia-smi pmon -s u` for `pid`: its SM share (the columns: gpu pid type sm mem enc dec jpg ofa command).
+std::vector<double> process_busy(std::string_view said, std::uint64_t pid) {
+    std::vector<double> out;
+    for (const auto line : lines(said)) {
+        if (line.starts_with('#'))
+            continue;
+        const auto split = words(line);
+        if (split.size() < 4 || split[1] != std::to_string(pid))
+            continue;
+        double value = 0;
+        if (split[3] != "-")
+            (void)std::from_chars(split[3].data(), split[3].data() + split[3].size(), value);
+        out.push_back(value);
+    }
+    return out;
+}
+
+// `nvidia-smi dmon -s puc`: the device's power, SM busy and graphics clock a second (gpu pwr gtemp mtemp sm mem enc
+// dec jpg ofa mclk pclk).
+void device_state(std::string_view said, WindowRun& out) {
+    for (const auto line : lines(said)) {
+        if (line.starts_with('#'))
+            continue;
+        const auto split = words(line);
+        if (split.size() < 12)
+            continue;
+        const auto number_at = [&](std::size_t at) {
+            double value = 0;
+            if (split[at] != "-")
+                (void)std::from_chars(split[at].data(), split[at].data() + split[at].size(), value);
+            return value;
+        };
+        out.device_power.push_back(number_at(1));
+        out.device_busy.push_back(number_at(4));
+        out.device_clock.push_back(number_at(11));
+    }
+}
+
+std::optional<process::process> nvidia_smi(std::vector<std::string> args) {
+    const auto exe = mcpplibs::os::env::find_executable("nvidia-smi");
+    if (!exe)
+        return std::nullopt;
+    process::spawn_options watching{.program = *exe, .args = std::move(args), .env = {{"LC_ALL", "C"}}};
+    watching.err = process::stdio::null;
+    if (auto started = process::process::spawn(watching))
+        return std::move(*started);
+    return std::nullopt;
+}
+
+std::string said_by(std::optional<process::process>& program) {
+    std::string said;
+    if (!program)
+        return said;
+    while (auto chunk = program->read_output()) {
+        if (chunk->empty())
+            break;
+        said += *chunk;
+    }
+    (void)program->wait();
+    return said;
+}
+
+// One window, one scenario, one launch: opened on the monitor, settled, warmed for `warm`, then measured for `span`.
+WindowRun window_run(const fs::path& root, x11::Display& display, const WindowSide& side, const WindowScenario& scenario,
+                     const Settings& settings, const Environment& environment, milliseconds warm, milliseconds span,
+                     const fs::path& work, const std::string& tag, bool shoot, bool traced) {
+    WindowRun out;
+    out.load_before = load_average(root);
+    while (true) {
+        auto pending = display.next(milliseconds{0});
+        if (!pending || !*pending)
+            break;
+    }
+    const fs::path agents = work / "agents" / tag;
+    const fs::path trace = work / "traces" / (tag + ".trace.json");
+    std::error_code error;
+    fs::remove_all(agents, error);
+    fs::create_directories(agents, error);
+    fs::create_directories(trace.parent_path(), error);
+    fs::remove(trace, error);
+    std::vector<std::string> args = side.args;
+    args.insert(args.end(), scenario.args.begin(), scenario.args.end());
+    args.insert(args.end(), {"--position", std::format("{},{}", settings.monitor.x + 60, settings.monitor.y + 60), "--agent-dir", utf8(agents)});
+    if (traced)
+        args.insert(args.end(), {"--profile", utf8(trace)});
+    auto variables = environment.run;
+    variables.insert(variables.end(), environment.omui.begin(), environment.omui.end());
+    process::spawn_options options{.program = side.executable, .args = std::move(args), .cwd = work / "run", .env = std::move(variables)};
+    options.out = process::stdio::null;
+    options.err = process::stdio::inherit;
+    options.in = process::stdio::null;
+    options.own_unit = true;
+    fs::create_directories(work / "run", error);
+    Watch watch(display, settings, true);
+    const auto started = Clock::now();
+    auto program = process::process::spawn(options);
+    if (!program) {
+        out.failure = std::format("{} did not start: {}", utf8(side.executable), program.error().message());
+        return out;
+    }
+    watch.expect(program->id());
+    const auto end = [&] {
+        program->terminate();
+        if (auto ended = program->wait_for(std::chrono::seconds{traced ? 20 : 5}); !ended || !*ended)
+            program->kill();
+        (void)program->wait_for(std::chrono::seconds{2});
+    };
+    if (auto settled = watch.settle(started + settings.timeout, settings.quiet, &*program); !settled) {
+        out.failure = settled.error();
+        end();
+        return out;
+    }
+    const auto frames = watch.frames();
+    if (frames && frames->complete)
+        out.start_ms = ms_between(started, *frames->complete);
+    const std::uint64_t pid = program->id();
+    // Warm: the pipelines made, the caches filled, the GPU's clocks risen as far as the load makes them.
+    (void)watch.count(warm);
+    if (shoot) {
+        out.shot = utf8(work / "shots" / (tag + ".png"));
+        fs::create_directories(work / "shots", error);
+        (void)watch.save(out.shot);
+    }
+    const auto where = watch.on_screen();
+    if (where && (where->x < settings.monitor.x || where->y < settings.monitor.y || where->x >= settings.monitor.x + settings.monitor.width ||
+                  where->y >= settings.monitor.y + settings.monitor.height)) {
+        out.failure = std::format("the window opened at {},{}, not on the monitor", where->x, where->y);
+        end();
+        return out;
+    }
+    auto opened = Endpoint::open(agents, milliseconds{5000});
+    if (!opened) {
+        out.failure = opened.error();
+        end();
+        return out;
+    }
+    Endpoint endpoint = std::move(*opened);
+    const auto join = [](const std::vector<std::string>& events) {
+        std::string joined;
+        for (const std::string& event : events)
+            joined += (joined.empty() ? "" : ",") + event;
+        return joined;
+    };
+    const std::string repeated = join(scenario.repeat);
+    if (!scenario.setup.empty())
+        if (auto sent = endpoint.input(join(scenario.setup)); !sent) {
+            out.failure = sent.error();
+            end();
+            return out;
+        }
+    (void)watch.count(milliseconds{500});  // what the setup began
+    // The span.
+    const int seconds = static_cast<int>(std::ceil(static_cast<double>(span.count()) / 1000.0)) + 1;
+    auto process_smi = nvidia_smi({"pmon", "-s", "u", "-d", "1", "-c", std::to_string(seconds)});
+    auto device_smi = nvidia_smi({"dmon", "-s", "puc", "-d", "1", "-c", std::to_string(seconds)});
+    const auto before = process::describe(pid);
+    const auto threads_before = process::threads(pid);
+    const auto span_begin = Clock::now();
+    auto next_repeat = span_begin;
+    const auto every = milliseconds{scenario.every_ms};
+    const auto turn = [&](bool) -> std::expected<void, std::string> {
+        if (!repeated.empty() && Clock::now() >= next_repeat) {
+            if (auto sent = endpoint.input(repeated); !sent)
+                return sent;
+            next_repeat += every;
+        } else {
+            endpoint.drain();
+        }
+        return {};
+    };
+    std::vector<Clock::time_point> presented;
+    const auto drawn = watch.count(span, &presented, true, turn);
+    out.span_s = ms_between(span_begin, Clock::now()) / 1000.0;
+    const auto after = process::describe(pid);
+    out.cpu_by_thread = cpu_by_thread(threads_before, process::threads(pid), pid, out.span_s);
+    if (before && after)
+        out.cpu_percent = static_cast<double>(after->cpu_ns - before->cpu_ns) / 1e9 / out.span_s * 100.0;
+    if (!drawn)
+        out.failure = drawn.error();
+    for (std::size_t at = 1; at < presented.size(); ++at)
+        out.presents.push_back(ms_between(presented[at - 1], presented[at]));
+    // Stopped before the readings: the trace is written as it ends.
+    if (!scenario.repeat.empty() || !scenario.setup.empty())
+        (void)endpoint.input(R"({"type":"key_up","key":"W"},{"type":"key_up","key":"D"},{"type":"key_up","key":"Shift"})");
+    auto driver_files = mapped_files(root, pid);
+    out.driver = std::move(driver_files.second);
+    out.load_after = load_average(root);
+    end();
+    out.gpu_busy = process_busy(said_by(process_smi), pid);
+    device_state(said_by(device_smi), out);
+    // The trace begins when the program does: the span's frames are those after its start in it.
+    if (traced)
+        read_trace(trace, ms_between(started, span_begin) * 1000.0 - 100000.0, out);
+    return out;
+}
+
+int windows_run(const fs::path& root, const mcpplibs::cmdline::ParsedArgs& given) {
+    std::error_code error;
+    const auto failed = [](std::string_view why) {
+        std::cerr << "omui-devtools bench windows: " << why << '\n';
+        return 2;
+    };
+    constexpr std::string_view windows_catalogue = "tests/bench/windows.bench.xdef.json";
+    const auto catalogue = json::parse(mcpplibs::os::fs::read(root / windows_catalogue).value_or(""), nullptr, false);
+    if (catalogue.is_discarded() || !catalogue.contains("windows"))
+        return failed(std::format("{} is not the list of windows", windows_catalogue));
+    const std::optional<std::string> screen_name = given.value("screen");
+    if (!screen_name)
+        return failed("--screen MONITOR is needed: a window's frames are measured on a real display (RM1)");
+    const int rounds = number(given.value("rounds")).value_or(3);
+    const milliseconds warm{catalogue.value("warm_ms", 4000)};
+    const milliseconds span{static_cast<std::int64_t>(number(given.value("seconds")).value_or(catalogue.value("span_ms", 20000) / 1000)) * 1000};
+    const std::string profile = given.value("profile").value_or("dist");
+    const bool traced = given.is_flag_set("trace");
+    std::set<std::string> only;
+    if (const auto named = given.value("only"))
+        for (auto part : std::views::split(std::string_view(*named), ','))
+            only.emplace(part.begin(), part.end());
+    std::vector<WindowSide> sides;
+    for (const auto& entry : catalogue["windows"]) {
+        WindowSide side{.series = entry.value("series", ""), .package = entry.value("package", ""), .program = entry.value("program", "")};
+        for (const auto& arg : entry.value("args", json::array()))
+            side.args.push_back(arg.get<std::string>());
+        for (const auto& item : entry.value("scenarios", json::array())) {
+            WindowScenario scenario{.name = item.value("name", ""), .about = item.value("about", ""), .every_ms = item.value("every_ms", 500)};
+            for (const auto& arg : item.value("args", json::array()))
+                scenario.args.push_back(arg.get<std::string>());
+            for (const auto& event : item.value("setup", json::array()))
+                scenario.setup.push_back(event.dump());
+            for (const auto& event : item.value("repeat", json::array()))
+                scenario.repeat.push_back(event.dump());
+            if (!only.empty() && !only.contains(side.series) && !only.contains(side.series + ":" + scenario.name))
+                continue;
+            side.scenarios.push_back(std::move(scenario));
+        }
+        if (!side.scenarios.empty())
+            sides.push_back(std::move(side));
+    }
+    if (sides.empty())
+        return failed("nothing chosen by --only");
+    // Built (a no-op where up to date), the program taken from mcpp's own record.
+    for (auto& side : sides) {
+        const auto built = run::build(root, {"-p", side.package, "--profile", profile});
+        if (!built)
+            return failed(built.error());
+        const auto artifact = std::ranges::find_if(*built, [&](const run::Artifact& made) { return made.kind == "bin" && made.name == side.program; });
+        if (artifact == built->end())
+            return failed(std::format("mcpp build reported no {}", side.program));
+        side.executable = artifact->path;
+        std::cout << std::format("{}: {}\n", side.series, utf8(side.executable)) << std::flush;
+    }
+    int number_of_display = 0;
+    if (const auto named = mcpplibs::os::env::get("DISPLAY"); named && named->starts_with(':'))
+        number_of_display = number(named->substr(1, named->find('.') - 1)).value_or(0);
+    auto display = x11::Display::open(number_of_display);
+    if (!display)
+        return failed(display.error());
+    if (auto watching = display->watch(false); !watching)
+        return failed(watching.error());
+    const auto monitors = display->monitors();
+    if (!monitors)
+        return failed(monitors.error());
+    const auto chosen = std::ranges::find(*monitors, *screen_name, &x11::Monitor::name);
+    if (chosen == monitors->end())
+        return failed(std::format("display :{} has no monitor {}", number_of_display, *screen_name));
+    Settings settings;
+    settings.desktop = true;
+    settings.monitor = chosen->area;
+    settings.timeout = milliseconds{catalogue.value("timeout_ms", 30000)};
+    settings.quiet = milliseconds{catalogue.value("quiet_ms", 600)};
+    const double refresh_hz = chosen->hertz > 0 ? chosen->hertz : 60.0;
+    settings.frame_gap = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(0.5 / refresh_hz));
+    Environment environment;
+    environment.work = root / "target" / "bench-windows";
+    environment.run = {{"DISPLAY", std::format(":{}", number_of_display)}, {"WAYLAND_DISPLAY", std::nullopt}};
+    // Every window drawn at scale 1, as `bench apps` draws every side (a desktop's Xft.dpi is not its scale here).
+    if (const auto real = gpu::prepare(gpu::Device::real)) {
+        for (const auto& [name, value] : real->variables) {
+            if (name == "SDL_VIDEO_DRIVER" || name == "OMUI_GPU_VIDEO_DRIVER" || name == "OMUI_REQUIRE_GPU")
+                continue;
+            environment.omui.emplace_back(name == "OMUI_VULKAN_LIBRARY" ? "SDL_VULKAN_LIBRARY" : name, value);
+        }
+    } else {
+        return failed(std::format("no GPU for the windows: {}", real.error()));
+    }
+    const std::string power = power_preference();
+    const std::string graphics = graphics_here(root);
+    std::cout << std::format("display: {} {}x{} at {:.2f} Hz on this machine's X server :{}{}; energy_performance_preference {}; {} rounds of {} s after {} s of warm-up\n",
+                             chosen->name, chosen->area.width, chosen->area.height, chosen->hertz, number_of_display, graphics, power, rounds,
+                             span.count() / 1000, warm.count() / 1000)
+              << std::flush;
+    if (power != "performance")
+        std::cout << "WARNING: energy_performance_preference is not `performance`: the numbers below are not the machine's best\n" << std::flush;
+    const fs::path samples_path = environment.work / "samples.jsonl";
+    fs::create_directories(environment.work, error);
+    fs::remove(samples_path, error);
+    struct Pooled {
+        std::vector<double> presents, frame_cpu, gpu_busy, cpu_percent, fps, clock, device_busy, start, loads;
+        std::map<std::string, std::vector<double>> spans;
+        std::vector<std::string> failures;
+        std::string driver;
+        double seconds = 0;
+    };
+    std::map<std::pair<std::string, std::string>, Pooled> pooled;
+    for (int round = 1; round <= rounds; ++round) {
+        std::cout << std::format("round {} of {}\n", round, rounds) << std::flush;
+        for (const WindowSide& side : sides)
+            for (const WindowScenario& scenario : side.scenarios) {
+                const std::string tag = std::format("{}-{}-r{}", side.series, scenario.name, round);
+                const WindowRun run = window_run(root, *display, side, scenario, settings, environment, warm, span, environment.work, tag, round == 1, traced);
+                Pooled& mine = pooled[{side.series, scenario.name}];
+                json sample{{"series", side.series}, {"scenario", scenario.name}, {"round", round}, {"load_1m_before", run.load_before},
+                            {"load_1m_after", run.load_after}, {"driver", run.driver}, {"start_ms", run.start_ms}, {"span_s", run.span_s},
+                            {"monitor_hz", chosen->hertz}, {"profile", profile}};
+                if (!run.failure.empty()) {
+                    mine.failures.push_back(std::format("round {}: {}", round, run.failure));
+                    sample["failure"] = run.failure;
+                }
+                const double fps = run.span_s > 0 ? static_cast<double>(run.presents.size() + 1) / run.span_s : 0;
+                sample["frames_per_s"] = fps;
+                sample["cpu_percent"] = run.cpu_percent;
+                if (!run.presents.empty()) {
+                    sample["present_p50_ms"] = percentile(run.presents, 0.5);
+                    sample["present_p95_ms"] = percentile(run.presents, 0.95);
+                    sample["present_p99_ms"] = percentile(run.presents, 0.99);
+                    sample["present_max_ms"] = std::ranges::max(run.presents);
+                    json intervals = json::array();
+                    for (const double gap : run.presents)
+                        intervals.push_back(std::round(gap * 100) / 100);
+                    sample["present_intervals_ms"] = std::move(intervals);
+                }
+                if (!run.frame_cpu.empty()) {
+                    sample["frame_cpu_p50_ms"] = percentile(run.frame_cpu, 0.5);
+                    sample["frame_cpu_p95_ms"] = percentile(run.frame_cpu, 0.95);
+                    sample["frame_cpu_p99_ms"] = percentile(run.frame_cpu, 0.99);
+                    sample["frame_cpu_max_ms"] = std::ranges::max(run.frame_cpu);
+                    json phases = json::object();
+                    for (const auto& [key, values] : run.spans)
+                        if (key == "frame/frame" || key == "frame/timers" || key == "simulation/simulation.step" || key == "host/render" || key == "host/present")
+                            phases[key] = {{"count", values.size()}, {"p50_ms", percentile(values, 0.5)}, {"p99_ms", percentile(values, 0.99)}, {"max_ms", std::ranges::max(values)}};
+                    sample["phases"] = std::move(phases);
+                }
+                sample["gpu_busy_percent"] = run.gpu_busy;
+                sample["device_busy_percent"] = run.device_busy;
+                sample["device_clock_mhz"] = run.device_clock;
+                sample["device_power_w"] = run.device_power;
+                sample["cpu_by_thread_percent"] = run.cpu_by_thread;
+                if (!run.shot.empty())
+                    sample["picture"] = run.shot;
+                if (!lead::append(samples_path, std::vector{sample.dump()}))
+                    return failed("the samples cannot be written");
+                mine.presents.insert(mine.presents.end(), run.presents.begin(), run.presents.end());
+                mine.frame_cpu.insert(mine.frame_cpu.end(), run.frame_cpu.begin(), run.frame_cpu.end());
+                mine.gpu_busy.insert(mine.gpu_busy.end(), run.gpu_busy.begin(), run.gpu_busy.end());
+                mine.clock.insert(mine.clock.end(), run.device_clock.begin(), run.device_clock.end());
+                mine.device_busy.insert(mine.device_busy.end(), run.device_busy.begin(), run.device_busy.end());
+                for (const auto& [key, values] : run.spans)
+                    mine.spans[key].insert(mine.spans[key].end(), values.begin(), values.end());
+                mine.cpu_percent.push_back(run.cpu_percent);
+                mine.fps.push_back(fps);
+                mine.start.push_back(run.start_ms);
+                mine.loads.push_back(run.load_before);
+                mine.loads.push_back(run.load_after);
+                mine.driver = run.driver;
+                mine.seconds += run.span_s;
+                std::cout << std::format("  {:<6} {:<14} {:6.1f} frames/s  present p50 {:6.2f} p99 {:6.2f} max {:6.2f} ms  frame cpu p99 {} ms  process cpu {:6.1f} %  gpu {:5.1f} %  load {:.1f}→{:.1f}{}\n",
+                                         side.series, scenario.name, fps, percentile(run.presents, 0.5), percentile(run.presents, 0.99),
+                                         run.presents.empty() ? 0.0 : std::ranges::max(run.presents), run.frame_cpu.empty() ? std::string("  —") : std::format("{:5.2f}", percentile(run.frame_cpu, 0.99)), run.cpu_percent,
+                                         run.gpu_busy.empty() ? -1.0 : median_of(run.gpu_busy), run.load_before, run.load_after,
+                                         run.failure.empty() ? "" : "  (" + run.failure + ")")
+                          << std::flush;
+            }
+    }
+    // The table: every round's frames pooled.
+    std::cout << std::format("\n| window | scenario | frames/s | present p50 | p95 | p99 | max | missed | frame cpu p50 | p95 | p99 | max | cpu % | ms/frame | gpu sm % | gpu ms/frame (mean) | gpu clock MHz |\n"
+                             "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n");
+    json report = json::array();
+    for (const WindowSide& side : sides)
+        for (const WindowScenario& scenario : side.scenarios) {
+            const Pooled& mine = pooled[{side.series, scenario.name}];
+            if (mine.presents.empty()) {
+                std::cout << std::format("| {} | {} | no frames measured: {} |\n", side.series, scenario.name, mine.failures.empty() ? "?" : mine.failures.front());
+                continue;
+            }
+            const double fps = median_of(mine.fps), cadence = median_of(mine.presents);
+            const std::int64_t missed = std::ranges::count_if(mine.presents, [&](double gap) { return gap >= 1.5 * cadence; });
+            const double cpu = median_of(mine.cpu_percent), gpu = mine.gpu_busy.empty() ? -1.0 : median_of(mine.gpu_busy);
+            const double cpu_ms = fps > 0 ? cpu * 10.0 / fps : 0, gpu_ms = fps > 0 && gpu >= 0 ? gpu * 10.0 / fps : -1.0;
+            const auto traced_ms = [&](double share) { return mine.frame_cpu.empty() ? std::string("—") : std::format("{:.2f}", percentile(mine.frame_cpu, share)); };
+            std::cout << std::format("| {} | {} | {:.1f} | {:.2f} | {:.2f} | {:.2f} | {:.2f} | {} of {} | {} | {} | {} | {} | {:.1f} | {:.2f} | {:.1f} | {:.2f} | {:.0f} |\n",
+                                     side.series, scenario.name, fps, percentile(mine.presents, 0.5), percentile(mine.presents, 0.95),
+                                     percentile(mine.presents, 0.99), std::ranges::max(mine.presents), missed, mine.presents.size(), traced_ms(0.5),
+                                     traced_ms(0.95), traced_ms(0.99), mine.frame_cpu.empty() ? std::string("—") : std::format("{:.2f}", std::ranges::max(mine.frame_cpu)),
+                                     cpu, cpu_ms, gpu, gpu_ms, mine.clock.empty() ? 0.0 : median_of(mine.clock));
+            report.push_back({{"series", side.series}, {"scenario", scenario.name}, {"frames_per_s", fps}, {"present_p50_ms", percentile(mine.presents, 0.5)},
+                              {"present_p95_ms", percentile(mine.presents, 0.95)}, {"present_p99_ms", percentile(mine.presents, 0.99)},
+                              {"present_max_ms", std::ranges::max(mine.presents)}, {"missed", missed}, {"presents", mine.presents.size()},
+                              {"frame_cpu_p50_ms", percentile(mine.frame_cpu, 0.5)}, {"frame_cpu_p95_ms", percentile(mine.frame_cpu, 0.95)},
+                              {"frame_cpu_p99_ms", percentile(mine.frame_cpu, 0.99)}, {"frame_cpu_max_ms", mine.frame_cpu.empty() ? 0.0 : std::ranges::max(mine.frame_cpu)},
+                              {"cpu_percent", cpu}, {"cpu_ms_per_frame", cpu_ms}, {"gpu_sm_percent", gpu}, {"gpu_ms_per_frame", gpu_ms}});
+            for (const std::string& key : {"frame/timers", "simulation/simulation.step", "host/render", "host/present"})
+                if (const auto found = mine.spans.find(key); found != mine.spans.end() && !found->second.empty())
+                    std::cout << std::format("  {} {}: {} p50 {:.3f} p95 {:.3f} p99 {:.3f} max {:.3f} ms ({} spans)\n", side.series, scenario.name, key,
+                                             percentile(found->second, 0.5), percentile(found->second, 0.95), percentile(found->second, 0.99),
+                                             std::ranges::max(found->second), found->second.size());
+        }
+    std::vector<double> loads;
+    for (const auto& [key, mine] : pooled)
+        loads.insert(loads.end(), mine.loads.begin(), mine.loads.end());
+    std::cout << std::format("conditions: energy_performance_preference {}; 1-minute load {:.1f}–{:.1f} over the runs; display {} at {:.2f} Hz\n", power,
+                             loads.empty() ? 0.0 : std::ranges::min(loads), loads.empty() ? 0.0 : std::ranges::max(loads), chosen->name, chosen->hertz)
+              << std::flush;
+    const fs::path report_path = environment.work / "report.json";
+    (void)(std::ofstream(report_path, std::ios::binary) << json{{"display", chosen->name}, {"hertz", chosen->hertz}, {"power", power}, {"profile", profile}, {"rows", report}}.dump(2) << '\n');
+    std::cout << std::format("wrote {} and {}\n", utf8(samples_path), utf8(report_path));
+    return 0;
 }
 
 }  // namespace
@@ -2139,6 +2649,25 @@ int apps(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
     for (const auto& path : *written)
         std::cout << std::format("wrote {}\n", path);
     return 0;
+}
+
+mcpplibs::cmdline::App windows_command_line() {
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Option;
+    return App("windows")
+        .description("A game's window (Quay's, Kiln's) on this machine's own display (EN2, D-187), measured from outside its process: "
+                     "the intervals between its presented frames, its processor time, the GPU's share it keeps busy and the "
+                     "display's clocks, beside what its own trace says of its frame (a diagnostic)")
+        .option(Option("screen").takes_value().value_name("MONITOR").help("the monitor RANDR names (e.g. HDMI-0): the windows open there"))
+        .option(Option("rounds").takes_value().value_name("N").help("how many (default: 3)"))
+        .option(Option("seconds").takes_value().value_name("S").help("the measured span of each (default: the catalogue's 20)"))
+        .option(Option("only").takes_value().value_name("WINDOWS").help("series or series:scenario, comma-separated (default: every window)"))
+        .option(Option("profile").takes_value().value_name("NAME").help("the build's profile (default: dist, the release)"))
+        .option(Option("trace").help("each window also records its own trace (--profile): the frame's phases by the frame, a diagnostic; recording costs the window, so the outside numbers of such a run are not the window's"));
+}
+
+int windows(const fs::path& where, const mcpplibs::cmdline::ParsedArgs& given) {
+    std::error_code error;
+    return windows_run(fs::absolute(where, error).lexically_normal(), given);
 }
 
 }  // namespace omui::devtools::bench

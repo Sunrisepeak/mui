@@ -1,16 +1,16 @@
-// Reading *.locale.xdef.json: nlohmann/json reports a malformed file by
-// throwing, which this unit — the library's adapter — turns into a
-// diagnostic; a pack's shape is checked whole, each problem by its path.
+// Reading *.locale.xdef.json through mlibs.json — the one reader of JSON documents a program carries, so a program
+// holds no second parser's tree for these: a malformed file is one diagnostic at its line and column; a pack's shape
+// is checked whole, each problem by its path.
 module mlibs.i18n.api;
 
 import std;
-import nlohmann.json;
+import mlibs.json;
 
 namespace mlibs::i18n {
 
 namespace {
 
-using json = nlohmann::json;
+using json = mlibs::json::Node;
 
 struct Reader {
     std::string_view        file;
@@ -19,16 +19,17 @@ struct Reader {
     void problem(std::string_view path, std::string what) { problems.push_back({std::string(file), 0, 0, std::format("{}: {}", path, std::move(what))}); }
 
     std::string text(const json& j, std::string_view key, std::string_view path, std::string_view fallback = {}) {
-        if (!j.is_object() || !j.contains(key)) {
+        const json v = j.is_object() ? j[key] : json{};
+        if (!v) {
             if (fallback.empty()) problem(path, std::format("needs `{}`", key));
             return std::string(fallback);
         }
-        const json& v = j.at(key);
-        if (!v.is_string()) {
+        auto s = v.text();
+        if (!s) {
             problem(std::format("{}/{}", path, key), "is not a string");
             return std::string(fallback);
         }
-        return v.get<std::string>();
+        return std::move(*s);
     }
 
     template <std::size_t N>
@@ -38,8 +39,8 @@ struct Reader {
             return;
         }
         for (std::size_t i = 0; i < N; ++i) {
-            if (!j[i].is_string()) problem(std::format("{}/{}", path, i), "is not a string");
-            else out[i] = j[i].get<std::string>();
+            if (auto s = j[i].text()) out[i] = std::move(*s);
+            else problem(std::format("{}/{}", path, i), "is not a string");
         }
     }
 
@@ -51,11 +52,12 @@ struct Reader {
         }
         constexpr std::array<std::string_view, 3> names{"wide", "abbreviated", "narrow"};
         for (std::size_t w = 0; w < 3; ++w) {
-            if (!j.contains(names[w])) {
+            const json width = j[names[w]];
+            if (!width) {
                 problem(path, std::format("needs `{}`", names[w]));
                 continue;
             }
-            texts(j.at(names[w]), std::format("{}/{}", path, names[w]), out[w]);
+            texts(width, std::format("{}/{}", path, names[w]), out[w]);
         }
     }
 
@@ -65,13 +67,12 @@ struct Reader {
             problem(path, "is not an object of plural categories");
             return out;
         }
-        for (auto it = j.begin(); it != j.end(); ++it) {
-            const std::string k = it.key();
-            const json& v = it.value();
+        for (const auto& [k, v] : j.members()) {
             auto p = parse_plural(k);
+            auto s = v.text();
             if (!p) problem(path, std::format("`{}` is not a plural category (zero one two few many other)", k));
-            else if (!v.is_string()) problem(std::format("{}/{}", path, k), "is not a string");
-            else out.emplace_back(*p, v.get<std::string>());
+            else if (!s) problem(std::format("{}/{}", path, k), "is not a string");
+            else out.emplace_back(*p, std::move(*s));
         }
         return out;
     }
@@ -92,14 +93,15 @@ struct Reader {
             return out;
         }
         for (std::size_t i = 0; i < j.size(); ++i) {
-            const json& e = j[i];
+            const json e = j[i];
             const std::string at = std::format("{}/{}", path, i);
             NumberData::Compact c;
-            if (!e.is_object() || !e.contains("magnitude") || !e.at("magnitude").is_number_integer()) {
+            const auto magnitude = e.is_object() && e["magnitude"].is_integer() ? e["magnitude"].integer() : std::nullopt;
+            if (!magnitude) {
                 problem(at, "needs an integer `magnitude`");
                 continue;
             }
-            c.magnitude = e.at("magnitude").get<int>();
+            c.magnitude = static_cast<int>(*magnitude);
             auto p = parse_plural(text(e, "count", at, "other"));
             c.count = p.value_or(Plural::other);
             c.pattern = text(e, "pattern", at);
@@ -124,16 +126,13 @@ struct Reader {
         if (!l) problem("/locale", l.error());
         else d.locale = std::move(*l);
         d.cldr = text(j, "cldr", "", "?");
-        if (j.contains("plural")) {
-            const json& p = j.at("plural");
-            if (p.contains("cardinal")) d.cardinal = rules(p.at("cardinal"), "/plural/cardinal");
-            if (p.contains("ordinal")) d.ordinal = rules(p.at("ordinal"), "/plural/ordinal");
+        if (const json p = j["plural"]) {
+            if (const json cardinal = p["cardinal"]) d.cardinal = rules(cardinal, "/plural/cardinal");
+            if (const json ordinal = p["ordinal"]) d.ordinal = rules(ordinal, "/plural/ordinal");
         }
-        if (j.contains("number")) {
-            const json& n = j.at("number");
+        if (const json n = j["number"]) {
             NumberData& nd = d.number;
-            if (n.contains("symbols")) {
-                const json& s = n.at("symbols");
+            if (const json s = n["symbols"]) {
                 nd.decimal = text(s, "decimal", "/number/symbols", nd.decimal);
                 nd.group = text(s, "group", "/number/symbols", nd.group);
                 nd.minus = text(s, "minus", "/number/symbols", nd.minus);
@@ -145,54 +144,44 @@ struct Reader {
             }
             nd.decimal_pattern = text(n, "decimal", "/number", nd.decimal_pattern);
             nd.percent_pattern = text(n, "percent", "/number", nd.percent_pattern);
-            if (n.contains("minimumGrouping") && n.at("minimumGrouping").is_number_integer()) nd.minimum_grouping = n.at("minimumGrouping").get<int>();
-            if (n.contains("compactShort")) nd.compact_short = compact(n.at("compactShort"), "/number/compactShort");
-            if (n.contains("compactLong")) nd.compact_long = compact(n.at("compactLong"), "/number/compactLong");
+            if (n["minimumGrouping"].is_integer()) nd.minimum_grouping = static_cast<int>(*n["minimumGrouping"].integer());
+            if (const json c = n["compactShort"]) nd.compact_short = compact(c, "/number/compactShort");
+            if (const json c = n["compactLong"]) nd.compact_long = compact(c, "/number/compactLong");
         }
-        if (j.contains("calendar")) {
-            const json& c = j.at("calendar");
+        if (const json c = j["calendar"]) {
             CalendarData& cd = d.calendar;
-            if (c.contains("months")) widths(c.at("months"), "/calendar/months", cd.months);
-            if (c.contains("monthsStandalone")) widths(c.at("monthsStandalone"), "/calendar/monthsStandalone", cd.months_standalone);
+            if (const json v = c["months"]) widths(v, "/calendar/months", cd.months);
+            if (const json v = c["monthsStandalone"]) widths(v, "/calendar/monthsStandalone", cd.months_standalone);
             else cd.months_standalone = cd.months;
-            if (c.contains("days")) widths(c.at("days"), "/calendar/days", cd.days);
-            if (c.contains("daysStandalone")) widths(c.at("daysStandalone"), "/calendar/daysStandalone", cd.days_standalone);
+            if (const json v = c["days"]) widths(v, "/calendar/days", cd.days);
+            if (const json v = c["daysStandalone"]) widths(v, "/calendar/daysStandalone", cd.days_standalone);
             else cd.days_standalone = cd.days;
-            if (c.contains("daysShort")) texts(c.at("daysShort"), "/calendar/daysShort", cd.days_short);
+            if (const json v = c["daysShort"]) texts(v, "/calendar/daysShort", cd.days_short);
             else cd.days_short = cd.days[1];
-            if (c.contains("am")) {
-                const json& am = c.at("am");
-                cd.am = {text(am, "wide", "/calendar/am"), text(am, "abbreviated", "/calendar/am"), text(am, "narrow", "/calendar/am")};
-            }
-            if (c.contains("pm")) {
-                const json& pm = c.at("pm");
-                cd.pm = {text(pm, "wide", "/calendar/pm"), text(pm, "abbreviated", "/calendar/pm"), text(pm, "narrow", "/calendar/pm")};
-            }
-            if (c.contains("eras")) texts(c.at("eras"), "/calendar/eras", cd.eras);
+            if (const json am = c["am"]) cd.am = {text(am, "wide", "/calendar/am"), text(am, "abbreviated", "/calendar/am"), text(am, "narrow", "/calendar/am")};
+            if (const json pm = c["pm"]) cd.pm = {text(pm, "wide", "/calendar/pm"), text(pm, "abbreviated", "/calendar/pm"), text(pm, "narrow", "/calendar/pm")};
+            if (const json v = c["eras"]) texts(v, "/calendar/eras", cd.eras);
             constexpr std::array<std::string_view, 4> styles{"full", "long", "medium", "short"};
             for (auto [key, out] : {std::pair{"dateFormats", &cd.date_formats}, std::pair{"timeFormats", &cd.time_formats},
                                     std::pair{"dateTimeFormats", &cd.datetime_formats}}) {
-                if (!c.contains(key)) {
+                const json formats = c[key];
+                if (!formats) {
                     problem("/calendar", std::format("needs `{}`", key));
                     continue;
                 }
-                for (std::size_t i = 0; i < 4; ++i) (*out)[i] = text(c.at(key), styles[i], std::format("/calendar/{}", key));
+                for (std::size_t i = 0; i < 4; ++i) (*out)[i] = text(formats, styles[i], std::format("/calendar/{}", key));
             }
-            if (c.contains("skeletons") && c.at("skeletons").is_object())
-                for (auto it = c.at("skeletons").begin(); it != c.at("skeletons").end(); ++it) {
-                    const std::string k = it.key();
-                    const json& v = it.value();
-                    if (v.is_string()) cd.skeletons.emplace_back(k, v.get<std::string>());
-                }
-            if (c.contains("dayPeriods")) {
-                const json& dp = c.at("dayPeriods");
-                if (dp.contains("rules") && dp.at("rules").is_array())
-                    for (std::size_t i = 0; i < dp.at("rules").size(); ++i) {
-                        const json& r = dp.at("rules")[i];
+            if (const json skeletons = c["skeletons"]; skeletons.is_object())
+                for (const auto& [k, v] : skeletons.members())
+                    if (auto s = v.text()) cd.skeletons.emplace_back(k, std::move(*s));
+            if (const json dp = c["dayPeriods"]) {
+                if (const json rules = dp["rules"]; rules.is_array())
+                    for (std::size_t i = 0; i < rules.size(); ++i) {
+                        const json r = rules[i];
                         const std::string at = std::format("/calendar/dayPeriods/rules/{}", i);
                         CalendarData::Period p;
                         p.name = text(r, "name", at);
-                        if (r.contains("at")) {
+                        if (r["at"]) {
                             p.at = true;
                             p.from = p.before = minutes(text(r, "at", at), at);
                         } else {
@@ -201,50 +190,46 @@ struct Reader {
                         }
                         cd.period_rules.push_back(std::move(p));
                     }
-                if (dp.contains("names") && dp.at("names").is_object())
-                    for (auto it = dp.at("names").begin(); it != dp.at("names").end(); ++it) {
-                        const std::string k = it.key();
-                        const json& v = it.value();
-                        if (v.is_string()) cd.period_names.emplace_back(k, v.get<std::string>());
-                    }
+                if (const json names = dp["names"]; names.is_object())
+                    for (const auto& [k, v] : names.members())
+                        if (auto s = v.text()) cd.period_names.emplace_back(k, std::move(*s));
             }
             cd.gmt_format = text(c, "gmtFormat", "/calendar", cd.gmt_format);
             cd.gmt_zero = text(c, "gmtZeroFormat", "/calendar", cd.gmt_zero);
             cd.hour_format = text(c, "hourFormat", "/calendar", cd.hour_format);
         }
-        if (j.contains("relative")) {
+        if (const json r = j["relative"]) {
             constexpr std::array<std::string_view, 8> units{"year", "quarter", "month", "week", "day", "hour", "minute", "second"};
             constexpr std::array<std::string_view, 3> names{"wide", "abbreviated", "narrow"};
-            const json& r = j.at("relative");
             for (std::size_t u = 0; u < units.size(); ++u) {
-                if (!r.contains(units[u])) continue;
+                const json unit = r[units[u]];
+                if (!unit) continue;
                 for (std::size_t w = 0; w < 3; ++w) {
-                    if (!r.at(units[u]).contains(names[w])) continue;
-                    const json& e = r.at(units[u]).at(names[w]);
+                    const json e = unit[names[w]];
+                    if (!e) continue;
                     const std::string at = std::format("/relative/{}/{}", units[u], names[w]);
                     RelativeData::Unit& out = d.relative.units[u][w];
-                    if (e.contains("named") && e.at("named").is_object())
-                        for (auto it = e.at("named").begin(); it != e.at("named").end(); ++it) {
-                            const std::string k = it.key();
-                            const json& v = it.value();
+                    if (const json named = e["named"]; named.is_object())
+                        for (const auto& [k, v] : named.members()) {
                             int offset = 0;
-                            if (std::from_chars(k.data(), k.data() + k.size(), offset).ec != std::errc{} || !v.is_string()) problem(at, std::format("`{}` is not an offset", k));
-                            else out.named.emplace_back(offset, v.get<std::string>());
+                            auto s = v.text();
+                            if (std::from_chars(k.data(), k.data() + k.size(), offset).ec != std::errc{} || !s) problem(at, std::format("`{}` is not an offset", k));
+                            else out.named.emplace_back(offset, std::move(*s));
                         }
-                    if (e.contains("future")) out.future = by_plural(e.at("future"), at + "/future");
-                    if (e.contains("past")) out.past = by_plural(e.at("past"), at + "/past");
+                    if (const json future = e["future"]) out.future = by_plural(future, at + "/future");
+                    if (const json past = e["past"]) out.past = by_plural(past, at + "/past");
                 }
             }
         }
-        if (j.contains("lists")) {
+        if (const json l = j["lists"]) {
             constexpr std::array<std::string_view, 3> types{"conjunction", "disjunction", "unit"};
             constexpr std::array<std::string_view, 3> names{"wide", "abbreviated", "narrow"};
-            const json& l = j.at("lists");
             for (std::size_t t = 0; t < 3; ++t) {
-                if (!l.contains(types[t])) continue;
+                const json type = l[types[t]];
+                if (!type) continue;
                 for (std::size_t w = 0; w < 3; ++w) {
-                    if (!l.at(types[t]).contains(names[w])) continue;
-                    const json& e = l.at(types[t]).at(names[w]);
+                    const json e = type[names[w]];
+                    if (!e) continue;
                     const std::string at = std::format("/lists/{}/{}", types[t], names[w]);
                     ListData::Patterns& p = d.lists.types[t][w];
                     p.start = text(e, "start", at);
@@ -257,6 +242,11 @@ struct Reader {
     }
 };
 
+// A text that is not JSON: one diagnostic at its place.
+Diagnostic not_json(const mlibs::json::Problem& problem, std::string_view file) {
+    return {std::string(file), static_cast<int>(problem.line), static_cast<int>(problem.column), std::format("not JSON: {}", problem.message)};
+}
+
 }  // namespace
 
 std::string Diagnostic::text() const {
@@ -266,49 +256,36 @@ std::string Diagnostic::text() const {
 
 std::expected<LocaleData, std::vector<Diagnostic>> read_locale_data(std::string_view text, std::string_view file) {
     Reader r{file, {}};
-    json j;
-    try {
-        j = json::parse(text);
-    } catch (const json::parse_error& e) {
-        r.problems.push_back({std::string(file), 0, 0, std::format("not JSON (byte {}): {}", e.byte, e.what())});
-        return std::unexpected(std::move(r.problems));
-    }
-    if (!j.is_object() || !j.contains("format") || j.at("format") != "openmui.locale@0.1") {
+    auto document = mlibs::json::Document::parse(text, std::string(file));
+    if (!document) return std::unexpected(std::vector<Diagnostic>{not_json(document.error(), file)});
+    const json j = document->root();
+    if (!j.is_object() || j["format"].text() != "openmui.locale@0.1") {
         r.problem("/format", "must be \"openmui.locale@0.1\"");
         return std::unexpected(std::move(r.problems));
     }
     LocaleData d;
-    try {
-        r.read(j, d);
-    } catch (const json::exception& e) {
-        r.problems.push_back({std::string(file), 0, 0, std::format("a value of the wrong type: {}", e.what())});
-    }
+    r.read(j, d);
     if (!r.problems.empty()) return std::unexpected(std::move(r.problems));
     return d;
 }
 
 std::expected<LikelySubtags, std::vector<Diagnostic>> read_likely_subtags(std::string_view text, std::string_view file) {
     std::vector<Diagnostic> problems;
-    json j;
-    try {
-        j = json::parse(text);
-    } catch (const json::parse_error& e) {
-        problems.push_back({std::string(file), 0, 0, std::format("not JSON (byte {}): {}", e.byte, e.what())});
-        return std::unexpected(std::move(problems));
-    }
-    if (!j.is_object() || !j.contains("format") || j.at("format") != "openmui.likely@0.1" || !j.contains("likely") || !j.at("likely").is_object()) {
+    auto document = mlibs::json::Document::parse(text, std::string(file));
+    if (!document) return std::unexpected(std::vector<Diagnostic>{not_json(document.error(), file)});
+    const json j = document->root();
+    if (!j.is_object() || j["format"].text() != "openmui.likely@0.1" || !j["likely"].is_object()) {
         problems.push_back({std::string(file), 0, 0, "must be {\"format\": \"openmui.likely@0.1\", \"likely\": {…}}"});
         return std::unexpected(std::move(problems));
     }
     LikelySubtags out;
-    for (auto it = j.at("likely").begin(); it != j.at("likely").end(); ++it) {
-        const std::string k = it.key();
-        const json& v = it.value();
-        if (!v.is_string() || !Locale::parse(k) || !Locale::parse(v.get<std::string>())) {
+    for (const auto& [k, v] : j["likely"].members()) {
+        const auto to = v.text();
+        if (!to || !Locale::parse(k) || !Locale::parse(*to)) {
             problems.push_back({std::string(file), 0, 0, std::format("/likely/{}: not a tag mapped to a tag", k)});
             continue;
         }
-        out.add(k, v.get<std::string>());
+        out.add(k, *to);
     }
     if (!problems.empty()) return std::unexpected(std::move(problems));
     return out;

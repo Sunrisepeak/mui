@@ -5,6 +5,7 @@ module omui.devtools.check;
 import std;
 import mcpplibs.os;
 import nlohmann.json;
+import mlibs.apart;
 import tomlplusplus;
 import omui.devtools.browser;
 import omui.devtools.run;
@@ -90,6 +91,9 @@ std::expected<std::string, std::string> shader_check_script(std::span<const fs::
                 std::from_chars(text.data() + byte + 2, text.data() + byte + 4, value, 16);
                 code += static_cast<char>(value);
             }
+            // The text after its mark (mlibs.apart: what a page's packer carries apart), as the code's span is.
+            const auto marked = mlibs::apart::regions(std::span(reinterpret_cast<const std::uint8_t*>(code.data()), code.size()));
+            if (!marked.empty()) code = code.substr(marked.front().at, marked.front().length);
             const std::string key = file + ":" + entry;
             if (is_wgsl) wgsl[key] = code;
             else essl[key] = {{"file", file}, {"stage", stages.contains(entry) ? stages[entry] : ""}, {"code", code}};

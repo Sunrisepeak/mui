@@ -15,6 +15,9 @@
 // holds sampled texture i at binding 2i and its sampler at 2i + 1, then the
 // storage textures and buffers).
 //
+// A packed page carries the program's shader texts apart from it (mlibs.apart, omui-gen's packer): this device
+// asks the page for the WGSL as the program loads when it is the one to draw, and reads a text by its address.
+//
 // Waiting and reading back are asynchronous in WebGPU. A program linked to
 // suspend (-sASYNCIFY, or -sJSPI) waits for them; any other is told it
 // cannot (-1), and its submissions still run in order.
@@ -87,6 +90,13 @@ addToLibrary({
       addRunDependency('omui-webgpu');
       var done = function () { removeRunDependency('omui-webgpu'); };
       var options = (typeof Module !== 'undefined' && Module['omuiWebGpu']) || {};
+      // The program's WGSL, where its page's packer carried the texts apart (Module.omuiApart): fetched as the program
+      // loads when this device is the one to draw — the host's choice (omui.host.web) made from the same facts: the
+      // page's ?renderer=, and an adapter that is not software unless a GPU was asked for (the CPU draws faster than
+      // one) — else read when a pipeline first needs it (text()).
+      var apart = typeof Module !== 'undefined' && Module['omuiApart'];
+      var asked = '';
+      try { asked = new URLSearchParams(location.search).get('renderer') || ''; } catch (e) {}
       Promise.resolve().then(function () {
         return navigator.gpu.requestAdapter({ powerPreference: options.powerPreference });
       }).then(function (adapter) {
@@ -94,6 +104,8 @@ addToLibrary({
           G.why = 'the browser offered no WebGPU adapter';
           return null;
         }
+        var draws = asked !== 'cpu' && asked !== 'webgl' && (!G.described(adapter).software || asked === 'gpu' || asked === 'webgpu');
+        var shaders = apart && draws ? apart.want('wgsl').catch(function () {}) : null;
         var features = [];
         if (adapter.features.has('depth32float-stencil8')) features.push('depth32float-stencil8');
         // A 32-bit float texture read through a sampler (a shadow map, an id as a float): WebGPU has it as a
@@ -108,12 +120,10 @@ addToLibrary({
         return adapter.requestDevice({ requiredFeatures: features, requiredLimits: limits }).then(function (device) {
           G.adapter = adapter;
           G.device = device;
-          var i = adapter.info || {};
-          var name = [i.vendor, i.architecture, i.device, i.description].filter(function (s) { return s; }).join(' ');
-          var software = !!(i.isFallbackAdapter || adapter.isFallbackAdapter) || /swiftshader|llvmpipe|lavapipe|warp|basic render/i.test(name);
+          var described = G.described(adapter);
           G.info = {
-            name: name || 'WebGPU',
-            software: software,
+            name: described.name,
+            software: described.software,
             maxTexture: device.limits.maxTextureDimension2D,
             depthStencil: device.features.has('depth32float-stencil8'),
             float32Filterable: device.features.has('float32-filterable'),
@@ -123,10 +133,28 @@ addToLibrary({
           };
           device.addEventListener('uncapturederror', function (e) { G.errors.push(e.error && e.error.message || String(e)); });
           device.lost.then(function (l) { G.lost = l.message || l.reason || 'the device was lost'; });
+          return shaders;
         });
       }).catch(function (e) {
         G.why = 'WebGPU: ' + (e && e.message || e);
       }).then(done, done);
+    },
+
+    // An adapter's name, and whether it is software (the host's `automatic` counts one as no GPU).
+    described: function (adapter) {
+      var i = adapter.info || {};
+      var name = [i.vendor, i.architecture, i.device, i.description].filter(function (s) { return s; }).join(' ');
+      return { name: name || 'WebGPU', software: !!(i.isFallbackAdapter || adapter.isFallbackAdapter) || /swiftshader|llvmpipe|lavapipe|warp|basic render/i.test(name) };
+    },
+
+    // A shader's WGSL as the program gives it: in place, or — its first byte 0, the page's packer having carried the
+    // program's texts apart (mlibs.apart) — the page's, by its address (fetched as the program loaded, or now).
+    text: function (at, length) {
+      var apart = length && HEAPU8[at] === 0 && typeof Module !== 'undefined' && Module['omuiApart'];
+      if (!apart) return UTF8ToString(at, length);
+      var texts = apart.texts('wgsl'), text = texts && texts[at];
+      if (typeof text !== 'string') throw new Error('the page holds no WGSL at ' + at + ' (the program carries its shaders apart)');
+      return text;
     },
 
     fail: function (e) { omuiGpu.errors.push(e && e.message || String(e)); return 0; },
@@ -649,7 +677,7 @@ addToLibrary({
     var G = omuiGpu;
     try {
       var w = HEAPU32.slice(words >> 2, (words >> 2) + count);
-      G.pipelines[id] = G.graphics(w, UTF8ToString(vs, vsLength), UTF8ToString(vsEntry), UTF8ToString(fs, fsLength), UTF8ToString(fsEntry),
+      G.pipelines[id] = G.graphics(w, G.text(vs, vsLength), UTF8ToString(vsEntry), G.text(fs, fsLength), UTF8ToString(fsEntry),
                                    UTF8ToString(label));
       return 1;
     } catch (e) { return G.fail(e); }
@@ -660,7 +688,7 @@ addToLibrary({
     var G = omuiGpu;
     try {
       var w = HEAPU32.slice(words >> 2, (words >> 2) + count);
-      G.computes[id] = G.compute(w, UTF8ToString(cs, csLength), UTF8ToString(entry), UTF8ToString(label));
+      G.computes[id] = G.compute(w, G.text(cs, csLength), UTF8ToString(entry), UTF8ToString(label));
       return 1;
     } catch (e) { return G.fail(e); }
   },

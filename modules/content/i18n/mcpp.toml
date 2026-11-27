@@ -29,7 +29,6 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-nlohmann.json       = "3.12.0"
 mlibs.json          = { path = "../../base/json" }
 mlibs.xdef = { path = "../../base/xdef" }  # a snapshot's format checked first (D-209)
 

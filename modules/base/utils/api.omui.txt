@@ -1,3 +1,15 @@
+== mlibs.apart
+namespace mlibs::apart {
+  inline constexpr std::string_view prefix{…};
+  [[nodiscard]] std::string mark(std::string_view kind, std::size_t length);
+  struct Region {
+    std::string kind;
+    std::size_t mark = 0;
+    std::size_t at = 0;
+    std::size_t length = 0;
+  };
+  [[nodiscard]] std::vector<Region> regions(std::span<const std::uint8_t> data);
+}
 == mlibs.base64
 export import mlibs.base64.api;
 == mlibs.base64.api

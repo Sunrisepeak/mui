@@ -18,13 +18,17 @@
 // in one buffer at the context's offset alignment, bound by range (a vertex
 // stage's slot i at point i, a fragment stage's at 4 + i).
 //
+// A packed page carries the program's shader texts apart from it (mlibs.apart, omui-gen's packer): the ESSL is
+// asked for as the program loads where WebGL2 is the page's GPU, and a text is read by its address.
+//
 // rhi's textures are top-down — row 0 the top, as on every other backend —
 // and GL's bottom-up: openmui.shader's ESSL flips y at the vertex stage's
 // end, so GL's row 0 is the top too, and only present() flips (the canvas
 // is GL's). bgra8 is kept as RGBA8 (WebGL2 has no BGRA), its bytes swapped
 // where they cross: uploads and readback.
 addToLibrary({
-  $omuiGl__deps: ['$UTF8ToString'],
+  $omuiGl__deps: ['$UTF8ToString', '$addRunDependency', '$removeRunDependency'],
+  $omuiGl__postset: 'omuiGl.start();',
   $omuiGl: {
     // rhi's Format: internal format, format, type, bytes a texel, kind, R/B swapped.
     FORMATS: [
@@ -93,6 +97,31 @@ addToLibrary({
 
     align: function (v, a) { return Math.ceil(v / a) * a; },
     fail: function (e) { omuiGl.errors.push(e && e.message || String(e)); return 0; },
+
+    // The program's ESSL, where its page's packer carried the texts apart (Module.omuiApart): fetched as the program
+    // loads where WebGL2 is the GPU the host takes (omui.host.web) — the page has no WebGPU, or its ?renderer= asks for
+    // WebGL2 — else read when a pipeline first needs it (text()). Where the page has neither GPU, or a software one,
+    // and no WebGPU, the CPU draws and the texts were fetched for nothing (no context is made here to know).
+    start: function () {
+      var apart = typeof Module !== 'undefined' && Module['omuiApart'];
+      if (!apart || typeof navigator === 'undefined') return;
+      var asked = '';
+      try { asked = new URLSearchParams(location.search).get('renderer') || ''; } catch (e) {}
+      if (asked === 'cpu' || asked === 'webgpu' || (navigator.gpu && asked !== 'webgl')) return;
+      addRunDependency('omui-webgl');
+      var done = function () { removeRunDependency('omui-webgl'); };
+      apart.want('essl').then(done, done);
+    },
+
+    // A shader's ESSL as the program gives it: in place, or — its first byte 0, the page's packer having carried the
+    // program's texts apart (mlibs.apart) — the page's, by its address (fetched as the program loaded, or now).
+    text: function (at, length) {
+      var apart = length && HEAPU8[at] === 0 && typeof Module !== 'undefined' && Module['omuiApart'];
+      if (!apart) return UTF8ToString(at, length);
+      var texts = apart.texts('essl'), text = texts && texts[at];
+      if (typeof text !== 'string') throw new Error('the page holds no ESSL at ' + at + ' (the program carries its shaders apart)');
+      return text;
+    },
     c: function (name) { return omuiGl.gl[name]; },
 
     open: function (selector) {
@@ -696,7 +725,7 @@ addToLibrary({
     var G = omuiGl;
     try {
       var w = HEAPU32.slice(words >> 2, (words >> 2) + count);
-      G.pipelines[id] = G.graphics(w, UTF8ToString(vs, vsLength), UTF8ToString(fs, fsLength), UTF8ToString(label));
+      G.pipelines[id] = G.graphics(w, G.text(vs, vsLength), G.text(fs, fsLength), UTF8ToString(label));
       return G.check('creating the pipeline') ? 1 : 0;
     } catch (e) { return G.fail(e); }
   },

@@ -124,7 +124,10 @@ struct EmitOptions {
 };
 // A module partition: for each entry point `e`, `inline constexpr
 // rhi::ShaderDesc e`, its code in every compiled format, and `entries`, all
-// of them. Byte for byte the same for the same program.
+// of them. Byte for byte the same for the same program. A WGSL or ESSL text
+// stands after a mark (mlibs.apart, its kind the format's name): a page's
+// packer carries those texts apart from the program, and the page's device
+// asks for its own kind back — a page fetches one of the two, or none.
 [[nodiscard]] std::string emit_cpp(const Program& program, const EmitOptions& options);
 
 // What the slang step of a build compiles to for a target OS (mcpp's

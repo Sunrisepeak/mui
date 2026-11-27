@@ -378,9 +378,17 @@ static UTest cases{"gen.dist_toy", [] {
         const std::string listed = index.substr(at + 16, end - at - 16);
         expect(!listed.contains("</script>") && listed.contains("\\u003c/script>")) << "never closes the page's script: " << listed;
         const auto files = nlohmann::json::parse(listed, nullptr, false);
-        expect(!files.is_discarded() && files.value("/mcpp.toml", "") == "[package]\nname = \"tsdemo\"\n" &&
-               files.value("/app/main.ts", "") == "const greeting: string = \"</script> \\\\ \u00e9\";\nexport {};\n")
+        expect(!files.is_discarded() && files.value("/app/main.ts", "") == "const greeting: string = \"</script> \\\\ \u00e9\";\nexport {};\n")
             << "each file's text as it is, by its path in the program: " << listed;
+        // A TOML file goes as its JSON snapshot beside its path: a page parses no TOML.
+        const auto manifest = files.is_discarded() ? nlohmann::json() : nlohmann::json::parse(files.value("/mcpp.toml.json", ""), nullptr, false);
+        expect(!files.is_discarded() && !files.contains("/mcpp.toml") && !manifest.is_discarded() && manifest.value("package", nlohmann::json::object()).value("name", "") == "tsdemo")
+            << "the manifest as JSON: " << listed;
+        put(t.root / "app" / "broken.toml", "[package\n");
+        p.files = {{"/broken.toml", t.root / "app" / "broken.toml"}};
+        const auto not_toml = gen::package_for_toy(p);
+        expect(!not_toml.has_value() && not_toml.error().contains("broken.toml:")) << "a TOML file that is not TOML says where";
+        p.files = {{"/mcpp.toml", t.root / "app" / "mcpp.toml"}, {"/app/main.ts", t.root / "app" / "app" / "main.ts"}};
         expect(index.contains("FS.mkdirTree(dir); FS.writeFile(path, omuiFiles[path]);") && index.find("omuiFiles[path]") < index.find("omuiStartupFonts.forEach(function (j) { j.depend(); });"))
             << "written in preRun, before main";
         expect(!std::ranges::any_of(r->files, [](const gen::ToyFile& f) { return f.path.ends_with(".ts") || f.path.ends_with(".toml"); })) << "no files of their own";

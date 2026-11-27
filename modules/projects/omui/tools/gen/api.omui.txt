@@ -95,6 +95,8 @@ namespace omui::gen {
     std::vector<ToyFile> files;
     std::uintmax_t total = 0;
     std::uintmax_t index = 0;
+    std::string program;
+    std::uintmax_t apart = 0;
   };
   inline constexpr std::uintmax_t toy_index_limit = 1024 * 1024;
   [[nodiscard]] bool toy_keeps(std::string_view extension) noexcept;
@@ -383,6 +385,11 @@ namespace omui::gen {
     std::size_t first = 0;
   };
   [[nodiscard]] std::expected<PartReport, std::string> cut_part(const PartCut& cut);
+  struct Apart {
+    std::map<std::string, std::map<std::uint32_t, std::string>> kinds;
+    std::size_t bytes = 0;
+  };
+  [[nodiscard]] std::expected<Apart, std::string> carry_apart(std::span<std::uint8_t> wasm);
   [[nodiscard]] std::optional<std::filesystem::path> binaryen_directory();
   [[nodiscard]] std::span<const std::string_view> emscripten_features() noexcept;
 }

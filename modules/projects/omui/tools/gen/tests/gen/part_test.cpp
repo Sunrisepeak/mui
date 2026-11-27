@@ -2,6 +2,7 @@
 // first part — what a sibling program has by name, and what that calls directly — on data made here.
 import std;
 import omui.gen.part;
+import mlibs.apart;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -53,6 +54,48 @@ static UTest cases{"omui.gen.part", [] {
         expect(!gen::function_imports(std::vector<std::uint8_t>{0x01, 0x02}).has_value()) << "not a WebAssembly binary";
         const std::vector<std::uint8_t> bare{0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00};
         expect(gen::function_imports(bare) == std::expected<std::size_t, std::string>(0)) << "no import section: none";
+    };
+
+    "what a program carries apart: each marked region by its kind and address, it and its mark zeroed, the rest as it was"_test = [] {
+        const std::string wgsl = mlibs::apart::mark("wgsl", 6) + "fn a()";
+        const std::string essl = mlibs::apart::mark("essl", 4) + "x=1;";
+        const std::string first = "lead" + wgsl + "tail", second = essl;
+        std::vector<std::uint8_t> data{0x03};
+        const auto segment = [&](std::vector<std::uint8_t> head, const std::string& bytes) {
+            data.insert(data.end(), head.begin(), head.end());
+            leb(data, bytes.size());
+            data.insert(data.end(), bytes.begin(), bytes.end());
+        };
+        segment({0x00, 0x41, 0x80, 0x08, 0x0b}, first);   // active, at 1024
+        segment({0x01}, mlibs::apart::mark("wgsl", 1) + "p");  // passive: left as it is
+        segment({0x02, 0x00, 0x41, 0xd0, 0x0f, 0x0b}, second);  // active in memory 0, at 2000
+        std::vector<std::uint8_t> wasm = program();
+        wasm.push_back(11);
+        leb(wasm, data.size());
+        const std::size_t data_at = wasm.size();
+        wasm.insert(wasm.end(), data.begin(), data.end());
+        const std::vector<std::uint8_t> before = wasm;
+        const auto apart = gen::carry_apart(wasm);
+        expect(apart.has_value()) << (apart ? "" : apart.error());
+        if (!apart) return;
+        const std::uint32_t wgsl_at = 1024 + 4 + static_cast<std::uint32_t>(wgsl.size() - 6);
+        const std::uint32_t essl_at = 2000 + static_cast<std::uint32_t>(essl.size() - 4);
+        expect(apart->kinds.size() == 2u && apart->kinds.at("wgsl").size() == 1u && apart->kinds.at("wgsl").at(wgsl_at) == "fn a()");
+        expect(apart->kinds.at("essl").at(essl_at) == "x=1;");
+        expect(eq(apart->bytes, std::size_t{10}));
+        // The first segment: "lead", zeros where the mark and the text were, "tail".
+        const std::size_t lead = data_at + 1 + 5 + 1;
+        expect(std::string(wasm.begin() + static_cast<std::ptrdiff_t>(lead), wasm.begin() + static_cast<std::ptrdiff_t>(lead + 4)) == "lead");
+        expect(std::all_of(wasm.begin() + static_cast<std::ptrdiff_t>(lead + 4), wasm.begin() + static_cast<std::ptrdiff_t>(lead + 4 + wgsl.size()),
+                           [](std::uint8_t byte) { return byte == 0; }));
+        expect(std::string(wasm.begin() + static_cast<std::ptrdiff_t>(lead + 4 + wgsl.size()), wasm.begin() + static_cast<std::ptrdiff_t>(lead + 8 + wgsl.size())) == "tail");
+        std::size_t changed = 0;
+        for (std::size_t at = 0; at < wasm.size(); ++at) changed += wasm[at] != before[at];
+        expect(eq(wasm.size(), before.size()) && eq(changed, wgsl.size() + essl.size() - std::size_t{8})) << "only the regions and their marks (a mark's NULs were zero)";
+        const auto again = gen::carry_apart(wasm);
+        expect(again.has_value() && again->kinds.empty()) << "carried apart once: nothing left to carry";
+        std::vector<std::uint8_t> not_wasm{0x01, 0x02};
+        expect(!gen::carry_apart(not_wasm).has_value()) << "not a WebAssembly binary";
     };
 
     "Binaryen's call graph: the calls between functions the program defines, an import's left out"_test = [] {

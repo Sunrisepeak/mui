@@ -36,11 +36,12 @@ function preprocess(text, settings) {
 
 // The library on a fake GPU: its functions and state, the memory, the
 // run dependencies taken and released.
-async function load({ asyncify = false, gpu = new FakeGpu(), navigator } = {}) {
+async function load({ asyncify = false, gpu = new FakeGpu(), navigator, module = {}, location } = {}) {
   const memory = new ArrayBuffer(1 << 20);
   const deps = [];
   const context = {
-    Module: {}, console, Promise, Math, String, Uint8Array, Uint32Array, Float32Array,
+    Module: module, console, Promise, Math, String, Uint8Array, Uint32Array, Float32Array, URLSearchParams,
+    ...(location ? { location } : {}),
     navigator: navigator === undefined ? gpu.navigator : navigator,
     GPUBufferUsage, GPUTextureUsage, GPUMapMode,
     HEAPU8: new Uint8Array(memory), HEAPU32: new Uint32Array(memory), HEAPF32: new Float32Array(memory),
@@ -185,6 +186,38 @@ test('the device is asked for as the program loads: main() waits for it', async 
   const refused = await load({ gpu: new FakeGpu({ adapter: false }) });
   assert.equal(refused.context.omui_webgpu_device(out), 0);
   assert.match(refused.context.omui_webgpu_why(), /no WebGPU adapter/);
+});
+
+test('a page that carries the shaders apart: WGSL wanted as the program loads where this device draws, a text read by its address', async () => {
+  const wanted = [];
+  const page = (texts) => ({ want: (kind) => { wanted.push(kind); return Promise.resolve(texts); }, texts: (kind) => (kind === 'wgsl' ? texts : null) });
+  const texts = {};
+  const { context: c, gpu, deps } = await load({ module: { omuiApart: page(texts) } });
+  same(wanted, ['wgsl'], 'an adapter that is not software draws: its WGSL fetched while the program loads');
+  same(deps, [['add', 'omui-webgpu'], ['remove', 'omui-webgpu']], 'main waits for it as for the device');
+  const heap = new Heap(c);
+  const vs = heap.bytes(new Uint8Array(24)), fs = heap.text('fragment code');  // the vertex text carried apart: zeros where it was
+  texts[vs] = 'vertex code';
+  const words = heap.words(quadWords());
+  assert.equal(c.omui_webgpu_graphics(0, words, quadWords().length, vs, 24, 'quad_vs', fs, 13, 'quad_fs', 'quad'), 1);
+  const p = gpu.calls('createRenderPipeline')[0][1];
+  assert.equal(p.vertex.module.code, 'vertex code', 'the page\'s text, by its address');
+  assert.equal(p.fragment.module.code, 'fragment code', 'a text in place is read in place');
+  const lost = heap.bytes(new Uint8Array(8));
+  assert.equal(c.omui_webgpu_graphics(1, words, quadWords().length, lost, 8, 'quad_vs', fs, 13, 'quad_fs', 'lost'), 0);
+  assert.match(c.omui_webgpu_error(), /no WGSL at/);
+
+  // The CPU draws instead of a software adapter, and the page may ask for the CPU or WebGL2: nothing fetched.
+  const software = { info: { vendor: 'google', architecture: 'swiftshader' } };
+  for (const [options, search] of [[software, ''], [{}, '?renderer=cpu'], [{}, '?renderer=webgl']]) {
+    wanted.length = 0;
+    await load({ gpu: new FakeGpu(options), module: { omuiApart: page({}) }, location: { search } });
+    same(wanted, [], `nothing wanted (${search || 'software'})`);
+  }
+  // A software adapter where the page asks for a GPU draws: its WGSL.
+  wanted.length = 0;
+  await load({ gpu: new FakeGpu(software), module: { omuiApart: page({}) }, location: { search: '?renderer=gpu' } });
+  same(wanted, ['wgsl']);
 });
 
 test('resources by slot: usages, formats, samples; a pipeline from its words, "auto" layout', async () => {

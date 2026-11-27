@@ -3,6 +3,7 @@ module omui.gen.part;
 import std;
 import mcpplibs.os;
 import omui.gen.size;
+import mlibs.apart;
 
 namespace omui::gen {
 
@@ -88,6 +89,81 @@ std::expected<std::size_t, std::string> function_imports(std::span<const std::ui
         return functions;
     }
     return bytes.good ? std::expected<std::size_t, std::string>(0) : std::unexpected("its sections are cut short");
+}
+
+namespace {
+
+// Whether `text` is UTF-8 (what a JSON string holds).
+bool utf8_text(std::string_view text) {
+    for (std::size_t at = 0; at < text.size();) {
+        const auto lead = static_cast<std::uint8_t>(text[at]);
+        const std::size_t more = lead < 0x80 ? 0 : (lead >> 5) == 0x6 ? 1 : (lead >> 4) == 0xe ? 2 : (lead >> 3) == 0x1e ? 3 : 4;
+        if (more == 4 || at + more >= text.size()) return false;
+        for (std::size_t next = 1; next <= more; ++next)
+            if ((static_cast<std::uint8_t>(text[at + next]) >> 6) != 0x2) return false;
+        at += more + 1;
+    }
+    return true;
+}
+
+}  // namespace
+
+std::expected<Apart, std::string> carry_apart(std::span<std::uint8_t> wasm) {
+    static constexpr std::array<std::uint8_t, 4> magic{0x00, 0x61, 0x73, 0x6d};
+    if (wasm.size() < 8 || !std::ranges::equal(wasm.first(4), magic)) return std::unexpected("not a WebAssembly binary");
+    Apart apart;
+    Bytes bytes{wasm, 8};
+    while (bytes.good && bytes.at < wasm.size()) {
+        const std::uint8_t id = bytes.byte();
+        const std::uint64_t size = bytes.number();
+        if (!bytes.good || size > wasm.size() - bytes.at) return std::unexpected("its sections are cut short");
+        if (id != 11) {  // not the data section
+            bytes.skip(size);
+            continue;
+        }
+        Bytes section{wasm.subspan(bytes.at, static_cast<std::size_t>(size))};
+        for (std::uint64_t count = section.number(), index = 0; section.good && index < count; ++index) {
+            const std::uint64_t flags = section.number();
+            std::optional<std::uint32_t> address;
+            if (flags == 0 || flags == 2) {
+                if (flags == 2) (void)section.number();  // its memory
+                // The offset: `i32.const N; end` at a constant address; anything else is not one.
+                if (section.byte() == 0x41) {
+                    std::int64_t value = 0;
+                    int shift = 0;
+                    std::uint8_t next = 0;
+                    do {
+                        next = section.byte();
+                        value |= static_cast<std::int64_t>(next & 0x7f) << shift;
+                        shift += 7;
+                    } while (section.good && (next & 0x80) && shift < 64);
+                    if (shift < 64 && (next & 0x40)) value |= -(std::int64_t{1} << shift);
+                    if (section.byte() == 0x0b && value >= 0 && value <= std::numeric_limits<std::uint32_t>::max())
+                        address = static_cast<std::uint32_t>(value);
+                } else {
+                    return std::unexpected(std::format("data segment {}: an offset that is not a constant (a relocatable program)", index));
+                }
+            } else if (flags != 1) {
+                return std::unexpected(std::format("data segment {}: flags {} this reader does not know", index, flags));
+            }
+            const std::uint64_t length = section.number();
+            if (!section.good || length > section.data.size() - section.at) return std::unexpected("its data section is cut short");
+            const std::span<std::uint8_t> data = wasm.subspan(bytes.at + section.at, static_cast<std::size_t>(length));
+            section.skip(length);
+            if (!address) continue;  // passive: copied where the program says, not here
+            for (const mlibs::apart::Region& region : mlibs::apart::regions(data)) {
+                const std::string_view text(reinterpret_cast<const char*>(data.data()) + region.at, region.length);
+                if (!utf8_text(text)) return std::unexpected(std::format("a region of `{}` at {} is not UTF-8 text", region.kind, *address + region.at));
+                apart.kinds[region.kind].emplace(static_cast<std::uint32_t>(*address + region.at), std::string(text));
+                apart.bytes += region.length;
+                std::ranges::fill(data.subspan(region.mark, region.at + region.length - region.mark), std::uint8_t{0});
+            }
+        }
+        if (!section.good) return std::unexpected("its data section is cut short");
+        bytes.skip(size);
+    }
+    if (!bytes.good) return std::unexpected("its sections are cut short");
+    return apart;
 }
 
 std::vector<std::pair<std::size_t, std::size_t>> call_edges(std::string_view dot) {

@@ -65,6 +65,18 @@ struct PartReport {
 // The whole cut in two, the halves written where asked; or why not (a tool missing, a map that names nothing).
 [[nodiscard]] std::expected<PartReport, std::string> cut_part(const PartCut& cut);
 
+// A program's data carried apart (the Web-program size design §7): every region mlibs.apart marks in its data
+// segments — what the program never reads itself, a page's shader texts — by its kind and by the address its bytes
+// have in the program's memory; in `wasm`, each region and its mark zeroed (the program otherwise the same, its
+// functions and their indices too). The page gives a kind's regions back to whoever reads them (the loader's
+// Module.omuiApart). Active segments at constant addresses only (Emscripten's); a passive one is left as it is.
+// A region's bytes must be UTF-8 text: a page holds them as JSON.
+struct Apart {
+    std::map<std::string, std::map<std::uint32_t, std::string>> kinds;  // kind → address → bytes
+    std::size_t                                                  bytes = 0;  // the regions' bytes, all kinds
+};
+[[nodiscard]] std::expected<Apart, std::string> carry_apart(std::span<std::uint8_t> wasm);
+
 // The newest emsdk mcpp or xlings installed whose bin/ holds wasm-split and wasm-opt, or none.
 [[nodiscard]] std::optional<std::filesystem::path> binaryen_directory();
 

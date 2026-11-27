@@ -4,6 +4,7 @@ import std;
 import mcpplibs.cmdline;
 import mlibs.hash;
 import nlohmann.json;
+import tomlplusplus;
 import omui.lang.ts;
 import mlibs.text.subset;
 import omui.gen.part;
@@ -148,7 +149,7 @@ constexpr std::string_view looked_inside = "@media screen{[data-omui=static]>[da
 std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm, std::span<const std::pair<std::string, std::string>> fonts,
                  std::span<const std::pair<std::string, std::string>> later, std::span<const std::pair<std::string, std::string>> initial,
                  const std::map<std::string, std::uintmax_t>& decoded_sizes, const std::map<std::string, std::string>& coverage,
-                 const std::map<std::string, std::string>& files) {
+                 const std::map<std::string, std::string>& files, const std::map<std::string, std::string>& apart) {
     std::string font_list, later_list;
     for (const auto& [name, file] : fonts) {
         // Its languages, if it is for some: ["zh"].
@@ -209,6 +210,8 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
     std::string file_list = nlohmann::json(files).dump();
     for (std::size_t at = file_list.find('<'); at != std::string::npos; at = file_list.find('<', at)) file_list.replace(at, 1, "\\u003c");
     html += std::format("var omuiFiles = {};\n", file_list);
+    // What the program carries apart, a file of each kind (carry_apart): {kind: file}.
+    html += std::format("var omuiApart = {};\n", nlohmann::json(apart).dump());
     html += std::format("var omuiAssetBytes = {};\n", nlohmann::json(decoded_sizes).dump());
     // The program's second half, when `omui-gen dist-toy-split` cut it in two, or a world's part (dist-toy
     // --part-first) — this exact line is what it replaces: {url, bytes, lazy: [routes], needs: selector}.
@@ -597,8 +600,39 @@ function omuiSplitImports(imports) {
   }});
   return new Proxy(imports, {get: function (target, name) { return String(name).indexOf('placeholder') === 0 ? placeholders : target[name]; }});
 }
+// What the program carries apart (omui-gen's carry_apart: the regions mlibs.apart marks — a page's shader texts), a
+// file of each kind, by each region's address in the program's memory: fetched when what reads a kind says it will
+// (the device a page draws with, as the program loads: WGSL or ESSL, neither where the CPU draws), synchronously only
+// when it reads a kind it did not say it would. Module.omuiApart: want(kind) a promise, texts(kind) {address: text}.
+var omuiApartHeld = Object.create(null), omuiApartComing = Object.create(null);
+window.omuiApartState = Object.create(null);
+function omuiApartUrl(kind) { return (typeof omuiRoot === 'string' ? omuiRoot : '') + omuiApart[kind]; }
+var omuiApartPage = {
+  want: function (kind) {
+    if (!omuiApart[kind] || omuiApartHeld[kind]) return Promise.resolve(omuiApartHeld[kind] || null);
+    if (omuiApartComing[kind]) return omuiApartComing[kind];
+    window.omuiApartState[kind] = 'fetching';
+    omuiApartComing[kind] = fetch(omuiApartUrl(kind), {credentials: 'same-origin'}).then(function (response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status + ' loading ' + omuiApart[kind]);
+      return response.json();
+    }).then(function (texts) {
+      if (!omuiApartHeld[kind]) { omuiApartHeld[kind] = texts; window.omuiApartState[kind] = 'held'; }
+      return omuiApartHeld[kind];
+    }, function (error) { delete omuiApartComing[kind]; window.omuiApartState[kind] = 'error'; console.warn(String(error)); throw error; });
+    return omuiApartComing[kind];
+  },
+  texts: function (kind) {
+    if (omuiApartHeld[kind] || !omuiApart[kind]) return omuiApartHeld[kind] || null;
+    var request = new XMLHttpRequest();
+    request.open('GET', omuiApartUrl(kind), false);
+    request.send(null);
+    if (request.status !== 200 && request.status !== 0) throw new Error('HTTP ' + request.status + ' loading ' + omuiApart[kind]);
+    omuiApartHeld[kind] = JSON.parse(request.responseText); window.omuiApartState[kind] = 'synchronous';
+    return omuiApartHeld[kind];
+  }
+};
 var Module = {
-  canvas: document.getElementById('canvas'), arguments: omuiArguments(),
+  canvas: document.getElementById('canvas'), arguments: omuiArguments(), omuiApart: omuiApartPage,
   locateFile: function (path) { return /\.wasm$/.test(path) ? omuiWasm : path; },
   print: function (text) { console.log(text); }, printErr: function (text) { console.warn(text); },
   instantiateWasm: function (imports, receive) {
@@ -855,6 +889,21 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     fs::create_directories(p.out / "assets", ec);
     if (ec) return std::unexpected(std::format("{}: {}", utf8(p.out), ec.message()));
 
+    // What the program carries apart (mlibs.apart's marks: a page's shader texts, WGSL and ESSL, of which its device
+    // compiles one kind or, where the CPU draws, none): out of the program, beside it, a file of each kind — the page
+    // fetches a kind when what reads it asks (the loader's Module.omuiApart).
+    auto apart = carry_apart(std::span(reinterpret_cast<std::uint8_t*>(wasm->data()), wasm->size()));
+    if (!apart) return std::unexpected(std::format("{}: {}", utf8(wasm_in), apart.error()));
+    std::map<std::string, std::string> apart_files;  // kind → file
+    for (const auto& [kind, regions] : apart->kinds) {
+        nlohmann::json texts = nlohmann::json::object();
+        for (const auto& [address, text] : regions) texts[std::to_string(address)] = text;
+        const std::string body = texts.dump();
+        const std::string name = std::format("{}-{}.{}.json", p.target, content_hash(body), kind);
+        if (auto w = write(p.out / name, body); !w) return std::unexpected(w.error());
+        apart_files[kind] = name;
+    }
+
     const std::string js_name = std::format("{}-{}.js", p.target, content_hash(*js));
     const std::string wasm_name = std::format("{}-{}.wasm", p.target, content_hash(*wasm));
     if (auto w = write(p.out / js_name, *js); !w) return std::unexpected(w.error());
@@ -1000,23 +1049,37 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
         if (!f.path.starts_with('/')) return std::unexpected(std::format("a file's path in the program's file system is absolute ({})", f.path));
         auto bytes = read(f.source);
         if (!bytes) return std::unexpected(bytes.error());
+        std::string path = f.path;
         if (f.data) {
             auto evaluated = omui::lang::ts::evaluate(f.source);
             if (!evaluated) return std::unexpected(std::format("{}: {}", utf8(f.source), evaluated.error().text()));
             bytes = evaluated->snapshot();
+        } else if (path.ends_with(".toml")) {
+            // A TOML file (an application's mcpp.toml) as its JSON snapshot, at `<path>.json`: a page parses no TOML
+            // (the player reads the snapshot on the Web, with the one reader of a manifest's declaration).
+            try {
+                std::ostringstream json;
+                json << toml::json_formatter{toml::parse(*bytes, utf8(f.source))};
+                bytes = json.str();
+            } catch (const toml::parse_error& e) {
+                return std::unexpected(std::format("{}:{}:{}: {}", utf8(f.source), e.source().begin.line, e.source().begin.column, e.description()));
+            }
+            path += ".json";
         }
         try {
             (void)nlohmann::json(*bytes).dump();  // text the page can carry: UTF-8
         } catch (const nlohmann::json::exception&) {
             return std::unexpected(std::format("{}: not UTF-8 text (the page carries the application's text files)", utf8(f.source)));
         }
-        files[f.path] = std::move(*bytes);
+        files[path] = std::move(*bytes);
     }
-    const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes, coverage, files);
+    const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes, coverage, files, apart_files);
     if (index.empty()) return std::unexpected("a world's page could not be made: the loader is not as dist-toy's world expects it (omui.gen's dist_toy.cpp)");
     if (auto w = write(p.out / "index.html", index); !w) return std::unexpected(w.error());
 
-    return finish_package(p.out, p.target, p.title, index.size());
+    auto report = finish_package(p.out, p.target, p.title, index.size());
+    if (report) report->program = wasm_name, report->apart = apart->bytes;
+    return report;
 }
 
 std::expected<ToyDocument, std::string> document_of(const mcpplibs::cmdline::ParsedArgs& args);  // below, with dist-toy-document
@@ -1092,6 +1155,8 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
         std::println(std::cerr, "dist-toy: {}", r.error());
         return 1;
     }
+    const std::string packed = r->program;  // the program as packed (what it carries apart out of it)
+    if (r->apart) std::println("dist-toy: {} bytes carried apart from the program", r->apart);
     // The page a document before its program runs, when its first screen's projection is given.
     if (!document->static_html.empty()) {
         document->dir = p.out;
@@ -1109,7 +1174,8 @@ int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
         const auto path = [](std::string_view text) { return fs::path(std::u8string(text.begin(), text.end())); };
         fs::path work = p.out;
         work += ".parts";
-        const auto cut = cut_part({.whole = p.stage / "bin" / (p.target + ".wasm"), .whole_names = path(*program + ".symbols"),
+        // The program as packed: what it carries apart is out of it already (the same functions as the staged one).
+        const auto cut = cut_part({.whole = p.out / packed, .whole_names = path(*program + ".symbols"),
                                    .first_names = path(*first + ".symbols"), .primary = work / "first.wasm", .deferred = work / "second.wasm"});
         if (!cut) {
             std::println(std::cerr, "dist-toy: the program in parts: {}", cut.error());

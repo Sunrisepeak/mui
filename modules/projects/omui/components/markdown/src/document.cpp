@@ -23,7 +23,7 @@ mlibs::markdown::Extension extensions_of(const std::vector<std::string>& names) 
 mlibs::markdown::Document as_text(std::string_view source, mlibs::markdown::Extension extensions) {
     std::string html = "<pre><code>";
     for (const char c : source) html += c == '&' ? std::string("&amp;") : c == '<' ? std::string("&lt;") : c == '>' ? std::string("&gt;") : std::string(1, c);
-    return mlibs::markdown::from_html(html + "</code></pre>", extensions);
+    return mlibs::markdown::from_html(html + "</code></pre>", extensions, mlibs::markdown::Parser{});
 }
 
 std::string lower(std::string_view s) {
@@ -67,11 +67,12 @@ void Markdown::mounted() {
 void Markdown::reset_stream() {
     ext_ = extensions_of(props.extensions);
     html_ = props.format == MarkdownFormat::html;
-    // HTML is read by from_html; Markdown source by the parser at the slot (omui.ui.markdown:parser) — none on the Web
-    // unless the program installed one: then the source is shown as its text, and that is said once.
-    const mlibs::markdown::Parser parser = html_ ? mlibs::markdown::Parser{} : markdown_parser();
+    // Markdown source is read by the parser at the slot (omui.ui.markdown:parser), HTML by from_html with its table of
+    // named references — none on the Web unless the program installed one: then a source is shown as its text, and
+    // that is said once; HTML is read with the names a serializer writes.
+    const mlibs::markdown::Parser parser = markdown_parser();
     unparsed_ = !html_ && !parser.into;
-    stream_ = mlibs::markdown::Stream(ext_, parser);
+    stream_ = mlibs::markdown::Stream(ext_, html_ ? mlibs::markdown::Parser{} : parser);
     if (unparsed_) {
         static bool said = false;
         if (!said) mlibs::log::warn("{}: {}", markdown_parser_slot.info.id, markdown_parser_slot.info.absent);
@@ -79,7 +80,7 @@ void Markdown::reset_stream() {
     }
     if (html_) {
         html_source_ = props.source;
-        html_document_ = mlibs::markdown::from_html(html_source_, ext_);
+        html_document_ = mlibs::markdown::from_html(html_source_, ext_, parser);
     } else {
         stream_.assign(props.source);
         if (unparsed_) html_document_ = as_text(stream_.source(), ext_);
@@ -90,7 +91,7 @@ void Markdown::take(std::string_view source) {
     if (html_) {
         if (source == html_source_) return;
         html_source_ = std::string(source);
-        html_document_ = mlibs::markdown::from_html(html_source_, ext_);
+        html_document_ = mlibs::markdown::from_html(html_source_, ext_, markdown_parser());
         return;
     }
     if (source.size() >= stream_.source().size() && source.starts_with(stream_.source())) {

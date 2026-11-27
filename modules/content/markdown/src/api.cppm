@@ -164,6 +164,17 @@ struct Document {
 // what only a renderer keeps (the blocks' hashes, the headings' anchors).
 [[nodiscard]] std::string to_html(std::string_view source, Extension extensions = gfm);
 
+// What reads Markdown source into a document's top-level blocks and links, and what names HTML's character
+// references — md4c and md4c-html's table, md4c(). A stream and from_html are given one, so a program that only reads
+// documents as HTML, as a browser writes it, links no Markdown parser. `into` appends to `doc` the blocks of `source`
+// (its task offsets shifted by `base`; without `hashes` the blocks' are left 0); false when it failed (out of memory).
+// `named` appends the text of a named reference (`&copy;`: ©) and says whether it names one.
+struct Parser {
+    bool (*into)(Document& doc, std::string_view source, std::size_t base, bool hashes) = nullptr;
+    bool (*named)(std::string_view reference, std::string& out) = nullptr;
+};
+[[nodiscard]] Parser md4c() noexcept;
+
 // The document as Markdown: CommonMark with the document's extensions, one spelling of each construct (ATX
 // headings, fenced code, inline links), what would begin another construct escaped. Parsing it gives the document
 // back: to_html(parse(to_markdown(doc), doc.extensions)) == to_html(doc) — held on md4c's suites, the count of the
@@ -183,7 +194,11 @@ struct Document {
 // block of the document gave when it ran, shown beside the block — is left out
 // whole: the block says it. Markdown's own HTML is read back as it
 // was written: to_html(from_html(to_html(doc))) == to_html(doc).
-[[nodiscard]] Document from_html(std::string_view html, Extension extensions = gfm);
+// Character references are decoded as md4c-html decodes them: the numeric
+// ones, and the names an HTML serializer writes (&amp; &lt; &gt; &quot;
+// &nbsp;: what a browser's outerHTML holds), always; any other name by the
+// parser's table — given none (`Parser{}`), it stays as written.
+[[nodiscard]] Document from_html(std::string_view html, Extension extensions = gfm, Parser parser = md4c());
 
 // The visible text of a block: inline text as it reads, blocks on their own
 // lines, table cells separated by tabs.
@@ -218,15 +233,6 @@ struct Run {
 [[nodiscard]] bool operator==(const Run& a, const Run& b) noexcept;
 
 // ── streaming ──
-
-// What reads Markdown source into a document's top-level blocks and links — md4c's, md4c(): a stream is given one,
-// so a program that only reads documents as HTML (from_html) links no Markdown parser. `into` appends to `doc` the
-// blocks of `source` (its task offsets shifted by `base`; without `hashes` the blocks' are left 0); false when it
-// failed (out of memory).
-struct Parser {
-    bool (*into)(Document& doc, std::string_view source, std::size_t base, bool hashes) = nullptr;
-};
-[[nodiscard]] Parser md4c() noexcept;
 
 class Stream {
 public:
@@ -290,8 +296,10 @@ std::uint64_t hash_of(const Block& b, std::span<const Link> links);
 std::uint64_t hash_fields(const Block& b, std::span<const Link> links);
 std::uint64_t hash_child(std::uint64_t h, std::uint64_t child);
 using Anchors = std::map<std::string, int, std::less<>>;  // slug → times used
-// An entity ("&amp;", "&#x41;") as md4c-html decodes it; an unknown name stays as written.
-std::string decode_entity(std::string_view entity);
+// A character reference ("&amp;", "&#x41;", "&copy;") appended to `out` as md4c-html decodes it: numeric ones and
+// the names an HTML serializer writes by its rules here, any other name by `named` (none, or a name it does not
+// know: as written); what md4c's grammar reads as no reference, as written.
+void decode_reference(std::string& out, std::string_view reference, decltype(Parser::named) named);
 // Heading anchors unique across `base` and `used` together; only `used` is
 // updated (a stream's tail counts on top of its frozen part, without a copy).
 void assign_anchors(Block& b, const Anchors& base, Anchors& used);

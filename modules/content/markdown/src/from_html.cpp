@@ -19,19 +19,21 @@ std::string lower(std::string_view text) {
     return out;
 }
 
+using Named = decltype(Parser::named);
+
 // Entities decoded as md4c-html decodes them; an ampersand that begins none is itself.
-std::string decoded(std::string_view text) {
+std::string decoded(std::string_view text, Named named) {
     std::string out;
     for (std::size_t at = 0; at < text.size();) {
         if (text[at] == '&') {
             const std::size_t end = text.find(';', at);
             if (end != std::string_view::npos && end - at <= 32) {
                 const std::string_view entity = text.substr(at, end - at + 1);
-                const bool named = std::ranges::all_of(entity.substr(1, entity.size() - 2), [](char c) {
+                const bool reference = std::ranges::all_of(entity.substr(1, entity.size() - 2), [](char c) {
                     return std::isalnum(static_cast<unsigned char>(c)) || c == '#';
                 });
-                if (named && entity.size() > 2) {
-                    out += decode_entity(entity);
+                if (reference && entity.size() > 2) {
+                    decode_reference(out, entity, named);
                     at = end + 1;
                     continue;
                 }
@@ -41,6 +43,72 @@ std::string decoded(std::string_view text) {
     }
     return out;
 }
+
+// A code point as md4c-html writes it (render_utf8_codepoint): no check for surrogates; U+FFFD for 0 and past U+10FFFF.
+void append_code_point(std::string& out, unsigned code) {
+    const auto byte = [](unsigned value) { return static_cast<char>(value); };
+    if (code == 0 || code > 0x10ffff) out += "\xEF\xBF\xBD";
+    else if (code <= 0x7f) out += byte(code);
+    else if (code <= 0x7ff) {
+        out += byte(0xc0 | ((code >> 6) & 0x1f));
+        out += byte(0x80 | (code & 0x3f));
+    } else if (code <= 0xffff) {
+        out += byte(0xe0 | ((code >> 12) & 0xf));
+        out += byte(0x80 | ((code >> 6) & 0x3f));
+        out += byte(0x80 | (code & 0x3f));
+    } else {
+        out += byte(0xf0 | ((code >> 18) & 0x7));
+        out += byte(0x80 | ((code >> 12) & 0x3f));
+        out += byte(0x80 | ((code >> 6) & 0x3f));
+        out += byte(0x80 | (code & 0x3f));
+    }
+}
+
+// The names an HTML serializer writes (the HTML standard's "escaping a string": text and attribute values).
+constexpr std::array<std::pair<std::string_view, std::string_view>, 5> serialized{{
+    {"amp", "&"}, {"lt", "<"}, {"gt", ">"}, {"quot", "\""}, {"nbsp", "\xC2\xA0"}}};
+
+}  // namespace
+
+void decode_reference(std::string& out, std::string_view reference, Named named) {
+    const auto digits = [](std::string_view text, bool hex) {
+        return std::ranges::all_of(text, [hex](char c) {
+            return hex ? std::isxdigit(static_cast<unsigned char>(c)) != 0 : c >= '0' && c <= '9';
+        });
+    };
+    // md4c's grammar (md_is_entity_str): `&#` and 1–7 digits, `&#x` and 1–6 hexadecimal ones, or `&`, a letter and
+    // 1–47 letters or digits; then `;`.
+    if (reference.size() < 3 || reference.front() != '&' || reference.back() != ';') {
+        out += reference;
+        return;
+    }
+    const std::string_view inside = reference.substr(1, reference.size() - 2);
+    if (inside.front() == '#') {
+        const bool hex = inside.size() > 1 && (inside[1] == 'x' || inside[1] == 'X');
+        const std::string_view number = inside.substr(hex ? 2 : 1);
+        if (number.empty() || number.size() > (hex ? 6u : 7u) || !digits(number, hex)) {
+            out += reference;
+            return;
+        }
+        unsigned code = 0;
+        (void)std::from_chars(number.data(), number.data() + number.size(), code, hex ? 16 : 10);
+        append_code_point(out, code);
+        return;
+    }
+    const bool name = inside.size() >= 2 && inside.size() <= 48 && std::isalpha(static_cast<unsigned char>(inside.front())) &&
+                      std::ranges::all_of(inside, [](char c) { return std::isalnum(static_cast<unsigned char>(c)) != 0; });
+    if (name) {
+        for (const auto& [written, text] : serialized)
+            if (inside == written) {
+                out += text;
+                return;
+            }
+        if (named && named(reference, out)) return;
+    }
+    out += reference;
+}
+
+namespace {
 
 struct Tag {
     std::string                                      name;  // lower case
@@ -55,7 +123,7 @@ struct Tag {
 };
 
 // One tag from `<`; none when what follows is not a tag (then the `<` is text).
-std::optional<Tag> read_tag(std::string_view html, std::size_t& at) {
+std::optional<Tag> read_tag(std::string_view html, std::size_t& at, Named named) {
     std::size_t cursor = at + 1;
     Tag tag;
     if (cursor < html.size() && html[cursor] == '/') {
@@ -94,12 +162,12 @@ std::optional<Tag> read_tag(std::string_view html, std::size_t& at) {
                 const char quote = html[cursor];
                 const std::size_t end = html.find(quote, cursor + 1);
                 if (end == std::string_view::npos) return std::nullopt;
-                value = decoded(html.substr(cursor + 1, end - cursor - 1));
+                value = decoded(html.substr(cursor + 1, end - cursor - 1), named);
                 cursor = end + 1;
             } else {
                 const std::size_t begin = cursor;
                 while (cursor < html.size() && !space(html[cursor]) && html[cursor] != '>') ++cursor;
-                value = decoded(html.substr(begin, cursor - begin));
+                value = decoded(html.substr(begin, cursor - begin), named);
             }
         }
         tag.attributes.emplace_back(std::move(key), std::move(value));
@@ -131,7 +199,7 @@ bool is_leaf(Kind kind) { return kind == Kind::paragraph || kind == Kind::headin
 
 class Reader {
 public:
-    explicit Reader(Document& doc) : doc_(doc) { frames_.push_back({&doc.root}); }
+    Reader(Document& doc, Named named) : doc_(doc), named_(named) { frames_.push_back({&doc.root}); }
 
     void read(std::string_view html) {
         for (std::size_t at = 0; at < html.size();) {
@@ -153,7 +221,7 @@ public:
                     continue;
                 }
                 std::size_t after = at;
-                if (auto tag = read_tag(html, after)) {
+                if (auto tag = read_tag(html, after, named_)) {
                     at = after;
                     if (!tag->closing && std::ranges::contains(dropped_whole, tag->name) && !tag->self_closing) {
                         const std::string end_tag = "</" + tag->name;
@@ -179,7 +247,7 @@ public:
                                 break;
                             }
                             std::size_t past = next;
-                            if (const auto inner = read_tag(html, past)) {
+                            if (const auto inner = read_tag(html, past, named_)) {
                                 if (inner->name == tag->name && !inner->self_closing) depth += inner->closing ? -1 : 1;
                                 at = past;
                             } else {
@@ -213,6 +281,7 @@ private:
     };
 
     Document&          doc_;
+    Named              named_;  // the parser's table of named references (none: only those a serializer writes)
     std::vector<Frame> frames_;
 
     Frame& top() { return frames_.back(); }
@@ -286,10 +355,10 @@ private:
 
     void text(std::string_view raw) {
         if (top().block->kind == Kind::code) {
-            top().block->content.text += decoded(raw);
+            top().block->content.text += decoded(raw, named_);
             return;
         }
-        const std::string words = decoded(raw);
+        const std::string words = decoded(raw, named_);
         if (std::ranges::all_of(words, space) && !is_leaf(top().block->kind)) return;  // between blocks
         Frame* frame = leaf();
         if (!frame) return;
@@ -478,10 +547,10 @@ void rehash(Block& b, std::span<const Link> links) {
 
 }  // namespace
 
-Document from_html(std::string_view html, Extension extensions) {
+Document from_html(std::string_view html, Extension extensions, Parser parser) {
     Document doc;
     doc.extensions = extensions;
-    Reader(doc).read(html);
+    Reader(doc, parser.named).read(html);
     const Anchors none;
     Anchors used;
     assign_anchors(doc.root, none, used);

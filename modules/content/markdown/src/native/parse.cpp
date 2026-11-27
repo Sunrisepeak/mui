@@ -39,6 +39,41 @@ unsigned flags_of(Extension e) {
 
 constexpr std::string_view replacement = "\xEF\xBF\xBD";  // U+FFFD for NUL (CommonMark §2.3)
 
+// A named reference by md4c-html's table — upstream's own, so the document and
+// md4c-html cannot disagree about a name: the reference rendered alone as a
+// paragraph and read back (the wrap exports md_html, not the table); each
+// distinct name looked up once per thread. False when the table has no such
+// name.
+bool md4c_named(std::string_view reference, std::string& out) {
+    thread_local std::unordered_map<std::string, std::optional<std::string>> cache;
+    auto found = cache.find(std::string(reference));
+    if (found == cache.end()) {
+        std::string html;
+        (void)md_html(
+            reference.data(), static_cast<MD_SIZE>(reference.size()),
+            [](const MD_CHAR* s, MD_SIZE n, void* into) { static_cast<std::string*>(into)->append(s, n); }, &html, 0, 0);
+        std::string_view v = html;
+        if (v.starts_with("<p>")) v.remove_prefix(3);
+        if (v.ends_with("</p>\n")) v.remove_suffix(5);
+        std::string text;
+        for (std::size_t i = 0; i < v.size();) {
+            if (v[i] == '&') {
+                if (v.substr(i).starts_with("&amp;")) { text += '&'; i += 5; continue; }
+                if (v.substr(i).starts_with("&lt;")) { text += '<'; i += 4; continue; }
+                if (v.substr(i).starts_with("&gt;")) { text += '>'; i += 4; continue; }
+                if (v.substr(i).starts_with("&quot;")) { text += '"'; i += 6; continue; }
+            }
+            text += v[i++];
+        }
+        // An unknown name comes back as written.
+        std::optional<std::string> named;
+        if (text != reference) named = std::move(text);
+        found = cache.emplace(std::string(reference), std::move(named)).first;
+    }
+    if (!found->second) return false;
+    out += *found->second;
+    return true;
+}
 
 std::string attribute(const MD_ATTRIBUTE& a) {
     std::string out;
@@ -48,7 +83,7 @@ std::string attribute(const MD_ATTRIBUTE& a) {
         const std::string_view s(a.text + off, a.substr_offsets[i + 1] - off);
         switch (a.substr_types[i]) {
             case MD_TEXT_NULLCHAR: out += replacement; break;
-            case MD_TEXT_ENTITY: out += decode_entity(s); break;
+            case MD_TEXT_ENTITY: decode_reference(out, s, &md4c_named); break;
             default: out += s; break;
         }
     }
@@ -98,35 +133,6 @@ std::uint64_t fnv_value(std::uint64_t h, T v) {
 }
 
 }  // namespace
-
-// An entity's text as md4c-html decodes it — upstream's own table and rules
-// (named, decimal, hexadecimal; unknown names stay as written), so the
-// document and md4c-html cannot disagree about one. Decoding renders the
-// entity alone as a paragraph and reads it back; each distinct entity is
-// decoded once per thread.
-std::string decode_entity(std::string_view entity) {
-    thread_local std::unordered_map<std::string, std::string> cache;
-    if (auto it = cache.find(std::string(entity)); it != cache.end()) return it->second;
-    std::string html;
-    (void)md_html(
-        entity.data(), static_cast<MD_SIZE>(entity.size()),
-        [](const MD_CHAR* s, MD_SIZE n, void* out) { static_cast<std::string*>(out)->append(s, n); }, &html, 0, 0);
-    std::string_view v = html;
-    if (v.starts_with("<p>")) v.remove_prefix(3);
-    if (v.ends_with("</p>\n")) v.remove_suffix(5);
-    std::string out;
-    for (std::size_t i = 0; i < v.size();) {
-        if (v[i] == '&') {
-            if (v.substr(i).starts_with("&amp;")) { out += '&'; i += 5; continue; }
-            if (v.substr(i).starts_with("&lt;")) { out += '<'; i += 4; continue; }
-            if (v.substr(i).starts_with("&gt;")) { out += '>'; i += 4; continue; }
-            if (v.substr(i).starts_with("&quot;")) { out += '"'; i += 6; continue; }
-        }
-        out += v[i++];
-    }
-    cache.emplace(std::string(entity), out);
-    return out;
-}
 
 std::uint64_t hash_fields(const Block& b, std::span<const Link> links) {
     std::uint64_t h = hash::Fnv1a::offset;
@@ -310,7 +316,7 @@ int text(MD_TEXTTYPE type, const MD_CHAR* s, MD_SIZE n, void* user) {
             in.marks.push_back({at, Op::soft_break});
             in.text += ' ';
             break;
-        case MD_TEXT_ENTITY: in.text += decode_entity(std::string_view(s, n)); break;
+        case MD_TEXT_ENTITY: decode_reference(in.text, std::string_view(s, n), &md4c_named); break;
         case MD_TEXT_HTML:
             // Raw inline HTML is marked, so it stays verbatim (an HTML block's
             // text is all HTML and needs no marks). Adjacent pieces merge.
@@ -425,6 +431,6 @@ std::string_view name(Kind k) noexcept {
     return names[static_cast<std::size_t>(k)];
 }
 
-Parser md4c() noexcept { return {&parse_into}; }
+Parser md4c() noexcept { return {&parse_into, &md4c_named}; }
 
 }  // namespace mlibs::markdown

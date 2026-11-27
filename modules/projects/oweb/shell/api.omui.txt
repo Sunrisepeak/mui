@@ -54,4 +54,29 @@ namespace oweb::shell {
   [[nodiscard]] std::vector<Hit> search(std::span<const Section> sections, std::string_view query, std::size_t limit = 8);
   [[nodiscard]] std::vector<Found> found_in(std::span<const Section> sections, std::string_view query, std::string_view top, std::size_t limit = 8);
   [[nodiscard]] std::expected<std::vector<Section>, std::string> sections_from(std::string_view index);
+  struct Heading {
+    int level = 1;
+    std::string text;
+    std::string anchor;
+  };
+  struct Entry {
+    std::string path;
+    std::string source;
+    std::string title;
+    std::string language;
+    std::vector<Heading> headings;
+  };
+  struct Table {
+    std::string title;
+    std::string url;
+    std::vector<std::string> languages;
+    std::vector<Entry> routes;
+  };
+  [[nodiscard]] std::expected<Table, std::string> table_from(std::string_view routes_table);
+  [[nodiscard]] std::string described(const Table& table);
+  [[nodiscard]] std::string describe_answer(const Table& table, bool built, std::string_view next);
+  [[nodiscard]] std::string routes_answer(const Table& table);
+  [[nodiscard]] std::string search_answer(std::span<const Section> sections, std::string_view query, std::size_t limit);
+  [[nodiscard]] std::string page_answer(const Entry& route, std::string_view as, std::string_view text);
+  [[nodiscard]] std::string entry_json(const Entry& route);
 }

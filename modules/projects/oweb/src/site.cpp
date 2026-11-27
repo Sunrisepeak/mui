@@ -803,12 +803,17 @@ std::string routes_json(std::span<const Route> routes, const SiteOptions& option
            "\n";
 }
 
-std::string llms_txt(std::span<const Route> routes, const SiteOptions& options) {
-    std::string out = std::format("# {}\n\n", options.title.empty() && !routes.empty() ? routes.front().title : options.title);
-    out += "Every page of this site is also plain Markdown: the address beside each title. The routes, with their headings: site.routes.xdef.json. Every section's text, to search: site.search.xdef.json.\n\n";
-    const std::string base = options.url.empty() ? std::string() : options.url.ends_with('/') ? options.url.substr(0, options.url.size() - 1) : options.url;
-    for (const Route& route : routes) out += std::format("- [{}]({}{}index.md)\n", route.title, base, options.url.empty() ? route.path.substr(1) : route.path);
-    return out;
+Table table_of(std::span<const Route> routes, const SiteOptions& options) {
+    Table table{options.title.empty() && !routes.empty() ? routes.front().title : options.title, options.url, options.languages, {}};
+    for (const Route& route : routes) table.routes.push_back({route.path, route.source, route.title, route.language, route.headings});
+    return table;
+}
+
+std::string llms_txt(std::span<const Route> routes, const SiteOptions& options) { return shell::described(table_of(routes, options)); }
+
+bool is_built(const std::filesystem::path& site) {
+    std::error_code error;
+    return std::filesystem::is_regular_file(site / "site.routes.xdef.json", error) && !std::filesystem::is_directory(site / "pages", error);
 }
 
 std::string sitemap_xml(std::span<const Route> routes, const SiteOptions& options) {

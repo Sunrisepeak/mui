@@ -36,6 +36,11 @@ shell::Finder finder(Site site) {
     };
 }
 
+bool show_search(omui::Runtime& runtime, std::string_view query) {
+    const omui::NodeId box = runtime.find(std::format("{}/page/{}/box", shell::mounted_at, shell::search_part));
+    return box && runtime.perform(box, "set_value", omui::Value{}.set("value", query));
+}
+
 omui::Element view(std::string_view projection, const std::function<std::string(std::string_view id)>& markup, shell::Layout layout) {
     auto parts = shell::read(projection, markup);
     if (parts) return shell::page(std::move(*parts), std::move(layout));

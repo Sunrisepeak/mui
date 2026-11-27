@@ -17,7 +17,7 @@ separate = "product: the program a site's pages load, built for the Web and serv
 kind = "app"
 id    = "org.openmui.oweb.reader"
 title = "oweb"
-reexports = ["oweb.shell"]  # what its interface re-exports (lint module-closure)
+reexports = ["oweb.shell", "mlibs.agent"]  # what its interface re-exports (lint module-closure)
 agent = { part = "omui.agent" }  # an application: its nodes are read and operated at omui.agent's endpoint (D-174)
 
 # The page as the program draws it and the site's search (oweb.reader): what its test drives without a window.
@@ -36,18 +36,23 @@ kind = "bin"
 main = "src/reading/main.cpp"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 
 [dependencies]
 omui.sdk   = { path = "../../omui/sdk", default-features = false, features = ["app"] }  # no runtime generation: it draws documents
 omui.core  = { path = "../../omui/core" }
 omui.view  = { path = "../../omui/view" }
 oweb.shell = { path = "../shell" }
+mlibs.agent   = { path = "../../../base/agent" }    # the site as a subject of the page's runtime (AG5)
+mlibs.control = { path = "../../../base/control" }  # its catalog
+mlibs.json    = { path = "../../../base/json" }
+openlifa.openas = "0.2.1"
 
 [dev-dependencies]
 mcpplibs.mtest     = "0.8.4"
 omui.host.headless = { path = "../../omui/host/headless" }
 omui.semantic      = { path = "../../omui/semantic" }
+oweb               = { path = ".." }  # the command, asked of the same built site as the page's subject (doors_test)
 
 [build-dependencies]
 omui.build = { path = "../../../../mcpp/build", host-module = true }

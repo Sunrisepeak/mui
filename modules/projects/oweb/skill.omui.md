@@ -9,10 +9,11 @@ How an Agent (or a person at a terminal) works with a site built on omui without
 
 ## Reading
 
+0. Not knowing the site: `site.describe --site DIR` says what it is — title, address, languages, each route with its Markdown's address, and the requests to go on with, sent as they stand. Its `text` is the site's `llms.txt`, word for word. `DIR` is the site's source (it holds `pages/`) or the site as built (the directory `site.build` wrote, or a copy of what its host serves): a built site is read as it was published, nothing evaluated.
 1. A question first: `docs.search --site DIR --query "words"` answers with the sections that hold every word — route, anchor, the headings above, the line that says so, and where the page's Markdown is. Then read that page.
 2. `page.read --site DIR --route /guide/start/` gives the page as Markdown: the same text the built site serves at `/guide/start/index.md`. Read this, not the HTML.
 3. `--as html` gives the whole page as it reads with no script.
-4. On a published site there is no command: fetch `llms.txt` (every page's title and its Markdown's address), then the `index.md` of the page; `site.routes.xdef.json` has the headings and anchors, `site.search.xdef.json` every section's text.
+4. On a published site with only its address there is no command: fetch `llms.txt` (every page's title and its Markdown's address), then the `index.md` of the page; `site.routes.xdef.json` has the headings and anchors, `site.search.xdef.json` every section's text.
 
 ## Building
 

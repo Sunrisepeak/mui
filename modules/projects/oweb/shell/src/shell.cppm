@@ -140,4 +140,53 @@ struct Hit {
 // The sections an index holds (what `search_json` wrote; a site's site.search.xdef.json), or why it is none.
 [[nodiscard]] std::expected<std::vector<Section>, std::string> sections_from(std::string_view index);
 
+// A heading of a page: its level, its text, the anchor it is reached by.
+struct Heading {
+    int         level = 1;
+    std::string text;
+    std::string anchor;
+};
+
+// A route as a site's table lists it.
+struct Entry {
+    std::string          path;      // where it is served: "/guide/start/"
+    std::string          source;    // its page as the table says it: "pages/guide/start.md"
+    std::string          title;
+    std::string          language;
+    std::vector<Heading> headings;
+};
+
+// A site as its routes table says it (`routes@1`: the site.routes.xdef.json a build writes): what it is called,
+// where it is served, its languages, its routes in the navigation's order.
+struct Table {
+    std::string              title;
+    std::string              url;  // empty: the site states none
+    std::vector<std::string> languages;
+    std::vector<Entry>       routes;
+};
+// The table a routes table's text holds, or why it is none.
+[[nodiscard]] std::expected<Table, std::string> table_from(std::string_view routes_table);
+
+// A site described to whoever asks, at whichever of its doors (0.1.0 plan AG5): its title; that every page is also
+// plain Markdown and where its two tables are; then each route's title with its Markdown's address — from `url`
+// where the site states one, else from the site's own top. A build writes this text as llms.txt, and
+// `site.describe` answers with it: one description, said the same at every door.
+[[nodiscard]] std::string described(const Table& table);
+
+// What the site's reading operations answer with (0.1.0 plan AG5), each a JSON object: the command and a page's own
+// subject answer with these, so a site says the same to whoever asks, from wherever.
+// `site.describe`: the table's facts (title, address, languages, each route with its Markdown's address), whether
+// what answers is the site as built, where its two tables are, the requests to go on with (`next`: a JSON array,
+// written as the door that answers takes them) and `text` — the description, `described`.
+[[nodiscard]] std::string describe_answer(const Table& table, bool built, std::string_view next);
+// `routes.list`: each route as `entry_json` says it.
+[[nodiscard]] std::string routes_answer(const Table& table);
+// `docs.search`: the sections found for the words, best first — each its route, anchor, title, the headings it is
+// under, the line that says so and where its page's Markdown is — and how many sections were asked.
+[[nodiscard]] std::string search_answer(std::span<const Section> sections, std::string_view query, std::size_t limit);
+// `page.read` of a route as it was written: what the table says of the route, and the text (`as`: markdown or html).
+[[nodiscard]] std::string page_answer(const Entry& route, std::string_view as, std::string_view text);
+// A route as the operations list it: its address, source, title, language and headings.
+[[nodiscard]] std::string entry_json(const Entry& route);
+
 }  // namespace oweb::shell
